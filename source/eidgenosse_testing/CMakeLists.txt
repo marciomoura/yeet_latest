@@ -4,7 +4,10 @@
 project(eidgenosse_testing CXX)
 
 add_library(${PROJECT_NAME} STATIC)
-add_library(eidgenosse::eidgenosse_testing ALIAS ${PROJECT_NAME})
+add_library(
+  eidgenosse::eidgenosse_testing
+  ALIAS
+  ${PROJECT_NAME})
 
 target_sources(
   ${PROJECT_NAME}
@@ -13,10 +16,16 @@ target_sources(
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC)
+target_link_libraries(
+  ${PROJECT_NAME}
+  PUBLIC
+  PRIVATE nlohmann_json::nlohmann_json)
 
 if(ENABLE_CODE_ANALYSIS)
-  get_target_property(TARGET_SOURCES ${PROJECT_NAME} SOURCES)
+  get_target_property(
+    TARGET_SOURCES
+    ${PROJECT_NAME}
+    SOURCES)
   add_custom_target(
     ${PROJECT_NAME}_cppcheck
     DEPENDS ${PROJECT_NAME}

@@ -58,6 +58,10 @@ else()
   message(STATUS "-- build-config: ⬜ static code analysis not enabled")
 endif()
 
+# Include code analysis components
+message(STATUS "-- build-config: 🟢 searching json package")
+include(json)
+
 # Include third-party libraries
 
 # # Add source-code directories
