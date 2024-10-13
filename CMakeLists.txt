@@ -62,5 +62,6 @@ endif()
 
 # # Add source-code directories
 add_subdirectory(source/eidgenosse)
+add_subdirectory(source/eidgenosse_testing)
 
 # https:// github.com/qpSWIFT/qpSWIFT
