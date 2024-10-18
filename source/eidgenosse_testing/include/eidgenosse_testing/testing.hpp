@@ -43,7 +43,14 @@ private:
 
 class data_sample_post_processing_interface {
 public:
-    virtual void dump(std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> const& data) = 0;
+    virtual void dump(std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> const& data) {
+        // todo
+    }
+
+    virtual void dump(std::string test_suite, std::string test_name,
+                      std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> const& data) {
+        // todo
+    }
 };
 
 class data_sample_terminal_post_processing : public data_sample_post_processing_interface {
@@ -61,9 +68,9 @@ public:
 
 class data_sample_json_post_processing : public data_sample_post_processing_interface {
 public:
-    virtual void dump(std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> const& data_map) {
-        nlohmann::json json_data{};
-
+    void dump(std::string test_suite, std::string test_name,
+              std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> const& data_map) override {
+        nlohmann::json json_test_data = nlohmann::json::array();
         for (auto& [entry, data] : data_map) {
             nlohmann::json data_elements{};
             for (auto& value : data) {
@@ -73,10 +80,17 @@ public:
             nlohmann::json json_entry{};
             json_entry["name"] = entry->get_name();
             json_entry["data"] = data_elements;
-            json_data.push_back(json_entry);
+            json_test_data.push_back(json_entry);
         }
 
-        std::filesystem::path path = std::filesystem::current_path() / "data.json";
+        nlohmann::json json_data{};
+        json_data["test_suite"] = test_suite;
+        json_data["test_name"] = test_name;
+        json_data["test_data"] = json_test_data;
+
+        std::string const filename = "testing_" + test_suite + "_" + test_name + ".json";
+
+        std::filesystem::path const path = std::filesystem::current_path() / filename;
 
         dump_json_to_file(json_data, path);
     }
@@ -138,6 +152,11 @@ public:
         data_sample_post_processing_interface.dump(data_);
     }
 
+    void dump(std::string test_suite, std::string test_name,
+              data_sample_post_processing_interface& data_sample_post_processing_interface) {
+        data_sample_post_processing_interface.dump(test_suite, test_name, data_);
+    }
+
 private:
     std::uint32_t sample_position_{0};
 
@@ -149,6 +168,12 @@ public:
     virtual void run() = 0;
 
     virtual void register_data_sampler_entries(data_sampler& data_sampler) {}
+};
+
+class testing_info_interface {
+public:
+    virtual std::string get_test_suite_name() const = 0;
+    virtual std::string get_test_case_name() const = 0;
 };
 
 class simulator {
@@ -189,9 +214,9 @@ public:
         data_sampler_.dump(terminal);
     }
 
-    void dump_json() {
+    void dump_json(testing_info_interface* testing_info) {
         data_sample_json_post_processing terminal;
-        data_sampler_.dump(terminal);
+        data_sampler_.dump(testing_info->get_test_suite_name(), testing_info->get_test_case_name(), terminal);
     }
 
 private:
