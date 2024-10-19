@@ -191,16 +191,6 @@ public:
         _data_sampler.register_entry(entry);
     }
 
-    static float ticks_to_sampling_rate(std::uint32_t ticks_per_second) {
-        assert(ticks_per_second > 0 && "ticks_per_second must be greater than 0");
-        return 1.0f / static_cast<float>(ticks_per_second);
-    }
-
-    static std::uint32_t sampling_rate_to_ticks(double sampling_rate) {
-        assert(sampling_rate > 0.0 && "sampling_rate must be greater than 0.0");
-        return static_cast<std::uint32_t>(1.0f / sampling_rate);
-    }
-
     // register new cyclic_application
     void register_cyclic_application(std::shared_ptr<cyclic_application_interface> cyclic_application) {
         cyclic_application->register_data_sampler_entries(_data_sampler);
@@ -227,9 +217,9 @@ public:
         allocate_data_sampler_buffer(time);
 
         while (_current_simulation_time_ticks < simulation_end_time_ticks) {
-            run_once(_current_simulation_ticks);
-
             run_data_sampler();
+
+            run_once(_current_simulation_time_ticks);
 
             _current_simulation_time_ticks += 1;
         }
@@ -265,8 +255,6 @@ private:
     }
 
     double _fastest_sampling_rate = std::numeric_limits<double>::max();
-
-    std::size_t _current_simulation_ticks{0};
 
     std::size_t _current_simulation_time_ticks{0};
 

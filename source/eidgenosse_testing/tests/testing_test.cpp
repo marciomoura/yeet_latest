@@ -30,7 +30,7 @@ public:
 
 class application_one_mock : public cyclic_application_interface {
 public:
-    double get_sampling_rate() override { return 25e-6; }
+    double get_sampling_rate() override { return 0.01f; }
 
     void run() override { value += 1.0f; }
 
@@ -43,7 +43,7 @@ public:
 
 class application_two_mock : public cyclic_application_interface {
 public:
-    double get_sampling_rate() override { return 50e-6; }
+    double get_sampling_rate() override { return 0.02f; }
 
     void run() override { value += 2.0f; }
 
@@ -56,7 +56,12 @@ public:
 
 class application_sinusoidal_mock : public cyclic_application_interface {
 public:
-    double get_sampling_rate() override { return 25e-6; }
+    application_sinusoidal_mock() {
+        _sin = std::sin(_angle);
+        _cos = std::cos(_angle);
+    }
+
+    double get_sampling_rate() override { return 100e-6; }
 
     void run() override {
         _sin = std::sin(_angle);
@@ -78,16 +83,14 @@ public:
 };
 
 // // create test
-// TEST_F(simulator_test, register_cyclic_application) {
-//     _simulator->register_cyclic_application(25e-6, std::make_shared<application_one_mock>());
-//     _simulator->register_cyclic_application(50e-6, std::make_shared<application_two_mock>());
-//     _simulator->simulate_for(1.0f);
-//     _simulator->simulate_for(1.0f);
-// }
+TEST_F(simulator_test, register_cyclic_application) {
+    _simulator->register_cyclic_application(std::make_shared<application_one_mock>());
+    _simulator->register_cyclic_application(std::make_shared<application_two_mock>());
+    _simulator->simulate_for(0.25f);
+    _simulator->simulate_for(0.25f);
+}
 
 TEST_F(simulator_test, sin_cos_simulation) {
     _simulator->register_cyclic_application(std::make_shared<application_sinusoidal_mock>());
-    _simulator->simulate_for(1.0f);
-    _simulator->simulate_for(1.0f);
-    _simulator->simulate_for(1.0f);
+    _simulator->simulate_for(0.2f);
 }
