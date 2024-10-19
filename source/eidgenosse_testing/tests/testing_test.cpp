@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 class gtest_testing_info : public testing_info_interface {
 public:
     gtest_testing_info(const ::testing::UnitTest* unit_test) : _unit_test(unit_test) {}
@@ -82,6 +84,89 @@ public:
     float _cos = 0.0f;
 };
 
+class integrator {
+public:
+    integrator(double sampling_time) : _sampling_time(sampling_time) {}
+
+    double run(double input) { return _integral += input * _sampling_time; }
+
+    double get_sampling_time() const { return _sampling_time; }
+
+    double get_output() const { return _integral; }
+
+private:
+    double _integral{};
+    double _sampling_time{};
+};
+
+class low_pass_filter {
+public:
+    low_pass_filter(double sampling_time, double time_constant) : _sampling_time(sampling_time) {
+        set_time_constant(time_constant);
+    }
+
+    void set_time_constant(double time_constant) {
+        _time_constant = time_constant;
+        _alpha = 1.0f - std::exp(-_sampling_time / time_constant);
+    }
+
+    double run(double input) { return _output = _output + _alpha * (input - _output); }
+
+    double get_output() const { return _output; }
+
+private:
+    double _sampling_time{};
+    double _output{};
+    double _time_constant{};
+    double _alpha{};
+};
+
+class pi_controller {
+public:
+    pi_controller(double sampling_time, double kp, double ki) : _kp(kp), _ki(ki), _integrator(sampling_time) {}
+
+    double run(double error) { return _output = _ki * _integrator.run(error) + _kp * error; }
+
+    double get_output() const { return _output; }
+
+private:
+    double _kp{1.0f};
+    double _ki{1.0f};
+    double _output{};
+    integrator _integrator;
+};
+
+class application_closed_control_loop : public cyclic_application_interface {
+public:
+    static constexpr double sample_time = 100e-6;
+
+    double get_sampling_rate() override { return sample_time; }
+
+    void set_reference(double reference) { _reference = reference; }
+
+    void run() override {
+        double error = _reference - _plant.get_output();
+        double control_output = _controller.run(error);
+        double sensor_output = _sensor.run(control_output);
+        _plant.run(sensor_output);
+    }
+
+    void register_data_sampler_entries(data_sampler& data_sampler) override {
+        data_sampler.register_entry(data_sampler_entry("reference", [this]() { return _reference; }));
+        data_sampler.register_entry(data_sampler_entry("plant output", [this]() { return _plant.get_output(); }));
+        data_sampler.register_entry(data_sampler_entry("error", [this]() { return _reference - _plant.get_output(); }));
+        data_sampler.register_entry(data_sampler_entry("sensor", [this]() { return _sensor.get_output(); }));
+        data_sampler.register_entry(
+            data_sampler_entry("controller output", [this]() { return _controller.get_output(); }));
+    }
+
+private:
+    double _reference{};
+    pi_controller _controller{sample_time, 10.0f, 100.0f};
+    integrator _plant{sample_time};
+    low_pass_filter _sensor{sample_time, 0.01f};
+};
+
 // // create test
 TEST_F(simulator_test, register_cyclic_application) {
     _simulator->register_cyclic_application(std::make_shared<application_one_mock>());
@@ -93,4 +178,19 @@ TEST_F(simulator_test, register_cyclic_application) {
 TEST_F(simulator_test, sin_cos_simulation) {
     _simulator->register_cyclic_application(std::make_shared<application_sinusoidal_mock>());
     _simulator->simulate_for(0.2f);
+}
+
+TEST_F(simulator_test, closed_loop_simulation) {
+    std::shared_ptr<application_closed_control_loop> application = std::make_shared<application_closed_control_loop>();
+
+    _simulator->register_cyclic_application(application);
+
+    application->set_reference(0.0f);
+    _simulator->simulate_for(0.1f);
+
+    application->set_reference(1.0f);
+    _simulator->simulate_for(4.0f);
+
+    application->set_reference(0.0f);
+    _simulator->simulate_for(4.0f);
 }

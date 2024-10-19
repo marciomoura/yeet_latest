@@ -6,7 +6,7 @@ import glob
 import webbrowser
 
 
-def main(input_path, output_path):
+def create_plot(input_path, output_path):
     with open(input_path, "r") as file:
         data = json.load(file)
 
@@ -54,17 +54,48 @@ if __name__ == "__main__":
     parser.add_argument(
         "output_dir", type=str, help="Path to save the output HTML file."
     )
+    # add a parsing argument to move the html and json files to a new directory
+    parser.add_argument(
+        "--move",
+        type=str,
+        help="Path to move the input JSON and output HTML files.",
+    )
     args = parser.parse_args()
 
     input_files = glob.glob(os.path.join(args.input_dir, "testing_*.json"))
 
+    # For every input testing file that is found, create a plot
     for input_file in input_files:
         output_file = os.path.join(
             args.output_dir, os.path.basename(input_file).replace(".json", ".html")
         )
 
-        print(f"Processing input file: {input_file}...")
-        main(input_file, output_file)
-        print(f"Writing output file: {output_file}...")
+        # Create a plot found in the input file json structure
+        # Export the plotly plot to the output file
+        create_plot(input_file, output_file)
 
-        webbrowser.open(output_file)
+        # If requested to move the files, then move them from the working directory to the destination
+        if args.move:
+            # If folder to move all files does not exist, then create it
+            if not os.path.exists(args.move):
+                os.makedirs(args.move)
+
+            dst_input_file: str = os.path.join(args.move, os.path.basename(input_file))
+            dst_output_file: str = os.path.join(
+                args.move, os.path.basename(output_file)
+            )
+
+            # If files exists, then remove them
+            if os.path.exists(dst_input_file):
+                os.remove(dst_input_file)
+
+            if os.path.exists(dst_output_file):
+                os.remove(dst_output_file)
+
+            # Rename from source to destination
+            os.rename(input_file, dst_input_file)
+            os.rename(output_file, dst_output_file)
+
+            # Open the output file in the browser
+            print(f"Opening: {dst_output_file}...")
+            webbrowser.open(dst_output_file)

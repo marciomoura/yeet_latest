@@ -4,10 +4,13 @@
         {
             "label": "Eidgenosse testing tests executable",
             "type": "shell",
-            "command": "${workspaceFolder}/build/bin/eidgenosse_testing_tests.exe",
+            "command": "./eidgenosse_testing_tests.exe",
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/bin/"
             },
             "problemMatcher": [],
             "detail": "Runs the executable"
@@ -19,7 +22,8 @@
             "args": [
                 "${workspaceFolder}/source/eidgenosse_testing/tools/plot_sampler_data.py",
                 "${workspaceFolder}/build/bin/",
-                "${workspaceFolder}/build/bin/"
+                "${workspaceFolder}/build/bin/",
+                "--move=${workspaceFolder}/build/bin/testing_outputs/"
             ],
             "dependsOn": "Eidgenosse testing tests executable",
             "problemMatcher": [],
