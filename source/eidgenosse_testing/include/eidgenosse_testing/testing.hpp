@@ -7,6 +7,7 @@
 #ifndef EIDGENOSSE_TESTING_TEST
 #define EIDGENOSSE_TESTING_TEST
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
@@ -25,20 +26,20 @@ class data_sampler_entry {
 public:
     data_sampler_entry() = default;
     data_sampler_entry(std::string name, std::function<float()> sample_function)
-        : name_(name), sample_function_(sample_function) {}
+        : _name(name), _sample_function(sample_function) {}
 
     float sample() {
-        if (!sample_function_) {
+        if (!_sample_function) {
             return 0.0f;
         }
-        return sample_function_();
+        return _sample_function();
     }
 
-    std::string get_name() const { return name_; }
+    std::string get_name() const { return _name; }
 
 private:
-    std::string name_{};
-    std::function<float()> sample_function_{};
+    std::string _name{};
+    std::function<float()> _sample_function{};
 };
 
 class data_sample_post_processing_interface {
@@ -102,7 +103,7 @@ private:
             if (!file.is_open()) {
                 throw std::ios_base::failure("Unable to open file");
             }
-            file << json_data.dump(4);
+            file << json_data.dump();
             file.close();
         } catch (const std::ios_base::failure& e) {
             std::cerr << "File operation failed: " << e.what() << std::endl;
@@ -131,40 +132,46 @@ private:
 class data_sampler {
 public:
     void register_entry(data_sampler_entry entry) {
-        data_[std::make_unique<data_sampler_entry>(entry)] = std::vector<float>();
+        _data[std::make_unique<data_sampler_entry>(entry)] = std::vector<float>();
     }
 
     void allocate(std::size_t size) {
-        for (auto& [entry, data] : data_) {
+        for (auto& [entry, data] : _data) {
             data.resize(data.size() + size);
         }
     }
 
     void sample() {
-        for (auto& [entry, data] : data_) {
-            data[sample_position_] = entry->sample();
+        for (auto& [entry, data] : _data) {
+            if (_sample_position >= data.size()) {
+                std::cout << "Sample position exceeds data size" << std::endl;
+            } else {
+                data[_sample_position] = entry->sample();
+            }
         }
 
-        sample_position_++;
+        _sample_position++;
     }
 
     void dump(data_sample_post_processing_interface& data_sample_post_processing_interface) {
-        data_sample_post_processing_interface.dump(data_);
+        data_sample_post_processing_interface.dump(_data);
     }
 
     void dump(std::string test_suite, std::string test_name,
               data_sample_post_processing_interface& data_sample_post_processing_interface) {
-        data_sample_post_processing_interface.dump(test_suite, test_name, data_);
+        data_sample_post_processing_interface.dump(test_suite, test_name, _data);
     }
 
 private:
-    std::uint32_t sample_position_{0};
+    std::uint32_t _sample_position{0};
 
-    std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> data_{};
+    std::map<std::unique_ptr<data_sampler_entry>, std::vector<float>> _data{};
 };
 
 class cyclic_application_interface {
 public:
+    virtual double get_sampling_rate() = 0;
+
     virtual void run() = 0;
 
     virtual void register_data_sampler_entries(data_sampler& data_sampler) {}
@@ -179,71 +186,95 @@ public:
 class simulator {
 public:
     simulator() {
-        data_sampler_entry entry("time", [&]() { return current_simulation_time_; });
+        data_sampler_entry entry("time", [&]() { return _current_simulation_time_ticks * _fastest_sampling_rate; });
 
-        data_sampler_.register_entry(entry);
+        _data_sampler.register_entry(entry);
+    }
+
+    static float ticks_to_sampling_rate(std::uint32_t ticks_per_second) {
+        assert(ticks_per_second > 0 && "ticks_per_second must be greater than 0");
+        return 1.0f / static_cast<float>(ticks_per_second);
+    }
+
+    static std::uint32_t sampling_rate_to_ticks(double sampling_rate) {
+        assert(sampling_rate > 0.0 && "sampling_rate must be greater than 0.0");
+        return static_cast<std::uint32_t>(1.0f / sampling_rate);
     }
 
     // register new cyclic_application
-    void register_cyclic_application(std::uint32_t ticks_per_second,
-                                     std::shared_ptr<cyclic_application_interface> cyclic_application) {
-        cyclic_application->register_data_sampler_entries(data_sampler_);
-        cyclic_applications_[ticks_per_second] = cyclic_application;
+    void register_cyclic_application(std::shared_ptr<cyclic_application_interface> cyclic_application) {
+        cyclic_application->register_data_sampler_entries(_data_sampler);
 
-        // tick_sampling_rate_ = 1.0f / static_cast<float>(ticks_per_second);
+        _fastest_sampling_rate = std::min(_fastest_sampling_rate, cyclic_application->get_sampling_rate());
+
+        _cyclic_applications_vector.push_back(cyclic_application);
     }
 
-    void simulate_for(float time) {
-        assert(tick_sampling_rate_ > 0.0f && "tick_sampling_rate_ must be greater than 0.0f");
+    void simulate_for(double time) {
+        assert(_fastest_sampling_rate < std::numeric_limits<float>::max() && "No cyclic applications registered");
+        assert(_fastest_sampling_rate > 0.0f && "tick_sampling_rate_ must be greater than 0.0f");
 
-        float const simulation_end_time = current_simulation_time_ + time;
+        _cyclic_applications = {};
+
+        for (auto& cyclic_application : _cyclic_applications_vector) {
+            const std::size_t normalized_ticks = cyclic_application->get_sampling_rate() / _fastest_sampling_rate;
+
+            _cyclic_applications[normalized_ticks] = cyclic_application;
+        }
+
+        std::size_t const simulation_end_time_ticks = _current_simulation_time_ticks + convert_time_to_ticks(time);
 
         allocate_data_sampler_buffer(time);
 
-        while (current_simulation_time_ < simulation_end_time) {
-            current_simulation_ticks_ += 1;
-            current_simulation_time_ = current_simulation_ticks_ * tick_sampling_rate_;
+        while (_current_simulation_time_ticks < simulation_end_time_ticks) {
+            run_once(_current_simulation_ticks);
 
-            run_once(current_simulation_ticks_);
             run_data_sampler();
+
+            _current_simulation_time_ticks += 1;
         }
     }
 
     void dump() {
         data_sample_terminal_post_processing terminal;
-        data_sampler_.dump(terminal);
+        _data_sampler.dump(terminal);
     }
 
     void dump_json(testing_info_interface* testing_info) {
         data_sample_json_post_processing terminal;
-        data_sampler_.dump(testing_info->get_test_suite_name(), testing_info->get_test_case_name(), terminal);
+        _data_sampler.dump(testing_info->get_test_suite_name(), testing_info->get_test_case_name(), terminal);
     }
 
 private:
-    void allocate_data_sampler_buffer(float time) {
-        std::size_t const buffer_size = static_cast<std::size_t>(time / tick_sampling_rate_);
-        data_sampler_.allocate(buffer_size);
+    void allocate_data_sampler_buffer(double time) {
+        std::size_t const buffer_size = convert_time_to_ticks(time);
+
+        _data_sampler.allocate(buffer_size);
     }
 
-    void run_data_sampler() { data_sampler_.sample(); }
+    std::size_t convert_time_to_ticks(double time) { return static_cast<std::size_t>(time / _fastest_sampling_rate); }
 
-    void run_once(std::size_t ticks) {
-        for (auto& [id, cyclic_application] : cyclic_applications_) {
-            if (ticks % id == 0) {
+    void run_data_sampler() { _data_sampler.sample(); }
+
+    void run_once(std::size_t current_simulation_ticks) {
+        for (auto& [normalized_ticks, cyclic_application] : _cyclic_applications) {
+            if (current_simulation_ticks % normalized_ticks == 0) {
                 cyclic_application->run();
             }
         }
     }
 
-    float tick_sampling_rate_{0.1f};  // this needs to be configured - another class just to handle this?
+    double _fastest_sampling_rate = std::numeric_limits<double>::max();
 
-    std::size_t current_simulation_ticks_{0};
+    std::size_t _current_simulation_ticks{0};
 
-    float current_simulation_time_{0};
+    std::size_t _current_simulation_time_ticks{0};
 
-    data_sampler data_sampler_;
+    data_sampler _data_sampler;
 
-    std::map<std::size_t, std::shared_ptr<cyclic_application_interface>> cyclic_applications_;
+    std::vector<std::shared_ptr<cyclic_application_interface>> _cyclic_applications_vector{};
+
+    std::map<std::size_t, std::shared_ptr<cyclic_application_interface>> _cyclic_applications{};
 };
 
 #endif  // EIDGENOSSE_TESTING_TEST

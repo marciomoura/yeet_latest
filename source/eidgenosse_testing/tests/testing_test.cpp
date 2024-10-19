@@ -16,10 +16,7 @@ private:
 // Create test fixture
 class simulator_test : public ::testing::Test {
 public:
-    void SetUp() override {
-        // Create simulator
-        _simulator = std::make_unique<simulator>();
-    }
+    void SetUp() override { _simulator = std::make_unique<simulator>(); }
 
     void TearDown() override {
         gtest_testing_info gtest_info(::testing::UnitTest::GetInstance());
@@ -33,6 +30,8 @@ public:
 
 class application_one_mock : public cyclic_application_interface {
 public:
+    double get_sampling_rate() override { return 25e-6; }
+
     void run() override { value += 1.0f; }
 
     void register_data_sampler_entries(data_sampler& data_sampler) override {
@@ -44,6 +43,8 @@ public:
 
 class application_two_mock : public cyclic_application_interface {
 public:
+    double get_sampling_rate() override { return 50e-6; }
+
     void run() override { value += 2.0f; }
 
     void register_data_sampler_entries(data_sampler& data_sampler) override {
@@ -53,27 +54,40 @@ public:
     float value = 0.0f;
 };
 
+class application_sinusoidal_mock : public cyclic_application_interface {
+public:
+    double get_sampling_rate() override { return 25e-6; }
+
+    void run() override {
+        _sin = std::sin(_angle);
+        _cos = std::cos(_angle);
+        _angle += _angle_increment;
+    }
+
+    void register_data_sampler_entries(data_sampler& data_sampler) override {
+        data_sampler.register_entry(data_sampler_entry("sin", [this]() { return _sin; }));
+        data_sampler.register_entry(data_sampler_entry("cos", [this]() { return _cos; }));
+    }
+
+    static constexpr float pi = 3.14159265358979323846;
+    static constexpr float ts = 25e-6;
+    float _angle_increment = 10.0f * 2.0f * pi * ts;
+    float _angle = 0.0f;
+    float _sin = 0.0f;
+    float _cos = 0.0f;
+};
+
 // // create test
-TEST_F(simulator_test, register_cyclic_application_1) {
-    // get the gtest test name
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << std::endl;
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name() << std::endl;
+// TEST_F(simulator_test, register_cyclic_application) {
+//     _simulator->register_cyclic_application(25e-6, std::make_shared<application_one_mock>());
+//     _simulator->register_cyclic_application(50e-6, std::make_shared<application_two_mock>());
+//     _simulator->simulate_for(1.0f);
+//     _simulator->simulate_for(1.0f);
+// }
 
-    _simulator->register_cyclic_application(1, std::make_shared<application_one_mock>());
-    _simulator->register_cyclic_application(2, std::make_shared<application_two_mock>());
+TEST_F(simulator_test, sin_cos_simulation) {
+    _simulator->register_cyclic_application(std::make_shared<application_sinusoidal_mock>());
     _simulator->simulate_for(1.0f);
-    _simulator->simulate_for(1.0f);
-}
-
-TEST_F(simulator_test, register_cyclic_application_2) {
-    // get the gtest test name
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << std::endl;
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name() << std::endl;
-
-    _simulator->register_cyclic_application(1, std::make_shared<application_one_mock>());
-    _simulator->register_cyclic_application(2, std::make_shared<application_two_mock>());
     _simulator->simulate_for(1.0f);
     _simulator->simulate_for(1.0f);
 }
