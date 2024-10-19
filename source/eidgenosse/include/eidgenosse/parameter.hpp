@@ -20,18 +20,22 @@ public:
     parameter() = default;
     ~parameter() = default;
 
-    low_level_access get_low_level_access() { return low_level_access(value_); }
+    low_level_access get_low_level_access() { return low_level_access(_value); }
 
     void set_metadata() {}
 
     void get_metadata() {}
 
-    T read() const noexcept { return value_; }
+    T read() const noexcept { return _value; }
 
-    void write(T value) noexcept { value_ = value; }
+    operator T() const noexcept { return read(); }
+
+    T operator=(T value) noexcept { return _value = value; }
+
+    void write(T value) noexcept { _value = value; }
 
 private:
-    storage_type<T> value_{};
+    storage_type<T> _value{};
 };
 
 #endif  // EIDGENOSSE_PARAMETER_HPP

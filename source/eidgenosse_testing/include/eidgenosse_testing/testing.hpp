@@ -209,7 +209,7 @@ public:
         for (auto& cyclic_application : _cyclic_applications_vector) {
             const std::size_t normalized_ticks = cyclic_application->get_sampling_rate() / _fastest_sampling_rate;
 
-            _cyclic_applications[normalized_ticks] = cyclic_application;
+            _cyclic_applications[normalized_ticks].push_back(cyclic_application);
         }
 
         std::size_t const simulation_end_time_ticks = _current_simulation_time_ticks + convert_time_to_ticks(time);
@@ -247,9 +247,11 @@ private:
     void run_data_sampler() { _data_sampler.sample(); }
 
     void run_once(std::size_t current_simulation_ticks) {
-        for (auto& [normalized_ticks, cyclic_application] : _cyclic_applications) {
+        for (auto& [normalized_ticks, application_list] : _cyclic_applications) {
             if (current_simulation_ticks % normalized_ticks == 0) {
-                cyclic_application->run();
+                for (auto& n : application_list) {
+                    n->run();
+                }
             }
         }
     }
@@ -262,7 +264,7 @@ private:
 
     std::vector<std::shared_ptr<cyclic_application_interface>> _cyclic_applications_vector{};
 
-    std::map<std::size_t, std::shared_ptr<cyclic_application_interface>> _cyclic_applications{};
+    std::map<std::size_t, std::vector<std::shared_ptr<cyclic_application_interface>>> _cyclic_applications{};
 };
 
 #endif  // EIDGENOSSE_TESTING_TEST

@@ -4,6 +4,10 @@
 
 #include <cmath>
 
+#include "eidgenosse/parameter.hpp"
+#include "eidgenosse/signal_input.hpp"
+#include "eidgenosse/signal_output.hpp"
+
 class gtest_testing_info : public testing_info_interface {
 public:
     gtest_testing_info(const ::testing::UnitTest* unit_test) : _unit_test(unit_test) {}
@@ -167,7 +171,73 @@ private:
     low_pass_filter _sensor{sample_time, 0.01f};
 };
 
-// // create test
+class controller_application : public cyclic_application_interface {
+public:
+    static constexpr double sample_time = 100e-6;
+
+    double get_sampling_rate() override { return sample_time; }
+
+    void set_controller_gains(double kp, double ki) { _controller = pi_controller(sample_time, kp, ki); }
+
+    void set_reference(double reference) { _reference = reference; }
+
+    void run() override { _output = _controller.run(_reference - _measurement); }
+
+    void register_data_sampler_entries(data_sampler& data_sampler) override {
+        data_sampler.register_entry(data_sampler_entry("reference", [this]() { return _reference; }));
+        data_sampler.register_entry(data_sampler_entry("controller output", [this]() { return _output; }));
+    }
+
+    signal_output<double> _output;
+
+    signal_input<double> _measurement;
+
+    parameter<double> _reference;
+
+private:
+    pi_controller _controller{sample_time, 10.0f, 100.0f};
+};
+
+class measurement_model_application : public cyclic_application_interface {
+public:
+    static constexpr double sample_time = 100e-6;
+
+    double get_sampling_rate() override { return sample_time; }
+
+    void run() override { _output = _filter.run(_input); }
+
+    void register_data_sampler_entries(data_sampler& data_sampler) override {
+        data_sampler.register_entry(data_sampler_entry("measurement output", [this]() { return _output; }));
+    }
+
+    signal_output<double> _output;
+
+    signal_input<double> _input;
+
+private:
+    low_pass_filter _filter{sample_time, 0.01f};
+};
+
+class plant_model_application : public cyclic_application_interface {
+public:
+    static constexpr double sample_time = 100e-6;
+
+    double get_sampling_rate() override { return sample_time; }
+
+    void run() override { _output = _integrator.run(_input); }
+
+    void register_data_sampler_entries(data_sampler& data_sampler) override {
+        data_sampler.register_entry(data_sampler_entry("plant model output", [this]() { return _output; }));
+    }
+
+    signal_output<double> _output;
+
+    signal_input<double> _input;
+
+private:
+    integrator _integrator{sample_time};
+};
+
 TEST_F(simulator_test, register_cyclic_application) {
     _simulator->register_cyclic_application(std::make_shared<application_one_mock>());
     _simulator->register_cyclic_application(std::make_shared<application_two_mock>());
@@ -193,4 +263,33 @@ TEST_F(simulator_test, closed_loop_simulation) {
 
     application->set_reference(0.0f);
     _simulator->simulate_for(4.0f);
+}
+
+TEST_F(simulator_test, controller_application) {
+    std::shared_ptr<controller_application> controller = std::make_shared<controller_application>();
+    std::shared_ptr<measurement_model_application> measurement_model =
+        std::make_shared<measurement_model_application>();
+    std::shared_ptr<plant_model_application> plant_model = std::make_shared<plant_model_application>();
+
+    _simulator->register_cyclic_application(controller);
+    _simulator->register_cyclic_application(measurement_model);
+    _simulator->register_cyclic_application(plant_model);
+
+    measurement_model->_output.connect(plant_model->_input);
+    controller->_output.connect(measurement_model->_input);
+    plant_model->_output.connect(controller->_measurement);
+
+    controller->set_controller_gains(10.0f, 20.0f);
+
+    controller->set_reference(0.0f);
+
+    _simulator->simulate_for(0.1f);
+
+    controller->set_reference(1.0f);
+
+    _simulator->simulate_for(1.0f);
+
+    controller->set_reference(0.0f);
+
+    _simulator->simulate_for(1.0f);
 }
