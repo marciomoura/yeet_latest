@@ -31,6 +31,13 @@ option(BUILD_TESTING "Build the testing tree." ON)
 option(ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
 option(ENABLE_CCACHE "Enable ccache" ON)
 
+# Check if Ninja is being used as the generator
+if (CMAKE_GENERATOR STREQUAL "Ninja")
+  message(STATUS "-- build-config: ✅ using Ninja generator")
+else ()
+  message(STATUS "-- build-config: ⬜ using ${CMAKE_GENERATOR} generator")
+endif()
+
 # Include compile options
 include(compile_options)
 
