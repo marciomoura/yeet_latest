@@ -2,6 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Initialize Python venv",
+            "type": "shell",
+            "command": "python -m venv ${workspaceFolder}/build/venv; ${workspaceFolder}\\build\\venv\\bin\\Activate.ps1; $env:PIP_INDEX_URL='https://pypi.org/simple'; python -m pip install -r ${workspaceFolder}\\python_requirements.txt",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
             "label": "Eidgenosse testing tests executable",
             "type": "shell",
             "command": "./eidgenosse_testing_tests.exe",
@@ -18,14 +36,16 @@
         {
             "label": "Eidgenosse testing tests task",
             "type": "shell",
-            "command": "python",
+            "command": "${workspaceFolder}\\build\\venv\\bin\\python.exe",
             "args": [
                 "${workspaceFolder}/source/eidgenosse_testing/tools/plot_sampler_data.py",
                 "${workspaceFolder}/build/bin/",
                 "${workspaceFolder}/build/bin/",
                 "--move=${workspaceFolder}/build/bin/testing_outputs/"
             ],
-            "dependsOn": "Eidgenosse testing tests executable",
+            "dependsOn": [
+                "Eidgenosse testing tests executable"
+            ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"
         }
