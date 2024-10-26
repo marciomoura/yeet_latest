@@ -1,38 +1,42 @@
-# README 
+# README
 
-# Tool requirements:
+## Tool Requirements
 
-## Clangd:
-1. Install the extension using vscode (https://github.com/clangd/vscode-clangd);
-2. Under preferences add `--query-driver=C:\msys64\mingw64\**\*` to enable clangd to parse the system headers;
+### Clangd
+1. Install the extension using [VSCode](https://github.com/clangd/vscode-clangd).
+2. Under preferences, add `--query-driver=C:\msys64\mingw64\**\*` to enable Clangd to parse the system headers.
 
-## Clang-tidy:
-1. Install clang-tidy (https://clang.llvm.org/extra/clang-tidy/)
+### Clang-tidy
+1. Install [Clang-tidy](https://clang.llvm.org/extra/clang-tidy/).
 
-## CppCheck:
-1. Install cppcheck and add it to the environmental path (e.g. C:\Program Files\Cppcheck)
+### CppCheck
+1. Install CppCheck and add it to the environmental path (e.g., `C:\Program Files\Cppcheck`).
 
-# MSYS2
+## MSYS2
 
-To compile the software, the following packages can be downloaded through MSYS2:
+To compile the software, download the following packages through MSYS2:
 
+```sh
 pacman -S mingw-w64-x86_64-clang
-pacman -S mingw-w64-x86_64-gdb 
-pacman -S mingw-w64-x86_64-cmake 
+pacman -S mingw-w64-x86_64-gdb
+pacman -S mingw-w64-x86_64-cmake
 pacman -S mingw-w64-x86_64-ccache
+```
 
-You can add the respective paths to your local environment (for Windows development):
+Add the respective paths to your local environment (for Windows development):
+
+```sh
 C:\msys64\usr\bin
 C:\msys64\mingw64\bin
+```
 
+## Python Virtual Environment
 
-# Python Virtual Environment
+1. Install Python.
+2. In Windows, change the script policy to allow running scripts:
 
-First, install python
+```sh
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
 
-In windows you will need to change the script policy scripts to run on
-
- Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-
-Then run the following task (in vscode through ctrl + shift + p): run task `Initialize Python env`
-
+3. Run the following task in VSCode (Ctrl + Shift + P): `Initialize Python env`.
