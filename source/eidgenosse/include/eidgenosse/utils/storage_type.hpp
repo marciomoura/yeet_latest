@@ -18,36 +18,47 @@ class storage_type {
 public:
     static_assert(!std::is_void_v<T>, "T must not be void");
 
-    storage_type() : value_(std::make_shared<T>()) {}
-    storage_type(std::shared_ptr<T> value) : value_(value) {}
+    storage_type() : _value(std::make_shared<T>()) {}
+    storage_type(std::shared_ptr<T> value) : _value(value) {}
     ~storage_type() = default;
 
-    operator T() const noexcept {
-        assert(value_ != nullptr);
-        return *value_;
+    operator T() const {
+        assert(_value != nullptr);
+        return *_value;
     }
 
-    operator T&() noexcept {
-        assert(value_ != nullptr);
-        return *value_;
+    operator T&() {
+        assert(_value != nullptr);
+        return *_value;
     }
 
-    T& operator=(const T& value) noexcept {
-        assert(value_ != nullptr);
-        return *value_ = value;
+    T& operator=(const T& value) {
+        assert(_value != nullptr);
+        return *_value = value;
     }
 
-    T& operator=(T&& value) noexcept {
-        assert(value_ != nullptr);
-        return *value_ = std::move(value);
+    T& operator=(T&& value) {
+        assert(_value != nullptr);
+        return *_value = std::move(value);
     }
 
-    bool empty() const noexcept { return value_ == nullptr; }
+    void connect(storage_type<T>& storage) {
+        assert(_value != nullptr);
+        _value = storage.get_internal_storage();
+    }
 
-    std::shared_ptr<T> get_internal_storage() const noexcept { return value_; }
+    template <typename U>
+    void connect(storage_type<U>& storage) {
+        assert(_value != nullptr);
+        _value = storage.get_internal_storage();
+    }
+
+    bool empty() const { return _value == nullptr; }
+
+    std::shared_ptr<T> get_internal_storage() const { return _value; }
 
 private:
-    std::shared_ptr<T> value_;
+    std::shared_ptr<T> _value;
 };
 
 class storage_type_erased {
@@ -57,23 +68,23 @@ public:
     template <typename T>
     storage_type_erased(storage_type<T> storage) {
         static_assert(!std::is_void_v<T>, "T must not be void");
-        std::shared_ptr<void> value_casted_as_void = std::static_pointer_cast<void>(storage.get_internal_storage());
-        value_ = value_casted_as_void;
+        std::shared_ptr<void> _value_casted_as_voi = std::static_pointer_cast<void>(storage.get_internal_storage());
+        _value = _value_casted_as_voi;
     }
 
-    bool empty() const noexcept { return value_.expired(); }
+    bool empty() const { return _value.expired(); }
 
     template <typename T>
-    storage_type<T> get_internal_storage() const noexcept {
+    storage_type<T> get_internal_storage() const {
         if (empty()) {
             return storage_type<T>();
         }
 
-        return storage_type<T>(std::static_pointer_cast<T>(value_.lock()));
+        return storage_type<T>(std::static_pointer_cast<T>(_value.lock()));
     }
 
 private:
-    std::weak_ptr<void> value_{};
+    std::weak_ptr<void> _value{};
 };
 
 #endif  // EIDGENOSSE_UTILS_STORAGE_TYPE_HPP

@@ -12,8 +12,7 @@ add_library(
 target_sources(
   ${PROJECT_NAME}
   PUBLIC include/eidgenosse/parameter.hpp
-         include/eidgenosse/signal_output.hpp
-         include/eidgenosse/signal_input.hpp
+         include/eidgenosse/signal.hpp
   PRIVATE src/parameter.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

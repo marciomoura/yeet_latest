@@ -5,8 +5,7 @@
 #include <cmath>
 
 #include "eidgenosse/parameter.hpp"
-#include "eidgenosse/signal_input.hpp"
-#include "eidgenosse/signal_output.hpp"
+#include "eidgenosse/signal.hpp"
 
 class gtest_testing_info : public testing_info_interface {
 public:
@@ -275,9 +274,9 @@ TEST_F(simulator_test, controller_application) {
     _simulator->register_cyclic_application(measurement_model);
     _simulator->register_cyclic_application(plant_model);
 
-    measurement_model->_output.connect(plant_model->_input);
-    controller->_output.connect(measurement_model->_input);
-    plant_model->_output.connect(controller->_measurement);
+    signals_connector::connect_output_to_input(measurement_model->_output, plant_model->_input);
+    signals_connector::connect_output_to_input(controller->_output, measurement_model->_input);
+    signals_connector::connect_output_to_input(plant_model->_output, controller->_measurement);
 
     controller->set_controller_gains(10.0f, 20.0f);
 
