@@ -1,0 +1,37 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Print Runner Information
+        run: |
+          echo "Runner Name: $RUNNER_NAME"
+          echo "Runner OS: $RUNNER_OS"
+          echo "Runner OS Version: $RUNNER_OS_VERSION"
+          echo "Runner Architecture: $RUNNER_ARCH"
+          echo "Job Name: $GITHUB_JOB"
+          echo "Workflow: $GITHUB_WORKFLOW"
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Branch: $GITHUB_REF"
+          echo "Commit: $GITHUB_SHA"
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure CMake project
+        run: |
+          cmake -G Ninja -B build
+
+      - name: Build targets
+        run: |
+          cmake --build build --target eidgenosse_test
+          cmake --build build --target eidgenosse_testing_tests
+
+      - name: Run tests
+        run: |
+          ./build/bin/eidgenosse_test
+          ./build/bin/eidgenosse_testing_tests
