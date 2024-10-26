@@ -1,0 +1,11 @@
+---
+BasedOnStyle: Google
+IndentWidth: 4
+---
+Language: Cpp
+AccessModifierOffset: -4
+ColumnLimit: 120
+PointerAlignment: Left
+BreakBeforeBraces: Custom
+AlignConsecutiveMacros: true
+AllowShortFunctionsOnASingleLine: true

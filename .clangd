@@ -1,0 +1,10 @@
+# https://clangd.llvm.org/guides/system-headers
+
+CompileFlags:
+    CompilationDatabase: build
+
+Index:
+    Background: Build
+
+Hover:
+    ShowAKA: Yes

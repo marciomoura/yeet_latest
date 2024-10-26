@@ -1,0 +1,32 @@
+{
+    // Disable intellisense engine
+    "C_Cpp.intelliSenseEngine": "disabled",
+    // Vscode editor settings
+    "editor.inlayHints.enabled": "on",
+    "editor.minimap.enabled": false,
+    "editor.formatOnSave": true,
+    // Doxygen Settings
+    "doxdocgen.c.triggerSequence": "/**",
+    "doxdocgen.file.copyrightTag": [
+        "@copyright Techperts AG."
+    ],
+    "doxdocgen.generic.dateFormat": "MM-DD-YYYY",
+    "doxdocgen.generic.dateTemplate": "@date {date}",
+    "doxdocgen.file.fileOrder": [
+        "custom",
+        "copyright",
+        "date",
+        "brief"
+    ],
+    // Language settings
+    "clangd.arguments": [
+        "--query-driver=C:\\msys64\\mingw64\\**\\*"
+    ],
+    "cmake.configureOnOpen": false,
+    "[cpp]": {
+        "editor.formatOnSave": true
+    },
+    "[cmake]": {
+        "editor.defaultFormatter": "cheshirekow.cmake-format"
+    },
+}
