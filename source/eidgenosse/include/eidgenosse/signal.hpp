@@ -42,7 +42,7 @@ protected:
 private:
     friend class signals_connector;
 
-    storage_type<T> _value{};
+    storage_type<T> _value{std::make_shared<T>()};
 };
 
 template <typename T>
@@ -50,8 +50,6 @@ class signal_input {
 public:
     signal_input() = default;
     ~signal_input() = default;
-
-    low_level_access get_low_level_access() { return low_level_access(_value); }
 
     void set_metadata() {}
 
@@ -64,6 +62,8 @@ public:
     operator T() const noexcept { return read(); }
 
     void connect(storage_type<T>& storage) { _value.connect(storage); }
+
+    bool empty() const { return _value.empty(); }
 
 private:
     storage_type<const T> _value{};

@@ -8,6 +8,7 @@ enable_testing()
 target_sources(${PROJECT_NAME} PRIVATE 
     parameter_test.cpp
     signal_test.cpp
+    utils/low_level_access_test.cpp 
 ) 
 
 target_link_libraries(${PROJECT_NAME} PRIVATE gtest::gtest_main eidgenosse::eidgenosse)

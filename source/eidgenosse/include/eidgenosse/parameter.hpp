@@ -35,7 +35,7 @@ public:
     void write(T value) noexcept { _value = value; }
 
 private:
-    storage_type<T> _value{};
+    storage_type<T> _value{std::make_shared<T>()};
 };
 
 #endif  // EIDGENOSSE_PARAMETER_HPP
