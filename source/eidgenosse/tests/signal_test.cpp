@@ -8,9 +8,6 @@
 #include <limits>
 #include <type_traits>
 
-using fundamental_types = ::testing::Types<std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
-                                           std::uint16_t, std::uint32_t, std::uint64_t, float, double>;
-
 template <typename T>
 class signal_input_test : public ::testing::Test {
 public:
@@ -20,7 +17,7 @@ public:
 
     T get_testing_value() {
         if constexpr (std::is_same_v<T, bool>) {
-            return true;
+            return (static_cast<std::uint32_t>(get_rand_bounded_to_int8()) % 2) ? true : false;
         } else {
             return static_cast<T>(get_rand_bounded_to_int8());
         }
@@ -32,6 +29,9 @@ public:
 };
 
 // Instantiate the test case with the types
+using fundamental_types = ::testing::Types<std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
+                                           std::uint16_t, std::uint32_t, std::uint64_t, float, double>;
+
 TYPED_TEST_SUITE(signal_input_test, fundamental_types);
 
 TYPED_TEST(signal_input_test, connect_write_and_read) {
@@ -57,6 +57,30 @@ TYPED_TEST(signal_input_test, connect_write_and_read) {
             EXPECT_EQ(this->signal_output.read(), test_value);
             EXPECT_EQ(this->signal_input.read(), test_value);
         }
+    }
+}
+
+TYPED_TEST(signal_input_test, assignment_operator) {
+    const TypeParam test_value = this->get_testing_value();
+
+    this->signal_output = test_value;
+
+    if (std::is_floating_point_v<TypeParam>) {
+        EXPECT_FLOAT_EQ(this->signal_output.read(), test_value);
+    } else {
+        EXPECT_EQ(this->signal_output.read(), test_value);
+    }
+}
+
+TYPED_TEST(signal_input_test, conversion_operator) {
+    const TypeParam test_value = this->get_testing_value();
+
+    this->signal_output.write(test_value);
+
+    if (std::is_floating_point_v<TypeParam>) {
+        EXPECT_FLOAT_EQ(static_cast<TypeParam>(this->signal_output), test_value);
+    } else {
+        EXPECT_EQ(static_cast<TypeParam>(this->signal_output), test_value);
     }
 }
 
