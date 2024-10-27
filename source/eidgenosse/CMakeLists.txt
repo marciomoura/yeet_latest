@@ -11,14 +11,15 @@ add_library(
 
 target_sources(
   ${PROJECT_NAME}
-  PUBLIC include/eidgenosse/application_interface.hpp
-         include/eidgenosse/model_registry.hpp
-         include/eidgenosse/parameter.hpp
-         include/eidgenosse/signal.hpp
-         include/eidgenosse/utils/low_level_access.hpp
-         include/eidgenosse/utils/low_level_access_registry.hpp
-         include/eidgenosse/utils/metadata.hpp
-         include/eidgenosse/utils/storage_type.hpp
+  PUBLIC
+  include/eidgenosse/application_interface.hpp
+  include/eidgenosse/model_registry.hpp
+  include/eidgenosse/parameter.hpp
+  include/eidgenosse/signal.hpp
+  include/eidgenosse/utils/low_level_access.hpp
+  include/eidgenosse/utils/low_level_access_registry.hpp
+  include/eidgenosse/utils/metadata.hpp
+  include/eidgenosse/utils/storage_type.hpp
   PRIVATE src/parameter.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

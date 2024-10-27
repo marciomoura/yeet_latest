@@ -5,13 +5,14 @@ add_executable(eidgenosse::tests ALIAS ${PROJECT_NAME})
 
 enable_testing()
 
-target_sources(${PROJECT_NAME} PRIVATE 
+target_sources(${PROJECT_NAME} PRIVATE
+    application_interface_test.cpp
     parameter_test.cpp
     signal_test.cpp
-    utils/low_level_access_test.cpp 
-) 
+    utils/low_level_access_test.cpp
+)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE gtest::gtest_main eidgenosse::eidgenosse)
+target_link_libraries(${PROJECT_NAME} PRIVATE gtest::gtest_main gtest::gtest gtest::gmock eidgenosse::eidgenosse)
 
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME})

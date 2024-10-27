@@ -82,15 +82,19 @@ class signal_registry {
 public:
     signal_registry() = default;
     ~signal_registry() = default;
-    signal_registry(const signal_registry&) = delete;
-    signal_registry& operator=(const signal_registry&) = delete;
-    signal_registry(signal_registry&&) = default;
-    signal_registry& operator=(signal_registry&&) = default;
+    // signal_registry(const signal_registry&) = delete;
+    // signal_registry& operator=(const signal_registry&) = delete;
+    // signal_registry(signal_registry&&) = default;
+    // signal_registry& operator=(signal_registry&&) = default;
 
     template <typename T>
     void insert(const std::string& name, signal_output<T>& signal) {
         _registry.insert(name, signal.get_low_level_access());
     }
+
+    bool empty() { return _registry.empty(); }
+
+    void clear() { _registry.clear(); }
 
     std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
 

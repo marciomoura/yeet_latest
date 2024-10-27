@@ -11,10 +11,13 @@ class low_level_access_registry {
 public:
     low_level_access_registry() = default;
     ~low_level_access_registry() = default;
-    low_level_access_registry(const low_level_access_registry&) = delete;
-    low_level_access_registry& operator=(const low_level_access_registry&) = delete;
-    low_level_access_registry(low_level_access_registry&&) = default;
-    low_level_access_registry& operator=(low_level_access_registry&&) = default;
+    // low_level_access_registry(const low_level_access_registry&) = delete;
+    // low_level_access_registry& operator=(const low_level_access_registry&) = delete;
+    // low_level_access_registry(low_level_access_registry&&) = default;
+    // low_level_access_registry& operator=(low_level_access_registry&&) = default;
+    bool empty() const { return _registry_map.empty(); }
+
+    void clear() { _registry_map.clear(); }
 
     void insert(const std::string& name, low_level_access llaccess) {
         if (_registry_map.find(name) != _registry_map.end()) {

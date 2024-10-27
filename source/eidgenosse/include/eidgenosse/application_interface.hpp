@@ -8,14 +8,20 @@ class application_interface {
 public:
     virtual ~application_interface() = default;
 
+    // Virtual method to initialize the application
+    virtual void initialize() = 0;
+
     // Virtual method to run the application
     virtual void run() = 0;
 
+    // Virtual method to stop the application
+    virtual void stop() = 0;
+
     // Interface to return the signal registry
-    virtual signal_registry&& get_signal_registry() = 0;
+    virtual signal_registry get_signal_registry() = 0;
 
     // Interface to return the parameter registry
-    virtual parameter_registry&& get_parameter_registry() = 0;
+    virtual parameter_registry get_parameter_registry() = 0;
 };
 
 #endif  // EIDGENOSSE_APPLICATION_INTERFACE_HPP

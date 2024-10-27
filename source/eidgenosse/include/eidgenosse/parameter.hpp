@@ -42,15 +42,15 @@ class parameter_registry {
 public:
     parameter_registry() = default;
     ~parameter_registry() = default;
-    parameter_registry(const parameter_registry&) = delete;
-    parameter_registry& operator=(const parameter_registry&) = delete;
-    parameter_registry(parameter_registry&&) = default;
-    parameter_registry& operator=(parameter_registry&&) = default;
 
     template <typename T>
     void insert(const std::string& name, parameter<T>& parameter) {
         _registry.insert(name, parameter.get_low_level_access());
     }
+
+    bool empty() { return _registry.empty(); }
+
+    void clear() { _registry.clear(); }
 
     std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
 
