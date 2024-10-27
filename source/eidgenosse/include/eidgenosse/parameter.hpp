@@ -9,9 +9,9 @@
 
 #include <cassert>
 #include <memory>
-#include <type_traits>
 
 #include "utils/low_level_access.hpp"
+#include "utils/low_level_access_registry.hpp"
 #include "utils/storage_type.hpp"
 
 template <typename T>
@@ -36,6 +36,26 @@ public:
 
 private:
     storage_type<T> _value{std::make_shared<T>()};
+};
+
+class parameter_registry {
+public:
+    parameter_registry() = default;
+    ~parameter_registry() = default;
+    parameter_registry(const parameter_registry&) = delete;
+    parameter_registry& operator=(const parameter_registry&) = delete;
+    parameter_registry(parameter_registry&&) = default;
+    parameter_registry& operator=(parameter_registry&&) = default;
+
+    template <typename T>
+    void insert(const std::string& name, parameter<T>& parameter) {
+        _registry.insert(name, parameter.get_low_level_access());
+    }
+
+    std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
+
+private:
+    low_level_access_registry _registry{};
 };
 
 #endif  // EIDGENOSSE_PARAMETER_HPP
