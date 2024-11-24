@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Print Runner Information
@@ -22,10 +22,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set up CMake and Ninja
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang
+
       - name: Configure CMake project
         run: |
-          cmake -G Ninja -B build
-
+          cmake -G Ninja -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+        
       - name: Build targets
         run: |
           cmake --build build --target eidgenosse_test
