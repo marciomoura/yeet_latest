@@ -13,6 +13,7 @@ target_sources(
   ${PROJECT_NAME}
   PUBLIC
   include/eidgenosse/application_interface.hpp
+  include/eidgenosse/application_registry.hpp
   include/eidgenosse/model_registry.hpp
   include/eidgenosse/parameter.hpp
   include/eidgenosse/signal.hpp
