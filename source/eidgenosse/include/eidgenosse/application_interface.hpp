@@ -16,9 +16,19 @@ public:
 
     // Virtual method to stop the application
     virtual void stop() = 0;
+};
+
+class signal_registry_interface {
+public:
+    virtual ~signal_registry_interface() = default;
 
     // Interface to return the signal registry
     virtual signal_registry get_signal_registry() = 0;
+};
+
+class parameter_registry_interface {
+public:
+    virtual ~parameter_registry_interface() = default;
 
     // Interface to return the parameter registry
     virtual parameter_registry get_parameter_registry() = 0;
