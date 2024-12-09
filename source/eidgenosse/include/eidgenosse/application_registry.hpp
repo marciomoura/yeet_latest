@@ -12,17 +12,19 @@ class control_execution_policy {
 public:
     static constexpr double tick_base_rate = 1e-6;
 
-    control_execution_policy() = default;
-    control_execution_policy(double execution_rate) : _execution_rate(execution_rate) {}
+    constexpr control_execution_policy() = default;
+    constexpr control_execution_policy(double execution_rate) : _sampling_rate(execution_rate) {}
 
-    double get_tick_base_rate() const { return tick_base_rate; }
+    constexpr double get_tick_base_rate() const { return tick_base_rate; }
 
-    std::size_t get_execution_ticks() const { return static_cast<std::size_t>(_execution_rate / tick_base_rate); }
+    constexpr std::size_t get_execution_ticks() const {
+        return static_cast<std::size_t>(_sampling_rate / tick_base_rate);
+    }
 
-    std::size_t get_execution_rate() const { return _execution_rate; }
+    constexpr double get_sampling_rate() const { return _sampling_rate; }
 
 private:
-    double _execution_rate{0.0};
+    double _sampling_rate{0.0};
 };
 
 class application_registry {
@@ -132,6 +134,8 @@ public:
             level.insert(application);
             _control_task_list.push_back(level);
         }
+
+        sort_by_ascending_control_cycle();
     }
 
     void clear() { _control_task_list.clear(); }
@@ -143,11 +147,30 @@ public:
     control_task_level get_control_task_level(std::size_t index) const { return _control_task_list[index]; }
 
 private:
+    void sort_by_ascending_control_cycle() {
+        std::sort(_control_task_list.begin(), _control_task_list.end(),
+                  [](const control_task_level& a, const control_task_level& b) {
+                      return a.get_control_execution_policy().get_execution_ticks() <
+                             b.get_control_execution_policy().get_execution_ticks();
+                  });
+    }
+
     std::vector<control_task_level> _control_task_list{};
 };
 
 // control-task executor for testing platform
 // control-task executor for embedded platforms
 // the same thing i've employed in the testing... bring it up to this level -> simulator may use it.
+
+// write an example that instantiates 2 applications, defines the connection in between things, register it in the
+// "scheduler" and then have it tested
+
+// maybe quickly define how the product should instantiate the set of applications to be tested?
+// define a collection of applications that can be combined into a certain "application"
+// a product may be a combination of multiple applications:
+// [state-machine, monitoring, io logics] <-> [actual control algorithm]
+// these things may be interchanged
+// I think the interconnection of these algorithms can allow certain interesting feature-enabling stuff for the product
+// and then we define how to re-utilize these guys beucase they only need to privde the missing interfaces
 
 #endif  // EIDGENOSSE_APPLICATION_REGISTRY_HPP

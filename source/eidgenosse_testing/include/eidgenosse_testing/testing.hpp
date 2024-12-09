@@ -1,9 +1,3 @@
-/**
- * @copyright Techperts AG.
- * @date 10-12-2024
- * @brief
- */
-
 #ifndef EIDGENOSSE_TESTING_TEST
 #define EIDGENOSSE_TESTING_TEST
 

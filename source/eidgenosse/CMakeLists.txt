@@ -21,11 +21,16 @@ target_sources(
   include/eidgenosse/utils/low_level_access_registry.hpp
   include/eidgenosse/utils/metadata.hpp
   include/eidgenosse/utils/storage_type.hpp
+  include/eidgenosse/testing/testing.hpp
   PRIVATE src/parameter.cpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                  ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC)
+target_link_libraries(
+  ${PROJECT_NAME}
+  PUBLIC
+  nlohmann_json::nlohmann_json)
 
 if(ENABLE_CODE_ANALYSIS)
   get_target_property(
@@ -41,5 +46,6 @@ if(ENABLE_CODE_ANALYSIS)
 endif()
 
 if(BUILD_TESTING)
+  add_subdirectory(examples)
   add_subdirectory(tests)
 endif()
