@@ -20,9 +20,9 @@
             }
         },
         {
-            "label": "Eidgenosse testing tests executable",
+            "label": "Eidgenosse unit-tests",
             "type": "shell",
-            "command": "./eidgenosse_testing_tests.exe",
+            "command": "./eidgenosse_test.exe",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -34,17 +34,17 @@
             "detail": "Runs the executable"
         },
         {
-            "label": "Eidgenosse testing tests task",
+            "label": "Eidgenosse unit-tests with plotting",
             "type": "shell",
             "command": "${workspaceFolder}\\build\\venv\\bin\\python.exe",
             "args": [
-                "${workspaceFolder}/source/eidgenosse_testing/tools/plot_sampler_data.py",
+                "${workspaceFolder}/source/eidgenosse/tools/plot_sampler_data.py",
                 "${workspaceFolder}/build/bin/",
                 "${workspaceFolder}/build/bin/",
                 "--move=${workspaceFolder}/build/bin/testing_outputs/"
             ],
             "dependsOn": [
-                "Eidgenosse testing tests executable"
+                "Eidgenosse unit-tests"
             ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"
