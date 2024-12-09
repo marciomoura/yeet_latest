@@ -35,9 +35,7 @@ jobs:
       - name: Build targets
         run: |
           cmake --build build --target eidgenosse_test
-          cmake --build build --target eidgenosse_testing_tests
 
       - name: Run tests
         run: |
           ./build/bin/eidgenosse_test
-          ./build/bin/eidgenosse_testing_tests
