@@ -87,4 +87,4 @@ message(STATUS "-- build-config: 🟢 searching json package")
 include(json)
 
 # Add source-code directories
-add_subdirectory(source/eidgenosse)
+add_subdirectory(software/eidgenosse)
