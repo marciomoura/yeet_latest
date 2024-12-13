@@ -69,9 +69,5 @@ endif()
 message(STATUS "-- build-config: 🟢 searching json package")
 include(json)
 
-# Include third-party libraries
-
 # Add source-code directories
 add_subdirectory(source/eidgenosse)
-
-# https:// github.com/qpSWIFT/qpSWIFT
