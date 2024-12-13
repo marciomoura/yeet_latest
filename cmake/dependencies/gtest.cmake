@@ -1,6 +1,6 @@
 # Description: Fetch the google-test framework (https://github.com/google/googletest)
 
-message(STATUS "-- build-config: 🟢 searching googletest package for ${CMAKE_SYSTEM_NAME}")
+message(STATUS "-- eidgenosse build-config: 🟢 searching googletest package for ${CMAKE_SYSTEM_NAME}")
 
 include(FetchContent)
 FetchContent_Declare(

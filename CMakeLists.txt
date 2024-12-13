@@ -53,37 +53,37 @@ endif()
 
 # Check if Ninja is being used as the generator
 if (CMAKE_GENERATOR STREQUAL "Ninja")
-  message(STATUS "-- build-config: ✅ using Ninja generator")
+  message(STATUS "-- eidgenosse build-config: ✅ using Ninja generator")
 else ()
-  message(STATUS "-- build-config: ⬜ using ${CMAKE_GENERATOR} generator")
+  message(STATUS "-- eidgenosse build-config: ⬜ using ${CMAKE_GENERATOR} generator")
 endif()
 
 # Include test components
 if(EIDGENOSSE_BUILD_TESTING)
-  message(STATUS "-- build-config: ✅ enabled build testing")
+  message(STATUS "-- eidgenosse build-config: ✅ enabled build testing")
   include(gtest)
 else()
-  message(STATUS "-- build-config: ⬜ build testing not enabled")
+  message(STATUS "-- eidgenosse build-config: ⬜ build testing not enabled")
 endif()
 
 # Include ccache
 if(EIDGENOSSE_ENABLE_CCACHE)
-  message(STATUS "-- build-config: ✅ enabled ccache")
+  message(STATUS "-- eidgenosse build-config: ✅ enabled ccache")
   include(ccache)
 else()
-  message(STATUS "-- build-config: ⬜ ccache not enabled")
+  message(STATUS "-- eidgenosse build-config: ⬜ ccache not enabled")
 endif()
 
 # Include code analysis components
 if(EIDGENOSSE_ENABLE_CODE_ANALYSIS)
-  message(STATUS "-- build-config: ✅ enabled static code analysis")
+  message(STATUS "-- eidgenosse build-config: ✅ enabled static code analysis")
   include(cppcheck)
 else()
-  message(STATUS "-- build-config: ⬜ static code analysis not enabled")
+  message(STATUS "-- eidgenosse build-config: ⬜ static code analysis not enabled")
 endif()
 
 # Include code analysis components
-message(STATUS "-- build-config: 🟢 searching json package")
+message(STATUS "-- eidgenosse build-config: 🟢 searching json package")
 include(json)
 
 # Add source-code directories
