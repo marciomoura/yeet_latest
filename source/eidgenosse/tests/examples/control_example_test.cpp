@@ -4,11 +4,13 @@
 
 #include "eidgenosse/parameter.hpp"
 #include "eidgenosse/signal.hpp"
-#include "eidgenosse/testing/testing.hpp"
+#include "eidgenosse/utils/low_level_access.hpp"
 
 //
 #include "../examples/control_integration.hpp"
-#include "eidgenosse/utils/low_level_access.hpp"
+#include "eidgenosse/testing/control_task_simulator_runner.hpp"
+#include "eidgenosse/testing/simulator.hpp"
+
 
 class gtest_testing_info : public testing_info_interface {
 public:
