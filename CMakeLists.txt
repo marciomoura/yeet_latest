@@ -23,13 +23,13 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies)
 
 # Project configuration options
-set(CODE_COVERAGE OFF CACHE BOOL "Enable code coverage" FORCE)
-set(SANITIZE OFF CACHE BOOL "Enable clang-sanitizer instrumented builds" FORCE)
-set(MEMCHECK OFF CACHE BOOL "Enable memcheck instrumented builds" FORCE)
-set(STATIC_LINKAGE OFF CACHE BOOL "Compile with static linkage" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "Build the testing tree." FORCE)
-set(ENABLE_CODE_ANALYSIS OFF CACHE BOOL "Run code analysis" FORCE)
-set(ENABLE_CCACHE ON CACHE BOOL "Enable ccache" FORCE)
+option(CODE_COVERAGE "Enable code coverage" OFF)
+option(SANITIZE "Enable clang-sanitizer instrumented builds" OFF)
+option(MEMCHECK "Enable memcheck instrumented builds" OFF)
+option(STATIC_LINKAGE "Compile with static linkage" OFF)
+option(BUILD_TESTING "Build the testing tree." OFF)
+option(ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
+option(ENABLE_CCACHE "Enable ccache" ON)
 
 # Check if Ninja is being used as the generator
 if (CMAKE_GENERATOR STREQUAL "Ninja")
