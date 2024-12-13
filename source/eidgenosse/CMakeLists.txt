@@ -43,7 +43,7 @@ target_link_libraries(
   PUBLIC
   nlohmann_json::nlohmann_json)
 
-if(ENABLE_CODE_ANALYSIS)
+if(EIDGENOSSE_ENABLE_CODE_ANALYSIS)
   get_target_property(
     TARGET_SOURCES
     ${PROJECT_NAME}
@@ -56,7 +56,7 @@ if(ENABLE_CODE_ANALYSIS)
     COMMENT "Static code analysis using cppcheck")
 endif()
 
-if(BUILD_TESTING)
+if(EIDGENOSSE_BUILD_TESTING)
   add_subdirectory(examples)
   add_subdirectory(tests)
 endif()

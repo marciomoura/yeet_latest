@@ -23,32 +23,32 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies)
 
 # Project configuration options
-if(NOT DEFINED CODE_COVERAGE)
-  option(CODE_COVERAGE "Enable code coverage" OFF)
+if(NOT DEFINED EIDGENOSSE_CODE_COVERAGE)
+  option(EIDGENOSSE_CODE_COVERAGE "Enable code coverage" OFF)
 endif()
 
-if(NOT DEFINED SANITIZE)
-  option(SANITIZE "Enable clang-sanitizer instrumented builds" OFF)
+if(NOT DEFINED EIDGENOSSE_SANITIZE)
+  option(EIDGENOSSE_SANITIZE "Enable clang-sanitizer instrumented builds" OFF)
 endif()
 
-if(NOT DEFINED MEMCHECK)
-  option(MEMCHECK "Enable memcheck instrumented builds" OFF)
+if(NOT DEFINED EIDGENOSSE_MEMCHECK)
+  option(EIDGENOSSE_MEMCHECK "Enable memcheck instrumented builds" OFF)
 endif()
 
-if(NOT DEFINED STATIC_LINKAGE)
-  option(STATIC_LINKAGE "Compile with static linkage" OFF)
+if(NOT DEFINED EIDGENOSSE_STATIC_LINKAGE)
+  option(EIDGENOSSE_STATIC_LINKAGE "Compile with static linkage" OFF)
 endif()
 
-if(NOT DEFINED BUILD_TESTING)
-  option(BUILD_TESTING "Build the testing tree." OFF)
+if(NOT DEFINED EIDGENOSSE_BUILD_TESTING)
+  option(EIDGENOSSE_BUILD_TESTING "Build the testing tree." OFF)
 endif()
 
-if(NOT DEFINED ENABLE_CODE_ANALYSIS)
-  option(ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
+if(NOT DEFINED EIDGENOSSE_ENABLE_CODE_ANALYSIS)
+  option(EIDGENOSSE_ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
 endif()
 
-if(NOT DEFINED ENABLE_CCACHE)
-  option(ENABLE_CCACHE "Enable ccache" ON)
+if(NOT DEFINED EIDGENOSSE_ENABLE_CCACHE)
+  option(EIDGENOSSE_ENABLE_CCACHE "Enable ccache" ON)
 endif()
 
 # Check if Ninja is being used as the generator
@@ -59,7 +59,7 @@ else ()
 endif()
 
 # Include test components
-if(BUILD_TESTING)
+if(EIDGENOSSE_BUILD_TESTING)
   message(STATUS "-- build-config: ✅ enabled build testing")
   include(gtest)
 else()
@@ -67,7 +67,7 @@ else()
 endif()
 
 # Include ccache
-if(ENABLE_CCACHE)
+if(EIDGENOSSE_ENABLE_CCACHE)
   message(STATUS "-- build-config: ✅ enabled ccache")
   include(ccache)
 else()
@@ -75,7 +75,7 @@ else()
 endif()
 
 # Include code analysis components
-if(ENABLE_CODE_ANALYSIS)
+if(EIDGENOSSE_ENABLE_CODE_ANALYSIS)
   message(STATUS "-- build-config: ✅ enabled static code analysis")
   include(cppcheck)
 else()
