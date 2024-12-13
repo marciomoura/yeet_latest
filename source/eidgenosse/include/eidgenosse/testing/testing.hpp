@@ -216,10 +216,7 @@ public:
 
     void register_data_sampler_entry(data_sampler_entry entry) { _data_sampler.register_entry(entry); }
 
-    void simulate_for(double time) {
-        assert(_fastest_sampling_rate < std::numeric_limits<float>::max() && "No cyclic applications registered");
-        assert(_fastest_sampling_rate > 0.0f && "tick_sampling_rate_ must be greater than 0.0f");
-
+    void register_applications() {
         _simulator_applications = {};
 
         for (auto& cyclic_application : _simulator_applications_vector) {
@@ -227,6 +224,19 @@ public:
 
             _simulator_applications[normalized_ticks].push_back(cyclic_application);
         }
+    }
+
+    void initialize() {
+        for (auto& [normalized_ticks, application_list] : _simulator_applications) {
+            for (auto& n : application_list) {
+                n->initialize();
+            }
+        }
+    }
+
+    void simulate_for(double time) {
+        assert(_fastest_sampling_rate < std::numeric_limits<float>::max() && "No cyclic applications registered");
+        assert(_fastest_sampling_rate > 0.0f && "tick_sampling_rate_ must be greater than 0.0f");
 
         std::size_t const simulation_end_time_ticks = _current_simulation_time_ticks + convert_time_to_ticks(time);
 

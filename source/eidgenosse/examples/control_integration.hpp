@@ -9,6 +9,9 @@
 #include "eidgenosse/parameter.hpp"
 #include "eidgenosse/signal.hpp"
 
+//
+#include "eidgenosse/model_registry.hpp"
+
 class integrator {
 public:
     integrator(double sampling_time) : _sampling_time(sampling_time) {}
@@ -77,7 +80,7 @@ public:
     };
 
     struct outputs {
-        signal_output<double> control_output;
+        signal_output<double> output;
     };
 
     control_application_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
@@ -89,10 +92,21 @@ public:
 
     // get the registry entries?
     // connect signals...
-
+    // maybe define `register_data_model` as static function?
     inputs* model_inputs{};
     outputs* model_outputs{};
     parameters* model_parameters{};
+
+    void register_data_model(model_registry& registry) {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameter_registry.insert("kp", model_parameters->kp);
+        entry.parameter_registry.insert("ki", model_parameters->ki);
+        entry.parameter_registry.insert("reference", model_parameters->reference);
+        entry.signal_registry.insert("output", model_outputs->output);
+
+        registry.insert("control", std::move(entry));
+    }
 
 private:
 };
@@ -106,8 +120,10 @@ public:
     datamodel get_datamodel() { return datamodel{&_inputs, &_outputs, &_parameters}; }
 
     void initialize() override {
-        _controller.set_ki(_parameters.ki);
-        _controller.set_kp(_parameters.kp);
+        _parameters.ki.register_callback([this]() { _controller.set_ki(_parameters.ki); });
+        _parameters.kp.register_callback([this]() { _controller.set_kp(_parameters.kp); });
+        _parameters.ki = 10.0f;
+        _parameters.kp = 10.0f;
     }
 
     void run() override {
@@ -115,7 +131,7 @@ public:
 
         _controller.run(error);
 
-        _outputs.control_output = _controller.get_output();
+        _outputs.output = _controller.get_output();
     }
 
     void stop() override {}
@@ -156,6 +172,15 @@ public:
     outputs* model_outputs{};
     parameters* model_parameters{};
 
+    void register_data_model(model_registry& registry) {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameter_registry.insert("ti", model_parameters->ti);
+        entry.signal_registry.insert("outputs", model_outputs->plant_output);
+
+        registry.insert("plant", std::move(entry));
+    }
+
 private:
 };
 
@@ -167,7 +192,10 @@ public:
 
     datamodel get_datamodel() { return datamodel{&_inputs, &_outputs, &_parameters}; }
 
-    void initialize() override { _plant_model.set_time_constant(_parameters.ti); }
+    void initialize() override {
+        _parameters.ti.register_callback([this]() { _plant_model.set_time_constant(_parameters.ti); });
+        _parameters.ti = 1.0f;
+    }
 
     void run() override {
         _plant_model.run(_inputs.input);
@@ -212,7 +240,7 @@ private:
         signals_connector::connect_output_to_input(plant_datamodel.model_outputs->plant_output,
                                                    control_datamodel.model_inputs->measurement);
 
-        signals_connector::connect_output_to_input(control_datamodel.model_outputs->control_output,
+        signals_connector::connect_output_to_input(control_datamodel.model_outputs->output,
                                                    plant_datamodel.model_inputs->input);
     }
 

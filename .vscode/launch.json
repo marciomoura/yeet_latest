@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) eidgenosse testint unittest",
+            "name": "(gdb) eidgenosse unittests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/eidgenosse_testing_tests.exe",
+            "program": "${workspaceFolder}/build/bin/eidgenosse_test.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

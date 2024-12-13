@@ -1,6 +1,7 @@
 #ifndef EIDGENOSSE_MODEL_REGISTRY_HPP
 #define EIDGENOSSE_MODEL_REGISTRY_HPP
 
+#include <functional>
 #include <map>
 #include <string>
 
@@ -53,8 +54,22 @@ public:
         return it->second.parameter_registry.get(name);
     }
 
+    void iterate_map_entries(
+        std::function<void(const std::string& group, const std::string& name, const low_level_access& llaccess)> func)
+        const {
+        for (auto& [group, entry] : _registry_map) {
+            for (auto it = entry.signal_registry.cbegin(); it != entry.signal_registry.cend(); ++it) {
+                func(group, it->first, it->second);
+            }
+
+            for (auto it = entry.parameter_registry.cbegin(); it != entry.parameter_registry.cend(); ++it) {
+                func(group, it->first, it->second);
+            }
+        }
+    }
+
 private:
     std::map<std::string, model_registry_entry> _registry_map{};
 };
 
-#endif  // EIDGENOSSE_MODEL_REGISTRY_HPP
+#endif  // EIDGENOSSE_MODEL_REGISTRY_HP

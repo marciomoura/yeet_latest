@@ -8,6 +8,7 @@
 #define EIDGENOSSE_UTILS_STORAGE_TYPE_HPP
 
 #include <cassert>
+#include <functional>
 #include <memory>
 #include <type_traits>
 

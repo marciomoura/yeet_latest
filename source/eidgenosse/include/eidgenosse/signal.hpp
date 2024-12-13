@@ -9,7 +9,6 @@
 
 #include <cassert>
 #include <memory>
-#include <type_traits>
 
 #include "utils/low_level_access.hpp"
 #include "utils/low_level_access_registry.hpp"
@@ -97,6 +96,12 @@ public:
     void clear() { _registry.clear(); }
 
     std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
+
+    auto begin() { return _registry.begin(); }
+    auto end() { return _registry.end(); }
+
+    auto cbegin() const { return _registry.cbegin(); }
+    auto cend() const { return _registry.cend(); }
 
 private:
     low_level_access_registry _registry{};

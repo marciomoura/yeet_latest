@@ -8,6 +8,7 @@
 #define EIDGENOSSE_PARAMETER_HPP
 
 #include <cassert>
+#include <functional>
 #include <memory>
 
 #include "utils/low_level_access.hpp"
@@ -30,11 +31,24 @@ public:
 
     operator T() const noexcept { return read(); }
 
-    T operator=(T value) noexcept { return _value = value; }
+    T operator=(T value) noexcept {
+        write(value);
+        return _value;
+    }
 
-    void write(T value) noexcept { _value = value; }
+    void write(T value) noexcept {
+        _value = value;
+
+        if (_callback) {
+            _callback();
+        }
+    }
+
+    void register_callback(std::function<void(void)> callback) { _callback = callback; }
 
 private:
+    std::function<void(void)> _callback{};
+
     storage_type<T> _value{std::make_shared<T>()};
 };
 
@@ -53,6 +67,12 @@ public:
     void clear() { _registry.clear(); }
 
     std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
+
+    auto begin() { return _registry.begin(); }
+    auto end() { return _registry.end(); }
+
+    auto cbegin() const { return _registry.cbegin(); }
+    auto cend() const { return _registry.cend(); }
 
 private:
     low_level_access_registry _registry{};

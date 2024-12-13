@@ -8,6 +8,7 @@
 
 //
 #include "../examples/control_integration.hpp"
+#include "eidgenosse/utils/low_level_access.hpp"
 
 class gtest_testing_info : public testing_info_interface {
 public:
@@ -32,6 +33,9 @@ public:
             _simulator->register_cyclic_application(control_task_simulator);
         }
 
+        // this can be improved
+        _simulator->register_applications();
+
         // this is something to take care of in a better way
         register_data_sampler();
     }
@@ -44,20 +48,25 @@ public:
         _simulator.reset();
     }
 
+    void initialize() { _simulator->initialize(); }
     void simulate_for(double time) { _simulator->simulate_for(time); }
 
     void register_data_sampler() {
         auto control_model_application = _example.get_control_application_datamodel();
         auto plant_model_application = _example.get_plant_model_application_datamodel();
 
-        _simulator->register_data_sampler_entry(data_sampler_entry{
-            "control output", [=]() { return control_model_application.model_outputs->control_output.read(); }});
+        // register data model
+        control_model_application.register_data_model(_model);
+        plant_model_application.register_data_model(_model);
 
-        _simulator->register_data_sampler_entry(data_sampler_entry{
-            "plant output", [=]() { return plant_model_application.model_outputs->plant_output.read(); }});
-
-        _simulator->register_data_sampler_entry(data_sampler_entry{
-            "control reference", [=]() { return control_model_application.model_parameters->reference.read(); }});
+        _model.iterate_map_entries(
+            [this](const std::string& group, const std::string& name, const low_level_access& access) {
+                low_level_access::sampler_accessor const accessor = access.get_sampler_accessor();
+                if (accessor.read) {
+                    _simulator->register_data_sampler_entry(
+                        data_sampler_entry{group + " " + name, [accessor]() { return accessor.read(); }});
+                }
+            });
     }
 
     void set_reference(float reference) {
@@ -66,15 +75,64 @@ public:
         control_model_application.model_parameters->reference.write(reference);
     }
 
+    auto plant_parameters() {
+        auto plant_model_application = _example.get_plant_model_application_datamodel();
+
+        return plant_model_application.model_parameters;
+    }
+
+    auto control_parameters() {
+        auto control_model_application = _example.get_control_application_datamodel();
+
+        return control_model_application.model_parameters;
+    }
+
+    model_registry _model;
+
     closed_loop_example _example;
 
     std::unique_ptr<simulator> _simulator;
 };
 
-TEST_F(simulator_test, closed_loop_simulation) {
+TEST_F(simulator_test, closed_loop_simulation_a) {
+    initialize();
+
     set_reference(0.5f);
     simulate_for(1.0f);
 
     set_reference(1.0f);
     simulate_for(1.0f);
+}
+
+TEST_F(simulator_test, closed_loop_simulation_b) {
+    auto plant = plant_parameters();
+    auto control = control_parameters();
+
+    initialize();
+
+    set_reference(0.5f);
+    simulate_for(1.0f);
+
+    plant->ti = 0.5f;
+    control->kp = 40.0f;
+
+    set_reference(1.0f);
+    simulate_for(1.0f);
+}
+
+TEST_F(simulator_test, closed_loop_simulation_c) {
+    auto plant = plant_parameters();
+    auto control = control_parameters();
+
+    initialize();
+
+    set_reference(0.5f);
+    simulate_for(2.0f);
+
+    plant->ti = 1.5f;
+    control->kp = 20.0f;
+    control->ki = 200.0f;
+
+    set_reference(1.0f);
+    simulate_for(2.0f);
 }

@@ -1,6 +1,7 @@
 #ifndef EIDGENOSSE_UTILS_LOW_LEVEL_ACCESS_REGISTRY_HPP
 #define EIDGENOSSE_UTILS_LOW_LEVEL_ACCESS_REGISTRY_HPP
 
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -38,6 +39,12 @@ public:
 
         return _registry_map.at(name);
     }
+
+    auto begin() { return _registry_map.begin(); }
+    auto end() { return _registry_map.end(); }
+
+    auto cbegin() const { return _registry_map.cbegin(); }
+    auto cend() const { return _registry_map.cend(); }
 
 private:
     std::map<std::string, low_level_access> _registry_map{};
