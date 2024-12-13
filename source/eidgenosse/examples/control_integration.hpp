@@ -5,12 +5,14 @@
 #include <cmath>
 
 #include "eidgenosse/application_interface.hpp"
-#include "eidgenosse/application_registry.hpp"
 #include "eidgenosse/parameter.hpp"
 #include "eidgenosse/signal.hpp"
 
 //
+#include "eidgenosse/control_task_level.hpp"
+#include "eidgenosse/control_task_level_registry.hpp"
 #include "eidgenosse/model_registry.hpp"
+
 
 class integrator {
 public:

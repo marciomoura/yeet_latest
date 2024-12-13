@@ -1,7 +1,7 @@
 #ifndef EIDGENOSSE_TESTING_CONTROL_TASK_SIMULATOR_RUNNER_HPP
 #define EIDGENOSSE_TESTING_CONTROL_TASK_SIMULATOR_RUNNER_HPP
 
-#include "eidgenosse/application_registry.hpp"
+#include "eidgenosse/control_task_level.hpp"
 #include "eidgenosse/testing/simulator_runner_application_interface.hpp"
 
 class control_task_simulator_runner : public simulator_runner_application_interface {

@@ -2,15 +2,11 @@
 
 #include <cmath>
 
-#include "eidgenosse/parameter.hpp"
-#include "eidgenosse/signal.hpp"
-#include "eidgenosse/utils/low_level_access.hpp"
-
-//
-#include "../examples/control_integration.hpp"
 #include "eidgenosse/testing/control_task_simulator_runner.hpp"
 #include "eidgenosse/testing/simulator.hpp"
 
+//
+#include "../examples/control_integration.hpp"
 
 class gtest_testing_info : public testing_info_interface {
 public:

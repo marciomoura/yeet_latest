@@ -14,6 +14,9 @@ target_sources(
   PUBLIC
   include/eidgenosse/application_interface.hpp
   include/eidgenosse/application_registry.hpp
+  include/eidgenosse/control_execution_policy.hpp
+  include/eidgenosse/control_task_level_registry.hpp
+  include/eidgenosse/control_task_level.hpp
   include/eidgenosse/model_registry.hpp
   include/eidgenosse/parameter.hpp
   include/eidgenosse/signal.hpp
