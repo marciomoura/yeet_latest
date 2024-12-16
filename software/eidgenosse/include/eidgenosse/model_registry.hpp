@@ -54,7 +54,7 @@ public:
         return it->second.parameter_registry.get(name);
     }
 
-    void iterate_map_entries(
+    void iterate_entries(
         std::function<void(const std::string& group, const std::string& name, const low_level_access& llaccess)> func)
         const {
         for (auto& [group, entry] : _registry_map) {

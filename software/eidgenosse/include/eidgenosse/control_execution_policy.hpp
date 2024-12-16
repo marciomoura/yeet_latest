@@ -16,7 +16,7 @@ public:
         return static_cast<std::size_t>(_sampling_rate / tick_base_rate);
     }
 
-    constexpr double get_sampling_rate() const { return _sampling_rate; }
+    constexpr double get_sampling_time() const { return _sampling_rate; }
 
 private:
     double _sampling_rate{0.0};

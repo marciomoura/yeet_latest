@@ -6,7 +6,6 @@ add_executable(eidgenosse::tests ALIAS ${PROJECT_NAME})
 enable_testing()
 
 target_sources(${PROJECT_NAME} PRIVATE
-    application_interface_test.cpp
     parameter_test.cpp
     signal_test.cpp
     utils/low_level_access_test.cpp

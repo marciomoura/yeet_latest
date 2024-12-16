@@ -9,14 +9,12 @@
 #include "eidgenosse/signal.hpp"
 
 //
-#include "eidgenosse/control_task_level.hpp"
-#include "eidgenosse/control_task_level_registry.hpp"
 #include "eidgenosse/model_registry.hpp"
-
+#include "eidgenosse/testing/simulator.hpp"
 
 class integrator {
 public:
-    integrator(double sampling_time) : _sampling_time(sampling_time) {}
+    void set_sampling_time(double sampling_time) { _sampling_time = sampling_time; }
 
     double run(double input) { return _integral += input * _sampling_time; }
 
@@ -31,13 +29,9 @@ private:
 
 class low_pass_filter {
 public:
-    low_pass_filter(double sampling_time, double time_constant) : _sampling_time(sampling_time) {
-        set_time_constant(time_constant);
-    }
-
-    void set_time_constant(double time_constant) {
+    void set_time_constant(double time_constant, double sampling_time) {
         _time_constant = time_constant;
-        _alpha = 1.0f - std::exp(-_sampling_time / time_constant);
+        _alpha = 1.0f - std::exp(-sampling_time / time_constant);
     }
 
     double run(double input) { return _output = _output + _alpha * (input - _output); }
@@ -45,7 +39,6 @@ public:
     double get_output() const { return _output; }
 
 private:
-    double _sampling_time{};
     double _output{};
     double _time_constant{};
     double _alpha{};
@@ -53,12 +46,11 @@ private:
 
 class pi_controller {
 public:
-    pi_controller(double sampling_time, double kp, double ki) : _kp(kp), _ki(ki), _integrator(sampling_time) {}
-
     double run(double error) { return _output = _ki * _integrator.run(error) + _kp * error; }
 
     double get_output() const { return _output; }
 
+    void set_sampling_time(double sampling_time) { _integrator.set_sampling_time(sampling_time); }
     void set_kp(double kp) { _kp = kp; }
     void set_ki(double ki) { _ki = ki; }
 
@@ -92,9 +84,6 @@ public:
         assert(model_parameters != nullptr);
     }
 
-    // get the registry entries?
-    // connect signals...
-    // maybe define `register_data_model` as static function?
     inputs* model_inputs{};
     outputs* model_outputs{};
     parameters* model_parameters{};
@@ -109,21 +98,25 @@ public:
 
         registry.insert("control", std::move(entry));
     }
-
-private:
 };
 
 class control_application_runner : public application_interface {
 public:
     using datamodel = control_application_datamodel;
 
-    static constexpr double sampling_time = 100e-6;
+    control_application_runner() {
+        static constexpr double sampling_time = 100e-6;
+        set_sampling_time(sampling_time);
+    }
 
     datamodel get_datamodel() { return datamodel{&_inputs, &_outputs, &_parameters}; }
 
     void initialize() override {
+        _controller.set_sampling_time(get_sampling_time());
+
         _parameters.ki.register_callback([this]() { _controller.set_ki(_parameters.ki); });
         _parameters.kp.register_callback([this]() { _controller.set_kp(_parameters.kp); });
+
         _parameters.ki = 10.0f;
         _parameters.kp = 10.0f;
     }
@@ -143,7 +136,7 @@ private:
     datamodel::outputs _outputs;
     datamodel::parameters _parameters;
 
-    pi_controller _controller{sampling_time, 10.0f, 10.0f};
+    pi_controller _controller;
 };
 
 class plant_model_application_datamodel {
@@ -167,9 +160,6 @@ public:
         assert(model_parameters != nullptr);
     }
 
-    // get the registry entries?
-    // connect signals...
-
     inputs* model_inputs{};
     outputs* model_outputs{};
     parameters* model_parameters{};
@@ -182,20 +172,23 @@ public:
 
         registry.insert("plant", std::move(entry));
     }
-
-private:
 };
 
 class plant_model_application_runner : public application_interface {
 public:
     using datamodel = plant_model_application_datamodel;
 
-    static constexpr double sampling_time = 100e-6;
+    plant_model_application_runner() {
+        static constexpr double sampling_time = 100e-6;
+        set_sampling_time(sampling_time);
+    }
 
     datamodel get_datamodel() { return datamodel{&_inputs, &_outputs, &_parameters}; }
 
     void initialize() override {
-        _parameters.ti.register_callback([this]() { _plant_model.set_time_constant(_parameters.ti); });
+        _parameters.ti.register_callback(
+            [this]() { _plant_model.set_time_constant(_parameters.ti, get_sampling_time()); });
+
         _parameters.ti = 1.0f;
     }
 
@@ -212,54 +205,74 @@ private:
     datamodel::outputs _outputs;
     datamodel::parameters _parameters;
 
-    low_pass_filter _plant_model{sampling_time, 1.0f};
+    low_pass_filter _plant_model;
 };
 
-class closed_loop_example {
+class closed_loop_example_connector {
 public:
-    closed_loop_example() {
-        connect_outputs_to_inputs();
-        register_control_tasks();
-    }
-
-    std::size_t get_number_task_levels() const { return control_task_level_registry.size(); }
-
-    control_task_level get_control_task_level(std::size_t index) {
-        return control_task_level_registry.get_control_task_level(index);
-    }
-
-    control_application_datamodel get_control_application_datamodel() { return control_application->get_datamodel(); }
-
-    plant_model_application_datamodel get_plant_model_application_datamodel() {
-        return plant_model_application->get_datamodel();
-    }
-
-private:
-    void connect_outputs_to_inputs() {
-        auto control_datamodel = control_application->get_datamodel();
-        auto plant_datamodel = plant_model_application->get_datamodel();
-
+    static void connect(control_application_datamodel control_datamodel,
+                        plant_model_application_datamodel plant_datamodel) {
         signals_connector::connect_output_to_input(plant_datamodel.model_outputs->plant_output,
                                                    control_datamodel.model_inputs->measurement);
 
         signals_connector::connect_output_to_input(control_datamodel.model_outputs->output,
                                                    plant_datamodel.model_inputs->input);
     }
+};
 
-    void register_control_tasks() {
-        control_task_level_registry.insert(control_application,
-                                           control_execution_policy{control_application->sampling_time});
+class closed_loop_example_simulator;
 
-        control_task_level_registry.insert(plant_model_application,
-                                           control_execution_policy{plant_model_application->sampling_time});
+class closed_loop_example {
+public:
+    closed_loop_example() {
+        closed_loop_example_connector::connect(control_application->get_datamodel(),
+                                               plant_model_application->get_datamodel());
     }
+
+private:
+    friend class closed_loop_example_simulator;
 
     std::shared_ptr<control_application_runner> control_application = std::make_shared<control_application_runner>();
 
     std::shared_ptr<plant_model_application_runner> plant_model_application =
         std::make_shared<plant_model_application_runner>();
+};
 
-    control_task_level_registry control_task_level_registry;
+class closed_loop_example_simulator {
+public:
+    struct parameters {
+        control_application_datamodel::parameters* control{};
+        plant_model_application_datamodel::parameters* plant{};
+    };
+
+    static parameters get_parameters(closed_loop_example& example) {
+        return parameters{example.control_application->get_datamodel().model_parameters,
+                          example.plant_model_application->get_datamodel().model_parameters};
+    }
+
+    static void configure(simulator& simulator, closed_loop_example& example) {
+        register_simulator_applications(simulator, example);
+
+        register_data_sampler(simulator, example);
+    }
+
+private:
+    static void register_simulator_applications(simulator& simulator, closed_loop_example& example) {
+        simulator.register_control_application_runner(example.control_application);
+        simulator.register_control_application_runner(example.plant_model_application);
+    }
+
+    static void register_data_sampler(simulator& simulator, closed_loop_example& example) {
+        model_registry model;
+
+        auto plant_model_application = example.plant_model_application->get_datamodel();
+        auto control_model_application = example.control_application->get_datamodel();
+
+        control_model_application.register_data_model(model);
+        plant_model_application.register_data_model(model);
+
+        simulator.register_data_sampler_entries(model);
+    }
 };
 
 #endif  // EIDGENOSSE_EXAMPLES_CONTROL_INTEGRATION_HPP

@@ -38,7 +38,7 @@
             "type": "shell",
             "command": "${workspaceFolder}\\build\\venv\\bin\\python.exe",
             "args": [
-                "${workspaceFolder}/source/eidgenosse/tools/plot_sampler_data.py",
+                "${workspaceFolder}/software/eidgenosse/tools/plot_sampler_data.py",
                 "${workspaceFolder}/build/bin/",
                 "${workspaceFolder}/build/bin/",
                 "--move=${workspaceFolder}/build/bin/testing_outputs/"

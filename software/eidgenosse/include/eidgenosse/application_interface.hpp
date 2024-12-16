@@ -16,6 +16,13 @@ public:
 
     // Virtual method to stop the application
     virtual void stop() = 0;
+
+    double get_sampling_time() const { return _sampling_time; }
+
+    void set_sampling_time(double sampling_time) { _sampling_time = sampling_time; }
+
+private:
+    double _sampling_time = {-1.0};
 };
 
 class signal_registry_interface {

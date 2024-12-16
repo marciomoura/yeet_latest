@@ -10,13 +10,15 @@
 #include <string>
 #include <vector>
 
+#include "eidgenosse/application_interface.hpp"
+#include "eidgenosse/model_registry.hpp"
 #include "eidgenosse/testing/data_sample_json_post_processing.hpp"
 #include "eidgenosse/testing/data_sample_terminal_post_processing.hpp"
 #include "eidgenosse/testing/data_sampler.hpp"
 #include "eidgenosse/testing/data_sampler_entry.hpp"
+#include "eidgenosse/testing/simulator_runner_application.hpp"
 #include "eidgenosse/testing/simulator_runner_application_interface.hpp"
 #include "eidgenosse/testing/testing_info_interface.hpp"
-
 
 class simulator {
 public:
@@ -26,22 +28,25 @@ public:
         _data_sampler.register_entry(entry);
     }
 
-    void register_cyclic_application(std::shared_ptr<simulator_runner_application_interface> application_interface) {
-        _fastest_sampling_rate = std::min(_fastest_sampling_rate, application_interface->get_sampling_rate());
+    void register_control_application_runner(std::shared_ptr<application_interface> application) {
+        assert(application != nullptr && "application must not be nullptr");
 
-        _simulator_applications_vector.push_back(application_interface);
+        register_application(std::make_shared<simulator_runner_application>(application));
+
+        update_simulator_applications_list_based_on_normalized_ticks();
     }
 
     void register_data_sampler_entry(data_sampler_entry entry) { _data_sampler.register_entry(entry); }
 
-    void register_applications() {
-        _simulator_applications = {};
-
-        for (auto& cyclic_application : _simulator_applications_vector) {
-            const std::size_t normalized_ticks = cyclic_application->get_sampling_rate() / _fastest_sampling_rate;
-
-            _simulator_applications[normalized_ticks].push_back(cyclic_application);
-        }
+    void register_data_sampler_entries(model_registry& model) {
+        model.iterate_entries(
+            [this](const std::string& group, const std::string& name, const low_level_access& access) {
+                low_level_access::sampler_accessor const accessor = access.get_sampler_accessor();
+                if (accessor.read) {
+                    register_data_sampler_entry(
+                        data_sampler_entry{group + " " + name, [accessor]() { return accessor.read(); }});
+                }
+            });
     }
 
     void initialize() {
@@ -66,10 +71,12 @@ public:
             run_once(_current_simulation_time_ticks);
 
             _current_simulation_time_ticks += 1;
+            assert(_current_simulation_time_ticks <= std::numeric_limits<std::size_t>::max() &&
+                   "Simulation time overflow");
         }
     }
 
-    void dump() {
+    void dump_terminal() {
         data_sample_terminal_post_processing terminal;
         _data_sampler.dump(terminal);
     }
@@ -80,6 +87,22 @@ public:
     }
 
 private:
+    void update_simulator_applications_list_based_on_normalized_ticks() {
+        _simulator_applications = {};
+
+        for (auto& cyclic_application : _simulator_applications_vector) {
+            const std::size_t normalized_ticks = cyclic_application->get_sampling_time() / _fastest_sampling_rate;
+
+            _simulator_applications[normalized_ticks].push_back(cyclic_application);
+        }
+    }
+
+    void register_application(std::shared_ptr<simulator_runner_application_interface> application_interface) {
+        _fastest_sampling_rate = std::min(_fastest_sampling_rate, application_interface->get_sampling_time());
+
+        _simulator_applications_vector.push_back(application_interface);
+    }
+
     void allocate_data_sampler_buffer(double time) {
         std::size_t const buffer_size = convert_time_to_ticks(time);
 

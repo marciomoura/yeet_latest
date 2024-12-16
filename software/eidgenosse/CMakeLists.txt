@@ -24,13 +24,13 @@ target_sources(
   include/eidgenosse/utils/low_level_access_registry.hpp
   include/eidgenosse/utils/metadata.hpp
   include/eidgenosse/utils/storage_type.hpp
-  include/eidgenosse/testing/control_task_simulator_runner.hpp
   include/eidgenosse/testing/data_sample_json_post_processing.hpp
   include/eidgenosse/testing/data_sample_post_processing_interface.hpp
   include/eidgenosse/testing/data_sample_terminal_post_processing.hpp
   include/eidgenosse/testing/data_sampler_entry.hpp
   include/eidgenosse/testing/data_sampler.hpp
   include/eidgenosse/testing/simulator_runner_application_interface.hpp
+  include/eidgenosse/testing/simulator_runner_application.hpp
   include/eidgenosse/testing/simulator.hpp
   include/eidgenosse/testing/testing_info_interface.hpp
   PRIVATE src/parameter.cpp)

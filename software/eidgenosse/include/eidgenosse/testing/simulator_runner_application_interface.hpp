@@ -3,7 +3,7 @@
 
 class simulator_runner_application_interface {
 public:
-    virtual double get_sampling_rate() = 0;
+    virtual double get_sampling_time() = 0;
 
     virtual void run() = 0;
 
