@@ -19,6 +19,7 @@ template <typename T>
 class parameter {
 public:
     parameter() = default;
+    parameter(T value) : _value(std::make_shared<T>(value)) {}
     ~parameter() = default;
 
     low_level_access get_low_level_access() { return low_level_access(_value); }

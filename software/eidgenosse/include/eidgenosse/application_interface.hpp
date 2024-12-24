@@ -6,6 +6,8 @@
 
 class application_interface {
 public:
+    application_interface() = default;
+    application_interface(double sampling_time) : _sampling_time(sampling_time) {}
     virtual ~application_interface() = default;
 
     // Virtual method to initialize the application

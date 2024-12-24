@@ -20,6 +20,7 @@ template <typename T>
 class signal_output {
 public:
     signal_output() = default;
+    signal_output(T value) : _value(std::make_shared<T>(value)) {}
     ~signal_output() = default;
 
     low_level_access get_low_level_access() { return low_level_access(_value); }
