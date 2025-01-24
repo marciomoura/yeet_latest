@@ -105,3 +105,17 @@ TYPED_TEST(signal_input_test, llaccess) {
         }
     }
 }
+
+TEST(mock_signal_input_test, signal_input_mock) {
+    signal_input<int> input;
+
+    EXPECT_TRUE(input.empty());
+
+    for (auto& n : {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
+        mock_signal_input<int>::write(input, n);
+        EXPECT_EQ(input.read(), n);
+    }
+
+    // After the mock, the input should not be empty
+    EXPECT_FALSE(input.empty());
+}

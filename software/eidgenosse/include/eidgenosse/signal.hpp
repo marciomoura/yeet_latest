@@ -38,7 +38,7 @@ public:
     operator T() const noexcept { return read(); }
 
 protected:
-    storage_type<T>& get_storage() { return _value; }
+    storage_type<T> get_storage() { return _value; }
 
 private:
     friend class signals_connector;
@@ -47,27 +47,49 @@ private:
 };
 
 template <typename T>
+class mock_signal_input;
+
+template <typename T>
 class signal_input {
 public:
-    signal_input() = default;
-    ~signal_input() = default;
-
     void set_metadata() {}
 
     void get_metadata() {}
 
-    void connect(signal_output<T>& storage) { storage.connect(_value); }
+    void connect(signal_output<T> storage) { storage.connect(_value); }
 
     T read() const noexcept { return _value; }
 
     operator T() const noexcept { return read(); }
 
-    void connect(storage_type<T>& storage) { _value.connect(storage); }
+    void connect(storage_type<T> storage) { _value.connect(storage); }
 
     bool empty() const { return _value.empty(); }
 
 private:
-    storage_type<const T> _value{};
+    friend class mock_signal_input<T>;
+
+    // Mocking for easy simulation access
+    void write(T const& value) noexcept { _value = value; }
+
+    storage_type<T> _value{};
+};
+
+template <typename T>
+class mock_signal_input {
+public:
+    mock_signal_input() = default;
+
+    static void write(signal_input<T>& input, T const& value) { mock_signal_input<T>(input, value); }
+
+protected:
+    // Mocking for easy simulation access
+    mock_signal_input(signal_input<T>& signal, T const& value) {
+        if (signal.empty()) {
+            signal.connect(storage_type<T>(std::make_shared<T>()));
+        }
+        signal.write(value);
+    }
 };
 
 class signals_connector {
@@ -80,13 +102,6 @@ public:
 
 class signal_registry {
 public:
-    signal_registry() = default;
-    ~signal_registry() = default;
-    // signal_registry(const signal_registry&) = delete;
-    // signal_registry& operator=(const signal_registry&) = delete;
-    // signal_registry(signal_registry&&) = default;
-    // signal_registry& operator=(signal_registry&&) = default;
-
     template <typename T>
     void insert(const std::string& name, signal_output<T>& signal) {
         _registry.insert(name, signal.get_low_level_access());

@@ -43,13 +43,13 @@ public:
         return *_value = std::move(value);
     }
 
-    void connect(storage_type<T>& storage) {
-        assert(_value != nullptr);
+    void connect(storage_type<T> storage) {
         _value = storage.get_internal_storage();
+        assert(_value != nullptr);
     }
 
     template <typename U>
-    void connect(storage_type<U>& storage) {
+    void connect(storage_type<U> storage) {
         _value = storage.template get_internal_storage<U>();
         assert(_value != nullptr);
     }
@@ -83,7 +83,7 @@ public:
     storage_type_erased() = default;
 
     template <typename T>
-    storage_type_erased(storage_type<T>& storage) {
+    storage_type_erased(storage_type<T> storage) {
         static_assert(!std::is_void_v<T>, "T must not be void");
         static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
         static_assert(std::is_copy_constructible_v<T>, "T must be copy constructible");
