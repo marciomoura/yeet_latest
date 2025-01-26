@@ -46,7 +46,6 @@ private:
     storage_type<T> _value{std::make_shared<T>()};
 };
 
-template <typename T>
 class mock_signal_input;
 
 template <typename T>
@@ -67,7 +66,7 @@ public:
     bool empty() const { return _value.empty(); }
 
 private:
-    friend class mock_signal_input<T>;
+    friend class mock_signal_input;
 
     // Mocking for easy simulation access
     void write(T const& value) noexcept { _value = value; }
@@ -75,15 +74,18 @@ private:
     storage_type<T> _value{};
 };
 
-template <typename T>
 class mock_signal_input {
 public:
     mock_signal_input() = default;
 
-    static void write(signal_input<T>& input, T const& value) { mock_signal_input<T>(input, value); }
+    template <typename T>
+    static void write(signal_input<T>& input, T const& value) {
+        mock_signal_input(input, value);
+    }
 
 protected:
     // Mocking for easy simulation access
+    template <typename T>
     mock_signal_input(signal_input<T>& signal, T const& value) {
         if (signal.empty()) {
             signal.connect(storage_type<T>(std::make_shared<T>()));

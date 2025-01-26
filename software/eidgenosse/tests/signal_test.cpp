@@ -112,7 +112,7 @@ TEST(mock_signal_input_test, signal_input_mock) {
     EXPECT_TRUE(input.empty());
 
     for (auto& n : {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
-        mock_signal_input<int>::write(input, n);
+        mock_signal_input::write(input, n);
         EXPECT_EQ(input.read(), n);
     }
 
