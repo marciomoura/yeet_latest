@@ -4,9 +4,9 @@
 find_program(CCACHE_FOUND ccache)
 
 if(CCACHE_FOUND)
-    message(STATUS "-- eidgenosse build-config: 🟢 using ccache package for ${CMAKE_SYSTEM_NAME}")
+    message(STATUS "-- yeet build-config: 🟢 using ccache package for ${CMAKE_SYSTEM_NAME}")
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 else()
-    message(WARNING "-- eidgenosse build-config: 🟡 ccache package for ${CMAKE_SYSTEM_NAME} not found")
+    message(WARNING "-- yeet build-config: 🟡 ccache package for ${CMAKE_SYSTEM_NAME} not found")
 endif()

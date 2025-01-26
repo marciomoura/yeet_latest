@@ -23,19 +23,18 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up CMake and Ninja
-        if: runner.os == 'Linux' || runner.os == 'macOS'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build clang
 
       - name: Configure CMake project
         run: |
-          cmake -G Ninja -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DEIDGENOSSE_BUILD_TESTING=ON
+          cmake -G Ninja -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DYEET_BUILD_TESTING=ON
         
       - name: Build targets
         run: |
-          cmake --build build --target eidgenosse_test
+          cmake --build build --target yeet_test
 
       - name: Run tests
         run: |
-          ./build/bin/eidgenosse_test
+          ./build/bin/yeet_test

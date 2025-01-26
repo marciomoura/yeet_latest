@@ -1,6 +1,6 @@
 # Description: fetch the json package from nlohmann/json
 
-message(STATUS "-- eidgenosse build-config: 🟢 searching json package for ${CMAKE_SYSTEM_NAME}")
+message(STATUS "-- yeet build-config: 🟢 searching json package for ${CMAKE_SYSTEM_NAME}")
 
 include(FetchContent)
 

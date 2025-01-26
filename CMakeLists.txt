@@ -1,90 +1,87 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(
-  eidgenosse_platform
+  yeet_project
   VERSION 1.0.0.0
-  DESCRIPTION "Eidgenosse Platform"
-  HOMEPAGE_URL "https://github.com/marciomoura/eidgenosse_platform/"
-  LANGUAGES CXX)
+  DESCRIPTION "Yeet Platform"
+  HOMEPAGE_URL "https://github.com/marciomoura/yeet/"
+  LANGUAGES C CXX)
 
-# C++ Language settings
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Define all options upfront with proper descriptions
+option(YEET_CODE_COVERAGE "Enable code coverage" OFF)
+option(YEET_SANITIZE "Enable clang-sanitizer instrumented builds" OFF)
+option(YEET_MEMCHECK "Enable memcheck instrumented builds" OFF)
+option(YEET_STATIC_LINKAGE "Compile with static linkage" OFF)
+option(YEET_BUILD_TESTING "Build the testing tree" ON)
+option(YEET_BUILD_EXAMPLES "Build the examples tree" ON)
+option(YEET_ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
+option(YEET_ENABLE_CCACHE "Enable ccache" ON)
 
+# Set output directories before any targets are created
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Append .cmake files to the list of available files
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies)
+# Module path configuration
+list(APPEND CMAKE_MODULE_PATH 
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies"
+)
 
-# Project configuration options
-if(NOT DEFINED EIDGENOSSE_CODE_COVERAGE)
-  option(EIDGENOSSE_CODE_COVERAGE "Enable code coverage" OFF)
-endif()
+# Language standards configuration
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(NOT DEFINED EIDGENOSSE_SANITIZE)
-  option(EIDGENOSSE_SANITIZE "Enable clang-sanitizer instrumented builds" OFF)
-endif()
-
-if(NOT DEFINED EIDGENOSSE_MEMCHECK)
-  option(EIDGENOSSE_MEMCHECK "Enable memcheck instrumented builds" OFF)
-endif()
-
-if(NOT DEFINED EIDGENOSSE_STATIC_LINKAGE)
-  option(EIDGENOSSE_STATIC_LINKAGE "Compile with static linkage" OFF)
-endif()
-
-if(NOT DEFINED EIDGENOSSE_BUILD_TESTING)
-  option(EIDGENOSSE_BUILD_TESTING "Build the testing tree." OFF)
-endif()
-
-if(NOT DEFINED EIDGENOSSE_ENABLE_CODE_ANALYSIS)
-  option(EIDGENOSSE_ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
-endif()
-
-if(NOT DEFINED EIDGENOSSE_ENABLE_CCACHE)
-  option(EIDGENOSSE_ENABLE_CCACHE "Enable ccache" ON)
-endif()
-
-# Check if Ninja is being used as the generator
-if (CMAKE_GENERATOR STREQUAL "Ninja")
-  message(STATUS "-- eidgenosse build-config: ✅ using Ninja generator")
-else ()
-  message(STATUS "-- eidgenosse build-config: ⬜ using ${CMAKE_GENERATOR} generator")
-endif()
-
-# Include test components
-if(EIDGENOSSE_BUILD_TESTING)
-  message(STATUS "-- eidgenosse build-config: ✅ enabled build testing")
-  include(gtest)
+# Generator-specific configuration
+if(CMAKE_GENERATOR STREQUAL "Ninja")
+    message(STATUS "yeet build-config: Using Ninja generator ✅")
 else()
-  message(STATUS "-- eidgenosse build-config: ⬜ build testing not enabled")
+    message(STATUS "yeet build-config: Using ${CMAKE_GENERATOR} generator ⬜")
 endif()
 
-# Include ccache
-if(EIDGENOSSE_ENABLE_CCACHE)
-  message(STATUS "-- eidgenosse build-config: ✅ enabled ccache")
-  include(ccache)
+# Conditional includes based on options
+if(YEET_BUILD_TESTING)
+    message(STATUS "yeet build-config: Build testing enabled ✅")
+    include(gtest)
+    enable_testing()  # Added to properly enable testing
 else()
-  message(STATUS "-- eidgenosse build-config: ⬜ ccache not enabled")
+    message(STATUS "yeet build-config: Build testing disabled ⬜")
 endif()
 
-# Include code analysis components
-if(EIDGENOSSE_ENABLE_CODE_ANALYSIS)
-  message(STATUS "-- eidgenosse build-config: ✅ enabled static code analysis")
-  include(cppcheck)
+if(YEET_ENABLE_CCACHE)
+    message(STATUS "yeet build-config: CCCache enabled ✅")
+    find_program(CCACHE_PROGRAM ccache)
+    if(CCACHE_PROGRAM)
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+        set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    else()
+        message(WARNING "CCCache not found, continuing without it")
+    endif()
 else()
-  message(STATUS "-- eidgenosse build-config: ⬜ static code analysis not enabled")
+    message(STATUS "yeet build-config: CCCache disabled ⬜")
 endif()
 
-# Include code analysis components
-message(STATUS "-- eidgenosse build-config: 🟢 searching json package")
+if(YEET_ENABLE_CODE_ANALYSIS)
+    message(STATUS "yeet build-config: Static code analysis enabled ✅")
+    include(cppcheck)
+else()
+    message(STATUS "yeet build-config: Static code analysis disabled ⬜")
+endif()
+
+# Required packages
+message(STATUS "yeet build-config: Searching for JSON package 🔍")
 include(json)
 
-# Add source-code directories
-add_subdirectory(software/eidgenosse)
+# Source directories
+add_subdirectory(software/yeet)
+if(YEET_BUILD_TESTING)
+    add_subdirectory(software/yeet/tests)
+endif()
+
+# if(YEET_BUILD_EXAMPLES)
+    # add_subdirectory(software/yeet/examples)
+# endif()

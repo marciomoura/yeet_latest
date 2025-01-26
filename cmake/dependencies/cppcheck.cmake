@@ -3,9 +3,9 @@
 find_program(CMAKE_CXX_CPPCHECK NAMES cppcheck)
 
 if(CMAKE_CXX_CPPCHECK)
-    message(STATUS "-- eidgenosse build-config: 🟢 using cppcheck package for ${CMAKE_SYSTEM_NAME}")
+    message(STATUS "-- yeet build-config: 🟢 using cppcheck package for ${CMAKE_SYSTEM_NAME}")
 else()
-    message(WARNING "-- eidgenosse build-config: 🟡 cppcheck package for ${CMAKE_SYSTEM_NAME} not found")
+    message(WARNING "-- yeet build-config: 🟡 cppcheck package for ${CMAKE_SYSTEM_NAME} not found")
 endif()
 
 if (CMAKE_CXX_CPPCHECK)
