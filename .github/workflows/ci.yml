@@ -1,12 +1,57 @@
+# Name of the workflow that appears in GitHub Actions
 name: CI
 
+# Define when this workflow will run
 on: [push, pull_request]
 
 jobs:
+  # First job: Check both CMake and C++ code formatting
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repository code
+      - uses: actions/checkout@v2
+      
+      # Set up Python environment needed for cmake-format
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          
+      # Install required Python packages and clang-format
+      - name: Install formatters
+        run: |
+          python -m pip install --upgrade pip
+          pip install cmake-format pyyaml
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      # Run cmake-format on all CMake files
+      - name: Check CMake formatting
+        run: |
+          find . -name "CMakeLists.txt" -o -name "*.cmake" | \
+          while read file; do
+            echo "Checking $file"
+            cmake-format --check "$file"
+          done
+
+      # Run clang-format on all C++ files
+      - name: Check C++ formatting
+        run: |
+          find . -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | \
+          while read file; do
+            echo "Checking $file"
+            clang-format --dry-run --Werror "$file"
+          done
+
+  # Second job: Build and test the project
   build:
     runs-on: ubuntu-latest
+    # Ensure formatting checks pass before building
+    needs: format
 
     steps:
+      # Rest of your build steps remain the same...
       - name: Print Runner Information
         run: |
           echo "Runner Name: $RUNNER_NAME"
@@ -29,7 +74,10 @@ jobs:
 
       - name: Configure CMake project
         run: |
-          cmake -G Ninja -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DYEET_BUILD_TESTING=ON
+          cmake -G Ninja -B build \
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_CXX_COMPILER=clang++ \
+                -DYEET_BUILD_TESTING=ON
         
       - name: Build targets
         run: |
