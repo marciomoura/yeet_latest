@@ -70,14 +70,16 @@ jobs:
       - name: Set up CMake and Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang
+          sudo apt-get install -y cmake ninja-build clang valgrind llvm gcovr 
 
       - name: Configure CMake project
         run: |
           cmake -G Ninja -B build \
                 -DCMAKE_C_COMPILER=clang \
                 -DCMAKE_CXX_COMPILER=clang++ \
-                -DYEET_BUILD_TESTING=ON
+                -DYEET_BUILD_TESTING=ON \
+                -DYEET_CODE_COVERAGE=ON \
+                -DYEET_MEMCHECK=ON
         
       - name: Build targets
         run: |
@@ -86,3 +88,43 @@ jobs:
       - name: Run tests
         run: |
           ./build/bin/yeet_test
+
+      - name: Generate and check coverage
+        run: |
+          mkdir -p coverage
+          gcovr --gcov-executable "llvm-cov gcov" \
+                --print-summary \
+                --fail-under-line 80 \
+                --exclude ".*build.*" \
+                --exclude ".*_deps.*" \
+                --exclude ".*tests.*" \
+                --html --html-details \
+                --output coverage/index.html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+      
+      - name: Run Valgrind Memory Check
+        run: |
+          valgrind --tool=memcheck \
+                   --leak-check=full \
+                   --show-reachable=yes \
+                   --track-origins=yes \
+                   --error-exitcode=1 \
+                   --show-leak-kinds=all \
+                   --verbose \
+                   ./build/bin/yeet_test 2> valgrind.log
+        continue-on-error: true 
+
+      - name: Upload Valgrind logs
+        uses: actions/upload-artifact@v4
+        with:
+            name: valgrind-logs
+            path: valgrind.log
+        if: always()  # Upload even if tests fail
+
+env:
+  GTEST_COLOR: 1

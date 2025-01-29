@@ -1,6 +1,4 @@
 {
-    // Disable intellisense engine
-    "C_Cpp.intelliSenseEngine": "disabled",
     // Vscode editor settings
     "editor.inlayHints.enabled": "on",
     "editor.minimap.enabled": false,
@@ -29,4 +27,16 @@
     "[cmake]": {
         "editor.defaultFormatter": "cheshirekow.cmake-format"
     },
+    // C/C++ settings
+    // Disable intellisense engine
+    "C_Cpp.intelliSenseEngine": "disabled",
+    // Keep code analysis enabled
+    "C_Cpp.codeAnalysis.clangTidy.enabled": true,
+    "C_Cpp.codeAnalysis.runAutomatically": true,
+    "C_Cpp.clang_format_style": "file",
+    // Exclude directories from analysis
+    "C_Cpp.codeAnalysis.exclude": {
+        "**/build/**": true
+    },
+    "clangd.onConfigChanged": "restart",
 }

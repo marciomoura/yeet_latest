@@ -38,8 +38,8 @@ public:
 
 private:
     struct application_registry_entry {
-        std::shared_ptr<application_interface> application{};
-        control_execution_policy control_execution_policy{};
+        std::shared_ptr<application_interface> application;
+        control_execution_policy control_execution_policy;
     };
 
     std::list<application_registry_entry> _registry_application;

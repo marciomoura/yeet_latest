@@ -1,35 +1,53 @@
 cmake_minimum_required(VERSION 3.25)
 
+# ASCII art banner because we're extra ✨
+message(
+    STATUS
+        [[
+
+        __    __  ____    ____    ______
+        /\ \  /\ \/\  _`\ /\  _`\ /\__  _\
+        \ `\`\\/'/\ \ \L\_\ \ \L\_\/_/\ \/
+         `\ `\ /'  \ \  _\L\ \  _\L  \ \ \
+           `\ \ \   \ \ \L\ \ \ \L\ \ \ \ \
+             \ \_\   \ \____/\ \____/  \ \_\
+              \/_/    \/___/  \/___/    \/_/
+]])
+
 project(
     yeet_project
     VERSION 1.0.0.0
-    DESCRIPTION "Yeet Platform"
+    DESCRIPTION "No 🧢 Yeet Platform fr fr"
     HOMEPAGE_URL "https://github.com/marciomoura/yeet/"
     LANGUAGES C CXX)
 
-# Define all options upfront with proper descriptions
-option(YEET_CODE_COVERAGE "Enable code coverage" OFF)
-option(YEET_SANITIZE "Enable clang-sanitizer instrumented builds" OFF)
-option(YEET_MEMCHECK "Enable memcheck instrumented builds" OFF)
-option(YEET_STATIC_LINKAGE "Compile with static linkage" OFF)
-option(YEET_BUILD_TESTING "Build the testing tree" ON)
-option(YEET_BUILD_EXAMPLES "Build the examples tree" ON)
-option(YEET_ENABLE_CODE_ANALYSIS "Run code analysis" OFF)
-option(YEET_ENABLE_CCACHE "Enable ccache" ON)
+# Define all options upfront with proper descriptions - keeping it 💯
+option(YEET_CODE_COVERAGE
+       "Enable code coverage (because we test our code like bosses)" ON)
+option(YEET_SANITIZE "Enable clang-sanitizer builds (catch those bugs bestie)"
+       OFF)
+option(YEET_MEMCHECK
+       "Enable memcheck builds (memory leaks? not in this house 💅)" OFF)
+option(YEET_BUILD_TESTING "Build the testing tree (we stay tested 💯)" ON)
+option(YEET_BUILD_EXAMPLES "Build the examples tree (show me the receipts 👀)"
+       ON)
+option(YEET_ENABLE_CODE_ANALYSIS "Run code analysis (vibe check our code)" OFF)
+option(YEET_ENABLE_CCACHE "Enable ccache (speed goes brrr 🏃‍♂️💨)" ON)
 
-# Set output directories before any targets are created
+# Set output directories before any targets are created (keeping it organized
+# bestie)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Module path configuration
+# Module path configuration - stack that bread 💸
 list(
     APPEND
     CMAKE_MODULE_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies")
 
-# Language standards configuration
+# Language standards configuration - no cap, we stay modern
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -37,47 +55,70 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Generator-specific configuration
+# Generator-specific configuration - checking the fit
 if(CMAKE_GENERATOR STREQUAL "Ninja")
-    message(STATUS "yeet build-config: Using Ninja generator ✅")
+    message(
+        STATUS
+            "yeet build-config: Using Ninja generator - go ninja go ninja go! 🥷"
+    )
 else()
-    message(STATUS "yeet build-config: Using ${CMAKE_GENERATOR} generator ⬜")
+    message(
+        STATUS
+            "yeet build-config: Using ${CMAKE_GENERATOR} generator - weird flex but ok 🤔"
+    )
 endif()
 
-# Conditional includes based on options
+# Conditional includes based on options - let's get this bread 🍞
 if(YEET_BUILD_TESTING)
-    message(STATUS "yeet build-config: Build testing enabled ✅")
+    message(
+        STATUS
+            "yeet build-config: Build testing enabled - we stay testing fr fr ✅"
+    )
     include(gtest)
-    enable_testing() # Added to properly enable testing
+    enable_testing()
 else()
-    message(STATUS "yeet build-config: Build testing disabled ⬜")
+    message(
+        STATUS
+            "yeet build-config: Build testing disabled - living life on the edge bestie ⚠️"
+    )
 endif()
 
 if(YEET_ENABLE_CCACHE)
-    message(STATUS "yeet build-config: CCCache enabled ✅")
+    message(
+        STATUS "yeet build-config: CCCache enabled - speedy builds go brrr 🏎️")
     find_program(CCACHE_PROGRAM ccache)
     if(CCACHE_PROGRAM)
         set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
         set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
     else()
-        message(WARNING "CCCache not found, continuing without it")
+        message(WARNING "CCCache not found - this ain't it chief 😔")
     endif()
 else()
-    message(STATUS "yeet build-config: CCCache disabled ⬜")
+    message(
+        STATUS "yeet build-config: CCCache disabled - chose violence today 😤")
 endif()
 
 if(YEET_ENABLE_CODE_ANALYSIS)
-    message(STATUS "yeet build-config: Static code analysis enabled ✅")
+    message(
+        STATUS
+            "yeet build-config: Static code analysis enabled - checking the vibes 🔍"
+    )
     include(cppcheck)
 else()
-    message(STATUS "yeet build-config: Static code analysis disabled ⬜")
+    message(
+        STATUS
+            "yeet build-config: Static code analysis disabled - living dangerously bestie 👀"
+    )
 endif()
 
-# Required packages
-message(STATUS "yeet build-config: Searching for JSON package 🔍")
+# Required packages - getting the squad together
+message(
+    STATUS
+        "yeet build-config: Searching for JSON package - where you at bestie? 🔍"
+)
 include(json)
 
-# Source directories
+# Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
 add_subdirectory(software/yeet_control)
 
@@ -85,4 +126,26 @@ if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet/tests)
 endif()
 
-# if(YEET_BUILD_EXAMPLES) add_subdirectory(software/yeet/examples) endif()
+#
+if(YEET_CODE_COVERAGE)
+    message(
+        STATUS
+            "yeet build-config: Add coverage target for generating code-coverage report"
+    )
+
+    find_program(GCOVR gcovr REQUIRED)
+    # Create bin/coverage directory for storing coverage report
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/coverage)
+
+    add_custom_target(
+        coverage
+        COMMAND
+            ${GCOVR} --gcov-executable "llvm-cov gcov" --html --html-details
+            --output "${CMAKE_BINARY_DIR}/coverage/index.html" --print-summary
+            --exclude ".*build.*" --exclude ".*_deps.*" --exclude ".*tests.*"
+            --gcov-ignore-parse-errors --fail-under-line 90
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating coverage report with gcovr...")
+endif()
+
+message(STATUS "Build config complete - let's get this bread! 🚀")
