@@ -1,8 +1,10 @@
 #ifndef YEET_APPLICATION_INTERFACE_HPP
 #define YEET_APPLICATION_INTERFACE_HPP
 
-#include "parameter.hpp"
-#include "signal.hpp"
+#include "application_datamodel.hpp"
+#include "model_registry.hpp"
+
+namespace yeet {
 
 class application_interface {
 public:
@@ -10,37 +12,41 @@ public:
     application_interface(double sampling_time) : _sampling_time(sampling_time) {}
     virtual ~application_interface() = default;
 
-    // Virtual method to initialize the application
+    // Core lifecycle methods
     virtual void initialize() = 0;
 
-    // Virtual method to run the application
     virtual void run() = 0;
 
-    // Virtual method to stop the application
     virtual void stop() = 0;
 
+    // Timing management
     double get_sampling_time() const { return _sampling_time; }
 
     void set_sampling_time(double sampling_time) { _sampling_time = sampling_time; }
 
 private:
-    double _sampling_time = {-1.0};
+    double _sampling_time{-1.0};
 };
 
-class signal_registry_interface {
+// Base application combining interfaces
+template <typename InputType, typename OutputType, typename ParameterType>
+class base_application : public application_interface {
 public:
-    virtual ~signal_registry_interface() = default;
+    explicit base_application(double sampling_time) : application_interface(sampling_time) {}
 
-    // Interface to return the signal registry
-    virtual signal_registry get_signal_registry() = 0;
+    virtual void register_datamodel(model_registry& registry) {};
+
+    application_datamodel<InputType, OutputType, ParameterType>& get_datamodel() { return _data_model; }
+
+    application_datamodel<InputType, OutputType, ParameterType> const& get_datamodel() const { return _data_model; }
+
+protected:
+    InputType _inputs;
+    OutputType _outputs;
+    ParameterType _parameters;
+    application_datamodel<InputType, OutputType, ParameterType> _data_model{_inputs, _outputs, _parameters};
 };
 
-class parameter_registry_interface {
-public:
-    virtual ~parameter_registry_interface() = default;
-
-    // Interface to return the parameter registry
-    virtual parameter_registry get_parameter_registry() = 0;
-};
+}  // namespace yeet
 
 #endif  // YEET_APPLICATION_INTERFACE_HPP

@@ -19,62 +19,103 @@ private:
 };
 
 class simulator_test : public ::testing::Test {
-public:
-    void SetUp() override {
-        closed_loop_example_simulator::configure(_simulator, _example);
+protected:
+    using parameter_types = yeet::closed_loop_example::parameter_types;
 
-        parameters = closed_loop_example_simulator::get_parameters(_example);
-    }
+    void SetUp() override { _simulation = yeet::simulation_builder<parameter_types>::create(_simulator, _example); }
 
     void TearDown() override {
         gtest_testing_info gtest_info(::testing::UnitTest::GetInstance());
-
-        _simulator.dump_json(&gtest_info);
+        _simulation->dump_results(&gtest_info);
     }
 
-    void initialize() { _simulator.initialize(); }
+    void initialize() { _simulation->initialize(); }
 
-    void simulate_for(double time) { _simulator.simulate_for(time); }
+    void simulate_for(double time) { _simulation->run_for(time); }
 
-    closed_loop_example_simulator::parameters parameters;
+    template <typename T>
+    yeet::parameter_set<T>& parameters() {
+        return _simulation->get_parameters<T>();
+    }
 
 private:
-    closed_loop_example _example;
-
-    simulator _simulator;
+    yeet::closed_loop_example _example;
+    yeet::simulator _simulator;
+    std::unique_ptr<yeet::simulation_runner<parameter_types>> _simulation{};
 };
 
 TEST_F(simulator_test, closed_loop_simulation_a) {
     initialize();
 
-    parameters.control->reference = 0.5f;
+    parameters<yeet::control_parameters>()->reference = 0.5f;
+    parameters<yeet::control_parameters>()->ki = 0.5f;
     simulate_for(1.0f);
 
-    parameters.control->reference = 1.0f;
+    parameters<yeet::control_parameters>()->reference = 1.0f;
     simulate_for(1.0f);
 }
 
 TEST_F(simulator_test, closed_loop_simulation_b) {
     initialize();
 
-    parameters.control->reference = 0.5f;
+    parameters<yeet::control_parameters>()->reference = 0.5f;
     simulate_for(1.0f);
 
-    parameters.plant->ti = 0.5f;
-    parameters.control->kp = 40.0f;
-    parameters.control->reference = 1.0f;
+    parameters<yeet::plant_parameters>()->ti = 0.5f;
+    parameters<yeet::control_parameters>()->kp = 40.0f;
+    parameters<yeet::control_parameters>()->reference = 1.0f;
     simulate_for(1.0f);
 }
 
 TEST_F(simulator_test, closed_loop_simulation_c) {
     initialize();
 
-    parameters.control->reference = 0.5f;
+    parameters<yeet::control_parameters>()->reference = 0.5f;
     simulate_for(2.0f);
 
-    parameters.plant->ti = 1.5f;
-    parameters.control->kp = 20.0f;
-    parameters.control->ki = 200.0f;
-    parameters.control->reference = 1.0f;
+    parameters<yeet::plant_parameters>()->ti = 1.5f;
+    parameters<yeet::control_parameters>()->kp = 20.0f;
+    parameters<yeet::control_parameters>()->ki = 200.0f;
+    parameters<yeet::control_parameters>()->reference = 1.0f;
+    simulate_for(2.0f);
+}
+
+// TEST swapping plant model but keeping the same "datamodel" interface
+class simulator_test_double_filter_plant : public ::testing::Test {
+protected:
+    using parameter_types = yeet::closed_loop_example::parameter_types;
+
+    void SetUp() override { _simulation = yeet::simulation_builder<parameter_types>::create(_simulator, _example); }
+
+    void TearDown() override {
+        gtest_testing_info gtest_info(::testing::UnitTest::GetInstance());
+        _simulation->dump_results(&gtest_info);
+    }
+
+    void initialize() { _simulation->initialize(); }
+
+    void simulate_for(double time) { _simulation->run_for(time); }
+
+    template <typename T>
+    yeet::parameter_set<T>& parameters() {
+        return _simulation->get_parameters<T>();
+    }
+
+private:
+    yeet::closed_loop_example _example{std::make_shared<yeet::plant_model_double_filter_application_runner>()};
+    yeet::simulator _simulator;
+    std::unique_ptr<yeet::simulation_runner<parameter_types>> _simulation{};
+};
+
+TEST_F(simulator_test_double_filter_plant, closed_loop_simulation_c) {
+    initialize();
+
+    parameters<yeet::plant_parameters>()->ti = 0.1f;
+    parameters<yeet::control_parameters>()->kp = 10.0f;
+    parameters<yeet::control_parameters>()->ki = 50.0f;
+    parameters<yeet::control_parameters>()->reference = 1.0f;
+    simulate_for(2.0f);
+
+    parameters<yeet::control_parameters>()->reference = 0.5f;
     simulate_for(2.0f);
 }

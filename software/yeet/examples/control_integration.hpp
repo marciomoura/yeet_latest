@@ -9,7 +9,12 @@
 #include "yeet/signal.hpp"
 
 //
+#include "yeet/application_datamodel.hpp"
+#include "yeet/data_model_connector.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet/parameter.hpp"
+#include "yeet/signal.hpp"
+#include "yeet/testing/parameter_collection.hpp"
 #include "yeet/testing/simulator.hpp"
 
 class integrator {
@@ -61,60 +66,33 @@ private:
     integrator _integrator;
 };
 
-class control_application_datamodel {
-public:
-    struct inputs {
-        signal_input<double> measurement;
-    };
+namespace yeet {
 
-    struct parameters {
-        parameter<double> kp;
-        parameter<double> ki;
-        parameter<double> reference;
-    };
-
-    struct outputs {
-        signal_output<double> output;
-    };
-
-    control_application_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : model_inputs(model_inputs), model_outputs(model_outputs), model_parameters(model_parameters) {
-        assert(model_inputs != nullptr);
-        assert(model_outputs != nullptr);
-        assert(model_parameters != nullptr);
-    }
-
-    inputs* model_inputs{};
-    outputs* model_outputs{};
-    parameters* model_parameters{};
-
-    void register_data_model(model_registry& registry) {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameter_registry.insert("kp", model_parameters->kp);
-        entry.parameter_registry.insert("ki", model_parameters->ki);
-        entry.parameter_registry.insert("reference", model_parameters->reference);
-        entry.signal_registry.insert("output", model_outputs->output);
-
-        registry.insert("control", std::move(entry));
-    }
+// Data model definitions stay mostly the same
+struct control_inputs {
+    signal_input<double> measurement;
 };
 
-class control_application_runner : public application_interface {
+struct control_parameters {
+    parameter<double> kp;
+    parameter<double> ki;
+    parameter<double> reference;
+};
+
+struct control_outputs {
+    signal_output<double> output;
+};
+
+// Updated control application runner
+class control_application_runner : public base_application<control_inputs, control_outputs, control_parameters> {
 public:
-    using datamodel = control_application_datamodel;
-
-    control_application_runner() {
-        static constexpr double sampling_time = 100e-6;
-        set_sampling_time(sampling_time);
-    }
-
-    datamodel get_datamodel() { return datamodel{&_inputs, &_outputs, &_parameters}; }
+    control_application_runner() : base_application(100e-6) {}  // 100us sampling time
 
     void initialize() override {
         _controller.set_sampling_time(get_sampling_time());
 
         _parameters.ki.register_callback([this]() { _controller.set_ki(_parameters.ki); });
+
         _parameters.kp.register_callback([this]() { _controller.set_kp(_parameters.kp); });
 
         _parameters.ki = 10.0f;
@@ -123,156 +101,173 @@ public:
 
     void run() override {
         const double error = _parameters.reference - _inputs.measurement;
-
         _controller.run(error);
-
         _outputs.output = _controller.get_output();
     }
 
     void stop() override {}
 
-private:
-    datamodel::inputs _inputs;
-    datamodel::outputs _outputs;
-    datamodel::parameters _parameters;
+    void register_datamodel(model_registry& registry) override {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameter_registry.insert("kp", _parameters.kp);
+        entry.parameter_registry.insert("ki", _parameters.ki);
+        entry.parameter_registry.insert("reference", _parameters.reference);
+        entry.signal_registry.insert("output", _outputs.output);
+
+        registry.insert("control", std::move(entry));
+    }
+
+private:
     pi_controller _controller;
 };
 
-class plant_model_application_datamodel {
-public:
-    struct inputs {
-        signal_input<double> input;
-    };
-
-    struct parameters {
-        parameter<double> ti;
-    };
-
-    struct outputs {
-        signal_output<double> plant_output;
-    };
-
-    plant_model_application_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : model_inputs(model_inputs), model_outputs(model_outputs), model_parameters(model_parameters) {
-        assert(model_inputs != nullptr);
-        assert(model_outputs != nullptr);
-        assert(model_parameters != nullptr);
-    }
-
-    inputs* model_inputs{};
-    outputs* model_outputs{};
-    parameters* model_parameters{};
-
-    void register_data_model(model_registry& registry) {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameter_registry.insert("ti", model_parameters->ti);
-        entry.signal_registry.insert("outputs", model_outputs->plant_output);
-
-        registry.insert("plant", std::move(entry));
-    }
+// Plant model structures
+struct plant_inputs {
+    signal_input<double> input;
 };
 
-class plant_model_application_runner : public application_interface {
+struct plant_parameters {
+    parameter<double> ti;
+};
+
+struct plant_outputs {
+    signal_output<double> plant_output;
+};
+
+// Updated plant model application runner
+class plant_model_application_runner : public base_application<plant_inputs, plant_outputs, plant_parameters> {
 public:
-    using datamodel = plant_model_application_datamodel;
-
-    plant_model_application_runner() {
-        static constexpr double sampling_time = 100e-6;
-        set_sampling_time(sampling_time);
-    }
-
-    datamodel get_datamodel() { return datamodel{&_inputs, &_outputs, &_parameters}; }
+    plant_model_application_runner() : base_application(100e-6) {}  // 100us sampling time
 
     void initialize() override {
         _parameters.ti.register_callback(
-            [this]() { _plant_model.set_time_constant(_parameters.ti, get_sampling_time()); });
+            [this]() { _plant_model.set_time_constant(_parameters.ti, this->get_sampling_time()); });
 
         _parameters.ti = 1.0f;
     }
 
     void run() override {
         _plant_model.run(_inputs.input);
-
         _outputs.plant_output = _plant_model.get_output();
     }
 
     void stop() override {}
 
-private:
-    datamodel::inputs _inputs;
-    datamodel::outputs _outputs;
-    datamodel::parameters _parameters;
+    void register_datamodel(model_registry& registry) override {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameter_registry.insert("ti", _parameters.ti);
+        entry.signal_registry.insert("outputs", _outputs.plant_output);
+
+        registry.insert("plant", std::move(entry));
+    }
+
+private:
     low_pass_filter _plant_model;
 };
 
-class closed_loop_example_connector {
+class plant_model_double_filter_application_runner
+    : public base_application<plant_inputs, plant_outputs, plant_parameters> {
 public:
-    static void connect(control_application_datamodel control_datamodel,
-                        plant_model_application_datamodel plant_datamodel) {
-        signals_connector::connect_output_to_input(plant_datamodel.model_outputs->plant_output,
-                                                   control_datamodel.model_inputs->measurement);
+    plant_model_double_filter_application_runner() : base_application(100e-6) {}  // 100us sampling time
 
-        signals_connector::connect_output_to_input(control_datamodel.model_outputs->output,
-                                                   plant_datamodel.model_inputs->input);
+    void initialize() override {
+        _parameters.ti.register_callback([this]() {
+            _plant_model_1.set_time_constant(_parameters.ti, this->get_sampling_time());
+            _plant_model_2.set_time_constant(_parameters.ti * 0.5, this->get_sampling_time());
+        });
+
+        _parameters.ti = 1.0f;
     }
-};
 
-class closed_loop_example_simulator;
+    void run() override {
+        _plant_model_1.run(_inputs.input);
+        _plant_model_2.run(_plant_model_1.get_output());
+        _outputs.plant_output = _plant_model_2.get_output();
+    }
 
-class closed_loop_example {
-public:
-    closed_loop_example() {
-        closed_loop_example_connector::connect(control_application->get_datamodel(),
-                                               plant_model_application->get_datamodel());
+    void stop() override {}
+
+    void register_datamodel(model_registry& registry) override {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameter_registry.insert("ti", _parameters.ti);
+        entry.signal_registry.insert("outputs", _outputs.plant_output);
+
+        registry.insert("plant", std::move(entry));
     }
 
 private:
-    friend class closed_loop_example_simulator;
+    low_pass_filter _plant_model_1;
+    low_pass_filter _plant_model_2;
+};
+
+// Define data model types for clarity
+using control_datamodel = application_datamodel<control_inputs, control_outputs, control_parameters>;
+using plant_datamodel = application_datamodel<plant_inputs, plant_outputs, plant_parameters>;
+
+// Connector for control to plant and plant to control
+class control_plant_connector : public data_model_connector<plant_datamodel, control_datamodel> {
+public:
+    control_plant_connector(plant_datamodel& plant, control_datamodel& control)
+        : data_model_connector(plant.get_inputs(), control.get_outputs()) {}
+
+    void connect() override { signals_connector::connect_output_to_input(get_outputs().output, get_inputs().input); }
+};
+
+class plant_control_connector : public data_model_connector<control_datamodel, plant_datamodel> {
+public:
+    plant_control_connector(control_datamodel& control, plant_datamodel& plant)
+        : data_model_connector(control.get_inputs(), plant.get_outputs()) {}
+
+    void connect() override {
+        signals_connector::connect_output_to_input(get_outputs().plant_output, get_inputs().measurement);
+    }
+};
+
+// Define parameter types for this configuration
+using parameter_types = parameter_collection<control_parameters, plant_parameters>;
+
+// Example of how to update the closed loop example
+class closed_loop_example : public closed_loop_configuration<parameter_types> {
+public:
+    using parameter_types = parameter_types;
+
+    closed_loop_example(std::shared_ptr<base_application<plant_inputs, plant_outputs, plant_parameters>>
+                            plant_model_application = std::make_shared<plant_model_application_runner>())
+        : plant_model_application(plant_model_application) {
+        // Connection logic stays the same
+        auto& control_model = control_application->get_datamodel();
+        auto& plant_model = plant_model_application->get_datamodel();
+
+        control_plant_connector control_to_plant(plant_model, control_model);
+        plant_control_connector plant_to_control(control_model, plant_model);
+
+        control_to_plant.connect();
+        plant_to_control.connect();
+    }
+
+    void register_applications(simulator& sim) override {
+        sim.register_control_application_runner(control_application);
+        sim.register_control_application_runner(plant_model_application);
+    }
+
+    void register_datamodel(model_registry& registry) override {
+        control_application->register_datamodel(registry);
+        plant_model_application->register_datamodel(registry);
+    }
+
+    parameter_types create_parameter_collection() override {
+        return parameter_types(control_application->get_datamodel().get_parameters(),
+                               plant_model_application->get_datamodel().get_parameters());
+    }
 
     std::shared_ptr<control_application_runner> control_application = std::make_shared<control_application_runner>();
 
-    std::shared_ptr<plant_model_application_runner> plant_model_application =
-        std::make_shared<plant_model_application_runner>();
+    std::shared_ptr<base_application<plant_inputs, plant_outputs, plant_parameters>> plant_model_application{};
 };
 
-class closed_loop_example_simulator {
-public:
-    struct parameters {
-        control_application_datamodel::parameters* control{};
-        plant_model_application_datamodel::parameters* plant{};
-    };
-
-    static parameters get_parameters(closed_loop_example& example) {
-        return parameters{example.control_application->get_datamodel().model_parameters,
-                          example.plant_model_application->get_datamodel().model_parameters};
-    }
-
-    static void configure(simulator& simulator, closed_loop_example& example) {
-        register_simulator_applications(simulator, example);
-
-        register_data_sampler(simulator, example);
-    }
-
-private:
-    static void register_simulator_applications(simulator& simulator, closed_loop_example& example) {
-        simulator.register_control_application_runner(example.control_application);
-        simulator.register_control_application_runner(example.plant_model_application);
-    }
-
-    static void register_data_sampler(simulator& simulator, closed_loop_example& example) {
-        model_registry model;
-
-        auto plant_model_application = example.plant_model_application->get_datamodel();
-        auto control_model_application = example.control_application->get_datamodel();
-
-        control_model_application.register_data_model(model);
-        plant_model_application.register_data_model(model);
-
-        simulator.register_data_sampler_entries(model);
-    }
-};
+}  // namespace yeet
 
 #endif  // YEET_EXAMPLES_CONTROL_INTEGRATION_HPP

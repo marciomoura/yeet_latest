@@ -20,6 +20,8 @@
 #include "yeet/testing/simulator_runner_application_interface.hpp"
 #include "yeet/testing/testing_info_interface.hpp"
 
+namespace yeet {
+
 class simulator {
 public:
     simulator() {
@@ -134,5 +136,6 @@ private:
     std::map<std::size_t, std::vector<std::shared_ptr<simulator_runner_application_interface>>>
         _simulator_applications{};
 };
+}  // namespace yeet
 
 #endif  // YEET_TESTING_SIMULATOR_HPP

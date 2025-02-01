@@ -7,6 +7,8 @@
 #include "yeet/application_interface.hpp"
 #include "yeet/control_execution_policy.hpp"
 
+namespace yeet {
+
 class application_registry {
 public:
     application_registry();
@@ -44,5 +46,7 @@ private:
 
     std::list<application_registry_entry> _registry_application;
 };
+
+}  // namespace yeet
 
 #endif  // YEET_APPLICATION_REGISTRY_HPP

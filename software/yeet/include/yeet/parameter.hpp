@@ -15,6 +15,8 @@
 #include "utils/low_level_access_registry.hpp"
 #include "utils/storage_type.hpp"
 
+namespace yeet {
+
 template <typename T>
 class parameter {
 public:
@@ -78,5 +80,15 @@ public:
 private:
     low_level_access_registry _registry{};
 };
+
+class parameter_registry_interface {
+public:
+    virtual ~parameter_registry_interface() = default;
+
+    // Interface to return the parameter registry
+    virtual parameter_registry get_parameter_registry() = 0;
+};
+
+}  // namespace yeet
 
 #endif  // YEET_PARAMETER_HPP

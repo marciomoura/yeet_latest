@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) eidgenosse unittests",
+            "name": "(gdb) yeet unittests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/eidgenosse_test.exe",
+            "program": "${workspaceFolder}/build/bin/yeet_test.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

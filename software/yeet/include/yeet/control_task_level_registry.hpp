@@ -9,6 +9,8 @@
 #include "yeet/control_execution_policy.hpp"
 #include "yeet/control_task_level.hpp"
 
+namespace yeet {
+
 class control_task_level_registry {
 public:
     control_task_level_registry() = default;
@@ -67,5 +69,7 @@ private:
 // these things may be interchanged
 // I think the interconnection of these algorithms can allow certain interesting feature-enabling stuff for the product
 // and then we define how to re-utilize these guys beucase they only need to privde the missing interfaces
+
+}  // namespace yeet
 
 #endif  // YEET_APPLICATION_REGISTRY_HPP

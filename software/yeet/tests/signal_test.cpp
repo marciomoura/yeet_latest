@@ -23,9 +23,9 @@ public:
         }
     }
 
-    signal_input<T> signal_input;
+    yeet::signal_input<T> signal_input;
 
-    signal_output<T> signal_output;
+    yeet::signal_output<T> signal_output;
 };
 
 // Instantiate the test case with the types
@@ -39,7 +39,7 @@ TYPED_TEST(signal_input_test, connect_write_and_read) {
     EXPECT_TRUE(this->signal_input.empty());
 
     // connect signal output to signal input
-    signals_connector::connect_output_to_input(this->signal_output, this->signal_input);
+    yeet::signals_connector::connect_output_to_input(this->signal_output, this->signal_input);
 
     // evaluate that signal input is not empty
     EXPECT_FALSE(this->signal_input.empty());
@@ -86,7 +86,7 @@ TYPED_TEST(signal_input_test, conversion_operator) {
 
 TYPED_TEST(signal_input_test, llaccess) {
     // connect signal output to signal input
-    signals_connector::connect_output_to_input(this->signal_output, this->signal_input);
+    yeet::signals_connector::connect_output_to_input(this->signal_output, this->signal_input);
 
     const low_level_access llaccess = this->signal_output.get_low_level_access();
 
@@ -107,12 +107,12 @@ TYPED_TEST(signal_input_test, llaccess) {
 }
 
 TEST(mock_signal_input_test, signal_input_mock) {
-    signal_input<int> input;
+    yeet::signal_input<int> input;
 
     EXPECT_TRUE(input.empty());
 
     for (auto& n : {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
-        mock_signal_input::write(input, n);
+        yeet::mock_signal_input::write(input, n);
         EXPECT_EQ(input.read(), n);
     }
 

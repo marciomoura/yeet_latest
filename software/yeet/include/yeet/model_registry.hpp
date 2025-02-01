@@ -9,6 +9,8 @@
 #include "signal.hpp"
 #include "utils/low_level_access.hpp"
 
+namespace yeet {
+
 struct model_registry_entry {
     signal_registry signal_registry{};
     parameter_registry parameter_registry{};
@@ -71,5 +73,7 @@ public:
 private:
     std::map<std::string, model_registry_entry> _registry_map{};
 };
+
+}  // namespace yeet
 
 #endif  // YEET_MODEL_REGISTRY_HP

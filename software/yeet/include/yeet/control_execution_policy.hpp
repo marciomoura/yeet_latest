@@ -3,6 +3,8 @@
 
 #include <cstddef>
 
+namespace yeet {
+
 class control_execution_policy {
 public:
     static constexpr double tick_base_rate = 1e-6;
@@ -21,5 +23,7 @@ public:
 private:
     double _sampling_rate{0.0};
 };
+
+}  // namespace yeet
 
 #endif  // YEET_CONTROL_EXECUTION_POLICY_HPP

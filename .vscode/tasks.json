@@ -20,9 +20,9 @@
             }
         },
         {
-            "label": "Eidgenosse unit-tests",
+            "label": "Yeet unit-tests",
             "type": "shell",
-            "command": "./eidgenosse_test.exe",
+            "command": "./yeet_test.exe",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -34,17 +34,17 @@
             "detail": "Runs the executable"
         },
         {
-            "label": "Eidgenosse unit-tests with plotting",
+            "label": "Yeet unit-tests with plotting",
             "type": "shell",
-            "command": "${workspaceFolder}\\build\\venv\\bin\\python.exe",
+            "command": "python.exe",
             "args": [
-                "${workspaceFolder}/software/eidgenosse/tools/plot_sampler_data.py",
+                "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
                 "${workspaceFolder}/build/bin/",
                 "${workspaceFolder}/build/bin/",
                 "--move=${workspaceFolder}/build/bin/testing_outputs/"
             ],
             "dependsOn": [
-                "Eidgenosse unit-tests"
+                "Yeet unit-tests"
             ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"

@@ -23,7 +23,7 @@ project(
 
 # Define all options upfront with proper descriptions - keeping it 💯
 option(YEET_CODE_COVERAGE
-       "Enable code coverage (because we test our code like bosses)" ON)
+       "Enable code coverage (because we test our code like bosses)" OFF)
 option(YEET_SANITIZE "Enable clang-sanitizer builds (catch those bugs bestie)"
        OFF)
 option(YEET_MEMCHECK

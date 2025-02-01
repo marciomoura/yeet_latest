@@ -8,6 +8,8 @@
 #include "yeet/application_interface.hpp"
 #include "yeet/control_execution_policy.hpp"
 
+namespace yeet {
+
 class control_task_level {
 public:
     control_task_level(control_execution_policy policy) : _policy(policy) {}
@@ -56,5 +58,7 @@ private:
     control_execution_policy _policy;
     std::vector<std::shared_ptr<application_interface>> _application;
 };
+
+}  // namespace yeet
 
 #endif  // YEET_CONTROL_TASK_LEVEL_HPP

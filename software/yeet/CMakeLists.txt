@@ -8,11 +8,13 @@ add_library(yeet::yeet ALIAS ${PROJECT_NAME})
 
 target_sources(
     ${PROJECT_NAME}
-    PUBLIC include/yeet/application_interface.hpp
+    PUBLIC include/yeet/application_datamodel.hpp
+           include/yeet/application_interface.hpp
            include/yeet/application_registry.hpp
            include/yeet/control_execution_policy.hpp
            include/yeet/control_task_level_registry.hpp
            include/yeet/control_task_level.hpp
+           include/yeet/data_model_connector.hpp
            include/yeet/model_registry.hpp
            include/yeet/parameter.hpp
            include/yeet/signal.hpp
@@ -20,6 +22,7 @@ target_sources(
            include/yeet/utils/low_level_access_registry.hpp
            include/yeet/utils/metadata.hpp
            include/yeet/utils/storage_type.hpp
+           include/yeet/testing/parameter_collection.hpp
            include/yeet/testing/data_sample_json_post_processing.hpp
            include/yeet/testing/data_sample_post_processing_interface.hpp
            include/yeet/testing/data_sample_terminal_post_processing.hpp

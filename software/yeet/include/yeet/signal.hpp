@@ -14,6 +14,8 @@
 #include "utils/low_level_access_registry.hpp"
 #include "utils/storage_type.hpp"
 
+namespace yeet {
+
 class signals_connector;
 
 template <typename T>
@@ -124,5 +126,15 @@ public:
 private:
     low_level_access_registry _registry{};
 };
+
+class signal_registry_interface {
+public:
+    virtual ~signal_registry_interface() = default;
+
+    // Interface to return the signal registry
+    virtual signal_registry get_signal_registry() = 0;
+};
+
+}  // namespace yeet
 
 #endif  // YEET_SIGNAL_HPP
