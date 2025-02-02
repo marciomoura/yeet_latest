@@ -4,12 +4,8 @@
 
 #include <cmath>
 
-#include "yeet/application_interface.hpp"
-#include "yeet/parameter.hpp"
-#include "yeet/signal.hpp"
-
-//
 #include "yeet/application_datamodel.hpp"
+#include "yeet/application_interface.hpp"
 #include "yeet/data_model_connector.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
@@ -204,8 +200,8 @@ private:
 };
 
 // Define data model types for clarity
-using control_datamodel = application_datamodel<control_inputs, control_outputs, control_parameters>;
-using plant_datamodel = application_datamodel<plant_inputs, plant_outputs, plant_parameters>;
+using control_datamodel = signal_flow_datamodel<control_inputs, control_outputs>;
+using plant_datamodel = signal_flow_datamodel<plant_inputs, plant_outputs>;
 
 // Connector for control to plant and plant to control
 class control_plant_connector : public data_model_connector<plant_datamodel, control_datamodel> {
@@ -238,8 +234,8 @@ public:
                             plant_model_application = std::make_shared<plant_model_application_runner>())
         : plant_model_application(plant_model_application) {
         // Connection logic stays the same
-        auto& control_model = control_application->get_datamodel();
-        auto& plant_model = plant_model_application->get_datamodel();
+        auto& control_model = control_application->get_signal_flow_datamodel();
+        auto& plant_model = plant_model_application->get_signal_flow_datamodel();
 
         control_plant_connector control_to_plant(plant_model, control_model);
         plant_control_connector plant_to_control(control_model, plant_model);
@@ -259,8 +255,8 @@ public:
     }
 
     parameter_types create_parameter_collection() override {
-        return parameter_types(control_application->get_datamodel().get_parameters(),
-                               plant_model_application->get_datamodel().get_parameters());
+        return parameter_types(control_application->get_configuration_datamodel().get_parameters(),
+                               plant_model_application->get_configuration_datamodel().get_parameters());
     }
 
     std::shared_ptr<control_application_runner> control_application = std::make_shared<control_application_runner>();

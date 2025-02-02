@@ -17,12 +17,7 @@ struct example_a_outputs {
     signal_output<double> ex_a_output_2;
 };
 
-struct example_a_parameters {
-    parameter<double> ex_a_parameter_1 = 0.15f;
-    parameter<double> ex_a_parameter_2 = 1.35f;
-};
-
-using example_a_datamodel = application_datamodel<example_a_inputs, example_a_outputs, example_a_parameters>;
+using example_a_datamodel = signal_flow_datamodel<example_a_inputs, example_a_outputs>;
 
 struct example_b_inputs {
     signal_input<double> ex_b_input_1;
@@ -34,12 +29,7 @@ struct example_b_outputs {
     signal_output<double> ex_b_output_2;
 };
 
-struct example_b_parameters {
-    parameter<double> ex_b_parameter_1 = 0.15f;
-    parameter<double> ex_b_parameter_2 = 1.35f;
-};
-
-using example_b_datamodel = application_datamodel<example_b_inputs, example_b_outputs, example_b_parameters>;
+using example_b_datamodel = signal_flow_datamodel<example_b_inputs, example_b_outputs>;
 
 // class provides an a to b connection
 class connect_a_to_b : public data_model_connector<example_b_datamodel, example_a_datamodel> {
@@ -74,12 +64,7 @@ struct example_c_outputs {
     signal_output<double> ex_c_output_2;
 };
 
-struct example_c_parameters {
-    parameter<double> ex_c_parameter_1 = 0.15f;
-    parameter<double> ex_c_parameter_2 = 1.35f;
-};
-
-using example_c_datamodel = application_datamodel<example_c_inputs, example_c_outputs, example_c_parameters>;
+using example_c_datamodel = signal_flow_datamodel<example_c_inputs, example_c_outputs>;
 
 struct example_d_inputs {
     signal_input<double> ex_d_input_1;
@@ -93,12 +78,7 @@ struct example_d_outputs {
     signal_output<double> ex_d_output_2;
 };
 
-struct example_d_parameters {
-    parameter<double> ex_d_parameter_1 = 0.15f;
-    parameter<double> ex_d_parameter_2 = 1.35f;
-};
-
-using example_d_datamodel = application_datamodel<example_d_inputs, example_d_outputs, example_d_parameters>;
+using example_d_datamodel = signal_flow_datamodel<example_d_inputs, example_d_outputs>;
 
 class connect_b_and_c_to_d
     : public data_model_connector<example_d_datamodel, example_b_datamodel, example_c_datamodel> {
@@ -125,16 +105,14 @@ TEST(datamodel_test, connect_datamodel) {
     // Construct the A model
     yeet::example_a_inputs ex_a_inputs;
     yeet::example_a_outputs ex_a_outputs;
-    yeet::example_a_parameters ex_a_parameters;
 
-    yeet::example_a_datamodel ex_a_datamodel(ex_a_inputs, ex_a_outputs, ex_a_parameters);
+    yeet::signal_flow_datamodel ex_a_datamodel(ex_a_inputs, ex_a_outputs);
 
     // Construct the B model
     yeet::example_b_inputs ex_b_inputs;
     yeet::example_b_outputs ex_b_outputs;
-    yeet::example_b_parameters ex_b_parameters;
 
-    yeet::example_b_datamodel ex_b_datamodel(ex_b_inputs, ex_b_outputs, ex_b_parameters);
+    yeet::signal_flow_datamodel ex_b_datamodel(ex_b_inputs, ex_b_outputs);
 
     // Provides an A -> B connection flow
     yeet::connect_a_to_b a_to_b(ex_b_datamodel, ex_a_datamodel);
@@ -174,23 +152,20 @@ TEST(datamodel_test, connect_b_and_c_to_a) {
     // Construct the B model
     yeet::example_b_inputs ex_b_inputs;
     yeet::example_b_outputs ex_b_outputs;
-    yeet::example_b_parameters ex_b_parameters;
 
-    yeet::example_b_datamodel ex_b_datamodel(ex_b_inputs, ex_b_outputs, ex_b_parameters);
+    yeet::example_b_datamodel ex_b_datamodel(ex_b_inputs, ex_b_outputs);
 
     // Construct the C model
     yeet::example_c_inputs ex_c_inputs;
     yeet::example_c_outputs ex_c_outputs;
-    yeet::example_c_parameters ex_c_parameters;
 
-    yeet::example_c_datamodel ex_c_datamodel(ex_c_inputs, ex_c_outputs, ex_c_parameters);
+    yeet::example_c_datamodel ex_c_datamodel(ex_c_inputs, ex_c_outputs);
 
     // Construct the D model
     yeet::example_d_inputs ex_d_inputs;
     yeet::example_d_outputs ex_d_outputs;
-    yeet::example_d_parameters ex_d_parameters;
 
-    yeet::example_d_datamodel ex_d_datamodel(ex_d_inputs, ex_d_outputs, ex_d_parameters);
+    yeet::example_d_datamodel ex_d_datamodel(ex_d_inputs, ex_d_outputs);
 
     // Provides a B and C -> D connection flow
     yeet::connect_b_and_c_to_d b_and_c_to_d(ex_d_datamodel, ex_b_datamodel, ex_c_datamodel);

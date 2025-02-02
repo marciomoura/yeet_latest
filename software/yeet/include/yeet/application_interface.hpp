@@ -36,15 +36,20 @@ public:
 
     virtual void register_datamodel(model_registry& registry) {};
 
-    application_datamodel<InputType, OutputType, ParameterType>& get_datamodel() { return _data_model; }
+    signal_flow_datamodel<InputType, OutputType>& get_signal_flow_datamodel() { return _signal_flow_datamodel; }
 
-    application_datamodel<InputType, OutputType, ParameterType> const& get_datamodel() const { return _data_model; }
+    application_configuration_datamodel<ParameterType>& get_configuration_datamodel() {
+        return _application_configuration_datamodel;
+    }
 
 protected:
     InputType _inputs;
     OutputType _outputs;
     ParameterType _parameters;
-    application_datamodel<InputType, OutputType, ParameterType> _data_model{_inputs, _outputs, _parameters};
+
+    signal_flow_datamodel<InputType, OutputType> _signal_flow_datamodel{_inputs, _outputs};
+
+    application_configuration_datamodel<ParameterType> _application_configuration_datamodel{_parameters};
 };
 
 }  // namespace yeet
