@@ -2,8 +2,8 @@
 #define YEET_CONTROL_PI_CONTROLLER_HPP
 
 #include <algorithm>  // For std::clamp
+#include <cassert>
 #include <limits>
-#include <type_traits>
 
 namespace yeet::control {
 
@@ -27,10 +27,8 @@ namespace yeet::control {
  *
  * @tparam T Numeric type (should be a floating point or an arithmetic type)
  */
-template <typename T>
+template <typename T, typename CoefficientT = T>
 class pi_controller {
-    static_assert(std::is_arithmetic_v<T>, "T must be an arithmetic type");
-
 public:
     /**
      * @brief Configure the controller using Kp and continuous-time Ki.
@@ -42,7 +40,7 @@ public:
      * The discrete-time integral gain is computed as:
      *     Ki_disc = ki_continuous * ts.
      */
-    void configure(T kp, T ki_continuous, T ts) {
+    void configure(CoefficientT kp, CoefficientT ki_continuous, CoefficientT ts) {
         _kp = kp;
         _ki_cont = ki_continuous;
         _ts = ts;
@@ -61,11 +59,13 @@ public:
      * and the discrete-time gain is:
      *     Ki_disc = Ki_continuous * ts.
      */
-    void configure_with_ti(T kp, T ti, T ts) {
+    void configure_with_ti(CoefficientT kp, CoefficientT ti, CoefficientT ts) {
+        assert(ts > CoefficientT(0) && "Sampling time must be positive");
+
         _kp = kp;
         _ts = ts;
         // Protect against division by zero.
-        _ki_cont = (ti != T(0)) ? (kp / ti) : T(0);
+        _ki_cont = (ti != CoefficientT(0)) ? (kp / ti) : CoefficientT(0);
         _ki_disc = _ki_cont * ts;
     }
 
@@ -78,7 +78,7 @@ public:
      * Enforcing output limits can prevent actuator saturation. Note that when saturation occurs,
      * anti-windup strategies may be necessary to prevent excessive integral buildup.
      */
-    void set_output_limits(T min, T max) {
+    void set_output_limits(CoefficientT min, CoefficientT max) {
         if (min < max) {
             _output_min = min;
             _output_max = max;
@@ -88,7 +88,7 @@ public:
     /**
      * @brief Reset the controller state by clearing the integral term.
      */
-    void reset() { _integral = T(0); }
+    void reset() { _integral = T{}; }
 
     /**
      * @brief Update the PI controller with the current error input.
@@ -111,28 +111,31 @@ public:
 
         // Apply output limits (saturation)
         // A more advanced implementation could use anti-windup to adjust the _integral term.
-        output = std::clamp(output, _output_min, _output_max);
+        if constexpr (std::is_floating_point_v<T>)  // Only clamp if T is a floating point type
+        {
+            output = std::clamp(output, _output_min, _output_max);
+        }
 
         return output;
     }
 
     // Getter methods.
-    T get_kp() const { return _kp; }
-    T get_ki_continuous() const { return _ki_cont; }
-    T get_ki_discrete() const { return _ki_disc; }
-    T get_sampling_time() const { return _ts; }
+    CoefficientT get_kp() const { return _kp; }
+    CoefficientT get_ki_continuous() const { return _ki_cont; }
+    CoefficientT get_ki_discrete() const { return _ki_disc; }
+    CoefficientT get_sampling_time() const { return _ts; }
     T get_integral() const { return _integral; }
 
 private:
-    T _kp{};        // Proportional gain.
-    T _ki_cont{};   // Continuous-time integral gain.
-    T _ts{};        // Sampling time.
-    T _ki_disc{};   // Discrete-time integral gain (computed as _ki_cont * _ts).
-    T _integral{};  // Accumulated integral term.
+    CoefficientT _kp{};       // Proportional gain.
+    CoefficientT _ki_cont{};  // Continuous-time integral gain.
+    CoefficientT _ts{};       // Sampling time.
+    CoefficientT _ki_disc{};  // Discrete-time integral gain (computed as _ki_cont * _ts).
+    T _integral{};            // Accumulated integral term.
 
     // Output limits for actuator saturation.
-    T _output_min{std::numeric_limits<T>::lowest()};
-    T _output_max{std::numeric_limits<T>::max()};
+    CoefficientT _output_min{std::numeric_limits<CoefficientT>::lowest()};
+    CoefficientT _output_max{std::numeric_limits<CoefficientT>::max()};
 };
 
 }  // namespace yeet::control

@@ -1,13 +1,15 @@
 #ifndef YEET_CONTROL_INTEGRATOR_HPP
 #define YEET_CONTROL_INTEGRATOR_HPP
 
+#include <cassert>
+
 namespace yeet::control {
 
-template <typename T>
+template <typename T, typename CoefficientT = T>
 class integrator {
 public:
     // Configure sampling time
-    void configure(double ts) { _ts = ts; }
+    void configure(CoefficientT ts) { _ts = ts; }
 
     // Reset integrator state
     void reset() { _value = T(0); }
@@ -25,6 +27,8 @@ public:
     // Ts is the sampling time
     template <typename InputT = T>
     T update(InputT input) {
+        assert(_ts > CoefficientT(0) && "Sampling time must be positive");
+
         // Update integrator using rectangular integration
         _value += T{input * _ts};
 
@@ -32,12 +36,12 @@ public:
     }
 
     // Getter methods
-    double get_sampling_time() const { return _ts; }
+    CoefficientT get_sampling_time() const { return _ts; }
     T get_value() const { return _value; }
 
 private:
-    double _ts{};  // Sampling time
-    T _value{};    // Current integrator value
+    CoefficientT _ts{};  // Sampling time
+    T _value{};          // Current integrator value
 };
 
 }  // namespace yeet::control

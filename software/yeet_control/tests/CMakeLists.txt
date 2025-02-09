@@ -13,6 +13,7 @@ target_sources(
             limit_tests.cpp
             reference_frame_test.cpp
             integrator_test.cpp
+            pi_controller_test.cpp
             first_order_low_pass_filter_test.cpp
             second_order_filter_test.cpp)
 
