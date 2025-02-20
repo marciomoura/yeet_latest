@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "yeet/testing/data_sampler_entry.hpp"
+#include "yeet_testing/data_sampler_entry.hpp"
 
 class data_sample_post_processing_interface {
 public:

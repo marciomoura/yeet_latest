@@ -2,10 +2,8 @@
 
 #include <cmath>
 
-#include "yeet/testing/simulator.hpp"
-
-//
-#include "../examples/control_integration.hpp"
+#include "control_integration.hpp"
+#include "yeet_testing/simulator.hpp"
 
 class gtest_testing_info : public testing_info_interface {
 public:

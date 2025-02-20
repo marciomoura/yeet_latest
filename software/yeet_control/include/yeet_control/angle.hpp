@@ -58,7 +58,7 @@ public:
      *
      * @param value The angle value in radians (default = 0.0)
      */
-    explicit angle(double value = 0.0);
+    angle(double value = 0.0);
 
     /**
      * @brief Sets the angle value with automatic range wrapping
@@ -89,6 +89,13 @@ public:
      * @return The angle in radians, wrapped to the valid range
      */
     operator double() const { return _value; }
+
+    /**
+     * @brief Negation operator for the angle value
+     *
+     * @return A new angle representing the negated value
+     */
+    angle operator-() const;
 
     /**
      * @brief Adds two angles

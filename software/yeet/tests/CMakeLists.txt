@@ -12,8 +12,7 @@ target_sources(
     PRIVATE parameter_test.cpp
             signal_test.cpp
             datamodel_connector_test.cpp
-            utils/low_level_access_test.cpp
-            examples/control_example_test.cpp)
+            utils/low_level_access_test.cpp)
 
 # Link dependencies
 target_link_libraries(

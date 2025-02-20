@@ -5,7 +5,7 @@
 #include <type_traits>
 
 #include "yeet/model_registry.hpp"
-#include "yeet/testing/simulator.hpp"
+#include "yeet_testing/simulator.hpp"
 
 namespace yeet {
 

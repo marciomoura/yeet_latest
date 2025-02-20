@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "yeet/testing/data_sample_post_processing_interface.hpp"
-#include "yeet/testing/data_sampler_entry.hpp"
+#include "yeet_testing/data_sample_post_processing_interface.hpp"
+#include "yeet_testing/data_sampler_entry.hpp"
 
 class data_sampler {
 public:

@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "yeet/application_interface.hpp"
-#include "yeet/testing/simulator_runner_application_interface.hpp"
+#include "yeet_testing/simulator_runner_application_interface.hpp"
 
 namespace yeet {
 

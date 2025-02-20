@@ -28,6 +28,14 @@ TEST_F(AngleMinusPiToPiTest, Constructor) {
     EXPECT_NEAR(a.get_degrees(), 180.0 / pi<double>, kEpsilon);
 }
 
+TEST_F(AngleMinusPiToPiTest, NegationOperator) {
+    angle<minus_pi_to_pi> a;
+    a.set_value(1.0);
+    angle<minus_pi_to_pi> a_negated = -a;
+    EXPECT_NEAR(a, 1.0, kEpsilon);
+    EXPECT_NEAR(a_negated, -1.0, kEpsilon);
+}
+
 TEST_F(AngleMinusPiToPiTest, ConversionalOperator) {
     angle<minus_pi_to_pi> a;
     a.set_value(1.0);
@@ -167,6 +175,14 @@ TEST_F(AngleZeroToTwoPiTest, Addition) {
     angle<zero_to_two_pi> b(2.0);
     auto c = a + b;
     EXPECT_NEAR(c.get_radians(), 3.0, kEpsilon);
+}
+
+TEST_F(AngleZeroToTwoPiTest, NegationOperator) {
+    angle<zero_to_two_pi> a;
+    a.set_value(1.0);
+    angle<zero_to_two_pi> a_negated = -a;
+    EXPECT_NEAR(a, 1.0, kEpsilon);
+    EXPECT_NEAR(a_negated, 2.0 * pi<double> - 1.0, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, AdditionWithWrapping) {

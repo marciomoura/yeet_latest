@@ -70,6 +70,14 @@ TEST(ReferenceFrameTest, AbcAdditionAndSubtractionOperators) {
     expect_near(diff[2], 3.0);
 }
 
+TEST(ReferenceFrameTest, AbcUnaryNegationOperator) {
+    abc<double> abc_coords{1.0, -0.5, -0.5};
+    abc<double> neg_abc = -abc_coords;
+    expect_near(neg_abc[0], -1.0);
+    expect_near(neg_abc[1], 0.5);
+    expect_near(neg_abc[2], 0.5);
+}
+
 TEST(ReferenceFrameTest, AbcCompoundOperators) {
     abc<double> a(1.0, 2.0, 3.0);
     abc<double> b(4.0, 5.0, 6.0);
@@ -150,6 +158,13 @@ TEST(ReferenceFrameTest, AlphabetaAdditionAndSubtractionOperators) {
     expect_near(diff[1], 2.0);
 }
 
+TEST(ReferenceFrameTest, AlphabetaUnaryNegationOperator) {
+    alphabeta<double> ab_coords{1.0, -0.5};
+    alphabeta<double> neg_ab = -ab_coords;
+    expect_near(neg_ab[0], -1.0);
+    expect_near(neg_ab[1], 0.5);
+}
+
 TEST(ReferenceFrameTest, AlphabetaCompoundOperators) {
     alphabeta<double> a(1.0, 2.0);
     alphabeta<double> b(3.0, 4.0);
@@ -215,6 +230,13 @@ TEST(ReferenceFrameTest, DqAdditionAndSubtractionOperators) {
     dq<double> diff = b - a;
     expect_near(diff[0], 2.0);
     expect_near(diff[1], 2.0);
+}
+
+TEST(ReferenceFrameTest, DqUnaryNegationOperator) {
+    dq<double> dq_coords{1.0, -0.5};
+    dq<double> neg_dq = -dq_coords;
+    expect_near(neg_dq[0], -1.0);
+    expect_near(neg_dq[1], 0.5);
 }
 
 TEST(ReferenceFrameTest, DqCompoundOperators) {

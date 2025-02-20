@@ -15,7 +15,8 @@ target_sources(
             integrator_test.cpp
             pi_controller_test.cpp
             first_order_low_pass_filter_test.cpp
-            second_order_filter_test.cpp)
+            second_order_filter_test.cpp
+            three_phase_waveform_generator_test.cpp)
 
 # Link dependencies
 target_link_libraries(
@@ -24,6 +25,7 @@ target_link_libraries(
             gtest::gtest
             gtest::gmock
             yeet::yeet_control
+            yeet::yeet_testing
             $<$<NOT:$<PLATFORM_ID:Windows>>:pthread>)
 
 # Discover tests

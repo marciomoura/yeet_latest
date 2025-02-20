@@ -120,7 +120,9 @@ include(json)
 
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
+add_subdirectory(software/yeet_testing)
 add_subdirectory(software/yeet_control)
+add_subdirectory(software/yeet_examples)
 
 if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet/tests)

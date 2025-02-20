@@ -38,6 +38,11 @@ double angle<RangeType>::get_radians() const {
 }
 
 template <typename RangeType>
+angle<RangeType> angle<RangeType>::operator-() const {
+    return angle(-_value);
+}
+
+template <typename RangeType>
 angle<RangeType> angle<RangeType>::operator+(const angle& other) const {
     return angle(_value + other._value);
 }

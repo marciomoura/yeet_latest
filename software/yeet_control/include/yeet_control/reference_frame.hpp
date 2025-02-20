@@ -26,9 +26,21 @@ template <typename T>
 class abc {
 public:
     // Constructors
-    abc() : _values{0, 0, 0} {}
-    explicit abc(const std::array<T, 3>& values) : _values(values) {}
+    abc() = default;
+    abc(const std::array<T, 3>& values) : _values(values) {}
     abc(T a, T b, T c) : _values{a, b, c} {}
+    abc(const abc<T>& other) : _values(other._values) {}
+    abc(abc<T>&& other) : _values(std::move(other._values)) {}
+
+    abc<T>& operator=(const abc<T>& other) {
+        _values = other._values;
+        return *this;
+    }
+
+    abc<T>& operator=(abc<T>&& other) {
+        _values = std::move(other._values);
+        return *this;
+    }
 
     // Array access
     T& operator[](size_t idx) { return _values[idx]; }
@@ -96,8 +108,11 @@ public:
         return *this;
     }
 
+    // Negation operator
+    abc<T> operator-() const { return abc<T>{-_values[0], -_values[1], -_values[2]}; }
+
 private:
-    std::array<T, 3> _values;
+    std::array<T, 3> _values{};
 };
 
 // Non-member scalar multiplication (for scalar * abc)
@@ -116,8 +131,21 @@ class alphabeta {
 public:
     // Constructors
     alphabeta() = default;
-    explicit alphabeta(const std::array<T, 2>& values) : _values(values) {}
+    alphabeta(const std::array<T, 2>& values) : _values(values) {}
     alphabeta(T alpha, T beta) : _values{alpha, beta} {}
+
+    alphabeta(const alphabeta<T>& other) : _values(other._values) {}
+    alphabeta(alphabeta<T>&& other) : _values(std::move(other._values)) {}
+
+    alphabeta<T>& operator=(const alphabeta<T>& other) {
+        _values = other._values;
+        return *this;
+    }
+
+    alphabeta<T>& operator=(alphabeta<T>&& other) {
+        _values = std::move(other._values);
+        return *this;
+    }
 
     // Array access
     T& operator[](size_t idx) { return _values[idx]; }
@@ -196,6 +224,9 @@ public:
         return *this;
     }
 
+    // Negation operator
+    alphabeta<T> operator-() const { return alphabeta<T>{-_values[0], -_values[1]}; }
+
 private:
     std::array<T, 2> _values{};
 };
@@ -215,9 +246,22 @@ template <typename T>
 class dq {
 public:
     // Constructors
-    dq() {}
-    explicit dq(const std::array<T, 2>& values) : _values(values) {}
+    dq() = default;
+    dq(const std::array<T, 2>& values) : _values(values) {}
     dq(T d, T q) : _values{d, q} {}
+
+    dq(const dq<T>& other) : _values(other._values) {}
+    dq(dq<T>&& other) : _values(std::move(other._values)) {}
+
+    dq<T>& operator=(const dq<T>& other) {
+        _values = other._values;
+        return *this;
+    }
+
+    dq<T>& operator=(dq<T>&& other) {
+        _values = std::move(other._values);
+        return *this;
+    }
 
     // Array access
     T& operator[](size_t idx) { return _values[idx]; }
@@ -295,6 +339,9 @@ public:
         _values[1] /= scalar;
         return *this;
     }
+
+    // Negation operator
+    dq<T> operator-() const { return dq<T>{-_values[0], -_values[1]}; }
 
 private:
     std::array<T, 2> _values{};

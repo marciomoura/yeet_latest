@@ -34,7 +34,7 @@
             "detail": "Runs the executable"
         },
         {
-            "label": "Yeet unit-tests with plotting",
+            "label": "Yeet plotting",
             "type": "shell",
             "command": "python.exe",
             "args": [
@@ -42,9 +42,6 @@
                 "${workspaceFolder}/build/bin/",
                 "${workspaceFolder}/build/bin/",
                 "--move=${workspaceFolder}/build/bin/testing_outputs/"
-            ],
-            "dependsOn": [
-                "Yeet unit-tests"
             ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"

@@ -22,16 +22,6 @@ target_sources(
            include/yeet/utils/low_level_access_registry.hpp
            include/yeet/utils/metadata.hpp
            include/yeet/utils/storage_type.hpp
-           include/yeet/testing/parameter_collection.hpp
-           include/yeet/testing/data_sample_json_post_processing.hpp
-           include/yeet/testing/data_sample_post_processing_interface.hpp
-           include/yeet/testing/data_sample_terminal_post_processing.hpp
-           include/yeet/testing/data_sampler_entry.hpp
-           include/yeet/testing/data_sampler.hpp
-           include/yeet/testing/simulator_runner_application_interface.hpp
-           include/yeet/testing/simulator_runner_application.hpp
-           include/yeet/testing/simulator.hpp
-           include/yeet/testing/testing_info_interface.hpp
     PRIVATE src/parameter.cpp)
 
 target_include_directories(

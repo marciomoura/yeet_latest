@@ -10,8 +10,8 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
-#include "yeet/testing/parameter_collection.hpp"
-#include "yeet/testing/simulator.hpp"
+#include "yeet_testing/parameter_collection.hpp"
+#include "yeet_testing/simulator.hpp"
 
 class integrator {
 public:
