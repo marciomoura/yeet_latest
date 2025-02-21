@@ -30,6 +30,14 @@ public:
         _data_sampler.register_entry(entry);
     }
 
+    void register_lambda_runner(double sampling_time, std::function<void()> lambda_runner) {
+        assert(lambda_runner != nullptr && "lambda_runner must not be nullptr");
+
+        register_application(std::make_shared<simulator_lambda_runner_application>(sampling_time, lambda_runner));
+
+        update_simulator_applications_list_based_on_normalized_ticks();
+    }
+
     void register_control_application_runner(std::shared_ptr<application_interface> application) {
         assert(application != nullptr && "application must not be nullptr");
 
@@ -78,14 +86,16 @@ public:
         }
     }
 
+    double get_current_simulation_time() const { return _current_simulation_time_ticks * _fastest_sampling_rate; }
+
     void dump_terminal() {
         data_sample_terminal_post_processing terminal;
         _data_sampler.dump(terminal);
     }
 
-    void dump_json(testing_info_interface* testing_info) {
+    void dump_json(testing_info_interface const& testing_info) {
         data_sample_json_post_processing terminal;
-        _data_sampler.dump(testing_info->get_test_suite_name(), testing_info->get_test_case_name(), terminal);
+        _data_sampler.dump(testing_info.get_test_suite_name(), testing_info.get_test_case_name(), terminal);
     }
 
 private:

@@ -26,52 +26,52 @@ template <typename T>
 class abc {
 public:
     // Constructors
-    abc() = default;
-    abc(const std::array<T, 3>& values) : _values(values) {}
-    abc(T a, T b, T c) : _values{a, b, c} {}
-    abc(const abc<T>& other) : _values(other._values) {}
-    abc(abc<T>&& other) : _values(std::move(other._values)) {}
+    constexpr abc() = default;
+    constexpr abc(const std::array<T, 3>& values) : _values(values) {}
+    constexpr abc(T a, T b, T c) : _values{a, b, c} {}
+    constexpr abc(const abc<T>& other) : _values(other._values) {}
+    constexpr abc(abc<T>&& other) : _values(std::move(other._values)) {}
 
-    abc<T>& operator=(const abc<T>& other) {
+    constexpr abc<T>& operator=(const abc<T>& other) {
         _values = other._values;
         return *this;
     }
 
-    abc<T>& operator=(abc<T>&& other) {
+    constexpr abc<T>& operator=(abc<T>&& other) {
         _values = std::move(other._values);
         return *this;
     }
 
     // Array access
-    T& operator[](size_t idx) { return _values[idx]; }
-    const T& operator[](size_t idx) const { return _values[idx]; }
+    constexpr T& operator[](size_t idx) { return _values[idx]; }
+    constexpr const T& operator[](size_t idx) const { return _values[idx]; }
 
     // Conversion to array
-    operator std::array<T, 3>() const { return _values; }
-    std::array<T, 3> array() const { return _values; }
+    constexpr operator std::array<T, 3>() const { return _values; }
+    constexpr std::array<T, 3> array() const { return _values; }
 
     // Conversion to other frames
-    alphabeta<T> to_alphabeta() const;
-    dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
+    constexpr alphabeta<T> to_alphabeta() const;
+    constexpr dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
 
     // Rotation
-    abc<T> rotate(const angle<zero_to_two_pi>& angle) const {
+    constexpr abc<T> rotate(const angle<zero_to_two_pi>& angle) const {
         // Rotate by converting to alphabeta, rotating there, and converting back
         return to_alphabeta().rotate(angle).to_abc();
     }
 
     // Addition operator
-    abc<T> operator+(const abc<T>& other) const {
+    constexpr abc<T> operator+(const abc<T>& other) const {
         return abc<T>{_values[0] + other._values[0], _values[1] + other._values[1], _values[2] + other._values[2]};
     }
 
     // Subtraction operator
-    abc<T> operator-(const abc<T>& other) const {
+    constexpr abc<T> operator-(const abc<T>& other) const {
         return abc<T>{_values[0] - other._values[0], _values[1] - other._values[1], _values[2] - other._values[2]};
     }
 
     // Compound addition operator
-    abc<T>& operator+=(const abc<T>& other) {
+    constexpr abc<T>& operator+=(const abc<T>& other) {
         _values[0] += other._values[0];
         _values[1] += other._values[1];
         _values[2] += other._values[2];
@@ -79,7 +79,7 @@ public:
     }
 
     // Compound subtraction operator
-    abc<T>& operator-=(const abc<T>& other) {
+    constexpr abc<T>& operator-=(const abc<T>& other) {
         _values[0] -= other._values[0];
         _values[1] -= other._values[1];
         _values[2] -= other._values[2];
@@ -87,13 +87,17 @@ public:
     }
 
     // Scalar multiplication
-    abc<T> operator*(T scalar) const { return abc<T>{_values[0] * scalar, _values[1] * scalar, _values[2] * scalar}; }
+    constexpr abc<T> operator*(T scalar) const {
+        return abc<T>{_values[0] * scalar, _values[1] * scalar, _values[2] * scalar};
+    }
 
     // Scalar division
-    abc<T> operator/(T scalar) const { return abc<T>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar}; }
+    constexpr abc<T> operator/(T scalar) const {
+        return abc<T>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
+    }
 
     // Compound scalar multiplication
-    abc<T>& operator*=(T scalar) {
+    constexpr abc<T>& operator*=(T scalar) {
         _values[0] *= scalar;
         _values[1] *= scalar;
         _values[2] *= scalar;
@@ -101,7 +105,7 @@ public:
     }
 
     // Compound scalar division
-    abc<T>& operator/=(T scalar) {
+    constexpr abc<T>& operator/=(T scalar) {
         _values[0] /= scalar;
         _values[1] /= scalar;
         _values[2] /= scalar;
@@ -109,7 +113,7 @@ public:
     }
 
     // Negation operator
-    abc<T> operator-() const { return abc<T>{-_values[0], -_values[1], -_values[2]}; }
+    constexpr abc<T> operator-() const { return abc<T>{-_values[0], -_values[1], -_values[2]}; }
 
 private:
     std::array<T, 3> _values{};
@@ -117,7 +121,7 @@ private:
 
 // Non-member scalar multiplication (for scalar * abc)
 template <typename T>
-abc<T> operator*(T scalar, const abc<T>& coords) {
+constexpr abc<T> operator*(T scalar, const abc<T>& coords) {
     return coords * scalar;
 }
 
@@ -130,102 +134,101 @@ template <typename T>
 class alphabeta {
 public:
     // Constructors
-    alphabeta() = default;
-    alphabeta(const std::array<T, 2>& values) : _values(values) {}
-    alphabeta(T alpha, T beta) : _values{alpha, beta} {}
+    constexpr alphabeta() = default;
+    constexpr alphabeta(const std::array<T, 2>& values) : _values(values) {}
+    constexpr alphabeta(T alpha, T beta) : _values{alpha, beta} {}
 
-    alphabeta(const alphabeta<T>& other) : _values(other._values) {}
-    alphabeta(alphabeta<T>&& other) : _values(std::move(other._values)) {}
+    constexpr alphabeta(const alphabeta<T>& other) : _values(other._values) {}
+    constexpr alphabeta(alphabeta<T>&& other) : _values(std::move(other._values)) {}
 
-    alphabeta<T>& operator=(const alphabeta<T>& other) {
+    constexpr alphabeta<T>& operator=(const alphabeta<T>& other) {
         _values = other._values;
         return *this;
     }
 
-    alphabeta<T>& operator=(alphabeta<T>&& other) {
+    constexpr alphabeta<T>& operator=(alphabeta<T>&& other) {
         _values = std::move(other._values);
         return *this;
     }
 
     // Array access
-    T& operator[](size_t idx) { return _values[idx]; }
-    const T& operator[](size_t idx) const { return _values[idx]; }
+    constexpr T& operator[](size_t idx) { return _values[idx]; }
+    constexpr const T& operator[](size_t idx) const { return _values[idx]; }
 
     // Conversion to array
-    operator std::array<T, 2>() const { return _values; }
-    std::array<T, 2> array() const { return _values; }
+    constexpr operator std::array<T, 2>() const { return _values; }
+    constexpr std::array<T, 2> array() const { return _values; }
 
     // Conversion to other frames
-    abc<T> to_abc() const;
-    dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
+    constexpr abc<T> to_abc() const;
+    constexpr dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
 
     // Magnitude calculation
-    T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
+    constexpr T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
 
     // Phase calculation
-    angle<zero_to_two_pi> phase() const { return angle<zero_to_two_pi>(std::atan2(_values[1], _values[0])); }
+    constexpr angle<zero_to_two_pi> phase() const { return angle<zero_to_two_pi>(std::atan2(_values[1], _values[0])); }
 
     // Counter-clockwise rotation:
     //    [cos θ  -sin θ] [α] = [α cos θ - β sin θ]
     //    [sin θ   cos θ] [β]   [α sin θ + β cos θ]
-    alphabeta<T> rotate_counter_clockwise(const angle<zero_to_two_pi>& theta) const {
+    constexpr alphabeta<T> rotate_counter_clockwise(const angle<zero_to_two_pi>& theta) const {
         const double cos_angle = std::cos(theta.get_radians());
         const double sin_angle = std::sin(theta.get_radians());
-
         return alphabeta<T>{_values[0] * cos_angle - _values[1] * sin_angle,
                             _values[0] * sin_angle + _values[1] * cos_angle};
     }
 
-    alphabeta<T> rotate_clockwise(const angle<zero_to_two_pi>& theta) const {
+    constexpr alphabeta<T> rotate_clockwise(const angle<zero_to_two_pi>& theta) const {
         return rotate_counter_clockwise(angle<zero_to_two_pi>(-theta.get_radians()));
     }
 
     // Addition operator
-    alphabeta<T> operator+(const alphabeta<T>& other) const {
+    constexpr alphabeta<T> operator+(const alphabeta<T>& other) const {
         return alphabeta<T>{_values[0] + other._values[0], _values[1] + other._values[1]};
     }
 
     // Subtraction operator
-    alphabeta<T> operator-(const alphabeta<T>& other) const {
+    constexpr alphabeta<T> operator-(const alphabeta<T>& other) const {
         return alphabeta<T>{_values[0] - other._values[0], _values[1] - other._values[1]};
     }
 
     // Compound addition operator
-    alphabeta<T>& operator+=(const alphabeta<T>& other) {
+    constexpr alphabeta<T>& operator+=(const alphabeta<T>& other) {
         _values[0] += other._values[0];
         _values[1] += other._values[1];
         return *this;
     }
 
     // Compound subtraction operator
-    alphabeta<T>& operator-=(const alphabeta<T>& other) {
+    constexpr alphabeta<T>& operator-=(const alphabeta<T>& other) {
         _values[0] -= other._values[0];
         _values[1] -= other._values[1];
         return *this;
     }
 
     // Scalar multiplication
-    alphabeta<T> operator*(T scalar) const { return alphabeta<T>{_values[0] * scalar, _values[1] * scalar}; }
+    constexpr alphabeta<T> operator*(T scalar) const { return alphabeta<T>{_values[0] * scalar, _values[1] * scalar}; }
 
     // Scalar division
-    alphabeta<T> operator/(T scalar) const { return alphabeta<T>{_values[0] / scalar, _values[1] / scalar}; }
+    constexpr alphabeta<T> operator/(T scalar) const { return alphabeta<T>{_values[0] / scalar, _values[1] / scalar}; }
 
     // Compound scalar multiplication
-    alphabeta<T>& operator*=(T scalar) {
+    constexpr alphabeta<T>& operator*=(T scalar) {
         _values[0] *= scalar;
         _values[1] *= scalar;
         return *this;
     }
 
     // Compound scalar division
-    alphabeta<T>& operator/=(T scalar) {
+    constexpr alphabeta<T>& operator/=(T scalar) {
         _values[0] /= scalar;
         _values[1] /= scalar;
         return *this;
     }
 
     // Negation operator
-    alphabeta<T> operator-() const { return alphabeta<T>{-_values[0], -_values[1]}; }
+    constexpr alphabeta<T> operator-() const { return alphabeta<T>{-_values[0], -_values[1]}; }
 
 private:
     std::array<T, 2> _values{};
@@ -233,7 +236,7 @@ private:
 
 // Non-member scalar multiplication (for scalar * alphabeta)
 template <typename T>
-alphabeta<T> operator*(T scalar, const alphabeta<T>& coords) {
+constexpr alphabeta<T> operator*(T scalar, const alphabeta<T>& coords) {
     return coords * scalar;
 }
 
@@ -246,102 +249,101 @@ template <typename T>
 class dq {
 public:
     // Constructors
-    dq() = default;
-    dq(const std::array<T, 2>& values) : _values(values) {}
-    dq(T d, T q) : _values{d, q} {}
+    constexpr dq() = default;
+    constexpr dq(const std::array<T, 2>& values) : _values(values) {}
+    constexpr dq(T d, T q) : _values{d, q} {}
 
-    dq(const dq<T>& other) : _values(other._values) {}
-    dq(dq<T>&& other) : _values(std::move(other._values)) {}
+    constexpr dq(const dq<T>& other) : _values(other._values) {}
+    constexpr dq(dq<T>&& other) : _values(std::move(other._values)) {}
 
-    dq<T>& operator=(const dq<T>& other) {
+    constexpr dq<T>& operator=(const dq<T>& other) {
         _values = other._values;
         return *this;
     }
 
-    dq<T>& operator=(dq<T>&& other) {
+    constexpr dq<T>& operator=(dq<T>&& other) {
         _values = std::move(other._values);
         return *this;
     }
 
     // Array access
-    T& operator[](size_t idx) { return _values[idx]; }
-    const T& operator[](size_t idx) const { return _values[idx]; }
+    constexpr T& operator[](size_t idx) { return _values[idx]; }
+    constexpr const T& operator[](size_t idx) const { return _values[idx]; }
 
     // Conversion to array
-    operator std::array<T, 2>() const { return _values; }
-    std::array<T, 2> array() const { return _values; }
+    constexpr operator std::array<T, 2>() const { return _values; }
+    constexpr std::array<T, 2> array() const { return _values; }
 
     // Conversion to other frames
-    alphabeta<T> to_alphabeta(const angle<zero_to_two_pi>& theta) const;
-    abc<T> to_abc(const angle<zero_to_two_pi>& theta) const;
+    constexpr alphabeta<T> to_alphabeta(const angle<zero_to_two_pi>& theta) const;
+    constexpr abc<T> to_abc(const angle<zero_to_two_pi>& theta) const;
 
     // Magnitude calculation
-    T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
+    constexpr T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
 
-    angle<zero_to_two_pi> phase(angle<zero_to_two_pi> const& frame) const {
+    constexpr angle<zero_to_two_pi> phase(const angle<zero_to_two_pi>& frame) const {
         return frame + angle<zero_to_two_pi>(std::atan2(_values[1], _values[0]));
     }
 
     // Counter-clockwise rotation:
     //    [cos θ  -sin θ] [α] = [α cos θ - β sin θ]
     //    [sin θ   cos θ] [β]   [α sin θ + β cos θ]
-    dq<T> rotate_counter_clockwise(const angle<zero_to_two_pi>& theta) const {
+    constexpr dq<T> rotate_counter_clockwise(const angle<zero_to_two_pi>& theta) const {
         const double cos_angle = std::cos(theta.get_radians());
         const double sin_angle = std::sin(theta.get_radians());
-
         return dq<T>{_values[0] * cos_angle - _values[1] * sin_angle, _values[0] * sin_angle + _values[1] * cos_angle};
     }
 
-    dq<T> rotate_clockwise(const angle<zero_to_two_pi>& theta) const {
+    constexpr dq<T> rotate_clockwise(const angle<zero_to_two_pi>& theta) const {
         return rotate_counter_clockwise(angle<zero_to_two_pi>(-theta.get_radians()));
     }
 
     // Addition operator
-    dq<T> operator+(const dq<T>& other) const {
+    constexpr dq<T> operator+(const dq<T>& other) const {
         return dq<T>{_values[0] + other._values[0], _values[1] + other._values[1]};
     }
 
     // Subtraction operator
-    dq<T> operator-(const dq<T>& other) const {
+    constexpr dq<T> operator-(const dq<T>& other) const {
         return dq<T>{_values[0] - other._values[0], _values[1] - other._values[1]};
     }
 
     // Compound addition operator
-    dq<T>& operator+=(const dq<T>& other) {
+    constexpr dq<T>& operator+=(const dq<T>& other) {
         _values[0] += other._values[0];
         _values[1] += other._values[1];
         return *this;
     }
 
     // Compound subtraction operator
-    dq<T>& operator-=(const dq<T>& other) {
+    constexpr dq<T>& operator-=(const dq<T>& other) {
         _values[0] -= other._values[0];
         _values[1] -= other._values[1];
         return *this;
     }
 
     // Scalar multiplication
-    dq<T> operator*(T scalar) const { return dq<T>{_values[0] * scalar, _values[1] * scalar}; }
+    constexpr dq<T> operator*(T scalar) const { return dq<T>{_values[0] * scalar, _values[1] * scalar}; }
 
     // Scalar division
-    dq<T> operator/(T scalar) const { return dq<T>{_values[0] / scalar, _values[1] / scalar}; }
+    constexpr dq<T> operator/(T scalar) const { return dq<T>{_values[0] / scalar, _values[1] / scalar}; }
 
     // Compound scalar multiplication
-    dq<T>& operator*=(T scalar) {
+    constexpr dq<T>& operator*=(T scalar) {
         _values[0] *= scalar;
         _values[1] *= scalar;
         return *this;
     }
 
     // Compound scalar division
-    dq<T>& operator/=(T scalar) {
+    constexpr dq<T>& operator/=(T scalar) {
         _values[0] /= scalar;
         _values[1] /= scalar;
         return *this;
     }
 
     // Negation operator
-    dq<T> operator-() const { return dq<T>{-_values[0], -_values[1]}; }
+    constexpr dq<T> operator-() const { return dq<T>{-_values[0], -_values[1]}; }
 
 private:
     std::array<T, 2> _values{};
@@ -349,70 +351,67 @@ private:
 
 // Non-member scalar multiplication (for scalar * dq)
 template <typename T>
-dq<T> operator*(T scalar, const dq<T>& coords) {
+constexpr dq<T> operator*(T scalar, const dq<T>& coords) {
     return coords * scalar;
 }
 
 // Implementation of conversion functions
 
 template <typename T>
-alphabeta<T> abc<T>::to_alphabeta() const {
+constexpr alphabeta<T> abc<T>::to_alphabeta() const {
     return alphabeta<T>{2.0 / 3.0 * (_values[0] - 0.5 * _values[1] - 0.5 * _values[2]),
                         sqrt_3 / 3.0 * (_values[1] - _values[2])};
 }
 
 template <typename T>
-dq<T> abc<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
+constexpr dq<T> abc<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
     return to_alphabeta().to_dq(theta);
 }
 
 template <typename T>
-abc<T> alphabeta<T>::to_abc() const {
+constexpr abc<T> alphabeta<T>::to_abc() const {
     return abc<T>{_values[0], -0.5 * _values[0] + sqrt_3 / 2.0 * _values[1],
                   -0.5 * _values[0] - sqrt_3 / 2.0 * _values[1]};
 }
 
 template <typename T>
-dq<T> alphabeta<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
+constexpr dq<T> alphabeta<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
     const double cos_theta = std::cos(theta.get_radians());
     const double sin_theta = std::sin(theta.get_radians());
-
     return dq<T>{_values[0] * cos_theta + _values[1] * sin_theta, -_values[0] * sin_theta + _values[1] * cos_theta};
 }
 
 template <typename T>
-alphabeta<T> dq<T>::to_alphabeta(const angle<zero_to_two_pi>& theta) const {
+constexpr alphabeta<T> dq<T>::to_alphabeta(const angle<zero_to_two_pi>& theta) const {
     const double cos_theta = std::cos(theta.get_radians());
     const double sin_theta = std::sin(theta.get_radians());
-
     return alphabeta<T>{_values[0] * cos_theta - _values[1] * sin_theta,
                         _values[0] * sin_theta + _values[1] * cos_theta};
 }
 
 template <typename T>
-abc<T> dq<T>::to_abc(const angle<zero_to_two_pi>& theta) const {
+constexpr abc<T> dq<T>::to_abc(const angle<zero_to_two_pi>& theta) const {
     return to_alphabeta(theta).to_abc();
 }
 
 // Utility functions for creating coordinates
 
 template <typename T>
-abc<T> make_abc(T magnitude, const angle<zero_to_two_pi>& phase) {
+constexpr abc<T> make_abc(T magnitude, const angle<zero_to_two_pi>& phase) {
     constexpr double TWO_PI_THIRDS = 2.0 * pi<double> / 3.0;
-    const double angle = phase.get_radians();
-
-    return abc<T>{magnitude * std::cos(angle), magnitude * std::cos(angle - TWO_PI_THIRDS),
-                  magnitude * std::cos(angle + TWO_PI_THIRDS)};
+    const double angle_rad = phase.get_radians();
+    return abc<T>{magnitude * std::cos(angle_rad), magnitude * std::cos(angle_rad - TWO_PI_THIRDS),
+                  magnitude * std::cos(angle_rad + TWO_PI_THIRDS)};
 }
 
 template <typename T>
-alphabeta<T> make_alphabeta(T magnitude, const angle<zero_to_two_pi>& phase) {
-    const double angle = phase.get_radians();
-    return alphabeta<T>{magnitude * std::cos(angle), magnitude * std::sin(angle)};
+constexpr alphabeta<T> make_alphabeta(T magnitude, const angle<zero_to_two_pi>& phase) {
+    const double angle_rad = phase.get_radians();
+    return alphabeta<T>{magnitude * std::cos(angle_rad), magnitude * std::sin(angle_rad)};
 }
 
 template <typename T>
-dq<T> make_dq(T d, T q) {
+constexpr dq<T> make_dq(T d, T q) {
     return dq<T>{d, q};
 }
 

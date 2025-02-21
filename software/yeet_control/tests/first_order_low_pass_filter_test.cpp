@@ -5,8 +5,12 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "gtest_test_info.hpp"
+#include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/first_order_low_pass_filter.hpp"
+#include "yeet_control/limit.hpp"
+#include "yeet_testing/simulator.hpp"
 
 using namespace yeet::control;
 
@@ -194,4 +198,47 @@ TEST_F(FirstOrderLowPassFilterTest, Reset) {
 
     // Check that state variables are reset
     EXPECT_EQ(filter.get_output(), 0.0);
+}
+
+class FirstOrderLowPassFilterSimulatorTest : public ::testing::Test {
+public:
+    static constexpr double sampling_time = 1e-3;
+
+    void SetUp() override {
+        set_logger();
+
+        // Register DUT
+        _simulator.register_lambda_runner(sampling_time, [&]() { output = filter_dut.update(input); });
+    }
+
+    void TearDown() override {
+        _simulator.dump_json(yeet::testing::gtest_testing_info{::testing::UnitTest::GetInstance()});
+    }
+
+    void simulate_for(double time) { _simulator.simulate_for(time); }
+
+    double input{};
+    double output{};
+    yeet::control::first_order_low_pass_filter<double> filter_dut{sampling_time};
+
+private:
+    void set_logger() {
+        _simulator.register_data_sampler_entry(data_sampler_entry{"input", [&]() { return input; }});
+
+        _simulator.register_data_sampler_entry(data_sampler_entry{"output", [&]() { return output; }});
+    }
+
+    yeet::simulator _simulator;
+};
+
+TEST_F(FirstOrderLowPassFilterSimulatorTest, StepResponse) {
+    // Filter with a 1 second time-response
+    double fc = filter_dut.calculate_cutoff_frequency(1.0);
+    filter_dut.configure(fc);
+
+    input = 0.0;
+    simulate_for(1.0);
+
+    input = 1.0;
+    simulate_for(5.0);
 }

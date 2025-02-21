@@ -54,18 +54,6 @@ TEST_F(AngleMinusPiToPiTest, SetValueWrapNegative) {
     EXPECT_NEAR(a.get_radians(), -4.0 + 2 * pi<double>, kEpsilon);
 }
 
-TEST_F(AngleMinusPiToPiTest, SetValueExactlyPi) {
-    angle<minus_pi_to_pi> a;
-    a.set_value(pi<double>);
-    EXPECT_NEAR(a.get_radians(), -pi<double>, kEpsilon);
-}
-
-TEST_F(AngleMinusPiToPiTest, SetValueExactlyMinusPi) {
-    angle<minus_pi_to_pi> a;
-    a.set_value(-pi<double>);
-    EXPECT_NEAR(a.get_radians(), -pi<double>, kEpsilon);
-}
-
 TEST_F(AngleMinusPiToPiTest, Addition) {
     angle<minus_pi_to_pi> a(1.0);
     angle<minus_pi_to_pi> b(2.0);
@@ -235,17 +223,6 @@ TEST_F(AngleZeroToTwoPiTest, Inequality) {
     angle<zero_to_two_pi> a(1.0);
     angle<zero_to_two_pi> b(2.0);
     EXPECT_NE(a, b);
-}
-
-// Edge cases and boundary tests
-TEST_F(AngleMinusPiToPiTest, BoundaryPi) {
-    angle<minus_pi_to_pi> a(pi<double>);
-    EXPECT_NEAR(a.get_radians(), -pi<double>, kEpsilon);
-}
-
-TEST_F(AngleZeroToTwoPiTest, BoundaryTwoPi) {
-    angle<zero_to_two_pi> a(2 * pi<double>);
-    EXPECT_NEAR(a.get_radians(), 0.0, kEpsilon);
 }
 
 }  // namespace

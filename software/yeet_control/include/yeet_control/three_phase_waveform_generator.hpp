@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
+#include <random>  // white noise
 #include <vector>
 
 #include "angle.hpp"
@@ -11,6 +12,66 @@
 #include "yeet_control/angle.hpp"
 
 namespace yeet::control {
+
+template <typename T>
+class white_noise_generator {
+public:
+    explicit white_noise_generator(double stddev = 0.0, double mean = 0.0)
+        : m_rng(std::random_device{}()), m_distribution(mean, stddev) {}
+
+    void set_parameters(double stddev, double mean = 0.0) {
+        m_distribution = std::normal_distribution<double>(mean, stddev);
+    }
+
+    // Specialization for scalar types
+    template <typename U = T>
+    std::enable_if_t<std::is_arithmetic_v<U>, T> generate() {
+        return static_cast<T>(m_distribution(m_rng));
+    }
+
+    // Specialization for abc<T>
+    template <typename U = T>
+    std::enable_if_t<std::is_same_v<U, abc<double>>, T> generate() {
+        return abc<double>{m_distribution(m_rng), m_distribution(m_rng), m_distribution(m_rng)};
+    }
+
+    // Specialization for alphabeta<T>
+    template <typename U = T>
+    std::enable_if_t<std::is_same_v<U, alphabeta<double>>, T> generate() {
+        return alphabeta<double>{m_distribution(m_rng), m_distribution(m_rng)};
+    }
+
+    // Specialization for dq<T>
+    template <typename U = T>
+    std::enable_if_t<std::is_same_v<U, dq<double>>, T> generate() {
+        return dq<double>{m_distribution(m_rng), m_distribution(m_rng)};
+    }
+
+private:
+    std::mt19937 m_rng;
+    std::normal_distribution<double> m_distribution;
+};
+
+template <typename T>
+struct generator_step {
+    double time{};
+    T value{};
+};
+
+template <typename T>
+struct generator_step_rate_of_change {
+    double time_start{};
+    double time_end{};
+    T value_delta{};
+
+    T get_incremental_delta(double sampling_time) const {
+        double const delta_time = time_end - time_start;
+
+        assert(delta_time > 0.0f && "Time delta must be greater than 0");
+
+        return value_delta * sampling_time / delta_time;
+    }
+};
 
 /**
  * @brief A class to generate a three-phase waveform signal with harmonics and noise.
@@ -23,46 +84,25 @@ namespace yeet::control {
  *        The signal can also be updated with rate of change in amplitude and frequency.
  *
  */
-class Three_Phase_Waveform_Generator {
+class three_phase_waveform_generator {
 private:
-    template <typename T>
-    struct Generator_Step {
-        double time{};
-        T value{};
-    };
-
-    template <typename T>
-    struct Generator_Step_Rate_Of_Change {
-        double time_start{};
-        double time_end{};
-        T value_delta{};
-
-        T get_incremental_delta(double sampling_time) const {
-            double const delta_time = time_end - time_start;
-
-            assert(delta_time > 0.0f && "Time delta must be greater than 0");
-
-            return value_delta * sampling_time / delta_time;
-        }
-    };
-
-    struct Signal_Harmonics_Configuration {
+    struct signal_harmonics_configuration {
         std::size_t harmonic_order{};
         double magnitude{};
     };
 
-    struct Signal_Harmonics_Data {
+    struct signal_harmonics_data {
         abc<angle<zero_to_two_pi>> signal_angle{};
         abc<double> signal{};
     };
 
     struct Signal_Harmonics {
-        Signal_Harmonics_Configuration configuration;
-        Signal_Harmonics_Data data;
+        signal_harmonics_configuration configuration;
+        signal_harmonics_data data;
     };
 
 public:
-    Three_Phase_Waveform_Generator(double sampling_time) : m_sampling_time(sampling_time) {
+    three_phase_waveform_generator(double sampling_time) : m_sampling_time(sampling_time) {
         assert(m_sampling_time > 0.0f && "Sampling time must be greater than 0");
     }
 
@@ -173,9 +213,7 @@ public:
     void disable_noise() { set_noise_standard_deviation(0.0f); }
 
     void set_noise_standard_deviation(double noise_standard_deviation) {
-        // for (auto& n : m_noise_generator) {
-        // n.setNoiseStddev(noise_standard_deviation);
-        // }
+        m_noise_generator.set_parameters(noise_standard_deviation, 0.0);
     }
 
     /**
@@ -286,7 +324,7 @@ public:
         assert(harmonic_order > 1 && "Harmonic order must be greater than 1");
 
         Signal_Harmonics new_harmonics{};
-        new_harmonics.configuration = Signal_Harmonics_Configuration{harmonic_order, harmonic_magnitude};
+        new_harmonics.configuration = signal_harmonics_configuration{harmonic_order, harmonic_magnitude};
 
         auto const it = std::find_if(m_harmonics.begin(), m_harmonics.end(), [&](Signal_Harmonics& n) {
             return n.configuration.harmonic_order == harmonic_order;
@@ -307,7 +345,7 @@ public:
      * @param time simulation time when the step will occur
      */
     void set_amplitude_step(abc<double> amplitude, double time) {
-        Generator_Step<abc<double>> const step{time, amplitude};
+        generator_step<abc<double>> const step{time, amplitude};
 
         m_step_amplitude = step;
     }
@@ -329,7 +367,7 @@ public:
      * @param time simulation time when the step will occur
      */
     void set_frequency_step(double frequency, double time) {
-        Generator_Step<double> const step{time, frequency};
+        generator_step<double> const step{time, frequency};
 
         m_frequency_step = step;
     }
@@ -341,7 +379,7 @@ public:
      * @param time simulation time when the step will occur
      */
     void set_angle_step(abc<angle<zero_to_two_pi>> angle_step, double time) {
-        Generator_Step<abc<angle<zero_to_two_pi>>> const step{time, angle_step};
+        generator_step<abc<angle<zero_to_two_pi>>> const step{time, angle_step};
 
         m_angle_step = step;
     }
@@ -353,7 +391,7 @@ public:
      * @param time simulation time when the step will occur
      */
     void set_angle_step(angle<zero_to_two_pi> angle_step, double time) {
-        Generator_Step<abc<angle<zero_to_two_pi>>> const step{time, {angle_step, angle_step, angle_step}};
+        generator_step<abc<angle<zero_to_two_pi>>> const step{time, {angle_step, angle_step, angle_step}};
 
         m_angle_step = step;
     }
@@ -366,7 +404,7 @@ public:
      * @param time_end simulation time when the rate of change will end
      */
     void set_amplitude_rate_of_change(abc<double> value_delta, double time_start, double time_end) {
-        Generator_Step_Rate_Of_Change<abc<double>> const rate_of_change_step{time_start, time_end, value_delta};
+        generator_step_rate_of_change<abc<double>> const rate_of_change_step{time_start, time_end, value_delta};
 
         m_rate_of_change_amplitude = rate_of_change_step;
     }
@@ -379,7 +417,7 @@ public:
      * @param time_end simulation time when the rate of change will end
      */
     void set_frequency_rate_of_change(double value_delta, double time_start, double time_end) {
-        Generator_Step_Rate_Of_Change<double> const rate_of_change_step{time_start, time_end, value_delta};
+        generator_step_rate_of_change<double> const rate_of_change_step{time_start, time_end, value_delta};
 
         m_rate_of_change_frequency = rate_of_change_step;
     }
@@ -442,55 +480,42 @@ private:
     }
 
     void update_amplitude_frequency_and_angle_steps() {
-        // if (m_step_amplitude.has_value() && is_at_step_time(m_step_amplitude->time)) {
-        //     m_fundamental_positive_sequence_signal_amplitude += m_step_amplitude->value;
-        // }
+        if (m_step_amplitude.has_value() && is_at_step_time(m_step_amplitude->time)) {
+            m_fundamental_positive_sequence_signal_amplitude += m_step_amplitude->value;
+        }
 
-        // if (m_frequency_step.has_value() && is_at_step_time(m_frequency_step->time)) {
-        //     m_signal_frequency += m_frequency_step->value;
-        // }
+        if (m_frequency_step.has_value() && is_at_step_time(m_frequency_step->time)) {
+            m_signal_frequency += m_frequency_step->value;
+        }
 
-        // if (m_angle_step.has_value() && is_at_step_time(m_angle_step->time)) {
-        //     m_fundamental_signal_angle += m_angle_step->value;
+        if (m_angle_step.has_value() && is_at_step_time(m_angle_step->time)) {
+            m_fundamental_signal_angle += m_angle_step->value;
 
-        //     for (Signal_Harmonics& n : m_harmonics) {
-        //         for (std::size_t phase = 0; phase < 3; ++phase) {
-        //             n.data.signal_angle[phase] +=
-        //                 (static_cast<double>(n.configuration.harmonic_order) * m_angle_step->value[phase]);
-        //         }
-        //     }
-        // }
+            for (Signal_Harmonics& n : m_harmonics) {
+                for (std::size_t phase = 0; phase < 3; ++phase) {
+                    n.data.signal_angle[phase] +=
+                        (static_cast<double>(n.configuration.harmonic_order) * m_angle_step->value[phase]);
+                }
+            }
+        }
     }
 
     void update_rate_of_change_steps() {
-        // if (m_rate_of_change_amplitude.has_value() && (m_simulation_time >= m_rate_of_change_amplitude->time_start)
-        // &&
-        //     (m_simulation_time <= m_rate_of_change_amplitude->time_end)) {
-        //     for (std::size_t phase = 0; phase < 3; ++phase) {
-        //         m_fundamental_positive_sequence_signal_amplitude[phase] +=
-        //             m_rate_of_change_amplitude->get_incremental_delta(m_sampling_time)[phase];
-        //     }
-        // }
+        if (m_rate_of_change_amplitude.has_value() && (m_simulation_time >= m_rate_of_change_amplitude->time_start) &&
+            (m_simulation_time <= m_rate_of_change_amplitude->time_end)) {
+            for (std::size_t phase = 0; phase < 3; ++phase) {
+                m_fundamental_positive_sequence_signal_amplitude[phase] +=
+                    m_rate_of_change_amplitude->get_incremental_delta(m_sampling_time)[phase];
+            }
+        }
 
-        // if (m_rate_of_change_frequency.has_value() && (m_simulation_time >= m_rate_of_change_frequency->time_start)
-        // &&
-        //     (m_simulation_time <= m_rate_of_change_frequency->time_end)) {
-        //     m_signal_frequency += m_rate_of_change_frequency->get_incremental_delta(m_sampling_time);
-        // }
+        if (m_rate_of_change_frequency.has_value() && (m_simulation_time >= m_rate_of_change_frequency->time_start) &&
+            (m_simulation_time <= m_rate_of_change_frequency->time_end)) {
+            m_signal_frequency += m_rate_of_change_frequency->get_incremental_delta(m_sampling_time);
+        }
     }
 
-    abc<double> generate_signal_noise() {
-        // abc<double> noise = {};
-
-        // for (std::size_t phase = 0; phase < 3; ++phase) {
-        //     m_noise_generator[phase].update({});
-
-        //     noise[phase] = m_noise_generator[phase];
-        // }
-
-        // return noise;
-        return {};
-    }
+    abc<double> generate_signal_noise() { return m_noise_generator.generate(); }
 
     abc<double> update_harmonics_signals(Signal_Harmonics const& harmonic) {
         return generate_abc_signal(
@@ -524,18 +549,13 @@ private:
 
     std::vector<Signal_Harmonics> m_harmonics{};
 
-    std::optional<Generator_Step<abc<double>>> m_step_amplitude{};
-    std::optional<Generator_Step<double>> m_frequency_step{};
-    std::optional<Generator_Step<abc<angle<zero_to_two_pi>>>> m_angle_step{};
-    std::optional<Generator_Step_Rate_Of_Change<double>> m_rate_of_change_frequency{};
-    std::optional<Generator_Step_Rate_Of_Change<abc<double>>> m_rate_of_change_amplitude{};
+    std::optional<generator_step<abc<double>>> m_step_amplitude{};
+    std::optional<generator_step<double>> m_frequency_step{};
+    std::optional<generator_step<abc<angle<zero_to_two_pi>>>> m_angle_step{};
+    std::optional<generator_step_rate_of_change<double>> m_rate_of_change_frequency{};
+    std::optional<generator_step_rate_of_change<abc<double>>> m_rate_of_change_amplitude{};
 
-    // std::mt19937 m_rng{};
-
-    // std::array<SignalWithWhiteNoise<double, std::mt19937>, 3> m_noise_generator{
-    //     {SignalWithWhiteNoise<double, std::mt19937>{0.0f, 0.0f, m_rng},
-    //      SignalWithWhiteNoise<double, std::mt19937>{0.0f, 0.0f, m_rng},
-    //      SignalWithWhiteNoise<double, std::mt19937>{0.0f, 0.0f, m_rng}}};
+    white_noise_generator<abc<double>> m_noise_generator;
 };
 
 }  // namespace yeet::control

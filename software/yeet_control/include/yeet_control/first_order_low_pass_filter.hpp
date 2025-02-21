@@ -80,6 +80,60 @@ public:
     }
 
     /**
+     * Calculate cutoff frequency from time constant.
+     *
+     * For a first-order system:
+     * ωc = 1/τ
+     * fc = 1/(2πτ)
+     *
+     * where:
+     * ωc = cutoff frequency in radians/second
+     * fc = cutoff frequency in Hz
+     * τ = time constant in seconds
+     *
+     * @param time_constant Time constant in seconds
+     * @return Cutoff frequency in Hz
+     */
+    static constexpr T calculate_cutoff_frequency(T time_constant) {
+        if (time_constant <= T(0)) {
+            return T(0);
+        }
+        return T(1.0) / (T(2.0) * pi<T> * time_constant);
+    }
+
+    /**
+     * Calculate time to reach steady state within a specified percentage.
+     *
+     * For a first-order system, the response is:
+     * y(t) = A(1 - e^(-t/τ))
+     *
+     * To reach p% of final value:
+     * t = -τ * ln(1 - p/100)
+     *
+     * Common values:
+     * - 63.2% : t = τ
+     * - 86.5% : t = 2τ
+     * - 95.0% : t = 3τ
+     * - 98.2% : t = 4τ
+     * - 99.3% : t = 5τ
+     *
+     * @param cutoff_freq Cutoff frequency in Hz
+     * @param percent_of_final_value Percentage of final value (0-100)
+     * @return Time in seconds to reach specified percentage
+     */
+    static constexpr T calculate_settling_time(T cutoff_freq, T percent_of_final_value) {
+        if (cutoff_freq <= T(0) || percent_of_final_value <= T(0) || percent_of_final_value >= T(100)) {
+            return T(0);
+        }
+
+        // Calculate time constant (τ = 1/(2πfc))
+        const T time_constant = T(1.0) / (T(2.0) * pi<T> * cutoff_freq);
+
+        // Calculate settling time: t = -τ * ln(1 - p/100)
+        return -time_constant * std::log(T(1.0) - percent_of_final_value / T(100.0));
+    }
+
+    /**
      * Process input sample through filter.
      *
      * Implements the difference equation:

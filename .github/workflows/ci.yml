@@ -83,11 +83,12 @@ jobs:
         
       - name: Build targets
         run: |
-          cmake --build build --target yeet_test
+          cmake --build build --target yeet_test yeet_control_tests
 
       - name: Run tests
         run: |
           ./build/bin/yeet_test
+          ./build/bin/yeet_control_tests
 
       - name: Generate and check coverage
         run: |
