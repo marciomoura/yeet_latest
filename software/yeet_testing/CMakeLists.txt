@@ -12,6 +12,7 @@ target_sources(
            include/yeet_testing/data_sampler_entry.hpp
            include/yeet_testing/data_sampler.hpp
            include/yeet_testing/parameter_collection.hpp
+           include/yeet_testing/simulator_checker_runner.hpp
            include/yeet_testing/data_sample_json_post_processing.hpp
            include/yeet_testing/data_sample_post_processing_interface.hpp
            include/yeet_testing/data_sample_terminal_post_processing.hpp
@@ -20,6 +21,8 @@ target_sources(
            include/yeet_testing/simulator_checker.hpp
            include/yeet_testing/simulator_runner_application_interface.hpp
            include/yeet_testing/simulator_runner_application.hpp
+           include/yeet_testing/simulator_runner.hpp
+           include/yeet_testing/simulator_sampler_runner.hpp
            include/yeet_testing/simulator.hpp
            include/yeet_testing/testing_info_interface.hpp
     PRIVATE src/dummy.cpp)

@@ -4,8 +4,9 @@
 #include <tuple>
 #include <type_traits>
 
+#include "simulator.hpp"
+#include "testing_info_interface.hpp"
 #include "yeet/model_registry.hpp"
-#include "yeet_testing/simulator.hpp"
 
 namespace yeet::testing {
 
@@ -62,7 +63,7 @@ public:
 
     void run_for(double time) { _simulator.simulate_for(time); }
 
-    void dump_results(const testing_info_interface& info) { _simulator.dump_json(info); }
+    // void dump_results(const testing_info_interface& info) { _simulator.dump_json(info); }
 
     template <typename T>
     parameter_set<T>& get_parameters() {
@@ -97,7 +98,7 @@ private:
         // sampler for data analysis
         model_registry model;
         config.register_datamodel(model);
-        sim.register_data_sampler_entries(model);
+        // sim.register_data_sampler_entries(model);
     }
 };
 

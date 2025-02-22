@@ -30,6 +30,17 @@ public:
         }
     }
 
+    void allocate_more(std::size_t size) {
+        for (const auto& entry : _entries) {
+            auto& data = _data[entry.get()];
+            data.resize(data.size() + size);
+            // Also we pre-allocate the space for the multi-dimensional data samples
+            for (std::size_t i = 0; i < size; ++i) {
+                data[data.size() - size + i].resize(entry->get_dimension());
+            }
+        }
+    }
+
     void sample() {
         for (const auto& entry : _entries) {
             auto& data = _data[entry.get()];
@@ -45,7 +56,8 @@ public:
     // Updated dump functions to handle multi-dimensional data
     void dump(data_sample_post_processing_interface& post_processor) { post_processor.dump(_data); }
 
-    void dump(std::string test_suite, std::string test_name, data_sample_post_processing_interface& post_processor) {
+    void dump(const std::string& test_suite, const std::string& test_name,
+              data_sample_post_processing_interface& post_processor) {
         post_processor.dump(test_suite, test_name, _data);
     }
 

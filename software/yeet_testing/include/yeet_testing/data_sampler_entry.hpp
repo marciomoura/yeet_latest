@@ -15,11 +15,12 @@ public:
     // Constructor for scalar values
     data_sampler_entry(std::string name, std::function<float()> sample_function)
         : _name(std::move(name)),
-          _sample_function([f = std::move(sample_function)]() { return std::vector<float>{f()}; }) {}
+          _sample_function([f = std::move(sample_function)]() { return std::vector<float>{f()}; }),
+          _dimension(1) {}
 
     // Construct for multi-dimensional data
     data_sampler_entry(std::string name, std::function<std::vector<float>()> sample_function)
-        : _name(std::move(name)), _sample_function(std::move(sample_function)) {}
+        : _name(std::move(name)), _sample_function(std::move(sample_function)), _dimension(_sample_function().size()) {}
 
     // Constructor for fundamental types (int, float, double, etc.)
     template <typename T, typename = std::enable_if_t<std::is_fundamental_v<std::decay_t<T>>>>

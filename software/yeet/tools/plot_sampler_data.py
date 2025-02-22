@@ -4,47 +4,87 @@ import argparse
 import plotly.graph_objects as go
 import glob
 import webbrowser
+from typing import List, Dict, Union, Any
 
 
-def create_plot(input_path, output_path):
+def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries: List[float], figure: go.Figure):
+    """Handle multi-dimensional data plotting"""
+    dimension = entry.get("dimension", 1)
+    if dimension > 1:
+        data = entry["data"]
+        # Transpose the data to get individual component time series
+        components = list(zip(*data))
+        
+        # Plot each component
+        for i, component in enumerate(components):
+            figure.add_trace(
+                go.Scatter(
+                    x=time_timeseries,
+                    y=component,
+                    mode="lines",
+                    name=f"{entry['name']}[{i}]"
+                )
+            )
+    else:
+        # Handle scalar data as before
+        figure.add_trace(
+            go.Scatter(
+                x=time_timeseries,
+                y=entry["data"],
+                mode="lines",
+                name=entry["name"]
+            )
+        )
+
+
+def create_plot(input_path: str, output_path: str):
     with open(input_path, "r") as file:
         data = json.load(file)
 
-    # Unpack the json array into a dictionary
     test_suite: str = data["test_suite"]
     test_name: str = data["test_name"]
-
     plot_name = f"Suite: {test_suite} - Test: {test_name}"
-    time_timeseries = [
-        entry["data"] for entry in data["test_data"] if entry["name"] == "time"
-    ][0]
+
+    # Extract time data
+    time_entry = next(entry for entry in data["test_data"] if entry["name"] == "time")
+    time_timeseries = time_entry["data"]
+    
+    # Get all non-time data entries
     data_timeseries = [entry for entry in data["test_data"] if entry["name"] != "time"]
 
     figure = go.Figure()
 
+    # Create plots for each data entry
     for entry in data_timeseries:
-        figure.add_trace(
-            go.Scatter(
-                x=time_timeseries, y=entry["data"], mode="lines", name=entry["name"]
-            )
-        )
+        create_plot_for_multidimensional_data(entry, time_timeseries, figure)
 
-    figure.update_layout(template="plotly_dark")
-
-    # set vertical and horizontal grid
+    # Update layout with dark theme and grid
     figure.update_layout(
-        xaxis=dict(showgrid=True, gridwidth=1, gridcolor="LightGray"),
-        yaxis=dict(showgrid=True, gridwidth=1, gridcolor="LightGray"),
-    )
-
-    # set the title and axis labels
-    figure.update_layout(
+        template="plotly_dark",
+        xaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor="LightGray",
+            title="Time"
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor="LightGray",
+            title="Values"
+        ),
         title=plot_name,
-        xaxis_title="Values",
-        yaxis_title="Time",
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(0,0,0,0.3)"
+        )
     )
 
-    # write the file in the output path
+    # Write the plot to file
     figure.write_html(file=output_path)
 
 

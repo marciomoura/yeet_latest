@@ -229,8 +229,8 @@ protected:
 
 private:
     void set_logger() {
-        simulator.register_data_sampler_entry(yeet::testing::make_reference_sampler("input", input));
-        simulator.register_data_sampler_entry(yeet::testing::make_reference_sampler("output", output));
+        simulator.register_sampler_entry(yeet::testing::make_reference_sampler("input", input));
+        simulator.register_sampler_entry(yeet::testing::make_reference_sampler("output", output));
     }
 };
 

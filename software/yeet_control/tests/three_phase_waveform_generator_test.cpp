@@ -96,7 +96,7 @@ public:
     }
 
     void add_lambda_sampler(const std::string& name, std::function<double()> lambda) {
-        _simulator.register_data_sampler_entry(yeet::testing::make_lambda_sampler(name, lambda));
+        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler(name, lambda));
     }
 
     static angle<zero_to_two_pi> get_next_angle(std::size_t harmonic, angle<zero_to_two_pi> current_angle,
@@ -159,10 +159,10 @@ public:
 
 private:
     void set_logger() {
-        _simulator.register_data_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
+        _simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
             "v_{generator}", [&]() -> abc<double> { return _generator_dut.get_signal_abc(); }));
 
-        _simulator.register_data_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
+        _simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
             "v_{reference}", [&]() -> abc<double> { return get_current_full_signal(); }));
     }
 
