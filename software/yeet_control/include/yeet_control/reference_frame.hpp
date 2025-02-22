@@ -115,6 +115,12 @@ public:
     // Negation operator
     constexpr abc<T> operator-() const { return abc<T>{-_values[0], -_values[1], -_values[2]}; }
 
+    auto begin() { return _values.begin(); }
+    auto end() { return _values.end(); }
+    auto begin() const { return _values.begin(); }
+    auto end() const { return _values.end(); }
+    std::size_t size() const { return _values.size(); }
+
 private:
     std::array<T, 3> _values{};
 };
@@ -230,6 +236,12 @@ public:
     // Negation operator
     constexpr alphabeta<T> operator-() const { return alphabeta<T>{-_values[0], -_values[1]}; }
 
+    auto begin() { return _values.begin(); }
+    auto end() { return _values.end(); }
+    auto begin() const { return _values.begin(); }
+    auto end() const { return _values.end(); }
+    std::size_t size() const { return _values.size(); }
+
 private:
     std::array<T, 2> _values{};
 };
@@ -344,6 +356,12 @@ public:
 
     // Negation operator
     constexpr dq<T> operator-() const { return dq<T>{-_values[0], -_values[1]}; }
+
+    auto begin() { return _values.begin(); }
+    auto end() { return _values.end(); }
+    auto begin() const { return _values.begin(); }
+    auto end() const { return _values.end(); }
+    std::size_t size() const { return _values.size(); }
 
 private:
     std::array<T, 2> _values{};

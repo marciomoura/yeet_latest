@@ -10,6 +10,7 @@
 #include "yeet_control/constants.hpp"
 #include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/limit.hpp"
+#include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 
@@ -219,7 +220,7 @@ public:
     void simulate_for(double time) { simulator.simulate_for(time); }
 
 protected:
-    yeet::simulator simulator;
+    yeet::testing::simulator simulator;
 
     double input{};
     double output{};
@@ -228,9 +229,8 @@ protected:
 
 private:
     void set_logger() {
-        simulator.register_data_sampler_entry(data_sampler_entry{"input", [&]() { return input; }});
-
-        simulator.register_data_sampler_entry(data_sampler_entry{"output", [&]() { return output; }});
+        simulator.register_data_sampler_entry(yeet::testing::make_reference_sampler("input", input));
+        simulator.register_data_sampler_entry(yeet::testing::make_reference_sampler("output", output));
     }
 };
 

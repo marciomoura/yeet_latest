@@ -7,7 +7,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet_testing/simulator.hpp"
 
-namespace yeet {
+namespace yeet::testing {
 
 template <typename T>
 class parameter_set {
@@ -62,7 +62,7 @@ public:
 
     void run_for(double time) { _simulator.simulate_for(time); }
 
-    void dump_results(testing_info_interface* info) { _simulator.dump_json(info); }
+    void dump_results(const testing_info_interface& info) { _simulator.dump_json(info); }
 
     template <typename T>
     parameter_set<T>& get_parameters() {
@@ -101,4 +101,4 @@ private:
     }
 };
 
-}  // namespace yeet
+}  // namespace yeet::testing

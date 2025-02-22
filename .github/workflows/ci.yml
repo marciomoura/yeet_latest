@@ -47,9 +47,6 @@ jobs:
   # Second job: Build and test the project
   build:
     runs-on: ubuntu-latest
-    # Ensure formatting checks pass before building
-    needs: format
-
     steps:
       # Rest of your build steps remain the same...
       - name: Print Runner Information
@@ -127,6 +124,10 @@ jobs:
             name: valgrind-logs
             path: valgrind.log
         if: always()  # Upload even if tests fail
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   GTEST_COLOR: 1

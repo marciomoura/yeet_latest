@@ -25,7 +25,7 @@
 #include "yeet_testing/simulator_runner_application_interface.hpp"
 #include "yeet_testing/testing_info_interface.hpp"
 
-namespace yeet {
+namespace yeet::testing {
 
 // model_integration_simulator
 // -> add the functionality to run the app integration and so on
@@ -201,6 +201,6 @@ private:
         _simulator_applications{};
 };
 
-}  // namespace yeet
+}  // namespace yeet::testing
 
 #endif  // YEET_TESTING_SIMULATOR_HPP

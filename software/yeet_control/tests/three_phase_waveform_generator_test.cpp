@@ -5,6 +5,7 @@
 #include "gtest_test_info.hpp"
 #include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator.hpp"
 
 namespace {
@@ -95,7 +96,7 @@ public:
     }
 
     void add_lambda_sampler(const std::string& name, std::function<double()> lambda) {
-        _simulator.register_data_sampler_entry(data_sampler_entry{name, lambda});
+        _simulator.register_data_sampler_entry(yeet::testing::make_lambda_sampler(name, lambda));
     }
 
     static angle<zero_to_two_pi> get_next_angle(std::size_t harmonic, angle<zero_to_two_pi> current_angle,
@@ -158,30 +159,18 @@ public:
 
 private:
     void set_logger() {
-        _simulator.register_data_sampler_entry(
-            data_sampler_entry{"v_{a}", [&]() { return _generator_dut.get_signal_abc()[0]; }});
+        _simulator.register_data_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
+            "v_{generator}", [&]() -> abc<double> { return _generator_dut.get_signal_abc(); }));
 
-        _simulator.register_data_sampler_entry(
-            data_sampler_entry{"v_{b}", [&]() { return _generator_dut.get_signal_abc()[1]; }});
-
-        _simulator.register_data_sampler_entry(
-            data_sampler_entry{"v_{c}", [&]() { return _generator_dut.get_signal_abc()[2]; }});
-
-        _simulator.register_data_sampler_entry(
-            data_sampler_entry{"v_{a,ref}", [&]() { return get_current_full_signal()[0]; }});
-
-        _simulator.register_data_sampler_entry(
-            data_sampler_entry{"v_{b,ref}", [&]() { return get_current_full_signal()[1]; }});
-
-        _simulator.register_data_sampler_entry(
-            data_sampler_entry{"v_{c,ref}", [&]() { return get_current_full_signal()[2]; }});
+        _simulator.register_data_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
+            "v_{reference}", [&]() -> abc<double> { return get_current_full_signal(); }));
     }
 
     std::map<std::size_t, std::vector<abc<double>>> _generate_harmonics_signal{};
 
     std::map<std::size_t, std::vector<abc<double>>::iterator> _generate_harmonics_signal_iterator{};
 
-    yeet::simulator _simulator;
+    yeet::testing::simulator _simulator;
 
     std::function<void()> _checker_callback;
 

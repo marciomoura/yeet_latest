@@ -7,7 +7,9 @@ add_executable(yeet::yeet_testing_tests ALIAS ${PROJECT_NAME})
 enable_testing()
 
 # Add test sources
-target_sources(${PROJECT_NAME} PRIVATE simulation_checker_test.cpp)
+target_sources(
+    ${PROJECT_NAME} PRIVATE data_sampler_entry_test.cpp data_sampler_test.cpp
+                            simulation_checker_test.cpp)
 
 # Link dependencies
 target_link_libraries(

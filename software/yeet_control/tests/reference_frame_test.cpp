@@ -105,6 +105,34 @@ TEST(ReferenceFrameTest, AbcScalarMultiplicationAndDivision) {
     expect_array_near(c.array(), std::array<double, 3>{0.5, 1.0, 1.5});
 }
 
+TEST(ReferenceFrameTest, AbcIteratorAndSize) {
+    abc<double> coords{1.0, 2.0, 3.0};
+
+    // Test size
+    EXPECT_EQ(coords.size(), 3);
+
+    // Test non-const iterator
+    std::vector<double> values;
+    for (auto& value : coords) {
+        values.push_back(value);
+    }
+    EXPECT_EQ(values.size(), 3);
+    EXPECT_NEAR(values[0], 1.0, k_epsilon);
+    EXPECT_NEAR(values[1], 2.0, k_epsilon);
+    EXPECT_NEAR(values[2], 3.0, k_epsilon);
+
+    // Test const iterator
+    const abc<double> const_coords{1.0, 2.0, 3.0};
+    values.clear();
+    for (const auto& value : const_coords) {
+        values.push_back(value);
+    }
+    EXPECT_EQ(values.size(), 3);
+    EXPECT_NEAR(values[0], 1.0, k_epsilon);
+    EXPECT_NEAR(values[1], 2.0, k_epsilon);
+    EXPECT_NEAR(values[2], 3.0, k_epsilon);
+}
+
 // Alphabeta Tests
 TEST(ReferenceFrameTest, AlphabetaDefaultConstructor) {
     alphabeta<double> coords;
@@ -192,6 +220,32 @@ TEST(ReferenceFrameTest, AlphabetaScalarMultiplicationAndDivision) {
     expect_array_near(c.array(), std::array<double, 2>{0.5, 1.0});
 }
 
+TEST(ReferenceFrameTest, AlphabetaIteratorAndSize) {
+    alphabeta<double> coords{1.0, 2.0};
+
+    // Test size
+    EXPECT_EQ(coords.size(), 2);
+
+    // Test non-const iterator
+    std::vector<double> values;
+    for (auto& value : coords) {
+        values.push_back(value);
+    }
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_NEAR(values[0], 1.0, k_epsilon);
+    EXPECT_NEAR(values[1], 2.0, k_epsilon);
+
+    // Test const iterator
+    const alphabeta<double> const_coords{1.0, 2.0};
+    values.clear();
+    for (const auto& value : const_coords) {
+        values.push_back(value);
+    }
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_NEAR(values[0], 1.0, k_epsilon);
+    EXPECT_NEAR(values[1], 2.0, k_epsilon);
+}
+
 // DQ Tests
 TEST(ReferenceFrameTest, DqDefaultConstructor) {
     dq<double> coords;
@@ -264,6 +318,32 @@ TEST(ReferenceFrameTest, DqScalarMultiplicationAndDivision) {
 
     dq<double> c = a / 2.0;
     expect_array_near(c.array(), std::array<double, 2>{0.5, 1.0});
+}
+
+TEST(ReferenceFrameTest, DqIteratorAndSize) {
+    dq<double> coords{1.0, 2.0};
+
+    // Test size
+    EXPECT_EQ(coords.size(), 2);
+
+    // Test non-const iterator
+    std::vector<double> values;
+    for (auto& value : coords) {
+        values.push_back(value);
+    }
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_NEAR(values[0], 1.0, k_epsilon);
+    EXPECT_NEAR(values[1], 2.0, k_epsilon);
+
+    // Test const iterator
+    const dq<double> const_coords{1.0, 2.0};
+    values.clear();
+    for (const auto& value : const_coords) {
+        values.push_back(value);
+    }
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_NEAR(values[0], 1.0, k_epsilon);
+    EXPECT_NEAR(values[1], 2.0, k_epsilon);
 }
 
 // Make functions tests
@@ -571,6 +651,33 @@ TEST(ReferenceFrameTest, AlphaBetaToABC) {
             EXPECT_NEAR(result_arr[i], expected_arr[i], 1e-6);
         }
     }
+}
+
+TEST(ReferenceFrameTest, IteratorModification) {
+    // Test abc modification through iterator
+    abc<double> abc_coords{1.0, 2.0, 3.0};
+    for (auto& value : abc_coords) {
+        value *= 2.0;
+    }
+    EXPECT_NEAR(abc_coords[0], 2.0, k_epsilon);
+    EXPECT_NEAR(abc_coords[1], 4.0, k_epsilon);
+    EXPECT_NEAR(abc_coords[2], 6.0, k_epsilon);
+
+    // Test alphabeta modification through iterator
+    alphabeta<double> ab_coords{1.0, 2.0};
+    for (auto& value : ab_coords) {
+        value *= 2.0;
+    }
+    EXPECT_NEAR(ab_coords[0], 2.0, k_epsilon);
+    EXPECT_NEAR(ab_coords[1], 4.0, k_epsilon);
+
+    // Test dq modification through iterator
+    dq<double> dq_coords{1.0, 2.0};
+    for (auto& value : dq_coords) {
+        value *= 2.0;
+    }
+    EXPECT_NEAR(dq_coords[0], 2.0, k_epsilon);
+    EXPECT_NEAR(dq_coords[1], 4.0, k_epsilon);
 }
 
 }  // namespace
