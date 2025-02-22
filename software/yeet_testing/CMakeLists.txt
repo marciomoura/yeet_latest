@@ -17,6 +17,7 @@ target_sources(
            include/yeet_testing/data_sample_terminal_post_processing.hpp
            include/yeet_testing/data_sampler_entry.hpp
            include/yeet_testing/data_sampler.hpp
+           include/yeet_testing/simulator_checker.hpp
            include/yeet_testing/simulator_runner_application_interface.hpp
            include/yeet_testing/simulator_runner_application.hpp
            include/yeet_testing/simulator.hpp
@@ -26,8 +27,10 @@ target_sources(
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json
-                                             yeet::yeet)
+target_link_libraries(
+    ${PROJECT_NAME}
+    PUBLIC nlohmann_json::nlohmann_json yeet::yeet
+    PRIVATE gtest::gtest)
 
 if(YEET_ENABLE_CODE_ANALYSIS)
     get_target_property(TARGET_SOURCES ${PROJECT_NAME} SOURCES)

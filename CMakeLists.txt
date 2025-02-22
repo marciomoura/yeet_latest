@@ -127,6 +127,7 @@ add_subdirectory(software/yeet_examples)
 if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
+    add_subdirectory(software/yeet_testing/tests)
 endif()
 
 #
