@@ -6,6 +6,8 @@
 
 #include "yeet_control/constants.hpp"
 #include "yeet_control/second_order_filter.hpp"
+#include "yeet_control/three_phase_waveform_generator.hpp"
+#include "yeet_testing/simulator_gtest.hpp"
 
 namespace {
 
@@ -396,6 +398,176 @@ TEST_F(SecondOrderHighPassFilterTest, DCRemovalFromSinusoidalSignal) {
         }
     }
     EXPECT_NEAR(sum_output, 0.0, 1e-5) << "The high-pass filter did not sufficiently remove the DC offset.";
+}
+
+class SecondOrderLowPassFilterSimulatorTest : public ::testing::Test {
+public:
+    static constexpr double sampling_time = 1e-3;
+
+    void SetUp() override {
+        set_logger();
+
+        // Register DUT
+        simulator.register_lambda_runner(sampling_time, [&]() { output = filter_dut.update(input); });
+    }
+
+    void simulate_for(double time) { simulator.simulate_for(time); }
+
+protected:
+    yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
+
+    double input{};
+    double output{};
+
+    yeet::control::second_order_low_pass_filter<double> filter_dut{sampling_time};
+
+private:
+    void set_logger() {
+        simulator.register_sampler_entry(yeet::testing::make_reference_sampler("input", input));
+        simulator.register_sampler_entry(yeet::testing::make_reference_sampler("output", output));
+    }
+};
+
+TEST_F(SecondOrderLowPassFilterSimulatorTest, ButterworthStepResponse) {
+    // Filter with a 1 second time-response
+    filter_dut.configure(1.0, 0.707);
+
+    // simulator.register_checker(yeet::make_range_checker<double>(
+    //     "output_range", [&]() { return output; }, 1.1, 1.4, yeet::checker_activation_time_range{1.0, 2.0}));
+
+    input = 0.0;
+    simulate_for(0.5);
+
+    input = 1.0;
+    simulate_for(3.0);
+
+    // Collect check reports
+}
+
+TEST_F(SecondOrderLowPassFilterSimulatorTest, HighQStepResponse) {
+    // Filter with a 1 second time-response
+    filter_dut.configure(1.0, 0.9);
+
+    // simulator.register_checker(yeet::make_range_checker<double>(
+    //     "output_range", [&]() { return output; }, 1.1, 1.4, yeet::checker_activation_time_range{1.0, 2.0}));
+
+    input = 0.0;
+    simulate_for(0.5);
+
+    input = 1.0;
+    simulate_for(3.0);
+
+    // Collect check reports
+}
+
+// Add after existing test classes...
+
+class SecondOrderBandRejectFilterSimulatorTest : public ::testing::Test {
+public:
+    static constexpr double sampling_time = 1e-4;  // 10 kHz sampling rate
+
+    void SetUp() override {
+        set_logger();
+
+        // Configure test signal generator
+        signal_gen = std::make_unique<three_phase_waveform_generator>(sampling_time);
+        signal_gen->set_signal_frequency(test_freq);
+        signal_gen->set_fundamental_positive_sequence_signal_amplitude(1.0);
+
+        // Register DUT and signal generator
+        simulator.register_lambda_runner(sampling_time, [&]() {
+            signal_gen->update();
+            input = signal_gen->get_fundamental_signal_abc()[0];  // Use phase A
+            output = filter_dut.update(input);
+        });
+
+        // Configure filter with notch at test frequency
+        filter_dut.configure(test_freq, bandwidth);
+    }
+
+    void simulate_for(double time) { simulator.simulate_for(time); }
+
+protected:
+    yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
+
+    double input{};
+    double output{};
+    double test_freq{50.0};  // 50Hz test frequency
+    double bandwidth{5.0};   // 5Hz bandwidth
+
+    std::unique_ptr<yeet::control::three_phase_waveform_generator> signal_gen;
+    yeet::control::second_order_band_reject_filter<double> filter_dut{sampling_time};
+
+private:
+    void set_logger() {
+        simulator.register_sampler_entry(yeet::testing::make_reference_sampler("input", input));
+        simulator.register_sampler_entry(yeet::testing::make_reference_sampler("output", output));
+    }
+};
+
+TEST_F(SecondOrderBandRejectFilterSimulatorTest, NotchAtFundamentalFrequency) {
+    // Test rejection of fundamental frequency
+    // Expect strong attenuation at notch frequency
+
+    // Add amplitude check for strong attenuation
+    // simulator.register_checker(yeet::testing::make_range_checker(
+    //     "output_amplitude", [&]() { return std::abs(output); }, 0.0, 0.1,  // Expect < 10% of input amplitude
+    //     yeet::testing::checker_activation_time_range{1.0, 2.0}             // Check after settling
+    //     ));
+
+    simulate_for(2.0);  // Run for 2 seconds
+}
+
+TEST_F(SecondOrderBandRejectFilterSimulatorTest, PassBelowNotch) {
+    // Test passing frequencies below notch
+    test_freq = 25.0;  // Set frequency to half of notch frequency
+    signal_gen->set_signal_frequency(test_freq);
+    filter_dut.configure(50.0, bandwidth);  // Keep notch at 50Hz
+
+    // Check that signal passes through with minimal attenuation
+    // simulator.register_checker(yeet::testing::make_range_checker(
+    //     "output_amplitude", [&]() { return std::abs(output); }, 0.8, 1.2,  // Expect close to unity gain
+    //     yeet::testing::checker_activation_time_range{1.0, 2.0}));
+
+    simulate_for(2.0);
+}
+
+TEST_F(SecondOrderBandRejectFilterSimulatorTest, PassAboveNotch) {
+    // Test passing frequencies above notch
+    test_freq = 100.0;  // Set frequency to double the notch frequency
+    signal_gen->set_signal_frequency(test_freq);
+    filter_dut.configure(50.0, bandwidth);  // Keep notch at 50Hz
+
+    // Check that signal passes through with minimal attenuation
+    // simulator.register_checker(yeet::testing::make_range_checker(
+    //     "output_amplitude", [&]() { return std::abs(output); }, 0.8, 1.2,  // Expect close to unity gain
+    //     yeet::testing::checker_activation_time_range{1.0, 2.0}));
+
+    simulate_for(2.0);
+}
+
+TEST_F(SecondOrderBandRejectFilterSimulatorTest, FrequencySweep) {
+    // Test filter response across frequency range
+    constexpr double sweep_duration = 5.0;
+    constexpr double start_freq = 10.0;
+    constexpr double end_freq = 100.0;
+
+    filter_dut.configure(50.0, bandwidth);  // Notch at 50Hz
+
+    // Set up frequency sweep
+    signal_gen->set_signal_frequency(start_freq);
+    signal_gen->set_frequency_rate_of_change(end_freq - start_freq,  // Total frequency change
+                                             0.0,                    // Start time
+                                             sweep_duration          // End time
+    );
+
+    // Add checker for notch region
+    // simulator.register_checker(yeet::testing::make_range_checker(
+    //     "notch_region", [&]() { return std::abs(output); }, 0.0, 0.1,  // Strong attenuation expected
+    //     yeet::testing::checker_activation_time_range{2.4, 2.6}         // Check around 50Hz (middle of sweep)
+    //     ));
+
+    simulate_for(sweep_duration);
 }
 
 }  // namespace

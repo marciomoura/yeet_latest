@@ -9,8 +9,7 @@ enable_testing()
 # Add test sources
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE gtest_test_info.hpp
-            angle_test.cpp
+    PRIVATE angle_test.cpp
             limit_tests.cpp
             reference_frame_test.cpp
             integrator_test.cpp

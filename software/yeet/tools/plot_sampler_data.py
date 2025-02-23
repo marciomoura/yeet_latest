@@ -4,7 +4,7 @@ import argparse
 import plotly.graph_objects as go
 import glob
 import webbrowser
-from typing import List, Dict, Union, Any
+from typing import List, Dict, Any
 
 
 def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries: List[float], figure: go.Figure):
@@ -14,7 +14,6 @@ def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries
         data = entry["data"]
         # Transpose the data to get individual component time series
         components = list(zip(*data))
-        
         # Plot each component
         for i, component in enumerate(components):
             figure.add_trace(
@@ -35,6 +34,44 @@ def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries
                 name=entry["name"]
             )
         )
+
+
+def add_checker_failures(failures: List[Dict[str, Any]], figure: go.Figure):
+    """Add vertical lines and draggable annotations for checker failures at the top region."""
+    if not failures:
+        return
+
+    # For each failure, add a vertical red dashed line and an annotation (the annotation itself is draggable)
+    for failure in failures:
+        figure.add_vline(
+            x=failure["time"],
+            line_dash="dash",
+            line_color="red",
+            line_width=2,
+            opacity=0.7
+        )
+        
+        figure.add_annotation(
+            x=failure["time"],
+            y=0.92,  # Positioned near the top (below the title)
+            xref="x",
+            yref="paper",
+            text=f"{failure['name']}: {failure['message']}",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=2,
+            arrowcolor="red",
+            bgcolor="rgba(255,0,0,0.1)",
+            bordercolor="red",
+            borderwidth=2,
+            borderpad=4,
+            yanchor="bottom",
+            # # Remove top-level editable from layout; annotations here can be subject to configuration in the HTML export
+            # editable=True,
+            hovertext="Double-click to toggle editing. Drag to move."
+        )
+
 
 
 def create_plot(input_path: str, output_path: str):
@@ -58,14 +95,19 @@ def create_plot(input_path: str, output_path: str):
     for entry in data_timeseries:
         create_plot_for_multidimensional_data(entry, time_timeseries, figure)
 
-    # Update layout with dark theme and grid
+    # Add checker failures (vertical lines and draggable annotations) if present
+    if "checker_failures" in data:
+        add_checker_failures(data["checker_failures"], figure)
+
+    # Update layout with title at the top and a failure summary annotation at the bottom
     figure.update_layout(
         template="plotly_dark",
         xaxis=dict(
             showgrid=True,
             gridwidth=1,
             gridcolor="LightGray",
-            title="Time"
+            title="Time",
+            domain=[0, 0.95]  # reduce plot height slightly to make room
         ),
         yaxis=dict(
             showgrid=True,
@@ -73,7 +115,14 @@ def create_plot(input_path: str, output_path: str):
             gridcolor="LightGray",
             title="Values"
         ),
-        title=plot_name,
+        title=dict(
+            text=plot_name,
+            font=dict(size=14),
+            xanchor='left',
+            x=0,
+            yanchor='top',
+            y=0.98
+        ),
         showlegend=True,
         legend=dict(
             yanchor="top",
@@ -81,61 +130,42 @@ def create_plot(input_path: str, output_path: str):
             xanchor="left",
             x=0.01,
             bgcolor="rgba(0,0,0,0.3)"
-        )
+        ),
+        margin=dict(t=150, b=200, l=50, r=50)  # Increase bottom margin to fully show the summary annotation
     )
 
-    # Write the plot to file
-    figure.write_html(file=output_path)
+    # Write the plot to file and pass a config making annotations editable
+    figure.write_html(file=output_path, config={"editable": True})
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot data from JSON file.")
     parser.add_argument("input_dir", type=str, help="Path to the input JSON file.")
-    parser.add_argument(
-        "output_dir", type=str, help="Path to save the output HTML file."
-    )
-    # add a parsing argument to move the html and json files to a new directory
-    parser.add_argument(
-        "--move",
-        type=str,
-        help="Path to move the input JSON and output HTML files.",
-    )
+    parser.add_argument("output_dir", type=str, help="Path to save the output HTML file.")
+    # Add a parsing argument to move the html and json files to a new directory
+    parser.add_argument("--move", type=str, help="Path to move the input JSON and output HTML files.")
     args = parser.parse_args()
 
     input_files = glob.glob(os.path.join(args.input_dir, "testing_*.json"))
 
-    # For every input testing file that is found, create a plot
+    # For every input testing file found, create a plot.
     for input_file in input_files:
         output_file = os.path.join(
             args.output_dir, os.path.basename(input_file).replace(".json", ".html")
         )
-
-        # Create a plot found in the input file json structure
-        # Export the plotly plot to the output file
         create_plot(input_file, output_file)
 
-        # If requested to move the files, then move them from the working directory to the destination
+        # If requested, move the files from the working directory to the destination
         if args.move:
-            # If folder to move all files does not exist, then create it
             if not os.path.exists(args.move):
                 os.makedirs(args.move)
-
-            dst_input_file: str = os.path.join(args.move, os.path.basename(input_file))
-            dst_output_file: str = os.path.join(
-                args.move, os.path.basename(output_file)
-            )
-
-            # If files exists, then remove them
+            dst_input_file = os.path.join(args.move, os.path.basename(input_file))
+            dst_output_file = os.path.join(args.move, os.path.basename(output_file))
             if os.path.exists(dst_input_file):
                 os.remove(dst_input_file)
-
             if os.path.exists(dst_output_file):
                 os.remove(dst_output_file)
-
-            # Rename from source to destination
             os.rename(input_file, dst_input_file)
             os.rename(output_file, dst_output_file)
-
-            # Open the output file in the browser
             print(f"Opening: {dst_output_file}...")
             webbrowser.open(dst_output_file)

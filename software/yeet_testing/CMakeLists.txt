@@ -6,6 +6,7 @@ add_library(yeet::yeet_testing ALIAS ${PROJECT_NAME})
 target_sources(
     ${PROJECT_NAME}
     PUBLIC include/yeet_testing/parameter_collection.hpp
+           include/yeet_testing/checker_failures_post_processing_interface.hpp
            include/yeet_testing/data_sample_json_post_processing.hpp
            include/yeet_testing/data_sample_post_processing_interface.hpp
            include/yeet_testing/data_sample_terminal_post_processing.hpp

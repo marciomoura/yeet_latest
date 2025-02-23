@@ -7,14 +7,14 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "yeet_testing/data_sample_post_processing_interface.hpp"
-#include "yeet_testing/data_sampler_entry.hpp"
+#include "checker_failures_post_processing_interface.hpp"
+#include "data_sample_post_processing_interface.hpp"
+#include "data_sampler_entry.hpp"
 
 namespace yeet::testing {
 
@@ -36,12 +36,67 @@ namespace yeet::testing {
 //              [7.0, 8.0, 9.0]
 //            ]
 //          }
+//        ],
+//        "checker_failures": [
+//          {
+//            "name": "voltage_check",
+//            "message": "Voltage exceeded maximum threshold",
+//            "time": 1.234
+//          }
 //        ]
 //      }
-class data_sample_json_post_processing : public data_sample_post_processing_interface {
+class data_sample_json_post_processing : public data_sample_post_processing_interface,
+                                         public checker_failures_post_processing_interface {
 public:
+    // Only updates JSON structure, doesn't write to file
     void dump(std::string test_suite, std::string test_name,
               std::map<data_sampler_entry*, std::vector<std::vector<float>>> const& data_map) override {
+        _json_data["test_suite"] = test_suite;
+        _json_data["test_name"] = test_name;
+        _json_data["test_data"] = create_test_data_array(data_map);
+    }
+
+    // Only updates JSON structure, doesn't write to file
+    void dump(std::vector<checker_fail_info> const& failures) override {
+        nlohmann::json failures_array = nlohmann::json::array();
+
+        for (const auto& failure : failures) {
+            nlohmann::json failure_entry;
+            failure_entry["name"] = failure.name;
+            failure_entry["message"] = failure.message;
+            failure_entry["time"] = failure.time;
+            failures_array.push_back(failure_entry);
+        }
+
+        _json_data["checker_failures"] = failures_array;
+    }
+
+    // New method to write the complete JSON structure to file
+    void write_to_file() const {
+        assert(_json_data.contains("test_suite") && _json_data.contains("test_name") &&
+               _json_data.contains("test_data"));
+
+        assert(_json_data["test_suite"].is_string() && _json_data["test_name"].is_string() &&
+               _json_data["test_data"].is_array());
+
+        std::string const filename = "testing_" + _json_data["test_suite"].get<std::string>() + "_" +
+                                     _json_data["test_name"].get<std::string>() + ".json";
+
+        std::filesystem::path const path = std::filesystem::current_path() / filename;
+
+        dump_json_to_file(_json_data, path);
+    }
+
+    void write_to_file(std::filesystem::path const& path) const { dump_json_to_file(_json_data, path); }
+
+    // New method to get the JSON data (useful for testing or custom file handling)
+    const nlohmann::json& get_json_data() const { return _json_data; }
+
+private:
+    nlohmann::json _json_data;
+
+    nlohmann::json create_test_data_array(
+        const std::map<data_sampler_entry*, std::vector<std::vector<float>>>& data_map) {
         nlohmann::json json_test_data = nlohmann::json::array();
 
         for (auto const& [entry, data] : data_map) {
@@ -69,17 +124,9 @@ public:
             json_test_data.push_back(json_entry);
         }
 
-        nlohmann::json json_data{};
-        json_data["test_suite"] = test_suite;
-        json_data["test_name"] = test_name;
-        json_data["test_data"] = json_test_data;
-
-        std::string const filename = "testing_" + test_suite + "_" + test_name + ".json";
-        std::filesystem::path const path = std::filesystem::current_path() / filename;
-        dump_json_to_file(json_data, path);
+        return json_test_data;
     }
 
-private:
     static inline void dump_json_to_file(nlohmann::json const& json_data, std::filesystem::path const& path) {
         try {
             std::ofstream file(path);

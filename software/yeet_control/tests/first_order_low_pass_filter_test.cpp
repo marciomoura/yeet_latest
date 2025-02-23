@@ -5,14 +5,11 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "gtest_test_info.hpp"
 #include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/limit.hpp"
-#include "yeet_testing/data_sampler_entry.hpp"
-#include "yeet_testing/simulator.hpp"
-#include "yeet_testing/simulator_checker.hpp"
+#include "yeet_testing/simulator_gtest.hpp"
 
 using namespace yeet::control;
 
@@ -213,14 +210,10 @@ public:
         simulator.register_lambda_runner(sampling_time, [&]() { output = filter_dut.update(input); });
     }
 
-    void TearDown() override {
-        simulator.dump_json(yeet::testing::gtest_testing_info{::testing::UnitTest::GetInstance()});
-    }
-
     void simulate_for(double time) { simulator.simulate_for(time); }
 
 protected:
-    yeet::testing::simulator simulator;
+    yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
 
     double input{};
     double output{};
@@ -239,8 +232,8 @@ TEST_F(FirstOrderLowPassFilterSimulatorTest, StepResponse) {
     double fc = filter_dut.calculate_cutoff_frequency(0.1);
     filter_dut.configure(fc);
 
-    // simulator.register_checker(yeet::make_range_checker<double>(
-    // "Filter output", [&]() { return output; }, 1.1, 1.4, yeet::checker_activation_time_range{1.0, 2.0}));
+    simulator.register_checker(yeet::make_range_checker<double>(
+        "output_range", [&]() { return output; }, 1.1, 1.4, yeet::checker_activation_time_range{1.0, 2.0}));
 
     input = 0.0;
     simulate_for(1.0);

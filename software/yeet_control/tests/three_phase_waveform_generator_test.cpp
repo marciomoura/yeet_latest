@@ -2,11 +2,10 @@
 
 #include <gtest/gtest.h>
 
-#include "gtest_test_info.hpp"
 #include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
-#include "yeet_testing/simulator.hpp"
+#include "yeet_testing/simulator_gtest.hpp"
 
 namespace {
 
@@ -33,10 +32,6 @@ public:
 
             set_iterator_next_sample();
         });
-    }
-
-    void TearDown() override {
-        _simulator.dump_json(yeet::testing::gtest_testing_info{::testing::UnitTest::GetInstance()});
     }
 
     void simulate_for(double time) { _simulator.simulate_for(time); }
@@ -170,7 +165,7 @@ private:
 
     std::map<std::size_t, std::vector<abc<double>>::iterator> _generate_harmonics_signal_iterator{};
 
-    yeet::testing::simulator _simulator;
+    yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
 
     std::function<void()> _checker_callback;
 
