@@ -4,6 +4,8 @@
 
 #include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/three_phase_waveform_generator.hpp"
+#include "yeet_testing/simulator_gtest.hpp"
 
 namespace {
 
@@ -678,6 +680,125 @@ TEST(ReferenceFrameTest, IteratorModification) {
     }
     EXPECT_NEAR(dq_coords[0], 2.0, k_epsilon);
     EXPECT_NEAR(dq_coords[1], 4.0, k_epsilon);
+}
+
+class ReferenceFrameSimulatorTest : public ::testing::Test {
+public:
+    static constexpr double sampling_time = 1e-4;  // 10 kHz sampling rate
+    static constexpr double signal_freq = 50.0;    // 50 Hz fundamental
+
+    void SetUp() override {
+        // simulator = yeet::testing::make_gtest_simulator();
+
+        // Configure signal generator
+        signal_gen->set_signal_frequency(signal_freq);
+        signal_gen->set_fundamental_positive_sequence_signal_amplitude(1.0);
+
+        // Register simulation updates
+        simulator.register_lambda_runner(sampling_time, [&]() {
+            // Update signal generator
+            signal_gen->update();
+
+            // Get ABC values
+            abc_values = signal_gen->get_fundamental_signal_abc();
+
+            // Transform to alpha-beta
+            alphabeta_values = abc_values.to_alphabeta();
+
+            // Calculate theta for dq transformation
+            theta = alphabeta_values.phase();
+
+            // Transform to dq
+            dq_values = alphabeta_values.to_dq(theta);
+        });
+
+        // Register data sampling
+        register_samplers();
+    }
+
+    bool simulate_for(double time) { return simulator.simulate_for(time); }
+
+protected:
+    yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
+
+    std::unique_ptr<three_phase_waveform_generator> signal_gen =
+        std::make_unique<three_phase_waveform_generator>(sampling_time);
+
+    abc<double> abc_values{};
+    alphabeta<double> alphabeta_values{};
+    dq<double> dq_values{};
+    angle<zero_to_two_pi> theta{0.0};
+
+private:
+    void register_samplers() {
+        // Sample abc values
+        simulator.register_sampler_entry(yeet::testing::data_sampler_entry("abc", abc_values));
+        // Sample alpha-beta values
+        simulator.register_sampler_entry(yeet::testing::data_sampler_entry("alphabeta", alphabeta_values));
+        // Sample dq values
+        simulator.register_sampler_entry(yeet::testing::data_sampler_entry("dq", dq_values));
+        // Sample theta
+        simulator.register_sampler_entry(
+            yeet::testing::data_sampler_entry("theta", [this]() { return theta.get_pu(); }));
+    }
+};
+
+TEST_F(ReferenceFrameSimulatorTest, BalancedTransformationChain) {
+    // For balanced signals:
+    // - ABC should be 120° apart and equal magnitude
+    // - Alpha-beta should have constant magnitude
+    // - DQ should be constant (d ≈ 1, q ≈ 0)
+
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "d_value", [this]() { return dq_values[0]; }, 0.95, 1.05,  // Expect d ≈ 1.0 ±5%
+        yeet::testing::checker_activation_time_range{0.1, 0.2}     // Check after initial settling
+        ));
+
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "q_value", [this]() { return dq_values[1]; }, -0.05, 0.05,  // Expect q ≈ 0.0 ±5%
+        yeet::testing::checker_activation_time_range{0.1, 0.2}));
+
+    // Check alpha-beta magnitude is constant
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "alphabeta_magnitude", [this]() { return alphabeta_values.magnitude(); }, 0.95,
+        1.05,  // Expect magnitude ≈ 1.0 ±5%
+        yeet::testing::checker_activation_time_range{0.1, 0.2}));
+
+    EXPECT_TRUE(simulate_for(0.2));  // Run for 10 cycles at 50 Hz
+}
+
+TEST_F(ReferenceFrameSimulatorTest, FrequencyStepResponse) {
+    // Test transformation chain during frequency step
+    signal_gen->set_frequency_step(25.0, 0.1);  // Step to 75 Hz at t=0.1s
+
+    // Check that DQ values remain constant even after frequency step
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "d_value_after_step", [this]() { return dq_values[0]; }, 0.95, 1.05,
+        yeet::testing::checker_activation_time_range{0.15, 0.2}  // Check after step
+        ));
+
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "q_value_after_step", [this]() { return dq_values[1]; }, -0.05, 0.05,
+        yeet::testing::checker_activation_time_range{0.15, 0.2}));
+
+    EXPECT_TRUE(simulate_for(0.2));  // Run for 10 cycles at 50 Hz
+}
+
+TEST_F(ReferenceFrameSimulatorTest, UnbalancedTransformationChain) {
+    // Test with unbalanced ABC (positive + negative sequence)
+    signal_gen->set_fundamental_positive_sequence_signal_amplitude(0.9);  // 90% positive sequence
+    signal_gen->set_fundamental_negative_sequence_signal_amplitude(0.1);  // 10% negative sequence
+
+    // DQ should now have 100Hz oscillation due to negative sequence
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "d_oscillation", [this]() { return dq_values[0]; }, 0.8, 1.0,  // Expect d to oscillate between these values
+        yeet::testing::checker_activation_time_range{0.1, 0.2}));
+
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "q_oscillation", [this]() { return dq_values[1]; }, -0.1, 0.1,  // Expect q to oscillate between these values
+        yeet::testing::checker_activation_time_range{0.1, 0.2}));
+
+    EXPECT_TRUE(simulate_for(0.2));  // Run for 10 cycles at 50 Hz
 }
 
 }  // namespace

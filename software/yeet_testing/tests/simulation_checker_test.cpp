@@ -4,7 +4,7 @@
 
 namespace {
 
-using namespace yeet;
+using namespace yeet::testing;
 
 // Test fixture for simulator checker tests
 class SimulatorCheckerTest : public ::testing::Test {

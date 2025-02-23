@@ -99,6 +99,19 @@ public:
     constexpr double get_radians() const { return _value; }
 
     /**
+     * @brief Gets the angle value in per unit
+     *
+     * @return double The angle in per unit, wrapped to the valid range
+     */
+    constexpr double get_pu() const {
+        if constexpr (std::is_same_v<RangeType, zero_to_two_pi>) {
+            return _value / two_pi<double>;
+        } else if constexpr (std::is_same_v<RangeType, minus_pi_to_pi>) {
+            return (_value + pi<double>) / two_pi<double>;
+        }
+    }
+
+    /**
      * @brief Gets the angle value in radians
      *
      * This method allows the angle object to be used as a function object.

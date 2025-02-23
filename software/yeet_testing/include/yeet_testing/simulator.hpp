@@ -50,34 +50,20 @@ public:
     }
 
     bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false) {
-        if (short_circuit_upon_reaching_max_failures && _checker.has_reached_max_failures()) {
-            return false;
-        }
-
         const double sampling_rate = _runner.get_fastest_sampling_rate();
         const std::size_t num_ticks = static_cast<std::size_t>(time / sampling_rate);
 
         _sampler.allocate(num_ticks);
 
-        bool status = true;
-
         for (std::size_t tick = 0; tick < num_ticks; ++tick) {
             _current_simulation_time = (_current_tick + tick) * sampling_rate;
-
             _sampler.sample();
             _runner.run(tick);
-
-            if (!_checker.run_checks(_current_simulation_time)) {
-                status = false;
-                if (short_circuit_upon_reaching_max_failures && _checker.has_reached_max_failures()) {
-                    _current_tick += tick;
-                    return false;
-                }
-            }
+            _checker.run_checks(_current_simulation_time);
         }
 
         _current_tick += num_ticks;
-        return status;
+        return !_checker.has_failure();
     }
 
     double get_current_simulation_time() const { return _current_simulation_time; }

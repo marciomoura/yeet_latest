@@ -25,6 +25,10 @@ class dq;
 template <typename T>
 class abc {
 public:
+    using value_type = T;
+    using iterator = typename std::array<T, 3>::iterator;
+    using const_iterator = typename std::array<T, 3>::const_iterator;
+
     // Constructors
     constexpr abc() = default;
     constexpr abc(const std::array<T, 3>& values) : _values(values) {}
@@ -139,6 +143,10 @@ constexpr abc<T> operator*(T scalar, const abc<T>& coords) {
 template <typename T>
 class alphabeta {
 public:
+    using value_type = T;
+    using iterator = typename std::array<T, 3>::iterator;
+    using const_iterator = typename std::array<T, 3>::const_iterator;
+
     // Constructors
     constexpr alphabeta() = default;
     constexpr alphabeta(const std::array<T, 2>& values) : _values(values) {}
@@ -260,6 +268,10 @@ constexpr alphabeta<T> operator*(T scalar, const alphabeta<T>& coords) {
 template <typename T>
 class dq {
 public:
+    using value_type = T;
+    using iterator = typename std::array<T, 3>::iterator;
+    using const_iterator = typename std::array<T, 3>::const_iterator;
+
     // Constructors
     constexpr dq() = default;
     constexpr dq(const std::array<T, 2>& values) : _values(values) {}

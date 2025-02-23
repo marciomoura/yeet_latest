@@ -147,6 +147,13 @@ public:
     }
 
     /**
+     * @brief Retrieves the fundamental signal angle.
+     *
+     * @return abc<angle<zero_to_two_pi>> fundamental signal angle
+     */
+    abc<angle<zero_to_two_pi>> get_fundamental_signal_angle() const { return m_fundamental_signal_angle; }
+
+    /**
      * @brief Retrieves the fundamental positive sequence signal.
      *
      * @return abc<double> fundamental positive sequence signal

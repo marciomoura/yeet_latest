@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-namespace yeet {
+namespace yeet::testing {
 
 /**
  * @brief Base class for all simulation checkers
@@ -441,6 +441,6 @@ std::unique_ptr<simulator_checker> make_unique_checker(CheckerType checker) {
     return std::make_unique<CheckerType>(checker);
 }
 
-}  // namespace yeet
+}  // namespace yeet::testing
 
 #endif  // YEET_TESTING_SIMULATOR_CHECKER_HPP

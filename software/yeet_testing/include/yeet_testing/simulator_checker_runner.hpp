@@ -60,8 +60,8 @@ public:
     void dump(checker_failures_post_processing_interface& post_processor) { post_processor.dump(_checker_failures); }
 
 private:
-    std::size_t _max_failures{5};
-    std::vector<std::unique_ptr<simulator_checker>> _checkers;
+    std::size_t _max_failures{20};
+    std::vector<std::shared_ptr<simulator_checker>> _checkers;
     std::vector<checker_fail_info> _checker_failures{};
 };
 
