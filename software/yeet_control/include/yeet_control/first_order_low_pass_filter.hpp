@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "constants.hpp"
+#include "type_traits.hpp"
 
 namespace yeet::control {
 
@@ -34,49 +35,36 @@ namespace yeet::control {
  */
 template <typename T>
 class first_order_low_pass_filter {
-    static_assert(std::is_floating_point_v<T>, "T must be a floating point type");
-
 public:
-    /**
-     * Initialize filter with sampling period.
-     * @param sampling_period Time between samples in seconds
-     */
-    explicit first_order_low_pass_filter(T sampling_period) : _prev_input(T(0)), _output(T(0)), _ts(sampling_period) {}
+    using type = fundamental_type_t<T>;
+    static_assert(std::is_floating_point_v<type>, "Fundamental type must be floating point");
 
-    /**
-     * Configure filter with cutoff frequency.
-     *
-     * Mathematical Process:
-     * 1. Pre-warp the cutoff frequency: ωw = (2/Ts) * tan(ωc * Ts/2)
-     * 2. Apply bilinear transform and solve for coefficients:
-     *    b0 = b1 = ωw * Ts / (ωw * Ts + 2)
-     *    a1 = (ωw * Ts - 2) / (ωw * Ts + 2)
-     *
-     * @param cutoff_freq Cutoff frequency in Hz (-3dB point)
-     */
-    void configure(T cutoff_freq) {
+    explicit first_order_low_pass_filter(type sampling_period)
+        : _prev_input(type(0)), _output(type(0)), _ts(sampling_period) {}
+
+    void configure(type cutoff_freq) {
         // Check for negative frequency
-        if (cutoff_freq <= T(0)) {
+        if (cutoff_freq <= type(0)) {
             assert(false && "Cutoff frequency must be positive");
             return;
         }
 
         // Check Nyquist criterion
-        const T nyquist_freq = T(0.5) / _ts;
+        const type nyquist_freq = type(0.5) / _ts;
         if (cutoff_freq >= nyquist_freq) {
             assert(false && "Cutoff frequency must be less than Nyquist frequency (fs/2)");
             return;
         }
 
         // Convert Hz to radians/second and pre-warp
-        const T omega_c = T(2.0) * pi<T> * cutoff_freq;
-        const T omega_w = T(2.0) / _ts * std::tan(omega_c * _ts * T(0.5));
+        const type omega_c = type(2.0) * pi<type> * cutoff_freq;
+        const type omega_w = type(2.0) / _ts * std::tan(omega_c * _ts * type(0.5));
 
         // Compute filter coefficients
-        const T denom = omega_w * _ts + T(2.0);
+        const type denom = omega_w * _ts + type(2.0);
         _b0 = omega_w * _ts / denom;
         _b1 = _b0;  // Symmetric for first-order lowpass
-        _a1 = (omega_w * _ts - T(2.0)) / denom;
+        _a1 = (omega_w * _ts - type(2.0)) / denom;
     }
 
     /**
@@ -158,14 +146,14 @@ public:
         return output;
     }
 
-    T get_output() const { return _output; }
+    type get_output() const { return _output; }
 
     /**
      * Reset filter state variables to zero
      */
     void reset() {
-        _prev_input = T(0);
-        _output = T(0);
+        _prev_input = type(0);
+        _output = type(0);
     }
 
     /**
@@ -180,13 +168,14 @@ public:
      * @return Magnitude response (gain factor, not in dB)
      */
     T get_magnitude_response(T freq) const {
-        const T omega = compute_omega(freq);
+        const T omega = compute_omega(static_cast<type>(freq));
         const T omega_t = omega * _ts;
         const T cos_omega_t = std::cos(omega_t);
 
         // Compute numerator and denominator
-        const T num = _b0 * _b0 + _b1 * _b1 + T(2.0) * _b0 * _b1 * cos_omega_t;
-        const T den = T(1.0) + _a1 * _a1 + T(2.0) * _a1 * cos_omega_t;
+        const T num = static_cast<T>(_b0) * static_cast<T>(_b0) + static_cast<T>(_b1) * static_cast<T>(_b1) +
+                      T(2.0) * static_cast<T>(_b0) * static_cast<T>(_b1) * cos_omega_t;
+        const T den = T(1.0) + static_cast<T>(_a1) * static_cast<T>(_a1) + T(2.0) * static_cast<T>(_a1) * cos_omega_t;
 
         return std::sqrt(num / den);
     }
@@ -215,19 +204,20 @@ public:
      * @return Phase response in radians
      */
     T get_phase_response(T freq) const {
-        const T omega = compute_omega(freq);
+        const T omega = compute_omega(static_cast<type>(freq));
         const T omega_t = omega * _ts;
         const T sin_omega_t = std::sin(omega_t);
         const T cos_omega_t = std::cos(omega_t);
 
         // Compute numerator phase
-        const T num_imag = -(_b0 - _b1) * sin_omega_t;
-        const T num_real = (_b0 + _b1) + (_b0 - _b1) * cos_omega_t;
+        const T num_imag = -(static_cast<T>(_b0) - static_cast<T>(_b1)) * sin_omega_t;
+        const T num_real =
+            (static_cast<T>(_b0) + static_cast<T>(_b1)) + (static_cast<T>(_b0) - static_cast<T>(_b1)) * cos_omega_t;
         const T num_phase = std::atan2(num_imag, num_real);
 
         // Compute denominator phase
-        const T den_imag = -_a1 * sin_omega_t;
-        const T den_real = T(1.0) + _a1 * cos_omega_t;
+        const T den_imag = -static_cast<T>(_a1) * sin_omega_t;
+        const T den_real = T(1.0) + static_cast<T>(_a1) * cos_omega_t;
         const T den_phase = std::atan2(den_imag, den_real);
 
         return num_phase - den_phase;
@@ -241,24 +231,24 @@ public:
     T get_phase_response_degrees(T freq) const { return get_phase_response(freq) * T(180.0) / pi<T>; }
 
     // Getter methods
-    T get_sampling_time() const { return _ts; }
-    T get_feedback_coeff_a1() const { return _a1; }
-    T get_feedforward_coeff_b0() const { return _b0; }
-    T get_feedforward_coeff_b1() const { return _b1; }
+    type get_sampling_time() const { return _ts; }
+    type get_feedback_coeff_a1() const { return _a1; }
+    type get_feedforward_coeff_b0() const { return _b0; }
+    type get_feedforward_coeff_b1() const { return _b1; }
 
 private:
     /**
      * Convert frequency from Hz to radians/second
      * ω = 2π * f
      */
-    static constexpr T compute_omega(T freq) { return T(2.0) * pi<T> * freq; }
+    static constexpr type compute_omega(type freq) { return type(2.0) * pi<type> * freq; }
 
-    T _a1{};        // Feedback coefficient (denominator)
-    T _b0{};        // Current input coefficient (numerator)
-    T _b1{};        // Previous input coefficient (numerator)
+    type _a1{};     // Feedback coefficient (denominator)
+    type _b0{};     // Current input coefficient (numerator)
+    type _b1{};     // Previous input coefficient (numerator)
     T _prev_input;  // Previous input sample x[n-1]
     T _output;      // Previous output sample y[n-1]
-    T _ts;          // Sampling period in seconds
+    type _ts;       // Sampling period in seconds
 };
 
 }  // namespace yeet::control

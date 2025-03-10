@@ -5,14 +5,30 @@ add_library(yeet::yeet_control ALIAS ${PROJECT_NAME})
 
 target_sources(
     ${PROJECT_NAME}
-    PUBLIC include/yeet_control/angle.hpp
-           include/yeet_control/constants.hpp
-           include/yeet_control/limit.hpp
-           include/yeet_control/reference_frame.hpp
-           include/yeet_control/first_order_low_pass_filter.hpp
-           include/yeet_control/second_order_filter.hpp
-           include/yeet_control/integrator.hpp
-           include/yeet_control/pi_controller.hpp
+    PUBLIC
+        include/yeet_control/angle.hpp
+        include/yeet_control/assynchronous_machine_per_unit.hpp
+        include/yeet_control/assynchronous_machine.hpp
+        include/yeet_control/asynchronous_machine_vector_control.hpp
+        include/yeet_control/constants.hpp
+        include/yeet_control/externally_excited_synchronous_machine_per_unit.hpp
+        include/yeet_control/externally_excited_synchronous_machine.hpp
+        include/yeet_control/first_order_low_pass_filter.hpp
+        include/yeet_control/integrator.hpp
+        include/yeet_control/limit.hpp
+        include/yeet_control/machine_current_controller.hpp
+        include/yeet_control/machine_flux_controller.hpp
+        include/yeet_control/machine_measurements.hpp
+        include/yeet_control/machine_per_unit_system.hpp
+        include/yeet_control/machine_speed_controller.hpp
+        include/yeet_control/permanent_magnet_synchronous_machine_per_unit.hpp
+        include/yeet_control/permanent_magnet_synchronous_machine.hpp
+        include/yeet_control/pi_controller.hpp
+        include/yeet_control/range_kutta_derivative.hpp
+        include/yeet_control/reference_frame.hpp
+        include/yeet_control/second_order_filter.hpp
+        include/yeet_control/three_phase_waveform_generator.hpp
+        include/yeet_control/type_traits.hpp
     PRIVATE src/angle.cpp)
 
 target_include_directories(${PROJECT_NAME}

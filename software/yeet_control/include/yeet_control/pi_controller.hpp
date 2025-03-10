@@ -5,6 +5,8 @@
 #include <cassert>
 #include <limits>
 
+#include "type_traits.hpp"
+
 namespace yeet::control {
 
 /**
@@ -27,9 +29,11 @@ namespace yeet::control {
  *
  * @tparam T Numeric type (should be a floating point or an arithmetic type)
  */
-template <typename T, typename CoefficientT = T>
+template <typename T>
 class pi_controller {
 public:
+    using value_type = fundamental_type_t<T>;
+
     /**
      * @brief Configure the controller using Kp and continuous-time Ki.
      *
@@ -40,7 +44,7 @@ public:
      * The discrete-time integral gain is computed as:
      *     Ki_disc = ki_continuous * ts.
      */
-    void configure(CoefficientT kp, CoefficientT ki_continuous, CoefficientT ts) {
+    void configure(value_type kp, value_type ki_continuous, value_type ts) {
         _kp = kp;
         _ki_cont = ki_continuous;
         _ts = ts;
@@ -59,13 +63,13 @@ public:
      * and the discrete-time gain is:
      *     Ki_disc = Ki_continuous * ts.
      */
-    void configure_with_ti(CoefficientT kp, CoefficientT ti, CoefficientT ts) {
-        assert(ts > CoefficientT(0) && "Sampling time must be positive");
+    void configure_with_ti(value_type kp, value_type ti, value_type ts) {
+        assert(ts > value_type(0) && "Sampling time must be positive");
 
         _kp = kp;
         _ts = ts;
         // Protect against division by zero.
-        _ki_cont = (ti != CoefficientT(0)) ? (kp / ti) : CoefficientT(0);
+        _ki_cont = (ti != value_type(0)) ? (kp / ti) : value_type(0);
         _ki_disc = _ki_cont * ts;
     }
 
@@ -78,7 +82,7 @@ public:
      * Enforcing output limits can prevent actuator saturation. Note that when saturation occurs,
      * anti-windup strategies may be necessary to prevent excessive integral buildup.
      */
-    void set_output_limits(CoefficientT min, CoefficientT max) {
+    void set_output_limits(value_type min, value_type max) {
         if (min < max) {
             _output_min = min;
             _output_max = max;
@@ -120,22 +124,22 @@ public:
     }
 
     // Getter methods.
-    CoefficientT get_kp() const { return _kp; }
-    CoefficientT get_ki_continuous() const { return _ki_cont; }
-    CoefficientT get_ki_discrete() const { return _ki_disc; }
-    CoefficientT get_sampling_time() const { return _ts; }
+    value_type get_kp() const { return _kp; }
+    value_type get_ki_continuous() const { return _ki_cont; }
+    value_type get_ki_discrete() const { return _ki_disc; }
+    value_type get_sampling_time() const { return _ts; }
     T get_integral() const { return _integral; }
 
 private:
-    CoefficientT _kp{};       // Proportional gain.
-    CoefficientT _ki_cont{};  // Continuous-time integral gain.
-    CoefficientT _ts{};       // Sampling time.
-    CoefficientT _ki_disc{};  // Discrete-time integral gain (computed as _ki_cont * _ts).
-    T _integral{};            // Accumulated integral term.
+    value_type _kp{};       // Proportional gain.
+    value_type _ki_cont{};  // Continuous-time integral gain.
+    value_type _ts{};       // Sampling time.
+    value_type _ki_disc{};  // Discrete-time integral gain (computed as _ki_cont * _ts).
+    T _integral{};          // Accumulated integral term.
 
     // Output limits for actuator saturation.
-    CoefficientT _output_min{std::numeric_limits<CoefficientT>::lowest()};
-    CoefficientT _output_max{std::numeric_limits<CoefficientT>::max()};
+    value_type _output_min{std::numeric_limits<value_type>::lowest()};
+    value_type _output_max{std::numeric_limits<value_type>::max()};
 };
 
 }  // namespace yeet::control

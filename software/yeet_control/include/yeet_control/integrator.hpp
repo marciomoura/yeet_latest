@@ -3,13 +3,17 @@
 
 #include <cassert>
 
+#include "type_traits.hpp"
+
 namespace yeet::control {
 
-template <typename T, typename CoefficientT = T>
+template <typename T>
 class integrator {
 public:
+    using value_type = fundamental_type_t<T>;
+
     // Configure sampling time
-    void configure(CoefficientT ts) { _ts = ts; }
+    void configure(value_type ts) { _ts = ts; }
 
     // Reset integrator state
     void reset() { _value = T(0); }
@@ -27,7 +31,7 @@ public:
     // Ts is the sampling time
     template <typename InputT = T>
     T update(InputT input) {
-        assert(_ts > CoefficientT(0) && "Sampling time must be positive");
+        assert(_ts > value_type(0) && "Sampling time must be positive");
 
         // Update integrator using rectangular integration
         _value += T{input * _ts};
@@ -36,12 +40,12 @@ public:
     }
 
     // Getter methods
-    CoefficientT get_sampling_time() const { return _ts; }
+    value_type get_sampling_time() const { return _ts; }
     T get_value() const { return _value; }
 
 private:
-    CoefficientT _ts{};  // Sampling time
-    T _value{};          // Current integrator value
+    value_type _ts{};  // Sampling time
+    T _value{};        // Current integrator value
 };
 
 }  // namespace yeet::control

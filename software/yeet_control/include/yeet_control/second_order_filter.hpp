@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "constants.hpp"
+#include "type_traits.hpp"
 
 namespace yeet::control {
 
@@ -27,23 +28,25 @@ namespace yeet::control {
  */
 template <typename T>
 class second_order_filter {
-    static_assert(std::is_floating_point_v<T>, "T must be a floating point type");
+public:
+    using type = fundamental_type_t<T>;
+
+    static_assert(std::is_floating_point_v<type>, "Fundamental type must be floating point");
 
 protected:
     /**
      * Protected constructor for derived classes
      * @param sampling_period Sampling period in seconds
      */
-    explicit second_order_filter(T sampling_period)
-        : _ts(sampling_period), _x1(T(0)), _x2(T(0)), _y1(T(0)), _y2(T(0)) {}
+    second_order_filter(type sampling_period) : _ts(sampling_period) {}
 
     // Compute angular frequency in radians/second from Hz
-    static constexpr T compute_omega(T freq) { return T(2.0) * pi<T> * freq; }
+    static constexpr type compute_omega(type freq) { return type(2.0) * pi<type> * freq; }
 
     // Get pre-warped frequency using bilinear transform
-    T compute_warped_omega(T freq) const {
-        const T omega = compute_omega(freq);
-        return T(2.0) / _ts * std::tan(omega * _ts * T(0.5));
+    type compute_warped_omega(type freq) const {
+        const type omega = compute_omega(freq);
+        return type(2.0) / _ts * std::tan(omega * _ts * type(0.5));
     }
 
 public:
@@ -53,7 +56,7 @@ public:
      * @return Filtered output sample y[n]
      */
     T update(T input) {
-        // Implement difference equation
+        // Implement difference equation using coefficient type conversion
         const T output = -_a1 * _y1 - _a2 * _y2 + _b0 * input + _b1 * _x1 + _b2 * _x2;
 
         // Update state variables
@@ -70,18 +73,18 @@ public:
      * @param freq Frequency in Hz
      * @return Magnitude response (gain factor)
      */
-    T get_magnitude_response(T freq) const {
-        const T omega = compute_omega(freq);
-        const T omega_t = omega * _ts;
-        const T cos_omega_t = std::cos(omega_t);
-        const T cos_2omega_t = std::cos(T(2.0) * omega_t);
+    type get_magnitude_response(type freq) const {
+        const type omega = compute_omega(freq);
+        const type omega_t = omega * _ts;
+        const type cos_omega_t = std::cos(omega_t);
+        const type cos_2omega_t = std::cos(type(2.0) * omega_t);
 
         // Compute numerator and denominator for H(e^(jωT))
-        const T num = _b0 * _b0 + _b1 * _b1 + _b2 * _b2 + T(2.0) * (_b0 * _b1 + _b1 * _b2) * cos_omega_t +
-                      T(2.0) * _b0 * _b2 * cos_2omega_t;
+        const type num = _b0 * _b0 + _b1 * _b1 + _b2 * _b2 + type(2.0) * (_b0 * _b1 + _b1 * _b2) * cos_omega_t +
+                         type(2.0) * _b0 * _b2 * cos_2omega_t;
 
-        const T den =
-            T(1.0) + _a1 * _a1 + _a2 * _a2 + T(2.0) * (_a1 + _a1 * _a2) * cos_omega_t + T(2.0) * _a2 * cos_2omega_t;
+        const type den = type(1.0) + _a1 * _a1 + _a2 * _a2 + type(2.0) * (_a1 + _a1 * _a2) * cos_omega_t +
+                         type(2.0) * _a2 * cos_2omega_t;
 
         return std::sqrt(num / den);
     }
@@ -98,22 +101,22 @@ public:
      * @param freq Frequency in Hz
      * @return Phase shift in radians
      */
-    T get_phase_response(T freq) const {
-        const T omega = compute_omega(freq);
-        const T omega_t = omega * _ts;
-        const T sin_omega_t = std::sin(omega_t);
-        const T sin_2omega_t = std::sin(T(2.0) * omega_t);
-        const T cos_omega_t = std::cos(omega_t);
-        const T cos_2omega_t = std::cos(T(2.0) * omega_t);
+    type get_phase_response(type freq) const {
+        const type omega = compute_omega(freq);
+        const type omega_t = omega * _ts;
+        const type sin_omega_t = std::sin(omega_t);
+        const type sin_2omega_t = std::sin(type(2.0) * omega_t);
+        const type cos_omega_t = std::cos(omega_t);
+        const type cos_2omega_t = std::cos(type(2.0) * omega_t);
 
         // Compute numerator and denominator phases
-        const T num_real = _b0 + _b1 * cos_omega_t + _b2 * cos_2omega_t;
-        const T num_imag = -(_b1 * sin_omega_t + _b2 * sin_2omega_t);
-        const T num_phase = std::atan2(num_imag, num_real);
+        const type num_real = _b0 + _b1 * cos_omega_t + _b2 * cos_2omega_t;
+        const type num_imag = -(_b1 * sin_omega_t + _b2 * sin_2omega_t);
+        const type num_phase = std::atan2(num_imag, num_real);
 
-        const T den_real = T(1.0) + _a1 * cos_omega_t + _a2 * cos_2omega_t;
-        const T den_imag = -(_a1 * sin_omega_t + _a2 * sin_2omega_t);
-        const T den_phase = std::atan2(den_imag, den_real);
+        const type den_real = type(1.0) + _a1 * cos_omega_t + _a2 * cos_2omega_t;
+        const type den_imag = -(_a1 * sin_omega_t + _a2 * sin_2omega_t);
+        const type den_phase = std::atan2(den_imag, den_real);
 
         return num_phase - den_phase;
     }
@@ -123,7 +126,7 @@ public:
      * @param freq Frequency in Hz
      * @return Phase shift in degrees
      */
-    T get_phase_response_degrees(T freq) const { return get_phase_response(freq) * T(180.0) / pi<T>; }
+    type get_phase_response_degrees(type freq) const { return get_phase_response(freq) * type(180.0) / pi<type>; }
 
     /**
      * Reset filter state variables
@@ -131,29 +134,29 @@ public:
     void reset() { _x1 = _x2 = _y1 = _y2 = T(0); }
 
     // Getter methods
-    T get_sampling_time() const { return _ts; }
-    T get_feedback_coeff_1() const { return _a1; }
-    T get_feedback_coeff_2() const { return _a2; }
-    T get_feedforward_coeff_0() const { return _b0; }
-    T get_feedforward_coeff_1() const { return _b1; }
-    T get_feedforward_coeff_2() const { return _b2; }
+    type get_sampling_time() const { return _ts; }
+    type get_feedback_coeff_1() const { return _a1; }
+    type get_feedback_coeff_2() const { return _a2; }
+    type get_feedforward_coeff_0() const { return _b0; }
+    type get_feedforward_coeff_1() const { return _b1; }
+    type get_feedforward_coeff_2() const { return _b2; }
 
 protected:
-    // Filter coefficients
-    T _a1{};  // Feedback coefficient 1
-    T _a2{};  // Feedback coefficient 2
-    T _b0{};  // Feedforward coefficient 0
-    T _b1{};  // Feedforward coefficient 1
-    T _b2{};  // Feedforward coefficient 2
+    // Filter coefficients using type
+    type _a1{};  // Feedback coefficient 1
+    type _a2{};  // Feedback coefficient 2
+    type _b0{};  // Feedforward coefficient 0
+    type _b1{};  // Feedforward coefficient 1
+    type _b2{};  // Feedforward coefficient 2
 
     // Sampling period
-    T _ts;
+    type _ts;
 
-    // State variables
-    T _x1;  // Previous input x[n-1]
-    T _x2;  // Two samples ago input x[n-2]
-    T _y1;  // Previous output y[n-1]
-    T _y2;  // Two samples ago output y[n-2]
+    // State variables using type
+    T _x1{};  // Previous input x[n-1]
+    T _x2{};  // Two samples ago input x[n-2]
+    T _y1{};  // Previous output y[n-1]
+    T _y2{};  // Two samples ago output y[n-2]
 };
 
 /**
@@ -171,7 +174,9 @@ protected:
 template <typename T>
 class second_order_low_pass_filter : public second_order_filter<T> {
 public:
-    explicit second_order_low_pass_filter(T sampling_period) : second_order_filter<T>(sampling_period) {}
+    using type = fundamental_type_t<T>;
+
+    second_order_low_pass_filter(type sampling_period) : second_order_filter<T>(sampling_period) {}
 
     /**
      * Configure filter with cutoff frequency and damping ratio.
@@ -180,22 +185,22 @@ public:
      * @param cutoff_freq Cutoff frequency in Hz (-3dB point)
      * @param damping_ratio Damping ratio (zeta, controls Q = 1/(2*zeta))
      */
-    void configure(T cutoff_freq, T damping_ratio) {
-        const T fs = T(1.0) / this->get_sampling_time();
+    void configure(type cutoff_freq, type damping_ratio) {
+        const type fs = type(1.0) / this->get_sampling_time();
         // Compute normalized angular frequency (radians/sample)
-        const T omega = T(2.0) * pi<T> * cutoff_freq / fs;
-        const T cos_omega = std::cos(omega);
-        const T sin_omega = std::sin(omega);
+        const type omega = type(2.0) * pi<type> * cutoff_freq / fs;
+        const type cos_omega = std::cos(omega);
+        const type sin_omega = std::sin(omega);
         // alpha controls the Q; here Q = 1/(2*damping_ratio)
-        const T alpha = sin_omega / (T(2.0) * damping_ratio);
+        const type alpha = sin_omega / (type(2.0) * damping_ratio);
 
         // RBJ low-pass filter coefficients
-        T b0 = (T(1.0) - cos_omega) / T(2.0);
-        T b1 = T(1.0) - cos_omega;
-        T b2 = (T(1.0) - cos_omega) / T(2.0);
-        T a0 = T(1.0) + alpha;
-        T a1 = -T(2.0) * cos_omega;
-        T a2 = T(1.0) - alpha;
+        type b0 = (type(1.0) - cos_omega) / type(2.0);
+        type b1 = type(1.0) - cos_omega;
+        type b2 = (type(1.0) - cos_omega) / type(2.0);
+        type a0 = type(1.0) + alpha;
+        type a1 = -type(2.0) * cos_omega;
+        type a2 = type(1.0) - alpha;
 
         // Normalize coefficients (set a0 = 1)
         this->_b0 = b0 / a0;
@@ -221,27 +226,29 @@ public:
 template <typename T>
 class second_order_band_reject_filter : public second_order_filter<T> {
 public:
-    explicit second_order_band_reject_filter(T sampling_period) : second_order_filter<T>(sampling_period) {}
+    using type = fundamental_type_t<T>;
+
+    second_order_band_reject_filter(type sampling_period) : second_order_filter<T>(sampling_period) {}
 
     /**
      * Configure filter with center frequency and bandwidth
      * @param center_freq Center frequency to reject (Hz)
      * @param bandwidth Bandwidth parameter (smaller means narrower notch)
      */
-    void configure(T center_freq, T bandwidth) {
+    void configure(type center_freq, type bandwidth) {
         // Sampling frequency and normalized omega:
-        const T fs = T(1.0) / this->get_sampling_time();
-        const T omega = T(2.0) * pi<T> * center_freq / fs;  // normalized angular frequency [rad/sample]
-        const T quality_factor = center_freq / bandwidth;
-        const T alpha = std::sin(omega) / (T(2.0) * quality_factor);
+        const type fs = type(1.0) / this->get_sampling_time();
+        const type omega = type(2.0) * pi<type> * center_freq / fs;  // normalized angular frequency [rad/sample]
+        const type quality_factor = center_freq / bandwidth;
+        const type alpha = std::sin(omega) / (type(2.0) * quality_factor);
 
         // RBJ notch (band-reject) filter coefficients:
-        T b0 = T(1.0);
-        T b1 = -T(2.0) * std::cos(omega);
-        T b2 = T(1.0);
-        T a0 = T(1.0) + alpha;
-        T a1 = -T(2.0) * std::cos(omega);
-        T a2 = T(1.0) - alpha;
+        type b0 = type(1.0);
+        type b1 = -type(2.0) * std::cos(omega);
+        type b2 = type(1.0);
+        type a0 = type(1.0) + alpha;
+        type a1 = -type(2.0) * std::cos(omega);
+        type a2 = type(1.0) - alpha;
 
         // Normalize coefficients (set a0 = 1)
         this->_b0 = b0 / a0;
@@ -267,7 +274,9 @@ public:
 template <typename T>
 class second_order_high_pass_filter : public second_order_filter<T> {
 public:
-    explicit second_order_high_pass_filter(T sampling_period) : second_order_filter<T>(sampling_period) {}
+    using type = fundamental_type_t<T>;
+
+    second_order_high_pass_filter(type sampling_period) : second_order_filter<T>(sampling_period) {}
 
     /**
      * Configure filter with cutoff frequency and damping ratio.
@@ -276,22 +285,22 @@ public:
      * @param cutoff_freq Cutoff frequency in Hz (-3dB point)
      * @param damping_ratio Damping ratio (zeta, controls Q = 1/(2*zeta))
      */
-    void configure(T cutoff_freq, T damping_ratio) {
-        const T fs = T(1.0) / this->get_sampling_time();
+    void configure(type cutoff_freq, type damping_ratio) {
+        const type fs = type(1.0) / this->get_sampling_time();
         // Compute normalized angular frequency (radians/sample)
-        const T omega = T(2.0) * pi<T> * cutoff_freq / fs;
-        const T cos_omega = std::cos(omega);
-        const T sin_omega = std::sin(omega);
+        const type omega = type(2.0) * pi<type> * cutoff_freq / fs;
+        const type cos_omega = std::cos(omega);
+        const type sin_omega = std::sin(omega);
         // α controls the Q; here Q = 1/(2*damping_ratio)
-        const T alpha = sin_omega / (T(2.0) * damping_ratio);
+        const type alpha = sin_omega / (type(2.0) * damping_ratio);
 
         // RBJ high-pass filter coefficients
-        T b0 = (T(1.0) + cos_omega) / T(2.0);
-        T b1 = -(T(1.0) + cos_omega);
-        T b2 = (T(1.0) + cos_omega) / T(2.0);
-        T a0 = T(1.0) + alpha;
-        T a1 = -T(2.0) * cos_omega;
-        T a2 = T(1.0) - alpha;
+        type b0 = (type(1.0) + cos_omega) / type(2.0);
+        type b1 = -(type(1.0) + cos_omega);
+        type b2 = (type(1.0) + cos_omega) / type(2.0);
+        type a0 = type(1.0) + alpha;
+        type a1 = -type(2.0) * cos_omega;
+        type a2 = type(1.0) - alpha;
 
         // Normalize coefficients (set a0 = 1)
         this->_b0 = b0 / a0;

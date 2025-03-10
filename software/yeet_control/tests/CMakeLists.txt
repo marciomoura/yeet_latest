@@ -10,11 +10,20 @@ enable_testing()
 target_sources(
     ${PROJECT_NAME}
     PRIVATE angle_test.cpp
-            limit_tests.cpp
-            reference_frame_test.cpp
-            integrator_test.cpp
-            pi_controller_test.cpp
+            assynchronous_machine_test.cpp
+            assynchronous_machine_per_unit_test.cpp
+            asynchronous_machine_vector_control_test.cpp
+            externally_excited_synchronous_machine_per_unit_test.cpp
+            externally_excited_synchronous_machine_test.cpp
+            externally_excited_synchronous_machine_vector_control_test.cpp
             first_order_low_pass_filter_test.cpp
+            integrator_test.cpp
+            limit_tests.cpp
+            permanent_magnet_synchronous_machine_per_unit_test.cpp
+            permanent_magnet_synchronous_machine_test.cpp
+            permanent_magnet_synchronous_machine_vector_control_test.cpp
+            pi_controller_test.cpp
+            reference_frame_test.cpp
             second_order_filter_test.cpp
             three_phase_waveform_generator_test.cpp)
 

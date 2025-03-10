@@ -58,6 +58,14 @@ public:
     constexpr alphabeta<T> to_alphabeta() const;
     constexpr dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
 
+    T a() const { return _values[0]; }
+    T b() const { return _values[1]; }
+    T c() const { return _values[2]; }
+
+    T& a() { return _values[0]; }
+    T& b() { return _values[1]; }
+    T& c() { return _values[2]; }
+
     // Rotation
     constexpr abc<T> rotate(const angle<zero_to_two_pi>& angle) const {
         // Rotate by converting to alphabeta, rotating there, and converting back
@@ -176,6 +184,12 @@ public:
     // Conversion to other frames
     constexpr abc<T> to_abc() const;
     constexpr dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
+
+    T alpha() const { return _values[0]; }
+    T beta() const { return _values[1]; }
+
+    T& alpha() { return _values[0]; }
+    T& beta() { return _values[1]; }
 
     // Magnitude calculation
     constexpr T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
@@ -301,6 +315,12 @@ public:
     // Conversion to other frames
     constexpr alphabeta<T> to_alphabeta(const angle<zero_to_two_pi>& theta) const;
     constexpr abc<T> to_abc(const angle<zero_to_two_pi>& theta) const;
+
+    T d() const { return _values[0]; }
+    T q() const { return _values[1]; }
+
+    T& d() { return _values[0]; }
+    T& q() { return _values[1]; }
 
     // Magnitude calculation
     constexpr T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
@@ -443,6 +463,19 @@ constexpr alphabeta<T> make_alphabeta(T magnitude, const angle<zero_to_two_pi>& 
 template <typename T>
 constexpr dq<T> make_dq(T d, T q) {
     return dq<T>{d, q};
+}
+
+// Cross product
+template <typename Frame, typename T = typename Frame::value_type>
+constexpr T cross_product(const Frame& a, const Frame& b) {
+    if constexpr (std::is_same_v<Frame, alphabeta<T>>) {
+        return a.alpha() * b.beta() - a.beta() * b.alpha();
+    } else if constexpr (std::is_same_v<Frame, dq<T>>) {
+        return a.d() * b.q() - a.q() * b.d();
+    } else {
+        static_assert(std::is_same_v<Frame, alphabeta<T>> || std::is_same_v<Frame, dq<T>>,
+                      "cross_product only supports alphabeta and dq frames");
+    }
 }
 
 }  // namespace yeet::control

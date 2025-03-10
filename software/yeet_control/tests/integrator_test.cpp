@@ -52,7 +52,7 @@ TEST(IntegratorTest, AngleWrappingTest) {
     // For an angular velocity input of 2π * 50 rad/s (i.e. 50 rotations per second)
     // integrating over exactly 1 second should yield exactly 50 full rotations.
     // Both angle wrappers (zero_to_two_pi and minus_pi_to_pi) should wrap the result to 0.
-    integrator<angle<zero_to_two_pi>, double> angle_integrator;
+    integrator<angle<zero_to_two_pi>> angle_integrator;
     const double ts = 0.001;  // sampling time: 1 ms
     angle_integrator.configure(ts);
     angle_integrator.reset();

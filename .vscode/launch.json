@@ -25,7 +25,9 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/yeet_control_tests.exe",
-            "args": [],
+            "args": [
+                "--gtest_filter=*SCIMOpenLoopTest*"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

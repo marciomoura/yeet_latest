@@ -126,7 +126,7 @@ TEST(PIControllerTest, ControlInDQFrame) {
     const double ts = 0.01;  // 10 ms sampling time
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<dq<double>, double> controller;
+    pi_controller<dq<double>> controller;
     controller.configure_with_ti(kp, ti, ts);
 
     dq<double> output = controller.update(dq<double>{1.0, 1.0});
@@ -141,7 +141,7 @@ TEST(PIControllerTest, ControlInAlphaBetaFrame) {
     const double ts = 0.01;  // 10 ms sampling time
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<alphabeta<double>, double> controller;
+    pi_controller<alphabeta<double>> controller;
     controller.configure_with_ti(kp, ti, ts);
 
     alphabeta<double> output = controller.update(alphabeta<double>{1.0, 1.0});
@@ -156,7 +156,7 @@ TEST(PIControllerTest, ControlInABCFrame) {
     const double ts = 0.01;  // 10 ms sampling time
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<abc<double>, double> controller;
+    pi_controller<abc<double>> controller;
     controller.configure_with_ti(kp, ti, ts);
 
     abc<double> output = controller.update(abc<double>{1.0, 1.0, 1.0});
@@ -187,7 +187,7 @@ TEST(PIControllerTest, ClosedLoopDQFrame) {
     // PI controller parameters.
     const double kp = 2.0;
     const double ti = 1.0;  // Integral time constant.
-    pi_controller<dq<double>, double> controller;
+    pi_controller<dq<double>> controller;
     controller.configure_with_ti(kp, ti, ts);
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
@@ -196,7 +196,7 @@ TEST(PIControllerTest, ClosedLoopDQFrame) {
     dq<double> setpoint{1.0, 1.0};
 
     // Plant state initialization (assumed zero).
-    integrator<dq<double>, double> plant;
+    integrator<dq<double>> plant;
     plant.configure(ts);
 
     for (size_t i = 0; i < n_steps; ++i) {
@@ -220,13 +220,13 @@ TEST(PIControllerTest, ClosedLoopAlphaBetaFrame) {
 
     const double kp = 2.0;
     const double ti = 1.0;
-    pi_controller<alphabeta<double>, double> controller;
+    pi_controller<alphabeta<double>> controller;
     controller.configure_with_ti(kp, ti, ts);
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
 
     alphabeta<double> setpoint{1.0, 1.0};
-    integrator<alphabeta<double>, double> plant;
+    integrator<alphabeta<double>> plant;
     plant.configure(ts);
 
     for (size_t i = 0; i < n_steps; ++i) {
@@ -248,14 +248,14 @@ TEST(PIControllerTest, ClosedLoopABCFrame) {
 
     const double kp = 2.0;
     const double ti = 1.0;
-    pi_controller<abc<double>, double> controller;
+    pi_controller<abc<double>> controller;
     controller.configure_with_ti(kp, ti, ts);
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
 
     abc<double> setpoint = {1.0, 1.0, 1.0};
     // Initialize plant state to zero.
-    integrator<abc<double>, double> plant;
+    integrator<abc<double>> plant;
     plant.configure(ts);
 
     for (size_t i = 0; i < n_steps; ++i) {
