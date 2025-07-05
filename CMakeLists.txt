@@ -116,21 +116,32 @@ message(
     STATUS
         "yeet build-config: Searching for JSON package - where you at bestie? 🔍"
 )
+
 include(json)
+include(eigen)
+include(qpoases)
 
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
 add_subdirectory(software/yeet_testing)
 add_subdirectory(software/yeet_control)
-add_subdirectory(software/yeet_examples)
+
+# Build the MPC application
+add_subdirectory(software/yeet_application/mpc)
+add_subdirectory(software/yeet_application/mpc_integration)
+
+# Add generated plant models
+add_subdirectory(software/yeet_generated/synchronous_machine_infinite_bus)
+add_subdirectory(software/yeet_generated/indirect_excitation_2mva_plant_model)
 
 if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
     add_subdirectory(software/yeet_testing/tests)
+    add_subdirectory(software/yeet_application/mpc/tests)
+    add_subdirectory(software/yeet_application/mpc_integration/tests)
 endif()
 
-#
 if(YEET_CODE_COVERAGE)
     message(
         STATUS

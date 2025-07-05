@@ -279,6 +279,7 @@ using checker_type_floating_near = checker_type_near<T>;
  * @brief Activation configuration for time range checking
  *
  * Specifies a time window during which a checker should be active.
+ * If time range is not specified, the checker is active indefinitely from the start time.
  *
  * Example:
  * @code
@@ -288,6 +289,8 @@ using checker_type_floating_near = checker_type_near<T>;
 struct checker_activation_time_range {
     explicit checker_activation_time_range(double start_time, double end_time)
         : start_time(start_time), end_time(end_time) {}
+
+    explicit checker_activation_time_range(double start_time) : start_time(start_time), end_time(-1.0f) {}
 
     double start_time;
     double end_time;

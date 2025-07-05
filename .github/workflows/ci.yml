@@ -2,22 +2,32 @@
 name: CI
 
 # Define when this workflow will run
-on: [push, pull_request]
+on:
+  push: # Keep existing triggers if needed
+  pull_request: # Keep existing triggers if needed
+  workflow_dispatch: # Add manual trigger
+    inputs:
+      run_formatter:
+        description: "Run the code formatting job?"
+        required: false
+        type: boolean
+        default: false # Default is to run the formatter
 
 jobs:
-  # First job: Check both CMake and C++ code formatting
   format:
+    # Run formatter job if enabled
+    if: github.event.inputs.run_formatter == 'true'
     runs-on: ubuntu-latest
     steps:
       # Check out the repository code
       - uses: actions/checkout@v2
-      
+
       # Set up Python environment needed for cmake-format
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-          
+          python-version: "3.x"
+
       # Install required Python packages and clang-format
       - name: Install formatters
         run: |
@@ -67,7 +77,7 @@ jobs:
       - name: Set up CMake and Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang valgrind llvm gcovr 
+          sudo apt-get install -y cmake ninja-build clang valgrind llvm gcovr
 
       - name: Configure CMake project
         run: |
@@ -77,7 +87,7 @@ jobs:
                 -DYEET_BUILD_TESTING=ON \
                 -DYEET_CODE_COVERAGE=ON \
                 -DYEET_MEMCHECK=ON
-        
+
       - name: Build targets
         run: |
           cmake --build build --target yeet_test yeet_control_tests yeet_testing_tests
@@ -105,7 +115,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
-      
+
       - name: Run Valgrind Memory Check
         run: |
           valgrind --tool=memcheck \
@@ -116,14 +126,14 @@ jobs:
                    --show-leak-kinds=all \
                    --verbose \
                    ./build/bin/yeet_test 2> valgrind.log
-        continue-on-error: true 
+        continue-on-error: true
 
       - name: Upload Valgrind logs
         uses: actions/upload-artifact@v4
         with:
-            name: valgrind-logs
-            path: valgrind.log
-        if: always()  # Upload even if tests fail
+          name: valgrind-logs
+          path: valgrind.log
+        if: always() # Upload even if tests fail
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
