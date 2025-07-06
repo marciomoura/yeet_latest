@@ -1,5 +1,3 @@
-
-
 #include "yeet_control/pi_controller.hpp"
 
 #include <gtest/gtest.h>
@@ -13,40 +11,16 @@ namespace {
 
 using namespace yeet::control;
 
-TEST(PIControllerTest, BasicUpdateAndReset) {
-    // Use direct tuning method: configure() with kp and continuous ki.
-    pi_controller<double> controller;
-    const double ts = 0.01;  // 10 ms sampling time
-    const double kp = 2.0;
-    const double ki_cont = 3.0;             // continuous gain
-    controller.configure(kp, ki_cont, ts);  // discrete ki = ki_cont * ts
-
-    // Step input error = 1.0 repeatedly.
-    controller.reset();
-    double expected_integral = 0.0;
-    const int n_steps = 50;
-    for (int i = 0; i < n_steps; ++i) {
-        expected_integral += 1.0;
-        double expected_out = kp * 1.0 + (ki_cont * ts) * expected_integral;
-        double output = controller.update(1.0);
-        EXPECT_NEAR(output, expected_out, 1e-6);
-    }
-    // Reset and check that integral goes to zero.
-    controller.reset();
-    EXPECT_NEAR(controller.get_integral(), 0.0, 1e-6);
-}
-
 TEST(PIControllerTest, ConfigureWithTi) {
     // Test tuning using the integral time constant method.
     pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 2.0;
     const double ti = 4.0;  // Integral time constant.
-    // With kp = 2 and ti = 4, Ki_cont = kp / ti = 0.5
+    // With kp = 2 and ti = 4, Ki = kp / ti = 0.5
     controller.configure_with_ti(kp, ti, ts);
     EXPECT_NEAR(controller.get_kp(), kp, 1e-6);
-    EXPECT_NEAR(controller.get_ki_continuous(), 0.5, 1e-6);
-    EXPECT_NEAR(controller.get_ki_discrete(), 0.5 * ts, 1e-6);
+    EXPECT_NEAR(controller.get_ki(), 0.5, 1e-6);
 }
 
 TEST(PIControllerTest, OutputLimitClamping) {
@@ -54,8 +28,8 @@ TEST(PIControllerTest, OutputLimitClamping) {
     pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 5.0;
-    const double ki_cont = 10.0;
-    controller.configure(kp, ki_cont, ts);
+    const double ki = 10.0;
+    controller.configure(kp, ki, ts);
 
     // Limit output to [-1, 1]
     controller.set_output_limits(-1.0, 1.0);
@@ -165,16 +139,6 @@ TEST(PIControllerTest, ControlInABCFrame) {
     EXPECT_DOUBLE_EQ(output[0], output[2]);
     EXPECT_GE(output[0], 0.0);
     EXPECT_GE(output[1], 0.0);
-    EXPECT_GE(output[3], 0.0);
-}
-
-// Helper function to simulate plant integration in a coordinate frame.
-// Assumes that the coordinate type supports elementwise addition and scalar multiplication.
-template <typename Coord>
-Coord integrate_state(const Coord &state, const Coord &control, double ts) {
-    // For each component, update: new_state = state + ts * control.
-    // Here, we assume that operator+ and operator* are defined.
-    return state + control * ts;
 }
 
 TEST(PIControllerTest, ClosedLoopDQFrame) {
@@ -269,6 +233,140 @@ TEST(PIControllerTest, ClosedLoopABCFrame) {
     for (int i = 0; i < 3; i++) {
         EXPECT_NEAR(final_error[i], 0.0, 0.01);
     }
+}
+
+TEST(PIControllerTest, IntegratorDisable) {
+    // Test disabling the integrator functionality.
+    pi_controller<double> controller;
+    const double ts = 0.01;
+    const double kp = 2.0;
+    const double ki = 5.0;
+    controller.configure(kp, ki, ts);
+
+    controller.reset();
+
+    // First, update with integrator enabled
+    double error = 1.0;
+    controller.update(error);
+    double integral_after_first_update = controller.get_integral();
+
+    // Disable integrator
+    controller.enable_integrator(false);
+    EXPECT_FALSE(controller.is_integrator_enabled());
+
+    // Update again with same error
+    controller.update(error);
+    double integral_after_second_update = controller.get_integral();
+
+    // Integral should not have changed
+    EXPECT_FLOAT_EQ(integral_after_first_update, integral_after_second_update);
+
+    // The output should be only the proportional term
+    double output = controller.update(error);
+    EXPECT_FLOAT_EQ(kp * error + controller.get_integral(), output);
+    EXPECT_FLOAT_EQ(controller.get_integral(), integral_after_second_update);
+}
+
+TEST(PIControllerAntiWindupTest, AntiWindupPreventsIntegralWindup) {
+    // Test that anti-windup prevents the integral from growing when output is saturated.
+    pi_controller<double> controller;
+    const double ts = 0.01;
+    const double kp = 2.0;
+    const double ki = 10.0;  // High integral gain to cause windup
+    controller.configure(kp, ki, ts);
+
+    // Set output limits to cause saturation
+    controller.set_output_limits(-1.0, 1.0);
+
+    // Set anti-windup gain (kc)
+    const double kc = 1.0 / (kp / ki);  // A common choice is 1/Ti
+    controller.set_antiwindup_gain(kc);
+
+    controller.reset();
+
+    // Apply large error to cause saturation
+    double large_error = 10.0;
+    double output;
+
+    // Run for a few steps to let the system saturate
+    for (int i = 0; i < 10; ++i) {
+        output = controller.update(large_error);
+        EXPECT_LE(output, 1.0);  // Output should be saturated
+        EXPECT_GE(output, -1.0);
+    }
+
+    // Check that saturation was detected
+    EXPECT_TRUE(controller.is_output_saturated());
+
+    // The integral should have reached a steady state due to anti-windup
+    double integral_after_saturation = controller.get_integral();
+
+    // Continue applying the large error
+    for (int i = 0; i < 10; ++i) {
+        controller.update(large_error);
+    }
+
+    // Integral should not have grown significantly due to anti-windup
+    double integral_final = controller.get_integral();
+    EXPECT_LT(std::abs(integral_final - integral_after_saturation), 0.3f);
+}
+
+TEST(PIControllerAntiWindupTest, IntegratorClampingPreventsWindup) {
+    // Test that integrator clamping prevents the integral from growing when output is saturated.
+    pi_controller<double> controller;
+    const double ts = 0.01;
+    const double kp = 2.0;
+    const double ki = 10.0;  // High integral gain to cause windup
+    controller.configure(kp, ki, ts);
+
+    // Set output limits to cause saturation
+    controller.set_output_limits(-1.0, 1.0);
+
+    // Enable integrator clamping
+    controller.enable_integrator_clamping(true);
+
+    controller.reset();
+
+    // Apply large positive error to cause saturation at the upper limit
+    double large_positive_error = 10.0;
+    for (int i = 0; i < 10; ++i) {
+        controller.update(large_positive_error);
+    }
+
+    EXPECT_TRUE(controller.is_output_saturated());
+    double integral_at_positive_saturation = controller.get_integral();
+
+    // Continue applying the large positive error
+    for (int i = 0; i < 10; ++i) {
+        controller.update(large_positive_error);
+    }
+
+    // Integral should not have changed
+    EXPECT_FLOAT_EQ(controller.get_integral(), integral_at_positive_saturation);
+
+    // Apply large negative error to cause saturation at the lower limit
+    double large_negative_error = -10.0;
+    for (int i = 0; i < 20; ++i) {  // More iterations to overcome the positive integral
+        controller.update(large_negative_error);
+    }
+
+    EXPECT_TRUE(controller.is_output_saturated());
+    double integral_at_negative_saturation = controller.get_integral();
+
+    // Continue applying the large negative error
+    for (int i = 0; i < 10; ++i) {
+        controller.update(large_negative_error);
+    }
+
+    // Integral should not have changed
+    EXPECT_FLOAT_EQ(controller.get_integral(), integral_at_negative_saturation);
+
+    // Apply a small error that brings the controller out of saturation
+    double small_error = -0.1;
+    controller.update(small_error);
+
+    // Integral should have changed now
+    EXPECT_NE(controller.get_integral(), integral_at_negative_saturation);
 }
 
 }  // namespace

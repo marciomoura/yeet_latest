@@ -16,7 +16,7 @@ public:
     void configure(value_type ts) { _ts = ts; }
 
     // Reset integrator state
-    void reset() { _value = T(0); }
+    void reset() { _value = {}; }
 
     // Set specific integrator value
     void set_value(T value) { _value = value; }
