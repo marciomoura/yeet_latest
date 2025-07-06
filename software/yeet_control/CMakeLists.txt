@@ -21,6 +21,7 @@ target_sources(
         include/yeet_control/machine_measurements.hpp
         include/yeet_control/machine_per_unit_system.hpp
         include/yeet_control/machine_speed_controller.hpp
+        include/yeet_control/per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine_per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine.hpp
         include/yeet_control/pi_controller.hpp
