@@ -169,18 +169,26 @@ TEST_F(FirstOrderLowPassFilterTest, StepResponse) {
 
 // Test configuration assert
 TEST_F(FirstOrderLowPassFilterTest, ConfigurationAssert) {
-    // This test should be run in debug mode to check for assertion failures
-    if constexpr (!__OPTIMIZE__) {
-        GTEST_FLAG_SET(death_test_style, "threadsafe");
+    // Test death cases - these should trigger assertions in debug builds
+#ifndef NDEBUG
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
 
-        first_order_low_pass_filter<double> filter(1.0);
+    first_order_low_pass_filter<double> filter(1.0);
 
-        // Negative cutoff frequency
-        EXPECT_DEATH(filter.configure(-10.0), ".*");
+    // Negative cutoff frequency
+    EXPECT_DEATH(filter.configure(-10.0), ".*");
 
-        // Cutoff frequency above Nyquist
-        EXPECT_DEATH(filter.configure(100000.0), ".*");
-    }
+    // Cutoff frequency above Nyquist
+    EXPECT_DEATH(filter.configure(100000.0), ".*");
+#else
+    // In release builds, just verify the function doesn't crash
+    first_order_low_pass_filter<double> filter(1.0);
+
+    // These should not crash in release mode (assertions disabled)
+    // but the behavior is undefined - just test that calls complete
+    EXPECT_NO_THROW(filter.configure(-10.0));
+    EXPECT_NO_THROW(filter.configure(100000.0));
+#endif
 }
 
 // Test reset

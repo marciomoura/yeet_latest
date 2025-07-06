@@ -103,11 +103,17 @@ TEST(LimitTest, RangeWithStatusFloat) {
 
 // Test invalid range assertion
 TEST(LimitDeathTest, InvalidRange) {
-    // This test should be run in debug mode to check for assertion failures
-    if constexpr (!__OPTIMIZE__) {
-        EXPECT_DEATH(limit<int>::range(5, 10, 0), "Wrong range limits");
-        EXPECT_DEATH(limit<double>::range(5.0, 10.0, 0.0), "Wrong range limits");
-    }
+    // Test death cases - these should trigger assertions in debug builds
+#ifndef NDEBUG
+    EXPECT_DEATH(limit<int>::range(5, 10, 0), "Wrong range limits");
+    EXPECT_DEATH(limit<double>::range(5.0, 10.0, 0.0), "Wrong range limits");
+#else
+    // In release builds, just verify the function doesn't crash
+    // These should not crash in release mode (assertions disabled)
+    // but the behavior is undefined - just test that calls complete
+    EXPECT_NO_THROW(limit<int>::range(5, 10, 0));
+    EXPECT_NO_THROW(limit<double>::range(5.0, 10.0, 0.0));
+#endif
 }
 
 }  // namespace yeet::control::test
