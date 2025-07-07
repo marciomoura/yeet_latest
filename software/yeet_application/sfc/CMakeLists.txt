@@ -3,7 +3,7 @@ project(yeet_application_sfc CXX)
 add_library(${PROJECT_NAME} STATIC)
 add_library(yeet::yeet_application_sfc ALIAS ${PROJECT_NAME})
 
-target_sources(${PROJECT_NAME} PUBLIC include/sfc_per_unit_system.hpp)
+target_sources(${PROJECT_NAME} PUBLIC include/sfc/sfc_per_unit_system.hpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
