@@ -65,24 +65,7 @@ public:
      *
      * @param value The new angle value in radians
      */
-    constexpr void set_value(double value) {
-        // First handle large values using fmod
-        value = std::fmod(value, two_pi<double>);
-
-        // After fmod, value is in [-2π, 2π], now apply range-specific wrapping
-        if constexpr (std::is_same_v<RangeType, zero_to_two_pi>) {
-            if (value < 0.0) {
-                value += two_pi<double>;
-            }
-        } else if constexpr (std::is_same_v<RangeType, minus_pi_to_pi>) {
-            if (value > pi<double>) {
-                value -= two_pi<double>;
-            } else if (value <= -pi<double>) {
-                value += two_pi<double>;
-            }
-        }
-        _value = value;
-    }
+    constexpr void set_value(double value) { _value = wrap_around(value); }
 
     /**
      * @brief Gets the angle value in degrees
@@ -206,7 +189,86 @@ public:
      */
     constexpr bool operator!=(const angle<RangeType>& other) const { return !(*this == other); }
 
+public:
+    // Implement an operator < for angle comparison
+    /**
+     * @brief Compares two angles for less than
+     *
+     * This comparison is based on the angle value in radians.
+     *
+     * @param other The angle to compare with
+     * @return true if this angle is less than the other, false otherwise
+     */
+    bool operator<(const angle<RangeType>& other) const {
+        double this_wrapped = wrap_around(_value);
+        double other_wrapped = wrap_around(other._value);
+        return this_wrapped < other_wrapped;
+    }
+
+    /**
+     * @brief Compares two angles for less than or equal to
+     *
+     * This comparison is based on the angle value in radians.
+     *
+     * @param other The angle to compare with
+     * @return true if this angle is less than or equal to the other, false otherwise
+     */
+    bool operator<=(const angle<RangeType>& other) const { return *this < other || *this == other; }
+
+    /**
+     * @brief Compares two angles for greater than
+     *
+     * This comparison is based on the angle value in radians.
+     *
+     * @param other The angle to compare with
+     * @return true if this angle is greater than the other, false otherwise
+     */
+    bool operator>(const angle<RangeType>& other) const { return other < *this; }
+
+    /**
+     * @brief Compares two angles for greater than or equal to
+     *
+     * This comparison is based on the angle value in radians.
+     *
+     * @param other The angle to compare with
+     * @return true if this angle is greater than or equal to the other, false otherwise
+     */
+    bool operator>=(const angle<RangeType>& other) const { return *this > other || *this == other; }
+
 private:
+    /**
+     * @brief Normalizes an angle value to the proper range for comparison
+     *
+     * This function applies the same wrapping logic as set_value to ensure
+     * consistent angle normalization across all comparison operations.
+     *
+     * @param value The angle value to normalize
+     * @return The normalized angle value within the range specified by RangeType
+     */
+    static double wrap_around(double value) {
+        // First reduce to [-2π, 2π] range
+        while (value > two_pi<double>) {
+            value -= two_pi<double>;
+        }
+        while (value < -two_pi<double>) {
+            value += two_pi<double>;
+        }
+
+        // Apply range-specific wrapping
+        if constexpr (std::is_same_v<RangeType, zero_to_two_pi>) {
+            if (value < 0.0) {
+                value += two_pi<double>;
+            }
+        } else if constexpr (std::is_same_v<RangeType, minus_pi_to_pi>) {
+            if (value > pi<double>) {
+                value -= two_pi<double>;
+            } else if (value <= -pi<double>) {
+                value += two_pi<double>;
+            }
+        }
+        return value;
+    }
+
     double _value{};  ///< The stored angle value in radians
 };
 

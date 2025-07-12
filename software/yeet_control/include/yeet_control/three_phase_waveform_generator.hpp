@@ -17,39 +17,65 @@ template <typename T>
 class white_noise_generator {
 public:
     explicit white_noise_generator(double stddev = 0.0, double mean = 0.0)
-        : m_rng(std::random_device{}()), m_distribution(mean, stddev) {}
+        : m_rng(std::random_device{}()), m_mean(mean), m_stddev(stddev) {
+        update_distribution();
+    }
 
     void set_parameters(double stddev, double mean = 0.0) {
-        m_distribution = std::normal_distribution<double>(mean, stddev);
+        m_mean = mean;
+        m_stddev = stddev;
+        update_distribution();
     }
 
     // Specialization for scalar types
     template <typename U = T>
     std::enable_if_t<std::is_arithmetic_v<U>, T> generate() {
+        if (m_stddev <= 0.0) {
+            return static_cast<T>(m_mean);  // Return mean when no noise (stddev = 0)
+        }
         return static_cast<T>(m_distribution(m_rng));
     }
 
     // Specialization for abc<T>
     template <typename U = T>
     std::enable_if_t<std::is_same_v<U, abc<double>>, T> generate() {
+        if (m_stddev <= 0.0) {
+            return abc<double>{m_mean, m_mean, m_mean};  // Return mean when no noise
+        }
         return abc<double>{m_distribution(m_rng), m_distribution(m_rng), m_distribution(m_rng)};
     }
 
     // Specialization for alphabeta<T>
     template <typename U = T>
     std::enable_if_t<std::is_same_v<U, alphabeta<double>>, T> generate() {
+        if (m_stddev <= 0.0) {
+            return alphabeta<double>{m_mean, m_mean};  // Return mean when no noise
+        }
         return alphabeta<double>{m_distribution(m_rng), m_distribution(m_rng)};
     }
 
     // Specialization for dq<T>
     template <typename U = T>
     std::enable_if_t<std::is_same_v<U, dq<double>>, T> generate() {
+        if (m_stddev <= 0.0) {
+            return dq<double>{m_mean, m_mean};  // Return mean when no noise
+        }
         return dq<double>{m_distribution(m_rng), m_distribution(m_rng)};
     }
 
 private:
+    void update_distribution() {
+        // Only create distribution if stddev > 0 to avoid assertion failure
+        if (m_stddev > 0.0) {
+            m_distribution = std::normal_distribution<double>(m_mean, m_stddev);
+        }
+        // If stddev <= 0, we'll return the mean value directly in generate() methods
+    }
+
     std::mt19937 m_rng;
     std::normal_distribution<double> m_distribution;
+    double m_mean{0.0};
+    double m_stddev{0.0};
 };
 
 template <typename T>

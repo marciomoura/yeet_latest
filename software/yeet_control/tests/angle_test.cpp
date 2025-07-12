@@ -120,6 +120,102 @@ TEST_F(AngleMinusPiToPiTest, Inequality) {
     EXPECT_NE(a, b);
 }
 
+// Comparison operator tests for minus_pi_to_pi
+
+TEST_F(AngleMinusPiToPiTest, LessThanBasic) {
+    angle<minus_pi_to_pi> a(1.0);
+    angle<minus_pi_to_pi> b(2.0);
+    EXPECT_TRUE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+TEST_F(AngleMinusPiToPiTest, LessThanEqual) {
+    angle<minus_pi_to_pi> a(1.0);
+    angle<minus_pi_to_pi> b(1.0);
+    EXPECT_FALSE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+TEST_F(AngleMinusPiToPiTest, LessThanWithWrapping) {
+    angle<minus_pi_to_pi> a(pi<double> - 0.1);   // Near positive boundary
+    angle<minus_pi_to_pi> b(-pi<double> + 0.1);  // Near negative boundary (wraps to same as pi - 0.1)
+    // After wrapping both to [0, 2π]: a ≈ π-0.1+π ≈ 2π-0.1, b ≈ π+0.1
+    EXPECT_TRUE(b < a);
+}
+
+TEST_F(AngleMinusPiToPiTest, LessThanOrEqualBasic) {
+    angle<minus_pi_to_pi> a(1.0);
+    angle<minus_pi_to_pi> b(2.0);
+    EXPECT_TRUE(a <= b);
+    EXPECT_FALSE(b <= a);
+}
+
+TEST_F(AngleMinusPiToPiTest, LessThanOrEqualEqual) {
+    angle<minus_pi_to_pi> a(1.0);
+    angle<minus_pi_to_pi> b(1.0);
+    EXPECT_TRUE(a <= b);
+    EXPECT_TRUE(b <= a);
+}
+
+TEST_F(AngleMinusPiToPiTest, LessThanOrEqualWithWrapping) {
+    angle<minus_pi_to_pi> a(pi<double>);   // Should wrap to -π (equivalent)
+    angle<minus_pi_to_pi> b(-pi<double>);  // At negative boundary
+    EXPECT_TRUE(a <= b);
+    EXPECT_TRUE(b <= a);
+}
+
+TEST_F(AngleMinusPiToPiTest, GreaterThanBasic) {
+    angle<minus_pi_to_pi> a(2.0);
+    angle<minus_pi_to_pi> b(1.0);
+    EXPECT_TRUE(a > b);
+    EXPECT_FALSE(b > a);
+}
+
+TEST_F(AngleMinusPiToPiTest, GreaterThanEqual) {
+    angle<minus_pi_to_pi> a(1.0);
+    angle<minus_pi_to_pi> b(1.0);
+    EXPECT_FALSE(a > b);
+    EXPECT_FALSE(b > a);
+}
+
+TEST_F(AngleMinusPiToPiTest, GreaterThanWithWrapping) {
+    angle<minus_pi_to_pi> a(-pi<double> + 0.1);  // Near negative boundary
+    angle<minus_pi_to_pi> b(pi<double> - 0.1);   // Near positive boundary
+    // After wrapping both to [0, 2π]: a ≈ π+0.1, b ≈ 2π-0.1
+    EXPECT_TRUE(b > a);
+}
+
+TEST_F(AngleMinusPiToPiTest, GreaterThanOrEqualBasic) {
+    angle<minus_pi_to_pi> a(2.0);
+    angle<minus_pi_to_pi> b(1.0);
+    EXPECT_TRUE(a >= b);
+    EXPECT_FALSE(b >= a);
+}
+
+TEST_F(AngleMinusPiToPiTest, GreaterThanOrEqualEqual) {
+    angle<minus_pi_to_pi> a(1.0);
+    angle<minus_pi_to_pi> b(1.0);
+    EXPECT_TRUE(a >= b);
+    EXPECT_TRUE(b >= a);
+}
+
+TEST_F(AngleMinusPiToPiTest, GreaterThanOrEqualWithWrapping) {
+    angle<minus_pi_to_pi> a(pi<double>);   // Should wrap to -π (equivalent)
+    angle<minus_pi_to_pi> b(-pi<double>);  // At negative boundary
+    EXPECT_TRUE(a >= b);
+    EXPECT_TRUE(b >= a);
+}
+
+TEST_F(AngleMinusPiToPiTest, ComparisonTransitivity) {
+    angle<minus_pi_to_pi> a(-1.0);
+    angle<minus_pi_to_pi> b(0.0);
+    angle<minus_pi_to_pi> c(1.0);
+
+    EXPECT_TRUE(a < b);
+    EXPECT_TRUE(b < c);
+    EXPECT_TRUE(a < c);  // Transitivity
+}
+
 // Zero to 2Pi tests
 
 TEST_F(AngleZeroToTwoPiTest, DefaultConstructor) {
@@ -149,7 +245,7 @@ TEST_F(AngleZeroToTwoPiTest, SetValueWrapPositive) {
 TEST_F(AngleZeroToTwoPiTest, SetValueExactlyTwoPi) {
     angle<zero_to_two_pi> a;
     a.set_value(2 * pi<double>);
-    EXPECT_NEAR(a.get_radians(), 0.0, kEpsilon);
+    EXPECT_NEAR(a.get_radians(), 2 * pi<double>, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, SetValueExactlyZero) {
@@ -223,6 +319,112 @@ TEST_F(AngleZeroToTwoPiTest, Inequality) {
     angle<zero_to_two_pi> a(1.0);
     angle<zero_to_two_pi> b(2.0);
     EXPECT_NE(a, b);
+}
+
+// Comparison operator tests for zero_to_two_pi
+
+TEST_F(AngleZeroToTwoPiTest, LessThanBasic) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(2.0);
+    EXPECT_TRUE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, LessThanEqual) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(1.0);
+    EXPECT_FALSE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, LessThanWithWrapping) {
+    angle<zero_to_two_pi> a(-0.1);  // Wraps to 2π - 0.1
+    angle<zero_to_two_pi> b(0.1);   // Near zero
+    // After wrapping both to [0, 2π]: a ≈ 2π-0.1, b ≈ 0.1
+    EXPECT_TRUE(b < a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, LessThanOrEqualBasic) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(2.0);
+    EXPECT_TRUE(a <= b);
+    EXPECT_FALSE(b <= a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, LessThanOrEqualEqual) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(1.0);
+    EXPECT_TRUE(a <= b);
+    EXPECT_TRUE(b <= a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, LessThanOrEqualWithWrapping) {
+    angle<zero_to_two_pi> a(0.0);             // At zero boundary
+    angle<zero_to_two_pi> b(2 * pi<double>);  // Should wrap to 0.0 (equivalent)
+    EXPECT_TRUE(a <= b);
+    EXPECT_TRUE(b <= a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, GreaterThanBasic) {
+    angle<zero_to_two_pi> a(2.0);
+    angle<zero_to_two_pi> b(1.0);
+    EXPECT_TRUE(a > b);
+    EXPECT_FALSE(b > a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, GreaterThanEqual) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(1.0);
+    EXPECT_FALSE(a > b);
+    EXPECT_FALSE(b > a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, GreaterThanWithWrapping) {
+    angle<zero_to_two_pi> a(0.1);   // Near zero
+    angle<zero_to_two_pi> b(-0.1);  // Wraps to 2π - 0.1
+    // After wrapping both to [0, 2π]: a ≈ 0.1, b ≈ 2π-0.1
+    EXPECT_TRUE(b > a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, GreaterThanOrEqualBasic) {
+    angle<zero_to_two_pi> a(2.0);
+    angle<zero_to_two_pi> b(1.0);
+    EXPECT_TRUE(a >= b);
+    EXPECT_FALSE(b >= a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, GreaterThanOrEqualEqual) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(1.0);
+    EXPECT_TRUE(a >= b);
+    EXPECT_TRUE(b >= a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, GreaterThanOrEqualWithWrapping) {
+    angle<zero_to_two_pi> a(0.0);             // At zero boundary
+    angle<zero_to_two_pi> b(2 * pi<double>);  // Should wrap to 0.0 (equivalent)
+    EXPECT_TRUE(a >= b);
+    EXPECT_TRUE(b >= a);
+}
+
+TEST_F(AngleZeroToTwoPiTest, ComparisonTransitivity) {
+    angle<zero_to_two_pi> a(1.0);
+    angle<zero_to_two_pi> b(2.0);
+    angle<zero_to_two_pi> c(3.0);
+
+    EXPECT_TRUE(a < b);
+    EXPECT_TRUE(b < c);
+    EXPECT_TRUE(a < c);  // Transitivity
+}
+
+TEST_F(AngleZeroToTwoPiTest, ComparisonBoundaryValues) {
+    angle<zero_to_two_pi> a(0.0);                   // At lower boundary
+    angle<zero_to_two_pi> b(pi<double>);            // At middle
+    angle<zero_to_two_pi> c(2 * pi<double> - 0.1);  // Near upper boundary
+
+    EXPECT_TRUE(a < b);
+    EXPECT_TRUE(b < c);
+    EXPECT_TRUE(a < c);
 }
 
 }  // namespace

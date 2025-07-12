@@ -42,6 +42,27 @@
             ]
         },
         {
+            "name": "(gdb) yeet application sfc unittests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/eet_application_sfc_tests.exe",
+            "args": [
+                // "--gtest_filter=**"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "(gdb) yeet mpc integration unittests",
             "type": "cppdbg",
             "request": "launch",

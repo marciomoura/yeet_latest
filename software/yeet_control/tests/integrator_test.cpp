@@ -65,8 +65,9 @@ TEST(IntegratorTest, AngleWrappingTest) {
     }
 
     double integrated_angle = angle_integrator.get_value();  // Should be approximately 2π * 50
-    angle<zero_to_two_pi> wrapped_angle_zero(integrated_angle);
-    EXPECT_NEAR(wrapped_angle_zero.get_radians(), 0.0, 1e-6);
+    angle<zero_to_two_pi> angle_2pi(integrated_angle);
+    EXPECT_NEAR(angle_2pi.get_radians(), 2.0 * pi<double>, 1e-6);
+    EXPECT_NEAR(angle_2pi + angle<zero_to_two_pi>{1e-8}, 0.0f, 1e-6);  // Wrapping around 2π and zero
 
     angle<minus_pi_to_pi> wrapped_angle_minus(integrated_angle);
     EXPECT_NEAR(wrapped_angle_minus.get_radians(), 0.0, 1e-6);

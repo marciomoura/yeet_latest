@@ -7,7 +7,10 @@ add_executable(yeet::yeet_application_sfc_tests ALIAS ${PROJECT_NAME})
 enable_testing()
 
 # Add test sources
-target_sources(${PROJECT_NAME} PRIVATE sfc_per_unit_system_test.cpp)
+target_sources(${PROJECT_NAME} PRIVATE 
+sfc_per_unit_system_test.cpp
+)
+
 
 # Link dependencies
 target_link_libraries(

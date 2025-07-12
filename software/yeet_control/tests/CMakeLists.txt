@@ -24,8 +24,12 @@ target_sources(
             permanent_magnet_synchronous_machine_test.cpp
             permanent_magnet_synchronous_machine_vector_control_test.cpp
             pi_controller_test.cpp
+            pulse_generator_test.cpp
+            pulse_generator_plot_test.cpp
             reference_frame_test.cpp
             second_order_filter_test.cpp
+            six_pulse_generator_test.cpp
+            six_pulse_generator_plot_test.cpp
             three_phase_waveform_generator_test.cpp)
 
 # Link dependencies

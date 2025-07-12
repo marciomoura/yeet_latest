@@ -9,6 +9,16 @@ static constexpr T pi = T(3.1415926535897932385);
 template <typename T>
 static constexpr T two_pi = T(2.0) * pi<T>;
 
+template <typename T>
+constexpr T deg_to_rad(T degrees) {
+    return degrees * pi<T> / T(180.0);
+}
+
+template <typename T>
+constexpr T rad_to_deg(T radians) {
+    return radians * T(180.0) / pi<T>;
+}
+
 // --- RMS/Peak Conversions ---
 constexpr double rms_to_peak_factor = 1.41421356237;  // std::sqrt(2.0);
 constexpr double peak_to_rms_factor = 1.0 / rms_to_peak_factor;
