@@ -52,6 +52,16 @@ A guide to the digital filtering chains and state observers required for stable 
 - **Rotor position and speed estimation techniques** for sensor and sensorless control
 - **Specialized solutions** for Gas Turbine Starter (GTS) startup and wide-speed operation
 
+#### 🔥 [Pulse Generator (Thyristor) - 6-Pulse](pulse_generator_thyristor_6pulse.md)
+**Gate signal generation for thyristor-based converters**
+
+Comprehensive documentation for the 6-pulse thyristor pulse generator used in both grid-side and machine-side converters. This section covers:
+
+- **Phase-Locked Loop (PLL) synchronization** with grid and machine frequencies
+- **Firing sequence generation** for natural commutation in 6-pulse bridges
+- **Protection and safety features** including commutation failure detection
+- **Real-time implementation** compatible with Simulink-generated plant models
+
 #### 📈 [Average-Value Model](average_model.md)
 **Dynamic plant model for controller design and tuning**
 

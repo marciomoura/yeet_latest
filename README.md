@@ -1,39 +1,50 @@
-# YEET Platform 🚀
+# YEET Platform - Power Electronics Engineering Software
 
-Yo! Welcome to YEET - Your Power Electronics Engineering Software Platform! This platform is like your bestie when it comes to working with power electronics products. Fr fr, we're talking about next-level data modeling and closed-loop testing that'll make your power electronics development smooth af.
+**Y**our **E**ngineering **E**cosystem for **T**esting - A comprehensive platform for power electronics development, real-time control systems, and closed-loop validation.
 
-## What's the Tea? 🫖
+## Overview
 
-YEET is built different - it's not just another engineering tool. Here's what makes it slap:
+YEET is a specialized software platform designed for power electronics engineers working on advanced control systems, particularly Load-Commutated Inverters (LCI), thyristor bridges, and gas turbine soft-starters. The platform provides:
 
-- Dropping sick data modeling capabilities that help you understand your power electronics inside out
-- Serving closed-loop testing libraries that hit different when you need to validate your designs
-- Coming soon: Microcontroller support that's gonna be straight bussin'
-- RTOS integration in the works that'll have your real-time applications looking clean
+- **Advanced Data Modeling**: Comprehensive modeling capabilities for power electronics systems
+- **Real-Time Control Libraries**: High-performance control algorithms optimized for real-time execution
+- **Closed-Loop Testing Framework**: Integrated validation and testing tools for control system verification
+- **Hardware-in-the-Loop Support**: Integration with microcontrollers and RTOS platforms
+- **Simulink Integration**: Seamless code generation and plant model integration
 
-No cap, we're working on making this the most comprehensive platform for power electronics development. The roadmap's looking kinda spicy with upcoming support for various microcontrollers and RTOS - stay tuned fam!
+## Key Features
 
-## Getting Started (aka The Tutorial Level) 🎮
+### Power Electronics Focus
+- **LCI Drive Systems**: Complete support for Load-Commutated Inverter applications
+- **Thyristor Control**: 6-pulse and 12-pulse bridge configurations
+- **Gas Turbine Integration**: Specialized soft-starter and helper motor applications
+- **Real-Time Performance**: Deterministic execution for high-frequency control loops
 
-### Tools You'll Need (Basic Loadout)
+### Software Architecture
+- **C++ Core Guidelines Compliance**: Modern, maintainable C++ codebase
+- **Real-Time Constraints**: Memory-safe, predictable execution paths
+- **Modular Design**: Reusable components for control systems and signal processing
+- **Cross-Platform Support**: Windows, Linux, and embedded targets
 
-First things first, let's get your setup looking right:
+## Getting Started
 
-#### Clangd (Your Code BFF)
-1. Pull up [VSCode](https://github.com/clangd/vscode-clangd) and grab that Clangd extension
-2. In preferences, drop this line: `--query-driver=C:\msys64\mingw64\**\*` (helps Clangd understand those system headers)
+### Prerequisites
 
-#### Clang-tidy (The Code Style Police)
-1. Get [Clang-tidy](https://clang.llvm.org/extra/clang-tidy/) - it's like spell check but for C++
+#### Development Environment
+1. **Visual Studio Code** with the following extensions:
+   - [Clangd Extension](https://github.com/clangd/vscode-clangd)
+   - Configure Clangd with: `--query-driver=C:\msys64\mingw64\**\*`
 
-#### CppCheck (The Vibe Checker)
-1. Install CppCheck and add it to your environmental path (slide it into `C:\Program Files\Cppcheck`)
+2. **Code Quality Tools**:
+   - [Clang-tidy](https://clang.llvm.org/extra/clang-tidy/) for static analysis
+   - [CppCheck](https://cppcheck.sourceforge.io/) for additional code validation
 
-### MSYS2 Setup (The Power-Up) 💪
+#### Windows Development Setup (MSYS2)
 
-Drop these commands in MSYS2 to get the essential packages:
+Install the required development packages:
 
-```sh
+```bash
+# Core development tools
 pacman -S mingw-w64-x86_64-clang
 pacman -S mingw-w64-x86_64-gdb
 pacman -S mingw-w64-x86_64-cmake
@@ -43,21 +54,98 @@ pacman -S mingw-w64-x86_64-lcov
 pacman -S mingw-w64-x86_64-perl
 ```
 
-For the Windows squad, add these paths to your local environment:
-```sh
+Add to your system PATH:
+```
 C:\msys64\usr\bin
 C:\msys64\mingw64\bin
 ```
 
-### Python Virtual Environment (The Safe Space) 🐍
+#### Python Environment
 
-1. Grab Python (duh!)
-2. If you're on Windows, run this in PowerShell to keep things secure:
-```sh
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+1. Install Python 3.8 or higher
+2. For Windows PowerShell, enable script execution:
+   ```powershell
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   ```
+3. Initialize Python environment in VSCode: `Ctrl + Shift + P` → `Python: Create Environment`
+
+### Building the Project
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd yeet
+
+# Configure build
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+# Build
+cmake --build build --parallel
+
+# Run tests
+ctest --test-dir build
 ```
-3. Hit up VSCode with Ctrl + Shift + P and run `Initialize Python env`
 
-And that's the tea! You're now ready to start yeeting your power electronics projects to the next level! If you're stuck or something's not giving what it's supposed to give, drop an issue in our repo. We got you! 💅✨
+## Project Structure
 
-No cap, this project is still in development, so expect some features to be cooking. But trust, when they drop, they're gonna be fire! 🔥
+```
+yeet/
+├── software/
+│   ├── yeet_application/
+│   │   └── sfc/              # SFC (Static Frequency Converter) applications
+│   │       ├── simulink/     # Simulink model integration
+│   │       ├── control/      # Control algorithms
+│   │       └── docs/         # Technical documentation
+│   └── yeet_control/         # Reusable control components
+│       ├── filters/          # Digital filters
+│       ├── transforms/       # Reference frame transformations
+│       └── controllers/      # PID, PI controllers
+├── tests/                    # Unit and integration tests
+└── docs/                     # Project documentation
+```
+
+## Key Applications
+
+### LCI Gas Turbine Starter
+- **6-pulse thyristor bridges** for grid and machine side converters
+- **Real-time control algorithms** for torque and speed regulation
+- **Protection systems** for safe turbine startup sequences
+- **Simulink integration** for plant model validation
+
+### Power Electronics Control
+- **Digital signal processing** components for real-time applications
+- **Reference frame transformations** (ABC ↔ αβ ↔ dq)
+- **Advanced filtering** for harmonic mitigation
+- **Closed-loop controllers** optimized for power electronics
+
+## Documentation
+
+- [SFC System Documentation](software/yeet_application/sfc/docs/index.md)
+- [Control Library Reference](software/yeet_control/docs/index.md)
+- [API Documentation](docs/api/index.md)
+- [Development Guidelines](docs/development.md)
+
+## Contributing
+
+This project follows strict coding standards for real-time systems:
+
+1. **C++ Core Guidelines** compliance
+2. **Real-time constraints** - no dynamic memory allocation in critical paths
+3. **Comprehensive testing** for all new features
+4. **Domain expertise** in power electronics and control systems
+
+Please review the [Development Guidelines](docs/development.md) before contributing.
+
+## License
+
+[License information to be added]
+
+## Status
+
+**Active Development** - Core LCI functionality is stable, with ongoing development of:
+- Extended microcontroller support
+- Enhanced RTOS integration
+- Additional power electronics applications
+- Advanced control algorithms
+
+For issues, feature requests, or technical discussions, please use the GitHub issue tracker.
