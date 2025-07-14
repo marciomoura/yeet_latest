@@ -72,9 +72,9 @@ Configuration.set_param('DataBitsets', 'off');   % Use bitsets for storing Boole
 Configuration.set_param('StateBitsets', 'off');   % Use bitsets for storing state configuration
 Configuration.set_param('LocalBlockOutputs', 'on');   % Enable local block outputs
 Configuration.set_param('EnableMemcpy', 'off');   % Use memcpy for vector assignment
-Configuration.set_param('OptimizeBlockIOStorage', 'off');   % Signal storage reuse
+Configuration.set_param('OptimizeBlockIOStorage', 'on');   % Signal storage reuse
 Configuration.set_param('ExpressionFolding', 'off');   % Eliminate superfluous local variables (expression folding)
-Configuration.set_param('BufferReuse', 'off');   % Reuse local block outputs
+Configuration.set_param('BufferReuse', 'on');   % Reuse local block outputs
 Configuration.set_param('ReuseModelBlockBuffer', 'off');   % Reuse output buffers of Model blocks
 Configuration.set_param('GlobalBufferReuse', 'off');   % Reuse global block outputs
 Configuration.set_param('GlobalVariableUsage', 'None');   % Optimize global data access
@@ -111,9 +111,9 @@ Configuration.set_param('EfficientTunableParamExpr', 'off');   % Remove code fro
 
 % Diagnostics
 Configuration.set_param('RTPrefix', 'error');   % "rt" prefix for identifiers
-Configuration.set_param('ConsistencyChecking', 'none');   % Solver data inconsistency
-Configuration.set_param('ArrayBoundsChecking', 'none');   % Array bounds exceeded
-Configuration.set_param('SignalInfNanChecking', 'none');   % Inf or NaN block output
+Configuration.set_param('ConsistencyChecking', 'warning');   % Solver data inconsistency
+Configuration.set_param('ArrayBoundsChecking', 'warning');   % Array bounds exceeded
+Configuration.set_param('SignalInfNanChecking', 'warning');   % Inf or NaN block output
 Configuration.set_param('StringTruncationChecking', 'error');   % String truncation checking
 Configuration.set_param('SignalRangeChecking', 'none');   % Simulation range checking
 Configuration.set_param('ReadBeforeWriteMsg', 'DisableAll');   % Detect read before write
@@ -217,7 +217,7 @@ Configuration.set_param('HardwareBoardFeatureSet', 'EmbeddedCoderHSP');   % Feat
 % Model Referencing
 Configuration.set_param('UpdateModelReferenceTargets', 'IfOutOfDate');   % Rebuild
 Configuration.set_param('EnableRefExpFcnMdlSchedulingChecks', 'on');   % Enable strict scheduling checks for referenced models
-Configuration.set_param('EnableParallelModelReferenceBuilds', 'off');   % Enable parallel model reference builds
+Configuration.set_param('EnableParallelModelReferenceBuilds', 'on');   % Enable parallel model reference builds
 Configuration.set_param('ParallelModelReferenceErrorOnInvalidPool', 'on');   % Perform consistency check on parallel pool
 Configuration.set_param('ModelReferenceNumInstancesAllowed', 'Multi');   % Total number of instances allowed per top model
 Configuration.set_param('PropagateVarSize', 'Infer from blocks in model');   % Propagate sizes of variable-size signals
@@ -282,7 +282,7 @@ Configuration.set_param('TLCAssert', 'off');   % Enable TLC assertion
 Configuration.set_param('BuiltinFFTWCallback', 'off');   % Built-in FFTW library callback
 Configuration.set_param('RTWUseSimCustomCode', 'off');   % Use the same custom code settings as Simulation Target
 Configuration.set_param('CustomSourceCode', '');   % Additional code
-Configuration.set_param('CustomHeaderCode', '');   % Include headers
+Configuration.set_param('CustomHeaderCode', '#include <cstring>');   % Include headers
 Configuration.set_param('CustomInclude', '');   % Include directories
 Configuration.set_param('CustomSource', '');   % Source files
 Configuration.set_param('CustomLibrary', '');   % Libraries

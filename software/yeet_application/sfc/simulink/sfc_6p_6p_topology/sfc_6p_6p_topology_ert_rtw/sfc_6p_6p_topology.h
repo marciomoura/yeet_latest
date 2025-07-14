@@ -3,9 +3,9 @@
 //
 // Code generated for Simulink model 'sfc_6p_6p_topology'.
 //
-// Model version                  : 12.54
+// Model version                  : 12.59
 // Simulink Coder version         : 23.2 (R2023b) 01-Aug-2023
-// C/C++ source code generated on : Mon Jul 14 10:04:57 2025
+// C/C++ source code generated on : Mon Jul 14 12:03:44 2025
 //
 // Target selection: ert.tlc
 // Embedded hardware selection: Intel->x86-64 (Windows64)
@@ -27,6 +27,9 @@
 #define rtmSetErrorStatus(rtm, val)    ((rtm)->errorStatus = (val))
 #endif
 
+// user code (top of header file)
+#include <cstring>
+
 // Class declaration for model sfc_6p_6p_topology
 namespace generated
 {
@@ -38,33 +41,11 @@ namespace generated
      public:
       // Block signals and states (default storage) for system '<Root>'
       struct DW_sfc_6p_6p_topology_T {
-        std::array<double, 3> Add1;    // '<S1>/Add1'
-        std::array<double, 3> Cos;     // '<S1>/Cos'
-        std::array<double, 3> Product; // '<S1>/Product'
         std::array<double, 3> sqrt_2;  // '<S1>/sqrt_2'
-        std::array<double, 3> Add1_j;  // '<S2>/Add1'
-        std::array<double, 3> Cos_k;   // '<S2>/Cos'
-        std::array<double, 3> Product_m;// '<S2>/Product'
         std::array<double, 3> sqrt_2_j;// '<S2>/sqrt_2'
         std::array<double, 25> StateSpace_o1;// '<S59>/State-Space'
         std::array<double, 12> StateSpace_o2;// '<S59>/State-Space'
         std::array<double, 18> StateSpace_DSTATE;// '<S59>/State-Space'
-        double Bias;                   // '<S17>/Bias'
-        double Gain;                   // '<S17>/Gain'
-        double RoundingFunction;       // '<S17>/Rounding Function'
-        double Gain1;                  // '<S17>/Gain1'
-        double Sum1;                   // '<S17>/Sum1'
-        double Initial;                // '<S14>/Initial'
-        double to_phase;               // '<S1>/to_phase'
-        double Bias_i;                 // '<S25>/Bias'
-        double Gain_g;                 // '<S25>/Gain'
-        double RoundingFunction_d;     // '<S25>/Rounding Function'
-        double Gain1_b;                // '<S25>/Gain1'
-        double Sum1_g;                 // '<S25>/Sum1'
-        double Initial_g;              // '<S22>/Initial'
-        double to_phase_e;             // '<S2>/to_phase'
-        double to_rads;                // '<S1>/to_rads'
-        double to_rads_i;              // '<S2>/to_rads'
         double Integrator_DSTATE;      // '<S14>/Integrator'
         double Integrator_DSTATE_f;    // '<S22>/Integrator'
         struct {
@@ -95,12 +76,6 @@ namespace generated
         } StateSpace_PWORK;            // '<S59>/State-Space'
 
         int StateSpace_IWORK[11];      // '<S59>/State-Space'
-        bool Compare;                  // '<S15>/Compare'
-        bool Compare_b;                // '<S16>/Compare'
-        bool LogicalOperator;          // '<S14>/Logical Operator'
-        bool Compare_c;                // '<S23>/Compare'
-        bool Compare_m;                // '<S24>/Compare'
-        bool LogicalOperator_p;        // '<S22>/Logical Operator'
         bool Initial_FirstOutputTime;  // '<S14>/Initial'
         bool Initial_FirstOutputTime_b;// '<S22>/Initial'
       };
