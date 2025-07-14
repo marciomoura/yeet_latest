@@ -26,11 +26,11 @@ Configuration.set_param('Solver', 'FixedStepDiscrete');   % Solver
 
 % Solver
 Configuration.set_param('StartTime', '0.0');   % Start time
-Configuration.set_param('StopTime', '0.6');   % Stop time
+Configuration.set_param('StopTime', 'inf');  % Or remove stop time constraint
 Configuration.set_param('SolverName', 'FixedStepDiscrete');   % Solver
 Configuration.set_param('SolverType', 'Fixed-step');   % Type
 Configuration.set_param('SampleTimeConstraint', 'Unconstrained');   % Periodic sample time constraint
-Configuration.set_param('FixedStep', '10e-6');   % Fixed-step size (fundamental sample time)
+Configuration.set_param('FixedStep', '10e-6');  % 10µs for power electronics
 Configuration.set_param('EnableFixedStepZeroCrossing', 'off');   % Enable zero-crossing detection for fixed-step simulation
 Configuration.set_param('ConcurrentTasks', 'off');   % Allow tasks to execute concurrently on target
 Configuration.set_param('EnableMultiTasking', 'on');   % Treat each discrete rate as a separate task
@@ -71,12 +71,12 @@ Configuration.set_param('InlineInvariantSignals', 'off');   % Inline invariant s
 Configuration.set_param('DataBitsets', 'off');   % Use bitsets for storing Boolean data
 Configuration.set_param('StateBitsets', 'off');   % Use bitsets for storing state configuration
 Configuration.set_param('LocalBlockOutputs', 'on');   % Enable local block outputs
-Configuration.set_param('EnableMemcpy', 'on');   % Use memcpy for vector assignment
-Configuration.set_param('OptimizeBlockIOStorage', 'on');   % Signal storage reuse
-Configuration.set_param('ExpressionFolding', 'on');   % Eliminate superfluous local variables (expression folding)
-Configuration.set_param('BufferReuse', 'on');   % Reuse local block outputs
+Configuration.set_param('EnableMemcpy', 'off');   % Use memcpy for vector assignment
+Configuration.set_param('OptimizeBlockIOStorage', 'off');   % Signal storage reuse
+Configuration.set_param('ExpressionFolding', 'off');   % Eliminate superfluous local variables (expression folding)
+Configuration.set_param('BufferReuse', 'off');   % Reuse local block outputs
 Configuration.set_param('ReuseModelBlockBuffer', 'off');   % Reuse output buffers of Model blocks
-Configuration.set_param('GlobalBufferReuse', 'on');   % Reuse global block outputs
+Configuration.set_param('GlobalBufferReuse', 'off');   % Reuse global block outputs
 Configuration.set_param('GlobalVariableUsage', 'None');   % Optimize global data access
 Configuration.set_param('StrengthReduction', 'off');   % Simplify array indexing
 Configuration.set_param('AdvancedOptControl', '');   % Disable incompatible optimizations
@@ -101,13 +101,13 @@ Configuration.set_param('LifeSpan', 'auto');   % Application lifespan (days)
 Configuration.set_param('ClockResolution', '-1');   % Clock resolution (seconds, -1 for inherited)
 Configuration.set_param('MaxStackSize', 'Inherit from target');   % Maximum stack size (bytes)
 Configuration.set_param('BufferReusableBoundary', 'on');   % Buffer for reusable subsystems
-Configuration.set_param('RemoveLocalVariableInitialization', 'on');   % Remove local variable initialization to zero value
+Configuration.set_param('RemoveLocalVariableInitialization', 'off');   % Remove local variable initialization to zero value
 Configuration.set_param('SimCompilerOptimization', 'off');   % Compiler optimization level
 Configuration.set_param('AccelVerboseBuild', 'off');   % Verbose accelerator builds
 Configuration.set_param('UseRowMajorAlgorithm', 'off');   % Use algorithms optimized for row-major array layout
 Configuration.set_param('LabelGuidedReuse', 'off');   % Use signal labels to guide buffer reuse
 Configuration.set_param('DenormalBehavior', 'GradualUnderflow');   % In accelerated simulation modes, denormal numbers can be flushed to zero using 'flush-to-zero' option.
-Configuration.set_param('EfficientTunableParamExpr', 'on');   % Remove code from tunable parameter expressions that saturates out-of-range values
+Configuration.set_param('EfficientTunableParamExpr', 'off');   % Remove code from tunable parameter expressions that saturates out-of-range values
 
 % Diagnostics
 Configuration.set_param('RTPrefix', 'error');   % "rt" prefix for identifiers
@@ -209,7 +209,7 @@ Configuration.set_param('ParamWriterValidationControl', 'UseLocalSettings');   %
 % Hardware Implementation
 Configuration.set_param('ProdHWDeviceType', 'Intel->x86-64 (Windows64)');   % Production device vendor and type
 Configuration.set_param('ProdLongLongMode', 'off');   % Support long long
-Configuration.set_param('ProdEqTarget', 'on');   % Test hardware is the same as production hardware
+Configuration.set_param('ProdEqTarget', 'off');   % Test hardware is the same as production hardware
 Configuration.set_param('TargetPreprocMaxBitsSint', 32);   % Maximum bits for signed integer in C preprocessor
 Configuration.set_param('TargetPreprocMaxBitsUint', 32);   % Maximum bits for unsigned integer in C preprocessor
 Configuration.set_param('HardwareBoardFeatureSet', 'EmbeddedCoderHSP');   % Feature set for selected hardware board
@@ -272,7 +272,7 @@ Configuration.set_param('TLCOptions', '');   % TLC command line options
 Configuration.set_param('Toolchain', 'CMake');   % Toolchain
 Configuration.set_param('PackageGeneratedCodeAndArtifacts', 'off');   % Package code and artifacts
 Configuration.set_param('PostCodeGenCommand', '');   % Post code generation command
-Configuration.set_param('GenerateReport', 'off');   % Create code generation report
+Configuration.set_param('GenerateReport', 'on');   % Create code generation report
 Configuration.set_param('RTWVerbose', 'on');   % Verbose build
 Configuration.set_param('RetainRTWFile', 'off');   % Retain .rtw file
 Configuration.set_param('ProfileTLC', 'off');   % Profile TLC

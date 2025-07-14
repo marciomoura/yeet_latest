@@ -103,7 +103,7 @@ sfc_params.transformer.resistance_winding_pu = sfc_params.transformer.reactance_
 
 % --- DC Link Resistance ---
 % Estimate a small resistance for the DC link inductor for stability
-sfc_params.dc_link.resistance_ohm = 0.01 * sfc_params.per_unit.base_impedance_dc;
+sfc_params.dc_link.resistance_ohm = 0.1 * sfc_params.per_unit.base_impedance_dc;
 
 % --- Total Line-Side Commutation Impedance ---
 % This is the equivalent impedance "seen" by the grid-side converter terminals.
@@ -141,9 +141,9 @@ X_comm_machine_pu = sfc_params.machine_converter.reactance_commutation_pu_design
 % Calculate the physical reactance in Ohms AT THE MACHINE'S RATED FREQUENCY
 X_comm_machine_ohm = X_comm_machine_pu * Z_base_machine;
 % From this, calculate the physical inductance, which is a constant value.
-sfc_params.machine_converter.inductance_commutation_H = X_comm_machine_ohm / (2 * pi * sfc_params.machine_converter.frequency_rated);
+sfc_params.machine_converter.inductance_commutation_H = 0.2* X_comm_machine_ohm / (2 * pi * sfc_params.machine_converter.frequency_rated);
 % Calculate resistance from X/R ratio for stability
-sfc_params.machine_converter.resistance_commutation_ohm = X_comm_machine_ohm / sfc_params.machine_converter.xr_ratio;
+sfc_params.machine_converter.resistance_commutation_ohm = 0.2* X_comm_machine_ohm / sfc_params.machine_converter.xr_ratio;
 
 %% ========================================================================
 %  4. SAVE DATA AND DISPLAY SUMMARY
