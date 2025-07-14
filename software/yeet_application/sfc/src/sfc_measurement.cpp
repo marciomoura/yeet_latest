@@ -1,4 +1,4 @@
-#include "sfc_measurement.hpp"
+#include "sfc/sfc_measurement.hpp"
 
 #include "yeet_control/per_unit.hpp"
 

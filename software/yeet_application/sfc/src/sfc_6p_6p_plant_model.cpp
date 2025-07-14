@@ -1,0 +1,95 @@
+/**
+ * @copyright Techperts AG.
+ * @date 07-14-2025
+ * @brief Implements the wrapper for the sfc_6p_6p_topology Simulink model.
+ */
+#include "sfc/sfc_6p_6p_plant_model.hpp"
+
+#include <algorithm>
+#include <array>
+
+#include "sfc_6p_6p_topology.h"  // Include the Simulink-generated header
+
+namespace yeet::application::sfc {
+
+//--------------------------------------------------------------------------------------------------
+// Constructor & Destructor
+//--------------------------------------------------------------------------------------------------
+
+sfc_6p_6p_plant_model::sfc_6p_6p_plant_model() : _model(std::make_unique<generated::sfc::sfc_6p_6p_topology>()) {}
+
+sfc_6p_6p_plant_model::~sfc_6p_6p_plant_model() = default;
+
+//--------------------------------------------------------------------------------------------------
+// Simulation Control
+//--------------------------------------------------------------------------------------------------
+
+void sfc_6p_6p_plant_model::initialize() { _model->initialize(); }
+
+void sfc_6p_6p_plant_model::step() { _model->step(); }
+
+void sfc_6p_6p_plant_model::terminate() { _model->terminate(); }
+
+//--------------------------------------------------------------------------------------------------
+// Setters (Inputs)
+//--------------------------------------------------------------------------------------------------
+
+void sfc_6p_6p_plant_model::set_grid_side_pulses(const std::array<bool, 6>& pulses) {
+    std::array<double, 6> double_pulses{};
+    std::transform(pulses.cbegin(), pulses.cend(), double_pulses.begin(),
+                   [](bool b) { return static_cast<double>(b); });
+    _model->sfc_6p_6p_topology_U.grid_side_converter_pulses = double_pulses;
+}
+
+void sfc_6p_6p_plant_model::set_machine_side_pulses(const std::array<bool, 6>& pulses) {
+    std::array<double, 6> double_pulses{};
+    std::transform(pulses.cbegin(), pulses.cend(), double_pulses.begin(),
+                   [](bool b) { return static_cast<double>(b); });
+    _model->sfc_6p_6p_topology_U.machine_side_converter_pulses = double_pulses;
+}
+
+void sfc_6p_6p_plant_model::set_grid_parameters(double frequency_hz, double voltage_rms) {
+    _model->sfc_6p_6p_topology_U.grid_voltage_source_frequency_hz = frequency_hz;
+    _model->sfc_6p_6p_topology_U.grid_voltage_source_line_voltage_rms = voltage_rms;
+}
+
+void sfc_6p_6p_plant_model::set_machine_parameters(double frequency_hz, double voltage_rms) {
+    _model->sfc_6p_6p_topology_U.machine_voltage_source_frequency_hz = frequency_hz;
+    _model->sfc_6p_6p_topology_U.machine_voltage_source_line_voltage_rms = voltage_rms;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Getters (Outputs)
+//--------------------------------------------------------------------------------------------------
+
+control::abc<double> sfc_6p_6p_plant_model::get_grid_side_voltages_abc() const {
+    const auto& voltages = _model->sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si;
+    return {voltages[0], voltages[1], voltages[2]};
+}
+
+control::abc<double> sfc_6p_6p_plant_model::get_grid_side_currents_abc() const {
+    const auto& currents = _model->sfc_6p_6p_topology_Y.grid_side_converter_current_si;
+    return {currents[0], currents[1], currents[2]};
+}
+
+control::abc<double> sfc_6p_6p_plant_model::get_machine_side_voltages_abc() const {
+    const auto& voltages = _model->sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si;
+    return {voltages[0], voltages[1], voltages[2]};
+}
+
+control::abc<double> sfc_6p_6p_plant_model::get_machine_side_currents_abc() const {
+    const auto& currents = _model->sfc_6p_6p_topology_Y.machine_side_converter_current_si;
+    return {currents[0], currents[1], currents[2]};
+}
+
+control::angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_grid_voltage_source_angle() const {
+    return {_model->sfc_6p_6p_topology_Y.grid_voltage_source_angle_wt};
+}
+
+control::angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_machine_voltage_source_angle() const {
+    return {_model->sfc_6p_6p_topology_Y.machine_voltage_source_angle_wt};
+}
+
+double sfc_6p_6p_plant_model::get_dc_link_current() const { return _model->sfc_6p_6p_topology_Y.dc_link_current_si; }
+
+}  // namespace yeet::application::sfc

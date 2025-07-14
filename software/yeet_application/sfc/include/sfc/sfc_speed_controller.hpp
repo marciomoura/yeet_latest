@@ -1,5 +1,4 @@
-#ifndef SFC_SPEED_CONTROLLER_HPP
-#define SFC_SPEED_CONTROLLER_HPP
+#pragma once
 
 #include <cmath>
 #include <type_traits>
@@ -90,5 +89,3 @@ private:
 };
 
 }  // namespace sfc
-
-#endif  // SFC_SPEED_CONTROLLER_HPP

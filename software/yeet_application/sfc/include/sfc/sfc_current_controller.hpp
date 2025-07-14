@@ -1,5 +1,4 @@
-#ifndef SFC_LCI_CURRENT_CONTROLLER_HPP
-#define SFC_LCI_CURRENT_CONTROLLER_HPP
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -126,5 +125,3 @@ private:
 };
 
 }  // namespace sfc
-
-#endif  // SFC_LCI_CURRENT_CONTROLLER_HPP

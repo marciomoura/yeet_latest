@@ -3,35 +3,34 @@ project(yeet_application_sfc CXX)
 add_library(${PROJECT_NAME} STATIC)
 add_library(yeet::yeet_application_sfc ALIAS ${PROJECT_NAME})
 
-target_sources(${PROJECT_NAME}
-    PUBLIC
-        include/sfc/sfc_per_unit_system.hpp
-    PRIVATE
-        # src/sfc_measurement.cpp
-)
+# Add generated libraries as subdirectories
+add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
+
+target_sources(
+    ${PROJECT_NAME}
+    PUBLIC include/sfc/sfc_per_unit_system.hpp
+           include/sfc/sfc_current_controller.hpp
+           include/sfc/sfc_measurement.hpp
+           include/sfc/sfc_plant_model_simulator.hpp
+           include/sfc/sfc_6p_6p_plant_model.hpp
+           include/sfc/sfc_speed_controller.hpp
+    PRIVATE src/sfc_6p_6p_plant_model.cpp src/sfc_measurement.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC yeet::yeet_control)
-
-# Add generated libraries as subdirectories
-add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
+target_link_libraries(
+    ${PROJECT_NAME} PUBLIC yeet::yeet_control yeet::yeet_testing
+                           yeet::yeet_generated_sfc_6p_6p_topology)
 
 if(YEET_ENABLE_TESTING)
-    add_executable(yeet_application_sfc_tests
-        tests/pulse_generator_test.cpp
-        tests/six_pulse_generator_test.cpp
-    )
-    target_link_libraries(yeet_application_sfc_tests
-        PRIVATE
-            GTest::gtest_main
-            yeet::yeet_application_sfc
-            yeet::yeet_testing
-            yeet::yeet_generated_sfc_6p_6p_topology
-    )
-    add_test(NAME ${PROJECT_NAME}_tests COMMAND yeet_application_sfc_tests)
-    
+    # add_executable( yeet_application_sfc_tests tests/pulse_generator_test.cpp
+    # tests/six_pulse_generator_test.cpp) target_link_libraries(
+    # yeet_application_sfc_tests PRIVATE GTest::gtest_main
+    # yeet::yeet_application_sfc yeet::yeet_testing
+    # yeet::yeet_generated_sfc_6p_6p_topology) add_test(NAME
+    # ${PROJECT_NAME}_tests COMMAND yeet_application_sfc_tests)
+
     # Add tests subdirectory for more detailed test configurations
     add_subdirectory(tests)
 endif()

@@ -24,6 +24,11 @@ public:
      */
     struct pulses {
         bool p1{false}, p2{false}, p3{false}, p4{false}, p5{false}, p6{false};
+
+        std::array<bool, 6> to_array() const { return {p1, p2, p3, p4, p5, p6}; }
+
+        // Conversional operator
+        operator std::array<bool, 6>() const { return to_array(); }
     };
 
     /**

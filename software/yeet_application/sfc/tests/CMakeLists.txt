@@ -7,11 +7,8 @@ add_executable(yeet::yeet_application_sfc_tests ALIAS ${PROJECT_NAME})
 enable_testing()
 
 # Add test sources
-target_sources(${PROJECT_NAME} PRIVATE 
-sfc_per_unit_system_test.cpp
-sfc_6p_6p_topology_integration_test.cpp
-)
-
+target_sources(${PROJECT_NAME} PRIVATE sfc_per_unit_system_test.cpp
+                                       sfc_6p_6p_topology_integration_test.cpp)
 
 # Link dependencies
 target_link_libraries(
@@ -22,7 +19,6 @@ target_link_libraries(
             yeet::yeet_application_sfc
             yeet::yeet_control
             yeet::yeet_testing
-            yeet::yeet_generated_sfc_6p_6p_topology
             $<$<NOT:$<PLATFORM_ID:Windows>>:pthread>)
 
 # Discover tests
