@@ -31,7 +31,7 @@ public:
      *
      * @param pulse_width The desired width of the firing pulses.
      */
-    explicit six_pulse_generator(angle_t pulse_width = angle_t(yeet::control::deg_to_rad(1.0)));
+    explicit six_pulse_generator(angle_t pulse_width = angle_t(yeet::control::deg_to_rad(30.0)));
 
     /**
      * @brief Updates the pulse generator and returns the new pulse states.

@@ -15,6 +15,9 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} PUBLIC yeet::yeet_control)
 
+# Add generated libraries as subdirectories
+add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
+
 if(YEET_ENABLE_TESTING)
     add_executable(yeet_application_sfc_tests
         tests/pulse_generator_test.cpp
@@ -25,8 +28,12 @@ if(YEET_ENABLE_TESTING)
             GTest::gtest_main
             yeet::yeet_application_sfc
             yeet::yeet_testing
+            yeet::yeet_generated_sfc_6p_6p_topology
     )
     add_test(NAME ${PROJECT_NAME}_tests COMMAND yeet_application_sfc_tests)
+    
+    # Add tests subdirectory for more detailed test configurations
+    add_subdirectory(tests)
 endif()
 
 if(YEET_ENABLE_CODE_ANALYSIS)

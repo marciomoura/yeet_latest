@@ -13,29 +13,34 @@
 // Validation result: Not run
 //
 #include "sfc_6p_6p_topology.h"
-#include <cmath>
-#include <array>
+
 #include <math.h>
 #include <stdlib.h>
+
+#include <array>
+#include <cmath>
+#include <cstring>
+
+
 #ifndef CodeFormat
-#define CodeFormat                     S-Function
+#define CodeFormat S - Function
 #else
 #undef CodeFormat
-#define CodeFormat                     S-Function
+#define CodeFormat S - Function
 #endif
 
 #ifndef S_FUNCTION_NAME
-#define S_FUNCTION_NAME                simulink_only_sfcn
+#define S_FUNCTION_NAME simulink_only_sfcn
 #else
 #undef S_FUNCTION_NAME
-#define S_FUNCTION_NAME                simulink_only_sfcn
+#define S_FUNCTION_NAME simulink_only_sfcn
 #endif
 
 #ifndef S_FUNCTION_LEVEL
-#define S_FUNCTION_LEVEL               2
+#define S_FUNCTION_LEVEL 2
 #else
 #undef S_FUNCTION_LEVEL
-#define S_FUNCTION_LEVEL               2
+#define S_FUNCTION_LEVEL 2
 #endif
 
 #ifndef RTW_GENERATED_S_FUNCTION
@@ -43,11 +48,11 @@
 #endif
 
 #ifndef rtmGetDataMapInfo
-# define rtmGetDataMapInfo(rtm)        NULL
+#define rtmGetDataMapInfo(rtm) NULL
 #endif
 
 #ifndef rtmSetDataMapInfo
-# define rtmSetDataMapInfo(rtm, val)
+#define rtmSetDataMapInfo(rtm, val)
 #endif
 
 #if !defined(RTW_SFUNCTION_DEFINES)
@@ -59,13 +64,13 @@
 
 // Constant parameters (default storage)
 const generated::sfc::sfc_6p_6p_topology::ConstP_sfc_6p_6p_topology_T sfc_6p_6p_topology_ConstP{
-  // Expression: zeros(12,1)
-  //  Referenced by: '<S61>/SwitchCurrents'
+    // Expression: zeros(12,1)
+    //  Referenced by: '<S61>/SwitchCurrents'
 
-  { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } },
+    {{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}},
 
-  // Expression: S.A
-  //  Referenced by: '<S59>/State-Space'
+    // Expression: S.A
+    //  Referenced by: '<S59>/State-Space'
 
   { { -0.99760288895455318, -1.4745473944472105E-19, -4.0374000896152555E-19, 9.6842765152359567E-21, -9.7866200077265681E-19,
       9.5695741369619373E-21, -0.0039951850757453987, -0.0039951850757452773, -0.0039951850757454083, -0.0039951850757453545,
@@ -133,8 +138,8 @@ const generated::sfc::sfc_6p_6p_topology::ConstP_sfc_6p_6p_topology_T sfc_6p_6p_
       -1.2006579435854311E-10, -1.6645403824328045E-6, -1.2006579435880393E-10, 3.1954052646040676E-11, 1.6686242644701915E-6,
       -4.2410548836901833E-10, 1.6686242644701926E-6, 3.1954052647470264E-11, 0.99999166913032411 } },
 
-  // Expression: S.B
-  //  Referenced by: '<S59>/State-Space'
+    // Expression: S.B
+    //  Referenced by: '<S59>/State-Space'
 
   { { -7.2039836812242024, 33288.572774800567, 33288.57277480053, 166595.55499236641, -33364.918333982263, -33364.9183339823,
       -166944.34060928068, -20.932255240671207, -166845.52392515229, 77.884428887604, -166845.5239251522, -20.932255240715889,
@@ -195,8 +200,8 @@ const generated::sfc::sfc_6p_6p_topology::ConstP_sfc_6p_6p_topology_T sfc_6p_6p_
       -0.16644203166384486, 0.16644203166384441, -0.16644203166384519, 0.16644203166384425, -0.16685923104175429,
       -0.833044557075043, -0.16685923104175462, 0.16685923104175365, 0.83304455707504221, 0.16685923104175407 } },
 
-  // Expression: S.C
-  //  Referenced by: '<S59>/State-Space'
+    // Expression: S.C
+    //  Referenced by: '<S59>/State-Space'
 
   { { -0.00399520505167057, -0.0039952050516705714, -0.0039952050516705731, -0.0039952050516705731, -0.0039952050516705705,
       -0.00399520505167057, -0.00399520505167057, -0.0039952050516705731, -0.00399520505167057, -0.003995205051670574,
@@ -290,8 +295,8 @@ const generated::sfc::sfc_6p_6p_topology::ConstP_sfc_6p_6p_topology_T sfc_6p_6p_
       -1.6644203166384461E-12, -4.9936211472984153E-12, 1.6685923104175482E-12, -8.33044557075043E-12, 1.6685923104175439E-12 }
   },
 
-  // Expression: S.D
-  //  Referenced by: '<S59>/State-Space'
+    // Expression: S.D
+    //  Referenced by: '<S59>/State-Space'
 
   { { -166945.17533098313, -20.932359902013559, -166846.35815277157, 77.884818309685215, -166846.35815277163,
       -20.932359902042663, 12.006699501568715, 166455.70278782409, 12.006699502089539, 166455.70278782453, 12.006699502116973,
@@ -378,11 +383,10 @@ const generated::sfc::sfc_6p_6p_topology::ConstP_sfc_6p_6p_topology_T sfc_6p_6p_
       1.5221089411987521E-5, 0.99992400872514975, -3.328840633276897E-7, -3.3288406332768917E-7, -3.3288406332768975E-7,
       -4.993260949915351E-7, 3.3371846208350795E-7, 3.337184620835088E-7, -1.6660891141500851E-6 } },
 
-  // Expression: S.x0
-  //  Referenced by: '<S59>/State-Space'
+    // Expression: S.x0
+    //  Referenced by: '<S59>/State-Space'
 
-  { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } }
-};
+    {{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}};
 
 namespace generated
 {
@@ -422,8 +426,8 @@ namespace generated
       // Sum: '<S17>/Sum1'
       sfc_6p_6p_topology_DW.Sum1 = sfc_6p_6p_topology_DW.Integrator_DSTATE - sfc_6p_6p_topology_DW.Gain1;
 
-      // InitialCondition: '<S14>/Initial'
-      if (sfc_6p_6p_topology_DW.Initial_FirstOutputTime) {
+    // InitialCondition: '<S14>/Initial'
+    if (sfc_6p_6p_topology_DW.Initial_FirstOutputTime) {
         sfc_6p_6p_topology_DW.Initial_FirstOutputTime = false;
 
         // InitialCondition: '<S14>/Initial'
@@ -433,7 +437,7 @@ namespace generated
         sfc_6p_6p_topology_DW.Initial = sfc_6p_6p_topology_DW.Sum1;
       }
 
-      // End of InitialCondition: '<S14>/Initial'
+    // End of InitialCondition: '<S14>/Initial'
 
       // DiscreteIntegrator: '<S14>/Integrator'
       if (sfc_6p_6p_topology_DW.LogicalOperator) {
@@ -519,8 +523,8 @@ namespace generated
       // Sum: '<S25>/Sum1'
       sfc_6p_6p_topology_DW.Sum1_g = sfc_6p_6p_topology_DW.Integrator_DSTATE_f - sfc_6p_6p_topology_DW.Gain1_b;
 
-      // InitialCondition: '<S22>/Initial'
-      if (sfc_6p_6p_topology_DW.Initial_FirstOutputTime_b) {
+    // InitialCondition: '<S22>/Initial'
+    if (sfc_6p_6p_topology_DW.Initial_FirstOutputTime_b) {
         sfc_6p_6p_topology_DW.Initial_FirstOutputTime_b = false;
 
         // InitialCondition: '<S22>/Initial'
@@ -530,7 +534,7 @@ namespace generated
         sfc_6p_6p_topology_DW.Initial_g = sfc_6p_6p_topology_DW.Sum1_g;
       }
 
-      // End of InitialCondition: '<S22>/Initial'
+    // End of InitialCondition: '<S22>/Initial'
 
       // DiscreteIntegrator: '<S22>/Integrator'
       if (sfc_6p_6p_topology_DW.LogicalOperator_p) {
@@ -587,252 +591,252 @@ namespace generated
       // Gain: '<S2>/sqrt_2'
       sfc_6p_6p_topology_DW.sqrt_2_j[2] = 1.4142135623730951 * Cos;
 
-      // S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
-      //   Constant: '<S61>/SwitchCurrents'
-      //   Inport: '<Root>/grid_side_converter_pulses'
-      //   Inport: '<Root>/machine_side_converter_pulses'
+    // S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
+    //   Constant: '<S61>/SwitchCurrents'
+    //   Inport: '<Root>/grid_side_converter_pulses'
+    //   Inport: '<Root>/machine_side_converter_pulses'
 
-
-      // S-Function block: <S59>/State-Space
-      {
+    // S-Function block: <S59>/State-Space
+    {
         double accum;
 
         // Circuit has switches
-        int *switch_status = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS;
-        int *switch_status_init = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT;
-        int *SwitchChange = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.SW_CHG;
-        int *gState = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE;
-        double *yswitch = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.Y_SWITCH;
-        int *switchTypes = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_TYPES;
-        int *idxOutSw = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.IDX_OUT_SW;
-        double *DxCol = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.DX_COL;
-        double *tmp2 = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP2;
-        double *BDcol = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.BD_COL;
-        double *tmp1 = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP1;
-        double *uswlast = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.USWLAST;
+        int *switch_status = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS;
+        int *switch_status_init = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT;
+        int *SwitchChange = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SW_CHG;
+        int *gState = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE;
+        double *yswitch = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.Y_SWITCH;
+        int *switchTypes = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_TYPES;
+        int *idxOutSw = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.IDX_OUT_SW;
+        double *DxCol = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.DX_COL;
+        double *tmp2 = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP2;
+        double *BDcol = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.BD_COL;
+        double *tmp1 = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP1;
+        double *uswlast = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.USWLAST;
         int newState;
         int swChanged = 0;
         int loopsToDo = 20;
         double temp;
 
         // keep an initial copy of switch_status
-        memcpy(switch_status_init, switch_status, 12 * sizeof(int));
-        memcpy(uswlast, &sfc_6p_6p_topology_DW.StateSpace_o1[0], 12*sizeof(double));
+        std::memcpy(switch_status_init, switch_status, 12 * sizeof(int));
+        std::memcpy(uswlast, &sfc_6p_6p_topology_DW.StateSpace_o1[0], 12 * sizeof(double));
         do {
-          if (loopsToDo == 1) {        // Need to reset some variables:
-            swChanged = 0;
+            if (loopsToDo == 1) {  // Need to reset some variables:
+                swChanged = 0;
 
-            // return to the original switch status
-            {
-              int i1;
-              for (i1=0; i1 < 12; i1++) {
-                swChanged = ((SwitchChange[i1] = switch_status_init[i1] - switch_status[i1]) != 0) ? 1 : swChanged;
-                switch_status[i1] = switch_status_init[i1];
-              }
+                // return to the original switch status
+                {
+                    int i1;
+                    for (i1 = 0; i1 < 12; i1++) {
+                        swChanged =
+                            ((SwitchChange[i1] = switch_status_init[i1] - switch_status[i1]) != 0) ? 1 : swChanged;
+                        switch_status[i1] = switch_status_init[i1];
+                    }
+                }
+            } else {
+                //
+                //  Compute outputs:
+                //  ---------------
+
+                double *Cs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
+                double *Ds = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
+
+                {
+                    int i1;
+                    double *y0{&sfc_6p_6p_topology_DW.StateSpace_o1[0]};
+
+                    for (i1 = 0; i1 < 25; i1++) {
+                        accum = 0.0;
+
+                        {
+                            int i2;
+                            double *xd{&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0]};
+
+                            for (i2 = 0; i2 < 18; i2++) {
+                                accum += *(Cs++) * xd[i2];
+                            }
+                        }
+
+                        {
+                            int i2;
+                            const double *u0{&sfc_6p_6p_topology_ConstP.SwitchCurrents_Value[0]};
+
+                            for (i2 = 0; i2 < 12; i2++) {
+                                accum += *(Ds++) * u0[i2];
+                            }
+
+                            accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[0];
+                            accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[1];
+                            accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[2];
+                            accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[0];
+                            accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[1];
+                            accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[2];
+                        }
+
+                        y0[i1] = accum;
+                    }
+                }
+
+                swChanged = 0;
+
+                {
+                    int i1;
+                    double *y0{&sfc_6p_6p_topology_DW.StateSpace_o1[0]};
+
+                    for (i1 = 0; i1 < 12; i1++) {
+                        newState = (y0[i1] > 0.0) && (gState[i1] > 0) ? 1 : ((y0[i1] < 0.0) ? 0 : switch_status[i1]);
+                        swChanged = ((SwitchChange[i1] = newState - switch_status[i1]) != 0) ? 1 : swChanged;
+                        switch_status[i1] = newState;  // Keep new state
+                    }
+                }
             }
-          } else {
+
             //
-            //  Compute outputs:
-            //  ---------------
+            //  Compute new As, Bs, Cs and Ds matrixes:
+            //  --------------------------------------
 
-            double *Cs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
-            double *Ds = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
-
-            {
-              int i1;
-              double *y0{ &sfc_6p_6p_topology_DW.StateSpace_o1[0] };
-
-              for (i1=0; i1 < 25; i1++) {
-                accum = 0.0;
+            if (swChanged) {
+                double *As = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.AS;
+                double *Cs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
+                double *Bs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.BS;
+                double *Ds = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
+                double a1;
 
                 {
-                  int i2;
-                  double *xd{ &sfc_6p_6p_topology_DW.StateSpace_DSTATE[0] };
+                    int i1;
+                    for (i1 = 0; i1 < 12; i1++) {
+                        if (SwitchChange[i1] != 0) {
+                            a1 = 1000.0 * SwitchChange[i1];
+                            temp = 1 / (1 - Ds[i1 * 19] * a1);
 
-                  for (i2=0; i2 < 18; i2++) {
-                    accum += *(Cs++) * xd[i2];
-                  }
+                            {
+                                int i2;
+                                for (i2 = 0; i2 < 25; i2++) {
+                                    DxCol[i2] = Ds[i2 * 18 + i1] * temp * a1;
+                                }
+                            }
+
+                            DxCol[i1] = temp;
+
+                            {
+                                int i2;
+                                for (i2 = 0; i2 < 18; i2++) {
+                                    BDcol[i2] = Bs[i2 * 18 + i1] * a1;
+                                }
+                            }
+
+                            // Copy row nSw of Cs into tmp1 and zero it out in Cs
+                            std::memcpy(tmp1, &Cs[i1 * 18], 18 * sizeof(double));
+                            std::memset(&Cs[i1 * 18], '\0', 18 * sizeof(double));
+
+                            // Copy row nSw of Ds into tmp2 and zero it out in Ds
+                            std::memcpy(tmp2, &Ds[i1 * 18], 18 * sizeof(double));
+                            std::memset(&Ds[i1 * 18], '\0', 18 * sizeof(double));
+
+                            // Cs = Cs + DxCol * tmp1, Ds = Ds + DxCol * tmp2 ******************
+                            {
+                                int i2;
+                                for (i2 = 0; i2 < 25; i2++) {
+                                    a1 = DxCol[i2];
+
+                                    {
+                                        int i3;
+                                        for (i3 = 0; i3 < 18; i3++) {
+                                            Cs[i2 * 18 + i3] += a1 * tmp1[i3];
+                                        }
+                                    }
+
+                                    {
+                                        int i3;
+                                        for (i3 = 0; i3 < 18; i3++) {
+                                            Ds[i2 * 18 + i3] += a1 * tmp2[i3];
+                                        }
+                                    }
+                                }
+                            }
+
+                            // As = As + BdCol*Cs(nSw,:), Bs = Bs + BdCol*Ds(nSw,:) ************
+                            {
+                                int i2;
+                                for (i2 = 0; i2 < 18; i2++) {
+                                    a1 = BDcol[i2];
+
+                                    {
+                                        int i3;
+                                        for (i3 = 0; i3 < 18; i3++) {
+                                            As[i2 * 18 + i3] += a1 * Cs[i1 * 18 + i3];
+                                        }
+                                    }
+
+                                    {
+                                        int i3;
+                                        for (i3 = 0; i3 < 18; i3++) {
+                                            Bs[i2 * 18 + i3] += a1 * Ds[i1 * 18 + i3];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-
-                {
-                  int i2;
-                  const double *u0{ &sfc_6p_6p_topology_ConstP.SwitchCurrents_Value[0] };
-
-                  for (i2=0; i2 < 12; i2++) {
-                    accum += *(Ds++) * u0[i2];
-                  }
-
-                  accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[0];
-                  accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[1];
-                  accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[2];
-                  accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[0];
-                  accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[1];
-                  accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[2];
-                }
-
-                y0[i1] = accum;
-              }
-            }
-
-            swChanged = 0;
-
-            {
-              int i1;
-              double *y0{ &sfc_6p_6p_topology_DW.StateSpace_o1[0] };
-
-              for (i1=0; i1 < 12; i1++) {
-                newState = (y0[i1] > 0.0) && (gState[i1] > 0) ? 1 : ((y0[i1] < 0.0) ? 0 : switch_status[i1]);
-                swChanged = ((SwitchChange[i1] = newState - switch_status[i1]) != 0) ? 1 : swChanged;
-                switch_status[i1] = newState;// Keep new state
-              }
-            }
-          }
-
-          //
-          //  Compute new As, Bs, Cs and Ds matrixes:
-          //  --------------------------------------
-
-          if (swChanged) {
-            double *As = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.AS;
-            double *Cs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
-            double *Bs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.BS;
-            double *Ds = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
-            double a1;
-
-            {
-              int i1;
-              for (i1=0; i1 < 12; i1++) {
-                if (SwitchChange[i1] != 0) {
-                  a1 = 1000.0*SwitchChange[i1];
-                  temp = 1/(1-Ds[i1*19]*a1);
-
-                  {
-                    int i2;
-                    for (i2=0; i2 < 25; i2++) {
-                      DxCol[i2]= Ds[i2 * 18 + i1]*temp*a1;
-                    }
-                  }
-
-                  DxCol[i1] = temp;
-
-                  {
-                    int i2;
-                    for (i2=0; i2 < 18; i2++) {
-                      BDcol[i2]= Bs[i2 * 18 + i1]*a1;
-                    }
-                  }
-
-                  // Copy row nSw of Cs into tmp1 and zero it out in Cs
-                  memcpy(tmp1, &Cs[i1 * 18], 18 * sizeof(double));
-                  memset(&Cs[i1 * 18], '\0', 18 * sizeof(double));
-
-                  // Copy row nSw of Ds into tmp2 and zero it out in Ds
-                  memcpy(tmp2, &Ds[i1 * 18], 18 * sizeof(double));
-                  memset(&Ds[i1 * 18], '\0', 18 * sizeof(double));
-
-                  // Cs = Cs + DxCol * tmp1, Ds = Ds + DxCol * tmp2 ******************
-                  {
-                    int i2;
-                    for (i2=0; i2 < 25; i2++) {
-                      a1 = DxCol[i2];
-
-                      {
-                        int i3;
-                        for (i3=0; i3 < 18; i3++) {
-                          Cs[i2 * 18 + i3] += a1 * tmp1[i3];
-                        }
-                      }
-
-                      {
-                        int i3;
-                        for (i3=0; i3 < 18; i3++) {
-                          Ds[i2 * 18 + i3] += a1 * tmp2[i3];
-                        }
-                      }
-                    }
-                  }
-
-                  // As = As + BdCol*Cs(nSw,:), Bs = Bs + BdCol*Ds(nSw,:) ************
-                  {
-                    int i2;
-                    for (i2=0; i2 < 18; i2++) {
-                      a1 = BDcol[i2];
-
-                      {
-                        int i3;
-                        for (i3=0; i3 < 18; i3++) {
-                          As[i2 * 18 + i3] += a1 * Cs[i1 * 18 + i3];
-                        }
-                      }
-
-                      {
-                        int i3;
-                        for (i3=0; i3 < 18; i3++) {
-                          Bs[i2 * 18 + i3] += a1 * Ds[i1 * 18 + i3];
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }                            // if (swChanged)
+            }  // if (swChanged)
         } while (swChanged > 0 && --loopsToDo > 0);
 
         if (loopsToDo == 0) {
-          double *Cs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
-          double *Ds = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
+            double *Cs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
+            double *Ds = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
 
-          {
-            int i1;
-            double *y0{ &sfc_6p_6p_topology_DW.StateSpace_o1[0] };
+            {
+                int i1;
+                double *y0{&sfc_6p_6p_topology_DW.StateSpace_o1[0]};
 
-            for (i1=0; i1 < 25; i1++) {
-              accum = 0.0;
+                for (i1 = 0; i1 < 25; i1++) {
+                    accum = 0.0;
 
-              {
-                int i2;
-                double *xd{ &sfc_6p_6p_topology_DW.StateSpace_DSTATE[0] };
+                    {
+                        int i2;
+                        double *xd{&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0]};
 
-                for (i2=0; i2 < 18; i2++) {
-                  accum += *(Cs++) * xd[i2];
+                        for (i2 = 0; i2 < 18; i2++) {
+                            accum += *(Cs++) * xd[i2];
+                        }
+                    }
+
+                    {
+                        int i2;
+                        const double *u0{&sfc_6p_6p_topology_ConstP.SwitchCurrents_Value[0]};
+
+                        for (i2 = 0; i2 < 12; i2++) {
+                            accum += *(Ds++) * u0[i2];
+                        }
+
+                        accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[0];
+                        accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[1];
+                        accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[2];
+                        accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[0];
+                        accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[1];
+                        accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[2];
+                    }
+
+                    y0[i1] = accum;
                 }
-              }
-
-              {
-                int i2;
-                const double *u0{ &sfc_6p_6p_topology_ConstP.SwitchCurrents_Value[0] };
-
-                for (i2=0; i2 < 12; i2++) {
-                  accum += *(Ds++) * u0[i2];
-                }
-
-                accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[0];
-                accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[1];
-                accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2[2];
-                accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[0];
-                accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[1];
-                accum += *(Ds++) * sfc_6p_6p_topology_DW.sqrt_2_j[2];
-              }
-
-              y0[i1] = accum;
             }
-          }
         }
 
         // Output new switches states
         {
-          int i1;
-          double *y1{ &sfc_6p_6p_topology_DW.StateSpace_o2[0] };
+            int i1;
+            double *y1{&sfc_6p_6p_topology_DW.StateSpace_o2[0]};
 
-          for (i1=0; i1 < 12; i1++) {
-            y1[i1] = (double)switch_status[i1];
-          }
+            for (i1 = 0; i1 < 12; i1++) {
+                y1[i1] = (double)switch_status[i1];
+            }
         }
-      }
+    }
 
-      // Outport: '<Root>/dc_link_current_si'
-      sfc_6p_6p_topology_Y.dc_link_current_si = sfc_6p_6p_topology_DW.StateSpace_o1[21];
+    // Outport: '<Root>/dc_link_current_si'
+    sfc_6p_6p_topology_Y.dc_link_current_si = sfc_6p_6p_topology_DW.StateSpace_o1[21];
 
       // Gain: '<S1>/to_rads' incorporates:
       //   Inport: '<Root>/grid_voltage_source_frequency_hz'
@@ -844,41 +848,41 @@ namespace generated
 
       sfc_6p_6p_topology_DW.to_rads_i = 6.2831853071795862 * sfc_6p_6p_topology_U.machine_voltage_source_frequency_hz;
 
-      // Outport: '<Root>/grid_side_converter_voltage_phase_si'
-      sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[12];
+    // Outport: '<Root>/grid_side_converter_voltage_phase_si'
+    sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[12];
 
-      // Outport: '<Root>/grid_side_converter_current_si'
-      sfc_6p_6p_topology_Y.grid_side_converter_current_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[18];
+    // Outport: '<Root>/grid_side_converter_current_si'
+    sfc_6p_6p_topology_Y.grid_side_converter_current_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[18];
 
-      // Outport: '<Root>/machine_side_converter_voltage_phase_si'
-      sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[15];
+    // Outport: '<Root>/machine_side_converter_voltage_phase_si'
+    sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[15];
 
-      // Outport: '<Root>/machine_side_converter_current_si'
-      sfc_6p_6p_topology_Y.machine_side_converter_current_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[22];
+    // Outport: '<Root>/machine_side_converter_current_si'
+    sfc_6p_6p_topology_Y.machine_side_converter_current_si[0] = sfc_6p_6p_topology_DW.StateSpace_o1[22];
 
-      // Outport: '<Root>/grid_side_converter_voltage_phase_si'
-      sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[13];
+    // Outport: '<Root>/grid_side_converter_voltage_phase_si'
+    sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[13];
 
-      // Outport: '<Root>/grid_side_converter_current_si'
-      sfc_6p_6p_topology_Y.grid_side_converter_current_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[19];
+    // Outport: '<Root>/grid_side_converter_current_si'
+    sfc_6p_6p_topology_Y.grid_side_converter_current_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[19];
 
-      // Outport: '<Root>/machine_side_converter_voltage_phase_si'
-      sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[16];
+    // Outport: '<Root>/machine_side_converter_voltage_phase_si'
+    sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[16];
 
-      // Outport: '<Root>/machine_side_converter_current_si'
-      sfc_6p_6p_topology_Y.machine_side_converter_current_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[23];
+    // Outport: '<Root>/machine_side_converter_current_si'
+    sfc_6p_6p_topology_Y.machine_side_converter_current_si[1] = sfc_6p_6p_topology_DW.StateSpace_o1[23];
 
-      // Outport: '<Root>/grid_side_converter_voltage_phase_si'
-      sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[14];
+    // Outport: '<Root>/grid_side_converter_voltage_phase_si'
+    sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[14];
 
-      // Outport: '<Root>/grid_side_converter_current_si'
-      sfc_6p_6p_topology_Y.grid_side_converter_current_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[20];
+    // Outport: '<Root>/grid_side_converter_current_si'
+    sfc_6p_6p_topology_Y.grid_side_converter_current_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[20];
 
-      // Outport: '<Root>/machine_side_converter_voltage_phase_si'
-      sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[17];
+    // Outport: '<Root>/machine_side_converter_voltage_phase_si'
+    sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[17];
 
-      // Outport: '<Root>/machine_side_converter_current_si'
-      sfc_6p_6p_topology_Y.machine_side_converter_current_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[24];
+    // Outport: '<Root>/machine_side_converter_current_si'
+    sfc_6p_6p_topology_Y.machine_side_converter_current_si[2] = sfc_6p_6p_topology_DW.StateSpace_o1[24];
 
       // Update for DiscreteIntegrator: '<S14>/Integrator'
       sfc_6p_6p_topology_DW.Integrator_DSTATE += 1.0E-5 * sfc_6p_6p_topology_DW.to_rads;
@@ -886,255 +890,246 @@ namespace generated
       // Update for DiscreteIntegrator: '<S22>/Integrator'
       sfc_6p_6p_topology_DW.Integrator_DSTATE_f += 1.0E-5 * sfc_6p_6p_topology_DW.to_rads_i;
 
-      // Update for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
-      //   Constant: '<S61>/SwitchCurrents'
-      //   Inport: '<Root>/grid_side_converter_pulses'
-      //   Inport: '<Root>/machine_side_converter_pulses'
+    // Update for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
+    //   Constant: '<S61>/SwitchCurrents'
+    //   Inport: '<Root>/grid_side_converter_pulses'
+    //   Inport: '<Root>/machine_side_converter_pulses'
 
-
-      // S-Function block: <S59>/State-Space
-      {
-        const double *As = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.AS;
-        const double *Bs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.BS;
-        double *xtmp = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.XTMP;
+    // S-Function block: <S59>/State-Space
+    {
+        const double *As = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.AS;
+        const double *Bs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.BS;
+        double *xtmp = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.XTMP;
         double accum;
 
         // Calculate new states...
         {
-          int i1;
-          double *xd{ &sfc_6p_6p_topology_DW.StateSpace_DSTATE[0] };
-
-          for (i1=0; i1 < 18; i1++) {
-            accum = 0.0;
-
-            {
-              int i2;
-              double *xd{ &sfc_6p_6p_topology_DW.StateSpace_DSTATE[0] };
-
-              for (i2=0; i2 < 18; i2++) {
-                accum += *(As++) * xd[i2];
-              }
-            }
-
-            {
-              int i2;
-              const double *u0{ &sfc_6p_6p_topology_ConstP.SwitchCurrents_Value[0] };
-
-              for (i2=0; i2 < 12; i2++) {
-                accum += *(Bs++) * u0[i2];
-              }
-
-              accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2[0];
-              accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2[1];
-              accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2[2];
-              accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2_j[0];
-              accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2_j[1];
-              accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2_j[2];
-            }
-
-            xtmp[i1] = accum;
-          }
-        }
-
-        {
-          int i1;
-          double *xd{ &sfc_6p_6p_topology_DW.StateSpace_DSTATE[0] };
-
-          for (i1=0; i1 < 18; i1++) {
-            xd[i1] = xtmp[i1];
-          }
-        }
-
-        {
-          int *gState = (int*)sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE;
-
-          // Store switch gates values for next step
-          {
             int i1;
-            const double *u1{ &sfc_6p_6p_topology_U.grid_side_converter_pulses[0] };
+            double *xd{&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0]};
 
-            for (i1=0; i1 < 6; i1++) {
-              *(gState++) = (int) u1[i1];
-            }
+            for (i1 = 0; i1 < 18; i1++) {
+                accum = 0.0;
 
-            u1 = &sfc_6p_6p_topology_U.machine_side_converter_pulses[0];
-            for (i1=0; i1 < 6; i1++) {
-              *(gState++) = (int) u1[i1];
+                {
+                    int i2;
+                    double *xd{&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0]};
+
+                    for (i2 = 0; i2 < 18; i2++) {
+                        accum += *(As++) * xd[i2];
+                    }
+                }
+
+                {
+                    int i2;
+                    const double *u0{&sfc_6p_6p_topology_ConstP.SwitchCurrents_Value[0]};
+
+                    for (i2 = 0; i2 < 12; i2++) {
+                        accum += *(Bs++) * u0[i2];
+                    }
+
+                    accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2[0];
+                    accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2[1];
+                    accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2[2];
+                    accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2_j[0];
+                    accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2_j[1];
+                    accum += *(Bs++) * sfc_6p_6p_topology_DW.sqrt_2_j[2];
+                }
+
+                xtmp[i1] = accum;
             }
-          }
         }
-      }
+
+        {
+            int i1;
+            double *xd{&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0]};
+
+            for (i1 = 0; i1 < 18; i1++) {
+                xd[i1] = xtmp[i1];
+            }
+        }
+
+        {
+            int *gState = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE;
+
+            // Store switch gates values for next step
+            {
+                int i1;
+                const double *u1{&sfc_6p_6p_topology_U.grid_side_converter_pulses[0]};
+
+                for (i1 = 0; i1 < 6; i1++) {
+                    *(gState++) = (int)u1[i1];
+                }
+
+                u1 = &sfc_6p_6p_topology_U.machine_side_converter_pulses[0];
+                for (i1 = 0; i1 < 6; i1++) {
+                    *(gState++) = (int)u1[i1];
+                }
+            }
+        }
+    }
+}
+
+// Model initialize function
+void sfc_6p_6p_topology::initialize() {
+    // Start for InitialCondition: '<S14>/Initial'
+    sfc_6p_6p_topology_DW.Initial_FirstOutputTime = true;
+
+    // Start for InitialCondition: '<S22>/Initial'
+    sfc_6p_6p_topology_DW.Initial_FirstOutputTime_b = true;
+
+    // Start for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
+    //   Constant: '<S61>/SwitchCurrents'
+    //   Inport: '<Root>/grid_side_converter_pulses'
+    //   Inport: '<Root>/machine_side_converter_pulses'
+
+    // S-Function block: <S59>/State-Space
+    {
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.AS = (double *)calloc(18 * 18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.BS = (double *)calloc(18 * 18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.CS = (double *)calloc(25 * 18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.DS = (double *)calloc(25 * 18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.DX_COL = (double *)calloc(25, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP2 = (double *)calloc(18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.BD_COL = (double *)calloc(18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP1 = (double *)calloc(18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.XTMP = (double *)calloc(18, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS = (int *)calloc(12, sizeof(int));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.SW_CHG = (int *)calloc(12, sizeof(int));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE = (int *)calloc(12, sizeof(int));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.Y_SWITCH = (double *)calloc(12, sizeof(double));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_TYPES = (int *)calloc(12, sizeof(int));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.IDX_OUT_SW = (int *)calloc(12, sizeof(int));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT = (int *)calloc(12, sizeof(int));
+        sfc_6p_6p_topology_DW.StateSpace_PWORK.USWLAST = (double *)calloc(12, sizeof(double));
     }
 
-    // Model initialize function
-    void sfc_6p_6p_topology::initialize()
+    // InitializeConditions for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
+    //   Constant: '<S61>/SwitchCurrents'
+    //   Inport: '<Root>/grid_side_converter_pulses'
+    //   Inport: '<Root>/machine_side_converter_pulses'
+
     {
-      // Start for InitialCondition: '<S14>/Initial'
-      sfc_6p_6p_topology_DW.Initial_FirstOutputTime = true;
-
-      // Start for InitialCondition: '<S22>/Initial'
-      sfc_6p_6p_topology_DW.Initial_FirstOutputTime_b = true;
-
-      // Start for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
-      //   Constant: '<S61>/SwitchCurrents'
-      //   Inport: '<Root>/grid_side_converter_pulses'
-      //   Inport: '<Root>/machine_side_converter_pulses'
-
-
-      // S-Function block: <S59>/State-Space
-      {
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.AS = (double*)calloc(18 * 18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.BS = (double*)calloc(18 * 18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.CS = (double*)calloc(25 * 18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.DS = (double*)calloc(25 * 18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.DX_COL = (double*)calloc(25, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP2 = (double*)calloc(18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.BD_COL = (double*)calloc(18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.TMP1 = (double*)calloc(18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.XTMP = (double*)calloc(18, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS = (int*)calloc(12, sizeof(int));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.SW_CHG = (int*)calloc(12, sizeof(int));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE = (int*)calloc(12, sizeof(int));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.Y_SWITCH = (double*)calloc(12, sizeof(double));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_TYPES = (int*)calloc(12, sizeof(int));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.IDX_OUT_SW = (int*)calloc(12, sizeof(int));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT = (int*)calloc(12, sizeof(int));
-        sfc_6p_6p_topology_DW.StateSpace_PWORK.USWLAST = (double*)calloc(12, sizeof(double));
-      }
-
-      // InitializeConditions for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
-      //   Constant: '<S61>/SwitchCurrents'
-      //   Inport: '<Root>/grid_side_converter_pulses'
-      //   Inport: '<Root>/machine_side_converter_pulses'
-
-      {
         int32_t i, j;
-        double *As = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.AS;
-        double *Bs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.BS;
-        double *Cs = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
-        double *Ds = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
-        double *X0 = (double*)&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0];
+        double *As = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.AS;
+        double *Bs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.BS;
+        double *Cs = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.CS;
+        double *Ds = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.DS;
+        double *X0 = (double *)&sfc_6p_6p_topology_DW.StateSpace_DSTATE[0];
         for (i = 0; i < 18; i++) {
-          X0[i] = (sfc_6p_6p_topology_ConstP.StateSpace_X0_param[i]);
+            X0[i] = (sfc_6p_6p_topology_ConstP.StateSpace_X0_param[i]);
         }
 
         // Copy and transpose A and B
-        for (i=0; i<18; i++) {
-          for (j=0; j<18; j++)
-            As[i*18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_AS_param[i + j*18]);
-          for (j=0; j<18; j++)
-            Bs[i*18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_BS_param[i + j*18]);
+        for (i = 0; i < 18; i++) {
+            for (j = 0; j < 18; j++) As[i * 18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_AS_param[i + j * 18]);
+            for (j = 0; j < 18; j++) Bs[i * 18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_BS_param[i + j * 18]);
         }
 
         // Copy and transpose C
-        for (i=0; i<25; i++) {
-          for (j=0; j<18; j++)
-            Cs[i*18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_CS_param[i + j*25]);
+        for (i = 0; i < 25; i++) {
+            for (j = 0; j < 18; j++) Cs[i * 18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_CS_param[i + j * 25]);
         }
 
         // Copy and transpose D
-        for (i=0; i<25; i++) {
-          for (j=0; j<18; j++)
-            Ds[i*18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_DS_param[i + j*25]);
+        for (i = 0; i < 25; i++) {
+            for (j = 0; j < 18; j++) Ds[i * 18 + j] = (sfc_6p_6p_topology_ConstP.StateSpace_DS_param[i + j * 25]);
         }
 
         {
-          // Switches work vectors
-          int *switch_status = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS;
-          int *gState = (int*)sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE;
-          double *yswitch = (double*)sfc_6p_6p_topology_DW.StateSpace_PWORK.Y_SWITCH;
-          int *switchTypes = (int*)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_TYPES;
-          int *idxOutSw = (int*)sfc_6p_6p_topology_DW.StateSpace_PWORK.IDX_OUT_SW;
-          int *switch_status_init = (int*) sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT;
+            // Switches work vectors
+            int *switch_status = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS;
+            int *gState = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.G_STATE;
+            double *yswitch = (double *)sfc_6p_6p_topology_DW.StateSpace_PWORK.Y_SWITCH;
+            int *switchTypes = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_TYPES;
+            int *idxOutSw = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.IDX_OUT_SW;
+            int *switch_status_init = (int *)sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT;
 
-          // Initialize work vectors
-          switch_status[0] = 0;
-          switch_status_init[0] = 0;
-          gState[0] = (int) 0.0;
-          yswitch[0] = 1/0.001;
-          switchTypes[0] = (int)4.0;
-          idxOutSw[0] = ((int)0.0) - 1;
-          switch_status[1] = 0;
-          switch_status_init[1] = 0;
-          gState[1] = (int) 0.0;
-          yswitch[1] = 1/0.001;
-          switchTypes[1] = (int)4.0;
-          idxOutSw[1] = ((int)0.0) - 1;
-          switch_status[2] = 0;
-          switch_status_init[2] = 0;
-          gState[2] = (int) 0.0;
-          yswitch[2] = 1/0.001;
-          switchTypes[2] = (int)4.0;
-          idxOutSw[2] = ((int)0.0) - 1;
-          switch_status[3] = 0;
-          switch_status_init[3] = 0;
-          gState[3] = (int) 0.0;
-          yswitch[3] = 1/0.001;
-          switchTypes[3] = (int)4.0;
-          idxOutSw[3] = ((int)0.0) - 1;
-          switch_status[4] = 0;
-          switch_status_init[4] = 0;
-          gState[4] = (int) 0.0;
-          yswitch[4] = 1/0.001;
-          switchTypes[4] = (int)4.0;
-          idxOutSw[4] = ((int)0.0) - 1;
-          switch_status[5] = 0;
-          switch_status_init[5] = 0;
-          gState[5] = (int) 0.0;
-          yswitch[5] = 1/0.001;
-          switchTypes[5] = (int)4.0;
-          idxOutSw[5] = ((int)0.0) - 1;
-          switch_status[6] = 0;
-          switch_status_init[6] = 0;
-          gState[6] = (int) 0.0;
-          yswitch[6] = 1/0.001;
-          switchTypes[6] = (int)4.0;
-          idxOutSw[6] = ((int)0.0) - 1;
-          switch_status[7] = 0;
-          switch_status_init[7] = 0;
-          gState[7] = (int) 0.0;
-          yswitch[7] = 1/0.001;
-          switchTypes[7] = (int)4.0;
-          idxOutSw[7] = ((int)0.0) - 1;
-          switch_status[8] = 0;
-          switch_status_init[8] = 0;
-          gState[8] = (int) 0.0;
-          yswitch[8] = 1/0.001;
-          switchTypes[8] = (int)4.0;
-          idxOutSw[8] = ((int)0.0) - 1;
-          switch_status[9] = 0;
-          switch_status_init[9] = 0;
-          gState[9] = (int) 0.0;
-          yswitch[9] = 1/0.001;
-          switchTypes[9] = (int)4.0;
-          idxOutSw[9] = ((int)0.0) - 1;
-          switch_status[10] = 0;
-          switch_status_init[10] = 0;
-          gState[10] = (int) 0.0;
-          yswitch[10] = 1/0.001;
-          switchTypes[10] = (int)4.0;
-          idxOutSw[10] = ((int)0.0) - 1;
-          switch_status[11] = 0;
-          switch_status_init[11] = 0;
-          gState[11] = (int) 0.0;
-          yswitch[11] = 1/0.001;
-          switchTypes[11] = (int)4.0;
-          idxOutSw[11] = ((int)0.0) - 1;
+            // Initialize work vectors
+            switch_status[0] = 0;
+            switch_status_init[0] = 0;
+            gState[0] = (int)0.0;
+            yswitch[0] = 1 / 0.001;
+            switchTypes[0] = (int)4.0;
+            idxOutSw[0] = ((int)0.0) - 1;
+            switch_status[1] = 0;
+            switch_status_init[1] = 0;
+            gState[1] = (int)0.0;
+            yswitch[1] = 1 / 0.001;
+            switchTypes[1] = (int)4.0;
+            idxOutSw[1] = ((int)0.0) - 1;
+            switch_status[2] = 0;
+            switch_status_init[2] = 0;
+            gState[2] = (int)0.0;
+            yswitch[2] = 1 / 0.001;
+            switchTypes[2] = (int)4.0;
+            idxOutSw[2] = ((int)0.0) - 1;
+            switch_status[3] = 0;
+            switch_status_init[3] = 0;
+            gState[3] = (int)0.0;
+            yswitch[3] = 1 / 0.001;
+            switchTypes[3] = (int)4.0;
+            idxOutSw[3] = ((int)0.0) - 1;
+            switch_status[4] = 0;
+            switch_status_init[4] = 0;
+            gState[4] = (int)0.0;
+            yswitch[4] = 1 / 0.001;
+            switchTypes[4] = (int)4.0;
+            idxOutSw[4] = ((int)0.0) - 1;
+            switch_status[5] = 0;
+            switch_status_init[5] = 0;
+            gState[5] = (int)0.0;
+            yswitch[5] = 1 / 0.001;
+            switchTypes[5] = (int)4.0;
+            idxOutSw[5] = ((int)0.0) - 1;
+            switch_status[6] = 0;
+            switch_status_init[6] = 0;
+            gState[6] = (int)0.0;
+            yswitch[6] = 1 / 0.001;
+            switchTypes[6] = (int)4.0;
+            idxOutSw[6] = ((int)0.0) - 1;
+            switch_status[7] = 0;
+            switch_status_init[7] = 0;
+            gState[7] = (int)0.0;
+            yswitch[7] = 1 / 0.001;
+            switchTypes[7] = (int)4.0;
+            idxOutSw[7] = ((int)0.0) - 1;
+            switch_status[8] = 0;
+            switch_status_init[8] = 0;
+            gState[8] = (int)0.0;
+            yswitch[8] = 1 / 0.001;
+            switchTypes[8] = (int)4.0;
+            idxOutSw[8] = ((int)0.0) - 1;
+            switch_status[9] = 0;
+            switch_status_init[9] = 0;
+            gState[9] = (int)0.0;
+            yswitch[9] = 1 / 0.001;
+            switchTypes[9] = (int)4.0;
+            idxOutSw[9] = ((int)0.0) - 1;
+            switch_status[10] = 0;
+            switch_status_init[10] = 0;
+            gState[10] = (int)0.0;
+            yswitch[10] = 1 / 0.001;
+            switchTypes[10] = (int)4.0;
+            idxOutSw[10] = ((int)0.0) - 1;
+            switch_status[11] = 0;
+            switch_status_init[11] = 0;
+            gState[11] = (int)0.0;
+            yswitch[11] = 1 / 0.001;
+            switchTypes[11] = (int)4.0;
+            idxOutSw[11] = ((int)0.0) - 1;
         }
-      }
     }
+}
 
-    // Model terminate function
-    void sfc_6p_6p_topology::terminate()
+// Model terminate function
+void sfc_6p_6p_topology::terminate() {
+    // Terminate for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
+    //   Constant: '<S61>/SwitchCurrents'
+    //   Inport: '<Root>/grid_side_converter_pulses'
+    //   Inport: '<Root>/machine_side_converter_pulses'
+
+    // S-Function block: <S59>/State-Space
     {
-      // Terminate for S-Function (sfun_spssw_discc): '<S59>/State-Space' incorporates:
-      //   Constant: '<S61>/SwitchCurrents'
-      //   Inport: '<Root>/grid_side_converter_pulses'
-      //   Inport: '<Root>/machine_side_converter_pulses'
-
-
-      // S-Function block: <S59>/State-Space
-      {
         // Free memory
         free(sfc_6p_6p_topology_DW.StateSpace_PWORK.AS);
         free(sfc_6p_6p_topology_DW.StateSpace_PWORK.BS);
@@ -1152,24 +1147,20 @@ namespace generated
         free(sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS);
         free(sfc_6p_6p_topology_DW.StateSpace_PWORK.SW_CHG);
         free(sfc_6p_6p_topology_DW.StateSpace_PWORK.SWITCH_STATUS_INIT);
-      }
     }
-
-    // Constructor
-    sfc_6p_6p_topology::sfc_6p_6p_topology() :
-      sfc_6p_6p_topology_U(),
-      sfc_6p_6p_topology_Y(),
-      sfc_6p_6p_topology_DW(),
-      sfc_6p_6p_topology_M()
-    {
-      // Currently there is no constructor body generated.
-    }
-
-    // Destructor
-    // Currently there is no destructor body generated.
-    sfc_6p_6p_topology::~sfc_6p_6p_topology() = default;
-  }
 }
+
+// Constructor
+sfc_6p_6p_topology::sfc_6p_6p_topology()
+    : sfc_6p_6p_topology_U(), sfc_6p_6p_topology_Y(), sfc_6p_6p_topology_DW(), sfc_6p_6p_topology_M() {
+    // Currently there is no constructor body generated.
+}
+
+// Destructor
+// Currently there is no destructor body generated.
+sfc_6p_6p_topology::~sfc_6p_6p_topology() = default;
+}  // namespace sfc
+}  // namespace generated
 
 //
 // File trailer for generated code.
