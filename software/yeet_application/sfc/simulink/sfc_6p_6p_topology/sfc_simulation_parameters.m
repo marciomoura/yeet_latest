@@ -126,10 +126,10 @@ X_comm_grid_converter_ohm = X_grid_referred_ohm + X_transformer_ohm;
 
 % Store the final SI values for the simulation model
 sfc_params.grid_converter.resistance_commutation_ohm = R_comm_grid_converter_ohm;
-sfc_params.grid_converter.inductance_commutation_H = 0.5 * X_comm_grid_converter_ohm / (2 * pi * sfc_params.grid.frequency_rated);
+sfc_params.grid_converter.inductance_commutation_H = 0.2 * X_comm_grid_converter_ohm / (2 * pi * sfc_params.grid.frequency_rated);
 
 % For reference, calculate the total PU commutation reactance
-sfc_params.grid_converter.reactance_commutation_pu = 0.5 * X_comm_grid_converter_ohm / Z_base_secondary;
+sfc_params.grid_converter.reactance_commutation_pu = 0.2 * X_comm_grid_converter_ohm / Z_base_secondary;
 
 
 % --- Machine Commutation Reactance (for simplified machine model) ---
