@@ -38,7 +38,7 @@ dc_link_current_rated = 1044            # [A] Rated DC current
 # --- Machine (as Starter & Generator) ---
 machine_rated_power = 2950e3           # [VA] Rated power of the machine
 machine_service_voltage = 1980         # [V] Service voltage (starter mode)
-machine_base_frequency = 11              # [Hz] Base frequency for starting
+machine_base_frequency = 50              # [Hz] Base frequency for starting
 generator_rated_speed_rpm = 3000         # [rpm] Rated speed as generator
 generator_rated_frequency = 50           # [Hz] Rated frequency as generator
 
@@ -50,6 +50,9 @@ cms_commutation_reactance_pu = 0.0593     # [pu] Total CMS commutation reactance
 inverter_extinction_angle_setpoint_deg = 18.0  # [degrees] Target extinction angle for inverter control.
 dc_choke_quality_factor = 50     # [-] Quality factor of the DC choke at 50 Hz.
 machine_number_of_poles = 2                      # [-] Number of poles of the synchronous machine (from 3000rpm @ 50Hz)
+grid_x_over_r_ratio = 10.0                       # [-] Assumed X/R ratio for the grid impedance.
+transformer_copper_loss_pu = 0.01                # [pu] Assumed transformer copper losses at rated load.
+machine_stator_resistance_pu = 0.005             # [pu] Assumed machine stator resistance.
 
 print("...Data loaded successfully.\n")
 
@@ -125,19 +128,25 @@ print("--- [SECTION 3] Calculating Component Parameters (SI & PU) ---")
 grid_impedance_pu_hv = base_power_system / short_circuit_capacity_min
 grid_impedance_ohm = grid_impedance_pu_hv * base_impedance_hv
 grid_reactance_ohm = grid_impedance_ohm # Assuming grid is mostly reactive
+grid_resistance_ohm = grid_reactance_ohm / grid_x_over_r_ratio
 grid_inductance_H = grid_reactance_ohm / (2 * math.pi * line_frequency)
 
 # --- Transformer ---
 transformer_reactance_pu_own_base = 0.095 # From exT = 9.5%
-transformer_reactance_ohm = transformer_reactance_pu_own_base * (transformer_secondary_voltage_noload**2 / transformer_rated_power)
+transformer_base_impedance_lv = (transformer_secondary_voltage_noload**2) / transformer_rated_power
+transformer_reactance_ohm = transformer_reactance_pu_own_base * transformer_base_impedance_lv
+transformer_resistance_ohm = transformer_copper_loss_pu * transformer_base_impedance_lv
 transformer_inductance_H = transformer_reactance_ohm / (2 * math.pi * line_frequency)
 
 # --- Total Line-Side Commutation Impedance (Grid + Transformer) ---
 transformer_turns_ratio_squared = (transformer_primary_voltage_noload / transformer_secondary_voltage_noload)**2
 grid_reactance_ohm_referred_lv = grid_reactance_ohm / transformer_turns_ratio_squared
+grid_resistance_ohm_referred_lv = grid_resistance_ohm / transformer_turns_ratio_squared
 cls_commutation_reactance_ohm = grid_reactance_ohm_referred_lv + transformer_reactance_ohm
+cls_commutation_resistance_ohm = grid_resistance_ohm_referred_lv + transformer_resistance_ohm
 cls_commutation_inductance_H = cls_commutation_reactance_ohm / (2 * math.pi * line_frequency)
 cls_commutation_reactance_pu_lv_base = cls_commutation_reactance_ohm / base_impedance_lv
+cls_commutation_resistance_pu_lv_base = cls_commutation_resistance_ohm / base_impedance_lv
 
 # --- DC Link Inductor ---
 dc_link_resistance_ohm = (2 * math.pi * line_frequency * dc_link_inductance_H) / dc_choke_quality_factor
@@ -146,6 +155,7 @@ dc_link_resistance_pu = dc_link_resistance_ohm / base_impedance_dc
 
 # --- Machine (Voltage-Behind-Reactance Model) ---
 cms_commutation_reactance_ohm = cms_commutation_reactance_pu * base_impedance_cms
+cms_stator_resistance_ohm = machine_stator_resistance_pu * base_impedance_cms
 cms_commutation_inductance_H = cms_commutation_reactance_ohm / base_angular_frequency_elec_cms
 
 # --- Component Parameters Summary Table ---
@@ -157,18 +167,22 @@ row_fmt = "{:<25} | {:<20} | {:<12.4f} | {:<12.4f}"
 print(hdr_fmt.format("COMPONENT", "PARAMETER", "SI VALUE", "PU VALUE"))
 print("-" * 80)
 print(row_fmt.format("Grid (ref. LV)", "Reactance", grid_reactance_ohm_referred_lv, grid_reactance_ohm_referred_lv / base_impedance_lv))
+print(row_fmt.format("", "Resistance", grid_resistance_ohm_referred_lv, grid_resistance_ohm_referred_lv / base_impedance_lv))
 print(f"{'':<25} | {'Inductance (mH)':<20} | {grid_inductance_H / transformer_turns_ratio_squared * 1e3:<12.4f} | {'N/A':<12}")
 print("-" * 80)
 print(row_fmt.format("Transformer (ref. LV)", "Reactance", transformer_reactance_ohm, transformer_reactance_ohm / base_impedance_lv))
+print(row_fmt.format("", "Resistance", transformer_resistance_ohm, transformer_resistance_ohm / base_impedance_lv))
 print(f"{'':<25} | {'Inductance (mH)':<20} | {transformer_inductance_H * 1e3:<12.4f} | {'N/A':<12}")
 print("-" * 80)
 print(row_fmt.format("Total CLS Commutation", "Reactance", cls_commutation_reactance_ohm, cls_commutation_reactance_pu_lv_base))
+print(row_fmt.format("", "Resistance", cls_commutation_resistance_ohm, cls_commutation_resistance_pu_lv_base))
 print(f"{'':<25} | {'Inductance (mH)':<20} | {cls_commutation_inductance_H * 1e3:<12.4f} | {'N/A':<12}")
 print("-" * 80)
 print(row_fmt.format("DC Link Choke", "Inductance (mH)", dc_link_inductance_H * 1e3, dc_link_inductance_pu))
 print(row_fmt.format("", "Resistance", dc_link_resistance_ohm, dc_link_resistance_pu))
 print("-" * 80)
 print(row_fmt.format("Machine Commutation", "Reactance", cms_commutation_reactance_ohm, cms_commutation_reactance_pu))
+print(row_fmt.format("", "Resistance", cms_stator_resistance_ohm, machine_stator_resistance_pu))
 print(f"{'':<25} | {'Inductance (mH)':<20} | {cms_commutation_inductance_H * 1e3:<12.4f} | {'N/A':<12}")
 print("="*80)
 print()
@@ -177,25 +191,33 @@ print()
 # ------------------------------------------------------------------------------
 # SECTION 4: NOMINAL STEADY-STATE CALCULATION
 # ------------------------------------------------------------------------------
-print("--- [SECTION 4] Calculating Nominal Steady-State Operating Point ---")
+print("--- [SECTION 4] Calculating Nominal Steady-State Operating Point (at 50 Hz) ---")
 
 # --- 4a. Calculate Inverter DC Back-Voltage ---
+# All calculations use the nominal machine frequency (50 Hz)
 machine_ideal_no_load_dc_voltage = (3 * math.sqrt(2) / math.pi) * machine_service_voltage
-inverter_commutation_voltage_drop = (3 * (2 * math.pi * machine_base_frequency) * cms_commutation_inductance_H / math.pi) * dc_link_current_rated
-# From Vdi = Vdo*cos(beta) - dVx, we solve for cos(beta)
-# Note: Inverter angle beta is used here, not alpha.
-# Vdi = Vdo*cos(beta) - dVx => Vdi = (Vdo*cos(gamma) + Vdo*cos(beta))/2
-# This leads to Vdo*cos(beta) - Vdo*cos(gamma) = 2*dVx
+inverter_commutation_voltage_drop = (3 * base_angular_frequency_elec_cms * cms_commutation_inductance_H / math.pi) * dc_link_current_rated
+
+# The relationship between gamma, beta, and the commutation voltage drop (dVx) is:
+# Vdo * cos(gamma) = Vdo * cos(beta) - 2 * dVx
+# From this, we calculate the required advance angle (beta) to achieve the target extinction angle (gamma).
 cos_beta = math.cos(math.radians(inverter_extinction_angle_setpoint_deg)) - (2 * inverter_commutation_voltage_drop / machine_ideal_no_load_dc_voltage)
 beta_angle_deg = math.degrees(math.acos(cos_beta))
-inverter_dc_voltage = machine_ideal_no_load_dc_voltage * cos_beta - inverter_commutation_voltage_drop
+
+# The inverter's average DC back-voltage is determined by the extinction angle (gamma) and the ideal DC voltage.
+# Vd_inv = Vdo * cos(gamma). This is the correct formula.
+# The previous calculation was incorrectly subtracting dVx after already accounting for it in beta.
+inverter_dc_voltage = machine_ideal_no_load_dc_voltage * math.cos(math.radians(inverter_extinction_angle_setpoint_deg))
 
 # --- 4b. Calculate Required Rectifier DC Voltage ---
+# The rectifier must overcome the inverter's back-voltage plus the resistive drop in the DC link.
 rectifier_dc_voltage = inverter_dc_voltage + dc_link_current_rated * dc_link_resistance_ohm
 
 # --- 4c. Calculate Grid-Side Angle (Alpha) ---
+# The rectifier's firing angle (alpha) is calculated to produce the required DC voltage.
+# Vd_rect = Vdo * cos(alpha) - dVx
 line_ideal_no_load_dc_voltage = (3 * math.sqrt(2) / math.pi) * transformer_secondary_voltage_noload
-rectifier_commutation_voltage_drop = (3 * (2 * math.pi * line_frequency) * cls_commutation_inductance_H / math.pi) * dc_link_current_rated
+rectifier_commutation_voltage_drop = (3 * base_angular_frequency_lv * cls_commutation_inductance_H / math.pi) * dc_link_current_rated
 cos_alpha = (rectifier_dc_voltage + rectifier_commutation_voltage_drop) / line_ideal_no_load_dc_voltage
 alpha_angle_deg = math.degrees(math.acos(cos_alpha))
 
