@@ -2,75 +2,80 @@
 
 #include <gtest/gtest.h>
 
-#include <cmath>
-
 #include "yeet_control/constants.hpp"
 
-namespace yeet::application::sfc {
+using namespace yeet::application::sfc;
+using namespace yeet::control;
 
+// Test fixture for the sfc_per_unit_system class
 class SfcPerUnitSystemTest : public ::testing::Test {
 protected:
-    void SetUp() override {
-        // Standard industrial values for testing
-        rated_power_va = 2e6;           // 2 MVA
-        rated_voltage_ll_rms = 4160.0;  // 4.16 kV
-        rated_frequency_hz = 60.0;      // 60 Hz
+    // These input values are taken directly from the 'steady_state_analysis.py' script
+    // to ensure consistency between the model and the implementation.
+    static constexpr double transformer_secondary_voltage_ll_rms_v = 2090.0;
+    static constexpr double line_frequency_hz = 50.0;
+    static constexpr double dc_link_current_rated_a = 1044.0;
+    static constexpr double machine_rated_power_va = 2950e3;
+    static constexpr double machine_service_voltage_ll_rms_v = 1980.0;
+    static constexpr double machine_base_frequency_hz = 50.0;
+    static constexpr int machine_number_of_poles = 2;
 
-        pu_system = std::make_unique<sfc_per_unit_system>(rated_power_va, rated_voltage_ll_rms, rated_frequency_hz);
-    }
-
-    double rated_power_va;
-    double rated_voltage_ll_rms;
-    double rated_frequency_hz;
-    std::unique_ptr<sfc_per_unit_system> pu_system;
+    sfc_per_unit_system pu_system{transformer_secondary_voltage_ll_rms_v,
+                                  line_frequency_hz,
+                                  dc_link_current_rated_a,
+                                  machine_rated_power_va,
+                                  machine_service_voltage_ll_rms_v,
+                                  machine_base_frequency_hz,
+                                  machine_number_of_poles};
 };
 
-TEST_F(SfcPerUnitSystemTest, ConstructorAndBaseValues) {
-    ASSERT_NE(pu_system, nullptr);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_power(), rated_power_va);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_voltage(), rated_voltage_ll_rms);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_frequency(), rated_frequency_hz);
+TEST_F(SfcPerUnitSystemTest, EvaluateGridSideBaseValue) {
+    const auto& grid_bases = pu_system.get_grid_bases();
+
+    // Expected values from the summary table
+    constexpr double expected_base_voltage_peak_phase = 1706.48;
+    constexpr double expected_base_current_peak_phase = 1151.17;
+    constexpr double expected_base_impedance = 1.48;
+    constexpr double expected_base_inductance_mh = 4.72;
+
+    EXPECT_NEAR(grid_bases.base_voltage_peak_phase_v, expected_base_voltage_peak_phase, 1e-2);
+    EXPECT_NEAR(grid_bases.base_current_peak_phase_a, expected_base_current_peak_phase, 1e-2);
+    EXPECT_NEAR(grid_bases.base_impedance_ohm, expected_base_impedance, 1e-2);
+    EXPECT_NEAR(grid_bases.base_inductance_h * 1000.0, expected_base_inductance_mh, 1e-2);
+    EXPECT_EQ(grid_bases.base_frequency_hz, line_frequency_hz);
 }
 
-TEST_F(SfcPerUnitSystemTest, AcSideBaseQuantities) {
-    const double expected_base_current = rated_power_va / (control::sqrt_3 * rated_voltage_ll_rms);
-    const double expected_base_impedance = (rated_voltage_ll_rms * rated_voltage_ll_rms) / rated_power_va;
-    const double expected_base_angular_frequency = control::two_pi<double> * rated_frequency_hz;
+TEST_F(SfcPerUnitSystemTest, EvaluateDcLinkBaseValue) {
+    const auto& dc_link_bases = pu_system.get_dc_link_bases();
 
-    EXPECT_DOUBLE_EQ(pu_system->get_base_current(), expected_base_current);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_impedance(), expected_base_impedance);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_angular_frequency(), expected_base_angular_frequency);
+    // Expected values from the summary table
+    constexpr double expected_base_voltage = 2822.49;
+    constexpr double expected_base_impedance = 2.70;
+    constexpr double expected_base_inductance_mh = 8.61;
+
+    EXPECT_NEAR(dc_link_bases.base_voltage_v, expected_base_voltage, 1e-2);
+    EXPECT_EQ(dc_link_bases.base_current_a, dc_link_current_rated_a);
+    EXPECT_NEAR(dc_link_bases.base_impedance_ohm, expected_base_impedance, 1e-2);
+    EXPECT_NEAR(dc_link_bases.base_inductance_h * 1000.0, expected_base_inductance_mh, 1e-2);
 }
 
-TEST_F(SfcPerUnitSystemTest, PeakBaseQuantities) {
-    const double expected_base_voltage_peak =
-        rated_voltage_ll_rms * control::line_to_phase_rms_factor * control::rms_to_peak_factor;
-    const double expected_base_current_peak =
-        (rated_power_va / (control::sqrt_3 * rated_voltage_ll_rms)) * control::rms_to_peak_factor;
-    const double expected_base_flux_linkage_peak =
-        expected_base_voltage_peak / (control::two_pi<double> * rated_frequency_hz);
+TEST_F(SfcPerUnitSystemTest, EvaluateMachineSideBaseValue) {
+    const auto& machine_bases = pu_system.get_machine_bases();
 
-    EXPECT_DOUBLE_EQ(pu_system->get_base_voltage_peak(), expected_base_voltage_peak);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_current_peak(), expected_base_current_peak);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_flux_linkage_peak(), expected_base_flux_linkage_peak);
+    // Expected values from the summary table
+    constexpr double expected_base_voltage_peak_phase = 1616.66;
+    constexpr double expected_base_current_peak_phase = 1216.50;
+    constexpr double expected_base_impedance = 1.33;
+    constexpr double expected_base_inductance_mh = 4.23;
+    constexpr double expected_base_torque_knm = 9.39;
+    constexpr double expected_base_flux_linkage = 5.146;
+
+    EXPECT_EQ(machine_bases.base_power_va, machine_rated_power_va);
+    EXPECT_NEAR(machine_bases.base_voltage_peak_phase_v, expected_base_voltage_peak_phase, 1e-2);
+    EXPECT_NEAR(machine_bases.base_current_peak_phase_a, expected_base_current_peak_phase, 1e-2);
+    EXPECT_NEAR(machine_bases.base_impedance_ohm, expected_base_impedance, 1e-2);
+    EXPECT_EQ(machine_bases.base_frequency_hz, machine_base_frequency_hz);
+    EXPECT_NEAR(machine_bases.base_inductance_h * 1000.0, expected_base_inductance_mh, 1e-2);
+    EXPECT_NEAR(machine_bases.base_torque_nm / 1000.0, expected_base_torque_knm, 1e-2);
+    EXPECT_NEAR(machine_bases.base_flux_linkage_vs_rad, expected_base_flux_linkage, 1e-3);
 }
-
-TEST_F(SfcPerUnitSystemTest, DcLinkBaseQuantities) {
-    const double expected_base_dc_voltage = sfc_per_unit_system::get_ac_to_dc_voltage_factor() * rated_voltage_ll_rms;
-    const double expected_base_dc_current = rated_power_va / expected_base_dc_voltage;
-    const double expected_base_dc_impedance = expected_base_dc_voltage / expected_base_dc_current;
-
-    EXPECT_DOUBLE_EQ(pu_system->get_base_dc_voltage(), expected_base_dc_voltage);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_dc_current(), expected_base_dc_current);
-    EXPECT_DOUBLE_EQ(pu_system->get_base_dc_impedance(), expected_base_dc_impedance);
-}
-
-TEST_F(SfcPerUnitSystemTest, ConversionFactors) {
-    constexpr double expected_ac_to_dc_voltage_factor = 3.0 * control::sqrt_2 / yeet::control::pi<double>;
-    constexpr double expected_dc_to_ac_current_factor = yeet::control::pi<double> / (3.0 * control::sqrt_2);
-
-    EXPECT_DOUBLE_EQ(sfc_per_unit_system::get_ac_to_dc_voltage_factor(), expected_ac_to_dc_voltage_factor);
-    EXPECT_DOUBLE_EQ(sfc_per_unit_system::get_dc_to_ac_current_factor(), expected_dc_to_ac_current_factor);
-}
-
-}  // namespace yeet::application::sfc

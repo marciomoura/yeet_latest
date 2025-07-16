@@ -7,6 +7,18 @@ namespace yeet::application::sfc {
 
 class sfc_plant_model_simulator {
 public:
+    static constexpr double kNominalGridFrequency = 50.0;            // 50 Hz grid frequency
+    static constexpr double kNominalMachineFrequency = 50.0;         // 50 Hz machine frequency
+    static constexpr double kGridVoltageRMS = 2090.0;                // 400V RMS line voltage
+    static constexpr double kMachineVoltageRMS = 1980.0;             // 400V RMS line voltage
+    static constexpr double kInitialGridFiringAngleDeg = 13.0;       // Nominal firing angle for grid side
+    static constexpr double kMachineFiringAngleDeg = 180.0 - 26.84;  // Nominal firing angle for motor side
+    static constexpr double kGridSideResistance = 0.1552;            // 0.1552 Ohm grid side resistance
+    static constexpr double kGridSideInductance = 0.4941e-3;         // 0.4941 mH grid side inductance
+    static constexpr double kMachineSideResistance = 0.0788;         // 0.1552 Ohm machine side resistance
+    static constexpr double kMachineSideInductance = 0.2508e-3;      // 0.2508 mH machine side inductance
+    static constexpr double kBaseDCLinkCurrent = 1044.0;             // 1044 A base DC link current
+
     sfc_plant_model_simulator() {}
 
     // set inputs/outputs via interface

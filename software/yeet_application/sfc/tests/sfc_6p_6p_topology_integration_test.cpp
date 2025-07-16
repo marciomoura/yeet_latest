@@ -32,13 +32,13 @@ using namespace yeet::application::sfc;
 
 class SFC6p6pTopologyIntegrationTest : public ::testing::Test {
 protected:
-    static constexpr double kSimulationTime = 0.5;              // 0.5 seconds simulation
-    static constexpr double kGridFrequency = 50.0;              // 50 Hz grid frequency
-    static constexpr double kMachineFrequency = 50.0;           // 30 Hz machine frequency
-    static constexpr double kGridVoltageRMS = 400.0;            // 400V RMS line voltage
-    static constexpr double kMachineVoltageRMS = 400.0;         // 400V RMS line voltage
-    static constexpr double kInitialGridFiringAngleDeg = 30.0;  // Initial firing angle for grid side
-    static constexpr double kMachineFiringAngleDeg = 160.0;     // 160° firing angle for machine side
+    static constexpr double kSimulationTime = 0.5;                        // 0.5 seconds simulation
+    static constexpr double kGridFrequency = 50.0;                        // 50 Hz grid frequency
+    static constexpr double kMachineFrequency = 50.0;                     // 30 Hz machine frequency
+    static constexpr double kGridVoltageRMS = 2090.0;                     // 400V RMS line voltage
+    static constexpr double kMachineVoltageRMS = 1980.0;                  // 400V RMS line voltage
+    static constexpr double kInitialGridFiringAngleDeg = 30 + 13.0;       // Initial firing angle for grid side
+    static constexpr double kMachineFiringAngleDeg = 30 + 180.0 - 26.84;  // 160° firing angle for machine side
 
     sfc_plant_model_simulator _plant_model;
     six_pulse_generator _grid_side_pulse_generator;
@@ -101,47 +101,11 @@ protected:
 };
 
 TEST_F(SFC6p6pTopologyIntegrationTest, BasicOperationWithFiringAngleStep) {
-    // Test basic operation of the SFC model with a step change in the grid-side firing angle.
+    run_simulation(0.5);
 
-    // Phase 1: Run with initial firing angle (30°) for 0.25 seconds
-    run_simulation(0.25);
+    set_grid_firing_angle(kInitialGridFiringAngleDeg + 30.0);
 
-    // Capture initial state for comparison
-    // double initial_dc_current = _plant_model.plant().get_dc_link_current();
-
-    // Phase 2: Step change in grid firing angle from 30° to 40°
-    set_grid_firing_angle(40.0);
-
-    // Phase 3: Run with new firing angle (40°) for another 0.25 seconds
-    run_simulation(0.25);
-
-    // Capture final state
-    // double final_dc_current = _plant_model.plant().get_dc_link_current();
-
-    // // Basic sanity checks
-    // EXPECT_TRUE(std::isfinite(final_dc_current));
-    // EXPECT_TRUE(std::isfinite(_plant_model.plant().get_grid_voltage_source_angle()));
-    // EXPECT_TRUE(std::isfinite(_plant_model.plant().get_machine_voltage_source_angle()));
-
-    // // Check that angles are progressing (should increase over time)
-    // EXPECT_GT(_plant_model.plant().get_grid_voltage_source_angle(), 0.0);
-    // EXPECT_GT(_plant_model.plant().get_machine_voltage_source_angle(), 0.0);
-
-    // Check that three-phase outputs are finite
-    // for (int i = 0; i < 3; ++i) {
-    //     EXPECT_TRUE(std::isfinite(_plant_model.plant().get_grid_side_converter_voltage_phase()[i]));
-    //     EXPECT_TRUE(std::isfinite(_plant_model.plant().get_grid_side_converter_current()[i]));
-    //     EXPECT_TRUE(std::isfinite(_plant_model.plant().get_machine_side_converter_voltage_phase()[i]));
-    //     EXPECT_TRUE(std::isfinite(_plant_model.plant().get_machine_side_converter_current()[i]));
-    // }
-
-    // Verify firing angle step change effect on DC link current
-    // Increasing firing angle should affect the converter operation
-    // The exact behavior depends on the system dynamics, but we can verify the change occurred
-    // EXPECT_NE(initial_dc_current, final_dc_current) << "DC current should change with firing angle step";
-
-    // Simulation should complete without errors
-    // EXPECT_EQ(_simulator.get_error_status(), nullptr);
+    run_simulation(0.5);
 }
 
 }  // namespace

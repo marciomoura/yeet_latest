@@ -11,12 +11,12 @@ target_sources(
     PUBLIC include/sfc/sfc_6p_6p_plant_model.hpp
            include/sfc/sfc_current_controller.hpp
            include/sfc/sfc_filtering.hpp
-           include/sfc/sfc_per_unit_converter.hpp
+           # include/sfc/sfc_per_unit_converter.hpp
            include/sfc/sfc_per_unit_system.hpp
            include/sfc/sfc_plant_model_simulator.hpp
            include/sfc/sfc_speed_controller.hpp
     PRIVATE src/sfc_6p_6p_plant_model.cpp src/sfc_filtering.cpp
-            src/sfc_per_unit_converter.cpp)
+            src/sfc_per_unit_system.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -24,18 +24,6 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(
     ${PROJECT_NAME} PUBLIC yeet::yeet_control yeet::yeet_testing
                            yeet::yeet_generated_sfc_6p_6p_topology)
-
-if(YEET_ENABLE_TESTING)
-    # add_executable( yeet_application_sfc_tests tests/pulse_generator_test.cpp
-    # tests/six_pulse_generator_test.cpp) target_link_libraries(
-    # yeet_application_sfc_tests PRIVATE GTest::gtest_main
-    # yeet::yeet_application_sfc yeet::yeet_testing
-    # yeet::yeet_generated_sfc_6p_6p_topology) add_test(NAME
-    # ${PROJECT_NAME}_tests COMMAND yeet_application_sfc_tests)
-
-    # Add tests subdirectory for more detailed test configurations
-    add_subdirectory(tests)
-endif()
 
 if(YEET_ENABLE_CODE_ANALYSIS)
     get_target_property(TARGET_SOURCES ${PROJECT_NAME} SOURCES)

@@ -9,9 +9,8 @@ enable_testing()
 # Add test sources
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE sfc_6p_6p_topology_integration_test.cpp
-            sfc_filtering_test.cpp
-            sfc_per_unit_converter_test.cpp
+    PRIVATE sfc_6p_6p_topology_integration_test.cpp sfc_filtering_test.cpp
+            # sfc_per_unit_converter_test.cpp
             sfc_per_unit_system_test.cpp)
 
 # Link dependencies

@@ -1,172 +1,125 @@
 #pragma once
 
 #include <cassert>
-#include <cmath>
-#include <type_traits>
 
 #include "yeet_control/constants.hpp"
-#include "yeet_control/per_unit.hpp"
-#include "yeet_control/reference_frame.hpp"
+// Note: Per-unit and reference frame headers are likely not needed here anymore,
+// as this class IS the per-unit definition.
 
 namespace yeet::application::sfc {
 
 /**
  * @brief Per-Unit System for Load-Commutated Inverter (LCI) Drives
  *
- * This class implements the per-unit system as defined in the SFC documentation.
- * The system is designed around the synchronous machine ratings as the primary
- * base values, with DC link base quantities derived to ensure power invariance.
+ * This class implements the per-unit system as defined in the LCI system
+ * documentation and summary table. The system is designed around a single
+ * system-wide base power, with distinct base quantities for the grid-side,
+ * DC link, and machine-side.
  *
- * Reference: software/yeet_application/sfc/docs/per_unit_system.md
+ * This structure explicitly separates the different parts of the LCI drive,
+ * making the per-unit conversions clear and unambiguous.
  */
 class sfc_per_unit_system {
 public:
     /**
-     * @brief Constructor for the per-unit system
-     *
-     * @param rated_power_va Rated 3-phase apparent power of the synchronous machine [VA]
-     * @param rated_voltage_ll_rms Rated line-to-line RMS voltage of the synchronous machine [V]
-     * @param rated_frequency_hz Rated electrical frequency of the machine [Hz]
+     * @brief Struct containing all per-unit base quantities for the Grid Side (LV).
      */
-    sfc_per_unit_system(double rated_power_va, double rated_voltage_ll_rms, double rated_frequency_hz)
-        : _base_apparent_power_va(rated_power_va),
-          _base_voltage_ll_rms_v(rated_voltage_ll_rms),
-          _base_frequency_hz(rated_frequency_hz) {
-        assert(rated_power_va > 0.0 && "Rated power must be positive");
-        assert(rated_voltage_ll_rms > 0.0 && "Rated voltage must be positive");
-        assert(rated_frequency_hz > 0.0 && "Rated frequency must be positive");
+    struct grid_side_bases {
+        double base_voltage_ll_rms_v;         ///< Base line-to-line RMS voltage [V]
+        double base_voltage_peak_phase_v;     ///< Base peak phase voltage [V]
+        double base_current_rms_a;            ///< Base line RMS current [A]
+        double base_current_peak_phase_a;     ///< Base peak phase current [A]
+        double base_impedance_ohm;            ///< Base impedance [Ohm]
+        double base_frequency_hz;             ///< Base frequency [Hz]
+        double base_angular_frequency_rad_s;  ///< Base angular frequency [rad/s]
+        double base_inductance_h;             ///< Base inductance [H]
+    };
+
+    /**
+     * @brief Struct containing all per-unit base quantities for the DC Link.
+     */
+    struct dc_link_bases {
+        double base_voltage_v;      ///< Base DC voltage [V]
+        double base_current_a;      ///< Base DC current [A]
+        double base_impedance_ohm;  ///< Base DC impedance [Ohm]
+        double base_inductance_h;   ///< Base inductance [H]
+    };
+
+    /**
+     * @brief Struct containing all per-unit base quantities for the Machine Side (CMS).
+     */
+    struct machine_side_bases {
+        double base_power_va;                 ///< Base 3-phase apparent power [VA]
+        double base_voltage_ll_rms_v;         ///< Base line-to-line RMS voltage [V]
+        double base_voltage_peak_phase_v;     ///< Base peak phase voltage [V]
+        double base_current_rms_a;            ///< Base line RMS current [A]
+        double base_current_peak_phase_a;     ///< Base peak phase current [A]
+        double base_impedance_ohm;            ///< Base impedance [Ohm]
+        double base_frequency_hz;             ///< Base frequency [Hz]
+        double base_angular_frequency_rad_s;  ///< Base angular frequency [rad/s]
+        double base_inductance_h;             ///< Base inductance [H]
+        double base_torque_nm;                ///< Base mechanical torque [Nm]
+        double base_flux_linkage_vs_rad;      ///< Base flux linkage [Vs/rad]
+    };
+
+    /**
+     * @brief Constructor for the LCI per-unit system.
+     *
+     * @param grid_voltage_ll_rms Rated line-to-line RMS voltage on the grid-side (LV) [V].
+     * @param grid_frequency_hz Rated frequency on the grid-side [Hz].
+     * @param dc_link_current_rated_a Rated nominal DC link current [A].
+     * @param machine_power_va Rated 3-phase apparent power of the machine [VA].
+     * @param machine_voltage_ll_rms Rated line-to-line RMS voltage on the machine-side [V].
+     * @param machine_frequency_hz Rated frequency on the machine-side [Hz].
+     * @param machine_num_poles Number of poles of the synchronous machine.
+     */
+    sfc_per_unit_system(double grid_voltage_ll_rms, double grid_frequency_hz, double dc_link_current_rated_a,
+                        double machine_power_va, double machine_voltage_ll_rms, double machine_frequency_hz,
+                        int machine_num_poles)
+        : _grid_voltage_ll_rms_v(grid_voltage_ll_rms),
+          _grid_frequency_hz(grid_frequency_hz),
+          _dc_link_current_rated_a(dc_link_current_rated_a),
+          _machine_power_va(machine_power_va),
+          _machine_voltage_ll_rms_v(machine_voltage_ll_rms),
+          _machine_frequency_hz(machine_frequency_hz),
+          _machine_num_poles(machine_num_poles) {
+        assert(grid_voltage_ll_rms > 0.0 && "Grid voltage must be positive");
+        assert(grid_frequency_hz > 0.0 && "Grid frequency must be positive");
+        assert(dc_link_current_rated_a > 0.0 && "DC link current must be positive");
+        assert(machine_power_va > 0.0 && "Machine power must be positive");
+        assert(machine_voltage_ll_rms > 0.0 && "Machine voltage must be positive");
+        assert(machine_frequency_hz > 0.0 && "Machine frequency must be positive");
+        assert(machine_num_poles > 0 && machine_num_poles % 2 == 0 && "Machine poles must be a positive even number");
+
         calculate_base_values();
     }
 
-    // AC Side Base Quantities (Machine)
-    /**
-     * @brief Get base apparent power [VA]
-     * @return Base power (S_base = S_rated,M)
-     */
-    double get_base_power() const { return _base_apparent_power_va; }
-
-    /**
-     * @brief Get base line-to-line RMS voltage [V]
-     * @return Base voltage (V_base = V_rated,LL,M)
-     */
-    double get_base_voltage() const { return _base_voltage_ll_rms_v; }
-
-    /**
-     * @brief Get base line current RMS [A]
-     * @return Base current (I_base = S_base / (sqrt(3) * V_base))
-     */
-    double get_base_current() const { return _base_current_rms_a; }
-
-    /**
-     * @brief Get base impedance [Ω]
-     * @return Base impedance (Z_base = V_base^2 / S_base)
-     */
-    double get_base_impedance() const { return _base_impedance_ohm; }
-
-    /**
-     * @brief Get base electrical frequency [Hz]
-     * @return Base frequency (f_base = f_rated,M)
-     */
-    double get_base_frequency() const { return _base_frequency_hz; }
-
-    /**
-     * @brief Get base electrical angular frequency [rad/s]
-     * @return Base angular frequency (ω_base = 2π * f_base)
-     */
-    double get_base_angular_frequency() const { return _base_angular_frequency_rad_per_s; }
-
-    /**
-     * @brief Get base peak phase voltage [V]
-     * @return Base peak phase voltage
-     */
-    double get_base_voltage_peak() const { return _base_voltage_phase_peak_v; }
-
-    /**
-     * @brief Get base peak phase current [A]
-     * @return Base peak phase current
-     */
-    double get_base_current_peak() const { return _base_current_phase_peak_a; }
-
-    /**
-     * @brief Get base peak flux linkage [Vs]
-     * @return Base peak flux linkage
-     */
-    double get_base_flux_linkage_peak() const { return _base_flux_linkage_peak_vs; }
-
-    // DC Link Base Quantities
-    /**
-     * @brief Get base DC voltage [V]
-     * @return Base DC voltage (V_d,base = (3*sqrt(2)/π) * V_base)
-     */
-    double get_base_dc_voltage() const { return _base_dc_voltage_v; }
-
-    /**
-     * @brief Get base DC current [A]
-     * @return Base DC current (I_d,base = S_base / V_d,base)
-     */
-    double get_base_dc_current() const { return _base_dc_current_a; }
-
-    /**
-     * @brief Get base DC impedance [Ω]
-     * @return Base DC impedance (Z_d,base = V_d,base / I_d,base)
-     */
-    double get_base_dc_impedance() const { return _base_dc_impedance_ohm; }
-
-    /**
-     * @brief Get the conversion factor from AC to DC voltage base
-     * @return AC to DC voltage conversion factor (3*sqrt(2)/π)
-     */
-    static constexpr double get_ac_to_dc_voltage_factor() { return 3.0 * control::sqrt_2 / yeet::control::pi<double>; }
-
-    /**
-     * @brief Get the conversion factor from DC to AC current base
-     * @return DC to AC current conversion factor (π/(3*sqrt(2)))
-     */
-    static constexpr double get_dc_to_ac_current_factor() {
-        return yeet::control::pi<double> / (3.0 * control::sqrt_2);
-    }
+    grid_side_bases const& get_grid_bases() const { return _grid_side; }
+    dc_link_bases const& get_dc_link_bases() const { return _dc_link; }
+    machine_side_bases const& get_machine_bases() const { return _machine_side; }
 
 private:
     // Input parameters
-    double _base_apparent_power_va;  ///< Base apparent power [VA]
-    double _base_voltage_ll_rms_v;   ///< Base line-to-line RMS voltage [V]
-    double _base_frequency_hz;       ///< Base electrical frequency [Hz]
+    const double _grid_voltage_ll_rms_v;
+    const double _grid_frequency_hz;
+    const double _dc_link_current_rated_a;
+    const double _machine_power_va;
+    const double _machine_voltage_ll_rms_v;
+    const double _machine_frequency_hz;
+    const double _machine_num_poles;
 
-    // Calculated AC base quantities
-    double _base_current_rms_a;                ///< Base line current RMS [A]
-    double _base_impedance_ohm;                ///< Base impedance [Ω]
-    double _base_angular_frequency_rad_per_s;  ///< Base electrical angular frequency [rad/s]
+    grid_side_bases _grid_side{};
+    dc_link_bases _dc_link{};
+    machine_side_bases _machine_side{};
 
-    // Peak base quantities for frame conversions
-    double _base_voltage_phase_peak_v;  ///< Base peak phase voltage [V]
-    double _base_current_phase_peak_a;  ///< Base peak phase current [A]
-    double _base_flux_linkage_peak_vs;  ///< Base peak flux linkage [Vs]
-
-    // Calculated DC base quantities
-    double _base_dc_voltage_v;      ///< Base DC voltage [V]
-    double _base_dc_current_a;      ///< Base DC current [A]
-    double _base_dc_impedance_ohm;  ///< Base DC impedance [Ω]
+    grid_side_bases calculate_grid_side_base_values() const;
+    dc_link_bases calculate_dc_link_base_values() const;
+    machine_side_bases calculate_machine_side_base_values() const;
 
     /**
-     * @brief Calculate all derived base values from the input parameters
+     * @brief Calculate all derived base values and populate the public structs.
      */
-    void calculate_base_values() {
-        // AC base quantities
-        _base_current_rms_a = _base_apparent_power_va / (yeet::control::sqrt_3 * _base_voltage_ll_rms_v);
-        _base_impedance_ohm = (_base_voltage_ll_rms_v * _base_voltage_ll_rms_v) / _base_apparent_power_va;
-        _base_angular_frequency_rad_per_s = yeet::control::two_pi<double> * _base_frequency_hz;
-
-        // Peak base quantities for frame conversions
-        _base_voltage_phase_peak_v =
-            _base_voltage_ll_rms_v * yeet::control::line_to_phase_rms_factor * yeet::control::rms_to_peak_factor;
-        _base_current_phase_peak_a = _base_current_rms_a * yeet::control::rms_to_peak_factor;
-        _base_flux_linkage_peak_vs = _base_voltage_phase_peak_v / _base_angular_frequency_rad_per_s;
-
-        // DC base quantities (ensuring power invariance)
-        _base_dc_voltage_v = get_ac_to_dc_voltage_factor() * _base_voltage_ll_rms_v;
-        _base_dc_current_a = _base_apparent_power_va / _base_dc_voltage_v;
-        _base_dc_impedance_ohm = _base_dc_voltage_v / _base_dc_current_a;
-    }
+    void calculate_base_values();
 };
 
 }  // namespace yeet::application::sfc
