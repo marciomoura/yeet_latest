@@ -9,20 +9,17 @@
 namespace yeet::control {
 
 template <typename T>
-void pi_controller<T>::configure(value_type kp, value_type ki_continuous, value_type ts) {
+void pi_controller<T>::configure(value_type kp, value_type ki_continuous) {
     _kp = kp;
     _ki = ki_continuous;
-    _integrator.configure(ts);
 }
 
 template <typename T>
-void pi_controller<T>::configure_with_ti(value_type kp, value_type ti, value_type ts) {
-    assert(ts > value_type{0} && "Sampling time must be positive");
+void pi_controller<T>::configure_with_ti(value_type kp, value_type ti) {
     assert(ti > value_type{0} && "Integral time constant must be positive");
 
     _kp = kp;
     _ki = (ti >= value_type{0}) ? (kp / ti) : value_type{0};
-    _integrator.configure(ts);
 }
 
 template <typename T>

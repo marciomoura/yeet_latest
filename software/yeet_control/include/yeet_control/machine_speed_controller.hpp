@@ -8,7 +8,7 @@ namespace yeet::control {
 class machine_speed_controller {
 public:
     explicit machine_speed_controller(double sampling_period)
-        : _ts(sampling_period), _speed_controller(), _speed_ref_filter(sampling_period) {}
+        : _ts(sampling_period), _speed_controller(sampling_period), _speed_ref_filter(sampling_period) {}
 
     /**
      * @brief Configure the speed controller
@@ -25,7 +25,7 @@ public:
         const double kp = inertia * (double(2.0) * damping_ratio * desired_bandwidth);
         const double ti = double(2.0) * damping_ratio / desired_bandwidth;
 
-        _speed_controller.configure_with_ti(kp, ti, _ts);
+        _speed_controller.configure_with_ti(kp, ti);
         _speed_controller.set_output_limits(-torque_limit, torque_limit);
         _torque_limit = torque_limit;
     }

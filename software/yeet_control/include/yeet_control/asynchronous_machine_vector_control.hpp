@@ -25,10 +25,10 @@ public:
 
     explicit asynchronous_machine_vector_controller(type sampling_period)
         : _ts(sampling_period),
-          _speed_controller(),
-          _d_current_controller(),
-          _q_current_controller(),
-          _flux_controller(),
+          _speed_controller(sampling_period),
+          _d_current_controller(sampling_period),
+          _q_current_controller(sampling_period),
+          _flux_controller(sampling_period),
           _speed_ref_filter(sampling_period),
           _flux_ref_filter(sampling_period) {}
 
@@ -69,8 +69,8 @@ public:
         const type kp_q = _sigma * _Ls / response_time;
         const type ti_q = _sigma * _Ls / _Rs;
 
-        _d_current_controller.configure_with_ti(kp_d, ti_d, _ts);
-        _q_current_controller.configure_with_ti(kp_q, ti_q, _ts);
+        _d_current_controller.configure_with_ti(kp_d, ti_d);
+        _q_current_controller.configure_with_ti(kp_q, ti_q);
 
         // Set voltage limits
         _d_current_controller.set_output_limits(-voltage_limit, voltage_limit);
@@ -93,7 +93,7 @@ public:
         const type kp = 1.0 / response_time;
         const type ti = 4.0 * response_time;  // Conservative integral time
 
-        _flux_controller.configure_with_ti(kp, ti, _ts);
+        _flux_controller.configure_with_ti(kp, ti);
         _flux_controller.set_output_limits(0.0, 10.0);  // Typical range for d-axis current
 
         // Set default flux reference to nominal
@@ -120,7 +120,7 @@ public:
         const type kp = inertia * (type(2.0) * damping_ratio * desired_bandwidth);
         const type ti = type(2.0) * damping_ratio / desired_bandwidth;
 
-        _speed_controller.configure_with_ti(kp, ti, _ts);
+        _speed_controller.configure_with_ti(kp, ti);
 
         // For induction machine, torque limit maps to q-current limit
         // with some margin for flux variations

@@ -41,7 +41,10 @@ public:
      * @param mode Control mode based on machine type
      */
     explicit machine_flux_controller(double sampling_period, control_mode mode = control_mode::induction_machine)
-        : _sampling_period(sampling_period), _control_mode(mode), _flux_ref_filter(sampling_period) {}
+        : _sampling_period(sampling_period),
+          _control_mode(mode),
+          _flux_ref_filter(sampling_period),
+          _flux_controller(sampling_period) {}
 
     /**
      * @brief Configure for induction machine flux control
@@ -80,7 +83,7 @@ public:
         double kp = 2.0 / response_time;  // Higher gain for better response
         double ti = 1.5 * response_time;  // Shorter integral time for faster convergence
 
-        _flux_controller.configure_with_ti(kp, ti, _sampling_period);
+        _flux_controller.configure_with_ti(kp, ti);
         _flux_controller.set_output_limits(0.0, max_magnetizing_current);
 
         // Configure flux reference filter (slow changes to avoid instability)
@@ -138,7 +141,7 @@ public:
         double kp = field_inductance / response_time;
         double ti = field_inductance / field_resistance;
 
-        _flux_controller.configure_with_ti(kp, ti, _sampling_period);
+        _flux_controller.configure_with_ti(kp, ti);
         _flux_controller.set_output_limits(-field_voltage_limit, field_voltage_limit);
 
         // Configure field current reference filter

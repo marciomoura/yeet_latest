@@ -32,7 +32,10 @@ public:
      * @param type Machine type
      */
     explicit machine_current_controller(double sampling_period, machine_type type = machine_type::permanent_magnet)
-        : _sampling_period(sampling_period), _machine_type(type), _d_current_controller(), _q_current_controller() {}
+        : _sampling_period(sampling_period),
+          _machine_type(type),
+          _d_current_controller(sampling_period),
+          _q_current_controller(sampling_period) {}
 
     /**
      * @brief Configure for permanent magnet synchronous machine
@@ -62,8 +65,8 @@ public:
         double kp_q = q_axis_inductance / response_time;
         double ti_q = q_axis_inductance / stator_resistance;
 
-        _d_current_controller.configure_with_ti(kp_d, ti_d, _sampling_period);
-        _q_current_controller.configure_with_ti(kp_q, ti_q, _sampling_period);
+        _d_current_controller.configure_with_ti(kp_d, ti_d);
+        _q_current_controller.configure_with_ti(kp_q, ti_q);
 
         // Set voltage limits
         _d_current_controller.set_output_limits(-voltage_limit, voltage_limit);
@@ -103,8 +106,8 @@ public:
         double kp = transient_inductance / response_time;
         double ti = transient_inductance / stator_resistance;
 
-        _d_current_controller.configure_with_ti(kp, ti, _sampling_period);
-        _q_current_controller.configure_with_ti(kp, ti, _sampling_period);
+        _d_current_controller.configure_with_ti(kp, ti);
+        _q_current_controller.configure_with_ti(kp, ti);
 
         // Set voltage limits
         _d_current_controller.set_output_limits(-voltage_limit, voltage_limit);
@@ -139,8 +142,8 @@ public:
         double kp_q = q_axis_inductance / response_time;
         double ti_q = q_axis_inductance / stator_resistance;
 
-        _d_current_controller.configure_with_ti(kp_d, ti_d, _sampling_period);
-        _q_current_controller.configure_with_ti(kp_q, ti_q, _sampling_period);
+        _d_current_controller.configure_with_ti(kp_d, ti_d);
+        _q_current_controller.configure_with_ti(kp_q, ti_q);
 
         // Set voltage limits
         _d_current_controller.set_output_limits(-voltage_limit, voltage_limit);

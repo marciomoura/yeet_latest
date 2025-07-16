@@ -13,6 +13,7 @@ target_sources(
             sfc_6p_6p_plant_model.hpp
             sfc_6p_6p_plant_model.cpp
             sfc_6p_6p_topology_integration_test.cpp
+            sfc_current_controller_test.cpp
             sfc_filtering_test.cpp
             sfc_measurements_test.cpp
             sfc_per_unit_system_test.cpp)

@@ -34,6 +34,10 @@ class pi_controller {
 public:
     using value_type = fundamental_type_t<T>;
     static_assert(std::is_floating_point_v<value_type>, "Value type must be a floating point type");
+
+    pi_controller() = default;
+    pi_controller(value_type ts) : _integrator(ts) {}
+
     /**
      * @brief Configure the controller using Kp and continuous-time Ki.
      *
@@ -44,7 +48,7 @@ public:
      * The discrete-time integral gain is computed as:
      *     Ki_disc = ki_continuous * ts.
      */
-    void configure(value_type kp, value_type ki_continuous, value_type ts);
+    void configure(value_type kp, value_type ki_continuous);
 
     /**
      * @brief Configure the controller using Kp and the integral time constant.
@@ -58,7 +62,7 @@ public:
      * and the discrete-time gain is:
      *     Ki_disc = Ki_continuous * ts.
      */
-    void configure_with_ti(value_type kp, value_type ti, value_type ts);
+    void configure_with_ti(value_type kp, value_type ti);
 
     /**
      * @brief Set output limits for saturation.

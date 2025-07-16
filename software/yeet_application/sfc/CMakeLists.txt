@@ -13,7 +13,9 @@ target_sources(
            include/sfc/sfc_measurements.hpp
            include/sfc/sfc_per_unit_system.hpp
            include/sfc/sfc_speed_controller.hpp
-    PRIVATE src/sfc_filtering.cpp src/sfc_measurements.cpp
+    PRIVATE src/sfc_current_controller.cpp
+            src/sfc_filtering.cpp
+            src/sfc_measurements.cpp
             src/sfc_per_unit_system.cpp)
 
 target_include_directories(${PROJECT_NAME}

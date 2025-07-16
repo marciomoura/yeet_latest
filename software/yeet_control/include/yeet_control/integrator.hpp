@@ -12,6 +12,9 @@ class integrator {
 public:
     using value_type = fundamental_type_t<T>;
 
+    integrator() = default;
+    explicit integrator(value_type ts) : _ts(ts) { assert(ts > value_type(0) && "Sampling time must be positive"); }
+
     // Configure sampling time
     void configure(value_type ts) { _ts = ts; }
 

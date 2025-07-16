@@ -31,14 +31,14 @@ sfc_dc_link_filtering::sfc_dc_link_filtering(double sampling_period)
 void sfc_dc_link_filtering::configure(double voltage_filter_cutoff_freq_hz, double current_ripple_freq_hz) {
     _voltage_filter.configure(voltage_filter_cutoff_freq_hz, 0.707);
     double notch_bandwidth_hz = current_ripple_freq_hz / 10.0;
-    // _current_notch_filter.configure(current_ripple_freq_hz, notch_bandwidth_hz);
+    _current_notch_filter.configure(current_ripple_freq_hz, notch_bandwidth_hz);
     _current_lpf.configure(current_ripple_freq_hz / 10.0, 0.707);
 }
 
 void sfc_dc_link_filtering::update(double voltage_pu, double current_pu) {
     _filtered_voltage_pu = _voltage_filter.update(voltage_pu);
-    // double notched_current = _current_notch_filter.update(current_pu);
-    _filtered_current_pu = _current_lpf.update(current_pu);
+    double notched_current = _current_notch_filter.update(current_pu);
+    _filtered_current_pu = _current_lpf.update(notched_current);
 }
 
 sfc_machine_side_filtering::sfc_machine_side_filtering(double sampling_period)

@@ -13,23 +13,23 @@ using namespace yeet::control;
 
 TEST(PIControllerTest, ConfigureWithTi) {
     // Test tuning using the integral time constant method.
-    pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 2.0;
     const double ti = 4.0;  // Integral time constant.
     // With kp = 2 and ti = 4, Ki = kp / ti = 0.5
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<double> controller(ts);
+    controller.configure_with_ti(kp, ti);
     EXPECT_NEAR(controller.get_kp(), kp, 1e-6);
     EXPECT_NEAR(controller.get_ki(), 0.5, 1e-6);
 }
 
 TEST(PIControllerTest, OutputLimitClamping) {
     // Verify that output is clamped to the specified limits.
-    pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 5.0;
     const double ki = 10.0;
-    controller.configure(kp, ki, ts);
+    pi_controller<double> controller(ts);
+    controller.configure(kp, ki);
 
     // Limit output to [-1, 1]
     controller.set_output_limits(-1.0, 1.0);
@@ -69,8 +69,8 @@ TEST(PIControllerTest, ClosedLoopIntegrationPlant) {
     // Set controller parameters.
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<double> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<double> controller(ts);
+    controller.configure_with_ti(kp, ti);
     // Optionally, set output limits to simulate actuator saturation.
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
@@ -100,8 +100,8 @@ TEST(PIControllerTest, ControlInDQFrame) {
     const double ts = 0.01;  // 10 ms sampling time
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<dq<double>> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<dq<double>> controller(ts);
+    controller.configure_with_ti(kp, ti);
 
     dq<double> output = controller.update(dq<double>{1.0, 1.0});
 
@@ -115,8 +115,8 @@ TEST(PIControllerTest, ControlInAlphaBetaFrame) {
     const double ts = 0.01;  // 10 ms sampling time
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<alphabeta<double>> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<alphabeta<double>> controller(ts);
+    controller.configure_with_ti(kp, ti);
 
     alphabeta<double> output = controller.update(alphabeta<double>{1.0, 1.0});
 
@@ -130,8 +130,8 @@ TEST(PIControllerTest, ControlInABCFrame) {
     const double ts = 0.01;  // 10 ms sampling time
     const double kp = 2.0;
     const double ti = 1.0;  // faster integration
-    pi_controller<abc<double>> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<abc<double>> controller(ts);
+    controller.configure_with_ti(kp, ti);
 
     abc<double> output = controller.update(abc<double>{1.0, 1.0, 1.0});
 
@@ -151,8 +151,8 @@ TEST(PIControllerTest, ClosedLoopDQFrame) {
     // PI controller parameters.
     const double kp = 2.0;
     const double ti = 1.0;  // Integral time constant.
-    pi_controller<dq<double>> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<dq<double>> controller(ts);
+    controller.configure_with_ti(kp, ti);
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
 
@@ -184,8 +184,8 @@ TEST(PIControllerTest, ClosedLoopAlphaBetaFrame) {
 
     const double kp = 2.0;
     const double ti = 1.0;
-    pi_controller<alphabeta<double>> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<alphabeta<double>> controller(ts);
+    controller.configure_with_ti(kp, ti);
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
 
@@ -212,8 +212,8 @@ TEST(PIControllerTest, ClosedLoopABCFrame) {
 
     const double kp = 2.0;
     const double ti = 1.0;
-    pi_controller<abc<double>> controller;
-    controller.configure_with_ti(kp, ti, ts);
+    pi_controller<abc<double>> controller(ts);
+    controller.configure_with_ti(kp, ti);
     controller.set_output_limits(-10.0, 10.0);
     controller.reset();
 
@@ -237,11 +237,11 @@ TEST(PIControllerTest, ClosedLoopABCFrame) {
 
 TEST(PIControllerTest, IntegratorDisable) {
     // Test disabling the integrator functionality.
-    pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 2.0;
     const double ki = 5.0;
-    controller.configure(kp, ki, ts);
+    pi_controller<double> controller(ts);
+    controller.configure(kp, ki);
 
     controller.reset();
 
@@ -269,11 +269,11 @@ TEST(PIControllerTest, IntegratorDisable) {
 
 TEST(PIControllerAntiWindupTest, AntiWindupPreventsIntegralWindup) {
     // Test that anti-windup prevents the integral from growing when output is saturated.
-    pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 2.0;
     const double ki = 10.0;  // High integral gain to cause windup
-    controller.configure(kp, ki, ts);
+    pi_controller<double> controller(ts);
+    controller.configure(kp, ki);
 
     // Set output limits to cause saturation
     controller.set_output_limits(-1.0, 1.0);
@@ -313,11 +313,11 @@ TEST(PIControllerAntiWindupTest, AntiWindupPreventsIntegralWindup) {
 
 TEST(PIControllerAntiWindupTest, IntegratorClampingPreventsWindup) {
     // Test that integrator clamping prevents the integral from growing when output is saturated.
-    pi_controller<double> controller;
     const double ts = 0.01;
     const double kp = 2.0;
     const double ki = 10.0;  // High integral gain to cause windup
-    controller.configure(kp, ki, ts);
+    pi_controller<double> controller(ts);
+    controller.configure(kp, ki);
 
     // Set output limits to cause saturation
     controller.set_output_limits(-1.0, 1.0);
