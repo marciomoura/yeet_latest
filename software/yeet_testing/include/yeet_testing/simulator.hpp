@@ -80,6 +80,8 @@ public:
         _json_post_processor.write_to_file();
     }
 
+    simulator_sampler_runner const& get_sampler() const { return _sampler; }
+
 private:
     void register_simulation_time_to_data_sampler() {
         register_sampler_entry(data_sampler_entry("time", [this]() { return _current_simulation_time; }));

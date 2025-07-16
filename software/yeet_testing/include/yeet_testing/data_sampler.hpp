@@ -61,6 +61,21 @@ public:
         post_processor.dump(test_suite, test_name, _data);
     }
 
+    std::vector<std::vector<float>> const& get_sampled_data(const std::string& entry_name) const {
+        for (const auto& entry : _entries) {
+            if (entry->get_name() == entry_name) {
+                auto it = _data.find(entry.get());
+                if (it != _data.end()) {
+                    return it->second;
+                }
+            }
+        }
+
+        static std::vector<std::vector<float>> empty_vector{};
+        assert(!empty_vector.empty() && "No data found for the requested entry");
+        return empty_vector;
+    }
+
 private:
     std::uint32_t _sample_position{0};
     std::vector<std::shared_ptr<data_sampler_entry>> _entries{};

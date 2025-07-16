@@ -19,6 +19,10 @@ public:
         _sampler.dump(test_suite, test_name, post_processor);
     }
 
+    std::vector<std::vector<float>> const& get_sampled_data(const std::string& entry_name) const {
+        return _sampler.get_sampled_data(entry_name);
+    }
+
 private:
     data_sampler _sampler;
 };

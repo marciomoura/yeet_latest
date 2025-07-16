@@ -283,6 +283,7 @@ TEST_F(SfcFilteringSimulationTest, ShouldFilterSignalsAtNominalOperation) {
     // which allows for visual inspection of the filtered vs. unfiltered signals.
     _simulator.simulate_for(kSimulationTime);
 
+    // auto data = _simulator.get_sampler().get_sampled_data("dc_link_current_pu_filtered");
     // // Assert: Check that the filtered DC current is close to the nominal value.
     // // The average is taken over the last part of the simulation to allow settling.
     // auto history = _simulator.get_sampler_history<double>("dc_link_current_pu_filtered");
