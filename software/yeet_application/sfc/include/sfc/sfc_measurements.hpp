@@ -25,10 +25,14 @@ public:
 
     const control::abc<double>& get_voltage_pu() const { return _voltage_pu; }
     const control::abc<double>& get_current_pu() const { return _current_pu; }
+    const control::alphabeta<double>& get_voltage_alphabeta_pu() const { return _voltage_alphabeta_pu; }
+    double get_voltage_magnitude_pu() const { return _voltage_magnitude_pu; }
 
 private:
     control::abc<double> _voltage_pu{};
     control::abc<double> _current_pu{};
+    control::alphabeta<double> _voltage_alphabeta_pu{};
+    double _voltage_magnitude_pu{};
 };
 
 /**
@@ -76,10 +80,14 @@ public:
 
     const control::abc<double>& get_voltage_pu() const { return _voltage_pu; }
     const control::abc<double>& get_current_pu() const { return _current_pu; }
+    const control::alphabeta<double>& get_voltage_alphabeta_pu() const { return _voltage_alphabeta_pu; }
+    double get_voltage_magnitude_pu() const { return _voltage_magnitude_pu; }
 
 private:
     control::abc<double> _voltage_pu{};
     control::abc<double> _current_pu{};
+    control::alphabeta<double> _voltage_alphabeta_pu{};
+    double _voltage_magnitude_pu{};
 };
 
 }  // namespace yeet::application::sfc
