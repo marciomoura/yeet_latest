@@ -20,7 +20,7 @@
 #include <cmath>
 #include <memory>
 
-#include "sfc/sfc_plant_model_simulator.hpp"
+#include "sfc_plant_model_simulator.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_testing/simulator_gtest.hpp"

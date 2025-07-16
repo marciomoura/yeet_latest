@@ -3,7 +3,7 @@
  * @date 07-14-2025
  * @brief Implements the wrapper for the sfc_6p_6p_topology Simulink model.
  */
-#include "sfc/sfc_6p_6p_plant_model.hpp"
+#include "sfc_6p_6p_plant_model.hpp"
 
 #include <algorithm>
 #include <array>
