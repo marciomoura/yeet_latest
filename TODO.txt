@@ -1,3 +1,0 @@
-- Create the concept of "system" and "sub-system"
-- One product -> one "system". More or less like simulink canvas. Data-models are linked. Applications can be injected to provide the data-models.
--> Therefore one would se a product as a skeleton. It should be easy to se the flow of data of your algorithm. What connects to which sub-system and how information flows.

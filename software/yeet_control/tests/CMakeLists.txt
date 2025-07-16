@@ -19,6 +19,7 @@ target_sources(
             first_order_low_pass_filter_test.cpp
             integrator_test.cpp
             limit_tests.cpp
+            mechanical_load_test.cpp
             per_unit_test.cpp
             permanent_magnet_synchronous_machine_per_unit_test.cpp
             permanent_magnet_synchronous_machine_test.cpp

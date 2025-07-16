@@ -21,6 +21,7 @@ target_sources(
         include/yeet_control/machine_measurements.hpp
         include/yeet_control/machine_per_unit_system.hpp
         include/yeet_control/machine_speed_controller.hpp
+        include/yeet_control/mechanical_load.hpp
         include/yeet_control/per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine_per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine.hpp
@@ -32,7 +33,11 @@ target_sources(
         include/yeet_control/six_pulse_generator.hpp
         include/yeet_control/three_phase_waveform_generator.hpp
         include/yeet_control/type_traits.hpp
-    PRIVATE src/angle.cpp src/pi_controller.cpp src/pulse_generator.cpp src/six_pulse_generator.cpp)
+    PRIVATE src/angle.cpp
+            src/mechanical_load.cpp
+            src/pi_controller.cpp
+            src/pulse_generator.cpp
+            src/six_pulse_generator.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
