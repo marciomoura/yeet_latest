@@ -2,10 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cmath>
-#include <numeric>
-#include <vector>
-
 #include "sfc/sfc_filtering.hpp"
 #include "sfc/sfc_measurements.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
@@ -13,6 +9,7 @@
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
+
 
 using namespace yeet::application::sfc;
 using namespace yeet::control;

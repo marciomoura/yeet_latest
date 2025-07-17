@@ -16,7 +16,8 @@ target_sources(
     PRIVATE src/sfc_current_controller.cpp
             src/sfc_filtering.cpp
             src/sfc_measurements.cpp
-            src/sfc_per_unit_system.cpp)
+            src/sfc_per_unit_system.cpp
+            src/sfc_speed_controller.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
