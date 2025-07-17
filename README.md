@@ -120,8 +120,8 @@ yeet/
 
 ## Documentation
 
-- [SFC System Documentation](software/yeet_application/sfc/docs/index.md)
-- [Control Library Reference](software/yeet_control/docs/index.md)
+- **[SFC System Documentation](software/yeet_application/sfc/docs/index.md)** - Complete technical reference for Static Frequency Converter applications, LCI drive systems, and gas turbine starter implementations
+- **[Control Library Reference](software/yeet_control/docs/index.md)** - Comprehensive guide to reusable control components, signal processing algorithms, and real-time utilities
 - [API Documentation](docs/api/index.md)
 - [Development Guidelines](docs/development.md)
 

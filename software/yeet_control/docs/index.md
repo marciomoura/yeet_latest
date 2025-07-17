@@ -6,6 +6,32 @@ The YeeT Control Library provides fundamental control system components and algo
 
 ## Core Components
 
+### Mathematical Utilities
+
+#### [Dimension and Units Library](units.md)
+Type-safe dimensional analysis framework for scientific and engineering computations.
+- **Features**: Compile-time dimensional checking, SI and Per-Unit systems, zero runtime overhead
+- **File**: `yeet_control/units.hpp`
+- **Applications**: Power calculations, unit conversion, engineering equation validation
+
+#### **Angle Class**
+Type-safe angle representation with automatic wrapping for control applications.
+- **Features**: Configurable ranges (-π to π, 0 to 2π), arithmetic operations, unit conversions
+- **File**: `yeet_control/angle.hpp`
+- **Applications**: Phase angle tracking, firing angle control, synchronization
+
+#### **Coordinate Frame Types**
+Strongly-typed coordinate system representations for three-phase power systems.
+- **Types**: `abc<T>`, `alphabeta<T>`, `dq<T>`, `symmetrical_components<T>`
+- **File**: `yeet_control/coordinates.hpp`
+- **Applications**: Vector control, power quality analysis, fault detection
+
+#### **Constants and Utilities**
+Mathematical constants and utility functions optimized for power electronics.
+- **Features**: High-precision π, √2, √3, unit conversion functions
+- **File**: `yeet_control/constants.hpp`
+- **Applications**: Transformation scaling, power calculations, harmonic analysis
+
 ### Control Algorithms
 
 #### [PI Controller](pi_controller.md)
@@ -13,6 +39,12 @@ Discrete-time Proportional-Integral controller with advanced anti-windup capabil
 - **Features**: Back-calculation and integrator clamping anti-windup, coordinate frame support
 - **File**: `yeet_control/pi_controller.hpp`
 - **Applications**: Current control, voltage regulation, speed control
+
+#### [Mechanical Load Model](mechanical_load.md)
+Dynamic mechanical load simulation for motor control applications.
+- **Features**: Inertia and damping modeling, per-unit operation, speed tracking
+- **File**: `yeet_control/mechanical_load.hpp`
+- **Applications**: Motor simulation, speed control testing, drive system modeling
 
 #### [Pulse Generator (Thyristor) - 6-Pulse Configuration](pulse_generator_thyristor_6pulse.md)
 Precision timing control for 6-pulse thyristor bridge converters.
@@ -33,26 +65,6 @@ Standard power systems coordinate transformations for three-phase analysis.
 - **Transformations**: ABC ↔ αβ (Clarke), αβ ↔ dq (Park), symmetrical components
 - **File**: `yeet_control/transforms.hpp`
 - **Applications**: Field-oriented control, unbalance analysis, harmonic filtering
-
-### Mathematical Utilities
-
-#### **Angle Class**
-Type-safe angle representation with automatic wrapping for control applications.
-- **Features**: Configurable ranges (-π to π, 0 to 2π), arithmetic operations, unit conversions
-- **File**: `yeet_control/angle.hpp`
-- **Applications**: Phase angle tracking, firing angle control, synchronization
-
-#### **Coordinate Frame Types**
-Strongly-typed coordinate system representations for three-phase power systems.
-- **Types**: `abc<T>`, `alphabeta<T>`, `dq<T>`, `symmetrical_components<T>`
-- **File**: `yeet_control/coordinates.hpp`
-- **Applications**: Vector control, power quality analysis, fault detection
-
-#### **Constants and Utilities**
-Mathematical constants and utility functions optimized for power electronics.
-- **Features**: High-precision π, √2, √3, unit conversion functions
-- **File**: `yeet_control/constants.hpp`
-- **Applications**: Transformation scaling, power calculations, harmonic analysis
 
 ### Filtering and Signal Conditioning
 

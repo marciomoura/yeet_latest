@@ -8,11 +8,11 @@
 using namespace yeet::control;
 
 //==============================================================================
-// R1: Core Functionality & Type System
+// Core Functionality & Type System
 //==============================================================================
 
 TEST(UnitsTest, QuantityCreationAndValueAccess) {
-    // R1.2: Quantity Type, R1.3: Underlying Value Type
+    // Quantity Type, Underlying Value Type
     length<double> distance(10.5);
     mass<float> weight(2.5f);
 
@@ -24,12 +24,12 @@ TEST(UnitsTest, QuantityCreationAndValueAccess) {
     static_assert(std::is_same_v<decltype(distance)::representation, double>);
     static_assert(std::is_same_v<decltype(weight)::representation, float>);
 
-    // R1.1: Dimensional Representation is implicitly tested by the type system
+    // Dimensional Representation is implicitly tested by the type system
     static_assert(!std::is_same_v<decltype(distance)::dimension, decltype(weight)::dimension>);
 }
 
 TEST(UnitsTest, CompileTimeDimensionMismatch) {
-    // R1.4: This test "passes" if the commented-out code fails to compile.
+    // This test "passes" if the commented-out code fails to compile.
     // This is a standard way to "unit test" compile-time constraints.
 
     // voltage v(120.0);
@@ -40,7 +40,7 @@ TEST(UnitsTest, CompileTimeDimensionMismatch) {
 }
 
 TEST(UnitsTest, CompileTimeSystemMismatch) {
-    // R1.5: This test "passes" if the commented-out code fails to compile.
+    // This test "passes" if the commented-out code fails to compile.
 
     // voltage si_v(240.0);
     // voltage_pu pu_v(1.0);
@@ -52,11 +52,10 @@ TEST(UnitsTest, CompileTimeSystemMismatch) {
 }
 
 //==============================================================================
-// R2: Unit System Support
+// Unit System Support
 //==============================================================================
 
 TEST(UnitsTest, SystemDifferentiation) {
-    // R2.1, R2.2, R2.3
     voltage<double> si_voltage(120.0);
     voltage_pu<double> pu_voltage(1.0);
 
@@ -66,7 +65,6 @@ TEST(UnitsTest, SystemDifferentiation) {
 }
 
 TEST(UnitsTest, ExplicitConversion) {
-    // R2.4
     voltage<double> base_voltage(240.0);
     voltage<double> measured_voltage(228.0);
 
@@ -87,11 +85,10 @@ TEST(UnitsTest, ExplicitConversion) {
 }
 
 //==============================================================================
-// R3: Arithmetic Operations
+// Arithmetic Operations
 //==============================================================================
 
 TEST(UnitsTest, AdditionAndSubtraction) {
-    // R3.1
     auto dist1 = length<long double>(10.5);
     auto dist2 = length<long double>(20.0);
 
@@ -106,7 +103,6 @@ TEST(UnitsTest, AdditionAndSubtraction) {
 }
 
 TEST(UnitsTest, MultiplicationAndDivision) {
-    // R3.2, R3.3
     auto dist = length<long double>(100.0);
     auto duration = duration_type<long double>(10.0);
     auto speed = dist / duration;
@@ -122,7 +118,6 @@ TEST(UnitsTest, MultiplicationAndDivision) {
 }
 
 TEST(UnitsTest, ScalarOperations) {
-    // R3.4
     auto power_val = power<long double>(100.0);
 
     auto double_power = power_val * 2.0;
@@ -136,11 +131,11 @@ TEST(UnitsTest, ScalarOperations) {
 }
 
 //==============================================================================
-// R4: Electrical and Mechanical Units - Enhanced Engineering Equations
+// Electrical and Mechanical Units - Enhanced Engineering Equations
 //==============================================================================
 
 TEST(UnitsTest, ElectricalUnitsOhmLaw) {
-    // R4.1 - Ohm's Law: V = I * R
+    // Ohm's Law: V = I * R
     auto v = voltage<long double>(120.0);
     auto r = resistance<long double>(60.0);
     auto i = v / r;
