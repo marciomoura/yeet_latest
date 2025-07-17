@@ -68,8 +68,8 @@ T pi_controller<T>::get_saturation_error() const {
 }
 
 template <typename T>
-void pi_controller<T>::reset() {
-    _integrator.reset();
+void pi_controller<T>::reset(T value) {
+    _integrator.reset(value);
     _output_saturated = false;
     _saturation_error = T{};
 }

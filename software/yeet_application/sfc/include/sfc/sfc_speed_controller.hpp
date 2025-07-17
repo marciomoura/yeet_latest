@@ -68,8 +68,9 @@ public:
 
     /**
      * @brief Resets the internal state of the PI controller and filter.
+     * @param initial_speed_ref_pu The initial speed reference to reset to [pu].
      */
-    void reset();
+    void reset(double initial_speed_ref_pu = 0.0);
 
 private:
     yeet::control::pi_controller<double> _pi_controller;

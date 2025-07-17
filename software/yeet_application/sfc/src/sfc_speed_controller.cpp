@@ -37,11 +37,11 @@ double sfc_speed_controller::get_torque_ref_pu() const { return _torque_ref_pu; 
 
 double sfc_speed_controller::get_filtered_speed_ref_pu() const { return _filtered_speed_ref_pu; }
 
-void sfc_speed_controller::reset() {
-    _pi_controller.reset();
-    _speed_ref_filter.reset();
-    _torque_ref_pu = 0.0;
-    _filtered_speed_ref_pu = 0.0;
+void sfc_speed_controller::reset(double initial_speed_ref_pu) {
+    _pi_controller.reset(initial_speed_ref_pu);
+    _speed_ref_filter.reset(initial_speed_ref_pu);
+    _torque_ref_pu = update(initial_speed_ref_pu, initial_speed_ref_pu);
+    _filtered_speed_ref_pu = initial_speed_ref_pu;
 }
 
 }  // namespace yeet::application::sfc

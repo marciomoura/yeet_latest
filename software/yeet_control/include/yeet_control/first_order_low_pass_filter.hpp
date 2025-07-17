@@ -151,9 +151,9 @@ public:
     /**
      * Reset filter state variables to zero
      */
-    void reset() {
-        _prev_input = type(0);
-        _output = type(0);
+    void reset(type value = type(0)) {
+        _prev_input = value;
+        _output = value;
     }
 
     /**

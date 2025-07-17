@@ -5,12 +5,10 @@
 #include "yeet_control/mechanical_load.hpp"
 #include "yeet_testing/simulator.hpp"
 
-
 namespace yeet::application::sfc {
 
 class sfc_plant_model_simulator {
 public:
-    // Electrical Parameters
     static constexpr double kNominalGridFrequency = 50.0;                   // 50 Hz grid frequency
     static constexpr double kNominalMachineFrequency = 50.0;                // 50 Hz machine frequency
     static constexpr double kGridVoltageRMS = 2090.0;                       // 2090V RMS line voltage
@@ -22,7 +20,7 @@ public:
     static constexpr double kMachineSideResistance = 0.0788;                // 0.0788 Ohm machine side resistance
     static constexpr double kMachineSideInductance = 0.2508e-3;             // 0.2508 mH machine side inductance
     static constexpr double kBaseDCLinkCurrent = 1044.0;                    // 1044 A base DC link current
-    static constexpr double kMachineRatedPowerVA = 2950e3;                  // 2.95 MVA machine power
+    static constexpr double kMachineRatedPowerVA = 2950e3;
     static constexpr int kMachineNumPoles = 2;
 
     // Default Mechanical Parameters
@@ -32,9 +30,9 @@ public:
     /**
      * @brief Defines the operational mode for the machine side of the plant.
      */
-    enum class MachineOperationMode {
-        FixedSpeed,    // Machine runs at a constant, predefined frequency.
-        VariableSpeed  // Machine speed is determined by the mechanical load model.
+    enum class machine_operation_mode {
+        fixed_speed,    // Machine runs at a constant, predefined frequency.
+        variable_speed  // Machine speed is determined by the mechanical load model.
     };
 
     sfc_plant_model_simulator()
@@ -49,7 +47,7 @@ public:
      * @brief Sets the machine's operational mode (fixed or variable speed).
      * @param mode The desired operation mode.
      */
-    void set_operation_mode(MachineOperationMode mode) { _mode = mode; }
+    void set_operation_mode(machine_operation_mode mode) { _mode = mode; }
 
     /**
      * @brief Configures the parameters of the mechanical load model.
@@ -58,6 +56,24 @@ public:
      */
     void configure_mechanical_load(double inertia_H, double damping_D) {
         _mechanical_load.configure(inertia_H, damping_D);
+    }
+
+    /**
+     * @brief Sets the initial mechanical speed for the load.
+     * @param initial_speed_pu The initial mechanical speed in per-unit.
+     *
+     * This method should be called before starting the simulation to establish
+     * the initial conditions for the mechanical system. It is particularly useful
+     * for soft-starter applications where the machine may already be rotating.
+     */
+    void set_initial_mechanical_speed_pu(double initial_speed_pu) {
+        _mechanical_load.reset(initial_speed_pu);
+
+        // If in variable speed mode, also update the machine frequency to match
+        if (_mode == machine_operation_mode::variable_speed) {
+            double machine_frequency_hz = initial_speed_pu * kNominalMachineFrequency;
+            _plant.set_machine_parameters(machine_frequency_hz, kMachineVoltageRMS);
+        }
     }
 
     /**
@@ -72,12 +88,18 @@ public:
      */
     const sfc_per_unit_system& per_unit_system() const { return _pu_system; }
 
-    // set inputs/outputs via interface
+    /**
+     * @brief Gets a reference to the underlying plant model.
+     * @return A reference to the sfc_6p_6p_plant_model.
+     */
     sfc_6p_6p_plant_model& plant() { return _plant; }
 
+    /**
+     * @brief Registers the simulator's step function with the simulator framework.
+     * @param simulator The testing simulator instance.
+     */
     void setup_simulator(yeet::testing::simulator& simulator) {
-        // Register the plant model simulator with the simulator
-        simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() { step(); });
+        simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() { this->step(); });
     }
 
     void setup_all_logging(yeet::testing::simulator& simulator) {
@@ -145,7 +167,7 @@ public:
         // Log machine frequency
         simulator.register_sampler_entry(
             yeet::testing::make_lambda_sampler<double>("machine_frequency_hz", [&]() -> double {
-                if (_mode == MachineOperationMode::VariableSpeed) {
+                if (_mode == machine_operation_mode::variable_speed) {
                     return _mechanical_load.get_speed_pu() * kNominalMachineFrequency;
                 } else {
                     return kNominalMachineFrequency;
@@ -161,11 +183,11 @@ public:
     /**
      * @brief Executes one simulation step, handling both fixed and variable speed modes.
      */
-    void step() {
+    void step(double load_torque_pu = 0.75) {
         // Always step the plant model first
         _plant.step();
 
-        if (_mode == MachineOperationMode::VariableSpeed) {
+        if (_mode == machine_operation_mode::variable_speed) {
             // Calculate electromagnetic torque from DC link current
             // Convert DC current to per-unit using the base DC current
             double i_dc_pu = _plant.get_dc_link_current() / kBaseDCLinkCurrent;
@@ -176,7 +198,7 @@ public:
             double electromagnetic_torque_pu = i_dc_pu;
 
             // Step the mechanical load with electromagnetic torque
-            double omega_pu = _mechanical_load.update(electromagnetic_torque_pu);
+            double omega_pu = _mechanical_load.update(electromagnetic_torque_pu, load_torque_pu);
 
             // Convert mechanical speed back to machine frequency
             double machine_frequency_hz = omega_pu * kNominalMachineFrequency;
@@ -190,7 +212,7 @@ private:
     sfc_6p_6p_plant_model _plant;
     control::mechanical_load _mechanical_load;
     sfc_per_unit_system _pu_system;
-    MachineOperationMode _mode = MachineOperationMode::FixedSpeed;
+    machine_operation_mode _mode = machine_operation_mode::fixed_speed;
 };
 
 }  // namespace yeet::application::sfc

@@ -125,8 +125,9 @@ public:
 
     /**
      * @brief Reset the controller state by clearing the integral term.
+     * @param value Initial value to reset the integral term to (default is 0).
      */
-    void reset();
+    void reset(T value = T{});
 
     /**
      * @brief Update the PI controller with the current error input.
