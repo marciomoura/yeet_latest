@@ -34,6 +34,48 @@
             "detail": "Runs the executable"
         },
         {
+            "label": "yeet_control_tests",
+            "type": "shell",
+            "command": "./yeet_control_tests.exe",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/bin/"
+            },
+            "problemMatcher": [],
+            "detail": "Runs the yeet_control unit tests"
+        },
+        {
+            "label": "yeet_application_sfc_tests",
+            "type": "shell",
+            "command": "./yeet_application_sfc_tests.exe",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/bin/"
+            },
+            "problemMatcher": [],
+            "detail": "Runs the yeet_application_sfc unit tests"
+        },
+        {
+            "label": "yeet_application_mpc_integration_tests",
+            "type": "shell",
+            "command": "./yeet_application_mpc_integration_tests.exe",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/bin/"
+            },
+            "problemMatcher": [],
+            "detail": "Runs the yeet_application_mpc integration tests"
+        },
+        {
             "label": "Yeet plotting",
             "type": "shell",
             "command": "python.exe",
@@ -41,7 +83,8 @@
                 "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
                 "${workspaceFolder}/build/bin/",
                 "${workspaceFolder}/build/bin/",
-                "--move=${workspaceFolder}/build/bin/testing_outputs/"
+                "--move=${workspaceFolder}/build/bin/testing_outputs/",
+                "--decimate=10"
             ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"

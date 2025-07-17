@@ -7,8 +7,12 @@ import webbrowser
 from typing import List, Dict, Any
 
 
-def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries: List[float], figure: go.Figure):
-    """Handle multi-dimensional data plotting"""
+# MODIFIED: Added decimate_factor parameter
+def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries: List[float], figure: go.Figure, decimate_factor: int = 1):
+    """Handle multi-dimensional data plotting with decimation."""
+    # Apply decimation to the shared time data
+    decimated_time = time_timeseries[::decimate_factor]
+
     dimension = entry.get("dimension", 1)
     if dimension > 1:
         data = entry["data"]
@@ -16,20 +20,23 @@ def create_plot_for_multidimensional_data(entry: Dict[str, Any], time_timeseries
         components = list(zip(*data))
         # Plot each component
         for i, component in enumerate(components):
+            # Apply decimation to each component's data
+            decimated_component = component[::decimate_factor]
             figure.add_trace(
                 go.Scatter(
-                    x=time_timeseries,
-                    y=component,
+                    x=decimated_time,
+                    y=decimated_component,
                     mode="lines",
                     name=f"{entry['name']}[{i}]"
                 )
             )
     else:
-        # Handle scalar data as before
+        # Handle scalar data as before, but with decimation
+        decimated_data = entry["data"][::decimate_factor]
         figure.add_trace(
             go.Scatter(
-                x=time_timeseries,
-                y=entry["data"],
+                x=decimated_time,
+                y=decimated_data,
                 mode="lines",
                 name=entry["name"]
             )
@@ -67,14 +74,12 @@ def add_checker_failures(failures: List[Dict[str, Any]], figure: go.Figure):
             borderwidth=2,
             borderpad=4,
             yanchor="bottom",
-            # # Remove top-level editable from layout; annotations here can be subject to configuration in the HTML export
-            # editable=True,
             hovertext="Double-click to toggle editing. Drag to move."
         )
 
 
-
-def create_plot(input_path: str, output_path: str):
+# MODIFIED: Added decimate_factor parameter
+def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
     with open(input_path, "r") as file:
         data = json.load(file)
 
@@ -91,9 +96,14 @@ def create_plot(input_path: str, output_path: str):
 
     figure = go.Figure()
 
+    # Inform the user if decimation is active
+    if decimate_factor > 1:
+        print(f"Plotting '{os.path.basename(input_path)}' with decimation factor: {decimate_factor}...")
+    
     # Create plots for each data entry
     for entry in data_timeseries:
-        create_plot_for_multidimensional_data(entry, time_timeseries, figure)
+        # MODIFIED: Pass the decimate_factor to the plotting function
+        create_plot_for_multidimensional_data(entry, time_timeseries, figure, decimate_factor)
 
     # Add checker failures (vertical lines and draggable annotations) if present
     if "checker_failures" in data:
@@ -144,7 +154,20 @@ if __name__ == "__main__":
     parser.add_argument("output_dir", type=str, help="Path to save the output HTML file.")
     # Add a parsing argument to move the html and json files to a new directory
     parser.add_argument("--move", type=str, help="Path to move the input JSON and output HTML files.")
+
+    # NEW: Add a command-line argument for the decimation factor
+    parser.add_argument(
+        "--decimate",
+        type=int,
+        default=1,
+        help="Decimation factor for plotting. Plots every Nth point. Default is 1 (no decimation)."
+    )
+    
     args = parser.parse_args()
+
+    # Validate the decimation factor
+    if args.decimate < 1:
+        raise ValueError("Decimation factor must be an integer greater than or equal to 1.")
 
     input_files = glob.glob(os.path.join(args.input_dir, "testing_*.json"))
 
@@ -153,7 +176,8 @@ if __name__ == "__main__":
         output_file = os.path.join(
             args.output_dir, os.path.basename(input_file).replace(".json", ".html")
         )
-        create_plot(input_file, output_file)
+        # MODIFIED: Pass the decimation factor from args to create_plot
+        create_plot(input_file, output_file, decimate_factor=args.decimate)
 
         # If requested, move the files from the working directory to the destination
         if args.move:

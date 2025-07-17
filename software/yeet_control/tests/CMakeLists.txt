@@ -31,7 +31,8 @@ target_sources(
             second_order_filter_test.cpp
             six_pulse_generator_test.cpp
             six_pulse_generator_plot_test.cpp
-            three_phase_waveform_generator_test.cpp)
+            three_phase_waveform_generator_test.cpp
+            units_test.cpp)
 
 # Link dependencies
 target_link_libraries(

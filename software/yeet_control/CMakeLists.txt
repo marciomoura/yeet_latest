@@ -33,6 +33,7 @@ target_sources(
         include/yeet_control/six_pulse_generator.hpp
         include/yeet_control/three_phase_waveform_generator.hpp
         include/yeet_control/type_traits.hpp
+        include/yeet_control/units.hpp
     PRIVATE src/angle.cpp
             src/mechanical_load.cpp
             src/pi_controller.cpp
