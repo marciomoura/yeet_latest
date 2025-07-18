@@ -20,14 +20,20 @@ void sfc_grid_side_filtering::configure_voltage_magnitude_filter(frequency_t cut
 }
 
 void sfc_grid_side_filtering::update(const abc<voltage_pu_t>& voltage_pu, const abc<current_pu_t>& current_pu) {
-    _filtered_voltages_pu = _voltage_filter.update(voltage_pu);
-    _filtered_currents_pu = _current_filter.update(current_pu);
+    // Filter voltages
+    auto const voltage_pu_dimensionless = to_dimensionless_abc(voltage_pu);
+    auto const filtered_voltage = _voltage_filter.update(voltage_pu_dimensionless);
+    _filtered_voltages_pu = to_dimension_abc<voltage_pu_t>(filtered_voltage);
+
+    // Filter currents
+    auto const current_pu_dimensionless = to_dimensionless_abc(current_pu);
+    auto const filtered_current = _current_filter.update(current_pu_dimensionless);
+    _filtered_currents_pu = to_dimension_abc<current_pu_t>(filtered_current);
 
     // Transform filtered voltage to αβ frame and calculate magnitude
     _filtered_voltage_alphabeta_pu = _filtered_voltages_pu.to_alphabeta();
-
-    [[maybe_unused]] const auto unfiltered_magnitude = voltage_pu.to_alphabeta().magnitude();
-    // _filtered_voltage_magnitude_pu = _voltage_magnitude_filter.update(unfiltered_magnitude);
+    const auto unfiltered_magnitude = voltage_pu.to_alphabeta().magnitude();
+    _filtered_voltage_magnitude_pu = voltage_pu_t{_voltage_magnitude_filter.update(unfiltered_magnitude.value())};
 }
 
 sfc_dc_link_filtering::sfc_dc_link_filtering(duration_t sampling_period)
@@ -46,9 +52,9 @@ void sfc_dc_link_filtering::configure(frequency_t voltage_filter_cutoff_freq, fr
 }
 
 void sfc_dc_link_filtering::update(voltage_pu_t voltage_pu, current_pu_t current_pu) {
-    _filtered_voltage_pu = _voltage_filter.update(voltage_pu);
-    const auto notched_current = _current_notch_filter.update(current_pu);
-    _filtered_current_pu = _current_lpf.update(notched_current);
+    _filtered_voltage_pu = voltage_pu_t{_voltage_filter.update(voltage_pu.value())};
+    const auto notched_current = _current_notch_filter.update(current_pu.value());
+    _filtered_current_pu = current_pu_t{_current_lpf.update(notched_current)};
 }
 
 sfc_machine_side_filtering::sfc_machine_side_filtering(duration_t sampling_period)
@@ -58,12 +64,20 @@ sfc_machine_side_filtering::sfc_machine_side_filtering(duration_t sampling_perio
 
 void sfc_machine_side_filtering::update(const abc<voltage_pu_t>& voltage_pu, const abc<current_pu_t>& current_pu,
                                         frequency_t /*machine_frequency*/) {
-    _filtered_voltages_pu = _voltage_filter.update(voltage_pu);
-    _filtered_currents_pu = _current_filter.update(current_pu);
+    // Filter voltages
+    auto const voltage_pu_dimensionless = to_dimensionless_abc(voltage_pu);
+    auto const filtered_voltage = _voltage_filter.update(voltage_pu_dimensionless);
+    _filtered_voltages_pu = to_dimension_abc<voltage_pu_t>(filtered_voltage);
 
+    // Filter currents
+    auto const current_pu_dimensionless = to_dimensionless_abc(current_pu);
+    auto const filtered_current = _current_filter.update(current_pu_dimensionless);
+    _filtered_currents_pu = to_dimension_abc<current_pu_t>(filtered_current);
+
+    // Transform filtered voltage to αβ frame and calculate magnitude
     _filtered_voltage_alphabeta_pu = _filtered_voltages_pu.to_alphabeta();
     const auto unfiltered_magnitude = voltage_pu.to_alphabeta().magnitude();
-    _filtered_voltage_magnitude_pu = _voltage_magnitude_filter.update(unfiltered_magnitude);
+    _filtered_voltage_magnitude_pu = voltage_pu_t{_voltage_magnitude_filter.update(unfiltered_magnitude.value())};
 }
 
 void sfc_machine_side_filtering::configure_voltage_filter(frequency_t cutoff_freq, real_t damping_ratio) {

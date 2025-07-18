@@ -32,9 +32,9 @@ private:
     abc<current_pu_t> _filtered_currents_pu;
     alphabeta<voltage_pu_t> _filtered_voltage_alphabeta_pu;
     voltage_pu_t _filtered_voltage_magnitude_pu{};
-    control::second_order_low_pass_filter<abc<voltage_pu_t>> _voltage_filter;
-    control::second_order_low_pass_filter<abc<current_pu_t>> _current_filter;
-    control::second_order_low_pass_filter<voltage_pu_t> _voltage_magnitude_filter;
+    control::second_order_low_pass_filter<abc<>> _voltage_filter;
+    control::second_order_low_pass_filter<abc<>> _current_filter;
+    control::second_order_low_pass_filter<real_t> _voltage_magnitude_filter;
 };
 
 /**
@@ -50,14 +50,13 @@ public:
 
     voltage_pu_t get_filtered_voltage_pu() const { return _filtered_voltage_pu; }
     current_pu_t get_filtered_current_pu() const { return _filtered_current_pu; }
-    current_pu_t get_filtered_current_magnitude_pu() const { return abs(_filtered_current_pu); }
 
 private:
     voltage_pu_t _filtered_voltage_pu{};
     current_pu_t _filtered_current_pu{};
-    control::second_order_low_pass_filter<voltage_pu_t> _voltage_filter;
-    control::second_order_band_reject_filter<current_pu_t> _current_notch_filter;
-    control::second_order_low_pass_filter<current_pu_t> _current_lpf;
+    control::second_order_low_pass_filter<real_t> _voltage_filter;
+    control::second_order_band_reject_filter<real_t> _current_notch_filter;
+    control::second_order_low_pass_filter<real_t> _current_lpf;
 };
 
 /**
@@ -84,9 +83,9 @@ private:
     abc<current_pu_t> _filtered_currents_pu;
     alphabeta<voltage_pu_t> _filtered_voltage_alphabeta_pu;
     voltage_pu_t _filtered_voltage_magnitude_pu{};
-    control::second_order_low_pass_filter<abc<voltage_pu_t>> _voltage_filter;
-    control::second_order_low_pass_filter<abc<current_pu_t>> _current_filter;
-    control::second_order_low_pass_filter<voltage_pu_t> _voltage_magnitude_filter;
+    control::second_order_low_pass_filter<abc<real_t>> _voltage_filter;
+    control::second_order_low_pass_filter<abc<real_t>> _current_filter;
+    control::second_order_low_pass_filter<real_t> _voltage_magnitude_filter;
 };
 
 }  // namespace yeet::application::sfc

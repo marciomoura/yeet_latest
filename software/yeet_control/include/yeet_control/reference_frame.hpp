@@ -3,10 +3,11 @@
 
 #include <array>
 #include <cmath>
+#include <type_traits>
 
 #include "angle.hpp"
 #include "constants.hpp"
-#include "types.hpp"
+#include "units.hpp"
 
 namespace yeet {
 
@@ -23,7 +24,7 @@ class dq;
  *
  * Represents quantities in the three-phase stationary frame.
  */
-template <typename T>
+template <typename T = real_t>
 class abc {
 public:
     using value_type = T;
@@ -32,7 +33,8 @@ public:
 
     // Constructors
     constexpr abc() = default;
-    constexpr abc(const std::array<T, 3>& values) : _values(values) {}
+    // constexpr abc(const std::array<T, 3>& values) : _values(values) {}
+    // constexpr abc(std::array<T, 3>&& values) : _values(values) {}
     constexpr abc(T a, T b, T c) : _values{a, b, c} {}
     constexpr abc(const abc<T>& other) : _values(other._values) {}
     constexpr abc(abc<T>&& other) : _values(std::move(other._values)) {}
@@ -54,6 +56,21 @@ public:
     // Conversion to array
     constexpr operator std::array<T, 3>() const { return _values; }
     constexpr std::array<T, 3> array() const { return _values; }
+
+    /**
+     * @brief Converts the frame to one containing the raw underlying values.
+     *
+     * Assumes the payload type T has a .value() method.
+     */
+    constexpr auto to_raw_frame() const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return _values;
+        } else {
+            // Automatically deduce the underlying type (e.g., double from voltage_t)
+            using RawType = decltype(a().value());
+            return abc<RawType>{a().value(), b().value(), c().value()};
+        }
+    }
 
     // Conversion to other frames
     constexpr alphabeta<T> to_alphabeta() const;
@@ -149,7 +166,7 @@ constexpr abc<T> operator*(T scalar, const abc<T>& coords) {
  *
  * Represents quantities in the two-phase stationary frame.
  */
-template <typename T>
+template <typename T = real_t>
 class alphabeta {
 public:
     using value_type = T;
@@ -193,7 +210,13 @@ public:
     T& beta() { return _values[1]; }
 
     // Magnitude calculation
-    constexpr T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
+    constexpr T magnitude() const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
+        } else {
+            return yeet::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
+        }
+    }
 
     // Phase calculation
     constexpr angle<zero_to_two_pi> phase() const { return angle<zero_to_two_pi>(std::atan2(_values[1], _values[0])); }
@@ -280,7 +303,7 @@ constexpr alphabeta<T> operator*(T scalar, const alphabeta<T>& coords) {
  *
  * Represents quantities in the rotating reference frame.
  */
-template <typename T>
+template <typename T = real_t>
 class dq {
 public:
     using value_type = T;
@@ -324,7 +347,13 @@ public:
     T& q() { return _values[1]; }
 
     // Magnitude calculation
-    constexpr T magnitude() const { return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]); }
+    constexpr T magnitude() const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
+        } else {
+            return yeet::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
+        }
+    }
 
     constexpr angle<zero_to_two_pi> phase(const angle<zero_to_two_pi>& frame) const {
         return frame + angle<zero_to_two_pi>(std::atan2(_values[1], _values[0]));
@@ -477,6 +506,99 @@ constexpr T cross_product(const Frame& a, const Frame& b) {
         static_assert(std::is_same_v<Frame, alphabeta<T>> || std::is_same_v<Frame, dq<T>>,
                       "cross_product only supports alphabeta and dq frames");
     }
+}
+
+// Convert abc frame from per-unit to si
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_si(const abc<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_si(pu_frame.a(), base_quantity));
+    return abc<result_quantity_t>(to_si(pu_frame.a(), base_quantity), to_si(pu_frame.b(), base_quantity),
+                                  to_si(pu_frame.c(), base_quantity));
+}
+
+// Convert abc frame from si to per-unit
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_pu(const abc<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_pu(si_frame.a(), base_quantity));
+    return abc<result_quantity_t>(to_pu(si_frame.a(), base_quantity), to_pu(si_frame.b(), base_quantity),
+                                  to_pu(si_frame.c(), base_quantity));
+}
+
+// Convert alphabeta frame from per-unit to si
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_si(const alphabeta<quantity<Dim, per_unit, Rep1>>& pu_frame,
+                     const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_si(pu_frame.alpha(), base_quantity));
+    return alphabeta<result_quantity_t>(to_si(pu_frame.alpha(), base_quantity), to_si(pu_frame.beta(), base_quantity));
+}
+
+// Convert alphabeta frame from si to per-unit
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_pu(const alphabeta<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_pu(si_frame.alpha(), base_quantity));
+    return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), base_quantity), to_pu(si_frame.beta(), base_quantity));
+}
+
+// Convert dq frame from per-unit to si
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_si(const dq<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_si(pu_frame.d(), base_quantity));
+    return dq<result_quantity_t>(to_si(pu_frame.d(), base_quantity), to_si(pu_frame.q(), base_quantity));
+}
+
+// Convert dq frame from si to per-unit
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_pu(const dq<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_pu(si_frame.d(), base_quantity));
+    return dq<result_quantity_t>(to_pu(si_frame.d(), base_quantity), to_pu(si_frame.q(), base_quantity));
+}
+
+template <typename QuantityType>
+abc<QuantityType> to_dimension_abc(const abc<real_t>& scalar_abc) {
+    abc<QuantityType> quantity_abc{};
+    std::transform(scalar_abc.begin(), scalar_abc.end(), quantity_abc.begin(),
+                   [](real_t val) { return QuantityType{val}; });
+    return quantity_abc;
+}
+
+template <typename QuantityType>
+alphabeta<QuantityType> to_dimension_alphabeta(const alphabeta<real_t>& scalar_alphabeta) {
+    alphabeta<QuantityType> quantity_alphabeta{};
+    std::transform(scalar_alphabeta.begin(), scalar_alphabeta.end(), quantity_alphabeta.begin(),
+                   [](real_t val) { return QuantityType{val}; });
+    return quantity_alphabeta;
+}
+
+template <typename QuantityType>
+dq<QuantityType> to_dimension_dq(const dq<real_t>& scalar_dq) {
+    dq<QuantityType> quantity_dq{};
+    std::transform(scalar_dq.begin(), scalar_dq.end(), quantity_dq.begin(),
+                   [](real_t val) { return QuantityType{val}; });
+    return quantity_dq;
+}
+
+template <typename QuantityType>
+abc<real_t> to_dimensionless_abc(const abc<QuantityType>& quantity_abc) {
+    abc<real_t> scalar_abc{};
+    std::transform(quantity_abc.begin(), quantity_abc.end(), scalar_abc.begin(),
+                   [](const QuantityType& val) { return val.value(); });
+    return scalar_abc;
+}
+
+template <typename QuantityType>
+alphabeta<real_t> to_dimensionless_alphabeta(const alphabeta<QuantityType>& quantity_alphabeta) {
+    alphabeta<real_t> scalar_alphabeta{};
+    std::transform(quantity_alphabeta.begin(), quantity_alphabeta.end(), scalar_alphabeta.begin(),
+                   [](const QuantityType& val) { return val.value(); });
+    return scalar_alphabeta;
+}
+
+template <typename QuantityType>
+dq<real_t> to_dimensionless_dq(const dq<QuantityType>& quantity_dq) {
+    dq<real_t> scalar_dq{};
+    std::transform(quantity_dq.begin(), quantity_dq.end(), scalar_dq.begin(),
+                   [](const QuantityType& val) { return val.value(); });
+    return scalar_dq;
 }
 
 }  // namespace yeet
