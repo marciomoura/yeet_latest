@@ -26,6 +26,7 @@ target_sources(
         include/yeet_control/permanent_magnet_synchronous_machine_per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine.hpp
         include/yeet_control/pi_controller.hpp
+        include/yeet_control/precomputed_divisor.hpp
         include/yeet_control/pulse_generator.hpp
         include/yeet_control/range_kutta_derivative.hpp
         include/yeet_control/reference_frame.hpp

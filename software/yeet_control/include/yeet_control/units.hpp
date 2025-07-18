@@ -6,6 +6,7 @@
 #include <string>
 #include <type_traits>
 
+#include "precomputed_divisor.hpp"
 #include "types.hpp"
 
 namespace yeet {
@@ -69,6 +70,17 @@ private:
 //==============================================================================
 // R3: Arithmetic Operations (Helper Metafunctions)
 //==============================================================================
+
+/**
+ * @brief Metafunction to invert dimensions (for scalar/quantity division)
+ */
+template <typename D>
+struct invert_dimensions;
+
+template <int L, int M, int T, int I, int Th, int N, int J>
+struct invert_dimensions<dimension<L, M, T, I, Th, N, J>> {
+    using type = dimension<-L, -M, -T, -I, -Th, -N, -J>;
+};
 
 /**
  * @brief Metafunction to add exponents for multiplication
@@ -164,6 +176,13 @@ constexpr quantity<D, S> operator*(const Scalar& s, const quantity<D, S>& q) {
 template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
 constexpr quantity<D, S> operator/(const quantity<D, S>& q, const Scalar& s) {
     return quantity<D, S>(q.value() / s);
+}
+
+// Scalar divided by quantity: results in a quantity with inverted dimensions
+template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
+constexpr auto operator/(const Scalar& s, const quantity<D, S>& q) {
+    using inverted_dim = typename invert_dimensions<D>::type;
+    return quantity<inverted_dim, S>(s / q.value());
 }
 
 //==============================================================================
@@ -310,6 +329,19 @@ template <typename Dim>
 constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const quantity<Dim, si>& base_quantity) {
     // The base quantity must have the same dimension as the SI quantity.
     return quantity<Dim, per_unit>(si_quantity.value() / base_quantity.value());
+}
+
+// Convert from SI to Per-Unit using precomputed divisor
+template <typename Dim>
+constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const precomputed_divisor<quantity<Dim, si>>& divisor) {
+    return quantity<Dim, per_unit>(si_quantity.value() * divisor.reciprocal());
+}
+
+// Convert from Per-Unit to SI using precomputed divisor
+template <typename Dim>
+constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity,
+                     const precomputed_divisor<quantity<Dim, si>>& divisor) {
+    return quantity<Dim, si>(pu_quantity.value() * divisor.value().value());
 }
 
 //==============================================================================
