@@ -9,6 +9,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class PulseGeneratorPlotTest : public ::testing::Test {

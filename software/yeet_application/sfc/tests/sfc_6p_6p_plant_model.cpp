@@ -82,11 +82,11 @@ control::abc<double> sfc_6p_6p_plant_model::get_machine_side_currents_abc() cons
     return {currents[0], currents[1], currents[2]};
 }
 
-control::angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_grid_voltage_source_angle() const {
+angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_grid_voltage_source_angle() const {
     return {_model->sfc_6p_6p_topology_Y.grid_voltage_source_angle_wt};
 }
 
-control::angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_machine_voltage_source_angle() const {
+angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_machine_voltage_source_angle() const {
     return {_model->sfc_6p_6p_topology_Y.machine_voltage_source_angle_wt};
 }
 

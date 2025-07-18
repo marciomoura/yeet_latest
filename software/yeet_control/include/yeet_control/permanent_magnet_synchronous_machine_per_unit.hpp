@@ -34,8 +34,8 @@ public:
                      double B_pu) {
         // Convert parameters from per-unit to SI units
         double Rs_si = Rs_pu * _base_values.impedance;
-        double Ld_si = Ld_pu * _base_values.impedance / (2.0 * pi<double> * _base_values.frequency);
-        double Lq_si = Lq_pu * _base_values.impedance / (2.0 * pi<double> * _base_values.frequency);
+        double Ld_si = Ld_pu * _base_values.impedance / (2.0 * pi * _base_values.frequency);
+        double Lq_si = Lq_pu * _base_values.impedance / (2.0 * pi * _base_values.frequency);
         double psi_pm_si = psi_pm_pu * _base_values.flux;
 
         // For inertia: base inertia = base_torque / base_acceleration = base_torque / base_speed^2

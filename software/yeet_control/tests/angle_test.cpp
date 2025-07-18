@@ -4,7 +4,7 @@
 
 namespace {
 
-using namespace yeet::control;
+using namespace yeet;
 
 class AngleMinusPiToPiTest : public ::testing::Test {
 protected:
@@ -25,7 +25,7 @@ TEST_F(AngleMinusPiToPiTest, DefaultConstructor) {
 TEST_F(AngleMinusPiToPiTest, Constructor) {
     angle<minus_pi_to_pi> a(1.0);
     EXPECT_NEAR(a.get_radians(), 1.0, kEpsilon);
-    EXPECT_NEAR(a.get_degrees(), 180.0 / pi<double>, kEpsilon);
+    EXPECT_NEAR(a.get_degrees(), 180.0 / pi, kEpsilon);
 }
 
 TEST_F(AngleMinusPiToPiTest, NegationOperator) {
@@ -45,13 +45,13 @@ TEST_F(AngleMinusPiToPiTest, ConversionalOperator) {
 TEST_F(AngleMinusPiToPiTest, SetValueWrapPositive) {
     angle<minus_pi_to_pi> a;
     a.set_value(4.0);  // > pi
-    EXPECT_NEAR(a.get_radians(), 4.0 - 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(a.get_radians(), 4.0 - 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleMinusPiToPiTest, SetValueWrapNegative) {
     angle<minus_pi_to_pi> a;
     a.set_value(-4.0);  // < -pi
-    EXPECT_NEAR(a.get_radians(), -4.0 + 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(a.get_radians(), -4.0 + 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleMinusPiToPiTest, Addition) {
@@ -65,7 +65,7 @@ TEST_F(AngleMinusPiToPiTest, AdditionWithWrapping) {
     angle<minus_pi_to_pi> a(2.0);
     angle<minus_pi_to_pi> b(2.0);
     auto c = a + b;  // Should wrap from 4.0 to 4.0 - 2pi
-    EXPECT_NEAR(c.get_radians(), 4.0 - 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(c.get_radians(), 4.0 - 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleMinusPiToPiTest, Subtraction) {
@@ -79,7 +79,7 @@ TEST_F(AngleMinusPiToPiTest, SubtractionWithWrapping) {
     angle<minus_pi_to_pi> a(-2.0);
     angle<minus_pi_to_pi> b(2.0);
     auto c = a - b;  // Should wrap from -4.0 to -4.0 + 2pi
-    EXPECT_NEAR(c.get_radians(), -4.0 + 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(c.get_radians(), -4.0 + 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleMinusPiToPiTest, AdditionAssignment) {
@@ -109,8 +109,8 @@ TEST_F(AngleMinusPiToPiTest, Equality) {
 }
 
 TEST_F(AngleMinusPiToPiTest, EqualityWithWrapping) {
-    angle<minus_pi_to_pi> a(pi<double>);
-    angle<minus_pi_to_pi> b(-pi<double>);
+    angle<minus_pi_to_pi> a(pi);
+    angle<minus_pi_to_pi> b(-pi);
     EXPECT_EQ(a, b);
 }
 
@@ -137,8 +137,8 @@ TEST_F(AngleMinusPiToPiTest, LessThanEqual) {
 }
 
 TEST_F(AngleMinusPiToPiTest, LessThanWithWrapping) {
-    angle<minus_pi_to_pi> a(pi<double> - 0.1);   // Near positive boundary
-    angle<minus_pi_to_pi> b(-pi<double> + 0.1);  // Near negative boundary (wraps to same as pi - 0.1)
+    angle<minus_pi_to_pi> a(pi - 0.1);   // Near positive boundary
+    angle<minus_pi_to_pi> b(-pi + 0.1);  // Near negative boundary (wraps to same as pi - 0.1)
     // After wrapping both to [0, 2π]: a ≈ π-0.1+π ≈ 2π-0.1, b ≈ π+0.1
     EXPECT_TRUE(b < a);
 }
@@ -158,8 +158,8 @@ TEST_F(AngleMinusPiToPiTest, LessThanOrEqualEqual) {
 }
 
 TEST_F(AngleMinusPiToPiTest, LessThanOrEqualWithWrapping) {
-    angle<minus_pi_to_pi> a(pi<double>);   // Should wrap to -π (equivalent)
-    angle<minus_pi_to_pi> b(-pi<double>);  // At negative boundary
+    angle<minus_pi_to_pi> a(pi);   // Should wrap to -π (equivalent)
+    angle<minus_pi_to_pi> b(-pi);  // At negative boundary
     EXPECT_TRUE(a <= b);
     EXPECT_TRUE(b <= a);
 }
@@ -179,8 +179,8 @@ TEST_F(AngleMinusPiToPiTest, GreaterThanEqual) {
 }
 
 TEST_F(AngleMinusPiToPiTest, GreaterThanWithWrapping) {
-    angle<minus_pi_to_pi> a(-pi<double> + 0.1);  // Near negative boundary
-    angle<minus_pi_to_pi> b(pi<double> - 0.1);   // Near positive boundary
+    angle<minus_pi_to_pi> a(-pi + 0.1);  // Near negative boundary
+    angle<minus_pi_to_pi> b(pi - 0.1);   // Near positive boundary
     // After wrapping both to [0, 2π]: a ≈ π+0.1, b ≈ 2π-0.1
     EXPECT_TRUE(b > a);
 }
@@ -200,8 +200,8 @@ TEST_F(AngleMinusPiToPiTest, GreaterThanOrEqualEqual) {
 }
 
 TEST_F(AngleMinusPiToPiTest, GreaterThanOrEqualWithWrapping) {
-    angle<minus_pi_to_pi> a(pi<double>);   // Should wrap to -π (equivalent)
-    angle<minus_pi_to_pi> b(-pi<double>);  // At negative boundary
+    angle<minus_pi_to_pi> a(pi);   // Should wrap to -π (equivalent)
+    angle<minus_pi_to_pi> b(-pi);  // At negative boundary
     EXPECT_TRUE(a >= b);
     EXPECT_TRUE(b >= a);
 }
@@ -227,25 +227,25 @@ TEST_F(AngleZeroToTwoPiTest, DefaultConstructor) {
 TEST_F(AngleZeroToTwoPiTest, Constructor) {
     angle<zero_to_two_pi> a(1.0);
     EXPECT_NEAR(a.get_radians(), 1.0, kEpsilon);
-    EXPECT_NEAR(a.get_degrees(), 180.0 / pi<double>, kEpsilon);
+    EXPECT_NEAR(a.get_degrees(), 180.0 / pi, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, SetValueWrapNegative) {
     angle<zero_to_two_pi> a;
     a.set_value(-1.0);
-    EXPECT_NEAR(a.get_radians(), -1.0 + 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(a.get_radians(), -1.0 + 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, SetValueWrapPositive) {
     angle<zero_to_two_pi> a;
-    a.set_value(2 * pi<double> + 0.5);
+    a.set_value(2 * pi + 0.5);
     EXPECT_NEAR(a.get_radians(), 0.5, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, SetValueExactlyTwoPi) {
     angle<zero_to_two_pi> a;
-    a.set_value(2 * pi<double>);
-    EXPECT_NEAR(a.get_radians(), 2 * pi<double>, kEpsilon);
+    a.set_value(2 * pi);
+    EXPECT_NEAR(a.get_radians(), 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, SetValueExactlyZero) {
@@ -266,21 +266,21 @@ TEST_F(AngleZeroToTwoPiTest, NegationOperator) {
     a.set_value(1.0);
     angle<zero_to_two_pi> a_negated = -a;
     EXPECT_NEAR(a, 1.0, kEpsilon);
-    EXPECT_NEAR(a_negated, 2.0 * pi<double> - 1.0, kEpsilon);
+    EXPECT_NEAR(a_negated, 2.0 * pi - 1.0, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, AdditionWithWrapping) {
     angle<zero_to_two_pi> a(5.0);
     angle<zero_to_two_pi> b(2.0);
     auto c = a + b;
-    EXPECT_NEAR(c.get_radians(), 7.0 - 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(c.get_radians(), 7.0 - 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, SubtractionWithWrapping) {
     angle<zero_to_two_pi> a(1.0);
     angle<zero_to_two_pi> b(2.0);
     auto c = a - b;  // Should wrap from -1.0 to -1.0 + 2pi
-    EXPECT_NEAR(c.get_radians(), -1.0 + 2 * pi<double>, kEpsilon);
+    EXPECT_NEAR(c.get_radians(), -1.0 + 2 * pi, kEpsilon);
 }
 
 TEST_F(AngleZeroToTwoPiTest, AdditionAssignment) {
@@ -311,7 +311,7 @@ TEST_F(AngleZeroToTwoPiTest, Equality) {
 
 TEST_F(AngleZeroToTwoPiTest, EqualityWithWrapping) {
     angle<zero_to_two_pi> a(0.0);
-    angle<zero_to_two_pi> b(2 * pi<double>);
+    angle<zero_to_two_pi> b(2 * pi);
     EXPECT_EQ(a, b);
 }
 
@@ -359,8 +359,8 @@ TEST_F(AngleZeroToTwoPiTest, LessThanOrEqualEqual) {
 }
 
 TEST_F(AngleZeroToTwoPiTest, LessThanOrEqualWithWrapping) {
-    angle<zero_to_two_pi> a(0.0);             // At zero boundary
-    angle<zero_to_two_pi> b(2 * pi<double>);  // Should wrap to 0.0 (equivalent)
+    angle<zero_to_two_pi> a(0.0);     // At zero boundary
+    angle<zero_to_two_pi> b(2 * pi);  // Should wrap to 0.0 (equivalent)
     EXPECT_TRUE(a <= b);
     EXPECT_TRUE(b <= a);
 }
@@ -401,8 +401,8 @@ TEST_F(AngleZeroToTwoPiTest, GreaterThanOrEqualEqual) {
 }
 
 TEST_F(AngleZeroToTwoPiTest, GreaterThanOrEqualWithWrapping) {
-    angle<zero_to_two_pi> a(0.0);             // At zero boundary
-    angle<zero_to_two_pi> b(2 * pi<double>);  // Should wrap to 0.0 (equivalent)
+    angle<zero_to_two_pi> a(0.0);     // At zero boundary
+    angle<zero_to_two_pi> b(2 * pi);  // Should wrap to 0.0 (equivalent)
     EXPECT_TRUE(a >= b);
     EXPECT_TRUE(b >= a);
 }
@@ -418,9 +418,9 @@ TEST_F(AngleZeroToTwoPiTest, ComparisonTransitivity) {
 }
 
 TEST_F(AngleZeroToTwoPiTest, ComparisonBoundaryValues) {
-    angle<zero_to_two_pi> a(0.0);                   // At lower boundary
-    angle<zero_to_two_pi> b(pi<double>);            // At middle
-    angle<zero_to_two_pi> c(2 * pi<double> - 0.1);  // Near upper boundary
+    angle<zero_to_two_pi> a(0.0);           // At lower boundary
+    angle<zero_to_two_pi> b(pi);            // At middle
+    angle<zero_to_two_pi> c(2 * pi - 0.1);  // Near upper boundary
 
     EXPECT_TRUE(a < b);
     EXPECT_TRUE(b < c);

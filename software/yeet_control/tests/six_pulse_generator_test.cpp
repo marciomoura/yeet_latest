@@ -4,6 +4,7 @@
 
 #include "yeet_control/constants.hpp"
 
+using namespace yeet;
 using namespace yeet::control;
 
 // Test that when the generator is disabled, all output pulses are false.

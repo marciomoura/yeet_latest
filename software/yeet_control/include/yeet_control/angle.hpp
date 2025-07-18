@@ -6,8 +6,9 @@
 #include <type_traits>
 
 #include "constants.hpp"
+#include "types.hpp"
 
-namespace yeet::control {
+namespace yeet {
 
 /**
  * @brief Range type for angles between -π and π radians
@@ -16,8 +17,8 @@ namespace yeet::control {
  * angle wrapping between -π and π radians.
  */
 struct minus_pi_to_pi {
-    static constexpr double max = pi<double>;
-    static constexpr double min = -pi<double>;
+    static constexpr double max = pi;
+    static constexpr double min = -pi;
 };
 
 /**
@@ -27,7 +28,7 @@ struct minus_pi_to_pi {
  * angle wrapping between 0 and 2π radians.
  */
 struct zero_to_two_pi {
-    static constexpr double max = 2.0 * pi<double>;
+    static constexpr double max = 2.0 * pi;
     static constexpr double min = 0.0;
 };
 
@@ -72,7 +73,7 @@ public:
      *
      * @return The angle in degrees, wrapped to the valid range
      */
-    constexpr double get_degrees() const { return _value * 180.0 / pi<double>; }
+    constexpr double get_degrees() const { return _value * 180.0 / pi; }
 
     /**
      * @brief Gets the angle value in radians
@@ -88,9 +89,9 @@ public:
      */
     constexpr double get_pu() const {
         if constexpr (std::is_same_v<RangeType, zero_to_two_pi>) {
-            return _value / two_pi<double>;
+            return _value / two_pi;
         } else if constexpr (std::is_same_v<RangeType, minus_pi_to_pi>) {
-            return (_value + pi<double>) / two_pi<double>;
+            return (_value + pi) / two_pi;
         }
     }
 
@@ -178,7 +179,7 @@ public:
     constexpr bool operator==(const angle<RangeType>& other) const {
         constexpr double epsilon = 1e-10;
         double diff = std::abs(_value - other._value);
-        return diff < epsilon || std::abs(diff - 2 * pi<double>) < epsilon;
+        return diff < epsilon || std::abs(diff - 2 * pi) < epsilon;
     }
 
     /**
@@ -247,23 +248,23 @@ private:
      */
     static double wrap_around(double value) {
         // First reduce to [-2π, 2π] range
-        while (value > two_pi<double>) {
-            value -= two_pi<double>;
+        while (value > two_pi) {
+            value -= two_pi;
         }
-        while (value < -two_pi<double>) {
-            value += two_pi<double>;
+        while (value < -two_pi) {
+            value += two_pi;
         }
 
         // Apply range-specific wrapping
         if constexpr (std::is_same_v<RangeType, zero_to_two_pi>) {
             if (value < 0.0) {
-                value += two_pi<double>;
+                value += two_pi;
             }
         } else if constexpr (std::is_same_v<RangeType, minus_pi_to_pi>) {
-            if (value > pi<double>) {
-                value -= two_pi<double>;
-            } else if (value <= -pi<double>) {
-                value += two_pi<double>;
+            if (value > pi) {
+                value -= two_pi;
+            } else if (value <= -pi) {
+                value += two_pi;
             }
         }
         return value;
@@ -276,6 +277,6 @@ private:
 extern template class angle<minus_pi_to_pi>;
 extern template class angle<zero_to_two_pi>;
 
-}  // namespace yeet::control
+}  // namespace yeet
 
 #endif  // YEET_CONTROL_ANGLE_HPP

@@ -52,8 +52,8 @@ struct per_unit_base_values {
         // Calculate derived base values
         current = power / (3.0 * voltage);
         impedance = voltage / current;
-        flux = voltage / (2.0 * pi<double> * frequency);
-        speed = 2.0 * pi<double> * frequency;
+        flux = voltage / (2.0 * pi * frequency);
+        speed = 2.0 * pi * frequency;
         torque = power / speed;
     }
 };

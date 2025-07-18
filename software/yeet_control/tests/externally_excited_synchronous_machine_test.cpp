@@ -9,6 +9,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class ExternallyExcitedSynchronousMachineTest : public ::testing::Test {
@@ -68,7 +69,7 @@ private:
         simulator.register_sampler_entry(
             yeet::testing::make_reference_sampler("speed_rad_s", [this]() { return mechanical_speed; }));
         simulator.register_sampler_entry(yeet::testing::make_reference_sampler(
-            "speed_rpm", [this]() { return mechanical_speed * 60.0 / (2 * pi<double>); }));
+            "speed_rpm", [this]() { return mechanical_speed * 60.0 / (2 * pi); }));
         simulator.register_sampler_entry(
             yeet::testing::make_reference_sampler("torque_Nm", [this]() { return electromagnetic_torque; }));
 
@@ -119,13 +120,13 @@ TEST_F(ExternallyExcitedSynchronousMachineTest, NominalVoltageTest) {
     EXPECT_TRUE(simulator.simulate_for(8.0));
 
     // Calculate synchronous speed for reference
-    double sync_speed_rad_s = 2 * pi<double> * nominal_frequency / machine.get_pole_pairs();
-    double sync_speed_rpm = sync_speed_rad_s * 60.0 / (2 * pi<double>);
+    double sync_speed_rad_s = 2 * pi * nominal_frequency / machine.get_pole_pairs();
+    double sync_speed_rpm = sync_speed_rad_s * 60.0 / (2 * pi);
 
     // Output final values (without assertions)
     std::cout << "=== Externally Excited Synchronous Machine SI Test Results ===" << std::endl;
-    std::cout << "Final speed: " << mechanical_speed << " rad/s (" << (mechanical_speed * 60.0 / (2 * pi<double>))
-              << " RPM)" << std::endl;
+    std::cout << "Final speed: " << mechanical_speed << " rad/s (" << (mechanical_speed * 60.0 / (2 * pi)) << " RPM)"
+              << std::endl;
     std::cout << "Synchronous speed: " << sync_speed_rad_s << " rad/s (" << sync_speed_rpm << " RPM)" << std::endl;
     std::cout << "Final torque: " << electromagnetic_torque << " N·m" << std::endl;
     std::cout << "Field current: " << field_current << " A" << std::endl;

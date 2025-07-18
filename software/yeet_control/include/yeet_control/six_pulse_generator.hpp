@@ -17,7 +17,7 @@ namespace yeet::control {
  */
 class six_pulse_generator {
 public:
-    using angle_t = yeet::control::angle<yeet::control::zero_to_two_pi>;
+    using angle_t = angle<zero_to_two_pi>;
 
     /**
      * @brief Structure to hold the state of the six output pulses.
@@ -36,7 +36,7 @@ public:
      *
      * @param pulse_width The desired width of the firing pulses.
      */
-    explicit six_pulse_generator(angle_t pulse_width = angle_t(yeet::control::deg_to_rad(30.0)));
+    explicit six_pulse_generator(angle_t pulse_width = angle_t(yeet::deg_to_rad(30.0)));
 
     /**
      * @brief Updates the pulse generator and returns the new pulse states.

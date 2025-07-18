@@ -40,9 +40,9 @@ public:
     template <typename U = T>
     std::enable_if_t<std::is_same_v<U, abc<double>>, T> generate() {
         if (m_stddev <= 0.0) {
-            return abc<double>{m_mean, m_mean, m_mean};  // Return mean when no noise
+            return yeet::abc<double>{m_mean, m_mean, m_mean};  // Return mean when no noise
         }
-        return abc<double>{m_distribution(m_rng), m_distribution(m_rng), m_distribution(m_rng)};
+        return yeet::abc<double>{m_distribution(m_rng), m_distribution(m_rng), m_distribution(m_rng)};
     }
 
     // Specialization for alphabeta<T>
@@ -473,7 +473,7 @@ private:
     }
 
     angle<zero_to_two_pi> get_signal_angle_increment(std::size_t harmonic_order, double signal_frequency) const {
-        return angle<zero_to_two_pi>(static_cast<double>(harmonic_order) * 2.0 * pi<double> * signal_frequency *
+        return angle<zero_to_two_pi>(static_cast<double>(harmonic_order) * 2.0 * pi * signal_frequency *
                                      m_sampling_time);
     }
 
@@ -563,8 +563,8 @@ private:
         return simulation_time;
     }
 
-    abc<angle<zero_to_two_pi>> m_phase_shift{angle<zero_to_two_pi>{}, angle<zero_to_two_pi>{-2.0 * pi<double> / 3.0f},
-                                             angle<zero_to_two_pi>{2.0 * pi<double> / 3.0f}};
+    abc<angle<zero_to_two_pi>> m_phase_shift{angle<zero_to_two_pi>{}, angle<zero_to_two_pi>{-2.0 * pi / 3.0f},
+                                             angle<zero_to_two_pi>{2.0 * pi / 3.0f}};
 
     double m_sampling_time{0.0f};
 

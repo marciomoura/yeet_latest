@@ -5,6 +5,7 @@
 #include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/second_order_filter.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
 
@@ -13,29 +14,27 @@ namespace yeet::application::sfc {
  */
 class sfc_grid_side_filtering {
 public:
-    explicit sfc_grid_side_filtering(double sampling_period);
+    explicit sfc_grid_side_filtering(duration_t sampling_period);
 
-    void configure(double voltage_filter_cutoff_freq_hz, double current_filter_cutoff_freq_hz,
-                   double damping_ratio = 0.707);
-    void configure_voltage_magnitude_filter(double cutoff_freq_hz, double damping_ratio = 0.707);
+    void configure(frequency_t voltage_filter_cutoff_freq, frequency_t current_filter_cutoff_freq,
+                   real_t damping_ratio = 0.707);
+    void configure_voltage_magnitude_filter(frequency_t cutoff_freq, real_t damping_ratio = 0.707);
 
-    void update(const control::abc<double>& voltage_pu, const control::abc<double>& current_pu);
+    void update(const abc<voltage_pu_t>& voltage_pu, const abc<current_pu_t>& current_pu);
 
-    const control::abc<double>& get_filtered_voltages_pu() const { return _filtered_voltages_pu; }
-    const control::abc<double>& get_filtered_currents_pu() const { return _filtered_currents_pu; }
-    const control::alphabeta<double>& get_filtered_voltage_alphabeta_pu() const {
-        return _filtered_voltage_alphabeta_pu;
-    }
-    double get_filtered_voltage_magnitude_pu() const { return _filtered_voltage_magnitude_pu; }
+    const abc<voltage_pu_t>& get_filtered_voltages_pu() const { return _filtered_voltages_pu; }
+    const abc<current_pu_t>& get_filtered_currents_pu() const { return _filtered_currents_pu; }
+    const alphabeta<voltage_pu_t>& get_filtered_voltage_alphabeta_pu() const { return _filtered_voltage_alphabeta_pu; }
+    voltage_pu_t get_filtered_voltage_magnitude_pu() const { return _filtered_voltage_magnitude_pu; }
 
 private:
-    control::abc<double> _filtered_voltages_pu;
-    control::abc<double> _filtered_currents_pu;
-    control::alphabeta<double> _filtered_voltage_alphabeta_pu;
-    double _filtered_voltage_magnitude_pu{};
-    control::second_order_low_pass_filter<control::abc<double>> _voltage_filter;
-    control::second_order_low_pass_filter<control::abc<double>> _current_filter;
-    control::second_order_low_pass_filter<double> _voltage_magnitude_filter;
+    abc<voltage_pu_t> _filtered_voltages_pu;
+    abc<current_pu_t> _filtered_currents_pu;
+    alphabeta<voltage_pu_t> _filtered_voltage_alphabeta_pu;
+    voltage_pu_t _filtered_voltage_magnitude_pu{};
+    control::second_order_low_pass_filter<abc<voltage_pu_t>> _voltage_filter;
+    control::second_order_low_pass_filter<abc<current_pu_t>> _current_filter;
+    control::second_order_low_pass_filter<voltage_pu_t> _voltage_magnitude_filter;
 };
 
 /**
@@ -43,22 +42,22 @@ private:
  */
 class sfc_dc_link_filtering {
 public:
-    explicit sfc_dc_link_filtering(double sampling_period);
+    explicit sfc_dc_link_filtering(duration_t sampling_period);
 
-    void configure(double voltage_filter_cutoff_freq_hz, double current_ripple_freq_hz);
+    void configure(frequency_t voltage_filter_cutoff_freq, frequency_t current_ripple_freq);
 
-    void update(double voltage_pu, double current_pu);
+    void update(voltage_pu_t voltage_pu, current_pu_t current_pu);
 
-    double get_filtered_voltage_pu() const { return _filtered_voltage_pu; }
-    double get_filtered_current_pu() const { return _filtered_current_pu; }
-    double get_filtered_current_magnitude_pu() const { return std::abs(_filtered_current_pu); }
+    voltage_pu_t get_filtered_voltage_pu() const { return _filtered_voltage_pu; }
+    current_pu_t get_filtered_current_pu() const { return _filtered_current_pu; }
+    current_pu_t get_filtered_current_magnitude_pu() const { return abs(_filtered_current_pu); }
 
 private:
-    double _filtered_voltage_pu{};
-    double _filtered_current_pu{};
-    control::second_order_low_pass_filter<double> _voltage_filter;
-    control::second_order_band_reject_filter<double> _current_notch_filter;
-    control::second_order_low_pass_filter<double> _current_lpf;
+    voltage_pu_t _filtered_voltage_pu{};
+    current_pu_t _filtered_current_pu{};
+    control::second_order_low_pass_filter<voltage_pu_t> _voltage_filter;
+    control::second_order_band_reject_filter<current_pu_t> _current_notch_filter;
+    control::second_order_low_pass_filter<current_pu_t> _current_lpf;
 };
 
 /**
@@ -66,30 +65,28 @@ private:
  */
 class sfc_machine_side_filtering {
 public:
-    explicit sfc_machine_side_filtering(double sampling_period);
+    explicit sfc_machine_side_filtering(duration_t sampling_period);
 
-    void configure_voltage_filter(double cutoff_freq_hz, double damping_ratio = 0.707);
-    void configure_current_filter(double cutoff_freq_hz, double damping_ratio = 0.707);
-    void configure_voltage_magnitude_filter(double cutoff_freq_hz, double damping_ratio = 0.707);
+    void configure_voltage_filter(frequency_t cutoff_freq, real_t damping_ratio = 0.707);
+    void configure_current_filter(frequency_t cutoff_freq, real_t damping_ratio = 0.707);
+    void configure_voltage_magnitude_filter(frequency_t cutoff_freq, real_t damping_ratio = 0.707);
 
-    void update(const control::abc<double>& voltage_pu, const control::abc<double>& current_pu,
-                double machine_frequency_hz);
+    void update(const abc<voltage_pu_t>& voltage_pu, const abc<current_pu_t>& current_pu,
+                frequency_t machine_frequency);
 
-    const control::abc<double>& get_filtered_voltages_pu() const { return _filtered_voltages_pu; }
-    const control::abc<double>& get_filtered_currents_pu() const { return _filtered_currents_pu; }
-    const control::alphabeta<double>& get_filtered_voltage_alphabeta_pu() const {
-        return _filtered_voltage_alphabeta_pu;
-    }
-    double get_filtered_voltage_magnitude_pu() const { return _filtered_voltage_magnitude_pu; }
+    const abc<voltage_pu_t>& get_filtered_voltages_pu() const { return _filtered_voltages_pu; }
+    const abc<current_pu_t>& get_filtered_currents_pu() const { return _filtered_currents_pu; }
+    const alphabeta<voltage_pu_t>& get_filtered_voltage_alphabeta_pu() const { return _filtered_voltage_alphabeta_pu; }
+    voltage_pu_t get_filtered_voltage_magnitude_pu() const { return _filtered_voltage_magnitude_pu; }
 
 private:
-    control::abc<double> _filtered_voltages_pu;
-    control::abc<double> _filtered_currents_pu;
-    control::alphabeta<double> _filtered_voltage_alphabeta_pu;
-    double _filtered_voltage_magnitude_pu{};
-    control::second_order_low_pass_filter<control::abc<double>> _voltage_filter;
-    control::second_order_low_pass_filter<control::abc<double>> _current_filter;
-    control::second_order_low_pass_filter<double> _voltage_magnitude_filter;
+    abc<voltage_pu_t> _filtered_voltages_pu;
+    abc<current_pu_t> _filtered_currents_pu;
+    alphabeta<voltage_pu_t> _filtered_voltage_alphabeta_pu;
+    voltage_pu_t _filtered_voltage_magnitude_pu{};
+    control::second_order_low_pass_filter<abc<voltage_pu_t>> _voltage_filter;
+    control::second_order_low_pass_filter<abc<current_pu_t>> _current_filter;
+    control::second_order_low_pass_filter<voltage_pu_t> _voltage_magnitude_filter;
 };
 
 }  // namespace yeet::application::sfc

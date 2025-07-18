@@ -9,6 +9,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class AssynchronousMachinePerUnitOpenLoopTest : public ::testing::Test {
@@ -16,7 +17,7 @@ public:
     static constexpr double sampling_time = 1e-4;     // 10 kHz sampling rate
     static constexpr double stator_frequency = 50.0;  // 50 Hz stator frequency
 
-    double nominal_electrical_speed = 2 * pi<double> * stator_frequency;  // Nominal electrical speed [rad/s]
+    double nominal_electrical_speed = 2 * pi * stator_frequency;  // Nominal electrical speed [rad/s]
 
     void SetUp() override {
         // Configure machine with per-unit values
@@ -113,8 +114,7 @@ private:
             time_counter += sampling_time;
 
             // Calculate alpha-beta voltage components in per-unit
-            voltage_command_pu = yeet::control::make_alphabeta<double>(
-                1.0, angle<zero_to_two_pi>{50.0 * 2.0 * pi<double> * time_counter});
+            voltage_command_pu = make_alphabeta<double>(1.0, angle<zero_to_two_pi>{50.0 * 2.0 * pi * time_counter});
 
             // Update machine with per-unit voltage command and zero load torque
             machine->update(voltage_command_pu, 0.0);
@@ -133,7 +133,7 @@ TEST_F(AssynchronousMachinePerUnitOpenLoopTest, OpenLoop) {
     EXPECT_TRUE(simulator.simulate_for(3.0));
 
     // Check if machine has accelerated to near-synchronous speed
-    // double sync_speed = 2 * pi<double> * stator_frequency / 2;  // Mechanical speed for 2 pole pairs
+    // double sync_speed = 2 * pi * stator_frequency / 2;  // Mechanical speed for 2 pole pairs
     // EXPECT_GT(machine.get_mechanical_speed_rad_s(), 0.9 * sync_speed);
 }
 
@@ -148,8 +148,8 @@ TEST_F(AssynchronousMachinePerUnitOpenLoopTest, OpenLoop) {
 
 //     // Output final values in both per-unit and physical units
 //     double speed_pu = machine->get_mechanical_speed_pu();
-//     double speed_rpm = speed_pu * machine->get_base_values().speed * 60.0 / (2 * pi<double>);
-//     double sync_speed_rpm = sync_speed_pu * machine->get_base_values().speed * 60.0 / (2 * pi<double>);
+//     double speed_rpm = speed_pu * machine->get_base_values().speed * 60.0 / (2 * pi);
+//     double sync_speed_rpm = sync_speed_pu * machine->get_base_values().speed * 60.0 / (2 * pi);
 
 //     std::cout << "Final speed: " << speed_pu << " p.u. (" << speed_rpm << " RPM, synchronous: " << sync_speed_rpm
 //               << " RPM)" << std::endl;
@@ -186,7 +186,7 @@ TEST_F(AssynchronousMachinePerUnitOpenLoopTest, OpenLoop) {
 //         time_counter += sampling_time;
 
 //         // Keep the same voltage (at nominal frequency and voltage)
-//         double omega_s = 2.0 * pi<double> * stator_frequency;
+//         double omega_s = 2.0 * pi * stator_frequency;
 //         double v_magnitude_pu = 1.0;
 
 //         voltage_command_pu.alpha() = v_magnitude_pu * std::cos(omega_s * time_counter);

@@ -9,6 +9,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 static constexpr double k_epsilon = 1e-8;
@@ -166,13 +167,13 @@ TEST(ReferenceFrameTest, ConversionAlphaBetaToDq) {
 TEST(ReferenceFrameTest, AlphabetaMagnitudeAndPhase) {
     alphabeta<double> coords(1.0, 1.0);
     expect_near(coords.magnitude(), std::sqrt(2.0));
-    expect_near(coords.phase().get_radians(), pi<double> / 4);
+    expect_near(coords.phase().get_radians(), pi / 4);
 }
 
 TEST(ReferenceFrameTest, DqMagnitudeAndPHase) {
     dq<double> coords(1.0, 1.0);
     expect_near(coords.magnitude(), std::sqrt(2.0));
-    expect_near(coords.phase(angle<zero_to_two_pi>(0.0)).get_radians(), pi<double> / 4);
+    expect_near(coords.phase(angle<zero_to_two_pi>(0.0)).get_radians(), pi / 4);
 }
 
 TEST(ReferenceFrameTest, AlphabetaAdditionAndSubtractionOperators) {
@@ -401,25 +402,25 @@ TEST(ReferenceFrameTest, NonMemberScalarMultiplication) {
 TEST(ReferenceFrameTest, AlphaBetaRotateCounterClockwise) {
     alphabeta<double> ab = {1.0, 0.0};
 
-    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = 0, beta = 1
     expect_near(ab[0], 0.0);
     expect_near(ab[1], 1.0);
     expect_near(ab.magnitude(), 1.0);
 
-    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = -1, beta = 0
     expect_near(ab[0], -1.0);
     expect_near(ab[1], 0.0);
     expect_near(ab.magnitude(), 1.0);
 
-    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = 0, beta = -1
     expect_near(ab[0], 0.0);
     expect_near(ab[1], -1.0);
     expect_near(ab.magnitude(), 1.0);
 
-    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = 1, beta = 0
     expect_near(ab[0], 1.0);
     expect_near(ab[1], 0.0);
@@ -429,25 +430,25 @@ TEST(ReferenceFrameTest, AlphaBetaRotateCounterClockwise) {
 TEST(ReferenceFrameTest, AlphaBetaRotateClockwise) {
     alphabeta<double> ab = {1.0, 0.0};
 
-    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = 0, beta = -1
     expect_near(ab[0], 0.0);
     expect_near(ab[1], -1.0);
     expect_near(ab.magnitude(), 1.0);
 
-    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = -1, beta = 0
     expect_near(ab[0], -1.0);
     expect_near(ab[1], 0.0);
     expect_near(ab.magnitude(), 1.0);
 
-    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = 0, beta = 1
     expect_near(ab[0], 0.0);
     expect_near(ab[1], 1.0);
     expect_near(ab.magnitude(), 1.0);
 
-    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    ab = ab.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     // Result is alpha = 1, beta = 0
     expect_near(ab[0], 1.0);
     expect_near(ab[1], 0.0);
@@ -458,23 +459,23 @@ TEST(ReferenceFrameTest, DqRotateCounterClockwise) {
     dq<double> dq_coords{1.0, 0.0};
 
     // Rotate counter-clockwise by 90 degrees (pi/2)
-    dq<double> rotated = dq_coords.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    dq<double> rotated = dq_coords.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], 0.0);
     expect_near(rotated[1], 1.0);
     expect_near(rotated.magnitude(), 1.0);
 
     // Another 90° rotation (total 180°)
-    rotated = rotated.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    rotated = rotated.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], -1.0);
     expect_near(rotated[1], 0.0);
 
     // Another 90° rotation (total 270°)
-    rotated = rotated.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    rotated = rotated.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], 0.0);
     expect_near(rotated[1], -1.0);
 
     // Final 90° rotation should return to the original orientation
-    rotated = rotated.rotate_counter_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    rotated = rotated.rotate_counter_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], 1.0);
     expect_near(rotated[1], 0.0);
 }
@@ -483,23 +484,23 @@ TEST(ReferenceFrameTest, DqRotateClockwise) {
     dq<double> dq_coords{1.0, 0.0};
 
     // Rotate clockwise by 90 degrees (pi/2)
-    dq<double> rotated = dq_coords.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    dq<double> rotated = dq_coords.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], 0.0);
     expect_near(rotated[1], -1.0);
     expect_near(rotated.magnitude(), 1.0);
 
     // Another 90° rotation (total 180°)
-    rotated = rotated.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    rotated = rotated.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], -1.0);
     expect_near(rotated[1], 0.0);
 
     // Another 90° rotation (total 270°)
-    rotated = rotated.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    rotated = rotated.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], 0.0);
     expect_near(rotated[1], 1.0);
 
     // Final 90° rotation returns to original orientation
-    rotated = rotated.rotate_clockwise(angle<zero_to_two_pi>(pi<double> / 2));
+    rotated = rotated.rotate_clockwise(angle<zero_to_two_pi>(pi / 2));
     expect_near(rotated[0], 1.0);
     expect_near(rotated[1], 0.0);
 }
@@ -510,15 +511,15 @@ TEST(ReferenceFrameTest, AlphaBetaToDQ) {
     expect_near(dq[0], 1.0);
     expect_near(dq[1], 0.0);
 
-    dq = ab.to_dq(angle<zero_to_two_pi>(pi<double> / 2.0));
+    dq = ab.to_dq(angle<zero_to_two_pi>(pi / 2.0));
     expect_near(dq[0], 0.0);
     expect_near(dq[1], -1.0);
 
-    dq = ab.to_dq(angle<zero_to_two_pi>(pi<double>));
+    dq = ab.to_dq(angle<zero_to_two_pi>(pi));
     expect_near(dq[0], -1.0);
     expect_near(dq[1], 0.0);
 
-    dq = ab.to_dq(angle<zero_to_two_pi>(3 * pi<double> / 2));
+    dq = ab.to_dq(angle<zero_to_two_pi>(3 * pi / 2));
     expect_near(dq[0], 0.0);
     expect_near(dq[1], 1.0);
 }
@@ -529,15 +530,15 @@ TEST(ReferenceFrameTest, DQToAlphaBeta) {
     expect_near(ab[0], 1.0);
     expect_near(ab[1], 0.0);
 
-    ab = dq.to_alphabeta(angle<zero_to_two_pi>(pi<double> / 2.0f));
+    ab = dq.to_alphabeta(angle<zero_to_two_pi>(pi / 2.0f));
     expect_near(ab[0], 0.0);
     expect_near(ab[1], 1.0);
 
-    ab = dq.to_alphabeta(angle<zero_to_two_pi>(pi<double>));
+    ab = dq.to_alphabeta(angle<zero_to_two_pi>(pi));
     expect_near(ab[0], -1.0);
     expect_near(ab[1], 0.0);
 
-    ab = dq.to_alphabeta(angle<zero_to_two_pi>(3 * pi<double> / 2));
+    ab = dq.to_alphabeta(angle<zero_to_two_pi>(3 * pi / 2));
     expect_near(ab[0], 0.0);
     expect_near(ab[1], -1.0);
 }
@@ -570,7 +571,7 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta) {
 
     // Test 45°: use make_abc to generate balanced abc with magnitude 1 and phase 45°
     {
-        abc<double> abc45 = make_abc<double>(1.0, angle<zero_to_two_pi>(45.0 * pi<double> / 180.0));
+        abc<double> abc45 = make_abc<double>(1.0, angle<zero_to_two_pi>(45.0 * pi / 180.0));
         alphabeta<double> ab45 = abc45.to_alphabeta();
         EXPECT_NEAR(ab45[0], std::sqrt(2.0) / 2.0, 1e-6);
         EXPECT_NEAR(ab45[1], std::sqrt(2.0) / 2.0, 1e-6);
@@ -579,7 +580,7 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta) {
 
     // Test 90°: balanced abc corresponding to 90° (expected: alpha=0, beta=1)
     {
-        abc<double> abc90 = make_abc<double>(1.0, angle<zero_to_two_pi>(90.0 * pi<double> / 180.0));
+        abc<double> abc90 = make_abc<double>(1.0, angle<zero_to_two_pi>(90.0 * pi / 180.0));
         alphabeta<double> ab90 = abc90.to_alphabeta();
         EXPECT_NEAR(ab90[0], 0.0, 1e-6);
         EXPECT_NEAR(ab90[1], 1.0, 1e-6);
@@ -588,7 +589,7 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta) {
 
     // Test 135°: balanced abc corresponding to 135° (expected: alpha ≈ -0.707107, beta ≈ 0.707107)
     {
-        abc<double> abc135 = make_abc<double>(1.0, angle<zero_to_two_pi>(135.0 * pi<double> / 180.0));
+        abc<double> abc135 = make_abc<double>(1.0, angle<zero_to_two_pi>(135.0 * pi / 180.0));
         alphabeta<double> ab135 = abc135.to_alphabeta();
         EXPECT_NEAR(ab135[0], -std::sqrt(2.0) / 2.0, 1e-6);
         EXPECT_NEAR(ab135[1], std::sqrt(2.0) / 2.0, 1e-6);
@@ -597,11 +598,11 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta) {
 
     // Test 235°: generate balanced abc for 235° and verify both magnitude and phase.
     {
-        abc<double> abc235 = make_abc<double>(1.0, angle<zero_to_two_pi>(235.0 * pi<double> / 180.0));
+        abc<double> abc235 = make_abc<double>(1.0, angle<zero_to_two_pi>(235.0 * pi / 180.0));
         alphabeta<double> ab235 = abc235.to_alphabeta();
         EXPECT_NEAR(ab235.magnitude(), 1.0, 1e-6);
         // Convert phase (in radians) to degrees and adjust it into [0,360)
-        double phase_deg = ab235.phase().get_radians() * 180.0 / pi<double>;
+        double phase_deg = ab235.phase().get_radians() * 180.0 / pi;
         if (phase_deg < 0) phase_deg += 360.0;
         EXPECT_NEAR(phase_deg, 235.0, 1e-6);
     }
@@ -619,10 +620,10 @@ TEST(ReferenceFrameTest, AlphaBetaToABC) {
 
     // Test 45°: Convert αβ (obtained from make_alphabeta) back to abc.
     {
-        alphabeta<double> ab45 = make_alphabeta<double>(1.0, angle<zero_to_two_pi>(45.0 * pi<double> / 180.0));
+        alphabeta<double> ab45 = make_alphabeta<double>(1.0, angle<zero_to_two_pi>(45.0 * pi / 180.0));
         abc<double> abc_from_ab = ab45.to_abc();
         // Expected abc obtained by make_abc should match the conversion.
-        abc<double> expected_abc = make_abc<double>(1.0, angle<zero_to_two_pi>(45.0 * pi<double> / 180.0));
+        abc<double> expected_abc = make_abc<double>(1.0, angle<zero_to_two_pi>(45.0 * pi / 180.0));
         auto expected_arr = expected_abc.array();
         auto result_arr = abc_from_ab.array();
         for (size_t i = 0; i < 3; i++) {
@@ -632,9 +633,9 @@ TEST(ReferenceFrameTest, AlphaBetaToABC) {
 
     // Test 135°: Convert αβ from 135° back to abc.
     {
-        alphabeta<double> ab135 = make_alphabeta<double>(1.0, angle<zero_to_two_pi>(135.0 * pi<double> / 180.0));
+        alphabeta<double> ab135 = make_alphabeta<double>(1.0, angle<zero_to_two_pi>(135.0 * pi / 180.0));
         abc<double> abc_from_ab = ab135.to_abc();
-        abc<double> expected_abc = make_abc<double>(1.0, angle<zero_to_two_pi>(135.0 * pi<double> / 180.0));
+        abc<double> expected_abc = make_abc<double>(1.0, angle<zero_to_two_pi>(135.0 * pi / 180.0));
         auto expected_arr = expected_abc.array();
         auto result_arr = abc_from_ab.array();
         for (size_t i = 0; i < 3; i++) {
@@ -644,9 +645,9 @@ TEST(ReferenceFrameTest, AlphaBetaToABC) {
 
     // Test 235°: Convert for 235°.
     {
-        alphabeta<double> ab235 = make_alphabeta<double>(1.0, angle<zero_to_two_pi>(235.0 * pi<double> / 180.0));
+        alphabeta<double> ab235 = make_alphabeta<double>(1.0, angle<zero_to_two_pi>(235.0 * pi / 180.0));
         abc<double> abc_from_ab = ab235.to_abc();
-        abc<double> expected_abc = make_abc<double>(1.0, angle<zero_to_two_pi>(235.0 * pi<double> / 180.0));
+        abc<double> expected_abc = make_abc<double>(1.0, angle<zero_to_two_pi>(235.0 * pi / 180.0));
         auto expected_arr = expected_abc.array();
         auto result_arr = abc_from_ab.array();
         for (size_t i = 0; i < 3; i++) {

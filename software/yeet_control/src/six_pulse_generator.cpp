@@ -5,7 +5,7 @@ namespace yeet::control {
 six_pulse_generator::six_pulse_generator(angle_t pulse_width) {
     // Initialize all six pulse generators with their respective firing offsets
     for (size_t i = 0; i < 6; ++i) {
-        angle_t offset = angle_t(yeet::control::deg_to_rad(firing_offsets_deg[i]));
+        angle_t offset = angle_t(yeet::deg_to_rad(firing_offsets_deg[i]));
         _pulse_generators[i] = pulse_generator(offset, pulse_width);
     }
 }

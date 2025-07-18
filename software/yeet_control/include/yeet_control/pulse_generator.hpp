@@ -14,7 +14,7 @@ namespace yeet::control {
  */
 class pulse_generator {
 public:
-    using angle_t = yeet::control::angle<yeet::control::zero_to_two_pi>;
+    using angle_t = yeet::angle<yeet::zero_to_two_pi>;
 
     /**
      * @brief Constructs a pulse generator.
@@ -23,7 +23,7 @@ public:
      * @param pulse_width The angular width of the pulse.
      */
     explicit pulse_generator(angle_t firing_offset = angle_t(0.0),
-                             angle_t pulse_width = angle_t(yeet::control::deg_to_rad(1.0)));
+                             angle_t pulse_width = angle_t(yeet::deg_to_rad(1.0)));
 
     /**
      * @brief Updates the pulse generator and returns the pulse state.

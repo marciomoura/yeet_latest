@@ -9,6 +9,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class ExternallyExcitedSynchronousMachinePerUnitTest : public ::testing::Test {
@@ -82,7 +83,7 @@ private:
         // Speed in RPM (converted from per-unit)
         simulator.register_sampler_entry(yeet::testing::make_reference_sampler("speed_rpm", [this]() {
             double speed_rad_s = mechanical_speed_pu * machine->get_base_values().speed;
-            return speed_rad_s * 60.0 / (2 * pi<double>);
+            return speed_rad_s * 60.0 / (2 * pi);
         }));
 
         // Electrical angle
@@ -133,9 +134,9 @@ TEST_F(ExternallyExcitedSynchronousMachinePerUnitTest, NominalVoltageTest) {
     std::cout << "=== Externally Excited Synchronous Machine Per-Unit Test Results ===" << std::endl;
     std::cout << "Final speed: " << mechanical_speed_pu << " p.u." << std::endl;
 
-    double speed_rpm = mechanical_speed_pu * machine->get_base_values().speed * 60.0 / (2 * pi<double>);
+    double speed_rpm = mechanical_speed_pu * machine->get_base_values().speed * 60.0 / (2 * pi);
     double sync_speed_rpm =
-        1.0 * machine->get_base_values().speed * 60.0 / (2 * pi<double>) / machine->get_si_machine().get_pole_pairs();
+        1.0 * machine->get_base_values().speed * 60.0 / (2 * pi) / machine->get_si_machine().get_pole_pairs();
 
     std::cout << "Final speed: " << speed_rpm << " RPM (synchronous: " << sync_speed_rpm << " RPM)" << std::endl;
     std::cout << "Final torque: " << electromagnetic_torque_pu << " p.u. ("

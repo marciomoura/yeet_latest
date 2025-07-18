@@ -8,6 +8,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class AssynchronousMachineOpenLoopTest : public ::testing::Test {
@@ -73,7 +74,7 @@ private:
         simulator.register_sampler_entry(yeet::testing::make_reference_sampler(
             "speed_rad_s", [this]() { return machine.get_mechanical_speed_rad_s(); }));
         simulator.register_sampler_entry(yeet::testing::make_reference_sampler(
-            "speed_rpm", [this]() { return machine.get_mechanical_speed_rad_s() * 60.0 / (2 * pi<double>); }));
+            "speed_rpm", [this]() { return machine.get_mechanical_speed_rad_s() * 60.0 / (2 * pi); }));
         simulator.register_sampler_entry(
             yeet::testing::make_reference_sampler("torque_Nm", [this]() { return machine.get_torque(); }));
 
@@ -116,7 +117,7 @@ private:
                     frequency = stator_frequency;  // Final frequency
                 }
 
-                double omega_s = 2.0 * pi<double> * frequency;
+                double omega_s = 2.0 * pi * frequency;
 
                 // Calculate voltage to maintain constant flux (V/f with boost)
                 double v_magnitude;
@@ -152,13 +153,12 @@ TEST_F(AssynchronousMachineOpenLoopTest, StartupTransient) {
     EXPECT_TRUE(simulator.simulate_for(3.0));
 
     // Check if machine has accelerated to near-synchronous speed
-    double sync_speed = 2 * pi<double> * stator_frequency / 2;  // Mechanical speed for 2 pole pairs
+    double sync_speed = 2 * pi * stator_frequency / 2;  // Mechanical speed for 2 pole pairs
     EXPECT_GT(machine.get_mechanical_speed_rad_s(), 0.9 * sync_speed);
 
     // Output final values
-    std::cout << "Final speed: "
-              << machine.get_mechanical_speed_rad_s() * 60.0 / (2 * pi<double>) << " RPM (synchronous: "
-              << sync_speed * 60.0 / (2 * pi<double>) << " RPM)" << std::endl;
+    std::cout << "Final speed: " << machine.get_mechanical_speed_rad_s() * 60.0 / (2 * pi)
+              << " RPM (synchronous: " << sync_speed * 60.0 / (2 * pi) << " RPM)" << std::endl;
     std::cout << "Final torque: " << machine.get_torque() << " N·m" << std::endl;
     std::cout << "Stator current magnitude: "
               << std::sqrt(std::pow(stator_current.alpha(), 2) + std::pow(stator_current.beta(), 2)) << " A"

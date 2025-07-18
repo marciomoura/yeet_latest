@@ -9,6 +9,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class ThreePhaseWaveformGeneratorTest : public ::testing::Test {
@@ -43,8 +44,7 @@ public:
     void set_checker_callback(std::function<void()> callback) { _checker_callback = callback; }
 
     constexpr abc<angle<zero_to_two_pi>> get_default_phase_shift() {
-        return {angle<zero_to_two_pi>{}, -angle<zero_to_two_pi>(2.0 * pi<double> / 3.0),
-                angle<zero_to_two_pi>(2.0 * pi<double> / 3.0)};
+        return {angle<zero_to_two_pi>{}, -angle<zero_to_two_pi>(2.0 * pi / 3.0), angle<zero_to_two_pi>(2.0 * pi / 3.0)};
     }
 
     static abc<double> generate_three_phase_signal(std::size_t harmonic, abc<double> amplitude,
@@ -96,8 +96,8 @@ public:
 
     static angle<zero_to_two_pi> get_next_angle(std::size_t harmonic, angle<zero_to_two_pi> current_angle,
                                                 double signal_frequency, double sampling_time) {
-        return current_angle + angle<zero_to_two_pi>(static_cast<double>(harmonic) * 2.0 * pi<double> *
-                                                     signal_frequency * sampling_time);
+        return current_angle +
+               angle<zero_to_two_pi>(static_cast<double>(harmonic) * 2.0 * pi * signal_frequency * sampling_time);
     }
 
     angle<zero_to_two_pi> generate_abc_signal_reference(std::size_t harmonic, angle<zero_to_two_pi> initial_angle,
@@ -325,7 +325,7 @@ TEST_F(ThreePhaseWaveformGeneratorTest, PureFundamentalStepAngle) {
     double const step_time = 0.1f;
     double const total_time = 0.2f;
 
-    angle<zero_to_two_pi> const step_value = angle<zero_to_two_pi>(pi<double> / 2.0f);
+    angle<zero_to_two_pi> const step_value = angle<zero_to_two_pi>(pi / 2.0f);
 
     three_phase_waveform_generator& waveform_generator = get_waveform_generator();
 
@@ -566,7 +566,7 @@ TEST_F(ThreePhaseWaveformGeneratorTest, StepAngleWithHarmonics) {
     double const step_time = 0.1f;
     double const total_time = 0.2f;
 
-    angle<zero_to_two_pi> const angle_step = angle<zero_to_two_pi>(pi<double> / 2.0);
+    angle<zero_to_two_pi> const angle_step = angle<zero_to_two_pi>(pi / 2.0);
 
     three_phase_waveform_generator& waveform_generator = get_waveform_generator();
 

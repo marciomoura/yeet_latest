@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace yeet::control {
+namespace yeet {
 
 // Type trait to get the fundamental type
 template <typename T>
@@ -59,4 +59,4 @@ struct is_coordinate_frame<alphabeta<T>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_coordinate_frame_v = is_coordinate_frame<T>::value;
 
-}  // namespace yeet::control
+}  // namespace yeet

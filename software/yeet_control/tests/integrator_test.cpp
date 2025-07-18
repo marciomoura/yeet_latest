@@ -8,6 +8,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 TEST(IntegratorTest, IntegratesConstantInput) {
@@ -57,8 +58,8 @@ TEST(IntegratorTest, AngleWrappingTest) {
     angle_integrator.configure(ts);
     angle_integrator.reset();
 
-    const double angular_velocity = 2.0 * pi<double> * 50.0;  // 50 rotations per second
-    const size_t num_samples = 1000;                          // simulate for 1 second
+    const double angular_velocity = 2.0 * pi * 50.0;  // 50 rotations per second
+    const size_t num_samples = 1000;                  // simulate for 1 second
 
     for (size_t i = 0; i < num_samples; ++i) {
         angle_integrator.update(angular_velocity);
@@ -66,7 +67,7 @@ TEST(IntegratorTest, AngleWrappingTest) {
 
     double integrated_angle = angle_integrator.get_value();  // Should be approximately 2π * 50
     angle<zero_to_two_pi> angle_2pi(integrated_angle);
-    EXPECT_NEAR(angle_2pi.get_radians(), 2.0 * pi<double>, 1e-6);
+    EXPECT_NEAR(angle_2pi.get_radians(), 2.0 * pi, 1e-6);
     EXPECT_NEAR(angle_2pi + angle<zero_to_two_pi>{1e-8}, 0.0f, 1e-6);  // Wrapping around 2π and zero
 
     angle<minus_pi_to_pi> wrapped_angle_minus(integrated_angle);
@@ -83,7 +84,7 @@ TEST(IntegratorTest, AngleWrappingTest) {
     angle<zero_to_two_pi> wrapped_angle_zero2(integrated_angle);
 
     // Expected remainder after wrapping to [0, 2π)
-    double expected_remainder = std::fmod(integrated_angle, 2.0 * pi<double>);
+    double expected_remainder = std::fmod(integrated_angle, 2.0 * pi);
     EXPECT_NEAR(wrapped_angle_zero2.get_radians(), expected_remainder, 1e-6);
 }
 

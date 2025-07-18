@@ -111,13 +111,13 @@ public:
      * @brief Gets the angle of the grid-side voltage source.
      * @return The angle, wrapped between 0 and 2*pi.
      */
-    control::angle<control::zero_to_two_pi> get_grid_voltage_source_angle() const;
+    angle<control::zero_to_two_pi> get_grid_voltage_source_angle() const;
 
     /**
      * @brief Gets the angle of the machine-side voltage source.
      * @return The angle, wrapped between 0 and 2*pi.
      */
-    control::angle<control::zero_to_two_pi> get_machine_voltage_source_angle() const;
+    angle<control::zero_to_two_pi> get_machine_voltage_source_angle() const;
 
     /**
      * @brief Gets the DC link current.

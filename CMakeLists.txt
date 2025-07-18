@@ -33,6 +33,10 @@ option(YEET_BUILD_EXAMPLES "Build the examples tree (show me the receipts 👀)"
        ON)
 option(YEET_ENABLE_CODE_ANALYSIS "Run code analysis (vibe check our code)" OFF)
 option(YEET_ENABLE_CCACHE "Enable ccache (speed goes brrr 🏃‍♂️💨)" ON)
+option(
+    YEET_PRECISION_DOUBLE
+    "Use double precision for floating-point types (because we like it precise 💎)"
+    ON)
 
 # Set output directories before any targets are created (keeping it organized
 # bestie)
@@ -54,6 +58,20 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Propagate CMake option to a C++ preprocessor definition
+if(YEET_PRECISION_DOUBLE)
+    add_compile_definitions(YEET_PRECISION_DOUBLE)
+    message(
+        STATUS
+            "yeet build-config: Double precision enabled (the only way to be ✨)"
+    )
+else()
+    message(
+        STATUS
+            "yeet build-config: Single precision enabled (for the speed demons 💨)"
+    )
+endif()
 
 # Generator-specific configuration - checking the fit
 if(CMAKE_GENERATOR STREQUAL "Ninja")

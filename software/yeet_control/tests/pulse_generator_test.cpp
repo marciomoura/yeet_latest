@@ -4,6 +4,7 @@
 
 #include "yeet_control/constants.hpp"
 
+using namespace yeet;
 using namespace yeet::control;
 
 class PulseGeneratorTest : public ::testing::Test {

@@ -4,7 +4,30 @@
 #include <string>
 #include <type_traits>
 
-namespace yeet::control {
+#include "yeet_control/reference_frame.hpp"
+#include "yeet_control/types.hpp"
+
+namespace yeet {
+
+//==============================================================================
+// Compile-Time Precision Control
+//==============================================================================
+
+/**
+ * @brief Defines the default floating-point type for quantities.
+ *
+ * To use single precision (float), define YEET_PRECISION_FLOAT before including this header.
+ * Otherwise, it defaults to double precision.
+ *
+ * Example for single precision:
+ * #define YEET_PRECISION_FLOAT
+ * #include "yeet_control/units.hpp"
+ */
+#if defined(YEET_PRECISION_DOUBLE)
+using real_t = double;
+#else
+using real_t = float;
+#endif
 
 //==============================================================================
 // R1.1: Dimensional Representation & R2.3: System Differentiation
@@ -209,74 +232,55 @@ using mag_field_strength_dim = dimension<-1, 0, 0, 1, 0, 0, 0>;  // I/L
 using flux_density_dim = dimension<0, 1, -2, -1, 0, 0, 0>;       // M/(T^2*I)
 
 // SI Quantity Type Aliases
-template <typename Rep = double>
-using length = quantity<length_dim, si, Rep>;
-template <typename Rep = double>
-using mass = quantity<mass_dim, si, Rep>;
-template <typename Rep = double>
-using duration_type = quantity<time_dim, si, Rep>;
-template <typename Rep = double>
-using current = quantity<current_dim, si, Rep>;
-template <typename Rep = double>
-using velocity = quantity<velocity_dim, si, Rep>;
-template <typename Rep = double>
-using acceleration = quantity<acceleration_dim, si, Rep>;
-template <typename Rep = double>
-using frequency = quantity<frequency_dim, si, Rep>;
-template <typename Rep = double>
-using force = quantity<force_dim, si, Rep>;
-template <typename Rep = double>
-using torque = quantity<torque_dim, si, Rep>;
-template <typename Rep = double>
-using moment_of_inertia = quantity<moment_of_inertia_dim, si, Rep>;
-template <typename Rep = double>
-using angular_frequency = quantity<frequency_dim, si, Rep>;  // Radian is dimensionless
-template <typename Rep = double>
-using voltage = quantity<voltage_dim, si, Rep>;
-template <typename Rep = double>
-using power = quantity<power_dim, si, Rep>;
-template <typename Rep = double>
-using resistance = quantity<resistance_dim, si, Rep>;
-template <typename Rep = double>
-using impedance = quantity<resistance_dim, si, Rep>;  // Same dimension as resistance
-template <typename Rep = double>
-using capacitance = quantity<capacitance_dim, si, Rep>;
-template <typename Rep = double>
-using inductance = quantity<inductance_dim, si, Rep>;
-template <typename Rep = double>
-using magnetic_flux = quantity<magnetic_flux_dim, si, Rep>;
-template <typename Rep = double>
-using magnetic_field_strength = quantity<mag_field_strength_dim, si, Rep>;
-template <typename Rep = double>
-using magnetic_flux_density = quantity<flux_density_dim, si, Rep>;
+using length_t = quantity<length_dim, si, real_t>;
+using mass_t = quantity<mass_dim, si, real_t>;
+using duration_t = quantity<time_dim, si, real_t>;
+using current_t = quantity<current_dim, si, real_t>;
+using velocity_t = quantity<velocity_dim, si, real_t>;
+using acceleration_t = quantity<acceleration_dim, si, real_t>;
+using frequency_t = quantity<frequency_dim, si, real_t>;
+using force_t = quantity<force_dim, si, real_t>;
+using torque_t = quantity<torque_dim, si, real_t>;
+using moment_of_inertia_t = quantity<moment_of_inertia_dim, si, real_t>;
+using angular_frequency_t = quantity<frequency_dim, si, real_t>;  // Radian is dimensionless
+using voltage_t = quantity<voltage_dim, si, real_t>;
+using power_t = quantity<power_dim, si, real_t>;
+using resistance_t = quantity<resistance_dim, si, real_t>;
+using impedance_t = quantity<resistance_dim, si, real_t>;  // Same dimension as resistance
+using capacitance_t = quantity<capacitance_dim, si, real_t>;
+using inductance_t = quantity<inductance_dim, si, real_t>;
+using magnetic_flux_t = quantity<magnetic_flux_dim, si, real_t>;
+using magnetic_field_strength_t = quantity<mag_field_strength_dim, si, real_t>;
+using magnetic_flux_density_t = quantity<flux_density_dim, si, real_t>;
 
 //==============================================================================
 // R4.3: Per-Unit Equivalents
 //==============================================================================
+// Base Quantities
+using length_pu_t = quantity<length_dim, per_unit, real_t>;
+using mass_pu_t = quantity<mass_dim, per_unit, real_t>;
+using duration_pu_t = quantity<time_dim, per_unit, real_t>;
 
-template <typename Rep = double>
-using voltage_pu = quantity<voltage_dim, per_unit, Rep>;
-template <typename Rep = double>
-using current_pu = quantity<current_dim, per_unit, Rep>;
-template <typename Rep = double>
-using power_pu = quantity<power_dim, per_unit, Rep>;
-template <typename Rep = double>
-using resistance_pu = quantity<resistance_dim, per_unit, Rep>;
-template <typename Rep = double>
-using impedance_pu = quantity<resistance_dim, per_unit, Rep>;  // Same dimension as resistance
-template <typename Rep = double>
-using frequency_pu = quantity<frequency_dim, per_unit, Rep>;
-template <typename Rep = double>
-using angular_frequency_pu = quantity<frequency_dim, per_unit, Rep>;
-template <typename Rep = double>
-using torque_pu = quantity<torque_dim, per_unit, Rep>;
-template <typename Rep = double>
-using inductance_pu = quantity<inductance_dim, per_unit, Rep>;
-template <typename Rep = double>
-using capacitance_pu = quantity<capacitance_dim, per_unit, Rep>;
-template <typename Rep = double>
-using magnetic_flux_pu = quantity<magnetic_flux_dim, per_unit, Rep>;
-// ... other PU types can be defined similarly
+// Mechanical Quantities
+using velocity_pu_t = quantity<velocity_dim, per_unit, real_t>;
+using acceleration_pu_t = quantity<acceleration_dim, per_unit, real_t>;
+using frequency_pu_t = quantity<frequency_dim, per_unit, real_t>;
+using angular_frequency_pu_t = quantity<frequency_dim, per_unit, real_t>;
+using force_pu_t = quantity<force_dim, per_unit, real_t>;
+using torque_pu_t = quantity<torque_dim, per_unit, real_t>;
+using moment_of_inertia_pu_t = quantity<moment_of_inertia_dim, per_unit, real_t>;
+
+// Electrical Quantities
+using voltage_pu_t = quantity<voltage_dim, per_unit, real_t>;
+using current_pu_t = quantity<current_dim, per_unit, real_t>;
+using power_pu_t = quantity<power_dim, per_unit, real_t>;
+using resistance_pu_t = quantity<resistance_dim, per_unit, real_t>;
+using impedance_pu_t = quantity<resistance_dim, per_unit, real_t>;
+using capacitance_pu_t = quantity<capacitance_dim, per_unit, real_t>;
+using inductance_pu_t = quantity<inductance_dim, per_unit, real_t>;
+using magnetic_flux_pu_t = quantity<magnetic_flux_dim, per_unit, real_t>;
+using magnetic_field_strength_pu_t = quantity<mag_field_strength_dim, per_unit, real_t>;
+using magnetic_flux_density_pu_t = quantity<flux_density_dim, per_unit, real_t>;
 
 //==============================================================================
 // R2.4: Explicit System Conversion
@@ -297,6 +301,55 @@ constexpr auto to_pu(const quantity<Dim, si, Rep1>& si_quantity, const quantity<
     // The base quantity must have the same dimension as the SI quantity.
     using result_rep = std::common_type_t<Rep1, Rep2>;
     return quantity<Dim, per_unit, result_rep>(si_quantity.value() / base_quantity.value());
+}
+
+//==============================================================================
+// R2.4: Explicit System Conversion for Coordinate Frames
+//==============================================================================
+
+// Convert abc frame from Per-Unit to SI
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_si(const abc<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_si(pu_frame.a(), base_quantity));
+    return abc<result_quantity_t>(to_si(pu_frame.a(), base_quantity), to_si(pu_frame.b(), base_quantity),
+                                  to_si(pu_frame.c(), base_quantity));
+}
+
+// Convert abc frame from SI to Per-Unit
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_pu(const abc<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_pu(si_frame.a(), base_quantity));
+    return abc<result_quantity_t>(to_pu(si_frame.a(), base_quantity), to_pu(si_frame.b(), base_quantity),
+                                  to_pu(si_frame.c(), base_quantity));
+}
+
+// Convert alphabeta frame from Per-Unit to SI
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_si(const alphabeta<quantity<Dim, per_unit, Rep1>>& pu_frame,
+                     const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_si(pu_frame.alpha(), base_quantity));
+    return alphabeta<result_quantity_t>(to_si(pu_frame.alpha(), base_quantity), to_si(pu_frame.beta(), base_quantity));
+}
+
+// Convert alphabeta frame from SI to Per-Unit
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_pu(const alphabeta<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_pu(si_frame.alpha(), base_quantity));
+    return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), base_quantity), to_pu(si_frame.beta(), base_quantity));
+}
+
+// Convert dq frame from Per-Unit to SI
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_si(const dq<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_si(pu_frame.d(), base_quantity));
+    return dq<result_quantity_t>(to_si(pu_frame.d(), base_quantity), to_si(pu_frame.q(), base_quantity));
+}
+
+// Convert dq frame from SI to Per-Unit
+template <typename Dim, typename Rep1, typename Rep2>
+constexpr auto to_pu(const dq<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+    using result_quantity_t = decltype(to_pu(si_frame.d(), base_quantity));
+    return dq<result_quantity_t>(to_pu(si_frame.d(), base_quantity), to_pu(si_frame.q(), base_quantity));
 }
 
 //==============================================================================
@@ -360,4 +413,4 @@ std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem, Rep>&
     return os;
 }
 
-}  // namespace yeet::control
+}  // namespace yeet

@@ -12,6 +12,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 
 class SecondOrderLowPassFilterTest : public ::testing::Test {
@@ -65,7 +66,7 @@ TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponseMagnitude) {
 
     // Run filter for several periods to reach steady state
     double max_output = 0.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     // Skip first second to avoid transient response
     for (size_t i = 0; i < 2 * num_samples; ++i) {
@@ -87,7 +88,7 @@ TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponseMagnitude) {
 TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponsePhase) {
     const double test_freq = 20.0;  // Test at 100 Hz
     const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     std::vector<double> input_signal;
     std::vector<double> output_signal;
@@ -192,7 +193,7 @@ TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponseMagnitude) {
 
     // Run filter for several periods to reach steady state
     double max_output = 0.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     // Skip first second to avoid transient response
     for (size_t i = 0; i < 2 * num_samples; ++i) {
@@ -214,7 +215,7 @@ TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponseMagnitude) {
 TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponsePhase) {
     const double test_freq = center_freq / 10.0;  // Test below center frequency
     const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     std::vector<double> input_signal;
     std::vector<double> output_signal;
@@ -319,7 +320,7 @@ TEST_F(SecondOrderHighPassFilterTest, SinusoidalResponseMagnitude) {
     const double test_freq = cutoff_freq * 2.0;  // well above cutoff
     const double input_amplitude = 1.0;
     double max_output = 0.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     // Run filter for several periods to reach steady state.
     // Skip the first second to avoid transients.
@@ -342,7 +343,7 @@ TEST_F(SecondOrderHighPassFilterTest, SinusoidalResponsePhase) {
     // We generate steady-state input and output signals for a frequency above cutoff.
     const double test_freq = cutoff_freq * 2.0;  // above cutoff ensures significant amplitude
     const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     std::vector<double> input_signal;
     std::vector<double> output_signal;
@@ -386,7 +387,7 @@ TEST_F(SecondOrderHighPassFilterTest, DCRemovalFromSinusoidalSignal) {
     const double test_freq = cutoff_freq * 2.0;  // use a frequency above cutoff
     const double input_amplitude = 1.0;
     const double dc_offset = 2.0;  // constant DC offset
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
     double sum_output = 0.0;
 
     // Run the simulation for 2 seconds and use the second half (steady-state) for evaluation.
@@ -570,8 +571,7 @@ public:
             // Get simulation time (assume simulator.get_current_simulation_time() exists)
             double t = simulator.get_current_simulation_time();
             // Composite signal: 50 Hz fundamental (amplitude 1.0) and 100 Hz harmonic (amplitude 0.5)
-            filter_input = std::sin(2.0 * pi<double> * 50.0 * t) + 0.5 * std::sin(2.0 * pi<double> * 100.0 * t) +
-                           noise_gen.generate();
+            filter_input = std::sin(2.0 * pi * 50.0 * t) + 0.5 * std::sin(2.0 * pi * 100.0 * t) + noise_gen.generate();
             output = filter_dut.update(filter_input);
         });
     }

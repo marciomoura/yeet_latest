@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 
 // The library namespace is still useful for type aliases
-using namespace yeet::control;
+using namespace yeet;
 
 //==============================================================================
 // Core Functionality & Type System
@@ -13,16 +13,16 @@ using namespace yeet::control;
 
 TEST(UnitsTest, QuantityCreationAndValueAccess) {
     // Quantity Type, Underlying Value Type
-    length<double> distance(10.5);
-    mass<float> weight(2.5f);
+    length_t distance(10.5);
+    mass_t weight(2.5f);
 
     // Check value access
     ASSERT_DOUBLE_EQ(distance.value(), 10.5);
-    ASSERT_FLOAT_EQ(weight.value(), 2.5f);
+    ASSERT_DOUBLE_EQ(weight.value(), 2.5f);
 
     // Check underlying representation type
-    static_assert(std::is_same_v<decltype(distance)::representation, double>);
-    static_assert(std::is_same_v<decltype(weight)::representation, float>);
+    static_assert(std::is_same_v<decltype(distance)::representation, real_t>);
+    static_assert(std::is_same_v<decltype(weight)::representation, real_t>);
 
     // Dimensional Representation is implicitly tested by the type system
     static_assert(!std::is_same_v<decltype(distance)::dimension, decltype(weight)::dimension>);
@@ -32,8 +32,8 @@ TEST(UnitsTest, CompileTimeDimensionMismatch) {
     // This test "passes" if the commented-out code fails to compile.
     // This is a standard way to "unit test" compile-time constraints.
 
-    // voltage v(120.0);
-    // current i(10.0);
+    // voltage_t v(120.0);
+    // current_t i(10.0);
     // v = i;  // COMPILE ERROR: Cannot assign current to voltage
 
     SUCCEED() << "Verified: Incompatible dimension assignment is a compile-time error.";
@@ -42,8 +42,8 @@ TEST(UnitsTest, CompileTimeDimensionMismatch) {
 TEST(UnitsTest, CompileTimeSystemMismatch) {
     // This test "passes" if the commented-out code fails to compile.
 
-    // voltage si_v(240.0);
-    // voltage_pu pu_v(1.0);
+    // voltage_t si_v(240.0);
+    // voltage_pu_t pu_v(1.0);
     // si_v = pu_v;  // COMPILE ERROR: Cannot assign PerUnit quantity to SI quantity
 
     // auto sum = si_v + pu_v;  // COMPILE ERROR: Cannot add quantities from different systems
@@ -56,8 +56,8 @@ TEST(UnitsTest, CompileTimeSystemMismatch) {
 //==============================================================================
 
 TEST(UnitsTest, SystemDifferentiation) {
-    voltage<double> si_voltage(120.0);
-    voltage_pu<double> pu_voltage(1.0);
+    voltage_t si_voltage(120.0);
+    voltage_pu_t pu_voltage(1.0);
 
     static_assert(std::is_same_v<decltype(si_voltage)::system, si>);
     static_assert(std::is_same_v<decltype(pu_voltage)::system, per_unit>);
@@ -65,8 +65,8 @@ TEST(UnitsTest, SystemDifferentiation) {
 }
 
 TEST(UnitsTest, ExplicitConversion) {
-    voltage<double> base_voltage(240.0);
-    voltage<double> measured_voltage(228.0);
+    voltage_t base_voltage(240.0);
+    voltage_t measured_voltage(228.0);
 
     // Test conversion to Per-Unit
     auto pu_v = to_pu(measured_voltage, base_voltage);
@@ -79,7 +79,7 @@ TEST(UnitsTest, ExplicitConversion) {
     ASSERT_DOUBLE_EQ(si_v.value(), measured_voltage.value());
 
     // Test compile-time check for mismatched dimensions in conversion
-    // current<> base_current(10.0);
+    // current_t<> base_current(10.0);
     // to_pu(measured_voltage, base_current); // COMPILE ERROR
     SUCCEED() << "Verified: Conversion with mismatched base dimension is a compile-time error.";
 }
@@ -89,8 +89,8 @@ TEST(UnitsTest, ExplicitConversion) {
 //==============================================================================
 
 TEST(UnitsTest, AdditionAndSubtraction) {
-    auto dist1 = length<long double>(10.5);
-    auto dist2 = length<long double>(20.0);
+    auto dist1 = length_t(10.5);
+    auto dist2 = length_t(20.0);
 
     auto sum = dist1 + dist2;
     auto diff = dist2 - dist1;
@@ -103,14 +103,14 @@ TEST(UnitsTest, AdditionAndSubtraction) {
 }
 
 TEST(UnitsTest, MultiplicationAndDivision) {
-    auto dist = length<long double>(100.0);
-    auto duration = duration_type<long double>(10.0);
+    auto dist = length_t(100.0);
+    auto duration = duration_t(10.0);
     auto speed = dist / duration;
 
     static_assert(std::is_same_v<decltype(speed)::dimension, velocity_dim>);
     ASSERT_NEAR(speed.value(), 10.0, 1e-9);
 
-    auto mass_val = mass<long double>(5.0);
+    auto mass_val = mass_t(5.0);
     auto force_val = mass_val * (speed / duration);  // F = m * a
 
     static_assert(std::is_same_v<decltype(force_val)::dimension, force_dim>);
@@ -118,7 +118,7 @@ TEST(UnitsTest, MultiplicationAndDivision) {
 }
 
 TEST(UnitsTest, ScalarOperations) {
-    auto power_val = power<long double>(100.0);
+    auto power_val = power_t(100.0);
 
     auto double_power = power_val * 2.0;
     auto half_power = 0.5 * power_val;
@@ -136,13 +136,13 @@ TEST(UnitsTest, ScalarOperations) {
 
 TEST(UnitsTest, ElectricalUnitsOhmLaw) {
     // Ohm's Law: V = I * R
-    auto v = voltage<long double>(120.0);
-    auto r = resistance<long double>(60.0);
+    auto v = voltage_t(120.0);
+    auto r = resistance_t(60.0);
     auto i = v / r;
 
     static_assert(std::is_same_v<decltype(i)::dimension, current_dim>);
     ASSERT_NEAR(i.value(), 2.0, 1e-9);
-    ASSERT_TRUE((std::is_same_v<decltype(i), current<long double>>));
+    ASSERT_TRUE((std::is_same_v<decltype(i), current_t>));
 
     // Verify reverse calculation: R = V / I
     auto calculated_r = v / i;
@@ -152,9 +152,9 @@ TEST(UnitsTest, ElectricalUnitsOhmLaw) {
 
 TEST(UnitsTest, ElectricalPowerLaws) {
     // Power equations: P = V * I, P = V² / R, P = I² * R
-    auto v = voltage<long double>(240.0);
-    auto i = current<long double>(10.0);
-    auto r = resistance<long double>(24.0);
+    auto v = voltage_t(240.0);
+    auto i = current_t(10.0);
+    auto r = resistance_t(24.0);
 
     // P = V * I
     auto power_vi = v * i;
@@ -178,9 +178,9 @@ TEST(UnitsTest, ElectricalPowerLaws) {
 
 TEST(UnitsTest, ReactiveComponentLaws) {
     // Capacitive and inductive reactance
-    auto freq = frequency<long double>(50.0);   // 50 Hz
-    auto c = capacitance<long double>(100e-6);  // 100 µF
-    auto l = inductance<long double>(0.1);      // 100 mH
+    auto freq = frequency_t(50.0);   // 50 Hz
+    auto c = capacitance_t(100e-6);  // 100 µF
+    auto l = inductance_t(0.1);      // 100 mH
 
     // Angular frequency: ω = 2πf
     auto omega = 2.0 * 3.14159265359 * freq;
@@ -199,8 +199,8 @@ TEST(UnitsTest, ReactiveComponentLaws) {
 
 TEST(UnitsTest, ThreePhaseSystemEquations) {
     // Three-phase power calculations
-    auto v_line = voltage<long double>(400.0);  // 400V line voltage
-    auto i_line = current<long double>(10.0);   // 10A line current
+    auto v_line = voltage_t(400.0);  // 400V line voltage
+    auto i_line = current_t(10.0);   // 10A line current
     auto sqrt3 = 1.732050808;
 
     // Phase voltage: V_phase = V_line / √3
@@ -218,9 +218,9 @@ TEST(UnitsTest, ThreePhaseSystemEquations) {
 
 TEST(UnitsTest, TransformerEquations) {
     // Transformer relationships
-    auto v_primary = voltage<long double>(400.0);
-    auto v_secondary = voltage<long double>(24.0);
-    auto i_secondary = current<long double>(50.0);
+    auto v_primary = voltage_t(400.0);
+    auto v_secondary = voltage_t(24.0);
+    auto i_secondary = current_t(50.0);
 
     // Turns ratio: n = V_primary / V_secondary
     auto turns_ratio = v_primary.value() / v_secondary.value();
@@ -238,20 +238,20 @@ TEST(UnitsTest, TransformerEquations) {
 
 TEST(UnitsTest, MechanicalUnitsNewtonsLaw) {
     // R4.2 - Newton's second law: F = m * a
-    auto m = mass<long double>(10.0);
-    auto a = length<long double>(9.8) / (duration_type<long double>(1.0) * duration_type<long double>(1.0));
+    auto m = mass_t(10.0);
+    auto a = length_t(9.8) / (duration_t(1.0) * duration_t(1.0));
     auto f = m * a;
 
     static_assert(std::is_same_v<decltype(f)::dimension, force_dim>);
     ASSERT_NEAR(f.value(), 98.0, 1e-9);
-    ASSERT_TRUE((std::is_same_v<decltype(f), force<long double>>));
+    ASSERT_TRUE((std::is_same_v<decltype(f), force_t>));
 }
 
 TEST(UnitsTest, RotationalMechanicsEquations) {
     // Rotational mechanics for motor applications
-    auto j = moment_of_inertia<long double>(2.5);  // 2.5 kg⋅m²
-    auto omega = frequency<long double>(50.0);     // 50 rad/s (treating as angular velocity)
-    auto t = duration_type<long double>(0.1);      // 0.1 seconds
+    auto j = moment_of_inertia_t(2.5);  // 2.5 kg⋅m²
+    auto omega = frequency_t(50.0);     // 50 rad/s (treating as angular velocity)
+    auto t = duration_t(0.1);           // 0.1 seconds
 
     // Angular acceleration: α = Δω / Δt
     auto alpha_value = omega.value() / t.value();  // 500 rad/s²
@@ -268,16 +268,16 @@ TEST(UnitsTest, RotationalMechanicsEquations) {
 
 TEST(UnitsTest, ElectricalEnergyAndEfficiency) {
     // Energy calculations for electrical systems
-    auto p = power<long double>(2000.0);          // 2 kW
-    auto t = duration_type<long double>(3600.0);  // 1 hour in seconds
+    auto p = power_t(2000.0);     // 2 kW
+    auto t = duration_t(3600.0);  // 1 hour in seconds
 
     // Energy: E = P * t
     auto energy_value = p.value() * t.value();  // 7.2 MJ
     ASSERT_NEAR(energy_value, 7200000.0, 1e-9);
 
     // Efficiency calculations
-    auto p_input = power<long double>(2200.0);   // Input power
-    auto p_output = power<long double>(2000.0);  // Output power
+    auto p_input = power_t(2200.0);   // Input power
+    auto p_output = power_t(2000.0);  // Output power
 
     auto efficiency = p_output.value() / p_input.value();
     ASSERT_NEAR(efficiency, 0.909, 0.001);  // ~90.9% efficiency
@@ -289,10 +289,10 @@ TEST(UnitsTest, ElectricalEnergyAndEfficiency) {
 
 TEST(UnitsTest, MotorEquations) {
     // Motor equations for power electronics applications
-    auto v_dc = voltage<long double>(600.0);  // DC link voltage
-    auto i_dc = current<long double>(100.0);  // DC current
-    auto speed_rpm = 1500.0;                  // Motor speed in RPM
-    auto poles = 4;                           // Number of poles
+    auto v_dc = voltage_t(600.0);  // DC link voltage
+    auto i_dc = current_t(100.0);  // DC current
+    auto speed_rpm = 1500.0;       // Motor speed in RPM
+    auto poles = 4;                // Number of poles
 
     // Mechanical speed in rad/s: ω_m = (2π * RPM) / 60
     auto omega_m_value = (2.0 * 3.14159265359 * speed_rpm) / 60.0;

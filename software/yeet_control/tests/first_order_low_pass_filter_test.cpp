@@ -11,6 +11,7 @@
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
+using namespace yeet;
 using namespace yeet::control;
 
 class FirstOrderLowPassFilterTest : public ::testing::Test {
@@ -59,7 +60,7 @@ TEST_F(FirstOrderLowPassFilterTest, SinusoidalResponseMagnitude) {
 
     // Run filter for several periods to reach steady state
     double max_output = 0.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     // Skip first second to avoid transient response
     for (size_t i = 0; i < 2 * num_samples; ++i) {
@@ -81,7 +82,7 @@ TEST_F(FirstOrderLowPassFilterTest, SinusoidalResponseMagnitude) {
 TEST_F(FirstOrderLowPassFilterTest, SinusoidalResponsePhase) {
     const double test_freq = 5.0;  // Test at 5 Hz
     const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi<double> * test_freq;
+    const double omega = 2.0 * pi * test_freq;
 
     std::vector<double> input_signal;
     std::vector<double> output_signal;

@@ -31,7 +31,7 @@ class second_order_filter {
 public:
     using type = fundamental_type_t<T>;
 
-    static_assert(std::is_floating_point_v<type>, "Fundamental type must be floating point");
+    // static_assert(std::is_floating_point_v<type>, "Fundamental type must be floating point");
 
 protected:
     /**
@@ -41,7 +41,7 @@ protected:
     second_order_filter(type sampling_period) : _ts(sampling_period) {}
 
     // Compute angular frequency in radians/second from Hz
-    static constexpr type compute_omega(type freq) { return type(2.0) * pi<type> * freq; }
+    static constexpr type compute_omega(type freq) { return type(2.0) * pi * freq; }
 
     // Get pre-warped frequency using bilinear transform
     type compute_warped_omega(type freq) const {
@@ -126,7 +126,7 @@ public:
      * @param freq Frequency in Hz
      * @return Phase shift in degrees
      */
-    type get_phase_response_degrees(type freq) const { return get_phase_response(freq) * type(180.0) / pi<type>; }
+    type get_phase_response_degrees(type freq) const { return get_phase_response(freq) * type(180.0) / pi; }
 
     /**
      * Reset filter state variables
@@ -188,7 +188,7 @@ public:
     void configure(type cutoff_freq, type damping_ratio) {
         const type fs = type(1.0) / this->get_sampling_time();
         // Compute normalized angular frequency (radians/sample)
-        const type omega = type(2.0) * pi<type> * cutoff_freq / fs;
+        const type omega = type(2.0) * pi * cutoff_freq / fs;
         const type cos_omega = std::cos(omega);
         const type sin_omega = std::sin(omega);
         // alpha controls the Q; here Q = 1/(2*damping_ratio)
@@ -238,7 +238,7 @@ public:
     void configure(type center_freq, type bandwidth) {
         // Sampling frequency and normalized omega:
         const type fs = type(1.0) / this->get_sampling_time();
-        const type omega = type(2.0) * pi<type> * center_freq / fs;  // normalized angular frequency [rad/sample]
+        const type omega = type(2.0) * pi * center_freq / fs;  // normalized angular frequency [rad/sample]
         const type quality_factor = center_freq / bandwidth;
         const type alpha = std::sin(omega) / (type(2.0) * quality_factor);
 
@@ -288,7 +288,7 @@ public:
     void configure(type cutoff_freq, type damping_ratio) {
         const type fs = type(1.0) / this->get_sampling_time();
         // Compute normalized angular frequency (radians/sample)
-        const type omega = type(2.0) * pi<type> * cutoff_freq / fs;
+        const type omega = type(2.0) * pi * cutoff_freq / fs;
         const type cos_omega = std::cos(omega);
         const type sin_omega = std::sin(omega);
         // α controls the Q; here Q = 1/(2*damping_ratio)

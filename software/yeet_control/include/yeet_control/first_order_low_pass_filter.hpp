@@ -57,7 +57,7 @@ public:
         }
 
         // Convert Hz to radians/second and pre-warp
-        const type omega_c = type(2.0) * pi<type> * cutoff_freq;
+        const type omega_c = type(2.0) * pi * cutoff_freq;
         const type omega_w = type(2.0) / _ts * std::tan(omega_c * _ts * type(0.5));
 
         // Compute filter coefficients
@@ -86,7 +86,7 @@ public:
         if (time_constant <= T(0)) {
             return T(0);
         }
-        return T(1.0) / (T(2.0) * pi<T> * time_constant);
+        return T(1.0) / (T(2.0) * pi * time_constant);
     }
 
     /**
@@ -115,7 +115,7 @@ public:
         }
 
         // Calculate time constant (τ = 1/(2πfc))
-        const T time_constant = T(1.0) / (T(2.0) * pi<T> * cutoff_freq);
+        const T time_constant = T(1.0) / (T(2.0) * pi * cutoff_freq);
 
         // Calculate settling time: t = -τ * ln(1 - p/100)
         return -time_constant * std::log(T(1.0) - percent_of_final_value / T(100.0));
@@ -228,7 +228,7 @@ public:
      * @param freq Frequency in Hz
      * @return Phase response in degrees
      */
-    T get_phase_response_degrees(T freq) const { return get_phase_response(freq) * T(180.0) / pi<T>; }
+    T get_phase_response_degrees(T freq) const { return get_phase_response(freq) * T(180.0) / pi; }
 
     // Getter methods
     type get_sampling_time() const { return _ts; }
@@ -241,7 +241,7 @@ private:
      * Convert frequency from Hz to radians/second
      * ω = 2π * f
      */
-    static constexpr type compute_omega(type freq) { return type(2.0) * pi<type> * freq; }
+    static constexpr type compute_omega(type freq) { return type(2.0) * pi * freq; }
 
     type _a1{};     // Feedback coefficient (denominator)
     type _b0{};     // Current input coefficient (numerator)

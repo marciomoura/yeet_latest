@@ -6,8 +6,9 @@
 
 #include "angle.hpp"
 #include "constants.hpp"
+#include "types.hpp"
 
-namespace yeet::control {
+namespace yeet {
 
 // Forward declarations
 template <typename T>
@@ -448,7 +449,7 @@ constexpr abc<T> dq<T>::to_abc(const angle<zero_to_two_pi>& theta) const {
 
 template <typename T>
 constexpr abc<T> make_abc(T magnitude, const angle<zero_to_two_pi>& phase) {
-    constexpr double TWO_PI_THIRDS = 2.0 * pi<double> / 3.0;
+    constexpr double TWO_PI_THIRDS = 2.0 * pi / 3.0;
     const double angle_rad = phase.get_radians();
     return abc<T>{magnitude * std::cos(angle_rad), magnitude * std::cos(angle_rad - TWO_PI_THIRDS),
                   magnitude * std::cos(angle_rad + TWO_PI_THIRDS)};
@@ -478,6 +479,6 @@ constexpr T cross_product(const Frame& a, const Frame& b) {
     }
 }
 
-}  // namespace yeet::control
+}  // namespace yeet
 
 #endif  // YEET_CONTROL_COORDINATES_HPP
