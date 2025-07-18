@@ -32,7 +32,7 @@ public:
         yeet::parameter<double> l_fd = 0.4725f;
         yeet::parameter<double> r_s = 0.003f;
         yeet::parameter<double> r_fd = 0.000537147932935147f;
-        yeet::parameter<double> w_base = 2.0f * yeet::control::pi * 60.0f;
+        yeet::parameter<double> w_base = 2.0f * yeet::pi * 60.0f;
         yeet::parameter<double> h = 3.5f;
         yeet::parameter<double> kd = 0.5f;
         yeet::parameter<double> l_g = 0.1f;

@@ -91,7 +91,7 @@ operating_point_type mpc_integration_runner::get_operating_point() {
     operating_point.vd_0 = _inputs.vd;
     operating_point.vq_0 = _inputs.vq;
     operating_point.vg_0 = 1.0f;
-    operating_point.delta_0 = _inputs.load_angle_deg * yeet::control::pi / 180.0f;
+    operating_point.delta_0 = _inputs.load_angle_deg * yeet::pi / 180.0f;
 
     return operating_point;
 }
@@ -122,7 +122,7 @@ operating_point_type mpc_integration_runner::get_initial_operating_point() {
     operating_point.vd_0 = 0.562052744981866f;
     operating_point.vq_0 = 0.827101708419804f;
     operating_point.vg_0 = 1.0f;
-    operating_point.delta_0 = (yeet::control::pi / 180.0f) * 34.197867737913157f;
+    operating_point.delta_0 = (yeet::pi / 180.0f) * 34.197867737913157f;
 
     return operating_point;
 }

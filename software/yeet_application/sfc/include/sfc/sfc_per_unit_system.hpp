@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "yeet_control/constants.hpp"
+#include "yeet_control/precomputed_divisor.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -24,37 +24,37 @@ public:
      * @brief Struct containing all per-unit base quantities for the Grid Side (LV).
      */
     struct grid_side_bases {
-        voltage_t base_voltage_peak_phase;           ///< Base peak phase voltage [V]
-        current_t base_current_peak_phase;           ///< Base peak phase current [A]
-        impedance_t base_impedance;                  ///< Base impedance [Ohm]
-        frequency_t base_frequency;                  ///< Base frequency [Hz]
-        angular_frequency_t base_angular_frequency;  ///< Base angular frequency [rad/s]
-        inductance_t base_inductance;                ///< Base inductance [H]
+        precomputed_divisor<voltage_t> base_voltage_peak_phase;           ///< Base peak phase voltage [V]
+        precomputed_divisor<current_t> base_current_peak_phase;           ///< Base peak phase current [A]
+        precomputed_divisor<impedance_t> base_impedance;                  ///< Base impedance [Ohm]
+        precomputed_divisor<frequency_t> base_frequency;                  ///< Base frequency [Hz]
+        precomputed_divisor<angular_frequency_t> base_angular_frequency;  ///< Base angular frequency [rad/s]
+        precomputed_divisor<inductance_t> base_inductance;                ///< Base inductance [H]
     };
 
     /**
      * @brief Struct containing all per-unit base quantities for the DC Link.
      */
     struct dc_link_bases {
-        voltage_t base_voltage;        ///< Base DC voltage [V]
-        current_t base_current;        ///< Base DC current [A]
-        impedance_t base_impedance;    ///< Base DC impedance [Ohm]
-        inductance_t base_inductance;  ///< Base inductance [H]
+        precomputed_divisor<voltage_t> base_voltage;        ///< Base DC voltage [V]
+        precomputed_divisor<current_t> base_current;        ///< Base DC current [A]
+        precomputed_divisor<impedance_t> base_impedance;    ///< Base DC impedance [Ohm]
+        precomputed_divisor<inductance_t> base_inductance;  ///< Base inductance [H]
     };
 
     /**
      * @brief Struct containing all per-unit base quantities for the Machine Side (CMS).
      */
     struct machine_side_bases {
-        power_t base_power;                          ///< Base 3-phase apparent power [VA]
-        voltage_t base_voltage_peak_phase;           ///< Base peak phase voltage [V]
-        current_t base_current_peak_phase;           ///< Base peak phase current [A]
-        impedance_t base_impedance;                  ///< Base impedance [Ohm]
-        frequency_t base_frequency;                  ///< Base frequency [Hz]
-        angular_frequency_t base_angular_frequency;  ///< Base angular frequency [rad/s]
-        inductance_t base_inductance;                ///< Base inductance [H]
-        torque_t base_torque;                        ///< Base mechanical torque [Nm]
-        magnetic_flux_t base_flux_linkage;           ///< Base flux linkage [Vs/rad]
+        precomputed_divisor<power_t> base_power;                          ///< Base 3-phase apparent power [VA]
+        precomputed_divisor<voltage_t> base_voltage_peak_phase;           ///< Base peak phase voltage [V]
+        precomputed_divisor<current_t> base_current_peak_phase;           ///< Base peak phase current [A]
+        precomputed_divisor<impedance_t> base_impedance;                  ///< Base impedance [Ohm]
+        precomputed_divisor<frequency_t> base_frequency;                  ///< Base frequency [Hz]
+        precomputed_divisor<angular_frequency_t> base_angular_frequency;  ///< Base angular frequency [rad/s]
+        precomputed_divisor<inductance_t> base_inductance;                ///< Base inductance [H]
+        precomputed_divisor<torque_t> base_torque;                        ///< Base mechanical torque [Nm]
+        precomputed_divisor<magnetic_flux_t> base_flux_linkage;           ///< Base flux linkage [Vs/rad]
     };
 
     /**

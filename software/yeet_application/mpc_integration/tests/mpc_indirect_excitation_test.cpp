@@ -26,7 +26,7 @@ public:
         control_parameters()->l_fd = 0.4725;
         control_parameters()->r_s = 0.003;
         control_parameters()->r_fd = 0.000537147932935147;
-        control_parameters()->w_base = 2.0 * yeet::control::pi * 50.0f;
+        control_parameters()->w_base = 2.0 * yeet::pi * 50.0f;
         control_parameters()->h = 3.5f;
         control_parameters()->kd = 0.5f;
         control_parameters()->l_g = 0.1f;

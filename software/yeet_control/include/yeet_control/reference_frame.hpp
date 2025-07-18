@@ -552,6 +552,29 @@ constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const quantity<Dim, 
     return dq<result_quantity_t>(to_pu(si_frame.d(), base_quantity), to_pu(si_frame.q(), base_quantity));
 }
 
+// Convert abc frame from si to per-unit using precomputed divisor
+template <typename Dim>
+constexpr auto to_pu(const abc<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor) {
+    using result_quantity_t = decltype(to_pu(si_frame.a(), divisor));
+    return abc<result_quantity_t>(to_pu(si_frame.a(), divisor), to_pu(si_frame.b(), divisor),
+                                  to_pu(si_frame.c(), divisor));
+}
+
+// Convert alphabeta frame from si to per-unit using precomputed divisor
+template <typename Dim>
+constexpr auto to_pu(const alphabeta<quantity<Dim, si>>& si_frame,
+                     const precomputed_divisor<quantity<Dim, si>>& divisor) {
+    using result_quantity_t = decltype(to_pu(si_frame.alpha(), divisor));
+    return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), divisor), to_pu(si_frame.beta(), divisor));
+}
+
+// Convert dq frame from si to per-unit using precomputed divisor
+template <typename Dim>
+constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor) {
+    using result_quantity_t = decltype(to_pu(si_frame.d(), divisor));
+    return dq<result_quantity_t>(to_pu(si_frame.d(), divisor), to_pu(si_frame.q(), divisor));
+}
+
 template <typename QuantityType>
 abc<QuantityType> to_dimension_abc(const abc<real_t>& scalar_abc) {
     abc<QuantityType> quantity_abc{};

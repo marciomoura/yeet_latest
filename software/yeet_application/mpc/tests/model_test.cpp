@@ -22,7 +22,7 @@ public:
 
     ~SynchronousMachineTiedToAnInfiniteBusModelTest() = default;
 
-    static constexpr double TWO_PI = 2.0 * yeet::control::pi;
+    static constexpr double TWO_PI = 2.0 * yeet::pi;
 
     machine_parameters machine;
 

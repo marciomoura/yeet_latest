@@ -20,7 +20,7 @@ inline machine_parameters get_machine_parameters() {
 inline system_parameters get_system_parameters() {
     system_parameters system;
 
-    system.w_base = 2.0 * yeet::control::pi * 60.0f;
+    system.w_base = 2.0 * yeet::pi * 60.0f;
     system.h = 3.5f;
     system.kd = 0.5f;
     system.l_g = 0.1f;
@@ -72,7 +72,7 @@ inline operating_point_type get_operating_point_mpc_test() {
     operating_point.vd_0 = 0.562052744981866f;
     operating_point.vq_0 = 0.827101708419804f;
     operating_point.vg_0 = 1.0f;
-    operating_point.delta_0 = (yeet::control::pi / 180.0f) * 34.197867737913157f;
+    operating_point.delta_0 = (yeet::pi / 180.0f) * 34.197867737913157f;
 
     return operating_point;
 }
