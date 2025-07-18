@@ -1,33 +1,14 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <type_traits>
 
-#include "yeet_control/reference_frame.hpp"
-#include "yeet_control/types.hpp"
+#include "types.hpp"
 
 namespace yeet {
-
-//==============================================================================
-// Compile-Time Precision Control
-//==============================================================================
-
-/**
- * @brief Defines the default floating-point type for quantities.
- *
- * To use single precision (float), define YEET_PRECISION_FLOAT before including this header.
- * Otherwise, it defaults to double precision.
- *
- * Example for single precision:
- * #define YEET_PRECISION_FLOAT
- * #include "yeet_control/units.hpp"
- */
-#if defined(YEET_PRECISION_DOUBLE)
-using real_t = double;
-#else
-using real_t = float;
-#endif
 
 //==============================================================================
 // R1.1: Dimensional Representation & R2.3: System Differentiation
@@ -113,6 +94,22 @@ struct divide_dimensions<dimension<L1, M1, T1, I1, Th1, N1, J1>, dimension<L2, M
     using type = dimension<L1 - L2, M1 - M2, T1 - T2, I1 - I2, Th1 - Th2, N1 - N2, J1 - J2>;
 };
 
+/**
+ * @brief Metafunction to calculate the nth root of a dimension (divides exponents)
+ */
+template <typename D, int N>
+struct root_dimension;
+
+template <int L, int M, int T, int I, int Th, int N_exp, int J, int N_root>
+struct root_dimension<dimension<L, M, T, I, Th, N_exp, J>, N_root> {
+    // Check that all exponents are divisible by the root number
+    static_assert(L % N_root == 0 && M % N_root == 0 && T % N_root == 0 && I % N_root == 0 && Th % N_root == 0 &&
+                      N_exp % N_root == 0 && J % N_root == 0,
+                  "Cannot take a root of a dimension with non-divisible exponents.");
+
+    using type = dimension<L / N_root, M / N_root, T / N_root, I / N_root, Th / N_root, N_exp / N_root, J / N_root>;
+};
+
 //==============================================================================
 // R3.1: Addition & Subtraction
 // Enforces R1.4 (Dimension Mismatch) and R1.5 (System Mismatch) at compile time.
@@ -144,6 +141,12 @@ constexpr auto operator/(const quantity<D1, S, R1>& lhs, const quantity<D2, S, R
     using result_dim = typename divide_dimensions<D1, D2>::type;
     using result_rep = std::common_type_t<R1, R2>;
     return quantity<result_dim, S, result_rep>(lhs.value() / rhs.value());
+}
+
+template <typename D, typename S, typename R>
+constexpr auto sqrt(const quantity<D, S, R>& q) {
+    using result_dim = typename root_dimension<D, 2>::type;
+    return quantity<result_dim, S, R>(std::sqrt(q.value()));
 }
 
 //==============================================================================
@@ -301,55 +304,6 @@ constexpr auto to_pu(const quantity<Dim, si, Rep1>& si_quantity, const quantity<
     // The base quantity must have the same dimension as the SI quantity.
     using result_rep = std::common_type_t<Rep1, Rep2>;
     return quantity<Dim, per_unit, result_rep>(si_quantity.value() / base_quantity.value());
-}
-
-//==============================================================================
-// R2.4: Explicit System Conversion for Coordinate Frames
-//==============================================================================
-
-// Convert abc frame from Per-Unit to SI
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const abc<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
-    using result_quantity_t = decltype(to_si(pu_frame.a(), base_quantity));
-    return abc<result_quantity_t>(to_si(pu_frame.a(), base_quantity), to_si(pu_frame.b(), base_quantity),
-                                  to_si(pu_frame.c(), base_quantity));
-}
-
-// Convert abc frame from SI to Per-Unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const abc<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
-    using result_quantity_t = decltype(to_pu(si_frame.a(), base_quantity));
-    return abc<result_quantity_t>(to_pu(si_frame.a(), base_quantity), to_pu(si_frame.b(), base_quantity),
-                                  to_pu(si_frame.c(), base_quantity));
-}
-
-// Convert alphabeta frame from Per-Unit to SI
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const alphabeta<quantity<Dim, per_unit, Rep1>>& pu_frame,
-                     const quantity<Dim, si, Rep2>& base_quantity) {
-    using result_quantity_t = decltype(to_si(pu_frame.alpha(), base_quantity));
-    return alphabeta<result_quantity_t>(to_si(pu_frame.alpha(), base_quantity), to_si(pu_frame.beta(), base_quantity));
-}
-
-// Convert alphabeta frame from SI to Per-Unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const alphabeta<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
-    using result_quantity_t = decltype(to_pu(si_frame.alpha(), base_quantity));
-    return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), base_quantity), to_pu(si_frame.beta(), base_quantity));
-}
-
-// Convert dq frame from Per-Unit to SI
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const dq<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
-    using result_quantity_t = decltype(to_si(pu_frame.d(), base_quantity));
-    return dq<result_quantity_t>(to_si(pu_frame.d(), base_quantity), to_si(pu_frame.q(), base_quantity));
-}
-
-// Convert dq frame from SI to Per-Unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const dq<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
-    using result_quantity_t = decltype(to_pu(si_frame.d(), base_quantity));
-    return dq<result_quantity_t>(to_pu(si_frame.d(), base_quantity), to_pu(si_frame.q(), base_quantity));
 }
 
 //==============================================================================
