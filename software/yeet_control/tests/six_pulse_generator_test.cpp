@@ -50,16 +50,16 @@ TEST(SixPulseGeneratorTest, BasicFiringSequenceLineReference) {
 // Test the firing sequence with a phase reference, which should be offset by -30 degrees.
 TEST(SixPulseGeneratorTest, BasicFiringSequencePhaseReference) {
     // Default constructor uses phase reference
-    six_pulse_generator gen(six_pulse_generator::reference_type::phase, angle<zero_to_two_pi>(deg_to_rad(1.0)));
+    six_pulse_generator gen(six_pulse_generator::reference_type::phase, angle<zero_to_two_pi>(deg_to_rad(10.0)));
     const angle<zero_to_two_pi> zero_alpha(0.0);
 
-    // For phase reference, natural commutation is at -30 degrees from the reference angle.
-    // So, to fire at 0 degrees (line), the phase reference must be at 330 degrees (-30).
-    auto p1 = gen.update(angle<zero_to_two_pi>(deg_to_rad(330.0)), zero_alpha, true);
+    // For phase reference, natural commutation is at +30 degrees from the reference angle.
+    // So, to fire at 0 degrees (line), the phase reference must be at 30 degrees from the phase reference
+    auto p1 = gen.update(angle<zero_to_two_pi>(deg_to_rad(30.0 + 0.0)), zero_alpha, true);
     EXPECT_TRUE(p1.p1);
 
     // To fire at 60 degrees (line), phase ref must be at 30 degrees.
-    auto p2 = gen.update(angle<zero_to_two_pi>(deg_to_rad(30.0)), zero_alpha, true);
+    auto p2 = gen.update(angle<zero_to_two_pi>(deg_to_rad(30.0 + 65.0)), zero_alpha, true);
     EXPECT_TRUE(p2.p2);
 }
 
