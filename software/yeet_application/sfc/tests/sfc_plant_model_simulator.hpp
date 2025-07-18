@@ -3,29 +3,42 @@
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_6p_6p_plant_model.hpp"
 #include "yeet_control/mechanical_load.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
+
+using namespace yeet;
 
 namespace yeet::application::sfc {
 
 class sfc_plant_model_simulator {
 public:
-    static constexpr double kNominalGridFrequency = 50.0;                   // 50 Hz grid frequency
-    static constexpr double kNominalMachineFrequency = 50.0;                // 50 Hz machine frequency
-    static constexpr double kGridVoltageRMS = 2090.0;                       // 2090V RMS line voltage
-    static constexpr double kMachineVoltageRMS = 1980.0;                    // 1980V RMS line voltage
-    static constexpr double kNominalGridFiringAngleDeg = 13.0;              // Nominal firing angle for grid side
-    static constexpr double kNominalMachineFiringAngleDeg = 180.0 - 26.84;  // Nominal firing angle for motor side
-    static constexpr double kGridSideResistance = 0.1552;                   // 0.1552 Ohm grid side resistance
-    static constexpr double kGridSideInductance = 0.4941e-3;                // 0.4941 mH grid side inductance
-    static constexpr double kMachineSideResistance = 0.0788;                // 0.0788 Ohm machine side resistance
-    static constexpr double kMachineSideInductance = 0.2508e-3;             // 0.2508 mH machine side inductance
-    static constexpr double kBaseDCLinkCurrent = 1044.0;                    // 1044 A base DC link current
-    static constexpr double kMachineRatedPowerVA = 2950e3;
-    static constexpr int kMachineNumPoles = 2;
+    // Frequency and electrical parameters with proper units
+    static constexpr frequency_t kNominalGridFrequency = frequency_t(50.0);     // 50 Hz grid frequency
+    static constexpr frequency_t kNominalMachineFrequency = frequency_t(50.0);  // 50 Hz machine frequency
+    static constexpr voltage_t kNominalGridVoltageRMS = voltage_t(2090.0);      // 2090V RMS line voltage
+    static constexpr voltage_t kNominalMachineVoltageRMS = voltage_t(1980.0);   // 1980V RMS line voltage
 
-    // Default Mechanical Parameters
-    static constexpr double kDefaultInertiaConstantH = 2.5;  // s
-    static constexpr double kDefaultDampingFactorD = 0.01;   // pu
+    // Firing angles (dimensionless angles in degrees)
+    static constexpr angle_t kNominalGridFiringAngleDeg = angle_t(13.0);  // Nominal firing angle for grid side
+    static constexpr angle_t kNominalMachineFiringAngleDeg =
+        angle_t(180.0 - 26.84);  // Nominal firing angle for motor side
+
+    // Circuit parameters with proper units
+    static constexpr resistance_t kGridSideResistance = resistance_t(0.1552);     // 0.1552 Ohm grid side resistance
+    static constexpr inductance_t kGridSideInductance = inductance_t(0.4941e-3);  // 0.4941 mH grid side inductance
+    static constexpr resistance_t kMachineSideResistance = resistance_t(0.0788);  // 0.0788 Ohm machine side resistance
+    static constexpr inductance_t kMachineSideInductance =
+        inductance_t(0.2508e-3);  // 0.2508 mH machine side inductance
+
+    // Power and current ratings with proper units
+    static constexpr current_t kBaseDCLinkCurrent = current_t(1044.0);  // 1044 A base DC link current
+    static constexpr power_t kMachineRatedPowerVA = power_t(2950e3);    // 2.95 MVA machine rated power
+    static constexpr int kMachineNumPoles = 2;                          // Number of poles (dimensionless)
+
+    // Default Mechanical Parameters with proper units
+    static constexpr inertia_constant_t kDefaultInertiaConstantH = inertia_constant_t(2.5);  // 2.5 s inertia constant
+    static constexpr damping_coefficient_t kDefaultDampingFactorD =
+        damping_coefficient_t(0.01);  // 0.01 pu damping factor
 
     /**
      * @brief Defines the operational mode for the machine side of the plant.
@@ -37,10 +50,10 @@ public:
 
     sfc_plant_model_simulator()
         : _mechanical_load(sfc_6p_6p_plant_model::kSamplingTime),
-          _pu_system(kGridVoltageRMS, kNominalGridFrequency, kBaseDCLinkCurrent, kMachineRatedPowerVA,
-                     kMachineVoltageRMS, kNominalMachineFrequency, kMachineNumPoles) {
+          _pu_system(kNominalGridVoltageRMS, kNominalGridFrequency, kBaseDCLinkCurrent, kMachineRatedPowerVA,
+                     kNominalMachineVoltageRMS, kNominalMachineFrequency, kMachineNumPoles) {
         // Configure with default mechanical parameters
-        _mechanical_load.configure(kDefaultInertiaConstantH, kDefaultDampingFactorD);
+        _mechanical_load.configure(kDefaultInertiaConstantH.value(), kDefaultDampingFactorD.value());
     }
 
     /**
@@ -66,13 +79,14 @@ public:
      * the initial conditions for the mechanical system. It is particularly useful
      * for soft-starter applications where the machine may already be rotating.
      */
-    void set_initial_mechanical_speed_pu(double initial_speed_pu) {
+    void set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu) {
         _mechanical_load.reset(initial_speed_pu);
 
         // If in variable speed mode, also update the machine frequency to match
         if (_mode == machine_operation_mode::variable_speed) {
-            double machine_frequency_hz = initial_speed_pu * kNominalMachineFrequency;
-            _plant.set_machine_parameters(machine_frequency_hz, kMachineVoltageRMS);
+            frequency_pu_t initial_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);
+            frequency_t machine_frequency_hz = yeet::to_si(initial_frequency_pu, kNominalMachineFrequency);
+            _plant.set_machine_parameters(machine_frequency_hz, kNominalMachineVoltageRMS);
         }
     }
 
@@ -168,16 +182,16 @@ public:
         simulator.register_sampler_entry(
             yeet::testing::make_lambda_sampler<double>("machine_frequency_hz", [&]() -> double {
                 if (_mode == machine_operation_mode::variable_speed) {
-                    return _mechanical_load.get_speed_pu() * kNominalMachineFrequency;
+                    return _mechanical_load.get_speed_pu() * kNominalMachineFrequency.value();
                 } else {
-                    return kNominalMachineFrequency;
+                    return kNominalMachineFrequency.value();
                 }
             }));
 
         // Log electromagnetic torque
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "electromagnetic_torque_pu",
-            [&]() -> double { return _plant.get_dc_link_current() / kBaseDCLinkCurrent; }));
+            [&]() -> double { return _plant.get_dc_link_current() / kBaseDCLinkCurrent.value(); }));
     }
 
     /**
@@ -190,7 +204,7 @@ public:
         if (_mode == machine_operation_mode::variable_speed) {
             // Calculate electromagnetic torque from DC link current
             // Convert DC current to per-unit using the base DC current
-            double i_dc_pu = _plant.get_dc_link_current() / kBaseDCLinkCurrent;
+            double i_dc_pu = _plant.get_dc_link_current() / kBaseDCLinkCurrent.value();
 
             // Calculate electromagnetic torque in per-unit
             // For LCI drives: T_e = k * I_dc where k is proportional to machine flux
@@ -201,10 +215,10 @@ public:
             double omega_pu = _mechanical_load.update(electromagnetic_torque_pu, load_torque_pu);
 
             // Convert mechanical speed back to machine frequency
-            double machine_frequency_hz = omega_pu * kNominalMachineFrequency;
+            frequency_t machine_frequency_hz = to_si(frequency_pu_t(omega_pu), kNominalMachineFrequency);
 
             // Update the plant model's machine side frequency
-            _plant.set_machine_parameters(machine_frequency_hz, kMachineVoltageRMS);
+            _plant.set_machine_parameters(machine_frequency_hz, kNominalMachineVoltageRMS);
         }
     }
 

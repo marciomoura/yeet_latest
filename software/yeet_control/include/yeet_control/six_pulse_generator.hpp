@@ -20,6 +20,14 @@ public:
     using angle_t = angle<zero_to_two_pi>;
 
     /**
+     * @brief Defines the type of AC voltage reference used for synchronization.
+     */
+    enum class reference_type {
+        line,  ///< Reference angle is from a line-to-line voltage (e.g., Vab). No offset needed.
+        phase  ///< Reference angle is from a phase-to-neutral voltage (e.g., Van). A 30-degree offset is applied.
+    };
+
+    /**
      * @brief Structure to hold the state of the six output pulses.
      */
     struct pulses {
@@ -34,9 +42,11 @@ public:
     /**
      * @brief Constructs a six_pulse_generator.
      *
+     * @param ref_type Specifies whether the reference angle is from a line or phase voltage.
      * @param pulse_width The desired width of the firing pulses.
      */
-    explicit six_pulse_generator(angle_t pulse_width = angle_t(yeet::deg_to_rad(30.0)));
+    explicit six_pulse_generator(reference_type ref_type = reference_type::phase,
+                                 angle_t pulse_width = angle_t(yeet::deg_to_rad(30.0)));
 
     /**
      * @brief Updates the pulse generator and returns the new pulse states.
@@ -68,6 +78,9 @@ public:
     angle_t get_pulse_width() const;
 
 private:
+    // The type of reference angle provided to the update method.
+    reference_type _ref_type;
+
     // Array of six individual pulse generators, one for each thyristor
     std::array<pulse_generator, 6> _pulse_generators;
 

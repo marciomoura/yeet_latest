@@ -9,6 +9,10 @@
 #include <array>
 
 #include "sfc_6p_6p_topology.h"  // Include the Simulink-generated header
+#include "yeet_control/reference_frame.hpp"
+#include "yeet_control/units.hpp"
+
+using namespace yeet;
 
 namespace yeet::application::sfc {
 
@@ -48,12 +52,12 @@ void sfc_6p_6p_plant_model::set_machine_side_pulses(const std::array<bool, 6>& p
     _model->sfc_6p_6p_topology_U.machine_side_converter_pulses = double_pulses;
 }
 
-void sfc_6p_6p_plant_model::set_grid_parameters(double frequency_hz, double voltage_rms) {
+void sfc_6p_6p_plant_model::set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms) {
     _model->sfc_6p_6p_topology_U.grid_voltage_source_frequency_hz = frequency_hz;
     _model->sfc_6p_6p_topology_U.grid_voltage_source_line_voltage_rms = voltage_rms;
 }
 
-void sfc_6p_6p_plant_model::set_machine_parameters(double frequency_hz, double voltage_rms) {
+void sfc_6p_6p_plant_model::set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms) {
     _model->sfc_6p_6p_topology_U.machine_voltage_source_frequency_hz = frequency_hz;
     _model->sfc_6p_6p_topology_U.machine_voltage_source_line_voltage_rms = voltage_rms;
 }
@@ -62,34 +66,36 @@ void sfc_6p_6p_plant_model::set_machine_parameters(double frequency_hz, double v
 // Getters (Outputs)
 //--------------------------------------------------------------------------------------------------
 
-control::abc<double> sfc_6p_6p_plant_model::get_grid_side_voltages_abc() const {
+abc<voltage_t> sfc_6p_6p_plant_model::get_grid_side_voltages_abc() const {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si;
-    return {voltages[0], voltages[1], voltages[2]};
+    return to_dimension_abc<voltage_t>(abc<real_t>{voltages});
 }
 
-control::abc<double> sfc_6p_6p_plant_model::get_grid_side_currents_abc() const {
+abc<current_t> sfc_6p_6p_plant_model::get_grid_side_currents_abc() const {
     const auto& currents = _model->sfc_6p_6p_topology_Y.grid_side_converter_current_si;
-    return {currents[0], currents[1], currents[2]};
+    return to_dimension_abc<current_t>(abc<real_t>{currents});
 }
 
-control::abc<double> sfc_6p_6p_plant_model::get_machine_side_voltages_abc() const {
+abc<voltage_t> sfc_6p_6p_plant_model::get_machine_side_voltages_abc() const {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si;
-    return {voltages[0], voltages[1], voltages[2]};
+    return to_dimension_abc<voltage_t>(abc<real_t>{voltages});
 }
 
-control::abc<double> sfc_6p_6p_plant_model::get_machine_side_currents_abc() const {
+abc<current_t> sfc_6p_6p_plant_model::get_machine_side_currents_abc() const {
     const auto& currents = _model->sfc_6p_6p_topology_Y.machine_side_converter_current_si;
-    return {currents[0], currents[1], currents[2]};
+    return to_dimension_abc<current_t>(abc<real_t>{currents});
 }
 
-angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_grid_voltage_source_angle() const {
-    return {_model->sfc_6p_6p_topology_Y.grid_voltage_source_angle_wt};
+angle<zero_to_two_pi> sfc_6p_6p_plant_model::get_grid_voltage_source_angle() const {
+    return angle<zero_to_two_pi>(_model->sfc_6p_6p_topology_Y.grid_voltage_source_angle_wt);
 }
 
-angle<control::zero_to_two_pi> sfc_6p_6p_plant_model::get_machine_voltage_source_angle() const {
-    return {_model->sfc_6p_6p_topology_Y.machine_voltage_source_angle_wt};
+angle<zero_to_two_pi> sfc_6p_6p_plant_model::get_machine_voltage_source_angle() const {
+    return angle<zero_to_two_pi>(_model->sfc_6p_6p_topology_Y.machine_voltage_source_angle_wt);
 }
 
-double sfc_6p_6p_plant_model::get_dc_link_current() const { return _model->sfc_6p_6p_topology_Y.dc_link_current_si; }
+current_t sfc_6p_6p_plant_model::get_dc_link_current() const {
+    return current_t(_model->sfc_6p_6p_topology_Y.dc_link_current_si);
+}
 
 }  // namespace yeet::application::sfc

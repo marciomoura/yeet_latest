@@ -32,29 +32,23 @@ using namespace yeet::application::sfc;
 
 class SFC6p6pTopologyIntegrationTest : public ::testing::Test {
 protected:
-    static constexpr double kSimulationTime = 0.5;                        // 0.5 seconds simulation
-    static constexpr double kGridFrequency = 50.0;                        // 50 Hz grid frequency
-    static constexpr double kMachineFrequency = 50.0;                     // 30 Hz machine frequency
-    static constexpr double kGridVoltageRMS = 2090.0;                     // 400V RMS line voltage
-    static constexpr double kMachineVoltageRMS = 1980.0;                  // 400V RMS line voltage
-    static constexpr double kInitialGridFiringAngleDeg = 30 + 13.0;       // Initial firing angle for grid side
-    static constexpr double kMachineFiringAngleDeg = 30 + 180.0 - 26.84;  // 160° firing angle for machine side
-
     sfc_plant_model_simulator _plant_model;
     six_pulse_generator _grid_side_pulse_generator;
     six_pulse_generator _machine_side_pulse_generator;
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
 
     // Configurable firing angle for grid side converter
-    double grid_firing_angle_deg_ = kInitialGridFiringAngleDeg;
+    double grid_firing_angle_deg_ = sfc_plant_model_simulator::kNominalGridFiringAngleDeg;
 
     void SetUp() override {
         auto& plant_model = _plant_model.plant();
 
         // Initialize the model and set parameters
         plant_model.initialize();
-        plant_model.set_grid_parameters(kGridFrequency, kGridVoltageRMS);
-        plant_model.set_machine_parameters(kMachineFrequency, kMachineVoltageRMS);
+        plant_model.set_grid_parameters(sfc_plant_model_simulator::kNominalGridFrequency,
+                                        sfc_plant_model_simulator::kNominalGridVoltageRMS);
+        plant_model.set_machine_parameters(sfc_plant_model_simulator::kNominalMachineFrequency,
+                                           sfc_plant_model_simulator::kNominalMachineVoltageRMS);
 
         // Setup simulator to run the open-loop controller and plant model
         _simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() {
@@ -80,7 +74,8 @@ protected:
 
         // Create firing angle objects
         angle<zero_to_two_pi> grid_firing_angle(deg_to_rad(grid_firing_angle_deg_));
-        angle<zero_to_two_pi> machine_firing_angle(deg_to_rad(kMachineFiringAngleDeg));
+        angle<zero_to_two_pi> machine_firing_angle(
+            deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg));
 
         // Update pulse generators
         auto grid_pulses = _grid_side_pulse_generator.update(grid_reference_angle, grid_firing_angle, true);
@@ -103,7 +98,7 @@ protected:
 TEST_F(SFC6p6pTopologyIntegrationTest, BasicOperationWithFiringAngleStep) {
     run_simulation(0.5);
 
-    set_grid_firing_angle(kInitialGridFiringAngleDeg + 30.0);
+    set_grid_firing_angle(sfc_plant_model_simulator::kNominalGridFiringAngleDeg + 30.0);
 
     run_simulation(0.5);
 }

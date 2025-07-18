@@ -33,14 +33,14 @@ struct per_unit {};
 //==============================================================================
 
 /**
- * @brief Represents a physical quantity with dimension, unit system, and value type.
+ * @brief Represents a physical quantity with dimension and unit system.
+ * All quantities use real_t as the underlying value type.
  */
-template <typename Dimension, typename UnitSystem, typename Representation>
+template <typename Dimension, typename UnitSystem>
 class quantity {
 public:
     using dimension = Dimension;
     using system = UnitSystem;
-    using representation = Representation;
 
     /**
      * @brief Default constructor
@@ -50,20 +50,20 @@ public:
     /**
      * @brief Explicit constructor from a raw value
      */
-    constexpr explicit quantity(Representation val) : _value(val) {}
+    constexpr explicit quantity(real_t val) : _value(val) {}
 
     /**
      * @brief Accessor for the underlying value
      */
-    constexpr Representation value() const { return _value; }
+    constexpr real_t value() const { return _value; }
 
     /**
      * @brief Implicit conversion to the underlying value type
      */
-    operator Representation() const { return _value; }
+    operator real_t() const { return _value; }
 
 private:
-    Representation _value;
+    real_t _value;
 };
 
 //==============================================================================
@@ -115,90 +115,88 @@ struct root_dimension<dimension<L, M, T, I, Th, N_exp, J>, N_root> {
 // Enforces R1.4 (Dimension Mismatch) and R1.5 (System Mismatch) at compile time.
 //==============================================================================
 
-template <typename D, typename S, typename R>
-constexpr quantity<D, S, R> operator+(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
-    return quantity<D, S, R>(lhs.value() + rhs.value());
+template <typename D, typename S>
+constexpr quantity<D, S> operator+(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+    return quantity<D, S>(lhs.value() + rhs.value());
 }
 
-template <typename D, typename S, typename R>
-constexpr quantity<D, S, R> operator-(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
-    return quantity<D, S, R>(lhs.value() - rhs.value());
+template <typename D, typename S>
+constexpr quantity<D, S> operator-(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+    return quantity<D, S>(lhs.value() - rhs.value());
 }
 
 //==============================================================================
 // R3.2: Multiplication & R3.3: Division
 //==============================================================================
 
-template <typename D1, typename D2, typename S, typename R1, typename R2>
-constexpr auto operator*(const quantity<D1, S, R1>& lhs, const quantity<D2, S, R2>& rhs) {
+template <typename D1, typename D2, typename S>
+constexpr auto operator*(const quantity<D1, S>& lhs, const quantity<D2, S>& rhs) {
     using result_dim = typename multiply_dimensions<D1, D2>::type;
-    using result_rep = std::common_type_t<R1, R2>;
-    return quantity<result_dim, S, result_rep>(lhs.value() * rhs.value());
+    return quantity<result_dim, S>(lhs.value() * rhs.value());
 }
 
-template <typename D1, typename D2, typename S, typename R1, typename R2>
-constexpr auto operator/(const quantity<D1, S, R1>& lhs, const quantity<D2, S, R2>& rhs) {
+template <typename D1, typename D2, typename S>
+constexpr auto operator/(const quantity<D1, S>& lhs, const quantity<D2, S>& rhs) {
     using result_dim = typename divide_dimensions<D1, D2>::type;
-    using result_rep = std::common_type_t<R1, R2>;
-    return quantity<result_dim, S, result_rep>(lhs.value() / rhs.value());
+    return quantity<result_dim, S>(lhs.value() / rhs.value());
 }
 
-template <typename D, typename S, typename R>
-constexpr auto sqrt(const quantity<D, S, R>& q) {
+template <typename D, typename S>
+constexpr auto sqrt(const quantity<D, S>& q) {
     using result_dim = typename root_dimension<D, 2>::type;
-    return quantity<result_dim, S, R>(std::sqrt(q.value()));
+    return quantity<result_dim, S>(std::sqrt(q.value()));
 }
 
 //==============================================================================
 // R3.4: Scalar Operations
 //==============================================================================
 
-template <typename D, typename S, typename R, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr quantity<D, S, std::common_type_t<R, Scalar>> operator*(const quantity<D, S, R>& q, const Scalar& s) {
-    return quantity<D, S, std::common_type_t<R, Scalar>>(q.value() * s);
+template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
+constexpr quantity<D, S> operator*(const quantity<D, S>& q, const Scalar& s) {
+    return quantity<D, S>(q.value() * s);
 }
 
-template <typename D, typename S, typename R, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr quantity<D, S, std::common_type_t<R, Scalar>> operator*(const Scalar& s, const quantity<D, S, R>& q) {
+template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
+constexpr quantity<D, S> operator*(const Scalar& s, const quantity<D, S>& q) {
     return q * s;
 }
 
-template <typename D, typename S, typename R, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr quantity<D, S, std::common_type_t<R, Scalar>> operator/(const quantity<D, S, R>& q, const Scalar& s) {
-    return quantity<D, S, std::common_type_t<R, Scalar>>(q.value() / s);
+template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
+constexpr quantity<D, S> operator/(const quantity<D, S>& q, const Scalar& s) {
+    return quantity<D, S>(q.value() / s);
 }
 
 //==============================================================================
 // R5.3: Comparison Operators
 //==============================================================================
 
-template <typename D, typename S, typename R>
-constexpr bool operator==(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
+template <typename D, typename S>
+constexpr bool operator==(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
     return lhs.value() == rhs.value();
 }
 
-template <typename D, typename S, typename R>
-constexpr bool operator!=(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
+template <typename D, typename S>
+constexpr bool operator!=(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
     return !(lhs == rhs);
 }
 
-template <typename D, typename S, typename R>
-constexpr bool operator<(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
+template <typename D, typename S>
+constexpr bool operator<(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
     return lhs.value() < rhs.value();
 }
 
-template <typename D, typename S, typename R>
-constexpr bool operator>(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
+template <typename D, typename S>
+constexpr bool operator>(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
     return rhs < lhs;
 }
 
-template <typename D, typename S, typename R>
-constexpr bool operator<=(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
+template <typename D, typename S>
+constexpr bool operator<=(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
     return !(rhs < lhs);
 }
 
-template <typename D, typename S, typename R>
-constexpr bool operator>=(const quantity<D, S, R>& lhs, const quantity<D, S, R>& rhs) {
+template <typename D, typename S>
+constexpr bool operator>=(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
     return !(lhs < rhs);
 }
 
@@ -216,7 +214,7 @@ using current_dim = dimension<0, 0, 0, 1, 0, 0, 0>;
 // Mechanical Derived Dimensions
 using area_dim = dimension<2, 0, 0, 0, 0, 0, 0>;               // L^2
 using volume_dim = dimension<3, 0, 0, 0, 0, 0, 0>;             // L^3
-using velocity_dim = dimension<1, 0, -1, 0, 0, 0, 0>;          // L/T
+using speed_dim = dimension<1, 0, -1, 0, 0, 0, 0>;             // L/T
 using acceleration_dim = dimension<1, 0, -2, 0, 0, 0, 0>;      // L/T^2
 using frequency_dim = dimension<0, 0, -1, 0, 0, 0, 0>;         // 1/T
 using force_dim = dimension<1, 1, -2, 0, 0, 0, 0>;             // M*L/T^2
@@ -235,75 +233,83 @@ using mag_field_strength_dim = dimension<-1, 0, 0, 1, 0, 0, 0>;  // I/L
 using flux_density_dim = dimension<0, 1, -2, -1, 0, 0, 0>;       // M/(T^2*I)
 
 // SI Quantity Type Aliases
-using length_t = quantity<length_dim, si, real_t>;
-using mass_t = quantity<mass_dim, si, real_t>;
-using duration_t = quantity<time_dim, si, real_t>;
-using current_t = quantity<current_dim, si, real_t>;
-using velocity_t = quantity<velocity_dim, si, real_t>;
-using acceleration_t = quantity<acceleration_dim, si, real_t>;
-using frequency_t = quantity<frequency_dim, si, real_t>;
-using force_t = quantity<force_dim, si, real_t>;
-using torque_t = quantity<torque_dim, si, real_t>;
-using moment_of_inertia_t = quantity<moment_of_inertia_dim, si, real_t>;
-using angular_frequency_t = quantity<frequency_dim, si, real_t>;  // Radian is dimensionless
-using voltage_t = quantity<voltage_dim, si, real_t>;
-using power_t = quantity<power_dim, si, real_t>;
-using resistance_t = quantity<resistance_dim, si, real_t>;
-using impedance_t = quantity<resistance_dim, si, real_t>;  // Same dimension as resistance
-using capacitance_t = quantity<capacitance_dim, si, real_t>;
-using inductance_t = quantity<inductance_dim, si, real_t>;
-using magnetic_flux_t = quantity<magnetic_flux_dim, si, real_t>;
-using magnetic_field_strength_t = quantity<mag_field_strength_dim, si, real_t>;
-using magnetic_flux_density_t = quantity<flux_density_dim, si, real_t>;
+using length_t = quantity<length_dim, si>;
+using mass_t = quantity<mass_dim, si>;
+using duration_t = quantity<time_dim, si>;
+using current_t = quantity<current_dim, si>;
+using speed_t = quantity<speed_dim, si>;
+using acceleration_t = quantity<acceleration_dim, si>;
+using frequency_t = quantity<frequency_dim, si>;
+using force_t = quantity<force_dim, si>;
+using torque_t = quantity<torque_dim, si>;
+using moment_of_inertia_t = quantity<moment_of_inertia_dim, si>;
+using angular_frequency_t = quantity<frequency_dim, si>;  // Radian is dimensionless
+using voltage_t = quantity<voltage_dim, si>;
+using power_t = quantity<power_dim, si>;
+using resistance_t = quantity<resistance_dim, si>;
+using impedance_t = quantity<resistance_dim, si>;  // Same dimension as resistance
+using capacitance_t = quantity<capacitance_dim, si>;
+using inductance_t = quantity<inductance_dim, si>;
+using magnetic_flux_t = quantity<magnetic_flux_dim, si>;
+using magnetic_field_strength_t = quantity<mag_field_strength_dim, si>;
+using magnetic_flux_density_t = quantity<flux_density_dim, si>;
+
+// Add missing unit types for power electronics applications
+using angle_t = quantity<dimensionless_dim, si>;                // Angles are dimensionless in SI
+using damping_coefficient_t = quantity<dimensionless_dim, si>;  // Damping factor is dimensionless
+using inertia_constant_t = quantity<time_dim, si>;              // Inertia constant H has units of time (seconds)
 
 //==============================================================================
 // R4.3: Per-Unit Equivalents
 //==============================================================================
 // Base Quantities
-using length_pu_t = quantity<length_dim, per_unit, real_t>;
-using mass_pu_t = quantity<mass_dim, per_unit, real_t>;
-using duration_pu_t = quantity<time_dim, per_unit, real_t>;
+using length_pu_t = quantity<length_dim, per_unit>;
+using mass_pu_t = quantity<mass_dim, per_unit>;
+using duration_pu_t = quantity<time_dim, per_unit>;
 
 // Mechanical Quantities
-using velocity_pu_t = quantity<velocity_dim, per_unit, real_t>;
-using acceleration_pu_t = quantity<acceleration_dim, per_unit, real_t>;
-using frequency_pu_t = quantity<frequency_dim, per_unit, real_t>;
-using angular_frequency_pu_t = quantity<frequency_dim, per_unit, real_t>;
-using force_pu_t = quantity<force_dim, per_unit, real_t>;
-using torque_pu_t = quantity<torque_dim, per_unit, real_t>;
-using moment_of_inertia_pu_t = quantity<moment_of_inertia_dim, per_unit, real_t>;
+using speed_pu_t = quantity<speed_dim, per_unit>;
+using acceleration_pu_t = quantity<acceleration_dim, per_unit>;
+using frequency_pu_t = quantity<frequency_dim, per_unit>;
+using angular_frequency_pu_t = quantity<frequency_dim, per_unit>;
+using force_pu_t = quantity<force_dim, per_unit>;
+using torque_pu_t = quantity<torque_dim, per_unit>;
+using moment_of_inertia_pu_t = quantity<moment_of_inertia_dim, per_unit>;
 
 // Electrical Quantities
-using voltage_pu_t = quantity<voltage_dim, per_unit, real_t>;
-using current_pu_t = quantity<current_dim, per_unit, real_t>;
-using power_pu_t = quantity<power_dim, per_unit, real_t>;
-using resistance_pu_t = quantity<resistance_dim, per_unit, real_t>;
-using impedance_pu_t = quantity<resistance_dim, per_unit, real_t>;
-using capacitance_pu_t = quantity<capacitance_dim, per_unit, real_t>;
-using inductance_pu_t = quantity<inductance_dim, per_unit, real_t>;
-using magnetic_flux_pu_t = quantity<magnetic_flux_dim, per_unit, real_t>;
-using magnetic_field_strength_pu_t = quantity<mag_field_strength_dim, per_unit, real_t>;
-using magnetic_flux_density_pu_t = quantity<flux_density_dim, per_unit, real_t>;
+using voltage_pu_t = quantity<voltage_dim, per_unit>;
+using current_pu_t = quantity<current_dim, per_unit>;
+using power_pu_t = quantity<power_dim, per_unit>;
+using resistance_pu_t = quantity<resistance_dim, per_unit>;
+using impedance_pu_t = quantity<resistance_dim, per_unit>;
+using capacitance_pu_t = quantity<capacitance_dim, per_unit>;
+using inductance_pu_t = quantity<inductance_dim, per_unit>;
+using magnetic_flux_pu_t = quantity<magnetic_flux_dim, per_unit>;
+using magnetic_field_strength_pu_t = quantity<mag_field_strength_dim, per_unit>;
+using magnetic_flux_density_pu_t = quantity<flux_density_dim, per_unit>;
+
+// Add per-unit equivalents for the new types
+using angle_pu_t = quantity<dimensionless_dim, per_unit>;
+using damping_coefficient_pu_t = quantity<dimensionless_dim, per_unit>;
+using inertia_constant_pu_t = quantity<time_dim, per_unit>;
 
 //==============================================================================
 // R2.4: Explicit System Conversion
 //==============================================================================
 
 // Convert from Per-Unit to SI
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const quantity<Dim, per_unit, Rep1>& pu_quantity, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity, const quantity<Dim, si>& base_quantity) {
     // The base quantity must have the same dimension as the per-unit quantity.
     // This check is implicitly handled by the template parameters.
-    using result_rep = std::common_type_t<Rep1, Rep2>;
-    return quantity<Dim, si, result_rep>(pu_quantity.value() * base_quantity.value());
+    return quantity<Dim, si>(pu_quantity.value() * base_quantity.value());
 }
 
 // Convert from SI to Per-Unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const quantity<Dim, si, Rep1>& si_quantity, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const quantity<Dim, si>& base_quantity) {
     // The base quantity must have the same dimension as the SI quantity.
-    using result_rep = std::common_type_t<Rep1, Rep2>;
-    return quantity<Dim, per_unit, result_rep>(si_quantity.value() / base_quantity.value());
+    return quantity<Dim, per_unit>(si_quantity.value() / base_quantity.value());
 }
 
 //==============================================================================
@@ -323,7 +329,7 @@ std::string get_unit_symbol() {
         return " s";
     else if constexpr (std::is_same_v<Dim, current_dim>)
         return " A";
-    else if constexpr (std::is_same_v<Dim, velocity_dim>)
+    else if constexpr (std::is_same_v<Dim, speed_dim>)
         return " m/s";
     else if constexpr (std::is_same_v<Dim, acceleration_dim>)
         return " m/s^2";
@@ -356,8 +362,8 @@ std::string get_unit_symbol() {
 }
 }  // namespace internal
 
-template <typename Dim, typename UnitSystem, typename Rep>
-std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem, Rep>& q) {
+template <typename Dim, typename UnitSystem>
+std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem>& q) {
     os << q.value();
     if constexpr (std::is_same_v<UnitSystem, si>) {
         os << internal::get_unit_symbol<Dim>();
@@ -365,6 +371,23 @@ std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem, Rep>&
         os << " pu";
     }
     return os;
+}
+
+/**
+ * @brief Casts a per-unit quantity to a new dimension while preserving the per-unit system.
+ *
+ * This function allows casting a per-unit quantity to a different dimension while keeping the
+ * per-unit system intact. The value is preserved, but the dimension is changed.
+ *
+ * @tparam NewDim The new dimension type.
+ * @tparam OldDim The old dimension type.
+ * @param q The per-unit quantity to cast.
+ * @return A new quantity of type NewDim with the same underlying value.
+ */
+template <typename NewType, typename OldDim>
+constexpr quantity<typename NewType::dimension, per_unit> per_unit_cast(const quantity<OldDim, per_unit>& q) {
+    static_assert(std::is_same_v<typename NewType::system, per_unit>, "NewType must be a per-unit quantity type.");
+    return quantity<typename NewType::dimension, per_unit>(q.value());
 }
 
 }  // namespace yeet

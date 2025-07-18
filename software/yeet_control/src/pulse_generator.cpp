@@ -18,7 +18,7 @@ bool pulse_generator::update(angle_t reference_angle, angle_t firing_delay, bool
     // 2. Shift the window: reference_angle ∈ [firing_offset + firing_delay, firing_offset + firing_delay + pulse_width)
     //
     // Note: Positive firing_delay delays the pulse pattern (pulses occur later in the cycle)
-    angle_t adjusted_firing_start = _firing_offset + firing_delay;
+    angle_t adjusted_firing_start = angle_t(_firing_offset.get_radians() + firing_delay.get_radians());
 
     return is_in_range(reference_angle, adjusted_firing_start, _pulse_width);
 }

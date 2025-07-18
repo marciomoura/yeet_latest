@@ -6,34 +6,33 @@
 
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_plant_model_simulator.hpp"
+#include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
 using namespace yeet::application::sfc;
-using namespace yeet::control;
+using namespace yeet;
 
 class SfcMeasurementsTest : public ::testing::Test {
 protected:
-    // Use nominal values consistent with the plant model and analysis scripts
-    static constexpr double kSimulationTime = 0.2;                        // Simulate for 200ms to reach steady state
-    static constexpr double kInitialGridFiringAngleDeg = 30 + 13.0;       // Initial firing angle for grid side
-    static constexpr double kMachineFiringAngleDeg = 30 + 180.0 - 26.84;  // Machine side firing angle
-
     sfc_plant_model_simulator _plant_sim;
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
-    six_pulse_generator _grid_side_pulse_generator;
-    six_pulse_generator _machine_side_pulse_generator;
+    control::six_pulse_generator _grid_side_pulse_generator;
+    control::six_pulse_generator _machine_side_pulse_generator;
 
-    // Configurable firing angle for grid side converter
-    double grid_firing_angle_deg_ = kInitialGridFiringAngleDeg;
+    // // Configurable firing angle for grid side converter
+    // double grid_firing_angle_deg_ = sfc_plant_model_simulator::kNominalGridFiringAngleDeg;
 
     // System definition
-    sfc_per_unit_system _pu_system{
-        sfc_plant_model_simulator::kGridVoltageRMS,    sfc_plant_model_simulator::kNominalGridFrequency,
-        sfc_plant_model_simulator::kBaseDCLinkCurrent, sfc_plant_model_simulator::kMachineRatedPowerVA,
-        sfc_plant_model_simulator::kMachineVoltageRMS, sfc_plant_model_simulator::kNominalMachineFrequency,
-        sfc_plant_model_simulator::kMachineNumPoles};
+    sfc_per_unit_system _pu_system{voltage_t(sfc_plant_model_simulator::kNominalGridVoltageRMS),
+                                   frequency_t(sfc_plant_model_simulator::kNominalGridFrequency),
+                                   current_t(sfc_plant_model_simulator::kBaseDCLinkCurrent),
+                                   power_t(sfc_plant_model_simulator::kMachineRatedPowerVA),
+                                   voltage_t(sfc_plant_model_simulator::kNominalMachineVoltageRMS),
+                                   frequency_t(sfc_plant_model_simulator::kNominalMachineFrequency),
+                                   sfc_plant_model_simulator::kMachineNumPoles};
 
     // Classes under test
     sfc_grid_side_measurements _grid_measurements;
@@ -54,9 +53,13 @@ protected:
         // Initialize the plant model
         plant_model.initialize();
         plant_model.set_grid_parameters(sfc_plant_model_simulator::kNominalGridFrequency,
-                                        sfc_plant_model_simulator::kGridVoltageRMS);
+                                        sfc_plant_model_simulator::kNominalGridVoltageRMS);
         plant_model.set_machine_parameters(sfc_plant_model_simulator::kNominalMachineFrequency,
-                                           sfc_plant_model_simulator::kMachineVoltageRMS);
+                                           sfc_plant_model_simulator::kNominalMachineVoltageRMS);
+
+        // Reference angle is on the voltage measurement
+        // _grid_side_pulse_generator.set_firing_offsets(deg_to_rad(30.0f));
+        // _machine_side_pulse_generator.set_firing_offsets(deg_to_rad(30.0f));
 
         // Register the main simulation loop
         _simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() {
@@ -67,15 +70,27 @@ protected:
             plant_model.step();
 
             // 3. Update measurement classes with raw plant outputs
-            _grid_measurements.update(_pu_system.get_grid_bases(), plant_model.get_grid_side_voltages_abc(),
-                                      plant_model.get_grid_side_currents_abc());
+            auto grid_voltages = plant_model.get_grid_side_voltages_abc();
+            auto grid_currents = plant_model.get_grid_side_currents_abc();
+            auto machine_voltages = plant_model.get_machine_side_voltages_abc();
+            auto machine_currents = plant_model.get_machine_side_currents_abc();
+
+            _grid_measurements.update(_pu_system.get_grid_bases(),
+                                      abc<voltage_t>{voltage_t(grid_voltages.a()), voltage_t(grid_voltages.b()),
+                                                     voltage_t(grid_voltages.c())},
+                                      abc<current_t>{current_t(grid_currents.a()), current_t(grid_currents.b()),
+                                                     current_t(grid_currents.c())});
 
             _dc_link_measurements.update(_pu_system.get_dc_link_bases(),
-                                         0.0,  // DC voltage not available in plant model
-                                         plant_model.get_dc_link_current());
+                                         voltage_t(0.0),  // DC voltage not available in plant model
+                                         current_t(plant_model.get_dc_link_current()));
 
-            _machine_measurements.update(_pu_system.get_machine_bases(), plant_model.get_machine_side_voltages_abc(),
-                                         plant_model.get_machine_side_currents_abc());
+            _machine_measurements.update(
+                _pu_system.get_machine_bases(),
+                abc<voltage_t>{voltage_t(machine_voltages.a()), voltage_t(machine_voltages.b()),
+                               voltage_t(machine_voltages.c())},
+                abc<current_t>{current_t(machine_currents.a()), current_t(machine_currents.b()),
+                               current_t(machine_currents.c())});
 
             // 4. Store results for later analysis
             _grid_current_a_pu_history.push_back(_grid_measurements.get_current_pu().a());
@@ -116,10 +131,9 @@ protected:
         auto machine_reference_angle = plant_model.get_machine_voltage_source_angle();
 
         // Create firing angle objects
-        angle<zero_to_two_pi> grid_firing_angle(
-            deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg + 30.0f));
+        angle<zero_to_two_pi> grid_firing_angle(deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg));
         angle<zero_to_two_pi> machine_firing_angle(
-            deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg + 30.0f));
+            deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg));
 
         // Update pulse generators
         auto grid_pulses = _grid_side_pulse_generator.update(grid_reference_angle, grid_firing_angle, true);

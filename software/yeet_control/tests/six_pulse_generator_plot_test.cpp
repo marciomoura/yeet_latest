@@ -99,7 +99,8 @@ private:
 
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
     three_phase_waveform_generator _waveform_generator{sampling_time};
-    six_pulse_generator _six_pulse_gen{angle<zero_to_two_pi>(deg_to_rad(pulse_width_deg))};  // 5 degree pulse width
+    six_pulse_generator _six_pulse_gen{six_pulse_generator::reference_type::phase,
+                                       angle<zero_to_two_pi>(deg_to_rad(pulse_width_deg))};  // 5 degree pulse width
 
     // Current state variables
     angle<zero_to_two_pi> _current_reference_angle{0.0};

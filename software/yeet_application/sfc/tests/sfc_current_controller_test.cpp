@@ -8,11 +8,11 @@
 #include "sfc_plant_model_simulator.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
-
 using namespace yeet::application::sfc;
-using namespace yeet::control;
+using namespace yeet;
 
 /**
  * @brief Test fixture for validating the sfc_current_controller in a closed-loop simulation.
@@ -23,7 +23,7 @@ using namespace yeet::control;
  */
 class SfcCurrentControllerSimulationTest : public ::testing::Test {
 protected:
-    static constexpr double kMachineFiringAngleDeg = 180.0 - 40.0 + 30.0;  // Inverter operation
+    static constexpr double kMachineFiringAngleDeg = 180.0 - 40.0;  // Inverter operation
 
     // Simulation signals
     double dc_link_current_ref_pu = 1.0;  // Reference current in per-unit
@@ -31,24 +31,26 @@ protected:
     // Simulation components
     sfc_plant_model_simulator _plant_sim;
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
-    six_pulse_generator _grid_side_pulse_generator;
-    six_pulse_generator _machine_side_pulse_generator;
+    control::six_pulse_generator _grid_side_pulse_generator;
+    control::six_pulse_generator _machine_side_pulse_generator;
 
     // System definition
-    sfc_per_unit_system _pu_system{
-        sfc_plant_model_simulator::kGridVoltageRMS,    sfc_plant_model_simulator::kNominalGridFrequency,
-        sfc_plant_model_simulator::kBaseDCLinkCurrent, sfc_plant_model_simulator::kMachineRatedPowerVA,
-        sfc_plant_model_simulator::kMachineVoltageRMS, sfc_plant_model_simulator::kNominalMachineFrequency,
-        sfc_plant_model_simulator::kMachineNumPoles};
+    sfc_per_unit_system _pu_system{voltage_t(sfc_plant_model_simulator::kNominalGridVoltageRMS),
+                                   frequency_t(sfc_plant_model_simulator::kNominalGridFrequency),
+                                   current_t(sfc_plant_model_simulator::kBaseDCLinkCurrent),
+                                   power_t(sfc_plant_model_simulator::kMachineRatedPowerVA),
+                                   voltage_t(sfc_plant_model_simulator::kNominalMachineVoltageRMS),
+                                   frequency_t(sfc_plant_model_simulator::kNominalMachineFrequency),
+                                   sfc_plant_model_simulator::kMachineNumPoles};
 
     // Measurement, Filtering, and Control classes
     sfc_grid_side_measurements _grid_measurements;
     sfc_dc_link_measurements _dc_link_measurements;
     sfc_machine_side_measurements _machine_measurements;
-    sfc_grid_side_filtering _grid_filtering{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_dc_link_filtering _dc_link_filtering{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_machine_side_filtering _machine_filtering{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_current_controller _current_controller{sfc_6p_6p_plant_model::kSamplingTime};
+    sfc_grid_side_filtering _grid_filtering{duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_dc_link_filtering _dc_link_filtering{duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_machine_side_filtering _machine_filtering{duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_current_controller _current_controller{duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
 
     void SetUp() override {
         auto& plant_model = _plant_sim.plant();
@@ -56,17 +58,17 @@ protected:
         // 1. Initialize the plant model
         plant_model.initialize();
         plant_model.set_grid_parameters(sfc_plant_model_simulator::kNominalGridFrequency,
-                                        sfc_plant_model_simulator::kGridVoltageRMS);
+                                        sfc_plant_model_simulator::kNominalGridVoltageRMS);
         plant_model.set_machine_parameters(sfc_plant_model_simulator::kNominalMachineFrequency,
-                                           sfc_plant_model_simulator::kMachineVoltageRMS);
+                                           sfc_plant_model_simulator::kNominalMachineVoltageRMS);
 
         // 2. Configure filtering
-        _grid_filtering.configure(50.0, 50.0);
-        _grid_filtering.configure_voltage_magnitude_filter(20.0);
-        _dc_link_filtering.configure(100.0, 6.0 * 50.0);
-        _machine_filtering.configure_voltage_filter(100.0);
-        _machine_filtering.configure_current_filter(100.0);
-        _machine_filtering.configure_voltage_magnitude_filter(20.0);
+        _grid_filtering.configure(frequency_t(50.0), frequency_t(50.0));
+        _grid_filtering.configure_voltage_magnitude_filter(frequency_t(20.0));
+        _dc_link_filtering.configure(frequency_t(100.0), frequency_t(6.0 * 50.0));
+        _machine_filtering.configure_voltage_filter(frequency_t(100.0));
+        _machine_filtering.configure_current_filter(frequency_t(100.0));
+        _machine_filtering.configure_voltage_magnitude_filter(frequency_t(20.0));
 
         // 3. Configure the current controller
         _current_controller.set_pi_gains(0.5, 0.05);  // Kp, Ti
@@ -83,16 +85,30 @@ protected:
             auto& plant = _plant_sim.plant();
 
             // --- Measurement and Filtering ---
-            _grid_measurements.update(_pu_system.get_grid_bases(), plant.get_grid_side_voltages_abc(),
-                                      plant.get_grid_side_currents_abc());
-            _dc_link_measurements.update(_pu_system.get_dc_link_bases(), 0.0f, plant.get_dc_link_current());
-            _machine_measurements.update(_pu_system.get_machine_bases(), plant.get_machine_side_voltages_abc(),
-                                         plant.get_machine_side_currents_abc());
+            auto grid_voltages = plant.get_grid_side_voltages_abc();
+            auto grid_currents = plant.get_grid_side_currents_abc();
+            auto machine_voltages = plant.get_machine_side_voltages_abc();
+            auto machine_currents = plant.get_machine_side_currents_abc();
+
+            _grid_measurements.update(_pu_system.get_grid_bases(),
+                                      abc<voltage_t>{voltage_t(grid_voltages.a()), voltage_t(grid_voltages.b()),
+                                                     voltage_t(grid_voltages.c())},
+                                      abc<current_t>{current_t(grid_currents.a()), current_t(grid_currents.b()),
+                                                     current_t(grid_currents.c())});
+            _dc_link_measurements.update(_pu_system.get_dc_link_bases(), voltage_t(0.0),
+                                         current_t(plant.get_dc_link_current()));
+            _machine_measurements.update(
+                _pu_system.get_machine_bases(),
+                abc<voltage_t>{voltage_t(machine_voltages.a()), voltage_t(machine_voltages.b()),
+                               voltage_t(machine_voltages.c())},
+                abc<current_t>{current_t(machine_currents.a()), current_t(machine_currents.b()),
+                               current_t(machine_currents.c())});
 
             _grid_filtering.update(_grid_measurements.get_voltage_pu(), _grid_measurements.get_current_pu());
-            _dc_link_filtering.update(_dc_link_measurements.get_voltage_pu(), _dc_link_measurements.get_current_pu());
+            _dc_link_filtering.update(voltage_pu_t(_dc_link_measurements.get_voltage_pu()),
+                                      current_pu_t(_dc_link_measurements.get_current_pu()));
             _machine_filtering.update(_machine_measurements.get_voltage_pu(), _machine_measurements.get_current_pu(),
-                                      sfc_plant_model_simulator::kNominalMachineFrequency);
+                                      frequency_t(sfc_plant_model_simulator::kNominalMachineFrequency));
 
             // --- Control ---
             // Estimate inverter back-EMF for feedforward term

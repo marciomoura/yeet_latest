@@ -7,12 +7,26 @@
 #include "sfc/sfc_measurements.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_plant_model_simulator.hpp"
+#include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
 using namespace yeet::application::sfc;
 using namespace yeet::control;
+using yeet::current_t;
+using yeet::duration_t;
+using yeet::frequency_t;
+using yeet::power_t;
+using yeet::voltage_t;
+#include "yeet_testing/simulator_gtest.hpp"
+
+using namespace yeet::application::sfc;
+using namespace yeet::control;
+using yeet::angle;
+using yeet::deg_to_rad;
+using yeet::rad_to_deg;
+using yeet::zero_to_two_pi;
 
 namespace yeet::application::sfc {
 
@@ -103,9 +117,9 @@ TEST_F(SfcSpeedControllerSimulationTest, ShouldRegulateSpeedToReference) {
  */
 class SfcSpeedControllerPlantModelSimulationTest : public ::testing::Test {
 protected:
-    static constexpr double kMachineFiringAngleDeg = 180.0 - 40.0 + 30.0;  // Inverter operation
-    static constexpr double kSimulationTime = 5.0;                         // 5 seconds simulation
-    static constexpr double kLoadTorquePu = 0.1;                           // Small load torque
+    static constexpr double kMachineFiringAngleDeg = 180.0 - 40.0;  // Inverter operation
+    static constexpr double kSimulationTime = 5.0;                  // 5 seconds simulation
+    static constexpr double kLoadTorquePu = 0.1;                    // Small load torque
 
     // Simulation signals
     double speed_reference_pu = 1.0;
@@ -117,21 +131,23 @@ protected:
     six_pulse_generator _machine_side_pulse_generator;
 
     // System definition
-    sfc_per_unit_system _pu_system{
-        sfc_plant_model_simulator::kGridVoltageRMS,    sfc_plant_model_simulator::kNominalGridFrequency,
-        sfc_plant_model_simulator::kBaseDCLinkCurrent, sfc_plant_model_simulator::kMachineRatedPowerVA,
-        sfc_plant_model_simulator::kMachineVoltageRMS, sfc_plant_model_simulator::kNominalMachineFrequency,
-        sfc_plant_model_simulator::kMachineNumPoles};
+    sfc_per_unit_system _pu_system{yeet::voltage_t(sfc_plant_model_simulator::kNominalGridVoltageRMS),
+                                   yeet::frequency_t(sfc_plant_model_simulator::kNominalGridFrequency),
+                                   yeet::current_t(sfc_plant_model_simulator::kBaseDCLinkCurrent),
+                                   yeet::power_t(sfc_plant_model_simulator::kMachineRatedPowerVA),
+                                   yeet::voltage_t(sfc_plant_model_simulator::kNominalMachineVoltageRMS),
+                                   yeet::frequency_t(sfc_plant_model_simulator::kNominalMachineFrequency),
+                                   sfc_plant_model_simulator::kMachineNumPoles};
 
     // Measurement, Filtering, and Control classes
     sfc_grid_side_measurements _grid_measurements;
     sfc_dc_link_measurements _dc_link_measurements;
     sfc_machine_side_measurements _machine_measurements;
-    sfc_grid_side_filtering _grid_filtering{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_dc_link_filtering _dc_link_filtering{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_machine_side_filtering _machine_filtering{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_current_controller _current_controller{sfc_6p_6p_plant_model::kSamplingTime};
-    sfc_speed_controller _speed_controller{sfc_6p_6p_plant_model::kSamplingTime};
+    sfc_grid_side_filtering _grid_filtering{yeet::duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_dc_link_filtering _dc_link_filtering{yeet::duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_machine_side_filtering _machine_filtering{yeet::duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_current_controller _current_controller{yeet::duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    sfc_speed_controller _speed_controller{yeet::duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
 
     void SetUp() override {
         auto& plant_model = _plant_sim.plant();
@@ -139,22 +155,22 @@ protected:
         // 1. Configure plant for variable speed operation
         _plant_sim.set_operation_mode(sfc_plant_model_simulator::machine_operation_mode::variable_speed);
         _plant_sim.configure_mechanical_load(0.5, 0.0001);  // 2 s inertia, 0.01 pu damping
-        _plant_sim.set_initial_mechanical_speed_pu(1.0);
+        _plant_sim.set_initial_mechanical_speed_pu(speed_pu_t(1.0));
 
         // 2. Initialize the plant model
         plant_model.initialize();
         plant_model.set_grid_parameters(sfc_plant_model_simulator::kNominalGridFrequency,
-                                        sfc_plant_model_simulator::kGridVoltageRMS);
+                                        sfc_plant_model_simulator::kNominalGridVoltageRMS);
         plant_model.set_machine_parameters(sfc_plant_model_simulator::kNominalMachineFrequency,
-                                           sfc_plant_model_simulator::kMachineVoltageRMS);
+                                           sfc_plant_model_simulator::kNominalMachineVoltageRMS);
 
         // 3. Configure filtering
-        _grid_filtering.configure(50.0, 50.0);
-        _grid_filtering.configure_voltage_magnitude_filter(20.0);
-        _dc_link_filtering.configure(100.0, 2.0 * 6.0 * 50.0);
-        _machine_filtering.configure_voltage_filter(100.0);
-        _machine_filtering.configure_current_filter(100.0);
-        _machine_filtering.configure_voltage_magnitude_filter(20.0);
+        _grid_filtering.configure(yeet::frequency_t(50.0), yeet::frequency_t(50.0));
+        _grid_filtering.configure_voltage_magnitude_filter(yeet::frequency_t(20.0));
+        _dc_link_filtering.configure(yeet::frequency_t(100.0), yeet::frequency_t(2.0 * 6.0 * 50.0));
+        _machine_filtering.configure_voltage_filter(yeet::frequency_t(100.0));
+        _machine_filtering.configure_current_filter(yeet::frequency_t(100.0));
+        _machine_filtering.configure_voltage_magnitude_filter(yeet::frequency_t(20.0));
 
         // 4. Configure the current controller (inner loop)
         _current_controller.set_pi_gains(1.0, 0.02);  // Kp, Ti
@@ -177,16 +193,28 @@ protected:
             auto& plant = _plant_sim.plant();
 
             // --- Measurement and Filtering ---
-            _grid_measurements.update(_pu_system.get_grid_bases(), plant.get_grid_side_voltages_abc(),
-                                      plant.get_grid_side_currents_abc());
-            _dc_link_measurements.update(_pu_system.get_dc_link_bases(), 0.0f, plant.get_dc_link_current());
-            _machine_measurements.update(_pu_system.get_machine_bases(), plant.get_machine_side_voltages_abc(),
-                                         plant.get_machine_side_currents_abc());
+            _grid_measurements.update(_pu_system.get_grid_bases(),
+                                      abc<voltage_t>{yeet::voltage_t(plant.get_grid_side_voltages_abc().a()),
+                                                     yeet::voltage_t(plant.get_grid_side_voltages_abc().b()),
+                                                     yeet::voltage_t(plant.get_grid_side_voltages_abc().c())},
+                                      abc<current_t>{yeet::current_t(plant.get_grid_side_currents_abc().a()),
+                                                     yeet::current_t(plant.get_grid_side_currents_abc().b()),
+                                                     yeet::current_t(plant.get_grid_side_currents_abc().c())});
+            _dc_link_measurements.update(_pu_system.get_dc_link_bases(), yeet::voltage_t(0.0),
+                                         yeet::current_t(plant.get_dc_link_current()));
+            _machine_measurements.update(_pu_system.get_machine_bases(),
+                                         abc<voltage_t>{yeet::voltage_t(plant.get_machine_side_voltages_abc().a()),
+                                                        yeet::voltage_t(plant.get_machine_side_voltages_abc().b()),
+                                                        yeet::voltage_t(plant.get_machine_side_voltages_abc().c())},
+                                         abc<current_t>{yeet::current_t(plant.get_machine_side_currents_abc().a()),
+                                                        yeet::current_t(plant.get_machine_side_currents_abc().b()),
+                                                        yeet::current_t(plant.get_machine_side_currents_abc().c())});
 
             _grid_filtering.update(_grid_measurements.get_voltage_pu(), _grid_measurements.get_current_pu());
-            _dc_link_filtering.update(_dc_link_measurements.get_voltage_pu(), _dc_link_measurements.get_current_pu());
+            _dc_link_filtering.update(voltage_pu_t(_dc_link_measurements.get_voltage_pu()),
+                                      current_pu_t(_dc_link_measurements.get_current_pu()));
             _machine_filtering.update(_machine_measurements.get_voltage_pu(), _machine_measurements.get_current_pu(),
-                                      sfc_plant_model_simulator::kNominalMachineFrequency);
+                                      yeet::frequency_t(sfc_plant_model_simulator::kNominalMachineFrequency));
 
             // --- Speed Control (Outer Loop) ---
             const double measured_speed_pu = _plant_sim.mechanical_load().get_speed_pu();

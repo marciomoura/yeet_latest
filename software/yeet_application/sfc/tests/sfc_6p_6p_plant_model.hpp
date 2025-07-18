@@ -5,6 +5,9 @@
 
 #include "yeet_control/angle.hpp"
 #include "yeet_control/reference_frame.hpp"
+#include "yeet_control/units.hpp"
+
+using namespace yeet;
 
 // Forward-declare the code-generated class to hide implementation details
 namespace generated::sfc {
@@ -74,56 +77,56 @@ public:
      * @param frequency_hz The frequency in Hertz.
      * @param voltage_rms The line-to-line RMS voltage.
      */
-    void set_grid_parameters(double frequency_hz, double voltage_rms);
+    void set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms);
 
     /**
      * @brief Sets the machine-side voltage source parameters.
      * @param frequency_hz The frequency in Hertz.
      * @param voltage_rms The line-to-line RMS voltage.
      */
-    void set_machine_parameters(double frequency_hz, double voltage_rms);
+    void set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms);
 
     /**
      * @brief Gets the three-phase voltages of the grid-side converter.
      * @return Voltages in the abc reference frame.
      */
-    control::abc<double> get_grid_side_voltages_abc() const;
+    abc<voltage_t> get_grid_side_voltages_abc() const;
 
     /**
      * @brief Gets the three-phase currents of the grid-side converter.
      * @return Currents in the abc reference frame.
      */
-    control::abc<double> get_grid_side_currents_abc() const;
+    abc<current_t> get_grid_side_currents_abc() const;
 
     /**
      * @brief Gets the three-phase voltages of the machine-side converter.
      * @return Voltages in the abc reference frame.
      */
-    control::abc<double> get_machine_side_voltages_abc() const;
+    abc<voltage_t> get_machine_side_voltages_abc() const;
 
     /**
      * @brief Gets the three-phase currents of the machine-side converter.
      * @return Currents in the abc reference frame.
      */
-    control::abc<double> get_machine_side_currents_abc() const;
+    abc<current_t> get_machine_side_currents_abc() const;
 
     /**
      * @brief Gets the angle of the grid-side voltage source.
      * @return The angle, wrapped between 0 and 2*pi.
      */
-    angle<control::zero_to_two_pi> get_grid_voltage_source_angle() const;
+    angle<zero_to_two_pi> get_grid_voltage_source_angle() const;
 
     /**
      * @brief Gets the angle of the machine-side voltage source.
      * @return The angle, wrapped between 0 and 2*pi.
      */
-    angle<control::zero_to_two_pi> get_machine_voltage_source_angle() const;
+    angle<zero_to_two_pi> get_machine_voltage_source_angle() const;
 
     /**
      * @brief Gets the DC link current.
      * @return The current in Amperes.
      */
-    double get_dc_link_current() const;
+    current_t get_dc_link_current() const;
 
 private:
     std::unique_ptr<generated::sfc::sfc_6p_6p_topology> _model;

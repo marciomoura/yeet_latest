@@ -20,10 +20,6 @@ TEST(UnitsTest, QuantityCreationAndValueAccess) {
     ASSERT_DOUBLE_EQ(distance.value(), 10.5);
     ASSERT_DOUBLE_EQ(weight.value(), 2.5f);
 
-    // Check underlying representation type
-    static_assert(std::is_same_v<decltype(distance)::representation, real_t>);
-    static_assert(std::is_same_v<decltype(weight)::representation, real_t>);
-
     // Dimensional Representation is implicitly tested by the type system
     static_assert(!std::is_same_v<decltype(distance)::dimension, decltype(weight)::dimension>);
 }
@@ -107,7 +103,7 @@ TEST(UnitsTest, MultiplicationAndDivision) {
     auto duration = duration_t(10.0);
     auto speed = dist / duration;
 
-    static_assert(std::is_same_v<decltype(speed)::dimension, velocity_dim>);
+    static_assert(std::is_same_v<decltype(speed)::dimension, speed_dim>);
     ASSERT_NEAR(speed.value(), 10.0, 1e-9);
 
     auto mass_val = mass_t(5.0);

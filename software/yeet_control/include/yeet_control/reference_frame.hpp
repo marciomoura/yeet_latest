@@ -509,46 +509,45 @@ constexpr T cross_product(const Frame& a, const Frame& b) {
 }
 
 // Convert abc frame from per-unit to si
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const abc<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_si(const abc<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity) {
     using result_quantity_t = decltype(to_si(pu_frame.a(), base_quantity));
     return abc<result_quantity_t>(to_si(pu_frame.a(), base_quantity), to_si(pu_frame.b(), base_quantity),
                                   to_si(pu_frame.c(), base_quantity));
 }
 
 // Convert abc frame from si to per-unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const abc<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_pu(const abc<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity) {
     using result_quantity_t = decltype(to_pu(si_frame.a(), base_quantity));
     return abc<result_quantity_t>(to_pu(si_frame.a(), base_quantity), to_pu(si_frame.b(), base_quantity),
                                   to_pu(si_frame.c(), base_quantity));
 }
 
 // Convert alphabeta frame from per-unit to si
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const alphabeta<quantity<Dim, per_unit, Rep1>>& pu_frame,
-                     const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_si(const alphabeta<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity) {
     using result_quantity_t = decltype(to_si(pu_frame.alpha(), base_quantity));
     return alphabeta<result_quantity_t>(to_si(pu_frame.alpha(), base_quantity), to_si(pu_frame.beta(), base_quantity));
 }
 
 // Convert alphabeta frame from si to per-unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const alphabeta<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_pu(const alphabeta<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity) {
     using result_quantity_t = decltype(to_pu(si_frame.alpha(), base_quantity));
     return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), base_quantity), to_pu(si_frame.beta(), base_quantity));
 }
 
 // Convert dq frame from per-unit to si
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_si(const dq<quantity<Dim, per_unit, Rep1>>& pu_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_si(const dq<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity) {
     using result_quantity_t = decltype(to_si(pu_frame.d(), base_quantity));
     return dq<result_quantity_t>(to_si(pu_frame.d(), base_quantity), to_si(pu_frame.q(), base_quantity));
 }
 
 // Convert dq frame from si to per-unit
-template <typename Dim, typename Rep1, typename Rep2>
-constexpr auto to_pu(const dq<quantity<Dim, si, Rep1>>& si_frame, const quantity<Dim, si, Rep2>& base_quantity) {
+template <typename Dim>
+constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity) {
     using result_quantity_t = decltype(to_pu(si_frame.d(), base_quantity));
     return dq<result_quantity_t>(to_pu(si_frame.d(), base_quantity), to_pu(si_frame.q(), base_quantity));
 }

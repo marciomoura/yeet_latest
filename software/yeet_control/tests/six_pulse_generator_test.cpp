@@ -9,15 +9,15 @@ using namespace yeet::control;
 
 // Test that when the generator is disabled, all output pulses are false.
 TEST(SixPulseGeneratorTest, PulsesAreOffWhenDisabled) {
-    six_pulse_generator gen;
+    six_pulse_generator gen(six_pulse_generator::reference_type::line);
     auto pulses = gen.update(angle<zero_to_two_pi>(0.0), angle<zero_to_two_pi>(0.0), false);
     EXPECT_FALSE(pulses.p1 || pulses.p2 || pulses.p3 || pulses.p4 || pulses.p5 || pulses.p6);
 }
 
-// Test the basic firing sequence with zero firing angle.
+// Test the basic firing sequence with zero firing angle and a line reference.
 // Each pulse should fire exactly at its natural commutation angle (0, 60, 120, etc.).
-TEST(SixPulseGeneratorTest, BasicFiringSequence) {
-    six_pulse_generator gen(angle<zero_to_two_pi>(deg_to_rad(1.0)));
+TEST(SixPulseGeneratorTest, BasicFiringSequenceLineReference) {
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle<zero_to_two_pi>(deg_to_rad(1.0)));
     const angle<zero_to_two_pi> zero_alpha(0.0);
 
     // Test firing of pulse 1 at its natural angle (0 deg)
@@ -47,9 +47,25 @@ TEST(SixPulseGeneratorTest, BasicFiringSequence) {
     EXPECT_TRUE(p6.p6);
 }
 
-// Test that the firing_angle correctly delays the pulse.
+// Test the firing sequence with a phase reference, which should be offset by -30 degrees.
+TEST(SixPulseGeneratorTest, BasicFiringSequencePhaseReference) {
+    // Default constructor uses phase reference
+    six_pulse_generator gen(six_pulse_generator::reference_type::phase, angle<zero_to_two_pi>(deg_to_rad(1.0)));
+    const angle<zero_to_two_pi> zero_alpha(0.0);
+
+    // For phase reference, natural commutation is at -30 degrees from the reference angle.
+    // So, to fire at 0 degrees (line), the phase reference must be at 330 degrees (-30).
+    auto p1 = gen.update(angle<zero_to_two_pi>(deg_to_rad(330.0)), zero_alpha, true);
+    EXPECT_TRUE(p1.p1);
+
+    // To fire at 60 degrees (line), phase ref must be at 30 degrees.
+    auto p2 = gen.update(angle<zero_to_two_pi>(deg_to_rad(30.0)), zero_alpha, true);
+    EXPECT_TRUE(p2.p2);
+}
+
+// Test that the firing_angle correctly delays the pulse with a line reference.
 TEST(SixPulseGeneratorTest, FiringAngleDelayP1) {
-    six_pulse_generator gen(angle<zero_to_two_pi>(deg_to_rad(10.0)));
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle<zero_to_two_pi>(deg_to_rad(10.0)));
 
     // Firing window for P1 is [firing_angle + 0°, firing_angle + 0° + width)
 
@@ -118,7 +134,7 @@ TEST(SixPulseGeneratorTest, FiringAngleDelayP1) {
 // Test that the pulse remains active for its specified width.
 TEST(SixPulseGeneratorTest, PulseWidth) {
     // Use a 10 degree pulse width for easier testing.
-    six_pulse_generator gen(angle<zero_to_two_pi>(deg_to_rad(10.0)));
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle<zero_to_two_pi>(deg_to_rad(10.0)));
     const angle<zero_to_two_pi> zero_alpha(0.0);
 
     // Pulse 1 firing window is [0°, 10°).
@@ -139,7 +155,7 @@ TEST(SixPulseGeneratorTest, PulseWidth) {
 // boundary behaves correctly.
 TEST(SixPulseGeneratorTest, AngleWrapping) {
     // Use a 5 degree pulse width.
-    six_pulse_generator gen(angle<zero_to_two_pi>(deg_to_rad(5.0)));
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle<zero_to_two_pi>(deg_to_rad(5.0)));
 
     // To test wrapping, we need a pulse window that crosses the 0° line.
     // Let's use pulse 6, which starts naturally at 300°.
