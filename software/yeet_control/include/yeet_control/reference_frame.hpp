@@ -33,8 +33,8 @@ public:
 
     // Constructors
     constexpr abc() = default;
-    // constexpr abc(const std::array<T, 3>& values) : _values(values) {}
-    // constexpr abc(std::array<T, 3>&& values) : _values(values) {}
+    constexpr abc(const std::array<T, 3>& values) : _values(values) {}
+    constexpr abc(std::array<T, 3>&& values) : _values(values) {}
     constexpr abc(T a, T b, T c) : _values{a, b, c} {}
     constexpr abc(const abc<T>& other) : _values(other._values) {}
     constexpr abc(abc<T>&& other) : _values(std::move(other._values)) {}
