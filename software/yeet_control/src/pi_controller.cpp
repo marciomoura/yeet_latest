@@ -79,7 +79,7 @@ T pi_controller<T>::update(T input) {
     T const proportional_term = _kp * input;
 
     // Compute the total output (before saturation)
-    T unsaturated_output = proportional_term + _integrator.get_value();
+    T unsaturated_output = proportional_term + _integrator.get_output();
 
     // Apply output limits and anti-windup if enabled
     T saturated_output = unsaturated_output;

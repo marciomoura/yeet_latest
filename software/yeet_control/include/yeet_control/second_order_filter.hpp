@@ -57,16 +57,22 @@ public:
      */
     T update(T input) {
         // Implement difference equation using coefficient type conversion
-        const T output = -_a1 * _y1 - _a2 * _y2 + _b0 * input + _b1 * _x1 + _b2 * _x2;
+        _output = -_a1 * _y1 - _a2 * _y2 + _b0 * input + _b1 * _x1 + _b2 * _x2;
 
         // Update state variables
-        _x2 = _x1;
-        _x1 = input;
-        _y2 = _y1;
-        _y1 = output;
+        _x2 = _x1;      // Shift previous input x[n-1] to x[n-2]
+        _x1 = input;    // Current input becomes previous input x[n-1]
+        _y2 = _y1;      // Shift previous output y[n-1] to y[n-2]
+        _y1 = _output;  // Current output becomes previous output y[n-1]
 
-        return output;
+        return _output;
     }
+
+    /**
+     * Get the last output sample
+     * @return Last output sample y[n]
+     */
+    T get_output() const { return _output; }
 
     /**
      * Get magnitude response at given frequency
@@ -142,6 +148,8 @@ public:
     type get_feedforward_coeff_2() const { return _b2; }
 
 protected:
+    T _output{};  // Last output sample y[n]
+
     // Filter coefficients using type
     type _a1{};  // Feedback coefficient 1
     type _a2{};  // Feedback coefficient 2

@@ -6,11 +6,13 @@ add_library(yeet::yeet_control ALIAS ${PROJECT_NAME})
 target_sources(
     ${PROJECT_NAME}
     PUBLIC
+        include/yeet_control/adaptive_band_reject_filter.hpp
         include/yeet_control/angle.hpp
         include/yeet_control/assynchronous_machine_per_unit.hpp
         include/yeet_control/assynchronous_machine.hpp
         include/yeet_control/asynchronous_machine_vector_control.hpp
         include/yeet_control/constants.hpp
+        include/yeet_control/dual_sogi_srf_pll.hpp
         include/yeet_control/externally_excited_synchronous_machine_per_unit.hpp
         include/yeet_control/externally_excited_synchronous_machine.hpp
         include/yeet_control/first_order_low_pass_filter.hpp
@@ -22,25 +24,38 @@ target_sources(
         include/yeet_control/machine_per_unit_system.hpp
         include/yeet_control/machine_speed_controller.hpp
         include/yeet_control/mechanical_load.hpp
+        include/yeet_control/off_delay.hpp
+        include/yeet_control/on_delay.hpp
         include/yeet_control/per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine_per_unit.hpp
         include/yeet_control/permanent_magnet_synchronous_machine.hpp
         include/yeet_control/pi_controller.hpp
         include/yeet_control/precomputed_divisor.hpp
         include/yeet_control/pulse_generator.hpp
+        include/yeet_control/rate_of_change_limiter.hpp
         include/yeet_control/range_kutta_derivative.hpp
         include/yeet_control/reference_frame.hpp
         include/yeet_control/second_order_filter.hpp
         include/yeet_control/six_pulse_generator.hpp
+        include/yeet_control/sogi_filter_sequence_extractor.hpp
+        include/yeet_control/sogi_filter.hpp
+        include/yeet_control/three_phase_pll.hpp
         include/yeet_control/three_phase_waveform_generator.hpp
         include/yeet_control/type_traits.hpp
         include/yeet_control/types.hpp
         include/yeet_control/units.hpp
     PRIVATE src/angle.cpp
+            src/dual_sogi_srf_pll.cpp
             src/mechanical_load.cpp
+            src/off_delay.cpp
+            src/on_delay.cpp
             src/pi_controller.cpp
             src/pulse_generator.cpp
-            src/six_pulse_generator.cpp)
+            src/rate_of_change_limiter.cpp
+            src/six_pulse_generator.cpp
+            src/sogi_filter_sequence_extractor.cpp
+            src/sogi_filter.cpp
+            src/three_phase_pll.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

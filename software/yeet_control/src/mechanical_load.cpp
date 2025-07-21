@@ -14,7 +14,7 @@ void mechanical_load::configure(double inertia_constant_seconds, double damping_
 }
 
 double mechanical_load::update(double electromagnetic_torque_pu, double load_torque_pu) {
-    const double current_speed_pu = _speed_integrator.get_value();
+    const double current_speed_pu = _speed_integrator.get_output();
 
     // Calculate damping torque: T_d_pu = D * omega_pu
     const double damping_torque_pu = _damping_factor_pu * current_speed_pu;
@@ -29,8 +29,8 @@ double mechanical_load::update(double electromagnetic_torque_pu, double load_tor
     return _speed_integrator.update(angular_acceleration_pu_per_s);
 }
 
-void mechanical_load::reset(double mechanical_speed_pu) { _speed_integrator.set_value(mechanical_speed_pu); }
+void mechanical_load::reset(double mechanical_speed_pu) { _speed_integrator.reset(mechanical_speed_pu); }
 
-double mechanical_load::get_speed_pu() const { return _speed_integrator.get_value(); }
+double mechanical_load::get_speed_pu() const { return _speed_integrator.get_output(); }
 
 }  // namespace yeet::control

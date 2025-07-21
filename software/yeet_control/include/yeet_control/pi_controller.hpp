@@ -147,7 +147,7 @@ public:
     value_type get_kp() const { return _kp; }
     value_type get_ki() const { return _ki; }
     value_type get_sampling_time() const { return _integrator.get_sampling_time(); }
-    T get_integral() const { return _integrator.get_value(); }
+    T get_integral() const { return _integrator.get_output(); }
     bool is_integrator_enabled() const { return _integrator_enabled; }
     bool has_output_limits() const { return _has_output_limits; }
     value_type get_antiwindup_gain() const { return _kc; }

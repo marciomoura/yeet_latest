@@ -21,9 +21,6 @@ public:
     // Reset integrator state
     void reset(T value = T{}) { _value = value; }
 
-    // Set specific integrator value
-    void set_value(T value) { _value = value; }
-
     // Update function for fixed sampling time
     //    y[k] = y[k-1] + x[k] * Ts
     // where:
@@ -44,7 +41,9 @@ public:
 
     // Getter methods
     value_type get_sampling_time() const { return _ts; }
-    T get_value() const { return _value; }
+    T get_output() const { return _value; }
+
+    operator T() const { return _value; }
 
 private:
     value_type _ts{};  // Sampling time

@@ -28,7 +28,7 @@ TEST(IntegratorTest, IntegratesConstantInput) {
         EXPECT_NEAR(output, expected, 1e-6);
     }
 
-    EXPECT_NEAR(integ.get_value(), expected, 1e-6);
+    EXPECT_NEAR(integ.get_output(), expected, 1e-6);
 }
 
 TEST(IntegratorTest, SetValueAndReset) {
@@ -37,15 +37,15 @@ TEST(IntegratorTest, SetValueAndReset) {
     const double ts = 0.001;
     integ.configure(ts);
 
-    integ.set_value(5.0);
-    EXPECT_NEAR(integ.get_value(), 5.0, 1e-6);
+    integ.reset(5.0);
+    EXPECT_NEAR(integ.get_output(), 5.0, 1e-6);
 
     // Update with an input value and check the integration result.
     double output = integ.update(2.0);
     EXPECT_NEAR(output, 5.0 + 2.0 * ts, 1e-6);
 
     integ.reset();
-    EXPECT_NEAR(integ.get_value(), 0.0, 1e-6);
+    EXPECT_NEAR(integ.get_output(), 0.0, 1e-6);
 }
 
 TEST(IntegratorTest, AngleWrappingTest) {
@@ -65,7 +65,7 @@ TEST(IntegratorTest, AngleWrappingTest) {
         angle_integrator.update(angular_velocity);
     }
 
-    double integrated_angle = angle_integrator.get_value();  // Should be approximately 2π * 50
+    double integrated_angle = angle_integrator.get_output();  // Should be approximately 2π * 50
     angle<zero_to_two_pi> angle_2pi(integrated_angle);
     EXPECT_NEAR(angle_2pi.get_radians(), 2.0 * pi, 1e-6);
     EXPECT_NEAR(angle_2pi + angle<zero_to_two_pi>{1e-8}, 0.0f, 1e-6);  // Wrapping around 2π and zero
@@ -80,7 +80,7 @@ TEST(IntegratorTest, AngleWrappingTest) {
     for (size_t i = 0; i < new_samples; ++i) {
         angle_integrator.update(angular_velocity);
     }
-    integrated_angle = angle_integrator.get_value();  // ~2π * 50 * 1.01
+    integrated_angle = angle_integrator.get_output();  // ~2π * 50 * 1.01
     angle<zero_to_two_pi> wrapped_angle_zero2(integrated_angle);
 
     // Expected remainder after wrapping to [0, 2π)

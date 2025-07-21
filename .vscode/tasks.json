@@ -76,7 +76,7 @@
             "detail": "Runs the yeet_application_mpc integration tests"
         },
         {
-            "label": "Yeet plotting",
+            "label": "Yeet plotting (dec=10)",
             "type": "shell",
             "command": "python.exe",
             "args": [
@@ -85,6 +85,20 @@
                 "${workspaceFolder}/build/bin/",
                 "--move=${workspaceFolder}/build/bin/testing_outputs/",
                 "--decimate=10"
+            ],
+            "problemMatcher": [],
+            "detail": "Runs the Python script after the executable"
+        },
+        {
+            "label": "Yeet plotting (dec=1)",
+            "type": "shell",
+            "command": "python.exe",
+            "args": [
+                "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
+                "${workspaceFolder}/build/bin/",
+                "${workspaceFolder}/build/bin/",
+                "--move=${workspaceFolder}/build/bin/testing_outputs/",
+                "--decimate=1"
             ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"

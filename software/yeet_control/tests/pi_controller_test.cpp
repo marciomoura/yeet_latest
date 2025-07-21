@@ -85,7 +85,7 @@ TEST(PIControllerTest, ClosedLoopIntegrationPlant) {
     const double r = 1.0;
 
     // Run simulation.
-    double plant_output = plant.get_value();
+    double plant_output = plant.get_output();
     for (size_t i = 0; i < n_steps; ++i) {
         double error = r - plant_output;
         double u = controller.update(error);
@@ -165,13 +165,13 @@ TEST(PIControllerTest, ClosedLoopDQFrame) {
     plant.configure(ts);
 
     for (size_t i = 0; i < n_steps; ++i) {
-        dq<double> error = setpoint - plant.get_value();
+        dq<double> error = setpoint - plant.get_output();
         dq<double> control = controller.update(error);
         plant.update(control);
     }
 
     // In steady state, error should be small.
-    dq<double> final_error = setpoint - plant.get_value();
+    dq<double> final_error = setpoint - plant.get_output();
     for (int i = 0; i < 2; i++) {
         EXPECT_NEAR(final_error[i], 0.0, 0.01);
     }
@@ -195,12 +195,12 @@ TEST(PIControllerTest, ClosedLoopAlphaBetaFrame) {
     plant.configure(ts);
 
     for (size_t i = 0; i < n_steps; ++i) {
-        alphabeta<double> error = setpoint - plant.get_value();
+        alphabeta<double> error = setpoint - plant.get_output();
         alphabeta<double> control = controller.update(error);
         plant.update(control);
     }
 
-    alphabeta<double> final_error = setpoint - plant.get_value();
+    alphabeta<double> final_error = setpoint - plant.get_output();
     for (int i = 0; i < 2; i++) {
         EXPECT_NEAR(final_error[i], 0.0, 0.01);
     }
@@ -224,12 +224,12 @@ TEST(PIControllerTest, ClosedLoopABCFrame) {
     plant.configure(ts);
 
     for (size_t i = 0; i < n_steps; ++i) {
-        abc<double> error = setpoint - plant.get_value();
+        abc<double> error = setpoint - plant.get_output();
         abc<double> control = controller.update(error);
         plant.update(control);
     }
 
-    abc<double> final_error = setpoint - plant.get_value();
+    abc<double> final_error = setpoint - plant.get_output();
     // Check all three phases.
     for (int i = 0; i < 3; i++) {
         EXPECT_NEAR(final_error[i], 0.0, 0.01);

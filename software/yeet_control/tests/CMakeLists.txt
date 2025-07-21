@@ -13,6 +13,7 @@ target_sources(
             assynchronous_machine_test.cpp
             assynchronous_machine_per_unit_test.cpp
             asynchronous_machine_vector_control_test.cpp
+            dual_sogi_srf_pll_test.cpp
             externally_excited_synchronous_machine_per_unit_test.cpp
             externally_excited_synchronous_machine_test.cpp
             externally_excited_synchronous_machine_vector_control_test.cpp
@@ -20,6 +21,8 @@ target_sources(
             integrator_test.cpp
             limit_tests.cpp
             mechanical_load_test.cpp
+            off_delay_test.cpp
+            on_delay_test.cpp
             per_unit_test.cpp
             permanent_magnet_synchronous_machine_per_unit_test.cpp
             permanent_magnet_synchronous_machine_test.cpp
@@ -27,11 +30,15 @@ target_sources(
             pi_controller_test.cpp
             precomputed_divisor_test.cpp
             pulse_generator_test.cpp
+            rate_of_change_limiter_test.cpp
             pulse_generator_plot_test.cpp
             reference_frame_test.cpp
             second_order_filter_test.cpp
             six_pulse_generator_test.cpp
             six_pulse_generator_plot_test.cpp
+            sogi_filter_sequence_extractor_test.cpp
+            sogi_filter_test.cpp
+            three_phase_pll_test.cpp
             three_phase_waveform_generator_test.cpp
             units_test.cpp)
 

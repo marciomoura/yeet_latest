@@ -24,21 +24,19 @@ public:
     bool run_checks(double current_time) {
         for (const auto& checker : _checkers) {
             // Skip the checker if it is not active
-            if (!checker->is_active(current_time)) {
-                break;
-            }
+            if (checker->is_active(current_time)) {
+                // Run the checker and store the failure metadata
+                if (!checker->check() && _max_failures > 0) {
+                    // Decrement the maximum number of failures
+                    _max_failures--;
 
-            // Run the checker and store the failure metadata
-            if (!checker->check() && _max_failures > 0) {
-                // Decrement the maximum number of failures
-                _max_failures--;
-
-                // Store the checker failure metadata
-                checker_fail_info info{};
-                info.name = checker->get_name();
-                info.message = checker->get_failure_message();
-                info.time = current_time;
-                _checker_failures.push_back(info);
+                    // Store the checker failure metadata
+                    checker_fail_info info{};
+                    info.name = checker->get_name();
+                    info.message = checker->get_failure_message();
+                    info.time = current_time;
+                    _checker_failures.push_back(info);
+                }
             }
         }
         return true;

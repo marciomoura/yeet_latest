@@ -151,6 +151,8 @@ public:
     auto end() const { return _values.end(); }
     std::size_t size() const { return _values.size(); }
 
+    abc<T> absolute() const { return abc<T>{std::abs(_values[0]), std::abs(_values[1]), std::abs(_values[2])}; }
+
 private:
     std::array<T, 3> _values{};
 };
@@ -287,6 +289,8 @@ public:
     auto begin() const { return _values.begin(); }
     auto end() const { return _values.end(); }
     std::size_t size() const { return _values.size(); }
+
+    alphabeta<T> absolute() const { return alphabeta<T>{std::abs(_values[0]), std::abs(_values[1])}; }
 
 private:
     std::array<T, 2> _values{};
@@ -425,6 +429,8 @@ public:
     auto end() const { return _values.end(); }
     std::size_t size() const { return _values.size(); }
 
+    dq<T> absolute() const { return dq<T>{std::abs(_values[0]), std::abs(_values[1])}; }
+
 private:
     std::array<T, 2> _values{};
 };
@@ -439,8 +445,9 @@ constexpr dq<T> operator*(T scalar, const dq<T>& coords) {
 
 template <typename T>
 constexpr alphabeta<T> abc<T>::to_alphabeta() const {
-    return alphabeta<T>{2.0 / 3.0 * (_values[0] - 0.5 * _values[1] - 0.5 * _values[2]),
-                        sqrt_3 / 3.0 * (_values[1] - _values[2])};
+    return {static_cast<real_t>(2.0 / 3.0) *
+                (_values[0] - static_cast<real_t>(0.5) * _values[1] - static_cast<real_t>(0.5) * _values[2]),
+            static_cast<real_t>(sqrt_3 / 3.0) * (_values[1] - _values[2])};
 }
 
 template <typename T>
@@ -456,15 +463,15 @@ constexpr abc<T> alphabeta<T>::to_abc() const {
 
 template <typename T>
 constexpr dq<T> alphabeta<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
-    const double cos_theta = std::cos(theta.get_radians());
-    const double sin_theta = std::sin(theta.get_radians());
+    const real_t cos_theta = std::cos(theta.get_radians());
+    const real_t sin_theta = std::sin(theta.get_radians());
     return dq<T>{_values[0] * cos_theta + _values[1] * sin_theta, -_values[0] * sin_theta + _values[1] * cos_theta};
 }
 
 template <typename T>
 constexpr alphabeta<T> dq<T>::to_alphabeta(const angle<zero_to_two_pi>& theta) const {
-    const double cos_theta = std::cos(theta.get_radians());
-    const double sin_theta = std::sin(theta.get_radians());
+    const T cos_theta = std::cos(theta.get_radians());
+    const T sin_theta = std::sin(theta.get_radians());
     return alphabeta<T>{_values[0] * cos_theta - _values[1] * sin_theta,
                         _values[0] * sin_theta + _values[1] * cos_theta};
 }
@@ -478,15 +485,15 @@ constexpr abc<T> dq<T>::to_abc(const angle<zero_to_two_pi>& theta) const {
 
 template <typename T>
 constexpr abc<T> make_abc(T magnitude, const angle<zero_to_two_pi>& phase) {
-    constexpr double TWO_PI_THIRDS = 2.0 * pi / 3.0;
-    const double angle_rad = phase.get_radians();
-    return abc<T>{magnitude * std::cos(angle_rad), magnitude * std::cos(angle_rad - TWO_PI_THIRDS),
-                  magnitude * std::cos(angle_rad + TWO_PI_THIRDS)};
+    constexpr real_t kTwoPiThirds = 2.0 * pi / 3.0;
+    const real_t angle_rad = phase.get_radians();
+    return abc<T>{magnitude * std::cos(angle_rad), magnitude * std::cos(angle_rad - kTwoPiThirds),
+                  magnitude * std::cos(angle_rad + kTwoPiThirds)};
 }
 
 template <typename T>
 constexpr alphabeta<T> make_alphabeta(T magnitude, const angle<zero_to_two_pi>& phase) {
-    const double angle_rad = phase.get_radians();
+    const real_t angle_rad = phase.get_radians();
     return alphabeta<T>{magnitude * std::cos(angle_rad), magnitude * std::sin(angle_rad)};
 }
 

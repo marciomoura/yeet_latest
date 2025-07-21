@@ -517,14 +517,9 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, FrequencyResponse) {
     // Attenuation should be of the order of -40dB, i.e. 0.1
     signal_gen->set_signal_frequency(fc * 10.0);
 
-    simulator.register_checker(yeet::testing::make_max_checker<double>(
-        "10x_cutoff_freq_magnitude_max", [&]() { return output; }, 0.011,  // Allow for some numerical error
-        yeet::testing::checker_activation_time_range{0.12, 0.2}            // Check after settling
-        ));
-
-    simulator.register_checker(yeet::testing::make_min_checker<double>(
-        "10x_cutoff_freq_magnitude_max", [&]() { return output; }, -0.011,  // Allow for some numerical error
-        yeet::testing::checker_activation_time_range{0.12, 0.2}             // Check after settling
+    simulator.register_checker(yeet::testing::make_range_checker<double>(
+        "10x_cutoff_freq_magnitude", [&]() { return output; }, -0.010, 0.010,  // Allow for some numerical error
+        yeet::testing::checker_activation_time_range{0.15, 0.2}                // Check after settling
         ));
 
     EXPECT_TRUE(simulate_for(test_duration));
