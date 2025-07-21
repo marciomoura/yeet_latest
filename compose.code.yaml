@@ -1,0 +1,21 @@
+services:
+  code:
+    extends:
+      file: ${DOTAI}/compose.yaml
+      service: code
+    build:
+      dockerfile: Dockerfile
+      args:
+        DOCKER_IMAGE_BASE: idelchi/code:latest
+    image: yeet:code
+    networks:
+      - yeet
+
+networks:
+  yeet:
+    name: yeet
+    driver: bridge
+
+secrets:
+  godyl.env:
+    file: Dockerfile
