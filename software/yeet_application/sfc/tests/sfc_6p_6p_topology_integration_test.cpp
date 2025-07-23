@@ -35,6 +35,7 @@ protected:
     sfc_plant_model_simulator _plant_model;
     six_pulse_generator _grid_side_pulse_generator;
     six_pulse_generator _machine_side_pulse_generator;
+
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
 
     // Configurable firing angle for grid side converter

@@ -8,6 +8,8 @@
 #include "sfc_plant_model_simulator.hpp"
 #include "yeet_control/angle.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/dual_sogi_srf_pll.hpp"
+#include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
@@ -21,6 +23,7 @@ protected:
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
     control::six_pulse_generator _grid_side_pulse_generator;
     control::six_pulse_generator _machine_side_pulse_generator;
+    control::dual_sogi_srf_pll _grid_side_pll{duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
 
     // // Configurable firing angle for grid side converter
     // double grid_firing_angle_deg_ = sfc_plant_model_simulator::kNominalGridFiringAngleDeg;
@@ -50,6 +53,12 @@ protected:
 
         auto& plant_model = _plant_sim.plant();
 
+        _grid_side_pll.configure_frequency_limits(40.0, 60.0);
+        _grid_side_pll.configure_nominal_frequency(50.0f);
+        _grid_side_pll.configure_pi_controller(1.0, 0.5);
+        _grid_side_pll.configure_sequence_extractor(1.414, 1.0 / 50.0);
+        _grid_side_pll.reset();
+
         // Initialize the plant model
         plant_model.initialize();
         plant_model.set_grid_parameters(sfc_plant_model_simulator::kNominalGridFrequency,
@@ -70,10 +79,10 @@ protected:
             plant_model.step();
 
             // 3. Update measurement classes with raw plant outputs
-            auto grid_voltages = plant_model.get_grid_side_voltages_abc();
-            auto grid_currents = plant_model.get_grid_side_currents_abc();
-            auto machine_voltages = plant_model.get_machine_side_voltages_abc();
-            auto machine_currents = plant_model.get_machine_side_currents_abc();
+            auto const grid_voltages = plant_model.get_grid_side_voltages_abc();
+            auto const grid_currents = plant_model.get_grid_side_currents_abc();
+            auto const machine_voltages = plant_model.get_machine_side_voltages_abc();
+            auto const machine_currents = plant_model.get_machine_side_currents_abc();
 
             _grid_measurements.update(_pu_system.get_grid_bases(),
                                       abc<voltage_t>{voltage_t(grid_voltages.a()), voltage_t(grid_voltages.b()),
@@ -121,10 +130,25 @@ protected:
 
         _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "machine_current_a_pu", [&]() { return _machine_measurements.get_current_pu().a(); }));
+
+        // Plot grid angle
+        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+            "grid_angle_rad", [&]() { return _plant_sim.plant().get_grid_voltage_source_angle().get_radians(); }));
+
+        // Plot pll angle
+        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>("pll_angle_rad", [&]() {
+            return (_grid_side_pll.get_estimated_angle() - angle<zero_to_two_pi>(pi / 2.0)).get_radians();
+        }));
+
+        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+            "estimated alpha a", [&]() { return _grid_side_pll.get_positive_sequence().alpha(); }));
     }
 
     void update_pulse_generators() {
         auto& plant_model = _plant_sim.plant();
+
+        // Update the PLL with the latest voltage measurements
+        _grid_side_pll.update(to_dimensionless_alphabeta(_grid_measurements.get_voltage_alphabeta_pu()));
 
         // Get reference angles from the plant model
         auto grid_reference_angle = plant_model.get_grid_voltage_source_angle();
@@ -136,12 +160,19 @@ protected:
             deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg));
 
         // Update pulse generators
-        auto grid_pulses = _grid_side_pulse_generator.update(grid_reference_angle, grid_firing_angle, true);
+        // auto grid_pulses = _grid_side_pulse_generator.update(grid_reference_angle, grid_firing_angle, true);
+        auto grid_pulses = _grid_side_pulse_generator.update(
+            (_grid_side_pll.get_estimated_angle() - angle<zero_to_two_pi>(pi / 2.0)), grid_firing_angle, true);
         auto machine_pulses = _machine_side_pulse_generator.update(machine_reference_angle, machine_firing_angle, true);
 
-        // Set the generated pulses as inputs to the plant model
-        plant_model.set_grid_side_pulses(grid_pulses.to_array());
-        plant_model.set_machine_side_pulses(machine_pulses.to_array());
+        if (_grid_side_pll.is_locked()) {
+            // Set the generated pulses as inputs to the plant model
+            plant_model.set_grid_side_pulses(grid_pulses.to_array());
+            plant_model.set_machine_side_pulses(machine_pulses.to_array());
+        } else {
+            plant_model.set_grid_side_pulses({});
+            plant_model.set_machine_side_pulses({});
+        }
     }
 };
 

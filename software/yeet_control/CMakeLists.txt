@@ -18,6 +18,7 @@ target_sources(
         include/yeet_control/first_order_low_pass_filter.hpp
         include/yeet_control/integrator.hpp
         include/yeet_control/limit.hpp
+        include/yeet_control/lookup_table_2d.hpp
         include/yeet_control/machine_current_controller.hpp
         include/yeet_control/machine_flux_controller.hpp
         include/yeet_control/machine_measurements.hpp

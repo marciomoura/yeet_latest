@@ -11,6 +11,7 @@ target_sources(
     PUBLIC include/sfc/sfc_current_controller.hpp
            include/sfc/sfc_filtering.hpp
            include/sfc/sfc_measurements.hpp
+           include/sfc/sfc_machine_side_lookup_table.hpp
            include/sfc/sfc_per_unit_system.hpp
            include/sfc/sfc_speed_controller.hpp
     PRIVATE src/sfc_current_controller.cpp

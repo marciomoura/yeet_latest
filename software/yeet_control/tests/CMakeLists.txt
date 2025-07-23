@@ -20,6 +20,7 @@ target_sources(
             first_order_low_pass_filter_test.cpp
             integrator_test.cpp
             limit_tests.cpp
+            lookup_table_2d_test.cpp
             mechanical_load_test.cpp
             off_delay_test.cpp
             on_delay_test.cpp
