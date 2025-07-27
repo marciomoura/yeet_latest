@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yeet_control/pi_controller.hpp"
+#include "yeet_control/rate_of_change_limiter.hpp"
 
 namespace yeet::application::sfc {
 
@@ -70,6 +71,7 @@ public:
 
 private:
     yeet::control::pi_controller<double> _pi_controller;
+    yeet::control::rate_of_change_limiter _firing_angle_limiter;
 
     // Configuration
     double _dc_link_current_min_pu{};

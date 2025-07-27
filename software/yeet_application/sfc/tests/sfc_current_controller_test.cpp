@@ -65,7 +65,6 @@ protected:
         // 2. Configure filtering
         _grid_filtering.configure(frequency_t(50.0), frequency_t(50.0));
         _grid_filtering.configure_voltage_magnitude_filter(frequency_t(20.0));
-        _dc_link_filtering.configure(frequency_t(100.0), frequency_t(6.0 * 50.0));
         _machine_filtering.configure_voltage_filter(frequency_t(100.0));
         _machine_filtering.configure_current_filter(frequency_t(100.0));
         _machine_filtering.configure_voltage_magnitude_filter(frequency_t(20.0));

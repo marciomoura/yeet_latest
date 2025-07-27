@@ -62,7 +62,6 @@ protected:
         // Configure filters with nominal values
         _grid_filtering.configure(yeet::frequency_t(50.0), yeet::frequency_t(50.0));
         _grid_filtering.configure_voltage_magnitude_filter(yeet::frequency_t(20.0));  // Low-pass for magnitude
-        _dc_link_filtering.configure(yeet::frequency_t(100.0), yeet::frequency_t(300.0));
         _machine_filtering.configure_voltage_filter(yeet::frequency_t(100.0));
         _machine_filtering.configure_current_filter(yeet::frequency_t(100.0));
         _machine_filtering.configure_voltage_magnitude_filter(yeet::frequency_t(20.0));  // Low-pass for magnitude

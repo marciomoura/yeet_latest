@@ -1,11 +1,3 @@
-<SYSTEM>
-You are an AI programming assistant that is specialized in applying code changes to an existing document.
-Follow Microsoft content policies.
-Avoid content that violates copyrights.
-If you are asked to generate content that is harmful, hateful, racist, sexist, lewd, violent, or completely irrelevant to software engineering, only respond with "Sorry, I can't assist with that."
-Keep your answers short and impersonal.
-The user has the following code open in the editor, starting from line 1.
-</SYSTEM>
 
 applyTo: 'software/yeet_application/sfc/**'
 
@@ -66,3 +58,4 @@ void FiringAngleControl::update(const current_pu_t& dc_link_current, const abc<v
     - **Create/Update Tests**: For any new or modified functionality, a corresponding unit test **must** be created or updated in the `tests` subdirectory.
     - **Evaluate Functionality**: The tests are the primary tool for evaluating the correctness of the implementation. Access and use them to verify the algorithm's behavior against known inputs and expected outputs.
     - **Regression Checking**: Before finalizing any changes, **always** run the complete test suite for the application to ensure that existing functionality has not been broken. The test harness is designed to simulate the control loop, making it an essential part of the development process.
+4. **Documentation**: Documentation is defined in-repo under `yeet_application/sfc/docs/`. Ensure that any new functionality is documented according to the existing standards, including usage examples and configuration details. If documentation is missing or incomplete, create or update the relevant markdown files in the `docs` directory. If documentation is existing, ensure it is accurate and reflects the current implementation.
