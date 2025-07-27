@@ -17,6 +17,7 @@ target_sources(
         include/yeet_control/externally_excited_synchronous_machine.hpp
         include/yeet_control/first_order_low_pass_filter.hpp
         include/yeet_control/integrator.hpp
+        include/yeet_control/interval_timer.hpp
         include/yeet_control/limit.hpp
         include/yeet_control/lookup_table_2d.hpp
         include/yeet_control/machine_current_controller.hpp
@@ -47,7 +48,9 @@ target_sources(
         include/yeet_control/units.hpp
     PRIVATE src/angle.cpp
             src/dual_sogi_srf_pll.cpp
+            src/edge_detector.cpp
             src/mechanical_load.cpp
+            src/interval_timer.cpp
             src/off_delay.cpp
             src/on_delay.cpp
             src/pi_controller.cpp

@@ -142,6 +142,12 @@ public:
         return *this;
     }
 
+    template <typename Scalar>
+    constexpr auto operator/(Scalar scalar) const {
+        using result_type = decltype(_values[0] / scalar);
+        return abc<result_type>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
+    }
+
     // Negation operator
     constexpr abc<T> operator-() const { return abc<T>{-_values[0], -_values[1], -_values[2]}; }
 
@@ -465,15 +471,15 @@ template <typename T>
 constexpr dq<T> alphabeta<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
     const real_t cos_theta = std::cos(theta.get_radians());
     const real_t sin_theta = std::sin(theta.get_radians());
-    return dq<T>{_values[0] * cos_theta + _values[1] * sin_theta, -_values[0] * sin_theta + _values[1] * cos_theta};
+    return dq<T>{cos_theta * _values[0] + sin_theta * _values[1], -sin_theta * _values[0] + cos_theta * _values[1]};
 }
 
 template <typename T>
 constexpr alphabeta<T> dq<T>::to_alphabeta(const angle<zero_to_two_pi>& theta) const {
-    const T cos_theta = std::cos(theta.get_radians());
-    const T sin_theta = std::sin(theta.get_radians());
-    return alphabeta<T>{_values[0] * cos_theta - _values[1] * sin_theta,
-                        _values[0] * sin_theta + _values[1] * cos_theta};
+    const real_t cos_theta = std::cos(theta.get_radians());
+    const real_t sin_theta = std::sin(theta.get_radians());
+    return alphabeta<T>{cos_theta * _values[0] - sin_theta * _values[1],
+                        sin_theta * _values[0] + cos_theta * _values[1]};
 }
 
 template <typename T>
@@ -628,6 +634,12 @@ dq<real_t> to_dimensionless_dq(const dq<QuantityType>& quantity_dq) {
     std::transform(quantity_dq.begin(), quantity_dq.end(), scalar_dq.begin(),
                    [](const QuantityType& val) { return val.value(); });
     return scalar_dq;
+}
+
+template <typename T>
+abc<T> to_line(abc<T> phase) {
+    // Convert phase voltages to line voltages
+    return abc<T>{phase.a() - phase.b(), phase.b() - phase.c(), phase.c() - phase.a()};
 }
 
 }  // namespace yeet

@@ -159,6 +159,11 @@ constexpr auto sqrt(const quantity<D, S>& q) {
     return quantity<result_dim, S>(std::sqrt(q.value()));
 }
 
+template <typename D, typename S>
+constexpr auto abs(const quantity<D, S>& q) {
+    return quantity<D, S>(std::abs(q.value()));
+}
+
 //==============================================================================
 // R3.4: Scalar Operations
 //==============================================================================

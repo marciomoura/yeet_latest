@@ -14,11 +14,13 @@ target_sources(
             assynchronous_machine_per_unit_test.cpp
             asynchronous_machine_vector_control_test.cpp
             dual_sogi_srf_pll_test.cpp
+            edge_detector_test.cpp
             externally_excited_synchronous_machine_per_unit_test.cpp
             externally_excited_synchronous_machine_test.cpp
             externally_excited_synchronous_machine_vector_control_test.cpp
             first_order_low_pass_filter_test.cpp
             integrator_test.cpp
+            interval_timer_test.cpp
             limit_tests.cpp
             lookup_table_2d_test.cpp
             mechanical_load_test.cpp

@@ -8,15 +8,19 @@ add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
 
 target_sources(
     ${PROJECT_NAME}
-    PUBLIC include/sfc/sfc_current_controller.hpp
+    PUBLIC include/sfc/sfc_commutation_mask.hpp
+           include/sfc/sfc_current_controller.hpp
            include/sfc/sfc_filtering.hpp
            include/sfc/sfc_measurements.hpp
+           include/sfc/sfc_commutation_monitor.hpp
            include/sfc/sfc_machine_side_lookup_table.hpp
            include/sfc/sfc_per_unit_system.hpp
            include/sfc/sfc_speed_controller.hpp
-    PRIVATE src/sfc_current_controller.cpp
+    PRIVATE src/sfc_commutation_mask.cpp
+            src/sfc_current_controller.cpp
             src/sfc_filtering.cpp
             src/sfc_measurements.cpp
+            src/sfc_commutation_monitor.cpp
             src/sfc_per_unit_system.cpp
             src/sfc_speed_controller.cpp)
 

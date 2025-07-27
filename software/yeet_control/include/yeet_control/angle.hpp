@@ -51,6 +51,10 @@ class angle {
                   "RangeType must be either minus_pi_to_pi or zero_to_two_pi");
 
 public:
+    static constexpr angle<RangeType> from_degrees(double degrees) { return angle<RangeType>(degrees * pi / 180.0); }
+
+    static constexpr angle<RangeType> from_radians(double radians) { return angle<RangeType>(radians); }
+
     /**
      * @brief Constructs an angle with the specified value
      *

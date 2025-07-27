@@ -53,8 +53,8 @@ public:
      */
     void update(sfc_per_unit_system::dc_link_bases const& bases, voltage_t raw_voltage, current_t raw_current);
 
-    double get_voltage_pu() const { return _voltage_pu; }
-    double get_current_pu() const { return _current_pu; }
+    voltage_pu_t get_voltage_pu() const { return _voltage_pu; }
+    current_pu_t get_current_pu() const { return _current_pu; }
 
 private:
     voltage_pu_t _voltage_pu{};
