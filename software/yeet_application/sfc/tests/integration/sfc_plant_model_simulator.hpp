@@ -53,6 +53,7 @@ public:
           _pu_system(kNominalGridVoltageRMS, kNominalGridFrequency, kBaseDCLinkCurrent, kMachineRatedPowerVA,
                      kNominalMachineVoltageRMS, kNominalMachineFrequency, kMachineNumPoles) {
         // Configure with default mechanical parameters
+        _plant.initialize();
         _mechanical_load.configure(kDefaultInertiaConstantH.value(), kDefaultDampingFactorD.value());
     }
 
