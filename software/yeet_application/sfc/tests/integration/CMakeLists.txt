@@ -17,10 +17,7 @@ target_sources(
             sfc_simulators.hpp
             sfc_current_controller_test.cpp
             sfc_machine_side_firing_angle_lookup_table_test.cpp
-            # sfc_speed_controller_test.cpp
-            # sfc_machine_side_lookup_table_test.cpp sfc_measurements_test.cpp
-            # sfc_commutation_monitor_test.cpp sfc_per_unit_system_test.cpp
-)
+            sfc_speed_controller_test.cpp)
 
 # Link dependencies
 target_link_libraries(

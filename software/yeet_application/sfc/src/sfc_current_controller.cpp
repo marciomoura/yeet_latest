@@ -6,7 +6,7 @@
 namespace yeet::application::sfc {
 
 sfc_current_controller::sfc_current_controller(double sampling_time)
-    : _pi_controller(sampling_time), _firing_angle_limiter(2.0f, sampling_time, 0.0f) {
+    : _pi_controller(sampling_time), _firing_angle_limiter(100.0f, sampling_time, 0.0f) {
     // The PI output is a per-unit voltage. A reasonable limit for the DC voltage is ~1.5 pu.
     _pi_controller.set_output_limits(-1.5, 1.5);
     _pi_controller.enable_integrator_clamping(true);

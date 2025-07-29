@@ -13,6 +13,7 @@
 #include "sfc/sfc_machine_side_measurements.hpp"
 #include "sfc/sfc_machine_side_observer.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
+#include "sfc/sfc_speed_controller.hpp"
 #include "sfc_6p_6p_plant_model.hpp"
 #include "sfc_plant_model_simulator.hpp"
 #include "yeet_control/angle.hpp"
@@ -33,6 +34,9 @@ struct sfc_pulse_generator_conduit {
 
     current_pu_t current_ref_pu{};
     current_pu_t measured_current_pu{};
+
+    double speed_ref_pu{};
+    double measured_speed_pu{};
 };
 
 class sfc_simulator_pulse_generators {
@@ -218,7 +222,7 @@ public:
                                                    sfc_pulse_generator_conduit& conduit) {
         simulator.register_lambda_runner(sampling_time, [&]() {
             angle<zero_to_two_pi> machine_firing_angle_rad = angle<zero_to_two_pi>::from_degrees(
-                lookup.lookup_table.get_firing_angle_deg(1.0f, conduit.measured_current_pu));
+                lookup.lookup_table.get_firing_angle_deg(conduit.measured_speed_pu, conduit.measured_current_pu));
 
             conduit.machine_firing_angle_rad = machine_firing_angle_rad;
         });
@@ -233,6 +237,37 @@ public:
     sfc_machine_side_firing_angle_lookup_table lookup_table;
 };
 
+class sfc_simulator_speed_controller {
+public:
+    sfc_simulator_speed_controller(duration_t sampling_time)
+        : speed_controller(sampling_time), sampling_time(sampling_time) {}
+
+    static void register_speed_controller(yeet::testing::simulator& simulator, duration_t sampling_time,
+                                          sfc_simulator_speed_controller& controller,
+                                          sfc_pulse_generator_conduit& conduit) {
+        simulator.register_lambda_runner(sampling_time, [&]() {
+            current_pu_t current_ref_pu =
+                current_pu_t{controller.speed_controller.update(conduit.speed_ref_pu, conduit.measured_speed_pu)};
+            conduit.current_ref_pu = current_ref_pu;
+        });
+    }
+
+    void configure_pi_gains(double kp, double ti) { speed_controller.set_pi_gains(kp, ti); }
+
+    void configure_torque_limits_pu(double min_pu, double max_pu) {
+        speed_controller.set_torque_limits_pu(min_pu, max_pu);
+    }
+
+    void configure_speed_reference_filter(double frequency_hz) {
+        speed_controller.configure_speed_reference_filter(frequency_hz);
+    }
+
+    const sfc_speed_controller& get_controller() const { return speed_controller; }
+
+    sfc_speed_controller speed_controller;
+    const duration_t sampling_time{};
+};
+
 // A component holder to be owned by the test fixture.
 // This ensures all components have a lifetime that exceeds the simulation.
 struct sfc_simulation_components {
@@ -244,7 +279,8 @@ struct sfc_simulation_components {
           measurement_and_filtering(kControlSamplingTime),
           observers(kControlSamplingTime),
           current_controller(kControlSamplingTime),
-          machine_side_lookup_table(30.0) {}  // Default nominal gamma of 30 degrees
+          machine_side_lookup_table(15.0),  // Default nominal extinction angle of 15 degrees
+          speed_controller(kControlSamplingTime) {}
 
     sfc_plant_model_simulator plant_model_simulator;
     sfc_simulator_pulse_generators pulse_generators;
@@ -252,6 +288,7 @@ struct sfc_simulation_components {
     sfc_simulator_observers observers;
     sfc_simulator_current_controller current_controller;
     sfc_simulator_machine_side_lookup_table machine_side_lookup_table;
+    sfc_simulator_speed_controller speed_controller;
 };
 
 // Builder class to configure the simulator with different components.
@@ -303,6 +340,14 @@ public:
         return *this;
     }
 
+    // Add speed controller to the simulation loop.
+    sfc_simulator_builder& with_speed_controller(sfc_pulse_generator_conduit& conduit) {
+        _use_speed_controller = true;
+        _pulse_generator_conduit = &conduit;
+        _use_measurements = true;  // Speed controller depends on measurements
+        return *this;
+    }
+
     // Wires all the selected components together in the correct execution order.
     void configure(yeet::testing::simulator& simulator) {
         auto& plant_model = _components.plant_model_simulator.plant();
@@ -344,6 +389,14 @@ public:
                     const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
             }
 
+            if (_use_speed_controller) {
+                // Speed controller manages current reference
+                assert(_use_measurements && "Speed controller requires measurements to be enabled.");
+                sfc_simulator_speed_controller::register_speed_controller(
+                    simulator, _components.kControlSamplingTime, _components.speed_controller,
+                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
+            }
+
             if (_use_ideal_pulses) {
                 sfc_simulator_pulse_generators::register_ideal_pulse_generator(
                     simulator, _components.kControlSamplingTime, plant_model, _components.pulse_generators,
@@ -370,6 +423,7 @@ private:
     bool _use_ideal_pulses = true;
     bool _use_current_controller = false;
     bool _use_machine_side_lookup = false;
+    bool _use_speed_controller = false;
 
     // Pointer to the specific conduit for pulse generation
     const sfc_pulse_generator_conduit* _pulse_generator_conduit = nullptr;
