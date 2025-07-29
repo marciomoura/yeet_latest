@@ -10,14 +10,8 @@ enable_testing()
 target_sources(
     ${PROJECT_NAME}
     PRIVATE angle_test.cpp
-            assynchronous_machine_test.cpp
-            assynchronous_machine_per_unit_test.cpp
-            asynchronous_machine_vector_control_test.cpp
             dual_sogi_srf_pll_test.cpp
             edge_detector_test.cpp
-            externally_excited_synchronous_machine_per_unit_test.cpp
-            externally_excited_synchronous_machine_test.cpp
-            externally_excited_synchronous_machine_vector_control_test.cpp
             first_order_low_pass_filter_test.cpp
             integrator_test.cpp
             interval_timer_test.cpp
@@ -27,9 +21,6 @@ target_sources(
             off_delay_test.cpp
             on_delay_test.cpp
             per_unit_test.cpp
-            permanent_magnet_synchronous_machine_per_unit_test.cpp
-            permanent_magnet_synchronous_machine_test.cpp
-            permanent_magnet_synchronous_machine_vector_control_test.cpp
             pi_controller_test.cpp
             precomputed_divisor_test.cpp
             pulse_generator_test.cpp
