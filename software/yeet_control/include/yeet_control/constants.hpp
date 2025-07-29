@@ -2,6 +2,7 @@
 #define YEET_CONTROL_CONSTANTS_HPP
 
 #include "types.hpp"
+#include "units.hpp"
 
 namespace yeet {
 
@@ -31,6 +32,13 @@ constexpr real_t sqrt_two_thirds = 0.81649658092;  // std::sqrt(2.0 / 3.0);
 constexpr real_t sqrt_2 = 1.41421356237;        // std::sqrt(2.0);
 constexpr real_t sqrt_3 = 1.73205080757;        // std::sqrt(3.0);
 constexpr real_t sqrt_3_over_2 = sqrt_3 / 2.0;  // std::sqrt(3.0)/2.0;
+
+// Define a ms constant for convenience
+constexpr duration_t ms(real_t milliseconds) { return duration_t(milliseconds * 1e-3); }
+// Define a us constant for convenience
+constexpr duration_t us(real_t microseconds) { return duration_t(microseconds * 1e-6); }
+// Define a ns constant for convenience
+constexpr duration_t ns(real_t nanoseconds) { return duration_t(nanoseconds * 1e-9); }
 
 }  // namespace yeet
 

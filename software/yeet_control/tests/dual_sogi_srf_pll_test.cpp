@@ -19,24 +19,24 @@ using namespace yeet::control;
 
 class DualSogiPhaseLockedLoopTest : public ::testing::Test {
 protected:
-    static constexpr yeet::real_t kSamplingTime = yeet::real_t{50e-6};      // 50 μs for good time resolution
-    static constexpr yeet::real_t kNominalFrequency = yeet::real_t{50.0};   // 50 Hz nominal frequency
-    static constexpr yeet::real_t kFrequencyTolerance = yeet::real_t{0.1};  // 0.1 Hz
-    static constexpr yeet::real_t kAngleTolerance = yeet::real_t{0.05};     // radians (~3 degrees)
+    static constexpr duration_t kSamplingTime = duration_t{50e-6};        // 50 μs for good time resolution
+    static constexpr frequency_t kNominalFrequency = frequency_t{50.0};   // 50 Hz nominal frequency
+    static constexpr frequency_t kFrequencyTolerance = frequency_t{0.1};  // 0.1 Hz
+    static constexpr real_t kAngleTolerance = real_t{0.05};               // radians (~3 degrees)
 
     dual_sogi_srf_pll pll{kSamplingTime};
-    three_phase_waveform_generator waveform_generator{kSamplingTime};
+    three_phase_waveform_generator waveform_generator{kSamplingTime.value()};
     yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
 
     real_t pll_input_dc_value = {};
-    alphabeta<real_t> pll_input{};
+    alphabeta<voltage_pu_t> pll_input{};
 
     void SetUp() override {
         // Configure PLL for testing
         pll.configure_nominal_frequency(kNominalFrequency);
-        pll.configure_pi_controller(yeet::real_t{0.2}, yeet::real_t{0.05});
-        pll.configure_frequency_limits(10.0f, 100.0f);
-        pll.configure_sequence_extractor(1.414, 1.0 / 50.0,
+        pll.configure_pi_controller(real_t{0.2}, duration_t{0.05});
+        pll.configure_frequency_limits(frequency_t{10.0f}, frequency_t{100.0f});
+        pll.configure_sequence_extractor(1.414, duration_t{1.0 / 50.0},
                                          true);  // SOGI gain and DC rejection time constant
         pll.reset();
 
@@ -48,11 +48,13 @@ protected:
 
         set_logger();
 
-        simulator.register_lambda_runner(static_cast<double>(kSamplingTime), [&]() {
+        simulator.register_lambda_runner(static_cast<double>(kSamplingTime.value()), [&]() {
             waveform_generator.update();
 
-            abc<real_t> const signal = waveform_generator.get_signal_abc();
-            pll_input = signal.to_alphabeta() + alphabeta<>{pll_input_dc_value, pll_input_dc_value};
+            abc<double> const signal = waveform_generator.get_signal_abc();
+            alphabeta<double> signal_ab = signal.to_alphabeta();
+            pll_input = alphabeta<voltage_pu_t>{voltage_pu_t{signal_ab.alpha() + pll_input_dc_value},
+                                                voltage_pu_t{signal_ab.beta() + pll_input_dc_value}};
 
             // Update PLL with the reference signal
             pll.update(pll_input);
@@ -61,10 +63,11 @@ protected:
 
     real_t get_estimation_error_magnitude() const {
         // Calculate the magnitude of the error between the estimated and actual signal
-        alphabeta<real_t> estimated_signal = pll.get_positive_sequence();
-        alphabeta<real_t> reference_signal = waveform_generator.get_signal_abc().to_alphabeta();
+        alphabeta<voltage_pu_t> estimated_signal = pll.get_positive_sequence();
+        alphabeta<double> reference_signal = waveform_generator.get_signal_abc().to_alphabeta();
 
-        alphabeta<real_t> error = reference_signal - estimated_signal;
+        alphabeta<real_t> error = alphabeta<real_t>{reference_signal.alpha() - estimated_signal.alpha().value(),
+                                                    reference_signal.beta() - estimated_signal.beta().value()};
         return std::sqrt(error.alpha() * error.alpha() + error.beta() * error.beta());
     }
 
@@ -81,22 +84,26 @@ protected:
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
             "waveform frequency",
-            [&]() -> real_t { return waveform_generator.get_signal_frequency() / kNominalFrequency; }));
+            [&]() -> real_t { return waveform_generator.get_signal_frequency() / kNominalFrequency.value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<>>(
-            "pll input", [&]() -> alphabeta<> { return pll.get_positive_sequence(); }));
+        simulator.register_sampler_entry(
+            yeet::testing::make_lambda_array_sampler<alphabeta<>>("pll input", [&]() -> alphabeta<> {
+                return alphabeta<>{pll.get_positive_sequence().alpha().value(),
+                                   pll.get_positive_sequence().beta().value()};
+            }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
             "estimation error magnitude", [&]() -> real_t { return get_estimation_error_magnitude(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<dq<>>(
-            "estimated dq", [&]() -> dq<> { return pll.get_voltage_dq().absolute(); }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
+            "estimation error d-axis", [&]() -> real_t { return pll.get_estimation_error().value(); }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle<zero_to_two_pi>>(
             "estimated angle pu", [&]() -> angle<zero_to_two_pi> { return pll.get_estimated_angle().get_pu(); }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
-            "estimated frequency pu", [&]() -> real_t { return pll.get_estimated_frequency() / kNominalFrequency; }));
+            "estimated frequency pu",
+            [&]() -> real_t { return pll.get_estimated_frequency().value() / kNominalFrequency.value(); }));
 
         simulator.register_sampler_entry(
             yeet::testing::make_lambda_sampler<bool>("is locked", [&]() -> bool { return pll.is_locked(); }));
@@ -108,8 +115,8 @@ TEST_F(DualSogiPhaseLockedLoopTest, NominalFrequencyTracking) {
 
     // 1. Frequency estimation accuracy after settling
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
-        "estimated frequency range", [&]() -> real_t { return pll.get_estimated_frequency(); },
-        kNominalFrequency - kFrequencyTolerance, kNominalFrequency + kFrequencyTolerance,
+        "estimated frequency range", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
+        (kNominalFrequency - kFrequencyTolerance).value(), (kNominalFrequency + kFrequencyTolerance).value(),
         yeet::testing::checker_activation_time_range{0.4}));
 
     // 2. Signal reconstruction accuracy (fundamental PLL requirement)
@@ -125,10 +132,10 @@ TEST_F(DualSogiPhaseLockedLoopTest, NominalFrequencyTracking) {
         "initial unlocked state", [&]() -> bool { return pll.is_locked(); }, false,
         yeet::testing::checker_activation_time_range{0.0, 0.1}));
 
-    // 4. Q-axis error should be near zero when locked (core PLL requirement)
+    // 4. D-axis error should be near zero when locked (core PLL requirement)
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
-        "d-axis error when locked", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d()); }, 0.00f, 0.02f,
-        yeet::testing::checker_activation_time_range{0.4}));
+        "d-axis error when locked", [&]() -> real_t { return std::abs(pll.get_estimation_error().value()); }, 0.00f,
+        0.02f, yeet::testing::checker_activation_time_range{0.4}));
 
     // Run the simulation for 1 second and check the results
     EXPECT_TRUE(simulator.simulate_for(1.0f));
@@ -152,8 +159,8 @@ TEST_F(DualSogiPhaseLockedLoopTest, NegativeSequenceRejection) {
 
     // 3. D-axis error should be bounded despite negative sequence
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
-        "d-axis error with negative sequence", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d()); }, 0.0f,
-        0.05f, yeet::testing::checker_activation_time_range{0.5}));
+        "d-axis error with negative sequence", [&]() -> real_t { return std::abs(pll.get_estimation_error().value()); },
+        0.0f, 0.05f, yeet::testing::checker_activation_time_range{0.5}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
@@ -180,8 +187,9 @@ TEST_F(DualSogiPhaseLockedLoopTest, AmplitudeStep) {
 
     // 4. Q-axis should remain bounded despite amplitude change
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
-        "D-axis stability during amplitude step", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d()); }, 0.0f,
-        0.02f, yeet::testing::checker_activation_time_range{0.7}));
+        "D-axis stability during amplitude step",
+        [&]() -> real_t { return std::abs(pll.get_estimation_error().value()); }, 0.0f, 0.02f,
+        yeet::testing::checker_activation_time_range{0.7}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
@@ -239,8 +247,9 @@ TEST_F(DualSogiPhaseLockedLoopTest, HarmonicsAndNoise) {
 
     // 3. Q-axis error should remain bounded despite distortions
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
-        "bounded d-axis error with distortions", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d()); }, 0.0f,
-        0.1f, yeet::testing::checker_activation_time_range{0.6}));
+        "bounded d-axis error with distortions",
+        [&]() -> real_t { return std::abs(pll.get_estimation_error().value()); }, 0.0f, 0.1f,
+        yeet::testing::checker_activation_time_range{0.6}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }

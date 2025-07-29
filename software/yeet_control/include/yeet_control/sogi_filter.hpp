@@ -3,6 +3,7 @@
 #include "yeet_control/integrator.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/types.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::control {
 
@@ -20,12 +21,16 @@ namespace yeet::control {
  */
 class sogi_filter {
 public:
+    static constexpr real_t default_k = 1.414;  // SOGI gain (dimensionless, typically sqrt(2))
+    static constexpr duration_t default_dc_rejection_time_constant =
+        duration_t{1.0 / 50.0};  //  DC rejection time constant
+
     /**
      * @brief Constructor.
      *
      * @param sampling_time The execution interval (sampling time) in seconds.
      */
-    explicit sogi_filter(real_t sampling_time);
+    explicit sogi_filter(duration_t sampling_time);
 
     /**
      * @brief Configure the SOGI gain parameter.
@@ -40,7 +45,7 @@ public:
      * @param time_constant The time constant in seconds for the DC rejection filter.
      *                      A smaller value leads to faster rejection.
      */
-    void configure_dc_rejection(real_t time_constant);
+    void configure_dc_rejection(duration_t time_constant);
 
     /**
      * @brief Reset all internal states and integrators to zero.
@@ -53,32 +58,32 @@ public:
      * @param v_in The input voltage measurement for the current time step.
      * @param omega The estimated grid angular frequency in rad/s.
      */
-    void update(real_t v_in, real_t omega);
+    void update(voltage_pu_t v_in, angular_frequency_t omega);
 
     /**
      * @brief Get the quadrature output signals (alpha-beta frame).
      *
      * @return An alphabeta object containing the in-phase (alpha) and quadrature (beta) signals.
      */
-    alphabeta<real_t> get_output() const;
+    alphabeta<voltage_pu_t> get_output() const;
 
     /**
      * @brief Get the alpha component (in-phase with the AC part of the input).
      */
-    real_t get_alpha() const;
+    voltage_pu_t get_alpha() const;
 
     /**
      * @brief Get the beta component (quadrature, lagging the alpha component by 90 degrees).
      */
-    real_t get_beta() const;
+    voltage_pu_t get_beta() const;
 
     /**
      * @brief Get the estimated DC offset from the input signal.
      */
-    real_t get_dc_offset() const;
+    voltage_pu_t get_dc_offset() const;
 
 private:
-    real_t _sampling_time;  ///< Sampling time in seconds.
+    duration_t _sampling_time;  ///< Sampling time in seconds.
 
     // Configuration parameters
     real_t _k{real_t{1.414}};   ///< SOGI gain (dimensionless).
@@ -89,7 +94,7 @@ private:
     integrator<real_t> _beta_integrator{};   ///< Integrator for the beta (quadrature) component.
     integrator<real_t> _dc_integrator{};     ///< Integrator for the DC offset component.
 
-    alphabeta<real_t> _output{};  ///< Output of the SOGI filter in alpha-beta frame.
+    alphabeta<voltage_pu_t> _output{};  ///< Output of the SOGI filter in alpha-beta frame.
 };
 
 }  // namespace yeet::control

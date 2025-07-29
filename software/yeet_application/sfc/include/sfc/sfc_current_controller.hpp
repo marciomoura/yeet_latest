@@ -72,7 +72,6 @@ public:
 private:
     yeet::control::pi_controller<double> _pi_controller;
     yeet::control::rate_of_change_limiter _firing_angle_limiter;
-
     // Configuration
     double _dc_link_current_min_pu{};
     double _dc_link_current_max_pu{};

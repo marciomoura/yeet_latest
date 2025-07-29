@@ -22,7 +22,11 @@ namespace yeet::application::sfc {
 
 sfc_6p_6p_plant_model::sfc_6p_6p_plant_model() : _model(std::make_unique<generated::sfc::sfc_6p_6p_topology>()) {}
 
-sfc_6p_6p_plant_model::~sfc_6p_6p_plant_model() = default;
+sfc_6p_6p_plant_model::~sfc_6p_6p_plant_model() {
+    if (_model) {
+        _model->terminate();
+    }
+}
 
 //--------------------------------------------------------------------------------------------------
 // Simulation Control

@@ -23,17 +23,15 @@ six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle,
         final_firing_angle += phase_reference_offset;
     }
 
-    pulses p;
-
     // Update each pulse generator and collect the results
-    p.p1 = _pulse_generators[0].update(reference_angle, final_firing_angle, enable);
-    p.p2 = _pulse_generators[1].update(reference_angle, final_firing_angle, enable);
-    p.p3 = _pulse_generators[2].update(reference_angle, final_firing_angle, enable);
-    p.p4 = _pulse_generators[3].update(reference_angle, final_firing_angle, enable);
-    p.p5 = _pulse_generators[4].update(reference_angle, final_firing_angle, enable);
-    p.p6 = _pulse_generators[5].update(reference_angle, final_firing_angle, enable);
+    _pulses.p1 = _pulse_generators[0].update(reference_angle, final_firing_angle, enable);
+    _pulses.p2 = _pulse_generators[1].update(reference_angle, final_firing_angle, enable);
+    _pulses.p3 = _pulse_generators[2].update(reference_angle, final_firing_angle, enable);
+    _pulses.p4 = _pulse_generators[3].update(reference_angle, final_firing_angle, enable);
+    _pulses.p5 = _pulse_generators[4].update(reference_angle, final_firing_angle, enable);
+    _pulses.p6 = _pulse_generators[5].update(reference_angle, final_firing_angle, enable);
 
-    return p;
+    return _pulses;
 }
 
 void six_pulse_generator::set_pulse_width(angle_t pulse_width) {

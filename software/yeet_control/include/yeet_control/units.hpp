@@ -164,6 +164,16 @@ constexpr auto abs(const quantity<D, S>& q) {
     return quantity<D, S>(std::abs(q.value()));
 }
 
+template <typename D, typename S>
+constexpr quantity<D, S> max(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+    return (lhs.value() > rhs.value()) ? lhs : rhs;
+}
+
+template <typename D, typename S>
+constexpr quantity<D, S> min(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+    return (lhs.value() < rhs.value()) ? lhs : rhs;
+}
+
 //==============================================================================
 // R3.4: Scalar Operations
 //==============================================================================

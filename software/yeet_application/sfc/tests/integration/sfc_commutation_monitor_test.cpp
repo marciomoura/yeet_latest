@@ -3,18 +3,14 @@
 #include <gtest/gtest.h>
 
 #include "sfc/sfc_commutation_mask.hpp"
-#include "sfc/sfc_measurements.hpp"
-#include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_plant_model_simulator.hpp"
-#include "yeet_control/angle.hpp"
+#include "sfc_simulators.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/dual_sogi_srf_pll.hpp"
-#include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
-
 
 using namespace yeet::application::sfc;
 using namespace yeet;

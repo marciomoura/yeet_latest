@@ -24,13 +24,13 @@ public:
          * @brief The per-unit voltage level below which commutation is considered to have started,
          * but only after a firing pulse has armed the detection.
          */
-        voltage_pu_t commutation_start_threshold{0.5F};
+        voltage_pu_t commutation_start_threshold{0.02F};
 
         /**
          * @brief The per-unit voltage level that the line voltage must cross for
          * the commutation to be considered complete.
          */
-        voltage_pu_t commutation_end_threshold{0.5F};
+        voltage_pu_t commutation_end_threshold{0.03F};
     };
 
     /**

@@ -1,9 +1,11 @@
 #pragma once
 
+#include "angle.hpp"
 #include "reference_frame.hpp"
 #include "sogi_filter_sequence_extractor.hpp"
 #include "three_phase_pll.hpp"
 #include "types.hpp"
+#include "units.hpp"
 
 namespace yeet::control {
 
@@ -19,117 +21,105 @@ namespace yeet::control {
  */
 class dual_sogi_srf_pll {
 public:
+    // Default configuration constants
+    static constexpr real_t default_sogi_k = 1.414;
+    static constexpr duration_t default_sogi_dc_rejection_time_constant = duration_t{0.1};
+
     /**
      * @brief Constructor
      *
-     * @param sampling_time Sampling time in seconds
+     * @param sampling_time Sampling time of the control loop.
      */
-    explicit dual_sogi_srf_pll(real_t sampling_time);
+    explicit dual_sogi_srf_pll(duration_t sampling_time);
 
     /**
-     * @brief Configure the SOGI sequence extractor
+     * @brief Configure the SOGI sequence extractor.
      *
-     * @param k SOGI gain (dimensionless, typically sqrt(2) ≈ 1.414)
-     * @param time_constant_dc_offset_rejection DC rejection time-constant in seconds
-     * @param scale_output Whether to scale output by 0.5 to compensate for gain of 2
+     * @param k SOGI gain (dimensionless, typically sqrt(2) ≈ 1.414).
+     * @param time_constant_dc_offset_rejection DC rejection time-constant.
+     * @param scale_output Whether to scale output by 0.5 to compensate for gain of 2.
      */
-    void configure_sequence_extractor(real_t k, real_t time_constant_dc_offset_rejection, bool scale_output = true);
+    void configure_sequence_extractor(real_t k, duration_t time_constant_dc_offset_rejection, bool scale_output = true);
 
     /**
-     * @brief Configure the PI controller for the internal PLL
+     * @brief Configure the PI controller for the internal PLL.
      *
-     * @param kp Proportional gain
-     * @param ti Integral time constant
+     * @param kp Proportional gain.
+     * @param ti Integral time constant.
      */
-    void configure_pi_controller(real_t kp, real_t ti);
+    void configure_pi_controller(real_t kp, duration_t ti);
 
     /**
-     * @brief Configure the frequency limits for the internal PLL
+     * @brief Configure the frequency limits for the internal PLL.
      *
-     * @param min_freq Minimum frequency in Hz
-     * @param max_freq Maximum frequency in Hz
+     * @param min_freq Minimum frequency.
+     * @param max_freq Maximum frequency.
      */
-    void configure_frequency_limits(real_t min_freq, real_t max_freq);
+    void configure_frequency_limits(frequency_t min_freq, frequency_t max_freq);
 
     /**
-     * @brief Configure the nominal frequency for the internal PLL
+     * @brief Configure the nominal frequency for the internal PLL.
      *
-     * This method configures the nominal frequency for the internal PLL
-     * and initializes the system to avoid startup issues.
-     *
-     * @param nominal_frequency Nominal frequency in Hz
+     * @param nominal_frequency Nominal frequency.
      */
-    void configure_nominal_frequency(real_t nominal_frequency);
+    void configure_nominal_frequency(frequency_t nominal_frequency);
 
     /**
-     * @brief Reset all internal states
+     * @brief Reset all internal states.
      */
     void reset();
 
     /**
-     * @brief Update the PLL with new input measurements
+     * @brief Update the PLL with new input measurements.
      *
-     * @param v_in The measured three-phase input voltage
+     * @param v_in The measured three-phase input voltage in the stationary αβ frame.
      */
-    void update(const alphabeta<real_t>& v_in);
+    void update(const alphabeta<voltage_pu_t>& v_in);
 
     /**
-     * @brief Get the estimated frequency in Hz
+     * @brief Get the estimated frequency in Hz.
      */
-    real_t get_estimated_frequency() const;
+    frequency_t get_estimated_frequency() const;
 
     /**
-     * @brief Get the estimated angular frequency in rad/s
+     * @brief Get the estimated frequency in per-unit.
      */
-    real_t get_estimated_angular_frequency() const;
+    frequency_pu_t get_estimated_frequency_pu() const;
 
     /**
-     * @brief Get the estimated angle
+     * @brief Get the estimated angle.
      */
     angle<zero_to_two_pi> get_estimated_angle() const;
 
     /**
-     * @brief Check if the PLL is locked
+     * @brief Check if the PLL is locked.
      */
     bool is_locked() const;
 
     /**
-     * @brief Get the Q-axis error for diagnostics
+     * @brief Get the estimation error (d-axis voltage).
      */
-    real_t get_q_error() const;
+    voltage_pu_t get_estimation_error() const;
 
     /**
-     * @brief Get the positive sequence output from the extractor
+     * @brief Get the estimated voltage magnitude in per-unit.
      */
-    const alphabeta<real_t>& get_positive_sequence() const;
+    voltage_pu_t get_estimated_voltage_magnitude() const;
 
     /**
-     * @brief Get the alpha SOGI output for diagnostics
+     * @brief Get the positive sequence output from the extractor.
      */
-    alphabeta<real_t> get_alpha_sogi_output() const;
-
-    /**
-     * @brief Get the beta SOGI output for diagnostics
-     */
-    alphabeta<real_t> get_beta_sogi_output() const;
-
-    dq<real_t> get_voltage_dq() const { return _internal_pll.get_voltage_dq(); }
-
-    /**
-     * @brief Get the internal three-phase PLL for advanced diagnostics
-     */
-    // const three_phase_pll& get_internal_pll() const;
+    const alphabeta<voltage_pu_t>& get_positive_sequence() const;
 
 private:
-    real_t _sampling_time;  ///< Sampling time in seconds
+    duration_t _sampling_time;  ///< Sampling time
 
     // Internal components
     sogi_filter_sequence_extractor _sequence_extractor;  ///< Dual SOGI sequence extractor
     three_phase_pll _internal_pll;                       ///< Internal three-phase PLL
 
     // State variables
-    alphabeta<real_t> _filtered_voltage_alphabeta{};  ///< Filtered positive sequence voltage
-    abc<real_t> _filtered_voltage_abc{};              ///< Filtered positive sequence voltage in ABC frame
+    alphabeta<voltage_pu_t> _filtered_voltage_alphabeta{};  ///< Filtered positive sequence voltage
 };
 
 }  // namespace yeet::control

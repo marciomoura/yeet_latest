@@ -3,6 +3,7 @@
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/sogi_filter.hpp"
 #include "yeet_control/types.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::control {
 
@@ -27,7 +28,7 @@ public:
      *
      * @param sampling_time Sampling time in seconds
      */
-    explicit sogi_filter_sequence_extractor(real_t sampling_time);
+    explicit sogi_filter_sequence_extractor(duration_t sampling_time);
 
     /**
      * @brief Configure both internal SOGI filters with the same parameters
@@ -36,7 +37,7 @@ public:
      * @param time_constant_dc_rejection_seconds DC rejection time-constant in seconds
      * @param scale_output Whether to scale output by 0.5 to compensate for gain of 2
      */
-    void configure(real_t k, real_t time_constant_dc_rejection_seconds, bool scale_output = true);
+    void configure(real_t k, duration_t time_constant_dc_rejection_seconds, bool scale_output = true);
 
     /**
      * @brief Reset the state of both internal SOGI filters
@@ -49,40 +50,40 @@ public:
      * @param v_in The unbalanced input voltage vector in the alpha-beta frame
      * @param omega The externally estimated grid angular frequency (rad/s)
      */
-    void update(const alphabeta<real_t>& v_in, real_t omega);
+    void update(const alphabeta<voltage_pu_t>& v_in, angular_frequency_t omega);
 
     /**
      * @brief Get the filtered positive sequence vector
      */
-    const alphabeta<real_t>& get_positive_sequence() const;
+    const alphabeta<voltage_pu_t>& get_positive_sequence() const;
 
     /**
      * @brief Get the alpha component of the positive sequence
      */
-    real_t get_positive_sequence_alpha() const;
+    voltage_pu_t get_positive_sequence_alpha() const;
 
     /**
      * @brief Get the beta component of the positive sequence
      */
-    real_t get_positive_sequence_beta() const;
+    voltage_pu_t get_positive_sequence_beta() const;
 
     /**
      * @brief Get the output of the alpha SOGI filter (for diagnostics)
      */
-    alphabeta<real_t> get_alpha_sogi_output() const;
+    alphabeta<voltage_pu_t> get_alpha_sogi_output() const;
 
     /**
      * @brief Get the output of the beta SOGI filter (for diagnostics)
      */
-    alphabeta<real_t> get_beta_sogi_output() const;
+    alphabeta<voltage_pu_t> get_beta_sogi_output() const;
 
     /**
      * @brief Get the DC offset estimated for the alphabeta components
      */
-    alphabeta<real_t> get_dc_offset() const;
+    alphabeta<voltage_pu_t> get_dc_offset() const;
 
 private:
-    real_t _sampling_time;  ///< Sampling time in seconds
+    duration_t _sampling_time;  ///< Sampling time in seconds
 
     // Configuration parameters
     bool _scale_output{true};  ///< Whether to scale output by 0.5
@@ -92,7 +93,7 @@ private:
     sogi_filter _sogi_beta;   ///< SOGI filter for beta component
 
     // Output state
-    alphabeta<real_t> _positive_sequence{};  ///< Filtered positive sequence vector
+    alphabeta<voltage_pu_t> _positive_sequence{};  ///< Filtered positive sequence vector
 };
 
 }  // namespace yeet::control

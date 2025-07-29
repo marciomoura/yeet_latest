@@ -17,28 +17,30 @@ namespace yeet {
  */
 class sfc_commutation_mask {
 public:
+    sfc_commutation_mask(real_t sampling_time) : _sampling_time(sampling_time) {}
     /**
      * @brief Updates the commutation mask logic and returns the processed waveform.
      *
      * @param measured_voltages The instantaneous measured three-phase voltages (p.u.).
-     * @param pll_angle The current angle output from the PLL.
-     * @param pll_frequency The current frequency output from the PLL.
+     * @param actual_angle The current angle output from the observer.
+     * @param actual_frequency The current frequency output from the observer.
      * @param is_commuting A boolean flag indicating if a commutation event is active.
-     * @param dt The execution time step (delta-time) in seconds.
      * @return The processed three-phase voltage waveform (p.u.), which is either the
      *         original measurement or a synthetically generated one.
      */
-    abc<voltage_pu_t> update(const abc<voltage_pu_t>& measured_voltages, const angle<zero_to_two_pi>& pll_angle,
-                             const frequency_t& pll_frequency, bool is_commuting, real_t dt);
+    abc<voltage_pu_t> update(const abc<voltage_pu_t>& measured_voltages, const angle<zero_to_two_pi>& actual_angle,
+                             const frequency_t& actual_frequency, bool is_commuting);
 
     bool is_masking() const { return _is_masking; }
 
 private:
+    real_t _sampling_time{0.0};  ///< The sampling time in seconds
+
     /// @brief Stores the magnitude of the voltage vector (d-component) just before commutation.
-    voltage_pu_t _last_good_magnitude{0.0F};
+    voltage_pu_t _last_good_magnitude{0.0};
 
     /// @brief The internal angle used for reconstructing the waveform during commutation.
-    angle<zero_to_two_pi> _internal_angle{0.0F};
+    angle<zero_to_two_pi> _internal_angle{0.0};
 
     /// @brief A flag to track if the module is currently masking the input waveform.
     bool _is_masking{false};

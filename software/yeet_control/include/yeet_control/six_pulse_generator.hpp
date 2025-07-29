@@ -37,6 +37,11 @@ public:
 
         // Conversional operator
         operator std::array<bool, 6>() const { return to_array(); }
+
+        constexpr size_t size() const { return 6; }
+
+        auto begin() { return &p1; }
+        auto end() { return &p6 + 1; }
     };
 
     /**
@@ -77,12 +82,21 @@ public:
      */
     angle_t get_pulse_width() const;
 
+    /**
+     * @brief Gets the current pulses.
+     *
+     * @return The current state of the six pulses.
+     */
+    pulses get_pulses() const { return _pulses; }
+
 private:
     // The type of reference angle provided to the update method.
     reference_type _ref_type;
 
     // Array of six individual pulse generators, one for each thyristor
     std::array<pulse_generator, 6> _pulse_generators;
+
+    pulses _pulses;
 
     // Default firing offsets for the 6-pulse bridge topology
     // These are spaced 60 degrees apart following the standard firing sequence
