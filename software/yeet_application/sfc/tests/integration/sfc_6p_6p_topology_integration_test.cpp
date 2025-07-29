@@ -34,7 +34,7 @@ class SFCSimulatorMinimalTest : public ::testing::Test {
 protected:
     yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
     sfc_plant_model_simulator simulator_plant_model;
-    sfc_simulator_minimal simulator_sfc{duration_t{10e-6}};
+    sfc_simulator_minimal simulator_sfc{duration_t{100e-6}};
 
     bool enable_pulse_generators = true;
     angle<zero_to_two_pi> grid_firing_angle_rad = deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
@@ -61,27 +61,14 @@ protected:
         });
 
         // Setup logging for all signals using the simulator's helper
-        // simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<voltage_pu_t>>(
-        //     "grid_voltage_pu",
-        //     [&]() {
-        //     return simulator_sfc.get_measurement_and_filtering().get_grid_side_measurements().get_voltage_pu(); }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<voltage_t>>(
+            "grid_voltage", [&]() { return plant_model.get_grid_side_voltages_abc(); }));
 
-        // simulator.register_sampler_entry(
-        //     yeet::testing::make_lambda_array_sampler<abc<current_pu_t>>("grid_current_pu", [&]() {
-        //         return simulator_sfc.get_measurement_and_filtering().get_grid_side_measurements().get_current_pu();
-        //     }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<current_t>>(
+            "grid_current", [&]() { return plant_model.get_grid_side_currents_abc(); }));
 
-        // simulator.register_sampler_entry(
-        //     yeet::testing::make_lambda_sampler<voltage_pu_t>("grid_voltage_magnitude_pu", [&]() {
-        //         return simulator_sfc.get_measurement_and_filtering()
-        //             .get_grid_side_measurements()
-        //             .get_voltage_magnitude_pu();
-        //     }));
-
-        // simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<current_pu_t>("dc_link_current_pu", [&]()
-        // {
-        //     return simulator_sfc.get_measurement_and_filtering().get_dc_link_measurements().get_current_pu();
-        // }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<current_t>(
+            "dc_link_current", [&]() { return plant_model.get_dc_link_current(); }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<control::six_pulse_generator::pulses>(
             "grid_side_pulses",
