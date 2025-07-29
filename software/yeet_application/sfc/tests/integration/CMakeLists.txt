@@ -15,10 +15,9 @@ target_sources(
             sfc_plant_model_simulator.hpp
             sfc_6p_6p_topology_integration_test.cpp
             sfc_simulators.hpp
-            # Tests to be corrected and implemented properly:
-            # sfc_speed_controller_test.cpp sfc_commutation_mask_test.cpp
             sfc_current_controller_test.cpp
-            # sfc_machine_side_firing_angle_lookup_table_test.cpp
+            sfc_machine_side_firing_angle_lookup_table_test.cpp
+            # sfc_speed_controller_test.cpp
             # sfc_machine_side_lookup_table_test.cpp sfc_measurements_test.cpp
             # sfc_commutation_monitor_test.cpp sfc_per_unit_system_test.cpp
 )

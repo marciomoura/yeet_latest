@@ -53,7 +53,7 @@ protected:
             .with_measurements_and_filtering()
             .with_observers()
             .with_observer_based_pulse_generation(pulse_generator_conduit)
-            .with_current_controller(pulse_generator_conduit, dc_link_current_ref_pu)
+            .with_current_controller(pulse_generator_conduit)
             .configure(simulator);
 
         // Enable pulse generation once the grid observer has locked

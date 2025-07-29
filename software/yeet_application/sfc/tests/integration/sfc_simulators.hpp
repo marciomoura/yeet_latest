@@ -9,6 +9,7 @@
 #include "sfc/sfc_grid_side_measurements.hpp"
 #include "sfc/sfc_grid_side_observer.hpp"
 #include "sfc/sfc_machine_side_filtering.hpp"
+#include "sfc/sfc_machine_side_lookup_table.hpp"
 #include "sfc/sfc_machine_side_measurements.hpp"
 #include "sfc/sfc_machine_side_observer.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
@@ -208,6 +209,30 @@ public:
     const duration_t sampling_time{};
 };
 
+class sfc_simulator_machine_side_lookup_table {
+public:
+    sfc_simulator_machine_side_lookup_table(double nominal_gamma_deg) : lookup_table(nominal_gamma_deg) {}
+
+    static void register_machine_side_lookup_table(yeet::testing::simulator& simulator, duration_t sampling_time,
+                                                   sfc_simulator_machine_side_lookup_table& lookup,
+                                                   sfc_pulse_generator_conduit& conduit) {
+        simulator.register_lambda_runner(sampling_time, [&]() {
+            angle<zero_to_two_pi> machine_firing_angle_rad = angle<zero_to_two_pi>::from_degrees(
+                lookup.lookup_table.get_firing_angle_deg(1.0f, conduit.measured_current_pu));
+
+            conduit.machine_firing_angle_rad = machine_firing_angle_rad;
+        });
+    }
+
+    void configure_table(double gamma_setpoint_deg, double machine_inductance_pu) {
+        lookup_table.recalculate_table(gamma_setpoint_deg, machine_inductance_pu);
+    }
+
+    const sfc_machine_side_firing_angle_lookup_table& get_lookup_table() const { return lookup_table; }
+
+    sfc_machine_side_firing_angle_lookup_table lookup_table;
+};
+
 // A component holder to be owned by the test fixture.
 // This ensures all components have a lifetime that exceeds the simulation.
 struct sfc_simulation_components {
@@ -218,13 +243,15 @@ struct sfc_simulation_components {
           pulse_generators(),
           measurement_and_filtering(kControlSamplingTime),
           observers(kControlSamplingTime),
-          current_controller(kControlSamplingTime) {}
+          current_controller(kControlSamplingTime),
+          machine_side_lookup_table(30.0) {}  // Default nominal gamma of 30 degrees
 
     sfc_plant_model_simulator plant_model_simulator;
     sfc_simulator_pulse_generators pulse_generators;
     sfc_simulator_measurement_and_filtering measurement_and_filtering;
     sfc_simulator_observers observers;
     sfc_simulator_current_controller current_controller;
+    sfc_simulator_machine_side_lookup_table machine_side_lookup_table;
 };
 
 // Builder class to configure the simulator with different components.
@@ -261,12 +288,18 @@ public:
     }
 
     // Add current controller to the simulation loop.
-    sfc_simulator_builder& with_current_controller(sfc_pulse_generator_conduit& conduit,
-                                                   const current_pu_t& current_ref_pu) {
+    sfc_simulator_builder& with_current_controller(sfc_pulse_generator_conduit& conduit) {
         _use_current_controller = true;
         _pulse_generator_conduit = &conduit;
-        _current_ref_pu = &current_ref_pu;
         _use_measurements = true;  // Current controller depends on measurements
+        return *this;
+    }
+
+    // Add machine-side lookup table to the simulation loop.
+    sfc_simulator_builder& with_machine_side_lookup_table(sfc_pulse_generator_conduit& conduit) {
+        _use_machine_side_lookup = true;
+        _pulse_generator_conduit = &conduit;
+        _use_measurements = true;  // Machine-side lookup depends on measurements
         return *this;
     }
 
@@ -298,9 +331,16 @@ public:
             if (_use_current_controller) {
                 // Current controller manages the pulse generation
                 assert(_use_measurements && "Current controller requires measurements to be enabled.");
-                assert(_current_ref_pu != nullptr && "Current reference must be set for current controller.");
                 sfc_simulator_current_controller::register_current_controller(
                     simulator, _components.kControlSamplingTime, _components.current_controller,
+                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
+            }
+
+            if (_use_machine_side_lookup) {
+                // Machine-side lookup table manages machine firing angle
+                assert(_use_measurements && "Machine-side lookup table requires measurements to be enabled.");
+                sfc_simulator_machine_side_lookup_table::register_machine_side_lookup_table(
+                    simulator, _components.kControlSamplingTime, _components.machine_side_lookup_table,
                     const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
             }
 
@@ -329,12 +369,10 @@ private:
     bool _use_observers = false;
     bool _use_ideal_pulses = true;
     bool _use_current_controller = false;
+    bool _use_machine_side_lookup = false;
 
     // Pointer to the specific conduit for pulse generation
     const sfc_pulse_generator_conduit* _pulse_generator_conduit = nullptr;
-
-    // Pointer to current reference for current controller
-    const current_pu_t* _current_ref_pu = nullptr;
 };
 
 }  // namespace yeet::application::sfc
