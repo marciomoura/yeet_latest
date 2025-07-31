@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "yeet_control/precomputed_divisor.hpp"
+#include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -93,6 +94,36 @@ public:
     dc_link_bases const& get_dc_link_bases() const { return _dc_link; }
     machine_side_bases const& get_machine_bases() const { return _machine_side; }
 
+    /**
+     * @brief Reflects a voltage from machine-side per-unit to grid-side per-unit.
+     *
+     * This conversion accounts for the different voltage bases between the machine-side
+     * and grid-side per-unit systems. The reflection uses the ratio of the base voltages.
+     *
+     * @param machine_side_voltage_pu Voltage in machine-side per-unit [pu]
+     * @return Voltage reflected to grid-side per-unit [pu]
+     */
+    voltage_pu_t reflect_machine_to_grid_voltage_pu(voltage_pu_t machine_side_voltage_pu) const {
+        // V_grid_pu = V_machine_pu * (V_base_machine / V_base_grid)
+        const double voltage_reflection_ratio = _machine_voltage_ll_rms.value() / _grid_voltage_ll_rms.value();
+        return voltage_pu_t{machine_side_voltage_pu.value() * voltage_reflection_ratio};
+    }
+
+    /**
+     * @brief Reflects a voltage from grid-side per-unit to machine-side per-unit.
+     *
+     * This conversion accounts for the different voltage bases between the grid-side
+     * and machine-side per-unit systems. The reflection uses the ratio of the base voltages.
+     *
+     * @param grid_side_voltage_pu Voltage in grid-side per-unit [pu]
+     * @return Voltage reflected to machine-side per-unit [pu]
+     */
+    voltage_pu_t reflect_grid_to_machine_voltage_pu(voltage_pu_t grid_side_voltage_pu) const {
+        // V_machine_pu = V_grid_pu * (V_base_grid / V_base_machine)
+        const double voltage_reflection_ratio = _grid_voltage_ll_rms.value() / _machine_voltage_ll_rms.value();
+        return voltage_pu_t{grid_side_voltage_pu.value() * voltage_reflection_ratio};
+    }
+
 private:
     // Input parameters
     voltage_t _grid_voltage_ll_rms;
@@ -116,5 +147,59 @@ private:
      */
     void calculate_base_values();
 };
+
+/**
+ * @brief Generic function to reflect per-unit quantities between different base systems.
+ *
+ * This function converts a per-unit quantity from one base system to another by
+ * applying the appropriate scaling factor based on the ratio of the base values.
+ *
+ * @tparam T The type of the per-unit quantity (e.g., voltage_pu_t, abc<voltage_pu_t>)
+ * @tparam BaseType The type of the base quantity (e.g., voltage_t)
+ * @param source_pu_quantity The per-unit quantity in the source base system [pu]
+ * @param source_base_value The base value of the source system
+ * @param target_base_value The base value of the target system (as precomputed divisor for efficiency)
+ * @return The per-unit quantity reflected to the target base system [pu]
+ */
+template <typename T, typename BaseType>
+inline T reflect_per_unit_base_to_another_base(const T& source_pu_quantity, const BaseType& source_base_value,
+                                               const precomputed_divisor<BaseType>& target_base_value) {
+    // Reflection ratio = source_base / target_base
+    const real_t reflection_ratio = source_base_value / target_base_value;
+    return reflection_ratio * source_pu_quantity;
+}
+
+/**
+ * @brief Reflects voltages from machine-side per-unit to grid-side per-unit.
+ *
+ * @tparam T The type of the voltage quantity (e.g., voltage_pu_t, abc<voltage_pu_t>)
+ * @param machine_side_voltage_pu Voltage in machine-side per-unit [pu]
+ * @param machine_side_base_voltage The machine-side voltage base [V]
+ * @param grid_side_base_voltage The grid-side voltage base (precomputed divisor) [V]
+ * @return Voltage reflected to grid-side per-unit [pu]
+ */
+template <typename T>
+inline T reflect_machine_to_grid_voltage_pu(const T& machine_side_voltage_pu,
+                                            const voltage_t& machine_side_base_voltage,
+                                            const precomputed_divisor<voltage_t>& grid_side_base_voltage) {
+    return reflect_per_unit_base_to_another_base(machine_side_voltage_pu, machine_side_base_voltage,
+                                                 grid_side_base_voltage);
+}
+
+/**
+ * @brief Reflects voltages from grid-side per-unit to machine-side per-unit.
+ *
+ * @tparam T The type of the voltage quantity (e.g., voltage_pu_t, abc<voltage_pu_t>)
+ * @param grid_side_voltage_pu Voltage in grid-side per-unit [pu]
+ * @param grid_side_base_voltage The grid-side voltage base [V]
+ * @param machine_side_base_voltage The machine-side voltage base (precomputed divisor) [V]
+ * @return Voltage reflected to machine-side per-unit [pu]
+ */
+template <typename T>
+inline T reflect_grid_to_machine_voltage_pu(const T& grid_side_voltage_pu, const voltage_t& grid_side_base_voltage,
+                                            const precomputed_divisor<voltage_t>& machine_side_base_voltage) {
+    return reflect_per_unit_base_to_another_base(grid_side_voltage_pu, grid_side_base_voltage,
+                                                 machine_side_base_voltage);
+}
 
 }  // namespace yeet::application::sfc

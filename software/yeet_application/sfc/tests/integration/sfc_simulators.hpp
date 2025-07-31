@@ -188,23 +188,57 @@ public:
 
     static void register_current_controller(yeet::testing::simulator& simulator, duration_t sampling_time,
                                             sfc_simulator_current_controller& controller,
-                                            sfc_pulse_generator_conduit& conduit) {
+                                            sfc_pulse_generator_conduit& conduit,
+                                            const sfc_simulator_measurement_and_filtering& measurements,
+                                            const sfc_simulator_observers& observers,
+                                            const sfc_per_unit_system& per_unit_system) {
         simulator.register_lambda_runner(sampling_time, [&]() {
-            angle<zero_to_two_pi> grid_firing_angle_rad = angle<zero_to_two_pi>::from_radians(
-                controller.current_controller.update(conduit.current_ref_pu, conduit.measured_current_pu, 0.2f));
+            // One should "enable current control"
+            if (observers.grid_side_observer.is_locked() == false) {
+                // If grid observer is not locked, skip current controller update
+                return;
+            }
 
-            conduit.grid_firing_angle_rad = grid_firing_angle_rad;
+            // Get required measurements in per-unit
+            const current_pu_t measured_current_pu = measurements.get_dc_link_measurements().get_current_pu();
+
+            // Get ideal DC voltage from grid-side observer (already in grid-side pu)
+            const voltage_pu_t ideal_dc_voltage_pu =
+                observers.grid_side_observer.get_filtered_voltage_alphabeta().magnitude();
+
+            // Get inverter back-EMF from machine-side observer (in machine-side pu)
+            const voltage_pu_t inverter_back_emf_machine_pu =
+                observers.machine_side_observer.get_filtered_voltage_alphabeta().magnitude();
+
+            // Update the current controller using the overload that performs automatic per-unit reflection
+            controller.current_controller.update(conduit.current_ref_pu, measured_current_pu, ideal_dc_voltage_pu,
+                                                 inverter_back_emf_machine_pu,
+                                                 per_unit_system.get_machine_bases().base_voltage_peak_phase.value(),
+                                                 per_unit_system.get_grid_bases().base_voltage_peak_phase);
+
+            // Get the firing angle output and update the conduit
+            const angle_t firing_angle_radians = controller.current_controller.get_firing_angle_reference_radians();
+            conduit.grid_firing_angle_rad = angle<zero_to_two_pi>::from_radians(firing_angle_radians.value());
+
+            // Update measured current in conduit for other controllers
+            conduit.measured_current_pu = measured_current_pu;
         });
     }
 
-    void configure_pi_gains(double kp, double ti) { current_controller.set_pi_gains(kp, ti); }
-
-    void configure_current_limits_pu(double min_pu, double max_pu) {
-        current_controller.set_current_limits_pu(min_pu, max_pu);
+    void configure_pi_gains(double proportional_gain, duration_t integral_time) {
+        current_controller.configure_pi_gains(proportional_gain, integral_time);
     }
 
-    void configure_firing_angle_limits_radians(double min_rad, double max_rad) {
-        current_controller.set_firing_angle_limits_radians(min_rad, max_rad);
+    void configure_current_limits_pu(current_pu_t min_current_pu, current_pu_t max_current_pu) {
+        current_controller.configure_current_limits_pu(min_current_pu, max_current_pu);
+    }
+
+    void configure_current_reference_slew_rate(double slew_rate_pu_per_second) {
+        current_controller.configure_current_reference_slew_rate(slew_rate_pu_per_second);
+    }
+
+    void configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle) {
+        current_controller.configure_firing_angle_limits_radians(min_angle, max_angle);
     }
 
     const sfc_current_controller& get_controller() const { return current_controller; }
@@ -244,8 +278,15 @@ public:
 
     static void register_speed_controller(yeet::testing::simulator& simulator, duration_t sampling_time,
                                           sfc_simulator_speed_controller& controller,
-                                          sfc_pulse_generator_conduit& conduit) {
+                                          sfc_pulse_generator_conduit& conduit,
+                                          const sfc_simulator_observers& observers) {
         simulator.register_lambda_runner(sampling_time, [&]() {
+            // One should "enable current control"
+            if (observers.grid_side_observer.is_locked() == false) {
+                // If grid observer is not locked, skip current controller update
+                return;
+            }
+
             current_pu_t current_ref_pu =
                 current_pu_t{controller.speed_controller.update(conduit.speed_ref_pu, conduit.measured_speed_pu)};
             conduit.current_ref_pu = current_ref_pu;
@@ -376,9 +417,12 @@ public:
             if (_use_current_controller) {
                 // Current controller manages the pulse generation
                 assert(_use_measurements && "Current controller requires measurements to be enabled.");
+                assert(_use_observers &&
+                       "Current controller requires observers for ideal DC voltage and back-EMF estimation.");
                 sfc_simulator_current_controller::register_current_controller(
                     simulator, _components.kControlSamplingTime, _components.current_controller,
-                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
+                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit),
+                    _components.measurement_and_filtering, _components.observers, per_unit_system);
             }
 
             if (_use_machine_side_lookup) {
@@ -394,7 +438,7 @@ public:
                 assert(_use_measurements && "Speed controller requires measurements to be enabled.");
                 sfc_simulator_speed_controller::register_speed_controller(
                     simulator, _components.kControlSamplingTime, _components.speed_controller,
-                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
+                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit), _components.observers);
             }
 
             if (_use_ideal_pulses) {

@@ -68,6 +68,15 @@ constexpr auto operator/(const LhsType& lhs, const precomputed_divisor<T>& rhs) 
     return lhs * rhs.reciprocal();
 }
 
+/**
+ * @brief Divides a value by a precomputed_divisor using fast multiplication.
+ */
+template <typename T>
+constexpr auto operator/(const precomputed_divisor<T>& lhs, const precomputed_divisor<T>& rhs) {
+    // The optimization: division is replaced by multiplication.
+    return lhs.value() * rhs.reciprocal();
+}
+
 //==============================================================================
 // Arithmetic Operators for precomputed_divisor
 // (These operate on the original values and return a new precomputed_divisor)

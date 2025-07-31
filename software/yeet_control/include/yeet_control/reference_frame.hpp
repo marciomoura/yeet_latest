@@ -169,6 +169,13 @@ constexpr abc<T> operator*(T scalar, const abc<T>& coords) {
     return coords * scalar;
 }
 
+// Non-member scalar multiplication for mixed types (e.g., real_t * abc<voltage_pu_t>)
+template <typename Scalar, typename T>
+constexpr auto operator*(Scalar scalar, const abc<T>& coords) -> abc<decltype(scalar * coords.a())> {
+    using result_type = decltype(scalar * coords.a());
+    return abc<result_type>{scalar * coords.a(), scalar * coords.b(), scalar * coords.c()};
+}
+
 /**
  * @brief Two-phase stationary (αβ) coordinate frame
  *
@@ -306,6 +313,13 @@ private:
 template <typename T>
 constexpr alphabeta<T> operator*(T scalar, const alphabeta<T>& coords) {
     return coords * scalar;
+}
+
+// Non-member scalar multiplication for mixed types (e.g., real_t * alphabeta<voltage_pu_t>)
+template <typename Scalar, typename T>
+constexpr auto operator*(Scalar scalar, const alphabeta<T>& coords) -> alphabeta<decltype(scalar * coords.alpha())> {
+    using result_type = decltype(scalar * coords.alpha());
+    return alphabeta<result_type>{scalar * coords.alpha(), scalar * coords.beta()};
 }
 
 /**

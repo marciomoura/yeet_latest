@@ -36,9 +36,9 @@ protected:
         components.machine_side_lookup_table.configure_table(20.0, 0.1);  // gamma=20°, inductance=0.1pu
 
         // Configure the current controller for grid-side firing angle control
-        components.current_controller.configure_pi_gains(0.5, 0.05);  // Kp, Ti
-        components.current_controller.configure_current_limits_pu(-10.0, 10.0);
-        components.current_controller.configure_firing_angle_limits_radians(deg_to_rad(0.0), deg_to_rad(90.0));
+        // components.current_controller.configure_pi_gains(0.5, 0.05);  // Kp, Ti
+        // components.current_controller.configure_current_limits_pu(-10.0, 10.0);
+        // components.current_controller.configure_firing_angle_limits_radians(deg_to_rad(0.0), deg_to_rad(90.0));
 
         // Start with pulse generation disabled to allow system to stabilize
         pulse_generator_conduit.grid_firing_angle_rad =
