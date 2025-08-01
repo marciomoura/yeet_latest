@@ -3,6 +3,10 @@ project(yeet_testing CXX)
 add_library(${PROJECT_NAME} STATIC)
 add_library(yeet::yeet_testing ALIAS ${PROJECT_NAME})
 
+# Option to disable data logging for faster CI execution
+option(YEET_ENABLE_DATA_LOGGING
+       "Disable JSON data logging to speed up test execution" ON)
+
 target_sources(
     ${PROJECT_NAME}
     PUBLIC include/yeet_testing/parameter_collection.hpp
@@ -35,6 +39,14 @@ target_link_libraries(
     ${PROJECT_NAME}
     PUBLIC nlohmann_json::nlohmann_json yeet::yeet
     PRIVATE gtest::gtest)
+
+# Configure data logging based on the option
+if(YEET_ENABLE_DATA_LOGGING)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC YEET_ENABLE_DATA_LOGGING)
+    message(STATUS "yeet_testing: Data enabled for simulation data analysis")
+else()
+    message(STATUS "yeet_testing: Data logging disabled for faster execution")
+endif()
 
 if(YEET_ENABLE_CODE_ANALYSIS)
     get_target_property(TARGET_SOURCES ${PROJECT_NAME} SOURCES)

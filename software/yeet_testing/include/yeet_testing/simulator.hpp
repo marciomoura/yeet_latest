@@ -24,11 +24,10 @@ public:
             return;
         }
 
-        // if (!_checker.has_failure()) {
-        //     return;
-        // }
-
+#ifndef YEET_ENABLE_DATA_LOGGING
+        // Only dump data if logging is not disabled
         dump_data();
+#endif
     }
 
     void register_lambda_runner(double sampling_time, std::function<void()> lambda_runner) {
@@ -42,7 +41,27 @@ public:
         _checker.register_checker(std::move(checker));
     }
 
-    void register_sampler_entry(data_sampler_entry entry) { _sampler.register_entry(std::move(entry)); }
+    void register_sampler_entry(data_sampler_entry entry) {
+#ifndef YEET_ENABLE_DATA_LOGGING
+        _sampler.register_entry(std::move(entry));
+#else
+        // When data logging is disabled, don't register samplers to avoid overhead
+        (void)entry;  // Suppress unused parameter warning
+#endif
+    }
+
+    /**
+     * @brief Configures the sampling rate for data collection.
+     * @param sampling_rate The desired sampling rate in seconds. If <= 0, uses the maximum simulation rate.
+     */
+    void configure_sampler_sampling_rate(double sampling_rate) {
+        if (sampling_rate <= 0.0) {
+            _use_custom_sampler_rate = false;
+        } else {
+            _custom_sampler_rate = sampling_rate;
+            _use_custom_sampler_rate = true;
+        }
+    }
 
     void initialize() {
         _runner.initialize();
@@ -50,19 +69,37 @@ public:
     }
 
     bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false) {
-        const double sampling_rate = _runner.get_fastest_sampling_rate();
-        const std::size_t num_ticks = static_cast<std::size_t>(time / sampling_rate);
+        const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();
+        const std::size_t num_simulation_ticks = static_cast<std::size_t>(time / simulation_sampling_rate);
 
-        _sampler.allocate(num_ticks);
+#ifndef YEET_ENABLE_DATA_LOGGING
+        const double sampler_sampling_rate = _use_custom_sampler_rate ? _custom_sampler_rate : simulation_sampling_rate;
+        const std::size_t num_sampler_ticks = static_cast<std::size_t>(time / sampler_sampling_rate);
 
-        for (std::size_t tick = 0; tick < num_ticks; ++tick) {
-            _current_simulation_time = (_current_tick + tick) * sampling_rate;
-            _sampler.sample();
+        // Calculate the sampling ratio (how many simulation ticks per sample)
+        const std::size_t sampling_ratio =
+            _use_custom_sampler_rate
+                ? std::max(static_cast<std::size_t>(sampler_sampling_rate / simulation_sampling_rate), std::size_t{1})
+                : std::size_t{1};
+
+        _sampler.allocate(num_sampler_ticks);
+#endif
+
+        for (std::size_t tick = 0; tick < num_simulation_ticks; ++tick) {
+            _current_simulation_time = (_current_tick + tick) * simulation_sampling_rate;
+
+#ifndef YEET_ENABLE_DATA_LOGGING
+            // Sample only at the specified rate
+            if (tick % sampling_ratio == 0) {
+                _sampler.sample();
+            }
+#endif
+
             _runner.run(tick);
             _checker.run_checks(_current_simulation_time);
         }
 
-        _current_tick += num_ticks;
+        _current_tick += num_simulation_ticks;
         return !_checker.has_failure();
     }
 
@@ -96,6 +133,10 @@ private:
 
     std::size_t _current_tick{0};
     double _current_simulation_time{0.0};
+
+    // Sampler rate configuration
+    bool _use_custom_sampler_rate{false};
+    double _custom_sampler_rate{0.0};
 };
 
 }  // namespace yeet::testing

@@ -10,14 +10,14 @@ namespace yeet::application::sfc {
 
 sfc_current_controller::sfc_current_controller(duration_t sampling_time)
     : _pi_controller(sampling_time.value()),
-      _rate_of_change_limiter(100.0, sampling_time.value(), current_pu_t{0.0}.value()) {
+      _rate_of_change_limiter(2.0, sampling_time.value(), current_pu_t{0.0}.value()) {
     // The PI output is a per-unit voltage. A reasonable limit for the DC voltage is ~1.5 pu.
-    configure_pi_gains(1.0, duration_t(ms(50.0)));
+    configure_pi_gains(0.2, duration_t(ms(100.0)));
     configure_current_limits_pu(current_pu_t(-1.5), current_pu_t(1.5));
     configure_firing_angle_limits_radians(angle_t(deg_to_rad(0.0)), angle_t(deg_to_rad(90.0)));
-    configure_current_reference_slew_rate(10.0);  // 10.0 pu/s is a reasonable slew rate for current references
-    _pi_controller.enable_integrator_clamping(true);
     recompute_internal_limits();
+    _pi_controller.enable_integrator_clamping(true);
+    _rate_of_change_limiter.configure_enable(false);  // By default, the rate limiter is disabled
 }
 
 void sfc_current_controller::configure_pi_gains(double proportional_gain, duration_t integral_time) {
@@ -31,6 +31,10 @@ void sfc_current_controller::configure_current_limits_pu(current_pu_t min_curren
 
 void sfc_current_controller::configure_current_reference_slew_rate(double slew_rate_pu_per_second) {
     _rate_of_change_limiter.configure(slew_rate_pu_per_second);
+}
+
+void sfc_current_controller::enable_current_reference_slew_rate(bool enable) {
+    _rate_of_change_limiter.configure_enable(enable);
 }
 
 void sfc_current_controller::configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle) {

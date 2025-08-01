@@ -110,7 +110,6 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentRegulation) {
         current_error_min_value, current_error_max_value, yeet::testing::checker_activation_time_range{2.0}));
 
     // Set high slew-rate to not suffer from any limitation
-    components.current_controller.configure_current_reference_slew_rate(1000.0);
 
     // Simulate until observer is locked and system can release pulses.
     dc_link_current_ref_pu = current_pu_t(0.0);
@@ -136,7 +135,6 @@ TEST_F(SfcCurrentControllerSimulationTest, TestDisturbanceRejection) {
         current_error_min_value, current_error_max_value, yeet::testing::checker_activation_time_range{2.0}));
 
     // Set high slew-rate to not suffer from any limitation
-    components.current_controller.configure_current_reference_slew_rate(1000.0);
 
     // Simulate until observer is locked and system can release pulses.
     bool success = simulator.simulate_for(0.5);
@@ -179,7 +177,6 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentLimiters) {
         current_limit_min_value, current_limit_max_value, yeet::testing::checker_activation_time_range{1.7}));
 
     // Set high slew-rate to not suffer from any limitation
-    components.current_controller.configure_current_reference_slew_rate(1000.0);
 
     // Simulate until observer is locked and system can release pulses.
     bool success = simulator.simulate_for(0.5);
@@ -200,7 +197,8 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentLimiters) {
 TEST_F(SfcCurrentControllerSimulationTest, TestCurrentSlewRateLimiters) {
     const real_t slew_rate_pu_per_sec = 1.0;
 
-    components.current_controller.configure_current_reference_slew_rate(slew_rate_pu_per_sec);
+    components.current_controller.current_controller.enable_current_reference_slew_rate(true);
+    components.current_controller.current_controller.configure_current_reference_slew_rate(slew_rate_pu_per_sec);
 
     // Check that the limited reference is at 0.5 pu halfway through the ramp up
     simulator.register_checker(yeet::testing::make_range_checker<current_pu_t>(
@@ -257,8 +255,6 @@ TEST_F(SfcCurrentControllerSimulationTest, TestMinimumFiringAngle) {
         [&]() -> angle_t { return angle_t{pulse_generator_conduit.grid_firing_angle_rad.get_radians()}; },
         angle_t{min_firing_angle}, yeet::testing::checker_activation_time_range{1.6}));
 
-    components.current_controller.configure_current_reference_slew_rate(1000.0);
-
     // Simulate until observer is locked and system can release pulses.
     bool success = simulator.simulate_for(0.5);
 
@@ -283,8 +279,6 @@ TEST_F(SfcCurrentControllerSimulationTest, TestMaximumFiringAngle) {
         "check min angle",
         [&]() -> angle_t { return angle_t{pulse_generator_conduit.grid_firing_angle_rad.get_radians()}; },
         angle_t{max_firing_angle}, yeet::testing::checker_activation_time_range{1.6}));
-
-    components.current_controller.configure_current_reference_slew_rate(1000.0);
 
     // Simulate until observer is locked and system can release pulses.
     bool success = simulator.simulate_for(0.5);

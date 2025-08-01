@@ -1,84 +1,104 @@
 #pragma once
 
-#include "yeet_control/first_order_low_pass_filter.hpp"
+#include "yeet_control/derivative.hpp"
 #include "yeet_control/pi_controller.hpp"
+#include "yeet_control/rate_of_change_limiter.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
 
 /**
  * @brief Implements the outer speed control loop for an LCI drive.
  *
- * This class encapsulates the functionality of a standard PI speed controller.
- * It operates on per-unit values and generates a per-unit torque reference,
- * which serves as the setpoint for the inner current control loop. The output
- * of this controller is therefore the DC-link current reference.
+ * This class encapsulates the functionality of a PI speed controller with optional
+ * feed-forward. It operates on per-unit values and generates a per-unit torque
+ * reference, which serves as the setpoint for the inner current control loop.
  *
- * It includes a low-pass filter on the speed reference to ensure smooth ramps.
+ * It includes processing for the speed reference, including clamping and rate
+ * limiting, to ensure smooth and safe operation.
  */
 class sfc_speed_controller {
 public:
-    static constexpr double kDefaultReferenceFilterCutoffFreqHz =
-        10.0;  // Default cutoff frequency for speed reference filter
-
     /**
      * @brief Constructs the speed controller.
-     * @param sampling_time The sampling time of the control loop [s].
+     * @param sampling_time The sampling time of the control loop.
      */
-    explicit sfc_speed_controller(double sampling_time);
+    explicit sfc_speed_controller(duration_t sampling_time);
 
     /**
      * @brief Sets the gains for the internal PI controller.
      * @param kp The proportional gain (dimensionless).
-     * @param ti The integral time constant [s].
+     * @param ti The integral time constant.
      */
-    void set_pi_gains(double kp, double ti);
+    void configure_pi_gains(real_t kp, duration_t ti);
 
     /**
      * @brief Sets the operational limits for the output torque reference.
      * @param min_pu The minimum allowed torque reference [pu].
      * @param max_pu The maximum allowed torque reference [pu].
      */
-    void set_torque_limits_pu(double min_pu, double max_pu);
+    void configure_torque_limits_pu(torque_pu_t min_pu, torque_pu_t max_pu);
 
     /**
-     * @brief Configures the low-pass filter for the speed reference.
-     * @param cutoff_freq_hz The cutoff frequency of the filter [Hz].
+     * @brief Configures the limits for the speed reference input.
+     * @param min_pu The minimum allowed speed reference [pu].
+     * @param max_pu The maximum allowed speed reference [pu].
      */
-    void configure_speed_reference_filter(double cutoff_freq_hz);
+    void configure_speed_reference_limits_pu(speed_pu_t min_pu, speed_pu_t max_pu);
+
+    /**
+     * @brief Configures the rate limiter for the speed reference.
+     * @param rate_limit_pu_per_second The maximum rate of change [pu/s].
+     */
+    void configure_speed_reference_rate_limit(real_t rate_limit_pu_per_second);
+
+    /**
+     * @brief Configures the feed-forward path based on system inertia.
+     * @param inertia_pu The total system inertia [pu]. A value of zero disables feed-forward.
+     */
+    void configure_feedforward_pu(real_t inertia_pu);
 
     /**
      * @brief Executes one update cycle of the speed controller.
      * @param speed_ref_pu The per-unit speed reference.
      * @param speed_measured_pu The measured per-unit speed.
-     * @return The calculated torque reference [pu] for the current controller.
      */
-    double update(double speed_ref_pu, double speed_measured_pu);
+    void update(speed_pu_t speed_ref_pu, speed_pu_t speed_measured_pu);
 
     /**
      * @brief Gets the most recently calculated torque reference.
      * @return The torque reference [pu].
      */
-    double get_torque_ref_pu() const;
+    torque_pu_t get_torque_ref_pu() const;
 
     /**
-     * @brief Gets the filtered speed reference used in the last update cycle.
-     * @return The filtered speed reference [pu].
+     * @brief Gets the processed (clamped and rate-limited) speed reference.
+     * @return The processed speed reference [pu].
      */
-    double get_filtered_speed_ref_pu() const;
+    speed_pu_t get_processed_speed_ref_pu() const;
 
     /**
-     * @brief Resets the internal state of the PI controller and filter.
-     * @param initial_speed_ref_pu The initial speed reference to reset to [pu].
+     * @brief Resets the internal state of the controller.
+     * @param initial_speed_pu The initial speed to reset to [pu].
      */
-    void reset(double initial_speed_ref_pu = 0.0);
+    void reset(speed_pu_t initial_speed_pu = speed_pu_t{0.0});
 
 private:
-    yeet::control::pi_controller<double> _pi_controller;
-    yeet::control::first_order_low_pass_filter<double> _speed_ref_filter;
+    const duration_t _sampling_time;
+
+    // Control components
+    yeet::control::pi_controller<real_t> _pi_controller;
+    yeet::control::rate_of_change_limiter _speed_ref_rate_limiter;
+    yeet::control::derivative _speed_ref_derivative;
+
+    // Configuration
+    speed_pu_t _min_speed_ref_pu{0.0};
+    speed_pu_t _max_speed_ref_pu{1.0};
+    real_t _inertia_pu{0.0};  // Feed-forward gain
 
     // Outputs
-    double _torque_ref_pu{};
-    double _filtered_speed_ref_pu{};
+    torque_pu_t _torque_ref_pu{};
+    speed_pu_t _processed_speed_ref_pu{};
 };
 
 }  // namespace yeet::application::sfc

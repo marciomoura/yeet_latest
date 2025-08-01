@@ -42,6 +42,12 @@ public:
     void configure_current_reference_slew_rate(double slew_rate_pu_per_second);
 
     /**
+     * @brief Enables or disables the slew rate limiter for the current reference.
+     * @param enable True to enable the slew rate limiter, false to disable it.
+     */
+    void enable_current_reference_slew_rate(bool enable);
+
+    /**
      * @brief Sets the operational limits for the grid-side converter firing angle.
      * @param min_angle The minimum allowed firing angle [rad].
      * @param max_angle The maximum allowed firing angle [rad].

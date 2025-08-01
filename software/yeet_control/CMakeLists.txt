@@ -8,6 +8,7 @@ target_sources(
     PUBLIC include/yeet_control/adaptive_band_reject_filter.hpp
            include/yeet_control/angle.hpp
            include/yeet_control/constants.hpp
+           include/yeet_control/derivative.hpp
            include/yeet_control/dual_sogi_srf_pll.hpp
            include/yeet_control/first_order_low_pass_filter.hpp
            include/yeet_control/integrator.hpp
@@ -34,6 +35,7 @@ target_sources(
            include/yeet_control/types.hpp
            include/yeet_control/units.hpp
     PRIVATE src/angle.cpp
+            src/derivative.cpp
             src/dual_sogi_srf_pll.cpp
             src/edge_detector.cpp
             src/mechanical_load.cpp

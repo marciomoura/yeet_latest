@@ -1,6 +1,3 @@
-#ifndef YEET_CONTROL_RATE_OF_CHANGE_LIMITER_HPP
-#define YEET_CONTROL_RATE_OF_CHANGE_LIMITER_HPP
-
 #pragma once
 
 #include "types.hpp"
@@ -13,7 +10,8 @@ namespace yeet::control {
  * This class implements a slew rate limiter. It ensures that the output signal
  * ramps towards the input signal at a specified maximum rate, preventing
  * instantaneous jumps. The rate limit is symmetrical for both rising and
- * falling signals.
+ * falling signals. The limiter can be enabled or disabled; when disabled,
+ * the input passes through directly to the output.
  */
 class rate_of_change_limiter {
 public:
@@ -31,7 +29,8 @@ public:
      *
      * This method should be called once per execution cycle. It calculates the
      * new output by moving the current output towards the input, respecting the
-     * configured rate limit.
+     * configured rate limit when enabled. When disabled, the input passes through
+     * directly to the output.
      *
      * @param input The target value for the output signal.
      */
@@ -58,12 +57,29 @@ public:
      */
     void configure(real_t rate_limit_per_second);
 
+    /**
+     * @brief Enables or disables the rate limiting functionality.
+     *
+     * When enabled (default), the rate limiter constrains the output to change at
+     * the specified maximum rate. When disabled, the input passes through directly
+     * to the output without any rate limiting.
+     *
+     * @param enable True to enable rate limiting, false to disable (pass-through mode).
+     */
+    void configure_enable(bool enable);
+
+    /**
+     * @brief Gets the current enable state of the rate limiter.
+     *
+     * @return True if rate limiting is enabled, false if in pass-through mode.
+     */
+    bool is_enabled() const;
+
 private:
     real_t _sampling_time;          ///< System sampling time in seconds.
     real_t _max_change_per_sample;  ///< The maximum allowed change in one sample.
     real_t _current_output;         ///< The current output value of the limiter.
+    bool _enabled;                  ///< Enable/disable flag for rate limiting.
 };
 
 }  // namespace yeet::control
-
-#endif  // YEET_CONTROL_RATE_OF_CHANGE_LIMITER_HPP

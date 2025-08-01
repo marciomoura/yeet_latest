@@ -92,6 +92,18 @@ public:
     }
 
     /**
+     * @brief Sets the load torque in per-unit for the mechanical load model.
+     * @param load_torque_pu The load torque in per-unit.
+     *
+     * This method allows setting the load torque that the mechanical load model will apply
+     * during the simulation. It is useful for simulating different loading conditions.
+     */
+    void set_load_torque_pu(double load_torque_pu) {
+        // Set the load torque in the mechanical load model
+        _load_torque_pu = load_torque_pu;
+    }
+
+    /**
      * @brief Gets a reference to the mechanical load model.
      * @return A reference to the mechanical_load.
      */
@@ -198,7 +210,7 @@ public:
     /**
      * @brief Executes one simulation step, handling both fixed and variable speed modes.
      */
-    void step(double load_torque_pu = 0.75) {
+    void step() {
         // Always step the plant model first
         _plant.step();
 
@@ -213,7 +225,7 @@ public:
             double electromagnetic_torque_pu = i_dc_pu;
 
             // Step the mechanical load with electromagnetic torque
-            double omega_pu = _mechanical_load.update(electromagnetic_torque_pu, load_torque_pu);
+            double omega_pu = _mechanical_load.update(electromagnetic_torque_pu, _load_torque_pu);
 
             // Convert mechanical speed back to machine frequency
             frequency_t machine_frequency_hz = to_si(frequency_pu_t(omega_pu), kNominalMachineFrequency);
@@ -224,6 +236,8 @@ public:
     }
 
 private:
+    double _load_torque_pu = 0.0;  // Default load torque in per-unit
+
     sfc_6p_6p_plant_model _plant;
     control::mechanical_load _mechanical_load;
     sfc_per_unit_system _pu_system;

@@ -10,6 +10,7 @@ enable_testing()
 target_sources(
     ${PROJECT_NAME}
     PRIVATE angle_test.cpp
+            derivative_test.cpp
             dual_sogi_srf_pll_test.cpp
             edge_detector_test.cpp
             first_order_low_pass_filter_test.cpp

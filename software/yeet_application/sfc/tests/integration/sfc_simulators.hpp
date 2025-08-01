@@ -35,8 +35,8 @@ struct sfc_pulse_generator_conduit {
     current_pu_t current_ref_pu{};
     current_pu_t measured_current_pu{};
 
-    double speed_ref_pu{};
-    double measured_speed_pu{};
+    speed_pu_t speed_ref_pu{};
+    speed_pu_t measured_speed_pu{};
 };
 
 class sfc_simulator_pulse_generators {
@@ -200,7 +200,7 @@ public:
             }
 
             // Get required measurements in per-unit
-            const current_pu_t measured_current_pu = measurements.get_dc_link_measurements().get_current_pu();
+            const current_pu_t measured_current_pu = measurements.get_dc_link_filtering().get_filtered_current_pu();
 
             // Get ideal DC voltage from grid-side observer (already in grid-side pu)
             const voltage_pu_t ideal_dc_voltage_pu =
@@ -287,20 +287,20 @@ public:
                 return;
             }
 
-            current_pu_t current_ref_pu =
-                current_pu_t{controller.speed_controller.update(conduit.speed_ref_pu, conduit.measured_speed_pu)};
-            conduit.current_ref_pu = current_ref_pu;
+            controller.speed_controller.update(conduit.speed_ref_pu, conduit.measured_speed_pu);
+
+            conduit.current_ref_pu = current_pu_t{controller.speed_controller.get_torque_ref_pu().value()};
         });
     }
 
-    void configure_pi_gains(double kp, double ti) { speed_controller.set_pi_gains(kp, ti); }
+    void configure_pi_gains(double kp, double ti) { speed_controller.configure_pi_gains(kp, duration_t{ti}); }
 
-    void configure_torque_limits_pu(double min_pu, double max_pu) {
-        speed_controller.set_torque_limits_pu(min_pu, max_pu);
+    void configure_torque_limits_pu(torque_pu_t min_pu, torque_pu_t max_pu) {
+        speed_controller.configure_torque_limits_pu(min_pu, max_pu);
     }
 
     void configure_speed_reference_filter(double frequency_hz) {
-        speed_controller.configure_speed_reference_filter(frequency_hz);
+        // speed_controller.c(frequency_hz);
     }
 
     const sfc_speed_controller& get_controller() const { return speed_controller; }

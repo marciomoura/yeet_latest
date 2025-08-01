@@ -36,7 +36,7 @@ public:
     virtual std::string get_failure_message() const = 0;
 
     bool is_active(double current_time) const {
-        return current_time >= _start_time && (_end_time < 0.0 || current_time <= _end_time);
+        return current_time >= _start_time && (_end_time < 0.0 || current_time < _end_time);
     }
 
     const std::string& get_name() const { return _name; }
