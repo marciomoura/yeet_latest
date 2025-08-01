@@ -35,7 +35,8 @@ target_sources(
             sogi_filter_test.cpp
             three_phase_pll_test.cpp
             three_phase_waveform_generator_test.cpp
-            units_test.cpp)
+            units_test.cpp
+            speed_voltage_relationship_test.cpp)
 
 # Link dependencies
 target_link_libraries(
