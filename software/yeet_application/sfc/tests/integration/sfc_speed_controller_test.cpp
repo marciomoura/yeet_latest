@@ -31,7 +31,8 @@ protected:
         // Configure plant model for variable speed operation
         components.plant_model_simulator.set_operation_mode(
             sfc_plant_model_simulator::machine_operation_mode::variable_speed);
-        components.plant_model_simulator.configure_mechanical_load(0.5, 0.001);  // 0.5s inertia, 0.001 damping
+        components.plant_model_simulator.configure_mechanical_load(
+            inertia_constant_t{0.5}, damping_coefficient_pu_t{0.001});  // 0.5s inertia, 0.001 damping
         components.plant_model_simulator.set_initial_mechanical_speed_pu(speed_pu_t(1.0));
 
         // Configure the machine-side lookup table
@@ -137,6 +138,10 @@ protected:
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "machine_firing_angle_pu", [&]() { return pulse_generator_conduit.machine_firing_angle_rad.get_pu(); }));
+
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<voltage_pu_t>(
+            "machine_voltage_magnitude",
+            [&]() { return components.observers.machine_side_observer.get_estimated_voltage_magnitude(); }));
     }
 
     double get_speed_error_pu() const { return (speed_ref_pu - pulse_generator_conduit.measured_speed_pu).value(); }
@@ -163,16 +168,16 @@ TEST_F(SfcSpeedControllerSimulationTest, TestSpeedRegulation) {
 
     // Phase 1: System stabilization at nominal speed with light load
     speed_ref_pu = speed_pu_t{1.0};
-    components.plant_model_simulator.set_load_torque_pu(0.4);
+    components.plant_model_simulator.set_load_torque_pu(torque_pu_t{0.4});
     bool success = simulator.simulate_for(3.0);  // Allow observers to lock and system to stabilize
 
     // Phase 2: Test load torque step response (disturbance rejection)
-    components.plant_model_simulator.set_load_torque_pu(0.6);  // Moderate load step
-    success &= simulator.simulate_for(5.0);                    // Allow system to respond and settle
+    components.plant_model_simulator.set_load_torque_pu(torque_pu_t{0.6});  // Moderate load step
+    success &= simulator.simulate_for(5.0);                                 // Allow system to respond and settle
 
     // Phase 3: Test higher load step
-    components.plant_model_simulator.set_load_torque_pu(1.0);  // High load step
-    success &= simulator.simulate_for(5.0);                    // Test sustained high-load operation
+    components.plant_model_simulator.set_load_torque_pu(torque_pu_t{1.0});  // High load step
+    success &= simulator.simulate_for(5.0);                                 // Test sustained high-load operation
 
     // Phase 4: Test speed reference change with load
     speed_ref_pu = speed_pu_t{0.8};          // Speed step down
@@ -180,7 +185,7 @@ TEST_F(SfcSpeedControllerSimulationTest, TestSpeedRegulation) {
 
     // Phase 5: Return to nominal conditions
     speed_ref_pu = speed_pu_t{1.0};
-    components.plant_model_simulator.set_load_torque_pu(0.5);
+    components.plant_model_simulator.set_load_torque_pu(torque_pu_t{0.5});
     success &= simulator.simulate_for(3.0);
 
     EXPECT_TRUE(success) << "Speed regulation test did not complete successfully.";
@@ -188,7 +193,7 @@ TEST_F(SfcSpeedControllerSimulationTest, TestSpeedRegulation) {
 
 // Test speed reference clamping limits
 TEST_F(SfcSpeedControllerSimulationTest, TestSpeedReferenceLimits) {
-    components.plant_model_simulator.set_load_torque_pu(0.5);
+    components.plant_model_simulator.set_load_torque_pu(torque_pu_t{0.5});
 
     // Configure limits: min=0.2, max=1.1
     const speed_pu_t min_limit = speed_pu_t{0.9};
@@ -239,3 +244,41 @@ TEST_F(SfcSpeedControllerSimulationTest, TestSpeedReferenceLimits) {
 }
 
 // TODO: feed-forward, torque limits, rate of change limiter
+
+TEST_F(SfcSpeedControllerSimulationTest, TestSpeedRegulationVariableSpeedModel) {
+    const double speed_error_tolerance = 0.05;  // 5% tolerance
+
+    components.speed_controller.configure_pi_gains(5.0, duration_t(1.0));  // Kp, Ti
+
+    // Configure the plant model for variable speed operation
+    components.plant_model_simulator.set_voltage_control_mode(
+        sfc_plant_model_simulator::voltage_control_mode::speed_dependent);
+
+    components.plant_model_simulator.configure_speed_voltage_relationship(1.0, 0.0, 1.0f / 50.0f);
+    components.plant_model_simulator.set_initial_mechanical_speed_pu(speed_pu_t{1.0});
+
+    // Register checkers for speed tracking performance
+    // simulator.register_checker(yeet::testing::make_range_checker<double>(
+    //     "speed error during steady state", [&]() -> double { return std::abs(get_speed_error_pu()); }, 0.0,
+    //     speed_error_tolerance,
+    //     yeet::testing::checker_activation_time_range{2.0 + start_up_time.value(), 3.0 + start_up_time.value()}));
+
+    // simulator.register_checker(yeet::testing::make_range_checker<double>(
+    //     "speed error after load step", [&]() -> double { return std::abs(get_speed_error_pu()); }, 0.0,
+    //     speed_error_tolerance,
+    //     yeet::testing::checker_activation_time_range{8.0 + start_up_time.value(), 10.0 + start_up_time.value()}));
+
+    // simulator.register_checker(yeet::testing::make_range_checker<double>(
+    //     "speed error after speed reference change", [&]() -> double { return std::abs(get_speed_error_pu()); }, 0.0,
+    //     speed_error_tolerance, yeet::testing::checker_activation_time_range{20.0 + start_up_time.value()}));
+
+    components.plant_model_simulator.set_load_torque_pu(torque_pu_t{0.5});
+
+    // Phase 1: System stabilization at nominal speed with light load
+    speed_ref_pu = speed_pu_t{1.0};
+    simulator.simulate_for(3.0);  // Allow observers to lock and system to stabilize
+
+    // Phase 1: System stabilization at nominal speed with light load
+    speed_ref_pu = speed_pu_t{0.90};
+    simulator.simulate_for(15.0);  // Allow observers to lock and system to stabilize
+}

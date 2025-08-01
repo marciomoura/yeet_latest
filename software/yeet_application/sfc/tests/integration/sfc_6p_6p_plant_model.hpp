@@ -87,6 +87,30 @@ public:
     void set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms);
 
     /**
+     * @brief Gets the grid-side voltage source frequency.
+     * @return The grid frequency in Hertz.
+     */
+    frequency_t get_grid_frequency() const;
+
+    /**
+     * @brief Gets the machine-side voltage source frequency.
+     * @return The machine frequency in Hertz.
+     */
+    frequency_t get_machine_frequency() const;
+
+    /**
+     * @brief Gets the grid-side RMS line-to-line voltage.
+     * @return The RMS voltage in volts.
+     */
+    voltage_t get_rms_grid_voltage() const;
+
+    /**
+     * @brief Gets the machine-side RMS line-to-line voltage.
+     * @return The RMS voltage in volts.
+     */
+    voltage_t get_rms_machine_voltage() const;
+
+    /**
      * @brief Gets the three-phase voltages of the grid-side converter.
      * @return Voltages in the abc reference frame.
      */

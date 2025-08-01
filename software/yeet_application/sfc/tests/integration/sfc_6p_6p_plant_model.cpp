@@ -1,8 +1,3 @@
-/**
- * @copyright Techperts AG.
- * @date 07-14-2025
- * @brief Implements the wrapper for the sfc_6p_6p_topology Simulink model.
- */
 #include "sfc_6p_6p_plant_model.hpp"
 
 #include <algorithm>
@@ -16,10 +11,6 @@ using namespace yeet;
 
 namespace yeet::application::sfc {
 
-//--------------------------------------------------------------------------------------------------
-// Constructor & Destructor
-//--------------------------------------------------------------------------------------------------
-
 sfc_6p_6p_plant_model::sfc_6p_6p_plant_model() : _model(std::make_unique<generated::sfc::sfc_6p_6p_topology>()) {}
 
 sfc_6p_6p_plant_model::~sfc_6p_6p_plant_model() {
@@ -28,19 +19,11 @@ sfc_6p_6p_plant_model::~sfc_6p_6p_plant_model() {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Simulation Control
-//--------------------------------------------------------------------------------------------------
-
 void sfc_6p_6p_plant_model::initialize() { _model->initialize(); }
 
 void sfc_6p_6p_plant_model::step() { _model->step(); }
 
 void sfc_6p_6p_plant_model::terminate() { _model->terminate(); }
-
-//--------------------------------------------------------------------------------------------------
-// Setters (Inputs)
-//--------------------------------------------------------------------------------------------------
 
 void sfc_6p_6p_plant_model::set_grid_side_pulses(const std::array<bool, 6>& pulses) {
     std::array<double, 6> double_pulses{};
@@ -66,9 +49,21 @@ void sfc_6p_6p_plant_model::set_machine_parameters(frequency_t frequency_hz, vol
     _model->sfc_6p_6p_topology_U.machine_voltage_source_line_voltage_rms = voltage_rms;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Getters (Outputs)
-//--------------------------------------------------------------------------------------------------
+frequency_t sfc_6p_6p_plant_model::get_grid_frequency() const {
+    return frequency_t(_model->sfc_6p_6p_topology_U.grid_voltage_source_frequency_hz);
+}
+
+frequency_t sfc_6p_6p_plant_model::get_machine_frequency() const {
+    return frequency_t(_model->sfc_6p_6p_topology_U.machine_voltage_source_frequency_hz);
+}
+
+voltage_t sfc_6p_6p_plant_model::get_rms_grid_voltage() const {
+    return voltage_t(_model->sfc_6p_6p_topology_U.grid_voltage_source_line_voltage_rms);
+}
+
+voltage_t sfc_6p_6p_plant_model::get_rms_machine_voltage() const {
+    return voltage_t(_model->sfc_6p_6p_topology_U.machine_voltage_source_line_voltage_rms);
+}
 
 abc<voltage_t> sfc_6p_6p_plant_model::get_grid_side_voltages_abc() const {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si;

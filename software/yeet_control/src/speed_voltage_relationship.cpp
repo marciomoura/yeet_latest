@@ -37,6 +37,13 @@ void speed_voltage_relationship::configure_voltage_limits_pu(real_t min_voltage_
     _max_voltage_pu = max_voltage_pu;
 }
 
+void speed_voltage_relationship::reset(real_t initial_voltage_pu, real_t initial_speed_pu) {
+    const real_t limited_initial_voltage = apply_voltage_limits(initial_voltage_pu);
+    _voltage_filter.reset(limited_initial_voltage);
+    _current_voltage_pu = limited_initial_voltage;
+    _current_speed_pu = initial_speed_pu;  // Reset speed to zero
+}
+
 void speed_voltage_relationship::update(real_t speed_pu) noexcept {
     _current_speed_pu = speed_pu;
 

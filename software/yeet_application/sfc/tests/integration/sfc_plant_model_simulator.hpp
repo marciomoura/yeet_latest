@@ -3,6 +3,8 @@
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_6p_6p_plant_model.hpp"
 #include "yeet_control/mechanical_load.hpp"
+#include "yeet_control/reference_frame.hpp"
+#include "yeet_control/speed_voltage_relationship.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
 
@@ -37,8 +39,12 @@ public:
 
     // Default Mechanical Parameters with proper units
     static constexpr inertia_constant_t kDefaultInertiaConstantH = inertia_constant_t(2.5);  // 2.5 s inertia constant
-    static constexpr damping_coefficient_t kDefaultDampingFactorD =
-        damping_coefficient_t(0.01);  // 0.01 pu damping factor
+    static constexpr damping_coefficient_pu_t kDefaultDampingFactorD =
+        damping_coefficient_pu_t(0.01);  // 0.01 pu damping factor
+
+    // Default Speed-Voltage Parameters
+    static constexpr real_t kDefaultVoltageSpeedCoefficient = 0.9f;  // 0.9 pu/pu voltage-speed coefficient
+    static constexpr real_t kDefaultVoltageOffset = 0.1f;            // 0.1 pu voltage offset
 
     /**
      * @brief Defines the operational mode for the machine side of the plant.
@@ -48,13 +54,27 @@ public:
         variable_speed  // Machine speed is determined by the mechanical load model.
     };
 
+    /**
+     * @brief Defines the voltage control mode for the machine side.
+     */
+    enum class voltage_control_mode {
+        fixed_voltage,   // Machine voltage is fixed at nominal value.
+        speed_dependent  // Machine voltage varies with speed using speed-voltage relationship.
+    };
+
     sfc_plant_model_simulator()
         : _mechanical_load(sfc_6p_6p_plant_model::kSamplingTime),
+          _speed_voltage_relationship(sfc_6p_6p_plant_model::kSamplingTime),
           _pu_system(kNominalGridVoltageRMS, kNominalGridFrequency, kBaseDCLinkCurrent, kMachineRatedPowerVA,
                      kNominalMachineVoltageRMS, kNominalMachineFrequency, kMachineNumPoles) {
         // Configure with default mechanical parameters
         _plant.initialize();
-        _mechanical_load.configure(kDefaultInertiaConstantH.value(), kDefaultDampingFactorD.value());
+        _mechanical_load.configure(kDefaultInertiaConstantH, kDefaultDampingFactorD);
+
+        // Configure with default speed-voltage parameters
+        _speed_voltage_relationship.configure_voltage_speed_coefficient(kDefaultVoltageSpeedCoefficient);
+        _speed_voltage_relationship.configure_voltage_offset_pu(kDefaultVoltageOffset);
+        _speed_voltage_relationship.configure_voltage_limits_pu(0.1f, 1.5f);  // Reasonable voltage limits
     }
 
     /**
@@ -64,12 +84,41 @@ public:
     void set_operation_mode(machine_operation_mode mode) { _mode = mode; }
 
     /**
-     * @brief Configures the parameters of the mechanical load model.
-     * @param inertia_H The inertia constant in seconds.
-     * @param damping_D The damping factor in per-unit.
+     * @brief Sets the voltage control mode for the machine side.
+     * @param mode The desired voltage control mode.
      */
-    void configure_mechanical_load(double inertia_H, double damping_D) {
-        _mechanical_load.configure(inertia_H, damping_D);
+    void set_voltage_control_mode(voltage_control_mode mode) { _voltage_mode = mode; }
+
+    /**
+     * @brief Configures the parameters of the mechanical load model.
+     * @param inertia_constant_seconds The inertia constant in seconds.
+     * @param damping_coefficient The damping factor in per-unit.
+     */
+    void configure_mechanical_load(inertia_constant_t inertia_constant_seconds,
+                                   damping_coefficient_pu_t damping_coefficient) {
+        _mechanical_load.configure(inertia_constant_seconds, damping_coefficient);
+    }
+
+    /**
+     * @brief Configures the speed-voltage relationship parameters.
+     * @param coefficient The voltage-speed coefficient [pu/pu].
+     * @param offset_pu The voltage offset in per-unit.
+     * @param time_constant_seconds The time constant for dynamics [s]. Use 0.0 for algebraic response.
+     */
+    void configure_speed_voltage_relationship(real_t coefficient, real_t offset_pu,
+                                              real_t time_constant_seconds = 0.0f) {
+        _speed_voltage_relationship.configure_voltage_speed_coefficient(coefficient);
+        _speed_voltage_relationship.configure_voltage_offset_pu(offset_pu);
+        _speed_voltage_relationship.configure_time_constant(time_constant_seconds);
+    }
+
+    /**
+     * @brief Configures the voltage limits for the speed-voltage relationship.
+     * @param min_voltage_pu Minimum voltage magnitude [pu].
+     * @param max_voltage_pu Maximum voltage magnitude [pu].
+     */
+    void configure_voltage_limits_pu(real_t min_voltage_pu, real_t max_voltage_pu) {
+        _speed_voltage_relationship.configure_voltage_limits_pu(min_voltage_pu, max_voltage_pu);
     }
 
     /**
@@ -83,11 +132,23 @@ public:
     void set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu) {
         _mechanical_load.reset(initial_speed_pu);
 
+        _speed_voltage_relationship.reset(1.0, 1.0);  // initial_speed_pu.value());
+        // Initialize speed-voltage relationship with corresponding voltage
+        // if (_voltage_mode == voltage_control_mode::speed_dependent) {
+        // }
+
         // If in variable speed mode, also update the machine frequency to match
         if (_mode == machine_operation_mode::variable_speed) {
             frequency_pu_t initial_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);
             frequency_t machine_frequency_hz = yeet::to_si(initial_frequency_pu, kNominalMachineFrequency);
-            _plant.set_machine_parameters(machine_frequency_hz, kNominalMachineVoltageRMS);
+
+            voltage_t machine_voltage = kNominalMachineVoltageRMS;
+            if (_voltage_mode == voltage_control_mode::speed_dependent) {
+                real_t voltage_magnitude_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
+                machine_voltage = voltage_t(voltage_magnitude_pu * kNominalMachineVoltageRMS.value());
+            }
+
+            _plant.set_machine_parameters(machine_frequency_hz, machine_voltage);
         }
     }
 
@@ -98,7 +159,7 @@ public:
      * This method allows setting the load torque that the mechanical load model will apply
      * during the simulation. It is useful for simulating different loading conditions.
      */
-    void set_load_torque_pu(double load_torque_pu) {
+    void set_load_torque_pu(torque_pu_t load_torque_pu) {
         // Set the load torque in the mechanical load model
         _load_torque_pu = load_torque_pu;
     }
@@ -108,6 +169,12 @@ public:
      * @return A reference to the mechanical_load.
      */
     control::mechanical_load& mechanical_load() { return _mechanical_load; }
+
+    /**
+     * @brief Gets a reference to the speed-voltage relationship model.
+     * @return A reference to the speed_voltage_relationship.
+     */
+    control::speed_voltage_relationship& speed_voltage_relationship() { return _speed_voltage_relationship; }
 
     /**
      * @brief Gets a reference to the per-unit system.
@@ -214,34 +281,94 @@ public:
         // Always step the plant model first
         _plant.step();
 
-        if (_mode == machine_operation_mode::variable_speed) {
-            // Calculate electromagnetic torque from DC link current
-            // Convert DC current to per-unit using the base DC current
-            double i_dc_pu = _plant.get_dc_link_current() / kBaseDCLinkCurrent.value();
+        // Step the mechanical dynamics (if enabled)
+        step_mechanical_dynamics();
 
-            // Calculate electromagnetic torque in per-unit
-            // For LCI drives: T_e = k * I_dc where k is proportional to machine flux
-            // In per-unit: T_e_pu = I_dc_pu (assuming unit flux)
-            double electromagnetic_torque_pu = i_dc_pu;
+        // Step the voltage control (if enabled)
+        step_voltage_control();
 
-            // Step the mechanical load with electromagnetic torque
-            double omega_pu = _mechanical_load.update(electromagnetic_torque_pu, _load_torque_pu);
+        // Update plant parameters with the computed values
+        update_plant_parameters();
+    }
 
-            // Convert mechanical speed back to machine frequency
-            frequency_t machine_frequency_hz = to_si(frequency_pu_t(omega_pu), kNominalMachineFrequency);
+private:
+    /**
+     * @brief Steps the mechanical load dynamics if in variable speed mode.
+     */
+    void step_mechanical_dynamics() {
+        if (_mode != machine_operation_mode::variable_speed) {
+            return;  // No mechanical dynamics in fixed speed mode
+        }
 
-            // Update the plant model's machine side frequency
-            _plant.set_machine_parameters(machine_frequency_hz, kNominalMachineVoltageRMS);
+        // Calculate electromagnetic torque from DC link current
+        // Convert DC current to per-unit using the base DC current
+        const current_pu_t dc_link_current = to_pu(_plant.get_dc_link_current(), kBaseDCLinkCurrent);
+
+        // Calculate electromagnetic torque in per-unit
+        // For LCI drives: T_e = k * I_dc where k is proportional to machine flux
+        // In per-unit: T_e_pu = I_dc_pu (assuming unit flux)
+        const torque_pu_t electromagnetic_torque_pu = torque_pu_t{dc_link_current};
+
+        // Step the mechanical load with electromagnetic torque
+        _mechanical_load.update(electromagnetic_torque_pu, _load_torque_pu);
+    }
+
+    /**
+     * @brief Steps the speed-voltage relationship if voltage control is enabled.
+     */
+    void step_voltage_control() {
+        if (_voltage_mode != voltage_control_mode::speed_dependent) {
+            return;  // No voltage control in fixed voltage mode
+        }
+
+        // Determine the speed input for voltage calculation
+        const speed_pu_t speed_input_pu = _mechanical_load.get_speed_pu();
+
+        // Update the speed-voltage relationship
+        _speed_voltage_relationship.update(speed_input_pu);
+    }
+
+    /**
+     * @brief Updates the plant model parameters with computed frequency and voltage.
+     */
+    void update_plant_parameters() {
+        const frequency_t machine_frequency_hz =
+            (_mode == machine_operation_mode::variable_speed)
+                ? to_si(frequency_pu_t{_mechanical_load.get_speed_pu()}, kNominalMachineFrequency)
+                : _plant.get_machine_frequency();
+
+        const voltage_t machine_voltage =
+            (_voltage_mode == voltage_control_mode::speed_dependent)
+                ? voltage_t(_speed_voltage_relationship.get_voltage_magnitude_pu() * kNominalMachineVoltageRMS.value())
+                : kNominalMachineVoltageRMS;
+
+        _plant.set_machine_parameters(machine_frequency_hz, machine_voltage);
+    }
+
+    /**
+     * @brief Gets the current machine voltage based on voltage control mode.
+     * @return The machine voltage in RMS volts.
+     */
+    voltage_t get_machine_voltage() const {
+        if (_voltage_mode == voltage_control_mode::speed_dependent) {
+            // Use voltage from speed-voltage relationship
+            const real_t voltage_magnitude_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
+            return voltage_t(voltage_magnitude_pu * kNominalMachineVoltageRMS.value());
+        } else {
+            // Use nominal voltage for fixed voltage mode
+            return kNominalMachineVoltageRMS;
         }
     }
 
 private:
-    double _load_torque_pu = 0.0;  // Default load torque in per-unit
+    torque_pu_t _load_torque_pu = torque_pu_t{0.0};  // Default load torque in per-unit
 
     sfc_6p_6p_plant_model _plant;
     control::mechanical_load _mechanical_load;
+    control::speed_voltage_relationship _speed_voltage_relationship;
     sfc_per_unit_system _pu_system;
     machine_operation_mode _mode = machine_operation_mode::fixed_speed;
+    voltage_control_mode _voltage_mode = voltage_control_mode::fixed_voltage;
 };
 
 }  // namespace yeet::application::sfc

@@ -24,7 +24,7 @@ public:
             return;
         }
 
-#ifndef YEET_ENABLE_DATA_LOGGING
+#ifdef YEET_ENABLE_DATA_LOGGING
         // Only dump data if logging is not disabled
         dump_data();
 #endif
@@ -42,7 +42,7 @@ public:
     }
 
     void register_sampler_entry(data_sampler_entry entry) {
-#ifndef YEET_ENABLE_DATA_LOGGING
+#ifdef YEET_ENABLE_DATA_LOGGING
         _sampler.register_entry(std::move(entry));
 #else
         // When data logging is disabled, don't register samplers to avoid overhead
@@ -72,7 +72,7 @@ public:
         const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();
         const std::size_t num_simulation_ticks = static_cast<std::size_t>(time / simulation_sampling_rate);
 
-#ifndef YEET_ENABLE_DATA_LOGGING
+#ifdef YEET_ENABLE_DATA_LOGGING
         const double sampler_sampling_rate = _use_custom_sampler_rate ? _custom_sampler_rate : simulation_sampling_rate;
         const std::size_t num_sampler_ticks = static_cast<std::size_t>(time / sampler_sampling_rate);
 
@@ -88,7 +88,7 @@ public:
         for (std::size_t tick = 0; tick < num_simulation_ticks; ++tick) {
             _current_simulation_time = (_current_tick + tick) * simulation_sampling_rate;
 
-#ifndef YEET_ENABLE_DATA_LOGGING
+#ifdef YEET_ENABLE_DATA_LOGGING
             // Sample only at the specified rate
             if (tick % sampling_ratio == 0) {
                 _sampler.sample();

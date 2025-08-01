@@ -63,6 +63,8 @@ public:
      */
     void configure_voltage_limits_pu(real_t min_voltage_pu, real_t max_voltage_pu);
 
+    void reset(real_t initial_voltage_pu, real_t initial_speed_pu);
+
     /**
      * @brief Updates the model with the current mechanical speed.
      *
