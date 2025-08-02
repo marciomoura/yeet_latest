@@ -16,7 +16,7 @@ public:
     static constexpr double sampling_time = 100e-6;
 
     sfc_machine_side_observer_runner()
-        : base_application(sampling_time), _sfc_machine_side_observer(sampling_time) {}
+        : base_application(sampling_time), _sfc_machine_side_observer(duration_t{sampling_time}) {}
 
     void initialize() override;
     void run() override;

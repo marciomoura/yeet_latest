@@ -7,8 +7,7 @@
 namespace yeet::application::sfc::integration {
 
 class sfc_grid_side_observer_runner
-    : public yeet::base_application<sfc_grid_side_observer_datamodel::inputs,
-                                    sfc_grid_side_observer_datamodel::outputs,
+    : public yeet::base_application<sfc_grid_side_observer_datamodel::inputs, sfc_grid_side_observer_datamodel::outputs,
                                     sfc_grid_side_observer_datamodel::parameters> {
 public:
     using datamodel = sfc_grid_side_observer_datamodel;
@@ -16,7 +15,7 @@ public:
     static constexpr double sampling_time = 100e-6;
 
     sfc_grid_side_observer_runner()
-        : base_application(sampling_time), _sfc_grid_side_observer(sampling_time) {}
+        : base_application(sampling_time), _sfc_grid_side_observer(duration_t{sampling_time}) {}
 
     void initialize() override;
     void run() override;

@@ -14,7 +14,8 @@ public:
 
     static constexpr double sampling_time = 100e-6;
 
-    sfc_current_controller_runner() : base_application(sampling_time), _sfc_current_controller(sampling_time) {}
+    sfc_current_controller_runner()
+        : base_application(sampling_time), _sfc_current_controller(duration_t{sampling_time}) {}
 
     void initialize() override;
     void run() override;

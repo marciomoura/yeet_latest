@@ -19,7 +19,7 @@ public:
     sfc_machine_side_measurements_runner()
         : base_application(sampling_time),
           _sfc_machine_side_measurements(),
-          _sfc_machine_side_filtering(sampling_time) {}
+          _sfc_machine_side_filtering(duration_t{sampling_time}) {}
 
     void initialize() override;
     void run() override;

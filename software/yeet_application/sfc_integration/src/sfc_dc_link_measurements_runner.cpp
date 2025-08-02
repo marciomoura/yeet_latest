@@ -31,4 +31,4 @@ void sfc_dc_link_measurements_runner::set_parameter_callback() {
     _parameters.power_base.register_callback([&]() { set_parameters(); });
 }
 
-}
+}  // namespace yeet::application::sfc::integration

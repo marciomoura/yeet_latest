@@ -14,7 +14,7 @@ public:
 
     static constexpr double sampling_time = 1e-3;
 
-    sfc_speed_controller_runner() : base_application(sampling_time), _sfc_speed_controller(sampling_time) {}
+    sfc_speed_controller_runner() : base_application(sampling_time), _sfc_speed_controller(duration_t{sampling_time}) {}
 
     void initialize() override;
     void run() override;

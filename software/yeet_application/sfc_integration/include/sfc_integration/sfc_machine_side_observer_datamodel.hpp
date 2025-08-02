@@ -131,19 +131,6 @@ public:
     outputs* get_outputs() { return _model_outputs; }
     parameters* get_parameters() { return _model_parameters; }
 };
-/// Type: abc<voltage_pu_t>
-/// Range: [0.0, 1.5] pu (wider range than grid due to variable speed operation)
-/// Frequency: Variable frequency (0-200 Hz) depending on machine speed
-/// Usage: Primary input for voltage magnitude estimation and back-EMF calculation
-/// Note: Contains commutation notches and harmonics from inverter operation
-using machine_voltage_pu = void;  // abc<voltage_pu_t>
-
-/// Machine-side converter firing pulses for commutation detection
-/// Type: six_pulse_generator::pulses (std::array<bool, 6>)
-/// Usage: Enables machine-side commutation event detection and timing analysis
-/// Note: Each element represents one thyristor gate signal (true = firing)
-using machine_side_pulses = void;  // six_pulse_generator::pulses
-};
 
 /**
  * @brief OUTPUT INTERFACE
@@ -296,7 +283,5 @@ struct parameter_interface {
  * - Thread Safety: Not required (single-threaded real-time context)
  * - Error Handling: Graceful degradation when machine voltage is lost
  */
-}
-;
 
 }  // namespace yeet::application::sfc::integration

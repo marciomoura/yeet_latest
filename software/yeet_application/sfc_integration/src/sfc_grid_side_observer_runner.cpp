@@ -24,7 +24,7 @@ void sfc_grid_side_observer_runner::stop() { _sfc_grid_side_observer.reset(); }
 
 void sfc_grid_side_observer_runner::set_parameters() {
     _sfc_grid_side_observer.configure_pll(_parameters.pll_proportional_gain, _parameters.pll_integral_gain,
-                                        _parameters.grid_nominal_frequency);
+                                          _parameters.grid_nominal_frequency);
     _sfc_grid_side_observer.configure_commutation_failure_threshold(_parameters.commutation_detection_threshold);
 }
 
@@ -35,4 +35,4 @@ void sfc_grid_side_observer_runner::set_parameter_callback() {
     _parameters.commutation_detection_threshold.register_callback([&]() { set_parameters(); });
 }
 
-}
+}  // namespace yeet::application::sfc::integration
