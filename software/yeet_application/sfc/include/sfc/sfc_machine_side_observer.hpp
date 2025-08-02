@@ -95,6 +95,12 @@ public:
      */
     bool is_commuting() const;
 
+    /**
+     * @brief Gets the PLL lock status.
+     * @return True if the PLL is locked, false otherwise.
+     */
+    bool is_locked() const { return _pll.is_locked(); }
+
     bool is_masking() const { return _commutation_mask.is_masking(); }
 
 private:

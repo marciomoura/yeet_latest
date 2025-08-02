@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 
 #include "sfc/sfc_commutation_mask.hpp"
-#include "sfc_plant_model_simulator.hpp"
-#include "sfc_simulators.hpp"
+#include "sfc/sfc_plant_model_simulator.hpp"
+#include "sfc/sfc_simulators.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/dual_sogi_srf_pll.hpp"
 #include "yeet_control/six_pulse_generator.hpp"

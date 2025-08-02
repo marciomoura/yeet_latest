@@ -1,4 +1,4 @@
-#include "sfc_6p_6p_plant_model.hpp"
+#include "sfc/sfc_6p_6p_plant_model.hpp"
 
 #include <algorithm>
 #include <array>

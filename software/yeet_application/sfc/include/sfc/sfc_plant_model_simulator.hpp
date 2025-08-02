@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_6p_6p_plant_model.hpp"
+#include "sfc_per_unit_system.hpp"
 #include "yeet_control/mechanical_load.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/speed_voltage_relationship.hpp"

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sfc_simulators.hpp"
+#include "sfc/sfc_simulators.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
