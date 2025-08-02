@@ -36,7 +36,7 @@ public:
 
         /// Rotor position measurement (raw)
         /// Range: [0, 2π] radians
-        signal_input<angle_t> rotor_position_raw;
+        signal_input<angle<zero_to_two_pi>> rotor_position_raw;
 
         /// Machine frequency for adaptive filtering
         /// Range: [0, 100] Hz (variable frequency)
@@ -69,7 +69,7 @@ public:
         signal_output<speed_pu_t> machine_speed_pu;
 
         /// Filtered rotor position (electrical angle)
-        signal_output<angle_t> rotor_position_electrical;
+        signal_output<angle<zero_to_two_pi>> rotor_position_electrical;
 
         /// Filtered machine voltage magnitude (per-unit)
         signal_output<voltage_pu_t> machine_voltage_magnitude_pu;
@@ -102,11 +102,6 @@ public:
 
         // Machine parameters
         parameter<real_t> pole_pairs = real_t(1.0);
-
-        // Per-unit base values
-        parameter<voltage_t> voltage_base = voltage_t(1000.0);
-        parameter<current_t> current_base = current_t(1000.0);
-        parameter<speed_t> speed_base = speed_t(3000.0);  // RPM
 
         // Low-pass filtering parameters
         parameter<frequency_t> voltage_lpf_cutoff = frequency_t(500.0);
@@ -141,36 +136,33 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register outputs in signal registry
-        entry.signal_registry.insert("machine_voltage_alphabeta_pu", _model_outputs->machine_voltage_alphabeta_pu);
-        entry.signal_registry.insert("machine_current_alphabeta_pu", _model_outputs->machine_current_alphabeta_pu);
-        entry.signal_registry.insert("machine_voltage_abc_pu", _model_outputs->machine_voltage_abc_pu);
-        entry.signal_registry.insert("machine_current_abc_pu", _model_outputs->machine_current_abc_pu);
-        entry.signal_registry.insert("machine_speed_pu", _model_outputs->machine_speed_pu);
-        entry.signal_registry.insert("rotor_position_electrical", _model_outputs->rotor_position_electrical);
-        entry.signal_registry.insert("machine_voltage_magnitude_pu", _model_outputs->machine_voltage_magnitude_pu);
-        entry.signal_registry.insert("machine_current_magnitude_pu", _model_outputs->machine_current_magnitude_pu);
-        entry.signal_registry.insert("back_emf_magnitude_pu", _model_outputs->back_emf_magnitude_pu);
-        entry.signal_registry.insert("current_ripple_factor", _model_outputs->current_ripple_factor);
-        entry.signal_registry.insert("is_valid", _model_outputs->is_valid);
-        entry.signal_registry.insert("filtering_active", _model_outputs->filtering_active);
+        // entry.signal_registry.insert("machine_voltage_alphabeta_pu", _model_outputs->machine_voltage_alphabeta_pu);
+        // entry.signal_registry.insert("machine_current_alphabeta_pu", _model_outputs->machine_current_alphabeta_pu);
+        // entry.signal_registry.insert("machine_voltage_abc_pu", _model_outputs->machine_voltage_abc_pu);
+        // entry.signal_registry.insert("machine_current_abc_pu", _model_outputs->machine_current_abc_pu);
+        // entry.signal_registry.insert("machine_speed_pu", _model_outputs->machine_speed_pu);
+        // entry.signal_registry.insert("rotor_position_electrical", _model_outputs->rotor_position_electrical);
+        // entry.signal_registry.insert("machine_voltage_magnitude_pu", _model_outputs->machine_voltage_magnitude_pu);
+        // entry.signal_registry.insert("machine_current_magnitude_pu", _model_outputs->machine_current_magnitude_pu);
+        // entry.signal_registry.insert("back_emf_magnitude_pu", _model_outputs->back_emf_magnitude_pu);
+        // entry.signal_registry.insert("current_ripple_factor", _model_outputs->current_ripple_factor);
+        // entry.signal_registry.insert("is_valid", _model_outputs->is_valid);
+        // entry.signal_registry.insert("filtering_active", _model_outputs->filtering_active);
 
-        // Register parameters in parameter registry
-        entry.parameter_registry.insert("voltage_scale_factor", _model_parameters->voltage_scale_factor);
-        entry.parameter_registry.insert("current_scale_factor", _model_parameters->current_scale_factor);
-        entry.parameter_registry.insert("speed_scale_factor", _model_parameters->speed_scale_factor);
-        entry.parameter_registry.insert("pole_pairs", _model_parameters->pole_pairs);
-        entry.parameter_registry.insert("voltage_base", _model_parameters->voltage_base);
-        entry.parameter_registry.insert("current_base", _model_parameters->current_base);
-        entry.parameter_registry.insert("speed_base", _model_parameters->speed_base);
-        entry.parameter_registry.insert("voltage_lpf_cutoff", _model_parameters->voltage_lpf_cutoff);
-        entry.parameter_registry.insert("current_lpf_cutoff", _model_parameters->current_lpf_cutoff);
-        entry.parameter_registry.insert("speed_lpf_cutoff", _model_parameters->speed_lpf_cutoff);
-        entry.parameter_registry.insert("filter_order", _model_parameters->filter_order);
-        entry.parameter_registry.insert("current_hpf_cutoff", _model_parameters->current_hpf_cutoff);
-        entry.parameter_registry.insert("anti_aliasing_frequency", _model_parameters->anti_aliasing_frequency);
-        entry.parameter_registry.insert("ripple_calculation_window", _model_parameters->ripple_calculation_window);
+        // // Register parameters in parameter registry
+        // entry.parameter_registry.insert("voltage_scale_factor", _model_parameters->voltage_scale_factor);
+        // entry.parameter_registry.insert("current_scale_factor", _model_parameters->current_scale_factor);
+        // entry.parameter_registry.insert("speed_scale_factor", _model_parameters->speed_scale_factor);
+        // entry.parameter_registry.insert("pole_pairs", _model_parameters->pole_pairs);
+        // entry.parameter_registry.insert("voltage_lpf_cutoff", _model_parameters->voltage_lpf_cutoff);
+        // entry.parameter_registry.insert("current_lpf_cutoff", _model_parameters->current_lpf_cutoff);
+        // entry.parameter_registry.insert("speed_lpf_cutoff", _model_parameters->speed_lpf_cutoff);
+        // entry.parameter_registry.insert("filter_order", _model_parameters->filter_order);
+        // entry.parameter_registry.insert("current_hpf_cutoff", _model_parameters->current_hpf_cutoff);
+        // entry.parameter_registry.insert("anti_aliasing_frequency", _model_parameters->anti_aliasing_frequency);
+        // entry.parameter_registry.insert("ripple_calculation_window", _model_parameters->ripple_calculation_window);
 
-        registry.insert("sfc_machine_side_measurements", std::move(entry));
+        // registry.insert("sfc_machine_side_measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

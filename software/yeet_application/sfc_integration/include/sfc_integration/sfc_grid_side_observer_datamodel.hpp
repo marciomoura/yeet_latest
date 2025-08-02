@@ -39,7 +39,7 @@ public:
     struct outputs {
         /// Estimated grid voltage angle (electrical)
         /// Range: [0, 2π] radians
-        signal_output<angle> estimated_angle;
+        signal_output<angle<zero_to_two_pi>> estimated_angle;
 
         /// Estimated grid frequency (absolute)
         /// Range: [45, 65] Hz for 50 Hz systems
@@ -115,27 +115,27 @@ public:
     void register_data_model(model_registry& registry) {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Register outputs in signal registry
-        entry.signal_registry.insert("estimated_angle", _model_outputs->estimated_angle);
-        entry.signal_registry.insert("estimated_frequency", _model_outputs->estimated_frequency);
-        entry.signal_registry.insert("estimated_frequency_pu", _model_outputs->estimated_frequency_pu);
-        entry.signal_registry.insert("estimated_voltage_magnitude", _model_outputs->estimated_voltage_magnitude);
-        entry.signal_registry.insert("filtered_voltage_alphabeta", _model_outputs->filtered_voltage_alphabeta);
-        entry.signal_registry.insert("is_commuting", _model_outputs->is_commuting);
-        entry.signal_registry.insert("is_locked", _model_outputs->is_locked);
+        // // Register outputs in signal registry
+        // entry.signal_registry.insert("estimated_angle", _model_outputs->estimated_angle);
+        // entry.signal_registry.insert("estimated_frequency", _model_outputs->estimated_frequency);
+        // entry.signal_registry.insert("estimated_frequency_pu", _model_outputs->estimated_frequency_pu);
+        // entry.signal_registry.insert("estimated_voltage_magnitude", _model_outputs->estimated_voltage_magnitude);
+        // entry.signal_registry.insert("filtered_voltage_alphabeta", _model_outputs->filtered_voltage_alphabeta);
+        // entry.signal_registry.insert("is_commuting", _model_outputs->is_commuting);
+        // entry.signal_registry.insert("is_locked", _model_outputs->is_locked);
 
-        // Register parameters in parameter registry
-        entry.parameter_registry.insert("pll_proportional_gain", _model_parameters->pll_proportional_gain);
-        entry.parameter_registry.insert("pll_integral_gain", _model_parameters->pll_integral_gain);
-        entry.parameter_registry.insert("grid_nominal_frequency", _model_parameters->grid_nominal_frequency);
-        entry.parameter_registry.insert("commutation_detection_threshold",
-                                        _model_parameters->commutation_detection_threshold);
-        entry.parameter_registry.insert("commutation_detection_time_window",
-                                        _model_parameters->commutation_detection_time_window);
-        entry.parameter_registry.insert("lock_detection_threshold", _model_parameters->lock_detection_threshold);
-        entry.parameter_registry.insert("lock_detection_time_window", _model_parameters->lock_detection_time_window);
+        // // Register parameters in parameter registry
+        // entry.parameter_registry.insert("pll_proportional_gain", _model_parameters->pll_proportional_gain);
+        // entry.parameter_registry.insert("pll_integral_gain", _model_parameters->pll_integral_gain);
+        // entry.parameter_registry.insert("grid_nominal_frequency", _model_parameters->grid_nominal_frequency);
+        // entry.parameter_registry.insert("commutation_detection_threshold",
+        //                                 _model_parameters->commutation_detection_threshold);
+        // entry.parameter_registry.insert("commutation_detection_time_window",
+        //                                 _model_parameters->commutation_detection_time_window);
+        // entry.parameter_registry.insert("lock_detection_threshold", _model_parameters->lock_detection_threshold);
+        // entry.parameter_registry.insert("lock_detection_time_window", _model_parameters->lock_detection_time_window);
 
-        registry.insert("sfc_grid_side_observer", std::move(entry));
+        // registry.insert("sfc_grid_side_observer", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

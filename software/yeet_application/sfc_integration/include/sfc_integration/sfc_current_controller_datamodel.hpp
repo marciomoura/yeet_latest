@@ -43,14 +43,14 @@ public:
     struct outputs {
         /// Grid-side rectifier firing angle reference
         /// Range: [0.0, π/2] radians
-        signal_output<angle_t> firing_angle_reference;
+        signal_output<angle<zero_to_two_pi>> firing_angle_reference;
 
         /// Current control error (reference - measured)
         /// Range: [-1.0, 1.0] pu
         signal_output<current_pu_t> current_error;
 
         /// PI controller output before limiting
-        signal_output<angle_t> pi_output;
+        signal_output<angle<zero_to_two_pi>> pi_output;
 
         /// Controller saturation status
         signal_output<bool> is_saturated;
@@ -73,11 +73,11 @@ public:
 
         /// Minimum firing angle limit
         /// Range: [0.0, π/6] radians
-        parameter<angle_t> min_firing_angle = angle_t(0.0);
+        parameter<angle<zero_to_two_pi>> min_firing_angle = angle<zero_to_two_pi>(0.0);
 
         /// Maximum firing angle limit
         /// Range: [π/4, π/2] radians
-        parameter<angle_t> max_firing_angle = angle_t(1.5708);  // π/2
+        parameter<angle<zero_to_two_pi>> max_firing_angle = angle<zero_to_two_pi>(1.5708);  // π/2
 
         /// Current reference rate limit
         /// Range: [1.0, 50.0] pu/s

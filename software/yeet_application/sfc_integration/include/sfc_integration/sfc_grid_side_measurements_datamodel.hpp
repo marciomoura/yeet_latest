@@ -93,10 +93,6 @@ public:
         parameter<real_t> voltage_scale_factor = real_t(1.0);
         parameter<real_t> current_scale_factor = real_t(1.0);
 
-        // Per-unit base values
-        parameter<voltage_t> voltage_base = voltage_t(1000.0);
-        parameter<current_t> current_base = current_t(1000.0);
-
         // Low-pass filtering parameters
         parameter<frequency_t> lpf_cutoff_frequency = frequency_t(200.0);
         parameter<int> lpf_filter_order = 4;
@@ -131,37 +127,35 @@ public:
     }
 
     void register_data_model(model_registry& registry) {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Register outputs in signal registry
-        entry.signal_registry.insert("grid_voltage_alphabeta_pu", _model_outputs->grid_voltage_alphabeta_pu);
-        entry.signal_registry.insert("grid_current_alphabeta_pu", _model_outputs->grid_current_alphabeta_pu);
-        entry.signal_registry.insert("grid_voltage_abc_pu", _model_outputs->grid_voltage_abc_pu);
-        entry.signal_registry.insert("grid_current_abc_pu", _model_outputs->grid_current_abc_pu);
-        entry.signal_registry.insert("grid_voltage_magnitude_pu", _model_outputs->grid_voltage_magnitude_pu);
-        entry.signal_registry.insert("grid_current_magnitude_pu", _model_outputs->grid_current_magnitude_pu);
-        entry.signal_registry.insert("dc_voltage_pu", _model_outputs->dc_voltage_pu);
-        entry.signal_registry.insert("voltage_thd", _model_outputs->voltage_thd);
-        entry.signal_registry.insert("current_thd", _model_outputs->current_thd);
-        entry.signal_registry.insert("is_valid", _model_outputs->is_valid);
-        entry.signal_registry.insert("filtering_active", _model_outputs->filtering_active);
+        // // Register outputs in signal registry
+        // entry.signal_registry.insert("grid_voltage_alphabeta_pu", _model_outputs->grid_voltage_alphabeta_pu);
+        // entry.signal_registry.insert("grid_current_alphabeta_pu", _model_outputs->grid_current_alphabeta_pu);
+        // entry.signal_registry.insert("grid_voltage_abc_pu", _model_outputs->grid_voltage_abc_pu);
+        // entry.signal_registry.insert("grid_current_abc_pu", _model_outputs->grid_current_abc_pu);
+        // entry.signal_registry.insert("grid_voltage_magnitude_pu", _model_outputs->grid_voltage_magnitude_pu);
+        // entry.signal_registry.insert("grid_current_magnitude_pu", _model_outputs->grid_current_magnitude_pu);
+        // entry.signal_registry.insert("dc_voltage_pu", _model_outputs->dc_voltage_pu);
+        // entry.signal_registry.insert("voltage_thd", _model_outputs->voltage_thd);
+        // entry.signal_registry.insert("current_thd", _model_outputs->current_thd);
+        // entry.signal_registry.insert("is_valid", _model_outputs->is_valid);
+        // entry.signal_registry.insert("filtering_active", _model_outputs->filtering_active);
 
-        // Register parameters in parameter registry
-        entry.parameter_registry.insert("voltage_scale_factor", _model_parameters->voltage_scale_factor);
-        entry.parameter_registry.insert("current_scale_factor", _model_parameters->current_scale_factor);
-        entry.parameter_registry.insert("voltage_base", _model_parameters->voltage_base);
-        entry.parameter_registry.insert("current_base", _model_parameters->current_base);
-        entry.parameter_registry.insert("lpf_cutoff_frequency", _model_parameters->lpf_cutoff_frequency);
-        entry.parameter_registry.insert("lpf_filter_order", _model_parameters->lpf_filter_order);
-        entry.parameter_registry.insert("notch_frequency_5th", _model_parameters->notch_frequency_5th);
-        entry.parameter_registry.insert("notch_frequency_7th", _model_parameters->notch_frequency_7th);
-        entry.parameter_registry.insert("notch_frequency_11th", _model_parameters->notch_frequency_11th);
-        entry.parameter_registry.insert("notch_frequency_13th", _model_parameters->notch_frequency_13th);
-        entry.parameter_registry.insert("notch_q_factor", _model_parameters->notch_q_factor);
-        entry.parameter_registry.insert("anti_aliasing_frequency", _model_parameters->anti_aliasing_frequency);
-        entry.parameter_registry.insert("thd_calculation_window", _model_parameters->thd_calculation_window);
+        // // Register parameters in parameter registry
+        // entry.parameter_registry.insert("voltage_scale_factor", _model_parameters->voltage_scale_factor);
+        // entry.parameter_registry.insert("current_scale_factor", _model_parameters->current_scale_factor);
+        // entry.parameter_registry.insert("lpf_cutoff_frequency", _model_parameters->lpf_cutoff_frequency);
+        // entry.parameter_registry.insert("lpf_filter_order", _model_parameters->lpf_filter_order);
+        // entry.parameter_registry.insert("notch_frequency_5th", _model_parameters->notch_frequency_5th);
+        // entry.parameter_registry.insert("notch_frequency_7th", _model_parameters->notch_frequency_7th);
+        // entry.parameter_registry.insert("notch_frequency_11th", _model_parameters->notch_frequency_11th);
+        // entry.parameter_registry.insert("notch_frequency_13th", _model_parameters->notch_frequency_13th);
+        // entry.parameter_registry.insert("notch_q_factor", _model_parameters->notch_q_factor);
+        // entry.parameter_registry.insert("anti_aliasing_frequency", _model_parameters->anti_aliasing_frequency);
+        // entry.parameter_registry.insert("thd_calculation_window", _model_parameters->thd_calculation_window);
 
-        registry.insert("sfc_grid_side_measurements", std::move(entry));
+        // registry.insert("sfc_grid_side_measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

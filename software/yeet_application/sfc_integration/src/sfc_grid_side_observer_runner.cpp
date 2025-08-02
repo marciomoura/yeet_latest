@@ -23,8 +23,16 @@ void sfc_grid_side_observer_runner::run() {
 void sfc_grid_side_observer_runner::stop() { _sfc_grid_side_observer.reset(); }
 
 void sfc_grid_side_observer_runner::set_parameters() {
-    _sfc_grid_side_observer.configure_pll(_parameters.pll_proportional_gain, _parameters.pll_integral_gain,
-                                          _parameters.grid_nominal_frequency);
+    // Extract parameter values and convert types as needed
+    frequency_t kp_freq = _parameters.pll_proportional_gain;
+    frequency_t ki_freq = _parameters.pll_integral_gain;
+    frequency_t nom_freq = _parameters.grid_nominal_frequency;
+
+    // Convert frequency to real_t for proportional gain
+    real_t kp = kp_freq.value();
+    duration_t ti = duration_t(1.0 / ki_freq.value());  // Convert integral gain to time constant
+
+    _sfc_grid_side_observer.configure_pll(kp, ti, nom_freq);
     _sfc_grid_side_observer.configure_commutation_failure_threshold(_parameters.commutation_detection_threshold);
 }
 

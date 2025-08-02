@@ -6,7 +6,6 @@
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 
-
 /**
  * @file sfc_grid_side_modulator_datamodel.hpp
  * @brief Datamodel specification for SFC Grid-Side Modulator component
@@ -22,11 +21,11 @@ public:
     struct inputs {
         /// Firing angle reference from current controller
         /// Range: [0.0, π/2] radians (0° to 90°)
-        signal_input<angle_t> firing_angle_reference;
+        signal_input<angle<zero_to_two_pi>> firing_angle_reference;
 
         /// Grid voltage angle from grid-side observer
         /// Range: [0, 2π] radians
-        signal_input<angle_t> grid_voltage_angle;
+        signal_input<angle<zero_to_two_pi>> grid_voltage_angle;
 
         /// Enable command for pulse generation
         signal_input<bool> enable_command;
@@ -45,7 +44,7 @@ public:
 
         /// Actual firing angle being used
         /// Range: [0.0, π/2] radians
-        signal_output<angle_t> actual_firing_angle;
+        signal_output<angle<zero_to_two_pi>> actual_firing_angle;
 
         /// Modulator enabled status
         signal_output<bool> is_enabled;
@@ -60,15 +59,15 @@ public:
     struct parameters {
         /// Minimum firing angle limit
         /// Range: [0.0, π/6] radians
-        parameter<angle_t> min_firing_angle = angle_t(0.0);
+        parameter<angle<zero_to_two_pi>> min_firing_angle = angle<zero_to_two_pi>(0.0);
 
         /// Maximum firing angle limit
         /// Range: [π/4, π/2] radians
-        parameter<angle_t> max_firing_angle = angle_t(1.5708);  // π/2
+        parameter<angle<zero_to_two_pi>> max_firing_angle = angle<zero_to_two_pi>(1.5708);  // π/2
 
         /// Pulse width for thyristor firing
         /// Range: [π/36, π/6] radians (5° to 30°)
-        parameter<angle_t> pulse_width = angle_t(0.5236);  // π/6 = 30°
+        parameter<angle<zero_to_two_pi>> pulse_width = angle<zero_to_two_pi>(0.5236);  // π/6 = 30°
 
         /// Deadtime between complementary pulses
         /// Range: [0.0001, 0.001] s

@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet_control/angle.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -17,6 +18,14 @@ namespace yeet::application::sfc::integration {
 class sfc_plant_model_datamodel {
 public:
     /**
+     * @brief Defines the operational mode for the machine side of the plant.
+     */
+    enum class machine_operation_mode {
+        fixed_speed,    ///< Machine runs at a constant, predefined frequency.
+        variable_speed  ///< Machine speed is determined by the mechanical load model.
+    };
+
+    /**
      * @brief Input signals for the SFC plant model component
      */
     struct inputs {
@@ -29,13 +38,6 @@ public:
         /// Mechanical load torque on motor shaft
         /// Range: [-2.0, 2.0] pu
         signal_input<torque_pu_t> load_torque_pu;
-
-        /// Grid voltage (line-to-line RMS)
-        /// Range: [0.5, 1.2] pu
-        signal_input<abc<voltage_pu_t>> grid_voltage_ll_rms_pu;
-
-        /// Grid impedance (for dynamic studies)
-        signal_input<abc<impedance_t>> grid_impedance;
     };
 
     /**
@@ -62,7 +64,7 @@ public:
 
         /// Motor rotor position (mechanical)
         /// Range: [0.0, 2π] radians
-        signal_output<angle_t> rotor_position_mechanical;
+        signal_output<angle<zero_to_two_pi>> rotor_position_mechanical;
 
         /// Motor rotor speed (mechanical)
         /// Range: [-3.0, 3.0] pu
@@ -87,75 +89,20 @@ public:
 
     /**
      * @brief Configuration parameters for the SFC plant model
+     *
+     * These parameters reflect the configurable aspects of the sfc_plant_model_simulator.
      */
     struct parameters {
-        /// Motor rated power
-        /// Range: [0.1, 100.0] MW
-        parameter<power_t> motor_rated_power = power_t(1.0e6);  // 1 MW
+        /// Defines if the machine runs at a fixed speed or if speed is determined by the load model.
+        parameter<machine_operation_mode> operation_mode = machine_operation_mode::fixed_speed;
 
-        /// Motor rated voltage (line-to-line RMS)
-        /// Range: [100.0, 10000.0] V
-        parameter<voltage_t> motor_rated_voltage = voltage_t(690.0);  // 690V
+        /// Motor inertia constant (H).
+        /// Default: 2.5 s
+        parameter<inertia_constant_t> motor_inertia_constant = inertia_constant_t(2.5);
 
-        /// Motor rated frequency
-        /// Range: [10.0, 100.0] Hz
-        parameter<frequency_t> motor_rated_frequency = frequency_t(50.0);
-
-        /// Motor pole pairs
-        /// Range: [1, 12]
-        parameter<int> motor_pole_pairs = 2;
-
-        /// Motor stator resistance
-        /// Range: [0.001, 0.1] pu
-        parameter<resistance_pu_t> motor_stator_resistance = resistance_pu_t(0.02);
-
-        /// Motor rotor resistance (referred to stator)
-        /// Range: [0.001, 0.1] pu
-        parameter<resistance_pu_t> motor_rotor_resistance = resistance_pu_t(0.015);
-
-        /// Motor stator leakage inductance
-        /// Range: [0.05, 0.2] pu
-        parameter<inductance_pu_t> motor_stator_leakage_inductance = inductance_pu_t(0.08);
-
-        /// Motor rotor leakage inductance (referred to stator)
-        /// Range: [0.05, 0.2] pu
-        parameter<inductance_pu_t> motor_rotor_leakage_inductance = inductance_pu_t(0.08);
-
-        /// Motor magnetizing inductance
-        /// Range: [3.0, 8.0] pu
-        parameter<inductance_pu_t> motor_magnetizing_inductance = inductance_pu_t(4.5);
-
-        /// Motor inertia constant
-        /// Range: [0.5, 10.0] s
-        parameter<duration_t> motor_inertia_constant = duration_t(2.0);
-
-        /// DC link inductor
-        /// Range: [0.01, 1.0] H
-        parameter<inductance_t> dc_link_inductance = inductance_t(0.1);
-
-        /// DC link resistance
-        /// Range: [0.001, 0.1] Ω
-        parameter<resistance_t> dc_link_resistance = resistance_t(0.01);
-
-        /// Grid side transformer turns ratio
-        /// Range: [0.1, 10.0]
-        parameter<real_t> grid_transformer_ratio = real_t(1.0);
-
-        /// Machine side transformer turns ratio
-        /// Range: [0.1, 10.0]
-        parameter<real_t> machine_transformer_ratio = real_t(1.0);
-
-        /// Converter commutation inductance (per phase)
-        /// Range: [0.001, 0.1] H
-        parameter<inductance_t> commutation_inductance = inductance_t(0.005);
-
-        /// Thyristor forward voltage drop
-        /// Range: [0.5, 3.0] V
-        parameter<voltage_t> thyristor_forward_drop = voltage_t(1.2);
-
-        /// Grid short circuit power (for impedance calculation)
-        /// Range: [10.0, 10000.0] MVA
-        parameter<power_t> grid_short_circuit_power = power_t(100.0e6);  // 100 MVA
+        /// Motor damping factor (D) in per-unit.
+        /// Default: 0.01 pu
+        parameter<damping_coefficient_t> motor_damping_factor = damping_coefficient_t(0.01);
     };
 
 private:
@@ -172,45 +119,28 @@ public:
     }
 
     void register_data_model(model_registry& registry) {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Register outputs in signal registry
-        entry.signal_registry.insert("grid_voltage_ln", _model_outputs->grid_voltage_ln);
-        entry.signal_registry.insert("grid_current", _model_outputs->grid_current);
-        entry.signal_registry.insert("dc_link_voltage", _model_outputs->dc_link_voltage);
-        entry.signal_registry.insert("dc_link_current", _model_outputs->dc_link_current);
-        entry.signal_registry.insert("machine_voltage_ln", _model_outputs->machine_voltage_ln);
-        entry.signal_registry.insert("machine_current", _model_outputs->machine_current);
-        entry.signal_registry.insert("rotor_position_mechanical", _model_outputs->rotor_position_mechanical);
-        entry.signal_registry.insert("rotor_speed_mechanical", _model_outputs->rotor_speed_mechanical);
-        entry.signal_registry.insert("electromagnetic_torque", _model_outputs->electromagnetic_torque);
-        entry.signal_registry.insert("grid_current_thd", _model_outputs->grid_current_thd);
-        entry.signal_registry.insert("power_factor", _model_outputs->power_factor);
-        entry.signal_registry.insert("active_power_pu", _model_outputs->active_power_pu);
+        // // Register outputs in signal registry
+        // entry.signal_registry.insert("grid_voltage_ln", _model_outputs->grid_voltage_ln);
+        // entry.signal_registry.insert("grid_current", _model_outputs->grid_current);
+        // entry.signal_registry.insert("dc_link_voltage", _model_outputs->dc_link_voltage);
+        // entry.signal_registry.insert("dc_link_current", _model_outputs->dc_link_current);
+        // entry.signal_registry.insert("machine_voltage_ln", _model_outputs->machine_voltage_ln);
+        // entry.signal_registry.insert("machine_current", _model_outputs->machine_current);
+        // entry.signal_registry.insert("rotor_position_mechanical", _model_outputs->rotor_position_mechanical);
+        // entry.signal_registry.insert("rotor_speed_mechanical", _model_outputs->rotor_speed_mechanical);
+        // entry.signal_registry.insert("electromagnetic_torque", _model_outputs->electromagnetic_torque);
+        // entry.signal_registry.insert("grid_current_thd", _model_outputs->grid_current_thd);
+        // entry.signal_registry.insert("power_factor", _model_outputs->power_factor);
+        // entry.signal_registry.insert("active_power_pu", _model_outputs->active_power_pu);
 
-        // Register parameters in parameter registry
-        entry.parameter_registry.insert("motor_rated_power", _model_parameters->motor_rated_power);
-        entry.parameter_registry.insert("motor_rated_voltage", _model_parameters->motor_rated_voltage);
-        entry.parameter_registry.insert("motor_rated_frequency", _model_parameters->motor_rated_frequency);
-        entry.parameter_registry.insert("motor_pole_pairs", _model_parameters->motor_pole_pairs);
-        entry.parameter_registry.insert("motor_stator_resistance", _model_parameters->motor_stator_resistance);
-        entry.parameter_registry.insert("motor_rotor_resistance", _model_parameters->motor_rotor_resistance);
-        entry.parameter_registry.insert("motor_stator_leakage_inductance",
-                                        _model_parameters->motor_stator_leakage_inductance);
-        entry.parameter_registry.insert("motor_rotor_leakage_inductance",
-                                        _model_parameters->motor_rotor_leakage_inductance);
-        entry.parameter_registry.insert("motor_magnetizing_inductance",
-                                        _model_parameters->motor_magnetizing_inductance);
-        entry.parameter_registry.insert("motor_inertia_constant", _model_parameters->motor_inertia_constant);
-        entry.parameter_registry.insert("dc_link_inductance", _model_parameters->dc_link_inductance);
-        entry.parameter_registry.insert("dc_link_resistance", _model_parameters->dc_link_resistance);
-        entry.parameter_registry.insert("grid_transformer_ratio", _model_parameters->grid_transformer_ratio);
-        entry.parameter_registry.insert("machine_transformer_ratio", _model_parameters->machine_transformer_ratio);
-        entry.parameter_registry.insert("commutation_inductance", _model_parameters->commutation_inductance);
-        entry.parameter_registry.insert("thyristor_forward_drop", _model_parameters->thyristor_forward_drop);
-        entry.parameter_registry.insert("grid_short_circuit_power", _model_parameters->grid_short_circuit_power);
+        // // Register parameters in parameter registry
+        // entry.parameter_registry.insert("operation_mode", _model_parameters->operation_mode);
+        // entry.parameter_registry.insert("motor_inertia_constant", _model_parameters->motor_inertia_constant);
+        // entry.parameter_registry.insert("motor_damping_factor", _model_parameters->motor_damping_factor);
 
-        registry.insert("sfc_plant_model", std::move(entry));
+        // registry.insert("sfc_plant_model", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }
