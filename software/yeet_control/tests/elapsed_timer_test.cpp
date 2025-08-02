@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-
+using namespace yeet;
 using namespace yeet::control;
 
 class ElapsedTimerTest : public ::testing::Test {
