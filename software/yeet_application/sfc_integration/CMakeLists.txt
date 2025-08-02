@@ -5,31 +5,32 @@ add_library(yeet::yeet_application::sfc_integration ALIAS ${PROJECT_NAME})
 
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE include/sfc_integration/sfc_grid_observer_runner.hpp
-            include/sfc_integration/sfc_current_controller_datamodel.hpp
+    PRIVATE include/sfc_integration/sfc_current_controller_datamodel.hpp
             include/sfc_integration/sfc_current_controller_runner.hpp
-            include/sfc_integration/sfc_speed_controller_datamodel.hpp
-            include/sfc_integration/sfc_speed_controller_runner.hpp
             include/sfc_integration/sfc_dc_link_measurements_datamodel.hpp
             include/sfc_integration/sfc_dc_link_measurements_runner.hpp
             include/sfc_integration/sfc_grid_side_measurements_datamodel.hpp
             include/sfc_integration/sfc_grid_side_measurements_runner.hpp
+            include/sfc_integration/sfc_grid_side_modulator_datamodel.hpp
+            include/sfc_integration/sfc_grid_side_observer_runner.hpp
+            include/sfc_integration/sfc_grid_side_observer_datamodel.hpp
             include/sfc_integration/sfc_machine_side_measurements_datamodel.hpp
             include/sfc_integration/sfc_machine_side_measurements_runner.hpp
+            include/sfc_integration/sfc_machine_side_modulator_datamodel.hpp
             include/sfc_integration/sfc_machine_side_observer_datamodel.hpp
             include/sfc_integration/sfc_machine_side_observer_runner.hpp
+            include/sfc_integration/sfc_plant_model_datamodel.hpp
             include/sfc_integration/sfc_plant_model_runner.hpp
-            include/sfc_integration/sfc_grid_side_observer_datamodel.hpp
-            include/sfc_integration/sfc_grid_side_observer_runner.hpp
-    PUBLIC src/sfc_grid_observer_runner.cpp
-           src/sfc_current_controller_runner.cpp
-           src/sfc_speed_controller_runner.cpp
+            include/sfc_integration/sfc_speed_controller_datamodel.hpp
+            include/sfc_integration/sfc_speed_controller_runner.hpp
+    PUBLIC src/sfc_current_controller_runner.cpp
            src/sfc_dc_link_measurements_runner.cpp
            src/sfc_grid_side_measurements_runner.cpp
+           src/sfc_grid_side_observer_runner.cpp
            src/sfc_machine_side_measurements_runner.cpp
            src/sfc_machine_side_observer_runner.cpp
-           src/sfc_grid_side_observer_runner.cpp
-           src/sfc_plant_model_runner.cpp)
+           src/sfc_plant_model_runner.cpp
+           src/sfc_speed_controller_runner.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
