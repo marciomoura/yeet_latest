@@ -150,6 +150,7 @@ add_subdirectory(software/yeet_application/mpc_integration)
 
 # Build the SFC application
 add_subdirectory(software/yeet_application/sfc)
+add_subdirectory(software/yeet_application/sfc_integration)
 
 # Add generated plant models
 add_subdirectory(software/yeet_generated/synchronous_machine_infinite_bus)
@@ -163,6 +164,7 @@ if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet_application/mpc_integration/tests)
     add_subdirectory(software/yeet_application/sfc/tests/unit)
     add_subdirectory(software/yeet_application/sfc/tests/integration)
+    add_subdirectory(software/yeet_application/sfc_integration/tests)
 endif()
 
 if(YEET_CODE_COVERAGE)
