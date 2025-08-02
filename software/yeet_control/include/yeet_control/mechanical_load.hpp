@@ -33,16 +33,16 @@ public:
 
     /**
      * @brief Configures the per-unit mechanical parameters of the load.
-     * @param inertia_constant_seconds The inertia constant (H) [s]. Must be positive.
-     * @param damping_factor_pu The per-unit damping factor (D) [pu]. Must be non-negative.
+     * @param inertia_constant The inertia constant (H). Must be positive.
+     * @param damping_factor The per-unit damping factor (D). Must be non-negative.
      */
     void configure(inertia_constant_t inertia_constant_seconds, damping_coefficient_pu_t damping_factor_pu);
 
     /**
      * @brief Executes one simulation step of the mechanical load.
-     * @param electromagnetic_torque_pu The input electromagnetic torque [pu].
-     * @param load_torque_pu The external load torque [pu] (optional, defaults to 0).
-     * @return The updated mechanical speed [pu].
+     * @param electromagnetic_torque The input electromagnetic torque.
+     * @param load_torque The external load torque (optional, defaults to 0).
+     * @return The updated mechanical speed.
      */
     speed_pu_t update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque_pu = torque_pu_t{0.0});
 
@@ -54,7 +54,7 @@ public:
 
     /**
      * @brief Gets the current mechanical speed.
-     * @return The mechanical speed [pu].
+     * @return The mechanical speed.
      */
     speed_pu_t get_speed_pu() const noexcept;
 

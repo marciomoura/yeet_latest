@@ -4,6 +4,7 @@
 
 using namespace yeet;
 using namespace yeet::control;
+using namespace yeet;
 
 namespace {
 
