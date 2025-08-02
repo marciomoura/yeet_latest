@@ -1,9 +1,11 @@
 #pragma once
 
 #include "sfc/sfc_types.hpp"
-#include "yeet/signal.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/signal.hpp"
+#include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
+
 
 namespace yeet::application::sfc {
 
@@ -11,7 +13,7 @@ namespace yeet::application::sfc {
 class sfc_grid_observer_datamodel {
 public:
     struct inputs {
-        yeet::signal_input<abc<voltage_pu_t>> grid_voltages;
+        yeet::signal_input<yeet::abc<voltage_pu_t>> grid_voltages;
         yeet::signal_input<bool> enable;
     };
 
@@ -121,10 +123,10 @@ public:
     };
 
     struct outputs {
-        yeet::signal_output<abc<voltage_pu_t>> grid_voltages;
-        yeet::signal_output<abc<voltage_pu_t>> machine_voltages;
-        yeet::signal_output<abc<current_t>> grid_currents;
-        yeet::signal_output<abc<current_t>> machine_currents;
+        yeet::signal_output<yeet::abc<voltage_pu_t>> grid_voltages;
+        yeet::signal_output<yeet::abc<voltage_pu_t>> machine_voltages;
+        yeet::signal_output<yeet::abc<current_t>> grid_currents;
+        yeet::signal_output<yeet::abc<current_t>> machine_currents;
         yeet::signal_output<current_pu_t> dc_link_current;
         yeet::signal_output<voltage_pu_t> dc_link_voltage;
         yeet::signal_output<speed_pu_t> rotor_speed;

@@ -1,216 +1,146 @@
 #pragma once
 
+#include "yeet/model_registry.hpp"
+#include "yeet/parameter.hpp"
+#include "yeet/signal.hpp"
+#include "yeet_control/reference_frame.hpp"
+#include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/units.hpp"
+
+
 /**
  * @file sfc_grid_side_observer_datamodel.hpp
  * @brief Datamodel specification for SFC Grid-Side Observer component
  *
  * This file defines the interface contract for the SFC Grid-Side Observer component
- * following the yeet framework datamodel pattern. The datamodel specifies:
- *
- * 1. Input signal types and their meanings
- * 2. Output signal types and their meanings
- * 3. Configuration parameters and their default values
- * 4. Component interface expectations
- *
- * This datamodel should be used by:
- * - Integration test frameworks for signal connection verification
- * - Auto-generation tools for creating wrapper classes
- * - Documentation systems for API specification
- * - Runtime introspection and debugging tools
+ * following the yeet framework datamodel pattern with proper unit types.
  */
 
 namespace yeet::application::sfc::integration {
 
-/**
- * @brief Datamodel for the SFC grid-side observer component.
- *
- * This datamodel defines the complete interface contract for the grid-side observer
- * which estimates the grid angle, frequency, voltage magnitude, and detects commutation.
- * It integrates a Phase-Locked Loop (PLL) and commutation monitor.
- *
- * Component Purpose:
- * The grid-side observer provides essential grid state estimation for the LCI control system.
- * It performs the following key functions:
- * - Grid angle estimation via PLL for synchronization
- * - Grid frequency tracking for adaptive control
- * - Voltage magnitude estimation for voltage regulation
- * - Commutation event detection for protection and timing
- * - PLL lock status monitoring for system health
- *
- * Real-time Performance Requirements:
- * - Update rate: Typically 10 kHz (100 μs)
- * - PLL bandwidth: 10-50 Hz for grid frequency tracking
- * - Commutation detection latency: < 50 μs
- * - Lock detection time: < 100 ms at startup
- */
 class sfc_grid_side_observer_datamodel {
 public:
     /**
-     * @brief INPUT INTERFACE
-     *
-     * Input signals required by the grid-side observer component.
-     * These match the expected update() method signature:
-     *
-     * void update(const abc<voltage_pu_t>& grid_voltage_pu,
-     *             const six_pulse_generator::pulses& grid_side_pulses);
+     * @brief Input signals for the grid-side observer component
      */
-    struct input_interface {
+    struct inputs {
         /// Three-phase grid voltage measurements in per-unit (grid-side base)
-        /// Type: abc<voltage_pu_t>
         /// Range: [0.8, 1.2] pu under normal operating conditions
-        /// Frequency: Grid fundamental frequency (50/60 Hz) plus harmonics
-        /// Usage: Primary input for PLL angle estimation and voltage magnitude calculation
-        using grid_voltage_pu = void;  // abc<voltage_pu_t>
+        yeet::signal_input<yeet::abc<yeet::voltage_pu_t>> grid_voltage_pu;
 
         /// Grid-side converter firing pulses for commutation detection
-        /// Type: six_pulse_generator::pulses (std::array<bool, 6>)
-        /// Usage: Enables commutation event detection and timing analysis
-        /// Note: Each element represents one thyristor gate signal (true = firing)
-        using grid_side_pulses = void;  // six_pulse_generator::pulses
+        /// Type: six thyristor gate signals (true = firing)
+        yeet::signal_input<yeet::control::six_pulse_generator::pulses> grid_side_pulses;
     };
 
     /**
-     * @brief OUTPUT INTERFACE
-     *
-     * Output signals provided by the grid-side observer component.
-     * These match the expected getter method signatures:
+     * @brief Output signals from the grid-side observer component
      */
-    struct output_interface {
+    struct outputs {
         /// Estimated grid voltage angle (electrical)
-        /// Type: angle_t
         /// Range: [0, 2π] radians
-        /// Accuracy: ±0.01 rad under normal grid conditions
-        /// Method: angle_t get_estimated_angle() const;
-        using estimated_angle = void;  // angle_t
+        yeet::signal_output<yeet::angle_t> estimated_angle;
 
         /// Estimated grid frequency (absolute)
-        /// Type: frequency_t
-        /// Range: [45, 65] Hz for 50 Hz systems, [55, 75] Hz for 60 Hz systems
-        /// Accuracy: ±0.1 Hz under normal conditions
-        /// Method: frequency_t get_estimated_frequency() const;
-        using estimated_frequency = void;  // frequency_t
+        /// Range: [45, 65] Hz for 50 Hz systems
+        yeet::signal_output<yeet::frequency_t> estimated_frequency;
 
         /// Estimated grid frequency in per-unit
-        /// Type: frequency_pu_t
         /// Range: [0.9, 1.3] pu
-        /// Method: frequency_pu_t get_estimated_frequency_pu() const;
-        using estimated_frequency_pu = void;  // frequency_pu_t
+        yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
 
         /// Estimated positive-sequence voltage magnitude
-        /// Type: voltage_pu_t
         /// Range: [0.8, 1.2] pu under normal conditions
-        /// Method: voltage_pu_t get_estimated_voltage_magnitude() const;
-        using estimated_voltage_magnitude = void;  // voltage_pu_t
+        yeet::signal_output<yeet::voltage_pu_t> estimated_voltage_magnitude;
 
         /// Filtered grid voltage in alpha-beta stationary frame
-        /// Type: alphabeta<voltage_pu_t>
-        /// Usage: Provides clean voltage signals for downstream control
-        /// Method: alphabeta<voltage_pu_t> get_filtered_voltage_alphabeta() const;
-        using filtered_voltage_alphabeta = void;  // alphabeta<voltage_pu_t>
+        /// Provides clean voltage signals for downstream control
+        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
 
         /// Commutation detection status
-        /// Type: bool
-        /// Usage: Indicates when grid-side converter commutation is occurring
-        /// Method: bool is_commuting() const;
-        using is_commuting = void;  // bool
+        /// Indicates when grid-side converter commutation is occurring
+        yeet::signal_output<bool> is_commuting;
 
         /// PLL lock status indication
-        /// Type: bool
-        /// Usage: Indicates whether PLL has achieved frequency lock
-        /// Method: bool is_locked() const;
-        using is_locked = void;  // bool
+        /// Indicates whether PLL has achieved frequency lock
+        yeet::signal_output<bool> is_locked;
     };
 
     /**
-     * @brief PARAMETER INTERFACE
-     *
-     * Configuration parameters for the grid-side observer component.
-     * These match the expected configuration method signatures:
+     * @brief Configuration parameters for the grid-side observer component
      */
-    struct parameter_interface {
+    struct parameters {
         /// PLL proportional gain for frequency tracking
-        /// Type: frequency_t
-        /// Default: 200.0 Hz
         /// Range: [50, 500] Hz
-        /// Method: void configure_pll_gains(frequency_t kp, frequency_t ki);
-        using pll_proportional_gain = void;  // frequency_t, default 200.0
+        yeet::parameter<yeet::frequency_t> pll_proportional_gain = yeet::frequency_t(200.0);
 
         /// PLL integral gain for steady-state accuracy
-        /// Type: frequency_t
-        /// Default: 40000.0 Hz
         /// Range: [10000, 100000] Hz
-        /// Method: void configure_pll_gains(frequency_t kp, frequency_t ki);
-        using pll_integral_gain = void;  // frequency_t, default 40000.0
+        yeet::parameter<yeet::frequency_t> pll_integral_gain = yeet::frequency_t(40000.0);
 
         /// Nominal grid frequency for initialization
-        /// Type: frequency_t
-        /// Default: 50.0 Hz
         /// Range: [50, 60] Hz
-        /// Method: void configure_nominal_frequency(frequency_t f_nominal);
-        using grid_nominal_frequency = void;  // frequency_t, default 50.0
+        yeet::parameter<yeet::frequency_t> grid_nominal_frequency = yeet::frequency_t(50.0);
 
         /// Voltage threshold for commutation detection
-        /// Type: voltage_pu_t
-        /// Default: 0.1 pu
         /// Range: [0.05, 0.3] pu
-        /// Method: void configure_commutation_detection(voltage_pu_t threshold, duration_t time_window);
-        using commutation_detection_threshold = void;  // voltage_pu_t, default 0.1
+        yeet::parameter<yeet::voltage_pu_t> commutation_detection_threshold = yeet::voltage_pu_t(0.1);
 
         /// Time window for commutation event detection
-        /// Type: duration_t
-        /// Default: 0.001 s (1 ms)
         /// Range: [0.0005, 0.005] s
-        /// Method: void configure_commutation_detection(voltage_pu_t threshold, duration_t time_window);
-        using commutation_detection_time_window = void;  // duration_t, default 0.001
+        yeet::parameter<yeet::duration_t> commutation_detection_time_window = yeet::duration_t(0.001);
 
         /// Frequency error threshold for PLL lock detection
-        /// Type: voltage_pu_t
-        /// Default: 0.05 pu
         /// Range: [0.01, 0.1] pu
-        /// Method: void configure_lock_detection(voltage_pu_t threshold, duration_t time_window);
-        using lock_detection_threshold = void;  // voltage_pu_t, default 0.05
+        yeet::parameter<yeet::voltage_pu_t> lock_detection_threshold = yeet::voltage_pu_t(0.05);
 
         /// Time window for PLL lock verification
-        /// Type: duration_t
-        /// Default: 0.1 s (100 ms)
         /// Range: [0.05, 0.5] s
-        /// Method: void configure_lock_detection(voltage_pu_t threshold, duration_t time_window);
-        using lock_detection_time_window = void;  // duration_t, default 0.1
+        yeet::parameter<yeet::duration_t> lock_detection_time_window = yeet::duration_t(0.1);
     };
 
-    /**
-     * @brief COMPONENT INTERFACE CONTRACT
-     *
-     * The implementing sfc_grid_side_observer class must provide these methods:
-     *
-     * Core Update Method:
-     *   void update(const abc<voltage_pu_t>& grid_voltage_pu,
-     *               const six_pulse_generator::pulses& grid_side_pulses);
-     *
-     * Configuration Methods:
-     *   void configure_pll_gains(frequency_t kp, frequency_t ki);
-     *   void configure_nominal_frequency(frequency_t f_nominal);
-     *   void configure_commutation_detection(voltage_pu_t threshold, duration_t time_window);
-     *   void configure_lock_detection(voltage_pu_t threshold, duration_t time_window);
-     *
-     * Output Getter Methods:
-     *   angle_t get_estimated_angle() const;
-     *   frequency_t get_estimated_frequency() const;
-     *   frequency_pu_t get_estimated_frequency_pu() const;
-     *   voltage_pu_t get_estimated_voltage_magnitude() const;
-     *   alphabeta<voltage_pu_t> get_filtered_voltage_alphabeta() const;
-     *   bool is_commuting() const;
-     *   bool is_locked() const;
-     *
-     * State Management Methods:
-     *   void reset();
-     *
-     * Architectural Compliance:
-     * - Memory: No dynamic allocation during runtime (real-time safety)
-     * - Timing: Deterministic execution time < 10 μs per update
-     * - Thread Safety: Not required (single-threaded real-time context)
-     * - Error Handling: Fail-safe operation under input signal loss
-     */
+private:
+    inputs* _model_inputs;
+    outputs* _model_outputs;
+    parameters* _model_parameters;
+
+public:
+    sfc_grid_side_observer_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        assert(_model_inputs != nullptr);
+        assert(_model_outputs != nullptr);
+        assert(_model_parameters != nullptr);
+    }
+
+    void register_data_model(yeet::model_registry& registry) {
+        yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
+
+        // Register outputs in signal registry
+        entry.signal_registry.insert("estimated_angle", _model_outputs->estimated_angle);
+        entry.signal_registry.insert("estimated_frequency", _model_outputs->estimated_frequency);
+        entry.signal_registry.insert("estimated_frequency_pu", _model_outputs->estimated_frequency_pu);
+        entry.signal_registry.insert("estimated_voltage_magnitude", _model_outputs->estimated_voltage_magnitude);
+        entry.signal_registry.insert("filtered_voltage_alphabeta", _model_outputs->filtered_voltage_alphabeta);
+        entry.signal_registry.insert("is_commuting", _model_outputs->is_commuting);
+        entry.signal_registry.insert("is_locked", _model_outputs->is_locked);
+
+        // Register parameters in parameter registry
+        entry.parameter_registry.insert("pll_proportional_gain", _model_parameters->pll_proportional_gain);
+        entry.parameter_registry.insert("pll_integral_gain", _model_parameters->pll_integral_gain);
+        entry.parameter_registry.insert("grid_nominal_frequency", _model_parameters->grid_nominal_frequency);
+        entry.parameter_registry.insert("commutation_detection_threshold",
+                                        _model_parameters->commutation_detection_threshold);
+        entry.parameter_registry.insert("commutation_detection_time_window",
+                                        _model_parameters->commutation_detection_time_window);
+        entry.parameter_registry.insert("lock_detection_threshold", _model_parameters->lock_detection_threshold);
+        entry.parameter_registry.insert("lock_detection_time_window", _model_parameters->lock_detection_time_window);
+
+        registry.insert("sfc_grid_side_observer", std::move(entry));
+    }
+
+    inputs* get_inputs() { return _model_inputs; }
+    outputs* get_outputs() { return _model_outputs; }
+    parameters* get_parameters() { return _model_parameters; }
 };
 
 }  // namespace yeet::application::sfc::integration
