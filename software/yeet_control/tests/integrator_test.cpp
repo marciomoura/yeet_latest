@@ -68,9 +68,9 @@ TEST(IntegratorTest, AngleWrappingTest)
         angle_integrator.update(angular_velocity);
     }
 
-    auto integrated_angle = angle_integrator.get_output();  // Should be approximately 2π * 50
+    auto integrated_angle = angle_integrator.get_output();  // Will wrap 2π to zero
     angle_wrapped angle_2pi(integrated_angle);
-    EXPECT_NEAR(angle_2pi.get_radians(), 2.0 * pi, 1e-6);
+    EXPECT_NEAR(angle_2pi.get_radians(), 0.0f, 1e-6);
     EXPECT_NEAR((angle_2pi + angle_t{1e-8}).get_radians(), 0.0f, 1e-6);  // Wrapping around 2π and zero
 
     // Now simulate a non-integer number of rotations.
