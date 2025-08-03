@@ -16,7 +16,7 @@
 #include "sfc_per_unit_system.hpp"
 #include "sfc_plant_model_simulator.hpp"
 #include "sfc_speed_controller.hpp"
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -28,9 +28,8 @@ namespace yeet::application::sfc {
 // This object is owned by the test fixture to guarantee its lifetime.
 struct sfc_pulse_generator_conduit {
     bool enable = true;
-    angle<zero_to_two_pi> grid_firing_angle_rad = deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
-    angle<zero_to_two_pi> machine_firing_angle_rad =
-        deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg);
+    angle_wrapped grid_firing_angle_rad = deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
+    angle_wrapped machine_firing_angle_rad = deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg);
 
     current_pu_t current_ref_pu{};
     current_pu_t measured_current_pu{};
@@ -45,8 +44,8 @@ public:
         duration_t sampling_time,
         sfc_6p_6p_plant_model& model,
         sfc_simulator_pulse_generators& pulse_generator,
-        const angle<::zero_to_two_pi>& grid_firing_angle,
-        const angle<::zero_to_two_pi>& machine_firing_angle,
+        const angle_wrapped& grid_firing_angle,
+        const angle_wrapped& machine_firing_angle,
         const bool& enable)
     {
         simulator.register_lambda_runner(
@@ -57,10 +56,10 @@ public:
         duration_t sampling_time,
         sfc_6p_6p_plant_model& model,
         sfc_simulator_pulse_generators& pulse_generator,
-        const angle<::zero_to_two_pi>& grid_reference_frame,
-        const angle<::zero_to_two_pi>& grid_firing_angle,
-        const angle<::zero_to_two_pi>& machine_reference_frame,
-        const angle<::zero_to_two_pi>& machine_firing_angle,
+        const angle_wrapped& grid_reference_frame,
+        const angle_wrapped& grid_firing_angle,
+        const angle_wrapped& machine_reference_frame,
+        const angle_wrapped& machine_firing_angle,
         const bool& enable)
     {
         simulator.register_lambda_runner(sampling_time, [&]() {
@@ -70,8 +69,8 @@ public:
     }
 
     void update(sfc_6p_6p_plant_model& model,
-        const angle<::zero_to_two_pi>& grid_firing_angle,
-        const angle<::zero_to_two_pi>& machine_firing_angle,
+        const angle_wrapped& grid_firing_angle,
+        const angle_wrapped& machine_firing_angle,
         bool enable)
     {
         update(model, model.get_grid_voltage_source_angle(), grid_firing_angle,
@@ -79,10 +78,10 @@ public:
     }
 
     void update(sfc_6p_6p_plant_model& model,
-        const angle<::zero_to_two_pi>& grid_reference_angle,
-        const angle<::zero_to_two_pi>& grid_firing_angle,
-        const angle<::zero_to_two_pi>& machine_reference_angle,
-        const angle<::zero_to_two_pi>& machine_firing_angle,
+        const angle_wrapped& grid_reference_angle,
+        const angle_wrapped& grid_firing_angle,
+        const angle_wrapped& machine_reference_angle,
+        const angle_wrapped& machine_firing_angle,
         bool enable)
     {
         control::six_pulse_generator::pulses const grid_pulses =
@@ -244,7 +243,7 @@ public:
 
             // Get the firing angle output and update the conduit
             const angle_t firing_angle_radians = controller.current_controller.get_firing_angle_reference_radians();
-            conduit.grid_firing_angle_rad = angle<zero_to_two_pi>::from_radians(firing_angle_radians.value());
+            conduit.grid_firing_angle_rad = angle_wrapped::from_radians(firing_angle_radians);
 
             // Update measured current in conduit for other controllers
             conduit.measured_current_pu = measured_current_pu;
@@ -287,7 +286,7 @@ public:
         sfc_pulse_generator_conduit& conduit)
     {
         simulator.register_lambda_runner(sampling_time, [&]() {
-            angle<zero_to_two_pi> machine_firing_angle_rad = angle<zero_to_two_pi>::from_degrees(
+            angle_wrapped machine_firing_angle_rad = angle_wrapped::from_degrees(
                 lookup.lookup_table.get_firing_angle_deg(conduit.measured_speed_pu, conduit.measured_current_pu));
 
             conduit.machine_firing_angle_rad = machine_firing_angle_rad;

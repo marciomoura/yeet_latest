@@ -3,7 +3,7 @@
 #include <array>
 #include <memory>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
@@ -138,13 +138,13 @@ public:
      * @brief Gets the angle of the grid-side voltage source.
      * @return The angle, wrapped between 0 and 2*pi.
      */
-    angle<zero_to_two_pi> get_grid_voltage_source_angle() const;
+    angle_wrapped get_grid_voltage_source_angle() const;
 
     /**
      * @brief Gets the angle of the machine-side voltage source.
      * @return The angle, wrapped between 0 and 2*pi.
      */
-    angle<zero_to_two_pi> get_machine_voltage_source_angle() const;
+    angle_wrapped get_machine_voltage_source_angle() const;
 
     /**
      * @brief Gets the DC link current.

@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
 #include "yeet_control/types.hpp"
@@ -33,7 +33,8 @@ public:
     frequency_t sogi_input_frequency = nominal_frequency;
     voltage_pu_t sogi_input_dc_value = voltage_pu_t{0};
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Configure the three-phase waveform generator for reference signal generation
         waveform_generator.set_fundamental_positive_sequence_signal_amplitude(real_t{1.0});
         waveform_generator.set_fundamental_negative_sequence_signal_amplitude(real_t{0.0});
@@ -47,7 +48,7 @@ public:
 
             abc<real_t> const signal = waveform_generator.get_signal_abc();
             auto const sogi_signal_input = alphabeta<voltage_pu_t>{voltage_pu_t{signal.to_alphabeta().alpha()},
-                                                                   voltage_pu_t{signal.to_alphabeta().beta()}} +
+                                               voltage_pu_t{signal.to_alphabeta().beta()}} +
                                            alphabeta<voltage_pu_t>{sogi_input_dc_value, sogi_input_dc_value};
             angular_frequency_t const sogi_omega = two_pi * sogi_input_frequency;
 
@@ -56,21 +57,22 @@ public:
         });
     }
 
-    voltage_pu_t get_positive_sequence_extraction_error_magnitude() const {
+    voltage_pu_t get_positive_sequence_extraction_error_magnitude() const
+    {
         // Calculate the magnitude of error between reference positive sequence and extracted sequence
         alphabeta<real_t> const reference_positive_sequence =
             waveform_generator.get_fundamental_positive_sequence_signal_abc().to_alphabeta();
         alphabeta<voltage_pu_t> const extracted_positive_sequence = sogi_filter.get_positive_sequence();
 
-        alphabeta<voltage_pu_t> const error =
-            alphabeta<voltage_pu_t>{voltage_pu_t{reference_positive_sequence.alpha()},
-                                    voltage_pu_t{reference_positive_sequence.beta()}} -
-            extracted_positive_sequence;
+        alphabeta<voltage_pu_t> const error = alphabeta<voltage_pu_t>{voltage_pu_t{reference_positive_sequence.alpha()},
+                                                  voltage_pu_t{reference_positive_sequence.beta()}} -
+                                              extracted_positive_sequence;
         return error.magnitude();
     }
 
 private:
-    void set_logger() {
+    void set_logger()
+    {
         // Log time
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "time", [&]() -> double { return simulator.get_current_simulation_time(); }));
@@ -80,18 +82,18 @@ private:
             "waveform generator", [&]() -> alphabeta<> { return waveform_generator.get_signal_abc().to_alphabeta(); }));
 
         // Log extracted positive sequence
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
-            "sogi filter positive sequence",
-            [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_positive_sequence(); }));
+        simulator.register_sampler_entry(
+            yeet::testing::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("sogi filter positive sequence",
+                [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_positive_sequence(); }));
 
         // Log DC offset estimates
         simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
             "sogi filter dc offset", [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_dc_offset(); }));
 
         // Log extraction errors
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<voltage_pu_t>(
-            "positive sequence extraction error magnitude",
-            [&]() -> voltage_pu_t { return get_positive_sequence_extraction_error_magnitude(); }));
+        simulator.register_sampler_entry(
+            yeet::testing::make_lambda_sampler<voltage_pu_t>("positive sequence extraction error magnitude",
+                [&]() -> voltage_pu_t { return get_positive_sequence_extraction_error_magnitude(); }));
 
         // Log individual SOGI outputs for diagnostics
         simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
@@ -102,7 +104,8 @@ private:
     }
 };
 
-TEST_F(SogiFilterSequenceExtractorTest, NominalPositiveSequenceExtraction) {
+TEST_F(SogiFilterSequenceExtractorTest, NominalPositiveSequenceExtraction)
+{
     // 1. Positive sequence extraction accuracy after settling
     simulator.register_checker(yeet::testing::make_range_checker<voltage_pu_t>(
         "positive sequence extraction error",
@@ -121,7 +124,8 @@ TEST_F(SogiFilterSequenceExtractorTest, NominalPositiveSequenceExtraction) {
     EXPECT_TRUE(simulator.simulate_for(1.0));
 }
 
-TEST_F(SogiFilterSequenceExtractorTest, NegativeSequenceRejection) {
+TEST_F(SogiFilterSequenceExtractorTest, NegativeSequenceRejection)
+{
     // Add 20% negative sequence component to test rejection capability
     waveform_generator.set_fundamental_negative_sequence_signal_amplitude(real_t{0.2});
 
@@ -148,7 +152,8 @@ TEST_F(SogiFilterSequenceExtractorTest, NegativeSequenceRejection) {
     EXPECT_TRUE(simulator.simulate_for(1.0));
 }
 
-TEST_F(SogiFilterSequenceExtractorTest, AmplitudeStepResponse) {
+TEST_F(SogiFilterSequenceExtractorTest, AmplitudeStepResponse)
+{
     waveform_generator.set_amplitude_step(real_t{0.2}, 0.5);  // Step to 20% amplitude at t=0.5s
 
     // 1. Before amplitude step, should track nominal amplitude
@@ -179,7 +184,8 @@ TEST_F(SogiFilterSequenceExtractorTest, AmplitudeStepResponse) {
     EXPECT_TRUE(simulator.simulate_for(1.0));
 }
 
-TEST_F(SogiFilterSequenceExtractorTest, FrequencyStepResponse) {
+TEST_F(SogiFilterSequenceExtractorTest, FrequencyStepResponse)
+{
     waveform_generator.set_frequency_step(real_t{5.0}, 0.5);  // Step to 55 Hz at t=0.5s
 
     // Update SOGI frequency tracking to match the step
@@ -219,7 +225,8 @@ TEST_F(SogiFilterSequenceExtractorTest, FrequencyStepResponse) {
     EXPECT_TRUE(simulator.simulate_for(1.0));
 }
 
-TEST_F(SogiFilterSequenceExtractorTest, FrequencyMismatchBehavior) {
+TEST_F(SogiFilterSequenceExtractorTest, FrequencyMismatchBehavior)
+{
     // Test behavior when SOGI frequency doesn't match signal frequency
     sogi_input_frequency = frequency_t{52.0};  // 2 Hz mismatch
 
@@ -248,7 +255,8 @@ TEST_F(SogiFilterSequenceExtractorTest, FrequencyMismatchBehavior) {
     EXPECT_TRUE(simulator.simulate_for(1.0));
 }
 
-TEST_F(SogiFilterSequenceExtractorTest, DCOffsetRejection) {
+TEST_F(SogiFilterSequenceExtractorTest, DCOffsetRejection)
+{
     // Test DC offset rejection on both alpha and beta components
 
     // 1. Initially, DC offsets should be near zero

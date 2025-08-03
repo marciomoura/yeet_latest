@@ -17,7 +17,7 @@ Type-safe dimensional analysis framework for scientific and engineering computat
 #### **Angle Class**
 Type-safe angle representation with automatic wrapping for control applications.
 - **Features**: Configurable ranges (-π to π, 0 to 2π), arithmetic operations, unit conversions
-- **File**: `yeet_control/angle.hpp`
+- **File**: `yeet_control/angle_wrapped.hpp`
 - **Applications**: Phase angle tracking, firing angle control, synchronization
 
 #### **Coordinate Frame Types**

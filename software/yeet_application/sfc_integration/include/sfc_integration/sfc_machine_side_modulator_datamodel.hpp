@@ -27,11 +27,11 @@ public:
 
         /// Rotor electrical position
         /// Range: [0.0, 2π] radians
-        signal_input<angle<zero_to_two_pi>> rotor_position_electrical;
+        signal_input<angle_wrapped> rotor_position_electrical;
 
         /// Firing angle from lookup table
         /// Range: [0.0, π] radians
-        signal_input<angle<zero_to_two_pi>> lookup_table_firing_angle;
+        signal_input<angle_wrapped> lookup_table_firing_angle;
 
         /// DC link current for advance angle calculation
         /// Range: [-1.5, 1.5] pu
@@ -47,7 +47,7 @@ public:
     struct outputs {
         /// Final calculated firing angle
         /// Range: [0.0, π] radians
-        signal_output<angle<zero_to_two_pi>> firing_angle;
+        signal_output<angle_wrapped> firing_angle;
 
         /// Six-pulse firing signals for machine-side thyristors
         signal_output<control::six_pulse_generator::pulses> firing_pulses;
@@ -57,11 +57,11 @@ public:
 
         /// Pulse mode firing angle (diagnostic)
         /// Range: [π/4, π/2] radians
-        signal_output<angle<zero_to_two_pi>> pulse_mode_firing_angle;
+        signal_output<angle_wrapped> pulse_mode_firing_angle;
 
         /// Advance angle compensation
         /// Range: [0.0, π/6] radians
-        signal_output<angle<zero_to_two_pi>> advance_angle;
+        signal_output<angle_wrapped> advance_angle;
 
         /// Modulator enabled status
         signal_output<bool> is_enabled;
@@ -70,7 +70,7 @@ public:
         signal_output<bool> has_commutation_failure;
 
         /// Next firing position prediction
-        signal_output<angle<zero_to_two_pi>> next_firing_position;
+        signal_output<angle_wrapped> next_firing_position;
     };
 
     /**
@@ -79,7 +79,7 @@ public:
     struct parameters {
         /// Fixed firing angle for pulse mode operation
         /// Range: [π/4, π/2] radians
-        parameter<angle<zero_to_two_pi>> pulse_mode_firing_angle = angle<zero_to_two_pi>(1.5708);  // π/2 = 90°
+        parameter<angle_wrapped> pulse_mode_firing_angle = angle_wrapped(1.5708);  // π/2 = 90°
 
         /// Current threshold for advance angle activation
         /// Range: [0.1, 0.5] pu
@@ -87,11 +87,11 @@ public:
 
         /// Maximum advance angle compensation
         /// Range: [0.0, π/6] radians
-        parameter<angle<zero_to_two_pi>> max_advance_angle = angle<zero_to_two_pi>(0.5236);  // π/6 = 30°
+        parameter<angle_wrapped> max_advance_angle = angle_wrapped(0.5236);  // π/6 = 30°
 
         /// Firing pulse width
         /// Range: [π/36, π/6] radians
-        parameter<angle<zero_to_two_pi>> firing_pulse_width = angle<zero_to_two_pi>(0.1745);  // π/18 = 10°
+        parameter<angle_wrapped> firing_pulse_width = angle_wrapped(0.1745);  // π/18 = 10°
 
         /// Commutation failure timeout
         /// Range: [0.001, 0.01] s
@@ -99,11 +99,11 @@ public:
 
         /// Minimum firing angle limit
         /// Range: [0.0, π/6] radians
-        parameter<angle<zero_to_two_pi>> min_firing_angle = angle<zero_to_two_pi>(0.0);
+        parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
         /// Maximum firing angle limit
         /// Range: [2π/3, π] radians
-        parameter<angle<zero_to_two_pi>> max_firing_angle = angle<zero_to_two_pi>(3.1416);  // π = 180°
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped(3.1416);  // π = 180°
     };
 
 private:
@@ -113,13 +113,15 @@ private:
 
 public:
     sfc_machine_side_modulator_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
+    void register_data_model(model_registry& registry)
+    {
         // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // // Register outputs in signal registry

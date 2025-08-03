@@ -12,14 +12,15 @@
 #include <iomanip>
 #include <iostream>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/three_phase_pll.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
 
 using namespace yeet::control;
 
-void print_header() {
+void print_header()
+{
     std::cout << std::setw(8) << "Time[s]" << std::setw(12) << "Input_Freq" << std::setw(12) << "Est_Freq"
               << std::setw(12) << "Freq_Error" << std::setw(12) << "Phase[deg]" << std::setw(12) << "Q_Error"
               << std::setw(8) << "Locked" << std::endl;
@@ -27,7 +28,8 @@ void print_header() {
     std::cout << std::string(80, '-') << std::endl;
 }
 
-void print_data(double time, double input_freq, const three_phase_pll<>::Outputs& pll_output, bool is_locked) {
+void print_data(double time, double input_freq, const three_phase_pll<>::Outputs& pll_output, bool is_locked)
+{
     double freq_error = pll_output.estimated_frequency - input_freq;
     double phase_deg = pll_output.estimated_angle.get_degrees();
 
@@ -37,7 +39,8 @@ void print_data(double time, double input_freq, const three_phase_pll<>::Outputs
               << std::endl;
 }
 
-int main() {
+int main()
+{
     std::cout << "=== Three-Phase PLL Demonstration ===" << std::endl;
     std::cout << std::endl;
 

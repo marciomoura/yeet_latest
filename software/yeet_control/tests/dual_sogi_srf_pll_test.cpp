@@ -3,11 +3,12 @@
 
 #include <gtest/gtest.h>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
 #include "yeet_control/types.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
@@ -31,13 +32,14 @@ protected:
     real_t pll_input_dc_value = {};
     alphabeta<voltage_pu_t> pll_input{};
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Configure PLL for testing
         pll.configure_nominal_frequency(kNominalFrequency);
         pll.configure_pi_controller(real_t{0.2}, duration_t{0.05});
         pll.configure_frequency_limits(frequency_t{10.0f}, frequency_t{100.0f});
         pll.configure_sequence_extractor(1.414, duration_t{1.0 / 50.0},
-                                         true);  // SOGI gain and DC rejection time constant
+            true);  // SOGI gain and DC rejection time constant
         pll.reset();
 
         // Configure the three-phase waveform generator for reference signal generation
@@ -54,42 +56,42 @@ protected:
             abc<double> const signal = waveform_generator.get_signal_abc();
             alphabeta<double> signal_ab = signal.to_alphabeta();
             pll_input = alphabeta<voltage_pu_t>{voltage_pu_t{signal_ab.alpha() + pll_input_dc_value},
-                                                voltage_pu_t{signal_ab.beta() + pll_input_dc_value}};
+                voltage_pu_t{signal_ab.beta() + pll_input_dc_value}};
 
             // Update PLL with the reference signal
             pll.update(pll_input);
         });
     }
 
-    real_t get_estimation_error_magnitude() const {
+    real_t get_estimation_error_magnitude() const
+    {
         // Calculate the magnitude of the error between the estimated and actual signal
         alphabeta<voltage_pu_t> estimated_signal = pll.get_positive_sequence();
         alphabeta<double> reference_signal = waveform_generator.get_signal_abc().to_alphabeta();
 
         alphabeta<real_t> error = alphabeta<real_t>{reference_signal.alpha() - estimated_signal.alpha().value(),
-                                                    reference_signal.beta() - estimated_signal.beta().value()};
+            reference_signal.beta() - estimated_signal.beta().value()};
         return std::sqrt(error.alpha() * error.alpha() + error.beta() * error.beta());
     }
 
-    void set_logger() {
+    void set_logger()
+    {
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "time", [&]() -> double { return simulator.get_current_simulation_time(); }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<>>(
             "waveform generator", [&]() -> alphabeta<> { return waveform_generator.get_signal_abc().to_alphabeta(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle<zero_to_two_pi>>(
-            "waveform angle pu",
-            [&]() -> angle<zero_to_two_pi> { return waveform_generator.get_fundamental_signal_angle().a().get_pu(); }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle_pu_t>(
+            "waveform angle pu", [&]() { return waveform_generator.get_fundamental_signal_angle().a().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
-            "waveform frequency",
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>("waveform frequency",
             [&]() -> real_t { return waveform_generator.get_signal_frequency() / kNominalFrequency.value(); }));
 
         simulator.register_sampler_entry(
             yeet::testing::make_lambda_array_sampler<alphabeta<>>("pll input", [&]() -> alphabeta<> {
-                return alphabeta<>{pll.get_positive_sequence().alpha().value(),
-                                   pll.get_positive_sequence().beta().value()};
+                return alphabeta<>{
+                    pll.get_positive_sequence().alpha().value(), pll.get_positive_sequence().beta().value()};
             }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
@@ -98,11 +100,10 @@ protected:
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
             "estimation error d-axis", [&]() -> real_t { return pll.get_estimation_error().value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle<zero_to_two_pi>>(
-            "estimated angle pu", [&]() -> angle<zero_to_two_pi> { return pll.get_estimated_angle().get_pu(); }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle_pu_t>(
+            "estimated angle pu", [&]() { return pll.get_estimated_angle().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
-            "estimated frequency pu",
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>("estimated frequency pu",
             [&]() -> real_t { return pll.get_estimated_frequency().value() / kNominalFrequency.value(); }));
 
         simulator.register_sampler_entry(
@@ -110,8 +111,9 @@ protected:
     }
 };
 
-TEST_F(DualSogiPhaseLockedLoopTest, NominalFrequencyTracking) {
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));  // 90 degrees phase shift
+TEST_F(DualSogiPhaseLockedLoopTest, NominalFrequencyTracking)
+{
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));  // 90 degrees phase shift
 
     // 1. Frequency estimation accuracy after settling
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
@@ -141,9 +143,10 @@ TEST_F(DualSogiPhaseLockedLoopTest, NominalFrequencyTracking) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(DualSogiPhaseLockedLoopTest, NegativeSequenceRejection) {
+TEST_F(DualSogiPhaseLockedLoopTest, NegativeSequenceRejection)
+{
     // Test immunity to negative sequence components
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.set_fundamental_negative_sequence_signal_amplitude(real_t{0.2});  // 20% negative sequence
 
     // 1. Frequency should remain stable despite negative sequence
@@ -165,7 +168,8 @@ TEST_F(DualSogiPhaseLockedLoopTest, NegativeSequenceRejection) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(DualSogiPhaseLockedLoopTest, AmplitudeStep) {
+TEST_F(DualSogiPhaseLockedLoopTest, AmplitudeStep)
+{
     // Test immunity to amplitude variations (amplitude step from 1.0 to 0.2 pu)
     waveform_generator.set_amplitude_step(real_t{0.2}, 0.5);
 
@@ -194,9 +198,10 @@ TEST_F(DualSogiPhaseLockedLoopTest, AmplitudeStep) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(DualSogiPhaseLockedLoopTest, FrequencyStep) {
+TEST_F(DualSogiPhaseLockedLoopTest, FrequencyStep)
+{
     // Test tracking of frequency step from 50 Hz to 51 Hz
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.set_frequency_step(real_t{1.0}, 0.5);
 
     const real_t target_frequency = kNominalFrequency + 1.0f;
@@ -226,7 +231,8 @@ TEST_F(DualSogiPhaseLockedLoopTest, FrequencyStep) {
     EXPECT_TRUE(simulator.simulate_for(1.5f));
 }
 
-TEST_F(DualSogiPhaseLockedLoopTest, HarmonicsAndNoise) {
+TEST_F(DualSogiPhaseLockedLoopTest, HarmonicsAndNoise)
+{
     // Test filtering capability with harmonics and noise
     waveform_generator.add_signal_harmonics(3, 0.1);   // Add 3rd harmonic with 10% amplitude
     waveform_generator.add_signal_harmonics(5, 0.05);  // Add 5th harmonic with 5% amplitude
@@ -254,10 +260,10 @@ TEST_F(DualSogiPhaseLockedLoopTest, HarmonicsAndNoise) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(DualSogiPhaseLockedLoopTest, FrequencyRateOfChange) {
+TEST_F(DualSogiPhaseLockedLoopTest, FrequencyRateOfChange)
+{
     // Test tracking during frequency ramp from 50 Hz to 60 Hz over 0.8 seconds
-    simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
-        "signal frequency reference",
+    simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>("signal frequency reference",
         [&]() -> double { return static_cast<double>(waveform_generator.get_signal_frequency() / 50.0f); }));
 
     waveform_generator.set_frequency_rate_of_change(real_t{10.0}, 0.4, 1.2);
@@ -286,7 +292,8 @@ TEST_F(DualSogiPhaseLockedLoopTest, FrequencyRateOfChange) {
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
 
-TEST_F(DualSogiPhaseLockedLoopTest, DCOffsetRejection) {
+TEST_F(DualSogiPhaseLockedLoopTest, DCOffsetRejection)
+{
     // Test DC offset rejection capability
 
     // 1. Should achieve lock before DC offset

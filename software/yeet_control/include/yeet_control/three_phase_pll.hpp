@@ -1,7 +1,7 @@
 #pragma once
 
 #include "adaptive_band_reject_filter.hpp"
-#include "angle.hpp"
+#include "angle_wrapped.hpp"
 #include "integrator.hpp"
 #include "on_delay.hpp"
 #include "pi_controller.hpp"
@@ -116,7 +116,7 @@ public:
     /**
      * @brief Get the current estimated phase angle
      */
-    angle<zero_to_two_pi> get_estimated_angle() const;
+    angle_wrapped get_estimated_angle() const;
 
     /**
      * @brief Get the transformed dq voltages
@@ -162,9 +162,9 @@ private:
     voltage_pu_t _lock_q_error_threshold{real_t{0.05}};                       ///< Q-axis error threshold for lock
 
     // Control components
-    pi_controller<real_t> _frequency_pi_controller{};           ///< PI controller for frequency estimation
-    integrator<angle<zero_to_two_pi>> _frequency_integrator{};  ///< Integrator for phase angle
-    on_delay _lock_timer;                                       ///< On-delay timer for lock detection logic
+    pi_controller<real_t> _frequency_pi_controller{};   ///< PI controller for frequency estimation
+    integrator<angle_wrapped> _frequency_integrator{};  ///< Integrator for phase angle
+    on_delay _lock_timer;                               ///< On-delay timer for lock detection logic
 
     second_order_low_pass_filter<real_t> _filter_frequency_estimation;  ///< Filter for frequency estimation
     adaptive_band_reject_filter<real_t> _omega_reject_filter;  ///< Adaptive notch filter for frequency rejection

@@ -6,7 +6,7 @@ add_library(yeet::yeet_control ALIAS ${PROJECT_NAME})
 target_sources(
     ${PROJECT_NAME}
     PUBLIC include/yeet_control/adaptive_band_reject_filter.hpp
-           include/yeet_control/angle.hpp
+           include/yeet_control/angle_wrapped.hpp
            include/yeet_control/constants.hpp
            include/yeet_control/derivative.hpp
            include/yeet_control/dual_sogi_srf_pll.hpp
@@ -37,8 +37,7 @@ target_sources(
            include/yeet_control/types.hpp
            include/yeet_control/units.hpp
            include/yeet_control/speed_voltage_relationship.hpp
-    PRIVATE src/angle.cpp
-            src/derivative.cpp
+    PRIVATE src/derivative.cpp
             src/dual_sogi_srf_pll.cpp
             src/edge_detector.cpp
             src/elapsed_timer.cpp

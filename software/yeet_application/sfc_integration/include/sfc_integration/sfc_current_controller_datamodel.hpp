@@ -42,14 +42,14 @@ public:
     struct outputs {
         /// Grid-side rectifier firing angle reference
         /// Range: [0.0, π/2] radians
-        signal_output<angle<zero_to_two_pi>> firing_angle_reference;
+        signal_output<angle_wrapped> firing_angle_reference;
 
         /// Current control error (reference - measured)
         /// Range: [-1.0, 1.0] pu
         signal_output<current_pu_t> current_error;
 
         /// PI controller output before limiting
-        signal_output<angle<zero_to_two_pi>> pi_output;
+        signal_output<angle_wrapped> pi_output;
 
         /// Controller saturation status
         signal_output<bool> is_saturated;
@@ -72,11 +72,11 @@ public:
 
         /// Minimum firing angle limit
         /// Range: [0.0, π/6] radians
-        parameter<angle<zero_to_two_pi>> min_firing_angle = angle<zero_to_two_pi>(0.0);
+        parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
         /// Maximum firing angle limit
         /// Range: [π/4, π/2] radians
-        parameter<angle<zero_to_two_pi>> max_firing_angle = angle<zero_to_two_pi>(1.5708);  // π/2
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);  // π/2
 
         /// Current reference rate limit
         /// Range: [1.0, 50.0] pu/s
@@ -106,36 +106,39 @@ private:
 
 public:
     sfc_current_controller_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+    void register_data_model(model_registry& registry)
+    {
+        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Register outputs in signal registry
-        entry.signal_registry.insert("firing_angle_reference", _model_outputs->firing_angle_reference);
-        entry.signal_registry.insert("current_error", _model_outputs->current_error);
-        entry.signal_registry.insert("pi_output", _model_outputs->pi_output);
-        entry.signal_registry.insert("is_saturated", _model_outputs->is_saturated);
-        entry.signal_registry.insert("is_active", _model_outputs->is_active);
+        // // Register outputs in signal registry
+        // entry.signal_registry.insert("firing_angle_reference", _model_outputs->firing_angle_reference);
+        // entry.signal_registry.insert("current_error", _model_outputs->current_error);
+        // entry.signal_registry.insert("pi_output", _model_outputs->pi_output);
+        // entry.signal_registry.insert("is_saturated", _model_outputs->is_saturated);
+        // entry.signal_registry.insert("is_active", _model_outputs->is_active);
 
-        // Register parameters in parameter registry
-        entry.parameter_registry.insert("pi_proportional_gain", _model_parameters->pi_proportional_gain);
-        entry.parameter_registry.insert("pi_integral_gain", _model_parameters->pi_integral_gain);
-        entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
-        entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
-        entry.parameter_registry.insert("current_reference_rate_limit",
-                                        _model_parameters->current_reference_rate_limit);
-        entry.parameter_registry.insert("current_reference_magnitude_limit",
-                                        _model_parameters->current_reference_magnitude_limit);
-        entry.parameter_registry.insert("feedforward_dc_voltage_gain", _model_parameters->feedforward_dc_voltage_gain);
-        entry.parameter_registry.insert("feedforward_back_emf_gain", _model_parameters->feedforward_back_emf_gain);
-        entry.parameter_registry.insert("anti_windup_gain", _model_parameters->anti_windup_gain);
+        // // Register parameters in parameter registry
+        // entry.parameter_registry.insert("pi_proportional_gain", _model_parameters->pi_proportional_gain);
+        // entry.parameter_registry.insert("pi_integral_gain", _model_parameters->pi_integral_gain);
+        // entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
+        // entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
+        // entry.parameter_registry.insert(
+        //     "current_reference_rate_limit", _model_parameters->current_reference_rate_limit);
+        // entry.parameter_registry.insert(
+        //     "current_reference_magnitude_limit", _model_parameters->current_reference_magnitude_limit);
+        // entry.parameter_registry.insert("feedforward_dc_voltage_gain",
+        // _model_parameters->feedforward_dc_voltage_gain); entry.parameter_registry.insert("feedforward_back_emf_gain",
+        // _model_parameters->feedforward_back_emf_gain); entry.parameter_registry.insert("anti_windup_gain",
+        // _model_parameters->anti_windup_gain);
 
-        registry.insert("sfc_current_controller", std::move(entry));
+        // registry.insert("sfc_current_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

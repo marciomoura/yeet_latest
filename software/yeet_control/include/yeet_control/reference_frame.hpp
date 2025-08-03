@@ -5,7 +5,7 @@
 #include <cmath>
 #include <type_traits>
 
-#include "angle.hpp"
+#include "angle_wrapped.hpp"
 #include "constants.hpp"
 #include "units.hpp"
 
@@ -39,12 +39,14 @@ public:
     constexpr abc(const abc<T>& other) : _values(other._values) {}
     constexpr abc(abc<T>&& other) : _values(std::move(other._values)) {}
 
-    constexpr abc<T>& operator=(const abc<T>& other) {
+    constexpr abc<T>& operator=(const abc<T>& other)
+    {
         _values = other._values;
         return *this;
     }
 
-    constexpr abc<T>& operator=(abc<T>&& other) {
+    constexpr abc<T>& operator=(abc<T>&& other)
+    {
         _values = std::move(other._values);
         return *this;
     }
@@ -62,10 +64,12 @@ public:
      *
      * Assumes the payload type T has a .value() method.
      */
-    constexpr auto to_raw_frame() const {
+    constexpr auto to_raw_frame() const
+    {
         if constexpr (std::is_floating_point_v<T>) {
             return _values;
-        } else {
+        }
+        else {
             // Automatically deduce the underlying type (e.g., double from voltage_t)
             using RawType = decltype(a().value());
             return abc<RawType>{a().value(), b().value(), c().value()};
@@ -74,7 +78,7 @@ public:
 
     // Conversion to other frames
     constexpr alphabeta<T> to_alphabeta() const;
-    constexpr dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
+    constexpr dq<T> to_dq(const angle_wrapped& theta) const;
 
     T a() const { return _values[0]; }
     T b() const { return _values[1]; }
@@ -85,23 +89,27 @@ public:
     T& c() { return _values[2]; }
 
     // Rotation
-    constexpr abc<T> rotate(const angle<zero_to_two_pi>& angle) const {
+    constexpr abc<T> rotate(const angle_wrapped& angle) const
+    {
         // Rotate by converting to alphabeta, rotating there, and converting back
         return to_alphabeta().rotate(angle).to_abc();
     }
 
     // Addition operator
-    constexpr abc<T> operator+(const abc<T>& other) const {
+    constexpr abc<T> operator+(const abc<T>& other) const
+    {
         return abc<T>{_values[0] + other._values[0], _values[1] + other._values[1], _values[2] + other._values[2]};
     }
 
     // Subtraction operator
-    constexpr abc<T> operator-(const abc<T>& other) const {
+    constexpr abc<T> operator-(const abc<T>& other) const
+    {
         return abc<T>{_values[0] - other._values[0], _values[1] - other._values[1], _values[2] - other._values[2]};
     }
 
     // Compound addition operator
-    constexpr abc<T>& operator+=(const abc<T>& other) {
+    constexpr abc<T>& operator+=(const abc<T>& other)
+    {
         _values[0] += other._values[0];
         _values[1] += other._values[1];
         _values[2] += other._values[2];
@@ -109,7 +117,8 @@ public:
     }
 
     // Compound subtraction operator
-    constexpr abc<T>& operator-=(const abc<T>& other) {
+    constexpr abc<T>& operator-=(const abc<T>& other)
+    {
         _values[0] -= other._values[0];
         _values[1] -= other._values[1];
         _values[2] -= other._values[2];
@@ -117,17 +126,20 @@ public:
     }
 
     // Scalar multiplication
-    constexpr abc<T> operator*(T scalar) const {
+    constexpr abc<T> operator*(T scalar) const
+    {
         return abc<T>{_values[0] * scalar, _values[1] * scalar, _values[2] * scalar};
     }
 
     // Scalar division
-    constexpr abc<T> operator/(T scalar) const {
+    constexpr abc<T> operator/(T scalar) const
+    {
         return abc<T>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
     }
 
     // Compound scalar multiplication
-    constexpr abc<T>& operator*=(T scalar) {
+    constexpr abc<T>& operator*=(T scalar)
+    {
         _values[0] *= scalar;
         _values[1] *= scalar;
         _values[2] *= scalar;
@@ -135,7 +147,8 @@ public:
     }
 
     // Compound scalar division
-    constexpr abc<T>& operator/=(T scalar) {
+    constexpr abc<T>& operator/=(T scalar)
+    {
         _values[0] /= scalar;
         _values[1] /= scalar;
         _values[2] /= scalar;
@@ -143,7 +156,8 @@ public:
     }
 
     template <typename Scalar>
-    constexpr auto operator/(Scalar scalar) const {
+    constexpr auto operator/(Scalar scalar) const
+    {
         using result_type = decltype(_values[0] / scalar);
         return abc<result_type>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
     }
@@ -165,13 +179,15 @@ private:
 
 // Non-member scalar multiplication (for scalar * abc)
 template <typename T>
-constexpr abc<T> operator*(T scalar, const abc<T>& coords) {
+constexpr abc<T> operator*(T scalar, const abc<T>& coords)
+{
     return coords * scalar;
 }
 
 // Non-member scalar multiplication for mixed types (e.g., real_t * abc<voltage_pu_t>)
 template <typename Scalar, typename T>
-constexpr auto operator*(Scalar scalar, const abc<T>& coords) -> abc<decltype(scalar * coords.a())> {
+constexpr auto operator*(Scalar scalar, const abc<T>& coords) -> abc<decltype(scalar * coords.a())>
+{
     using result_type = decltype(scalar * coords.a());
     return abc<result_type>{scalar * coords.a(), scalar * coords.b(), scalar * coords.c()};
 }
@@ -196,12 +212,14 @@ public:
     constexpr alphabeta(const alphabeta<T>& other) : _values(other._values) {}
     constexpr alphabeta(alphabeta<T>&& other) : _values(std::move(other._values)) {}
 
-    constexpr alphabeta<T>& operator=(const alphabeta<T>& other) {
+    constexpr alphabeta<T>& operator=(const alphabeta<T>& other)
+    {
         _values = other._values;
         return *this;
     }
 
-    constexpr alphabeta<T>& operator=(alphabeta<T>&& other) {
+    constexpr alphabeta<T>& operator=(alphabeta<T>&& other)
+    {
         _values = std::move(other._values);
         return *this;
     }
@@ -216,7 +234,7 @@ public:
 
     // Conversion to other frames
     constexpr abc<T> to_abc() const;
-    constexpr dq<T> to_dq(const angle<zero_to_two_pi>& theta) const;
+    constexpr dq<T> to_dq(const angle_wrapped& theta) const;
 
     T alpha() const { return _values[0]; }
     T beta() const { return _values[1]; }
@@ -225,50 +243,58 @@ public:
     T& beta() { return _values[1]; }
 
     // Magnitude calculation
-    constexpr T magnitude() const {
+    constexpr T magnitude() const
+    {
         if constexpr (std::is_floating_point_v<T>) {
             return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
-        } else {
+        }
+        else {
             return yeet::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
         }
     }
 
     // Phase calculation
-    constexpr angle<zero_to_two_pi> phase() const { return angle<zero_to_two_pi>(std::atan2(_values[1], _values[0])); }
+    angle_wrapped phase() const { return angle_wrapped{std::atan2(_values[1], _values[0])}; }
 
     // Counter-clockwise rotation:
     //    [cos θ  -sin θ] [α] = [α cos θ - β sin θ]
     //    [sin θ   cos θ] [β]   [α sin θ + β cos θ]
-    constexpr alphabeta<T> rotate_counter_clockwise(const angle<zero_to_two_pi>& theta) const {
+    constexpr alphabeta<T> rotate_counter_clockwise(const angle_wrapped& theta) const
+    {
         const double cos_angle = std::cos(theta.get_radians());
         const double sin_angle = std::sin(theta.get_radians());
-        return alphabeta<T>{_values[0] * cos_angle - _values[1] * sin_angle,
-                            _values[0] * sin_angle + _values[1] * cos_angle};
+        return alphabeta<T>{
+            _values[0] * cos_angle - _values[1] * sin_angle, _values[0] * sin_angle + _values[1] * cos_angle};
     }
 
-    constexpr alphabeta<T> rotate_clockwise(const angle<zero_to_two_pi>& theta) const {
-        return rotate_counter_clockwise(angle<zero_to_two_pi>(-theta.get_radians()));
+    constexpr alphabeta<T> rotate_clockwise(const angle_wrapped& theta) const
+    {
+        return rotate_counter_clockwise(angle_wrapped(-theta.get_radians()));
     }
 
     // Addition operator
-    constexpr alphabeta<T> operator+(const alphabeta<T>& other) const {
+    constexpr alphabeta<T> operator+(const alphabeta<T>& other) const
+    {
         return alphabeta<T>{_values[0] + other._values[0], _values[1] + other._values[1]};
     }
 
     // Subtraction operator
-    constexpr alphabeta<T> operator-(const alphabeta<T>& other) const {
+    constexpr alphabeta<T> operator-(const alphabeta<T>& other) const
+    {
         return alphabeta<T>{_values[0] - other._values[0], _values[1] - other._values[1]};
     }
 
     // Compound addition operator
-    constexpr alphabeta<T>& operator+=(const alphabeta<T>& other) {
+    constexpr alphabeta<T>& operator+=(const alphabeta<T>& other)
+    {
         _values[0] += other._values[0];
         _values[1] += other._values[1];
         return *this;
     }
 
     // Compound subtraction operator
-    constexpr alphabeta<T>& operator-=(const alphabeta<T>& other) {
+    constexpr alphabeta<T>& operator-=(const alphabeta<T>& other)
+    {
         _values[0] -= other._values[0];
         _values[1] -= other._values[1];
         return *this;
@@ -281,14 +307,16 @@ public:
     constexpr alphabeta<T> operator/(T scalar) const { return alphabeta<T>{_values[0] / scalar, _values[1] / scalar}; }
 
     // Compound scalar multiplication
-    constexpr alphabeta<T>& operator*=(T scalar) {
+    constexpr alphabeta<T>& operator*=(T scalar)
+    {
         _values[0] *= scalar;
         _values[1] *= scalar;
         return *this;
     }
 
     // Compound scalar division
-    constexpr alphabeta<T>& operator/=(T scalar) {
+    constexpr alphabeta<T>& operator/=(T scalar)
+    {
         _values[0] /= scalar;
         _values[1] /= scalar;
         return *this;
@@ -311,13 +339,15 @@ private:
 
 // Non-member scalar multiplication (for scalar * alphabeta)
 template <typename T>
-constexpr alphabeta<T> operator*(T scalar, const alphabeta<T>& coords) {
+constexpr alphabeta<T> operator*(T scalar, const alphabeta<T>& coords)
+{
     return coords * scalar;
 }
 
 // Non-member scalar multiplication for mixed types (e.g., real_t * alphabeta<voltage_pu_t>)
 template <typename Scalar, typename T>
-constexpr auto operator*(Scalar scalar, const alphabeta<T>& coords) -> alphabeta<decltype(scalar * coords.alpha())> {
+constexpr auto operator*(Scalar scalar, const alphabeta<T>& coords) -> alphabeta<decltype(scalar * coords.alpha())>
+{
     using result_type = decltype(scalar * coords.alpha());
     return alphabeta<result_type>{scalar * coords.alpha(), scalar * coords.beta()};
 }
@@ -342,12 +372,14 @@ public:
     constexpr dq(const dq<T>& other) : _values(other._values) {}
     constexpr dq(dq<T>&& other) : _values(std::move(other._values)) {}
 
-    constexpr dq<T>& operator=(const dq<T>& other) {
+    constexpr dq<T>& operator=(const dq<T>& other)
+    {
         _values = other._values;
         return *this;
     }
 
-    constexpr dq<T>& operator=(dq<T>&& other) {
+    constexpr dq<T>& operator=(dq<T>&& other)
+    {
         _values = std::move(other._values);
         return *this;
     }
@@ -361,8 +393,8 @@ public:
     constexpr std::array<T, 2> array() const { return _values; }
 
     // Conversion to other frames
-    constexpr alphabeta<T> to_alphabeta(const angle<zero_to_two_pi>& theta) const;
-    constexpr abc<T> to_abc(const angle<zero_to_two_pi>& theta) const;
+    constexpr alphabeta<T> to_alphabeta(const angle_wrapped& theta) const;
+    constexpr abc<T> to_abc(const angle_wrapped& theta) const;
 
     T d() const { return _values[0]; }
     T q() const { return _values[1]; }
@@ -371,50 +403,59 @@ public:
     T& q() { return _values[1]; }
 
     // Magnitude calculation
-    constexpr T magnitude() const {
+    constexpr T magnitude() const
+    {
         if constexpr (std::is_floating_point_v<T>) {
             return std::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
-        } else {
+        }
+        else {
             return yeet::sqrt(_values[0] * _values[0] + _values[1] * _values[1]);
         }
     }
 
-    constexpr angle<zero_to_two_pi> phase(const angle<zero_to_two_pi>& frame) const {
-        return frame + angle<zero_to_two_pi>(std::atan2(_values[1], _values[0]));
+    angle_wrapped phase(const angle_wrapped& frame) const
+    {
+        return frame + angle_wrapped(std::atan2(_values[1], _values[0]));
     }
 
     // Counter-clockwise rotation:
     //    [cos θ  -sin θ] [α] = [α cos θ - β sin θ]
     //    [sin θ   cos θ] [β]   [α sin θ + β cos θ]
-    constexpr dq<T> rotate_counter_clockwise(const angle<zero_to_two_pi>& theta) const {
+    constexpr dq<T> rotate_counter_clockwise(const angle_wrapped& theta) const
+    {
         const double cos_angle = std::cos(theta.get_radians());
         const double sin_angle = std::sin(theta.get_radians());
         return dq<T>{_values[0] * cos_angle - _values[1] * sin_angle, _values[0] * sin_angle + _values[1] * cos_angle};
     }
 
-    constexpr dq<T> rotate_clockwise(const angle<zero_to_two_pi>& theta) const {
-        return rotate_counter_clockwise(angle<zero_to_two_pi>(-theta.get_radians()));
+    constexpr dq<T> rotate_clockwise(const angle_wrapped& theta) const
+    {
+        return rotate_counter_clockwise(angle_wrapped(-theta.get_radians()));
     }
 
     // Addition operator
-    constexpr dq<T> operator+(const dq<T>& other) const {
+    constexpr dq<T> operator+(const dq<T>& other) const
+    {
         return dq<T>{_values[0] + other._values[0], _values[1] + other._values[1]};
     }
 
     // Subtraction operator
-    constexpr dq<T> operator-(const dq<T>& other) const {
+    constexpr dq<T> operator-(const dq<T>& other) const
+    {
         return dq<T>{_values[0] - other._values[0], _values[1] - other._values[1]};
     }
 
     // Compound addition operator
-    constexpr dq<T>& operator+=(const dq<T>& other) {
+    constexpr dq<T>& operator+=(const dq<T>& other)
+    {
         _values[0] += other._values[0];
         _values[1] += other._values[1];
         return *this;
     }
 
     // Compound subtraction operator
-    constexpr dq<T>& operator-=(const dq<T>& other) {
+    constexpr dq<T>& operator-=(const dq<T>& other)
+    {
         _values[0] -= other._values[0];
         _values[1] -= other._values[1];
         return *this;
@@ -427,14 +468,16 @@ public:
     constexpr dq<T> operator/(T scalar) const { return dq<T>{_values[0] / scalar, _values[1] / scalar}; }
 
     // Compound scalar multiplication
-    constexpr dq<T>& operator*=(T scalar) {
+    constexpr dq<T>& operator*=(T scalar)
+    {
         _values[0] *= scalar;
         _values[1] *= scalar;
         return *this;
     }
 
     // Compound scalar division
-    constexpr dq<T>& operator/=(T scalar) {
+    constexpr dq<T>& operator/=(T scalar)
+    {
         _values[0] /= scalar;
         _values[1] /= scalar;
         return *this;
@@ -457,201 +500,230 @@ private:
 
 // Non-member scalar multiplication (for scalar * dq)
 template <typename T>
-constexpr dq<T> operator*(T scalar, const dq<T>& coords) {
+constexpr dq<T> operator*(T scalar, const dq<T>& coords)
+{
     return coords * scalar;
 }
 
 // Implementation of conversion functions
 
 template <typename T>
-constexpr alphabeta<T> abc<T>::to_alphabeta() const {
+constexpr alphabeta<T> abc<T>::to_alphabeta() const
+{
     return {static_cast<real_t>(2.0 / 3.0) *
                 (_values[0] - static_cast<real_t>(0.5) * _values[1] - static_cast<real_t>(0.5) * _values[2]),
-            static_cast<real_t>(sqrt_3 / 3.0) * (_values[1] - _values[2])};
+        static_cast<real_t>(sqrt_3 / 3.0) * (_values[1] - _values[2])};
 }
 
 template <typename T>
-constexpr dq<T> abc<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
+constexpr dq<T> abc<T>::to_dq(const angle_wrapped& theta) const
+{
     return to_alphabeta().to_dq(theta);
 }
 
 template <typename T>
-constexpr abc<T> alphabeta<T>::to_abc() const {
-    return abc<T>{_values[0], -0.5 * _values[0] + sqrt_3 / 2.0 * _values[1],
-                  -0.5 * _values[0] - sqrt_3 / 2.0 * _values[1]};
+constexpr abc<T> alphabeta<T>::to_abc() const
+{
+    return abc<T>{
+        _values[0], -0.5 * _values[0] + sqrt_3 / 2.0 * _values[1], -0.5 * _values[0] - sqrt_3 / 2.0 * _values[1]};
 }
 
 template <typename T>
-constexpr dq<T> alphabeta<T>::to_dq(const angle<zero_to_two_pi>& theta) const {
+constexpr dq<T> alphabeta<T>::to_dq(const angle_wrapped& theta) const
+{
     const real_t cos_theta = std::cos(theta.get_radians());
     const real_t sin_theta = std::sin(theta.get_radians());
     return dq<T>{cos_theta * _values[0] + sin_theta * _values[1], -sin_theta * _values[0] + cos_theta * _values[1]};
 }
 
 template <typename T>
-constexpr alphabeta<T> dq<T>::to_alphabeta(const angle<zero_to_two_pi>& theta) const {
+constexpr alphabeta<T> dq<T>::to_alphabeta(const angle_wrapped& theta) const
+{
     const real_t cos_theta = std::cos(theta.get_radians());
     const real_t sin_theta = std::sin(theta.get_radians());
-    return alphabeta<T>{cos_theta * _values[0] - sin_theta * _values[1],
-                        sin_theta * _values[0] + cos_theta * _values[1]};
+    return alphabeta<T>{
+        cos_theta * _values[0] - sin_theta * _values[1], sin_theta * _values[0] + cos_theta * _values[1]};
 }
 
 template <typename T>
-constexpr abc<T> dq<T>::to_abc(const angle<zero_to_two_pi>& theta) const {
+constexpr abc<T> dq<T>::to_abc(const angle_wrapped& theta) const
+{
     return to_alphabeta(theta).to_abc();
 }
 
 // Utility functions for creating coordinates
 
 template <typename T>
-constexpr abc<T> make_abc(T magnitude, const angle<zero_to_two_pi>& phase) {
+constexpr abc<T> make_abc(T magnitude, const angle_wrapped& phase)
+{
     constexpr real_t kTwoPiThirds = 2.0 * pi / 3.0;
     const real_t angle_rad = phase.get_radians();
     return abc<T>{magnitude * std::cos(angle_rad), magnitude * std::cos(angle_rad - kTwoPiThirds),
-                  magnitude * std::cos(angle_rad + kTwoPiThirds)};
+        magnitude * std::cos(angle_rad + kTwoPiThirds)};
 }
 
 template <typename T>
-constexpr alphabeta<T> make_alphabeta(T magnitude, const angle<zero_to_two_pi>& phase) {
+constexpr alphabeta<T> make_alphabeta(T magnitude, const angle_wrapped& phase)
+{
     const real_t angle_rad = phase.get_radians();
     return alphabeta<T>{magnitude * std::cos(angle_rad), magnitude * std::sin(angle_rad)};
 }
 
 template <typename T>
-constexpr dq<T> make_dq(T d, T q) {
+constexpr dq<T> make_dq(T d, T q)
+{
     return dq<T>{d, q};
 }
 
 // Cross product
 template <typename Frame, typename T = typename Frame::value_type>
-constexpr T cross_product(const Frame& a, const Frame& b) {
+constexpr T cross_product(const Frame& a, const Frame& b)
+{
     if constexpr (std::is_same_v<Frame, alphabeta<T>>) {
         return a.alpha() * b.beta() - a.beta() * b.alpha();
-    } else if constexpr (std::is_same_v<Frame, dq<T>>) {
+    }
+    else if constexpr (std::is_same_v<Frame, dq<T>>) {
         return a.d() * b.q() - a.q() * b.d();
-    } else {
+    }
+    else {
         static_assert(std::is_same_v<Frame, alphabeta<T>> || std::is_same_v<Frame, dq<T>>,
-                      "cross_product only supports alphabeta and dq frames");
+            "cross_product only supports alphabeta and dq frames");
     }
 }
 
 // Convert abc frame from per-unit to si
 template <typename Dim>
-constexpr auto to_si(const abc<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_si(const abc<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity)
+{
     using result_quantity_t = decltype(to_si(pu_frame.a(), base_quantity));
-    return abc<result_quantity_t>(to_si(pu_frame.a(), base_quantity), to_si(pu_frame.b(), base_quantity),
-                                  to_si(pu_frame.c(), base_quantity));
+    return abc<result_quantity_t>(
+        to_si(pu_frame.a(), base_quantity), to_si(pu_frame.b(), base_quantity), to_si(pu_frame.c(), base_quantity));
 }
 
 // Convert abc frame from si to per-unit
 template <typename Dim>
-constexpr auto to_pu(const abc<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_pu(const abc<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity)
+{
     using result_quantity_t = decltype(to_pu(si_frame.a(), base_quantity));
-    return abc<result_quantity_t>(to_pu(si_frame.a(), base_quantity), to_pu(si_frame.b(), base_quantity),
-                                  to_pu(si_frame.c(), base_quantity));
+    return abc<result_quantity_t>(
+        to_pu(si_frame.a(), base_quantity), to_pu(si_frame.b(), base_quantity), to_pu(si_frame.c(), base_quantity));
 }
 
 // Convert alphabeta frame from per-unit to si
 template <typename Dim>
-constexpr auto to_si(const alphabeta<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_si(const alphabeta<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity)
+{
     using result_quantity_t = decltype(to_si(pu_frame.alpha(), base_quantity));
     return alphabeta<result_quantity_t>(to_si(pu_frame.alpha(), base_quantity), to_si(pu_frame.beta(), base_quantity));
 }
 
 // Convert alphabeta frame from si to per-unit
 template <typename Dim>
-constexpr auto to_pu(const alphabeta<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_pu(const alphabeta<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity)
+{
     using result_quantity_t = decltype(to_pu(si_frame.alpha(), base_quantity));
     return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), base_quantity), to_pu(si_frame.beta(), base_quantity));
 }
 
 // Convert dq frame from per-unit to si
 template <typename Dim>
-constexpr auto to_si(const dq<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_si(const dq<quantity<Dim, per_unit>>& pu_frame, const quantity<Dim, si>& base_quantity)
+{
     using result_quantity_t = decltype(to_si(pu_frame.d(), base_quantity));
     return dq<result_quantity_t>(to_si(pu_frame.d(), base_quantity), to_si(pu_frame.q(), base_quantity));
 }
 
 // Convert dq frame from si to per-unit
 template <typename Dim>
-constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const quantity<Dim, si>& base_quantity)
+{
     using result_quantity_t = decltype(to_pu(si_frame.d(), base_quantity));
     return dq<result_quantity_t>(to_pu(si_frame.d(), base_quantity), to_pu(si_frame.q(), base_quantity));
 }
 
 // Convert abc frame from si to per-unit using precomputed divisor
 template <typename Dim>
-constexpr auto to_pu(const abc<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor) {
+constexpr auto to_pu(const abc<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor)
+{
     using result_quantity_t = decltype(to_pu(si_frame.a(), divisor));
-    return abc<result_quantity_t>(to_pu(si_frame.a(), divisor), to_pu(si_frame.b(), divisor),
-                                  to_pu(si_frame.c(), divisor));
+    return abc<result_quantity_t>(
+        to_pu(si_frame.a(), divisor), to_pu(si_frame.b(), divisor), to_pu(si_frame.c(), divisor));
 }
 
 // Convert alphabeta frame from si to per-unit using precomputed divisor
 template <typename Dim>
-constexpr auto to_pu(const alphabeta<quantity<Dim, si>>& si_frame,
-                     const precomputed_divisor<quantity<Dim, si>>& divisor) {
+constexpr auto to_pu(
+    const alphabeta<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor)
+{
     using result_quantity_t = decltype(to_pu(si_frame.alpha(), divisor));
     return alphabeta<result_quantity_t>(to_pu(si_frame.alpha(), divisor), to_pu(si_frame.beta(), divisor));
 }
 
 // Convert dq frame from si to per-unit using precomputed divisor
 template <typename Dim>
-constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor) {
+constexpr auto to_pu(const dq<quantity<Dim, si>>& si_frame, const precomputed_divisor<quantity<Dim, si>>& divisor)
+{
     using result_quantity_t = decltype(to_pu(si_frame.d(), divisor));
     return dq<result_quantity_t>(to_pu(si_frame.d(), divisor), to_pu(si_frame.q(), divisor));
 }
 
 template <typename QuantityType>
-abc<QuantityType> to_dimension_abc(const abc<real_t>& scalar_abc) {
+abc<QuantityType> to_dimension_abc(const abc<real_t>& scalar_abc)
+{
     abc<QuantityType> quantity_abc{};
-    std::transform(scalar_abc.begin(), scalar_abc.end(), quantity_abc.begin(),
-                   [](real_t val) { return QuantityType{val}; });
+    std::transform(
+        scalar_abc.begin(), scalar_abc.end(), quantity_abc.begin(), [](real_t val) { return QuantityType{val}; });
     return quantity_abc;
 }
 
 template <typename QuantityType>
-alphabeta<QuantityType> to_dimension_alphabeta(const alphabeta<real_t>& scalar_alphabeta) {
+alphabeta<QuantityType> to_dimension_alphabeta(const alphabeta<real_t>& scalar_alphabeta)
+{
     alphabeta<QuantityType> quantity_alphabeta{};
     std::transform(scalar_alphabeta.begin(), scalar_alphabeta.end(), quantity_alphabeta.begin(),
-                   [](real_t val) { return QuantityType{val}; });
+        [](real_t val) { return QuantityType{val}; });
     return quantity_alphabeta;
 }
 
 template <typename QuantityType>
-dq<QuantityType> to_dimension_dq(const dq<real_t>& scalar_dq) {
+dq<QuantityType> to_dimension_dq(const dq<real_t>& scalar_dq)
+{
     dq<QuantityType> quantity_dq{};
-    std::transform(scalar_dq.begin(), scalar_dq.end(), quantity_dq.begin(),
-                   [](real_t val) { return QuantityType{val}; });
+    std::transform(
+        scalar_dq.begin(), scalar_dq.end(), quantity_dq.begin(), [](real_t val) { return QuantityType{val}; });
     return quantity_dq;
 }
 
 template <typename QuantityType>
-abc<real_t> to_dimensionless_abc(const abc<QuantityType>& quantity_abc) {
+abc<real_t> to_dimensionless_abc(const abc<QuantityType>& quantity_abc)
+{
     abc<real_t> scalar_abc{};
     std::transform(quantity_abc.begin(), quantity_abc.end(), scalar_abc.begin(),
-                   [](const QuantityType& val) { return val.value(); });
+        [](const QuantityType& val) { return val.value(); });
     return scalar_abc;
 }
 
 template <typename QuantityType>
-alphabeta<real_t> to_dimensionless_alphabeta(const alphabeta<QuantityType>& quantity_alphabeta) {
+alphabeta<real_t> to_dimensionless_alphabeta(const alphabeta<QuantityType>& quantity_alphabeta)
+{
     alphabeta<real_t> scalar_alphabeta{};
     std::transform(quantity_alphabeta.begin(), quantity_alphabeta.end(), scalar_alphabeta.begin(),
-                   [](const QuantityType& val) { return val.value(); });
+        [](const QuantityType& val) { return val.value(); });
     return scalar_alphabeta;
 }
 
 template <typename QuantityType>
-dq<real_t> to_dimensionless_dq(const dq<QuantityType>& quantity_dq) {
+dq<real_t> to_dimensionless_dq(const dq<QuantityType>& quantity_dq)
+{
     dq<real_t> scalar_dq{};
-    std::transform(quantity_dq.begin(), quantity_dq.end(), scalar_dq.begin(),
-                   [](const QuantityType& val) { return val.value(); });
+    std::transform(
+        quantity_dq.begin(), quantity_dq.end(), scalar_dq.begin(), [](const QuantityType& val) { return val.value(); });
     return scalar_dq;
 }
 
 template <typename T>
-abc<T> to_line(abc<T> phase) {
+abc<T> to_line(abc<T> phase)
+{
     // Convert phase voltages to line voltages
     return abc<T>{phase.a() - phase.b(), phase.b() - phase.c(), phase.c() - phase.a()};
 }

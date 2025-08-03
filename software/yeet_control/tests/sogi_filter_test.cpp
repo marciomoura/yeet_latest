@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
 #include "yeet_control/types.hpp"
@@ -31,7 +31,8 @@ public:
     frequency_t sogi_input_frequency = nominal_frequency;
     voltage_pu_t sogi_input_dc_value = voltage_pu_t{0};
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Configure SOGI filter for testing
         sogi_filter.reset();
         sogi_filter.configure(real_t{1.414});                         // sqrt(2) gain
@@ -57,7 +58,8 @@ public:
         });
     }
 
-    voltage_pu_t get_estimation_error_magnitude() const {
+    voltage_pu_t get_estimation_error_magnitude() const
+    {
         // Calculate the magnitude of the error between the estimated and reference signal
         alphabeta<real_t> const reference_signal = waveform_generator.get_signal_abc().to_alphabeta();
         alphabeta<voltage_pu_t> const estimated_signal = sogi_filter.get_output();
@@ -69,7 +71,8 @@ public:
     }
 
 private:
-    void set_logger() {
+    void set_logger()
+    {
         // Log time
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "time", [&]() -> double { return simulator.get_current_simulation_time(); }));
@@ -98,7 +101,8 @@ private:
     }
 };
 
-TEST_F(SogiFilterTest, NominalSignalTracking) {
+TEST_F(SogiFilterTest, NominalSignalTracking)
+{
     // 1. Estimation error magnitude should be within tolerance after settling
     simulator.register_checker(yeet::testing::make_range_checker<voltage_pu_t>(
         "estimation error magnitude", [&]() -> voltage_pu_t { return get_estimation_error_magnitude(); },
@@ -118,7 +122,8 @@ TEST_F(SogiFilterTest, NominalSignalTracking) {
     EXPECT_TRUE(simulator.simulate_for(0.4f));
 }
 
-TEST_F(SogiFilterTest, AmplitudeStepResponse) {
+TEST_F(SogiFilterTest, AmplitudeStepResponse)
+{
     waveform_generator.set_amplitude_step(real_t{0.2}, 0.5);  // Step to 20% amplitude at t=0.5s
 
     // 1. Before amplitude step, should track nominal amplitude accurately
@@ -135,7 +140,8 @@ TEST_F(SogiFilterTest, AmplitudeStepResponse) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(SogiFilterTest, FrequencyStepResponse) {
+TEST_F(SogiFilterTest, FrequencyStepResponse)
+{
     waveform_generator.set_frequency_step(real_t{5.0}, 0.5);  // Step to 55 Hz at t=0.5s
 
     // Update SOGI frequency tracking to match the step
@@ -171,7 +177,8 @@ TEST_F(SogiFilterTest, FrequencyStepResponse) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(SogiFilterTest, FrequencyMismatchBehavior) {
+TEST_F(SogiFilterTest, FrequencyMismatchBehavior)
+{
     // Test behavior when SOGI frequency doesn't match signal frequency
     sogi_input_frequency = frequency_t{51.0};  // 1 Hz mismatch
 
@@ -190,7 +197,8 @@ TEST_F(SogiFilterTest, FrequencyMismatchBehavior) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(SogiFilterTest, DCOffsetRejection) {
+TEST_F(SogiFilterTest, DCOffsetRejection)
+{
     sogi_filter.configure_dc_rejection(1.0f / frequency_t{50.0f});  // Faster DC rejection for testing
 
     // 1. Initially, DC offset should be near zero

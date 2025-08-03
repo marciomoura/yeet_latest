@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
@@ -19,7 +19,8 @@ public:
     static constexpr double pulse_width_deg = 30.0;        // 15 degree pulse width
     static constexpr double firing_delay_deg = 30.0;       // 30 degree firing delay (alpha)
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Configure the three-phase waveform generator for reference angle generation
         _waveform_generator.set_fundamental_positive_sequence_signal_amplitude(1.0);
         _waveform_generator.set_fundamental_negative_sequence_signal_amplitude(0.0);
@@ -33,12 +34,12 @@ public:
             _waveform_generator.update();
 
             // Get the phase A angle as reference (synchronized with grid)
-            angle<zero_to_two_pi> reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
+            angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
             // Update six-pulse generator with different firing delays
-            _pulses_no_delay = _six_pulse_gen.update(reference_angle, angle<zero_to_two_pi>(0.0), true);
+            _pulses_no_delay = _six_pulse_gen.update(reference_angle, angle_wrapped(0.0), true);
             _pulses_with_delay =
-                _six_pulse_gen.update(reference_angle, angle<zero_to_two_pi>(deg_to_rad(firing_delay_deg)), true);
+                _six_pulse_gen.update(reference_angle, angle_wrapped(deg_to_rad(firing_delay_deg)), true);
 
             // Store current reference angle and three-phase voltages for plotting
             _current_reference_angle = reference_angle;
@@ -49,7 +50,8 @@ public:
     void simulate_for(double time) { _simulator.simulate_for(time); }
 
 private:
-    void set_logger() {
+    void set_logger()
+    {
         // Log reference angle in degrees
         _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "reference_angle_deg", [&]() -> double { return _current_reference_angle.get_pu(); }));
@@ -100,16 +102,17 @@ private:
     yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
     three_phase_waveform_generator _waveform_generator{sampling_time};
     six_pulse_generator _six_pulse_gen{six_pulse_generator::reference_type::phase,
-                                       angle<zero_to_two_pi>(deg_to_rad(pulse_width_deg))};  // 5 degree pulse width
+        angle_wrapped(deg_to_rad(pulse_width_deg))};  // 5 degree pulse width
 
     // Current state variables
-    angle<zero_to_two_pi> _current_reference_angle{0.0};
+    angle_wrapped _current_reference_angle{0.0};
     abc<double> _current_three_phase_voltages{0.0, 0.0, 0.0};
     six_pulse_generator::pulses _pulses_no_delay{};
     six_pulse_generator::pulses _pulses_with_delay{};
 };
 
-TEST_F(SixPulseGeneratorPlotTest, SixPulseGeneratorBehaviorComparison) {
+TEST_F(SixPulseGeneratorPlotTest, SixPulseGeneratorBehaviorComparison)
+{
     // Simulate for 3 complete cycles to see pulse behavior clearly across multiple periods
     double simulation_time = 3.0 / fundamental_frequency;  // 3 cycles at 50 Hz = 60 ms
 

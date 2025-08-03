@@ -2,7 +2,7 @@
 
 #include "sfc/sfc_commutation_mask.hpp"
 #include "sfc/sfc_commutation_monitor.hpp"
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/dual_sogi_srf_pll.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/types.hpp"
@@ -63,7 +63,7 @@ public:
      * @brief Gets the estimated grid angle.
      * @return The estimated electrical angle of the grid [rad].
      */
-    const angle<zero_to_two_pi>& get_estimated_angle() const;
+    const angle_wrapped& get_estimated_angle() const;
 
     /**
      * @brief Gets the estimated grid frequency in Hz.
@@ -108,7 +108,7 @@ private:
     frequency_t _nominal_frequency{};
 
     // Outputs
-    angle<zero_to_two_pi> _estimated_angle{};
+    angle_wrapped _estimated_angle{};
     frequency_t _estimated_frequency{};
     frequency_pu_t _estimated_frequency_pu{};
     voltage_pu_t _estimated_voltage_magnitude{};

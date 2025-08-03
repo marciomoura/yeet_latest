@@ -2,11 +2,12 @@
 
 #include <gtest/gtest.h>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
 #include "yeet_control/types.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
@@ -27,7 +28,8 @@ protected:
     three_phase_waveform_generator waveform_generator{kSamplingTime.value()};
     yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Default PLL configuration
         pll.configure_pi_controller(real_t{0.2}, duration_t{0.05});
         pll.configure_nominal_frequency(kNominalFrequency);
@@ -51,7 +53,8 @@ protected:
         set_logger();
     }
 
-    real_t get_estimation_error_magnitude() const {
+    real_t get_estimation_error_magnitude() const
+    {
         // Get the original input signal in the stationary frame
         alphabeta<double> const signal_ab = waveform_generator.get_signal_abc().to_alphabeta();
         alphabeta<real_t> const pll_input{signal_ab.alpha(), signal_ab.beta()};
@@ -65,7 +68,8 @@ protected:
         return (pll_input - estimated).magnitude();
     }
 
-    void set_logger() {
+    void set_logger()
+    {
         // Log signals in per-unit for comparable magnitudes
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "time", [&]() -> double { return simulator.get_current_simulation_time(); }));
@@ -73,26 +77,22 @@ protected:
         simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<>>(
             "waveform generator", [&]() -> alphabeta<> { return waveform_generator.get_signal_abc().to_alphabeta(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle<zero_to_two_pi>>(
-            "waveform angle pu",
-            [&]() -> angle<zero_to_two_pi> { return waveform_generator.get_fundamental_signal_angle().a().get_pu(); }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle_pu_t>(
+            "waveform angle pu", [&]() { return waveform_generator.get_fundamental_signal_angle().a().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
-            "waveform frequency",
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>("waveform frequency",
             [&]() -> real_t { return waveform_generator.get_signal_frequency() / kNominalFrequency.value(); }));
 
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
             "estimation error magnitude", [&]() -> real_t { return get_estimation_error_magnitude(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<dq<>>("estimated dq", [&]() -> dq<> {
-            return dq<>{pll.get_voltage_dq().d().value(), pll.get_voltage_dq().q().value()};
-        }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<dq<>>("estimated dq",
+            [&]() -> dq<> { return dq<>{pll.get_voltage_dq().d().value(), pll.get_voltage_dq().q().value()}; }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle<zero_to_two_pi>>(
-            "estimated angle pu", [&]() -> angle<zero_to_two_pi> { return pll.get_estimated_angle().get_pu(); }));
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle_pu_t>(
+            "estimated angle pu", [&]() { return pll.get_estimated_angle().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
-            "estimated frequency pu",
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>("estimated frequency pu",
             [&]() -> real_t { return pll.get_estimated_frequency().value() / kNominalFrequency.value(); }));
 
         simulator.register_sampler_entry(
@@ -100,8 +100,9 @@ protected:
     }
 };
 
-TEST_F(ThreePhasePLLTest, NominalFrequencyTracking) {
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));  // 90 degrees phase shift
+TEST_F(ThreePhasePLLTest, NominalFrequencyTracking)
+{
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));  // 90 degrees phase shift
 
     // 1. Frequency estimation accuracy after settling
     simulator.register_checker(yeet::testing::make_range_checker<real_t>(
@@ -136,7 +137,8 @@ TEST_F(ThreePhasePLLTest, NominalFrequencyTracking) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(ThreePhasePLLTest, AmplitudeStep) {
+TEST_F(ThreePhasePLLTest, AmplitudeStep)
+{
     // Test immunity to amplitude variations (amplitude step from 1.0 to 0.2 pu)
     waveform_generator.set_amplitude_step(0.2, 1.0);
 
@@ -171,9 +173,10 @@ TEST_F(ThreePhasePLLTest, AmplitudeStep) {
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
 
-TEST_F(ThreePhasePLLTest, ExtremeFrequencyConditions) {
+TEST_F(ThreePhasePLLTest, ExtremeFrequencyConditions)
+{
     // Test PLL behavior at frequency limits (45 Hz - near minimum operational range)
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.set_signal_frequency(45.0);  // Near lower operational limit
 
     // 1. Should track low frequency within operational range
@@ -200,9 +203,10 @@ TEST_F(ThreePhasePLLTest, ExtremeFrequencyConditions) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(ThreePhasePLLTest, HighFrequencyTracking) {
+TEST_F(ThreePhasePLLTest, HighFrequencyTracking)
+{
     // Test PLL behavior at higher frequency (60 Hz - typical US grid)
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.set_signal_frequency(60.0);  // Higher frequency operation
 
     // 1. Should track high frequency accurately
@@ -223,9 +227,10 @@ TEST_F(ThreePhasePLLTest, HighFrequencyTracking) {
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(ThreePhasePLLTest, FrequencyStep) {
+TEST_F(ThreePhasePLLTest, FrequencyStep)
+{
     // Test tracking of frequency step from 50 Hz to 55 Hz
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.set_frequency_step(5.0f, 1.0f);
 
     const real_t target_frequency = kNominalFrequency.value() + 5.0f;
@@ -265,9 +270,10 @@ TEST_F(ThreePhasePLLTest, FrequencyStep) {
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
 
-TEST_F(ThreePhasePLLTest, FrequencyRateOfChange) {
+TEST_F(ThreePhasePLLTest, FrequencyRateOfChange)
+{
     // Test tracking during frequency ramp from 50 Hz to 55 Hz over 0.5 seconds
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.set_frequency_rate_of_change(5.0f, 1.0f, 1.5f);
 
     // 1. Initially should track nominal frequency
@@ -303,9 +309,10 @@ TEST_F(ThreePhasePLLTest, FrequencyRateOfChange) {
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
 
-TEST_F(ThreePhasePLLTest, AngleDisturbanceStep) {
+TEST_F(ThreePhasePLLTest, AngleDisturbanceStep)
+{
     // Test phase disturbance rejection capability
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
 
     // 1. Should achieve lock before disturbance
     simulator.register_checker(yeet::testing::make_equal_checker<bool>(
@@ -335,14 +342,15 @@ TEST_F(ThreePhasePLLTest, AngleDisturbanceStep) {
 
     // Execute the test scenario
     EXPECT_TRUE(simulator.simulate_for(1.0f));
-    angle<zero_to_two_pi> current_angle = waveform_generator.get_signal_abc().to_alphabeta().phase();
-    waveform_generator.set_angle(current_angle + angle<zero_to_two_pi>(pi / 4.0));  // 45 degrees phase shift
+    angle_wrapped current_angle = waveform_generator.get_signal_abc().to_alphabeta().phase();
+    waveform_generator.set_angle(current_angle + angle_wrapped(pi / 4.0));  // 45 degrees phase shift
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
 
-TEST_F(ThreePhasePLLTest, SignalWithNoise) {
+TEST_F(ThreePhasePLLTest, SignalWithNoise)
+{
     // Test noise rejection capability (5% noise)
-    waveform_generator.set_angle(angle<zero_to_two_pi>(pi / 2.0));
+    waveform_generator.set_angle(angle_wrapped(pi / 2.0));
     waveform_generator.enable_noise(0.01f);  // 5% noise level
 
     // 1. Should still achieve frequency lock despite noise

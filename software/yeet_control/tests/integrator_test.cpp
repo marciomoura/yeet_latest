@@ -4,14 +4,15 @@
 
 #include <cmath>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 
 namespace {
 
 using namespace yeet;
 using namespace yeet::control;
 
-TEST(IntegratorTest, IntegratesConstantInput) {
+TEST(IntegratorTest, IntegratesConstantInput)
+{
     // Verify that a constant input integrates correctly.
     integrator<double> integ;
     const double ts = 0.001;  // 1 ms sampling time
@@ -31,7 +32,8 @@ TEST(IntegratorTest, IntegratesConstantInput) {
     EXPECT_NEAR(integ.get_output(), expected, 1e-6);
 }
 
-TEST(IntegratorTest, SetValueAndReset) {
+TEST(IntegratorTest, SetValueAndReset)
+{
     // Verify that setting an initial value and then resetting works.
     integrator<double> integ;
     const double ts = 0.001;
@@ -48,12 +50,13 @@ TEST(IntegratorTest, SetValueAndReset) {
     EXPECT_NEAR(integ.get_output(), 0.0, 1e-6);
 }
 
-TEST(IntegratorTest, AngleWrappingTest) {
+TEST(IntegratorTest, AngleWrappingTest)
+{
     // Use the integrator to simulate angular integration.
     // For an angular velocity input of 2π * 50 rad/s (i.e. 50 rotations per second)
     // integrating over exactly 1 second should yield exactly 50 full rotations.
     // Both angle wrappers (zero_to_two_pi and minus_pi_to_pi) should wrap the result to 0.
-    integrator<angle<zero_to_two_pi>> angle_integrator;
+    integrator<angle_wrapped> angle_integrator{};
     const double ts = 0.001;  // sampling time: 1 ms
     angle_integrator.configure(ts);
     angle_integrator.reset();
@@ -65,13 +68,10 @@ TEST(IntegratorTest, AngleWrappingTest) {
         angle_integrator.update(angular_velocity);
     }
 
-    double integrated_angle = angle_integrator.get_output();  // Should be approximately 2π * 50
-    angle<zero_to_two_pi> angle_2pi(integrated_angle);
+    auto integrated_angle = angle_integrator.get_output();  // Should be approximately 2π * 50
+    angle_wrapped angle_2pi(integrated_angle);
     EXPECT_NEAR(angle_2pi.get_radians(), 2.0 * pi, 1e-6);
-    EXPECT_NEAR(angle_2pi + angle<zero_to_two_pi>{1e-8}, 0.0f, 1e-6);  // Wrapping around 2π and zero
-
-    angle<minus_pi_to_pi> wrapped_angle_minus(integrated_angle);
-    EXPECT_NEAR(wrapped_angle_minus.get_radians(), 0.0, 1e-6);
+    EXPECT_NEAR((angle_2pi + angle_t{1e-8}).get_radians(), 0.0f, 1e-6);  // Wrapping around 2π and zero
 
     // Now simulate a non-integer number of rotations.
     // For example, simulate for 1.01 seconds.
@@ -81,10 +81,10 @@ TEST(IntegratorTest, AngleWrappingTest) {
         angle_integrator.update(angular_velocity);
     }
     integrated_angle = angle_integrator.get_output();  // ~2π * 50 * 1.01
-    angle<zero_to_two_pi> wrapped_angle_zero2(integrated_angle);
+    angle_wrapped wrapped_angle_zero2(integrated_angle);
 
     // Expected remainder after wrapping to [0, 2π)
-    double expected_remainder = std::fmod(integrated_angle, 2.0 * pi);
+    double expected_remainder = std::fmod(integrated_angle.get_radians(), 2.0 * pi);
     EXPECT_NEAR(wrapped_angle_zero2.get_radians(), expected_remainder, 1e-6);
 }
 

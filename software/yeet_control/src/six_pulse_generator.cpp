@@ -1,11 +1,12 @@
 #include "yeet_control/six_pulse_generator.hpp"
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 
 namespace yeet::control {
 
-six_pulse_generator::six_pulse_generator(reference_type ref_type, angle_t pulse_width) : _ref_type(ref_type) {
+six_pulse_generator::six_pulse_generator(reference_type ref_type, angle_t pulse_width) : _ref_type(ref_type)
+{
     // Initialize all six pulse generators with their respective firing offsets
     for (size_t i = 0; i < 6; ++i) {
         angle_t offset = angle_t(yeet::deg_to_rad(firing_offsets_deg[i]));
@@ -13,13 +14,14 @@ six_pulse_generator::six_pulse_generator(reference_type ref_type, angle_t pulse_
     }
 }
 
-six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle, angle_t firing_angle, bool enable) {
+six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle, angle_t firing_angle, bool enable)
+{
     angle_t final_firing_angle = firing_angle;
 
     // If the reference angle is from a phase voltage, a 30-degree phase shift
     // is required to align the firing angle with the line-to-line commutation point.
     if (_ref_type == reference_type::phase) {
-        static const angle<zero_to_two_pi> phase_reference_offset(deg_to_rad(30.0));
+        static const angle_wrapped phase_reference_offset(deg_to_rad(30.0));
         final_firing_angle += phase_reference_offset;
     }
 
@@ -34,14 +36,16 @@ six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle,
     return _pulses;
 }
 
-void six_pulse_generator::set_pulse_width(angle_t pulse_width) {
+void six_pulse_generator::set_pulse_width(angle_t pulse_width)
+{
     // Update pulse width for all six generators
     for (auto& generator : _pulse_generators) {
         generator.set_pulse_width(pulse_width);
     }
 }
 
-six_pulse_generator::angle_t six_pulse_generator::get_pulse_width() const {
+six_pulse_generator::angle_t six_pulse_generator::get_pulse_width() const
+{
     // Return the pulse width from the first generator (they should all be the same)
     return _pulse_generators[0].get_pulse_width();
 }

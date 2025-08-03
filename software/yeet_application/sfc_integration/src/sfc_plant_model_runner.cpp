@@ -102,7 +102,7 @@ void sfc_plant_model_runner::convert_outputs()
 
     // Convert rotor position from per-unit [0, 1) to a wrapped angle [0, 2*pi)
     // angle_pu_t pos_pu = _mechanical_load..get_position_pu();
-    // _outputs.rotor_position_mechanical = angle<zero_to_two_pi>::from_radians(pos_pu.value() * two_pi);
+    // _outputs.rotor_position_mechanical = angle_wrapped::from_radians(pos_pu.value() * two_pi);
 
     // Calculate and set torque and power outputs in per-unit
     const auto& dc_bases = _per_unit_system->get_dc_link_bases();

@@ -10,12 +10,9 @@ static constexpr real_t pi = real_t(3.1415926535897932385);
 
 static constexpr real_t two_pi = real_t(2.0) * pi;
 
-constexpr real_t deg_to_rad(real_t degrees) { return degrees * pi / real_t(180.0); }
+constexpr angle_t deg_to_rad(real_t degrees) { return angle_t{degrees * pi / real_t(180.0)}; }
 
-template <typename real_t>
-constexpr real_t rad_to_deg(real_t radians) {
-    return radians * real_t(180.0) / pi;
-}
+constexpr real_t rad_to_deg(angle_t radians) { return radians * real_t(180.0) / pi; }
 
 // --- RMS/Peak Conversions ---
 constexpr real_t rms_to_peak_factor = 1.41421356237;  // std::sqrt(2.0);

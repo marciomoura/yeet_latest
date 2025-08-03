@@ -7,16 +7,18 @@ namespace yeet::application::sfc {
 sfc_grid_side_observer::sfc_grid_side_observer(duration_t sampling_period)
     : _pll(sampling_period),
       _commutation_monitor(sfc_commutation_monitor::Config{.commutation_start_threshold = default_commutation_threshold,
-                                                           .commutation_end_threshold = default_commutation_threshold}),
+          .commutation_end_threshold = default_commutation_threshold}),
       _commutation_mask(sampling_period.value()),
-      _nominal_frequency{default_nominal_frequency} {
+      _nominal_frequency{default_nominal_frequency}
+{
     configure_pll(default_pll_kp, default_pll_ti, default_nominal_frequency);
     reset();
 }
 
-void sfc_grid_side_observer::configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency) {
-    assert(nominal_frequency > 0.0f && kp > 0.0f && ti > 0.0f &&
-           "Nominal frequency, kp, and ti must be positive values");
+void sfc_grid_side_observer::configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency)
+{
+    assert(
+        nominal_frequency > 0.0f && kp > 0.0f && ti > 0.0f && "Nominal frequency, kp, and ti must be positive values");
 
     _nominal_frequency = nominal_frequency;
     // Configure PLL with default gains
@@ -27,15 +29,17 @@ void sfc_grid_side_observer::configure_pll(real_t kp, duration_t ti, frequency_t
     _pll.configure_pi_controller(kp, ti);
 }
 
-void sfc_grid_side_observer::configure_commutation_failure_threshold(voltage_pu_t threshold_pu) {
+void sfc_grid_side_observer::configure_commutation_failure_threshold(voltage_pu_t threshold_pu)
+{
     // Update the commutation monitor configuration
-    sfc_commutation_monitor::Config config{.commutation_start_threshold = threshold_pu,
-                                           .commutation_end_threshold = threshold_pu};
+    sfc_commutation_monitor::Config config{
+        .commutation_start_threshold = threshold_pu, .commutation_end_threshold = threshold_pu};
     _commutation_monitor = sfc_commutation_monitor(config);
 }
 
-void sfc_grid_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu,
-                                    const control::six_pulse_generator::pulses& grid_side_pulses) {
+void sfc_grid_side_observer::update(
+    const abc<voltage_pu_t>& grid_voltage_pu, const control::six_pulse_generator::pulses& grid_side_pulses)
+{
     // Convert to dimensionless for PLL input
     auto voltage_alpha_beta = grid_voltage_pu.to_alphabeta();
     alphabeta<real_t> voltage_dimensionless{voltage_alpha_beta.alpha().value(), voltage_alpha_beta.beta().value()};
@@ -66,9 +70,10 @@ void sfc_grid_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu,
     _estimated_voltage_magnitude = _filtered_voltage_alphabeta.magnitude();
 }
 
-void sfc_grid_side_observer::reset() {
+void sfc_grid_side_observer::reset()
+{
     _pll.reset();
-    _estimated_angle = angle<zero_to_two_pi>{0.0f};
+    _estimated_angle = angle_wrapped{0.0f};
     _estimated_frequency = _nominal_frequency;
     _estimated_frequency_pu = frequency_pu_t{1.0f};
     _estimated_voltage_magnitude = voltage_pu_t{0.0f};
@@ -76,7 +81,7 @@ void sfc_grid_side_observer::reset() {
     _is_commuting = false;
 }
 
-const angle<zero_to_two_pi>& sfc_grid_side_observer::get_estimated_angle() const { return _estimated_angle; }
+const angle_wrapped& sfc_grid_side_observer::get_estimated_angle() const { return _estimated_angle; }
 
 frequency_t sfc_grid_side_observer::get_estimated_frequency() const { return _estimated_frequency; }
 
@@ -84,7 +89,8 @@ frequency_pu_t sfc_grid_side_observer::get_estimated_frequency_pu() const { retu
 
 voltage_pu_t sfc_grid_side_observer::get_estimated_voltage_magnitude() const { return _estimated_voltage_magnitude; }
 
-alphabeta<voltage_pu_t> sfc_grid_side_observer::get_filtered_voltage_alphabeta() const {
+alphabeta<voltage_pu_t> sfc_grid_side_observer::get_filtered_voltage_alphabeta() const
+{
     return _filtered_voltage_alphabeta;
 }
 

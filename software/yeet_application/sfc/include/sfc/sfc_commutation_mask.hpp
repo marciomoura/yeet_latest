@@ -1,6 +1,6 @@
 #pragma once
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
@@ -28,8 +28,10 @@ public:
      * @return The processed three-phase voltage waveform (p.u.), which is either the
      *         original measurement or a synthetically generated one.
      */
-    abc<voltage_pu_t> update(const abc<voltage_pu_t>& measured_voltages, const angle<zero_to_two_pi>& actual_angle,
-                             const frequency_t& actual_frequency, bool is_commuting);
+    abc<voltage_pu_t> update(const abc<voltage_pu_t>& measured_voltages,
+        const angle_wrapped& actual_angle,
+        const frequency_t& actual_frequency,
+        bool is_commuting);
 
     bool is_masking() const { return _is_masking; }
 
@@ -40,7 +42,7 @@ private:
     voltage_pu_t _last_good_magnitude{0.0};
 
     /// @brief The internal angle used for reconstructing the waveform during commutation.
-    angle<zero_to_two_pi> _internal_angle{0.0};
+    angle_wrapped _internal_angle{0.0};
 
     /// @brief A flag to track if the module is currently masking the input waveform.
     bool _is_masking{false};

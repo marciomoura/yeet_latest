@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/pulse_generator.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
@@ -20,7 +20,8 @@ public:
     static constexpr double firing_offset_deg = 0.0;       // 30 degree firing offset
     static constexpr double firing_delay_deg = 90.0;       // 30 degree firing delay
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Configure the three-phase waveform generator for reference angle generation
         _waveform_generator.set_fundamental_positive_sequence_signal_amplitude(1.0);
         _waveform_generator.set_fundamental_negative_sequence_signal_amplitude(0.0);
@@ -28,10 +29,9 @@ public:
         _waveform_generator.disable_noise();
 
         // Configure the pulse generator
-        _pulse_gen =
-            std::make_unique<pulse_generator>(angle<zero_to_two_pi>(deg_to_rad(firing_offset_deg)),  // firing_offset
-                                              angle<zero_to_two_pi>(deg_to_rad(pulse_width_deg))     // pulse_width
-            );
+        _pulse_gen = std::make_unique<pulse_generator>(angle_wrapped(deg_to_rad(firing_offset_deg)),  // firing_offset
+            angle_wrapped(deg_to_rad(pulse_width_deg))                                                // pulse_width
+        );
 
         set_logger();
 
@@ -40,12 +40,11 @@ public:
             _waveform_generator.update();
 
             // Get the phase A angle as reference (synchronized with grid)
-            angle<zero_to_two_pi> reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
+            angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
             // Update pulse generator with and without firing delay
-            _pulse_no_delay = _pulse_gen->update(reference_angle, angle<zero_to_two_pi>(0.0), true);
-            _pulse_with_delay =
-                _pulse_gen->update(reference_angle, angle<zero_to_two_pi>(deg_to_rad(firing_delay_deg)), true);
+            _pulse_no_delay = _pulse_gen->update(reference_angle, angle_wrapped(0.0), true);
+            _pulse_with_delay = _pulse_gen->update(reference_angle, angle_wrapped(deg_to_rad(firing_delay_deg)), true);
 
             // Store current reference angle for plotting
             _current_reference_angle = reference_angle;
@@ -55,7 +54,8 @@ public:
     void simulate_for(double time) { _simulator.simulate_for(time); }
 
 private:
-    void set_logger() {
+    void set_logger()
+    {
         // Log reference angle in degrees
         _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "reference_angle_deg", [&]() -> double { return _current_reference_angle.get_pu(); }));
@@ -95,12 +95,13 @@ private:
     std::unique_ptr<pulse_generator> _pulse_gen;
 
     // Current state variables
-    angle<zero_to_two_pi> _current_reference_angle{0.0};
+    angle_wrapped _current_reference_angle{0.0};
     bool _pulse_no_delay{false};
     bool _pulse_with_delay{false};
 };
 
-TEST_F(PulseGeneratorPlotTest, SinglePulseGeneratorBehavior) {
+TEST_F(PulseGeneratorPlotTest, SinglePulseGeneratorBehavior)
+{
     // Simulate for 2 complete cycles to see pulse behavior clearly
     double simulation_time = 2.0 / fundamental_frequency;  // 2 cycles at 50 Hz = 40 ms
 

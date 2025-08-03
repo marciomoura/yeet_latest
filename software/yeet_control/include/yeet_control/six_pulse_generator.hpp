@@ -3,7 +3,7 @@
 #include <array>
 
 #include "pulse_generator.hpp"
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 
 namespace yeet::control {
@@ -17,7 +17,7 @@ namespace yeet::control {
  */
 class six_pulse_generator {
 public:
-    using angle_t = angle<zero_to_two_pi>;
+    using angle_t = angle_wrapped;
 
     /**
      * @brief Defines the type of AC voltage reference used for synchronization.
@@ -50,8 +50,8 @@ public:
      * @param ref_type Specifies whether the reference angle is from a line or phase voltage.
      * @param pulse_width The desired width of the firing pulses.
      */
-    explicit six_pulse_generator(reference_type ref_type = reference_type::phase,
-                                 angle_t pulse_width = angle_t(yeet::deg_to_rad(30.0)));
+    explicit six_pulse_generator(
+        reference_type ref_type = reference_type::phase, angle_t pulse_width = angle_t(yeet::deg_to_rad(30.0)));
 
     /**
      * @brief Updates the pulse generator and returns the new pulse states.

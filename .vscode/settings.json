@@ -39,4 +39,6 @@
         "**/build/**": true
     },
     "clangd.onConfigChanged": "restart",
+    "clangd.onConfigChanged.forceEnable": true,
+    "C_Cpp.default.enableConfigurationSquiggles": true
 }

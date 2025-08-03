@@ -3,7 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -39,7 +39,7 @@ public:
     struct outputs {
         /// Estimated grid voltage angle (electrical)
         /// Range: [0, 2π] radians
-        signal_output<angle<zero_to_two_pi>> estimated_angle;
+        signal_output<angle_wrapped> estimated_angle;
 
         /// Estimated grid frequency (absolute)
         /// Range: [45, 65] Hz for 50 Hz systems
@@ -106,13 +106,15 @@ private:
 
 public:
     sfc_grid_side_observer_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
+    void register_data_model(model_registry& registry)
+    {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // // Register outputs in signal registry

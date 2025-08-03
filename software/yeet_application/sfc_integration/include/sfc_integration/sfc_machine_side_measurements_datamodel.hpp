@@ -36,7 +36,7 @@ public:
 
         /// Rotor position measurement (raw)
         /// Range: [0, 2π] radians
-        signal_input<angle<zero_to_two_pi>> rotor_position_raw;
+        signal_input<angle_wrapped> rotor_position_raw;
 
         /// Machine frequency for adaptive filtering
         /// Range: [0, 100] Hz (variable frequency)
@@ -69,7 +69,7 @@ public:
         signal_output<speed_pu_t> machine_speed_pu;
 
         /// Filtered rotor position (electrical angle)
-        signal_output<angle<zero_to_two_pi>> rotor_position_electrical;
+        signal_output<angle_wrapped> rotor_position_electrical;
 
         /// Filtered machine voltage magnitude (per-unit)
         signal_output<voltage_pu_t> machine_voltage_magnitude_pu;
@@ -126,13 +126,15 @@ private:
 
 public:
     sfc_machine_side_measurements_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
+    void register_data_model(model_registry& registry)
+    {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register outputs in signal registry

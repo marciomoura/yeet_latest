@@ -6,8 +6,10 @@
 namespace yeet {
 
 abc<voltage_pu_t> sfc_commutation_mask::update(const abc<voltage_pu_t>& measured_voltages,
-                                               const angle<zero_to_two_pi>& actual_angle,
-                                               const frequency_t& actual_frequency, bool is_commuting) {
+    const angle_wrapped& actual_angle,
+    const frequency_t& actual_frequency,
+    bool is_commuting)
+{
     if (is_commuting) {
         if (!_is_masking) {
             // Commutation has just started. Latch the current PLL angle.
@@ -19,13 +21,14 @@ abc<voltage_pu_t> sfc_commutation_mask::update(const abc<voltage_pu_t>& measured
         // While commuting, advance the internal angle using the estimated frequency.
         // Convert frequency to rad/s by multiplying by 2*pi
         const real_t angular_frequency_rad_per_s = actual_frequency.value() * two_pi;
-        _internal_angle += angle<zero_to_two_pi>(angular_frequency_rad_per_s * _sampling_time);
+        _internal_angle += angle_wrapped(angular_frequency_rad_per_s * _sampling_time);
 
         // Reconstruct the waveform from the latched magnitude and the propagated angle.
         // We create a vector in the dq frame and transform it back to abc.
         const dq<voltage_pu_t> synthetic_dq{{}, voltage_pu_t{-_last_good_magnitude}};
         return synthetic_dq.to_abc(_internal_angle);
-    } else {
+    }
+    else {
         // Not commuting. Pass through the measured voltage and update state for the next potential notch.
         _is_masking = false;
 

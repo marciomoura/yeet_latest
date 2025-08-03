@@ -3,7 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
-#include "yeet_control/angle.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -64,7 +64,7 @@ public:
 
         /// Motor rotor position (mechanical)
         /// Range: [0.0, 2π] radians
-        signal_output<angle<zero_to_two_pi>> rotor_position_mechanical;
+        signal_output<angle_wrapped> rotor_position_mechanical;
 
         /// Motor rotor speed (mechanical)
         /// Range: [-3.0, 3.0] pu
@@ -112,13 +112,15 @@ private:
 
 public:
     sfc_plant_model_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
+    void register_data_model(model_registry& registry)
+    {
         // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // // Register outputs in signal registry

@@ -56,7 +56,7 @@ A stateful class that masks commutation notches from a measured three-phase volt
 ```cpp
 abc<voltage_pu_t> sfc_commutation_mask::update(
     const abc<voltage_pu_t>& measured_voltages,
-    const angle<zero_to_two_pi>& pll_angle,
+    const angle_wrapped& pll_angle,
     const frequency_t& pll_frequency,
     bool is_commuting,
     real_t dt);
@@ -65,7 +65,7 @@ abc<voltage_pu_t> sfc_commutation_mask::update(
 **Inputs:**
 
 *   `measured_voltages` (`const abc<voltage_pu_t>&`): The instantaneous measured three-phase voltages in per-unit.
-*   `pll_angle` (`const angle<zero_to_two_pi>&`): The current angle output from the system's PLL.
+*   `pll_angle` (`const angle_wrapped&`): The current angle output from the system's PLL.
 *   `pll_frequency` (`const frequency_t&`): The current frequency output from the system's PLL.
 *   `is_commuting` (`bool`): The boolean signal from `sfc_commutation_monitor`, which is `true` during a commutation notch.
 *   `dt` (`real_t`): The execution time step (delta-time) in seconds, used for integration.
@@ -77,7 +77,7 @@ abc<voltage_pu_t> sfc_commutation_mask::update(
 **Internal State Variables:**
 
 *   `_last_good_magnitude` (`voltage_pu_t`): Stores the voltage vector magnitude (d-component) captured just before a commutation event begins.
-*   `_internal_angle` (`angle<zero_to_two_pi>`): The internal angle used for reconstructing the waveform, propagated forward during the commutation period.
+*   `_internal_angle` (`angle_wrapped`): The internal angle used for reconstructing the waveform, propagated forward during the commutation period.
 *   `_is_masking` (`bool`): An internal flag to track if the module is currently in the masking state.
 
 ## 4. Mathematical Foundation
@@ -135,7 +135,7 @@ The computational load is dominated by the trigonometric functions (`sin` and `c
 
 The module maintains minimal state:
 - One `voltage_pu_t` value for magnitude storage
-- One `angle<zero_to_two_pi>` for internal angle
+- One `angle_wrapped` for internal angle
 - One `bool` for state tracking
 
 Total memory footprint is typically less than 16 bytes.

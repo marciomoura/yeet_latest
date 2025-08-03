@@ -88,8 +88,20 @@ struct invert_dimensions<dimension<L, M, T, I, Th, N, J>> {
 template <typename D1, typename D2>
 struct multiply_dimensions;
 
-template <int L1, int M1, int T1, int I1, int Th1, int N1, int J1, int L2, int M2, int T2, int I2, int Th2, int N2,
-          int J2>
+template <int L1,
+    int M1,
+    int T1,
+    int I1,
+    int Th1,
+    int N1,
+    int J1,
+    int L2,
+    int M2,
+    int T2,
+    int I2,
+    int Th2,
+    int N2,
+    int J2>
 struct multiply_dimensions<dimension<L1, M1, T1, I1, Th1, N1, J1>, dimension<L2, M2, T2, I2, Th2, N2, J2>> {
     using type = dimension<L1 + L2, M1 + M2, T1 + T2, I1 + I2, Th1 + Th2, N1 + N2, J1 + J2>;
 };
@@ -100,8 +112,20 @@ struct multiply_dimensions<dimension<L1, M1, T1, I1, Th1, N1, J1>, dimension<L2,
 template <typename D1, typename D2>
 struct divide_dimensions;
 
-template <int L1, int M1, int T1, int I1, int Th1, int N1, int J1, int L2, int M2, int T2, int I2, int Th2, int N2,
-          int J2>
+template <int L1,
+    int M1,
+    int T1,
+    int I1,
+    int Th1,
+    int N1,
+    int J1,
+    int L2,
+    int M2,
+    int T2,
+    int I2,
+    int Th2,
+    int N2,
+    int J2>
 struct divide_dimensions<dimension<L1, M1, T1, I1, Th1, N1, J1>, dimension<L2, M2, T2, I2, Th2, N2, J2>> {
     using type = dimension<L1 - L2, M1 - M2, T1 - T2, I1 - I2, Th1 - Th2, N1 - N2, J1 - J2>;
 };
@@ -117,7 +141,7 @@ struct root_dimension<dimension<L, M, T, I, Th, N_exp, J>, N_root> {
     // Check that all exponents are divisible by the root number
     static_assert(L % N_root == 0 && M % N_root == 0 && T % N_root == 0 && I % N_root == 0 && Th % N_root == 0 &&
                       N_exp % N_root == 0 && J % N_root == 0,
-                  "Cannot take a root of a dimension with non-divisible exponents.");
+        "Cannot take a root of a dimension with non-divisible exponents.");
 
     using type = dimension<L / N_root, M / N_root, T / N_root, I / N_root, Th / N_root, N_exp / N_root, J / N_root>;
 };
@@ -128,13 +152,21 @@ struct root_dimension<dimension<L, M, T, I, Th, N_exp, J>, N_root> {
 //==============================================================================
 
 template <typename D, typename S>
-constexpr quantity<D, S> operator+(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr quantity<D, S> operator+(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return quantity<D, S>(lhs.value() + rhs.value());
 }
 
 template <typename D, typename S>
-constexpr quantity<D, S> operator-(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr quantity<D, S> operator-(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return quantity<D, S>(lhs.value() - rhs.value());
+}
+
+template <typename D, typename S>
+constexpr quantity<D, S> operator-(const quantity<D, S>& q)
+{
+    return quantity<D, S>(-q.value());
 }
 
 //==============================================================================
@@ -142,35 +174,41 @@ constexpr quantity<D, S> operator-(const quantity<D, S>& lhs, const quantity<D, 
 //==============================================================================
 
 template <typename D1, typename D2, typename S>
-constexpr auto operator*(const quantity<D1, S>& lhs, const quantity<D2, S>& rhs) {
+constexpr auto operator*(const quantity<D1, S>& lhs, const quantity<D2, S>& rhs)
+{
     using result_dim = typename multiply_dimensions<D1, D2>::type;
     return quantity<result_dim, S>(lhs.value() * rhs.value());
 }
 
 template <typename D1, typename D2, typename S>
-constexpr auto operator/(const quantity<D1, S>& lhs, const quantity<D2, S>& rhs) {
+constexpr auto operator/(const quantity<D1, S>& lhs, const quantity<D2, S>& rhs)
+{
     using result_dim = typename divide_dimensions<D1, D2>::type;
     return quantity<result_dim, S>(lhs.value() / rhs.value());
 }
 
 template <typename D, typename S>
-constexpr auto sqrt(const quantity<D, S>& q) {
+constexpr auto sqrt(const quantity<D, S>& q)
+{
     using result_dim = typename root_dimension<D, 2>::type;
     return quantity<result_dim, S>(std::sqrt(q.value()));
 }
 
 template <typename D, typename S>
-constexpr auto abs(const quantity<D, S>& q) {
+constexpr auto abs(const quantity<D, S>& q)
+{
     return quantity<D, S>(std::abs(q.value()));
 }
 
 template <typename D, typename S>
-constexpr quantity<D, S> max(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr quantity<D, S> max(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return (lhs.value() > rhs.value()) ? lhs : rhs;
 }
 
 template <typename D, typename S>
-constexpr quantity<D, S> min(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr quantity<D, S> min(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return (lhs.value() < rhs.value()) ? lhs : rhs;
 }
 
@@ -179,23 +217,27 @@ constexpr quantity<D, S> min(const quantity<D, S>& lhs, const quantity<D, S>& rh
 //==============================================================================
 
 template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr quantity<D, S> operator*(const quantity<D, S>& q, const Scalar& s) {
+constexpr quantity<D, S> operator*(const quantity<D, S>& q, const Scalar& s)
+{
     return quantity<D, S>(q.value() * s);
 }
 
 template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr quantity<D, S> operator*(const Scalar& s, const quantity<D, S>& q) {
+constexpr quantity<D, S> operator*(const Scalar& s, const quantity<D, S>& q)
+{
     return q * s;
 }
 
 template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr quantity<D, S> operator/(const quantity<D, S>& q, const Scalar& s) {
+constexpr quantity<D, S> operator/(const quantity<D, S>& q, const Scalar& s)
+{
     return quantity<D, S>(q.value() / s);
 }
 
 // Scalar divided by quantity: results in a quantity with inverted dimensions
 template <typename D, typename S, typename Scalar, std::enable_if_t<std::is_arithmetic_v<Scalar>, int> = 0>
-constexpr auto operator/(const Scalar& s, const quantity<D, S>& q) {
+constexpr auto operator/(const Scalar& s, const quantity<D, S>& q)
+{
     using inverted_dim = typename invert_dimensions<D>::type;
     return quantity<inverted_dim, S>(s / q.value());
 }
@@ -205,32 +247,38 @@ constexpr auto operator/(const Scalar& s, const quantity<D, S>& q) {
 //==============================================================================
 
 template <typename D, typename S>
-constexpr bool operator==(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr bool operator==(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return lhs.value() == rhs.value();
 }
 
 template <typename D, typename S>
-constexpr bool operator!=(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr bool operator!=(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return !(lhs == rhs);
 }
 
 template <typename D, typename S>
-constexpr bool operator<(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr bool operator<(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return lhs.value() < rhs.value();
 }
 
 template <typename D, typename S>
-constexpr bool operator>(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr bool operator>(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return rhs < lhs;
 }
 
 template <typename D, typename S>
-constexpr bool operator<=(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr bool operator<=(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return !(rhs < lhs);
 }
 
 template <typename D, typename S>
-constexpr bool operator>=(const quantity<D, S>& lhs, const quantity<D, S>& rhs) {
+constexpr bool operator>=(const quantity<D, S>& lhs, const quantity<D, S>& rhs)
+{
     return !(lhs < rhs);
 }
 
@@ -333,7 +381,8 @@ using inertia_constant_pu_t = quantity<time_dim, per_unit>;
 
 // Convert from Per-Unit to SI
 template <typename Dim>
-constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity, const quantity<Dim, si>& base_quantity)
+{
     // The base quantity must have the same dimension as the per-unit quantity.
     // This check is implicitly handled by the template parameters.
     return quantity<Dim, si>(pu_quantity.value() * base_quantity.value());
@@ -341,21 +390,23 @@ constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity, const quantity<
 
 // Convert from SI to Per-Unit
 template <typename Dim>
-constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const quantity<Dim, si>& base_quantity) {
+constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const quantity<Dim, si>& base_quantity)
+{
     // The base quantity must have the same dimension as the SI quantity.
     return quantity<Dim, per_unit>(si_quantity.value() / base_quantity.value());
 }
 
 // Convert from SI to Per-Unit using precomputed divisor
 template <typename Dim>
-constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const precomputed_divisor<quantity<Dim, si>>& divisor) {
+constexpr auto to_pu(const quantity<Dim, si>& si_quantity, const precomputed_divisor<quantity<Dim, si>>& divisor)
+{
     return quantity<Dim, per_unit>(si_quantity.value() * divisor.reciprocal());
 }
 
 // Convert from Per-Unit to SI using precomputed divisor
 template <typename Dim>
-constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity,
-                     const precomputed_divisor<quantity<Dim, si>>& divisor) {
+constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity, const precomputed_divisor<quantity<Dim, si>>& divisor)
+{
     return quantity<Dim, si>(pu_quantity.value() * divisor.value().value());
 }
 
@@ -365,7 +416,8 @@ constexpr auto to_si(const quantity<Dim, per_unit>& pu_quantity,
 
 namespace internal {
 template <typename Dim>
-std::string get_unit_symbol() {
+std::string get_unit_symbol()
+{
     if constexpr (std::is_same_v<Dim, dimensionless_dim>)
         return "";
     else if constexpr (std::is_same_v<Dim, length_dim>)
@@ -410,11 +462,13 @@ std::string get_unit_symbol() {
 }  // namespace internal
 
 template <typename Dim, typename UnitSystem>
-std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem>& q) {
+std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem>& q)
+{
     os << q.value();
     if constexpr (std::is_same_v<UnitSystem, si>) {
         os << internal::get_unit_symbol<Dim>();
-    } else if constexpr (std::is_same_v<UnitSystem, per_unit>) {
+    }
+    else if constexpr (std::is_same_v<UnitSystem, per_unit>) {
         os << " pu";
     }
     return os;
@@ -432,7 +486,8 @@ std::ostream& operator<<(std::ostream& os, const quantity<Dim, UnitSystem>& q) {
  * @return A new quantity of type NewDim with the same underlying value.
  */
 template <typename NewType, typename OldDim>
-constexpr quantity<typename NewType::dimension, per_unit> per_unit_cast(const quantity<OldDim, per_unit>& q) {
+constexpr quantity<typename NewType::dimension, per_unit> per_unit_cast(const quantity<OldDim, per_unit>& q)
+{
     static_assert(std::is_same_v<typename NewType::system, per_unit>, "NewType must be a per-unit quantity type.");
     return quantity<typename NewType::dimension, per_unit>(q.value());
 }

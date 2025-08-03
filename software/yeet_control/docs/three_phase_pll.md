@@ -91,7 +91,7 @@ pll.update(measured_voltages);
 
 // Use estimated values
 double estimated_frequency = pll.get_estimated_frequency();
-angle<zero_to_two_pi> estimated_angle = pll.get_estimated_angle();
+angle_wrapped estimated_angle = pll.get_estimated_angle();
 bool is_locked = pll.is_locked(0.05); // 5% threshold
 
 // Monitor lock status

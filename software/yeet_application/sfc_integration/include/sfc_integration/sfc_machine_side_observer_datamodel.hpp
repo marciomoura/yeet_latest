@@ -44,7 +44,7 @@ public:
 
         /// Estimated rotor position in radians
         /// Range: [0.0, 2π] radians
-        yeet::signal_output<yeet::angle<yeet::zero_to_two_pi>> estimated_position;
+        yeet::signal_output<angle_wrapped> estimated_position;
 
         /// Estimated machine frequency in per-unit
         /// Range: [0.0, 4.0] pu for variable speed operation
@@ -100,13 +100,15 @@ private:
 
 public:
     sfc_machine_side_observer_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(yeet::model_registry& registry) {
+    void register_data_model(yeet::model_registry& registry)
+    {
         // yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
 
         // // Register outputs in signal registry

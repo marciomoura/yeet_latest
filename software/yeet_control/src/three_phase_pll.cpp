@@ -15,7 +15,8 @@ three_phase_pll::three_phase_pll(duration_t sampling_time)
       _frequency_pi_controller(sampling_time.value()),
       _lock_timer(default_lock_duration.value(), sampling_time.value()),
       _filter_frequency_estimation(sampling_time.value()),
-      _omega_reject_filter(sampling_time.value()) {
+      _omega_reject_filter(sampling_time.value())
+{
     assert(sampling_time.value() > real_t{0} && "Sampling time must be positive");
 
     // Apply default configuration
@@ -25,26 +26,27 @@ three_phase_pll::three_phase_pll(duration_t sampling_time)
     configure_lock_detection(default_lock_duration, default_lock_q_error_threshold);
 
     // Improve the default configuration of the filters
-    _filter_frequency_estimation.configure(default_estimated_frequency_filter_cutoff.value(),
-                                           default_estimated_frequency_filter_damping);
+    _filter_frequency_estimation.configure(
+        default_estimated_frequency_filter_cutoff.value(), default_estimated_frequency_filter_damping);
 
     // Configure the adaptive filter
     _omega_reject_filter.configure(default_nominal_frequency.value(), default_notch_filter_bandwidth.value(),
-                                   default_notch_filter_freq_threshold.value(),
-                                   default_notch_filter_settling_time.value());
+        default_notch_filter_freq_threshold.value(), default_notch_filter_settling_time.value());
 
     reset();
 }
 
 // Configuration Methods
-void three_phase_pll::configure_pi_controller(real_t kp, duration_t ti) {
+void three_phase_pll::configure_pi_controller(real_t kp, duration_t ti)
+{
     assert(kp > real_t{0} && "Proportional gain must be positive");
     assert(ti > real_t{0} && "Integral time constant must be positive");
     _frequency_pi_controller.configure_with_ti(kp, ti);
     _frequency_pi_controller.enable_integrator_clamping(true);
 }
 
-void three_phase_pll::configure_frequency_limits(frequency_t min_freq, frequency_t max_freq) {
+void three_phase_pll::configure_frequency_limits(frequency_t min_freq, frequency_t max_freq)
+{
     assert(min_freq > real_t{0} && "Minimum frequency must be positive");
     assert(max_freq > min_freq && "Maximum frequency must be greater than minimum");
 
@@ -53,21 +55,24 @@ void three_phase_pll::configure_frequency_limits(frequency_t min_freq, frequency
     _frequency_pi_controller.set_output_limits(freq_limit_min_pu, freq_limit_max_pu);
 }
 
-void three_phase_pll::configure_lock_detection(duration_t lock_duration_s, voltage_pu_t q_error_threshold) {
+void three_phase_pll::configure_lock_detection(duration_t lock_duration_s, voltage_pu_t q_error_threshold)
+{
     assert(lock_duration_s.value() >= 0.0f && "Lock duration must be non-negative");
     assert(q_error_threshold.value() > 0.0f && "Q-error threshold must be positive");
     _lock_q_error_threshold = q_error_threshold;
     _lock_timer.configure(lock_duration_s.value());
 }
 
-void three_phase_pll::configure_nominal_frequency(frequency_t nominal_frequency) {
+void three_phase_pll::configure_nominal_frequency(frequency_t nominal_frequency)
+{
     assert(nominal_frequency > real_t{0} && "Nominal frequency must be positive");
     _nominal_frequency = precomputed_divisor<frequency_t>{nominal_frequency};
     reset();
 }
 
 // State Management
-void three_phase_pll::reset() {
+void three_phase_pll::reset()
+{
     _frequency_pi_controller.reset();
     _frequency_integrator.reset();
     _omega_reject_filter.reset();
@@ -82,7 +87,8 @@ void three_phase_pll::reset() {
 }
 
 // Core Update Logic
-void three_phase_pll::update(const alphabeta<voltage_pu_t>& voltage_alphabeta) {
+void three_phase_pll::update(const alphabeta<voltage_pu_t>& voltage_alphabeta)
+{
     // Park transformation (αβ → dq) using current estimated angle
     _voltage_dq = voltage_alphabeta.to_dq(_frequency_integrator.get_output());
 
@@ -110,27 +116,31 @@ void three_phase_pll::update(const alphabeta<voltage_pu_t>& voltage_alphabeta) {
 }
 
 // Getter Methods
-frequency_t three_phase_pll::get_estimated_frequency() const {
+frequency_t three_phase_pll::get_estimated_frequency() const
+{
     return frequency_t{_filter_frequency_estimation.get_output()};
 }
 
-frequency_pu_t three_phase_pll::get_estimated_frequency_pu() const {
+frequency_pu_t three_phase_pll::get_estimated_frequency_pu() const
+{
     return frequency_pu_t{get_estimated_frequency() / _nominal_frequency};
 }
 
-angle<zero_to_two_pi> three_phase_pll::get_estimated_angle() const {
+angle_wrapped three_phase_pll::get_estimated_angle() const
+{
     // if is_locked, take the estimated frequency, otherwise use nominal frequency
     const auto actual_frequency = is_locked() ? _estimated_frequency : _nominal_frequency.value();
 
-    return _frequency_integrator.get_output() - angle<zero_to_two_pi>(2 * pi * actual_frequency * _sampling_time);
+    return _frequency_integrator.get_output() - angle_wrapped(2 * pi * actual_frequency * _sampling_time);
 }
 
 const dq<voltage_pu_t>& three_phase_pll::get_voltage_dq() const { return _voltage_dq; }
 
 bool three_phase_pll::is_locked() const { return _lock_timer.get_output(); }
 
-alphabeta<voltage_pu_t> three_phase_pll::get_estimated_alphabeta() const {
-    angle<zero_to_two_pi> const estimated_angle = get_estimated_angle();
+alphabeta<voltage_pu_t> three_phase_pll::get_estimated_alphabeta() const
+{
+    angle_wrapped const estimated_angle = get_estimated_angle();
 
     return _voltage_dq.to_alphabeta(estimated_angle);
 }

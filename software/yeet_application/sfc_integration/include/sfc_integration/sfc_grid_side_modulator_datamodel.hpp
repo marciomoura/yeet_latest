@@ -21,11 +21,11 @@ public:
     struct inputs {
         /// Firing angle reference from current controller
         /// Range: [0.0, π/2] radians (0° to 90°)
-        signal_input<angle<zero_to_two_pi>> firing_angle_reference;
+        signal_input<angle_wrapped> firing_angle_reference;
 
         /// Grid voltage angle from grid-side observer
         /// Range: [0, 2π] radians
-        signal_input<angle<zero_to_two_pi>> grid_voltage_angle;
+        signal_input<angle_wrapped> grid_voltage_angle;
 
         /// Enable command for pulse generation
         signal_input<bool> enable_command;
@@ -44,7 +44,7 @@ public:
 
         /// Actual firing angle being used
         /// Range: [0.0, π/2] radians
-        signal_output<angle<zero_to_two_pi>> actual_firing_angle;
+        signal_output<angle_wrapped> actual_firing_angle;
 
         /// Modulator enabled status
         signal_output<bool> is_enabled;
@@ -59,15 +59,15 @@ public:
     struct parameters {
         /// Minimum firing angle limit
         /// Range: [0.0, π/6] radians
-        parameter<angle<zero_to_two_pi>> min_firing_angle = angle<zero_to_two_pi>(0.0);
+        parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
         /// Maximum firing angle limit
         /// Range: [π/4, π/2] radians
-        parameter<angle<zero_to_two_pi>> max_firing_angle = angle<zero_to_two_pi>(1.5708);  // π/2
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);  // π/2
 
         /// Pulse width for thyristor firing
         /// Range: [π/36, π/6] radians (5° to 30°)
-        parameter<angle<zero_to_two_pi>> pulse_width = angle<zero_to_two_pi>(0.5236);  // π/6 = 30°
+        parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);  // π/6 = 30°
 
         /// Deadtime between complementary pulses
         /// Range: [0.0001, 0.001] s
@@ -85,13 +85,15 @@ private:
 
 public:
     sfc_grid_side_modulator_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
+    void register_data_model(model_registry& registry)
+    {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register outputs in signal registry

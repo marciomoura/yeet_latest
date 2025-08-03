@@ -1,6 +1,6 @@
 #pragma once
 
-#include "angle.hpp"
+#include "angle_wrapped.hpp"
 #include "reference_frame.hpp"
 #include "sogi_filter_sequence_extractor.hpp"
 #include "three_phase_pll.hpp"
@@ -89,7 +89,7 @@ public:
     /**
      * @brief Get the estimated angle.
      */
-    angle<zero_to_two_pi> get_estimated_angle() const;
+    angle_wrapped get_estimated_angle() const;
 
     /**
      * @brief Check if the PLL is locked.
