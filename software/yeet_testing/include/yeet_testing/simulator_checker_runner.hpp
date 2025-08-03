@@ -7,21 +7,24 @@
 #include "checker_failures_post_processing_interface.hpp"
 #include "simulator_checker.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
 class simulator_checker_runner {
 public:
-    void register_checker(std::unique_ptr<simulator_checker> checker) {
+    void register_checker(std::unique_ptr<simulator_checker> checker)
+    {
         assert(checker != nullptr);
         _checkers.push_back(std::move(checker));
     }
 
     template <typename CheckerType>
-    void register_checker(CheckerType checker) {
+    void register_checker(CheckerType checker)
+    {
         register_checker(make_unique_checker(std::move(checker)));
     }
 
-    bool run_checks(double current_time) {
+    bool run_checks(double current_time)
+    {
         for (const auto& checker : _checkers) {
             // Skip the checker if it is not active
             if (checker->is_active(current_time)) {
@@ -42,7 +45,8 @@ public:
         return true;
     }
 
-    std::string get_last_failure_message() const {
+    std::string get_last_failure_message() const
+    {
         if (_checker_failures.empty()) {
             return {};
         }
@@ -63,4 +67,4 @@ private:
     std::vector<checker_fail_info> _checker_failures{};
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet

@@ -18,7 +18,7 @@ using namespace yeet;
 class SfcCommutationMonitorTest : public ::testing::Test {
 protected:
     sfc_plant_model_simulator _plant_sim;
-    yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
+    yeet::simulator _simulator = yeet::make_gtest_simulator();
     control::six_pulse_generator _grid_side_pulse_generator;
     control::six_pulse_generator _machine_side_pulse_generator;
 
@@ -119,23 +119,23 @@ protected:
 
     void setup_logging()
     {
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
+        _simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
             "grid xy voltage", [&]() { return _grid_measurements.get_voltage_pu().to_alphabeta(); }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<real_t>>(
+        _simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<real_t>>(
             "estimated xy voltage", [&]() { return _grid_side_pll.get_positive_sequence(); }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<voltage_pu_t>>(
+        _simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(
             "masked_voltage_pu", [&]() { return masked_voltage_pu; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "plant angle", [&]() { return _plant_sim.plant().get_grid_voltage_source_angle().get_pu(); }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "estimated angle", [&]() { return _grid_side_pll.get_estimated_angle().get_pu(); }));
 
         _simulator.register_sampler_entry(
-            yeet::testing::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_line_voltage_pu", [&]() {
+            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_line_voltage_pu", [&]() {
                 return abc<voltage_pu_t>{
                     (_grid_measurements.get_voltage_pu().a() - _grid_measurements.get_voltage_pu().b()) /
                         std::sqrt(3.0f),
@@ -146,12 +146,12 @@ protected:
             }));
 
         // Add voltage notch detection logging
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<bool>(
-            "is commuting", [&]() { return _commutation_monitor.is_commuting(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<bool>("is commuting", [&]() { return _commutation_monitor.is_commuting(); }));
 
         // Add voltage notch detection logging
         _simulator.register_sampler_entry(
-            yeet::testing::make_lambda_sampler<bool>("is masking", [&]() { return _commutation_mask.is_masking(); }));
+            yeet::make_lambda_sampler<bool>("is masking", [&]() { return _commutation_mask.is_masking(); }));
     }
 };
 

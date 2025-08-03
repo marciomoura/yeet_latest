@@ -20,7 +20,6 @@
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
-#include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc {
 
@@ -28,8 +27,8 @@ namespace yeet::application::sfc {
 // This object is owned by the test fixture to guarantee its lifetime.
 struct sfc_pulse_generator_conduit {
     bool enable = true;
-    angle_wrapped grid_firing_angle_rad = deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
-    angle_wrapped machine_firing_angle_rad = deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg);
+    yeet::angle_wrapped grid_firing_angle_rad{deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg)};
+    yeet::angle_wrapped machine_firing_angle_rad{deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg)};
 
     current_pu_t current_ref_pu{};
     current_pu_t measured_current_pu{};
@@ -40,7 +39,7 @@ struct sfc_pulse_generator_conduit {
 
 class sfc_simulator_pulse_generators {
 public:
-    static void register_ideal_pulse_generator(yeet::testing::simulator& simulator,
+    static void register_ideal_pulse_generator(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_6p_6p_plant_model& model,
         sfc_simulator_pulse_generators& pulse_generator,
@@ -52,7 +51,7 @@ public:
             sampling_time, [&]() { pulse_generator.update(model, grid_firing_angle, machine_firing_angle, enable); });
     }
 
-    static void register_pulse_generator(yeet::testing::simulator& simulator,
+    static void register_pulse_generator(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_6p_6p_plant_model& model,
         sfc_simulator_pulse_generators& pulse_generator,
@@ -107,7 +106,7 @@ public:
     {
     }
 
-    static void register_measurements_and_filtering(yeet::testing::simulator& simulator,
+    static void register_measurements_and_filtering(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_per_unit_system& per_unit_system,
         sfc_simulator_measurement_and_filtering& measurements_and_filtering,
@@ -171,7 +170,7 @@ public:
     {
     }
 
-    static void register_observers(yeet::testing::simulator& simulator,
+    static void register_observers(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_6p_6p_plant_model& model,
         sfc_simulator_observers& observers,
@@ -210,7 +209,7 @@ public:
     {
     }
 
-    static void register_current_controller(yeet::testing::simulator& simulator,
+    static void register_current_controller(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_simulator_current_controller& controller,
         sfc_pulse_generator_conduit& conduit,
@@ -280,7 +279,7 @@ class sfc_simulator_machine_side_lookup_table {
 public:
     sfc_simulator_machine_side_lookup_table(double nominal_gamma_deg) : lookup_table(nominal_gamma_deg) {}
 
-    static void register_machine_side_lookup_table(yeet::testing::simulator& simulator,
+    static void register_machine_side_lookup_table(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_simulator_machine_side_lookup_table& lookup,
         sfc_pulse_generator_conduit& conduit)
@@ -310,7 +309,7 @@ public:
     {
     }
 
-    static void register_speed_controller(yeet::testing::simulator& simulator,
+    static void register_speed_controller(yeet::simulator& simulator,
         duration_t sampling_time,
         sfc_simulator_speed_controller& controller,
         sfc_pulse_generator_conduit& conduit,
@@ -437,7 +436,7 @@ public:
     }
 
     // Wires all the selected components together in the correct execution order.
-    void configure(yeet::testing::simulator& simulator)
+    void configure(yeet::simulator& simulator)
     {
         auto& plant_model = _components.plant_model_simulator.plant();
         auto& per_unit_system = const_cast<sfc_per_unit_system&>(_components.plant_model_simulator.per_unit_system());

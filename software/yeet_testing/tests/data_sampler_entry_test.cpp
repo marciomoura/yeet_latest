@@ -13,8 +13,9 @@ protected:
 };
 
 // Default constructor tests
-TEST_F(DataSamplerEntryTest, DefaultConstructorInitializesEmptyEntry) {
-    yeet::testing::data_sampler_entry entry;
+TEST_F(DataSamplerEntryTest, DefaultConstructorInitializesEmptyEntry)
+{
+    yeet::data_sampler_entry entry;
 
     EXPECT_TRUE(entry.get_name().empty());
     EXPECT_EQ(entry.get_dimension(), 1);
@@ -22,9 +23,10 @@ TEST_F(DataSamplerEntryTest, DefaultConstructorInitializesEmptyEntry) {
 }
 
 // Scalar function constructor tests
-TEST_F(DataSamplerEntryTest, ScalarFunctionConstructorWorks) {
+TEST_F(DataSamplerEntryTest, ScalarFunctionConstructorWorks)
+{
     float value = 42.0f;
-    auto entry = yeet::testing::data_sampler_entry("test_scalar", [&value]() { return value; });
+    auto entry = yeet::data_sampler_entry("test_scalar", [&value]() { return value; });
 
     EXPECT_EQ(entry.get_name(), "test_scalar");
     EXPECT_EQ(entry.get_dimension(), 1);
@@ -35,9 +37,10 @@ TEST_F(DataSamplerEntryTest, ScalarFunctionConstructorWorks) {
 }
 
 // Fundamental type constructor tests
-TEST_F(DataSamplerEntryTest, FundamentalTypeConstructorWithInt) {
+TEST_F(DataSamplerEntryTest, FundamentalTypeConstructorWithInt)
+{
     int value = 42;
-    auto entry = yeet::testing::data_sampler_entry("test_int", value);
+    auto entry = yeet::data_sampler_entry("test_int", value);
 
     EXPECT_EQ(entry.get_name(), "test_int");
     EXPECT_EQ(entry.get_dimension(), 1);
@@ -47,9 +50,10 @@ TEST_F(DataSamplerEntryTest, FundamentalTypeConstructorWithInt) {
     EXPECT_NEAR(samples[0], static_cast<float>(value), kTolerance);
 }
 
-TEST_F(DataSamplerEntryTest, FundamentalTypeConstructorWithDouble) {
+TEST_F(DataSamplerEntryTest, FundamentalTypeConstructorWithDouble)
+{
     double value = 3.14159;
-    auto entry = yeet::testing::data_sampler_entry("test_double", value);
+    auto entry = yeet::data_sampler_entry("test_double", value);
 
     auto samples = entry.sample();
     ASSERT_EQ(samples.size(), 1);
@@ -57,9 +61,10 @@ TEST_F(DataSamplerEntryTest, FundamentalTypeConstructorWithDouble) {
 }
 
 // Container type constructor tests
-TEST_F(DataSamplerEntryTest, ContainerTypeConstructorWithVector) {
+TEST_F(DataSamplerEntryTest, ContainerTypeConstructorWithVector)
+{
     std::vector<double> values{1.0, 2.0, 3.0};
-    auto entry = yeet::testing::data_sampler_entry("test_vector", values);
+    auto entry = yeet::data_sampler_entry("test_vector", values);
 
     EXPECT_EQ(entry.get_name(), "test_vector");
     EXPECT_EQ(entry.get_dimension(), 3);
@@ -71,9 +76,10 @@ TEST_F(DataSamplerEntryTest, ContainerTypeConstructorWithVector) {
     }
 }
 
-TEST_F(DataSamplerEntryTest, ContainerTypeConstructorWithArray) {
+TEST_F(DataSamplerEntryTest, ContainerTypeConstructorWithArray)
+{
     std::array<double, 2> values{4.0, 5.0};
-    auto entry = yeet::testing::data_sampler_entry("test_array", values);
+    auto entry = yeet::data_sampler_entry("test_array", values);
 
     EXPECT_EQ(entry.get_name(), "test_array");
     EXPECT_EQ(entry.get_dimension(), 2);
@@ -86,17 +92,19 @@ TEST_F(DataSamplerEntryTest, ContainerTypeConstructorWithArray) {
 }
 
 // Edge cases and error conditions
-TEST_F(DataSamplerEntryTest, EmptyContainerHandling) {
+TEST_F(DataSamplerEntryTest, EmptyContainerHandling)
+{
     std::vector<double> empty_values;
-    auto entry = yeet::testing::data_sampler_entry("test_empty", empty_values);
+    auto entry = yeet::data_sampler_entry("test_empty", empty_values);
 
     EXPECT_EQ(entry.get_dimension(), 0);
     EXPECT_TRUE(entry.sample().empty());
 }
 
-TEST_F(DataSamplerEntryTest, ReferenceCapture) {
+TEST_F(DataSamplerEntryTest, ReferenceCapture)
+{
     double value = 1.0;
-    auto entry = yeet::testing::data_sampler_entry("test_ref", value);
+    auto entry = yeet::data_sampler_entry("test_ref", value);
 
     auto initial_samples = entry.sample();
     ASSERT_EQ(initial_samples.size(), 1);
@@ -108,9 +116,10 @@ TEST_F(DataSamplerEntryTest, ReferenceCapture) {
     EXPECT_NEAR(updated_samples[0], 2.0f, kTolerance);
 }
 
-TEST_F(DataSamplerEntryTest, ReferenceIntCapture) {
+TEST_F(DataSamplerEntryTest, ReferenceIntCapture)
+{
     int value = 1;
-    auto entry = yeet::testing::data_sampler_entry("test_int_ref", value);
+    auto entry = yeet::data_sampler_entry("test_int_ref", value);
 
     auto initial_samples = entry.sample();
     ASSERT_EQ(initial_samples.size(), 1);
@@ -122,9 +131,10 @@ TEST_F(DataSamplerEntryTest, ReferenceIntCapture) {
     EXPECT_NEAR(updated_samples[0], 2.0f, kTolerance);
 }
 
-TEST_F(DataSamplerEntryTest, ContainerReferenceCapture) {
+TEST_F(DataSamplerEntryTest, ContainerReferenceCapture)
+{
     std::vector<double> values{1.0, 2.0};
-    auto entry = yeet::testing::data_sampler_entry("test_container_ref", values);
+    auto entry = yeet::data_sampler_entry("test_container_ref", values);
 
     auto initial_samples = entry.sample();
     ASSERT_EQ(initial_samples.size(), 2);
@@ -134,9 +144,10 @@ TEST_F(DataSamplerEntryTest, ContainerReferenceCapture) {
     EXPECT_NEAR(updated_samples[0], 3.0f, kTolerance);
 }
 
-TEST_F(DataSamplerEntryTest, IntContainerReferenceCapture) {
+TEST_F(DataSamplerEntryTest, IntContainerReferenceCapture)
+{
     std::vector<int> values{1, 2};
-    auto entry = yeet::testing::data_sampler_entry("test_int_container_ref", values);
+    auto entry = yeet::data_sampler_entry("test_int_container_ref", values);
 
     auto initial_samples = entry.sample();
     ASSERT_EQ(initial_samples.size(), 2);

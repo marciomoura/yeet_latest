@@ -53,53 +53,53 @@ private:
     void set_logger()
     {
         // Log reference angle in degrees
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "reference_angle_deg", [&]() -> double { return _current_reference_angle.get_pu(); }));
 
         // Log three-phase reference voltages
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<abc<double>>(
+        _simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<double>>(
             "three_phase_voltages", [&]() -> abc<double> { return _current_three_phase_voltages; }));
 
         // Log six pulses without delay
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p1_no_delay", [&]() -> double { return _pulses_no_delay.p1 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p2_no_delay", [&]() -> double { return _pulses_no_delay.p2 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p3_no_delay", [&]() -> double { return _pulses_no_delay.p3 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p4_no_delay", [&]() -> double { return _pulses_no_delay.p4 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p5_no_delay", [&]() -> double { return _pulses_no_delay.p5 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p6_no_delay", [&]() -> double { return _pulses_no_delay.p6 ? 1.0 : 0.0; }));
 
         // Log six pulses with delay
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p1_with_delay", [&]() -> double { return _pulses_with_delay.p1 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p2_with_delay", [&]() -> double { return _pulses_with_delay.p2 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p3_with_delay", [&]() -> double { return _pulses_with_delay.p3 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p4_with_delay", [&]() -> double { return _pulses_with_delay.p4 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p5_with_delay", [&]() -> double { return _pulses_with_delay.p5 ? 1.0 : 0.0; }));
 
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p6_with_delay", [&]() -> double { return _pulses_with_delay.p6 ? 1.0 : 0.0; }));
     }
 
-    yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
+    yeet::simulator _simulator = yeet::make_gtest_simulator();
     three_phase_waveform_generator _waveform_generator{sampling_time};
     six_pulse_generator _six_pulse_gen{six_pulse_generator::reference_type::phase,
         angle_wrapped(deg_to_rad(pulse_width_deg))};  // 5 degree pulse width

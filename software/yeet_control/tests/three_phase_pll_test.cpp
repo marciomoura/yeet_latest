@@ -26,7 +26,7 @@ protected:
 
     three_phase_pll pll{kSamplingTime};
     three_phase_waveform_generator waveform_generator{kSamplingTime.value()};
-    yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
+    yeet::simulator simulator = yeet::make_gtest_simulator();
 
     void SetUp() override
     {
@@ -71,32 +71,32 @@ protected:
     void set_logger()
     {
         // Log signals in per-unit for comparable magnitudes
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "time", [&]() -> double { return simulator.get_current_simulation_time(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<alphabeta<>>(
+        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<>>(
             "waveform generator", [&]() -> alphabeta<> { return waveform_generator.get_signal_abc().to_alphabeta(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle_pu_t>(
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>(
             "waveform angle pu", [&]() { return waveform_generator.get_fundamental_signal_angle().a().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>("waveform frequency",
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("waveform frequency",
             [&]() -> real_t { return waveform_generator.get_signal_frequency() / kNominalFrequency.value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>(
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
             "estimation error magnitude", [&]() -> real_t { return get_estimation_error_magnitude(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<dq<>>("estimated dq",
+        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<dq<>>("estimated dq",
             [&]() -> dq<> { return dq<>{pll.get_voltage_dq().d().value(), pll.get_voltage_dq().q().value()}; }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<angle_pu_t>(
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>(
             "estimated angle pu", [&]() { return pll.get_estimated_angle().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<real_t>("estimated frequency pu",
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("estimated frequency pu",
             [&]() -> real_t { return pll.get_estimated_frequency().value() / kNominalFrequency.value(); }));
 
         simulator.register_sampler_entry(
-            yeet::testing::make_lambda_sampler<bool>("is locked", [&]() -> bool { return pll.is_locked(); }));
+            yeet::make_lambda_sampler<bool>("is locked", [&]() -> bool { return pll.is_locked(); }));
     }
 };
 
@@ -105,33 +105,32 @@ TEST_F(ThreePhasePLLTest, NominalFrequencyTracking)
     waveform_generator.set_angle(angle_wrapped(pi / 2.0));  // 90 degrees phase shift
 
     // 1. Frequency estimation accuracy after settling
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "estimated frequency range", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         (kNominalFrequency - kFrequencyTolerance).value(), (kNominalFrequency + kFrequencyTolerance).value(),
-        yeet::testing::checker_activation_time_range{0.3}));
+        yeet::checker_activation_time_range{0.3}));
 
     // 2. Signal reconstruction accuracy (fundamental PLL requirement)
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "estimation error magnitude", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f, 1e-3f,
-        yeet::testing::checker_activation_time_range{0.3}));
+        yeet::checker_activation_time_range{0.3}));
 
     // 3. Lock detection must be active after settling time
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
-        "pll lock status", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.4}));
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
+        "pll lock status", [&]() -> bool { return pll.is_locked(); }, true, yeet::checker_activation_time_range{0.4}));
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "initial unlocked state", [&]() -> bool { return pll.is_locked(); }, false,
-        yeet::testing::checker_activation_time_range{0.0, 0.1}));
+        yeet::checker_activation_time_range{0.0, 0.1}));
 
     // 4. D-axis error should be near zero when locked (core PLL requirement)
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "D-axis error when locked", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); }, 0.00f,
-        0.01f, yeet::testing::checker_activation_time_range{0.3}));
+        0.01f, yeet::checker_activation_time_range{0.3}));
 
     // 5. Q-axis should track input signal amplitude (unity for this test)
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "Q-axis amplitude tracking", [&]() -> real_t { return std::abs(pll.get_voltage_dq().q().value()); }, 0.99f,
-        1.01f, yeet::testing::checker_activation_time_range{0.3}));
+        1.01f, yeet::checker_activation_time_range{0.3}));
 
     // Run the simulation for 1 second and check the results
     EXPECT_TRUE(simulator.simulate_for(1.0f));
@@ -143,32 +142,32 @@ TEST_F(ThreePhasePLLTest, AmplitudeStep)
     waveform_generator.set_amplitude_step(0.2, 1.0);
 
     // 1. Frequency should remain stable despite amplitude change
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "frequency stability during amplitude step", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         (kNominalFrequency - kFrequencyTolerance).value(), (kNominalFrequency + kFrequencyTolerance).value(),
-        yeet::testing::checker_activation_time_range{0.3}));
+        yeet::checker_activation_time_range{0.3}));
 
     // 2. Should achieve lock before amplitude change
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked before amplitude step", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.5, 0.95}));
+        yeet::checker_activation_time_range{0.5, 0.95}));
 
     // 3. Should maintain lock after amplitude change
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked after amplitude step", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{1.1}));
+        yeet::checker_activation_time_range{1.1}));
 
     // 4. D-axis should reflect the new amplitude after step
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "q-axis amplitude after step", [&]() -> real_t { return std::abs(pll.get_voltage_dq().q().value()); }, 1.18f,
         1.22f,  // Should track new amplitude (0.2 pu)
-        yeet::testing::checker_activation_time_range{1.1}));
+        yeet::checker_activation_time_range{1.1}));
 
     // 5. d-axis should remain small despite amplitude change
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "D-axis stability during amplitude step",
         [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); }, 0.0f, 0.01f,
-        yeet::testing::checker_activation_time_range{1.1}));
+        yeet::checker_activation_time_range{1.1}));
 
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
@@ -180,25 +179,25 @@ TEST_F(ThreePhasePLLTest, ExtremeFrequencyConditions)
     waveform_generator.set_signal_frequency(45.0);  // Near lower operational limit
 
     // 1. Should track low frequency within operational range
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "low frequency tracking", [&]() -> real_t { return pll.get_estimated_frequency().value(); }, 44.5f, 45.5f,
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 2. Should achieve lock even at extreme frequency
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "lock at extreme frequency", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 3. D-axis regulation should work at extreme frequency
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "d-axis regulation at extreme frequency",
         [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); }, 0.0f, 0.02f,
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 4. Signal reconstruction accuracy at extreme frequency
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "reconstruction at extreme frequency", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f,
-        2e-3f, yeet::testing::checker_activation_time_range{0.4}));
+        2e-3f, yeet::checker_activation_time_range{0.4}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
@@ -210,19 +209,19 @@ TEST_F(ThreePhasePLLTest, HighFrequencyTracking)
     waveform_generator.set_signal_frequency(60.0);  // Higher frequency operation
 
     // 1. Should track high frequency accurately
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "high frequency tracking", [&]() -> real_t { return pll.get_estimated_frequency().value(); }, 59.8f, 60.2f,
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 2. Should achieve lock at high frequency
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "lock at high frequency", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 3. Performance metrics should be maintained
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "d-axis regulation at high frequency", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); },
-        0.0f, 0.015f, yeet::testing::checker_activation_time_range{0.4}));
+        0.0f, 0.015f, yeet::checker_activation_time_range{0.4}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }
@@ -236,36 +235,36 @@ TEST_F(ThreePhasePLLTest, FrequencyStep)
     const real_t target_frequency = kNominalFrequency.value() + 5.0f;
 
     // 1. Initially should track nominal frequency
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "initial frequency tracking", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         (kNominalFrequency - kFrequencyTolerance).value(), (kNominalFrequency + kFrequencyTolerance).value(),
-        yeet::testing::checker_activation_time_range{0.3, 0.95}));
+        yeet::checker_activation_time_range{0.3, 0.95}));
 
     // 2. Should be locked before frequency step
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked before step", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.5, 0.95}));
+        yeet::checker_activation_time_range{0.5, 0.95}));
 
     // 3. After step, should track new frequency (allowing for transient)
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "new frequency tracking", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         target_frequency - kFrequencyTolerance.value(), target_frequency + kFrequencyTolerance.value(),
-        yeet::testing::checker_activation_time_range{1.3}));
+        yeet::checker_activation_time_range{1.3}));
 
     // 4. Should regain lock after transient settles
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked after step", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{1.4}));
+        yeet::checker_activation_time_range{1.4}));
 
     // 5. Signal reconstruction should be accurate after settling
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "reconstruction accuracy after step", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f, 1e-3f,
-        yeet::testing::checker_activation_time_range{1.4}));
+        yeet::checker_activation_time_range{1.4}));
 
     // 6. D-axis error should be small when locked at new frequency
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "d-axis error at new frequency", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); }, 0.0f,
-        0.01f, yeet::testing::checker_activation_time_range{1.3}));
+        0.01f, yeet::checker_activation_time_range{1.3}));
 
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
@@ -277,34 +276,34 @@ TEST_F(ThreePhasePLLTest, FrequencyRateOfChange)
     waveform_generator.set_frequency_rate_of_change(5.0f, 1.0f, 1.5f);
 
     // 1. Initially should track nominal frequency
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "initial frequency during ramp", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         (kNominalFrequency - kFrequencyTolerance).value(), (kNominalFrequency + kFrequencyTolerance).value(),
-        yeet::testing::checker_activation_time_range{0.3, 0.95}));
+        yeet::checker_activation_time_range{0.3, 0.95}));
 
     // 2. During ramp, frequency should track within reasonable bounds
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "frequency during ramp", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         kNominalFrequency.value() - 1.0f,
         kNominalFrequency.value() + 6.0f,  // Allow wider bounds during ramp
-        yeet::testing::checker_activation_time_range{1.0, 1.5}));
+        yeet::checker_activation_time_range{1.0, 1.5}));
 
     // 3. After ramp completion, should settle to final frequency
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "final frequency after ramp", [&]() -> real_t { return pll.get_estimated_frequency().value(); }, 54.5f,
         55.5f,  // Final frequency should be 55 Hz ±0.5 Hz
-        yeet::testing::checker_activation_time_range{1.7}));
+        yeet::checker_activation_time_range{1.7}));
 
     // 4. Should regain tight lock after ramp settles
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked after ramp", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{1.7}));
+        yeet::checker_activation_time_range{1.7}));
 
     // 5. Reconstruction accuracy should be maintained throughout
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "reconstruction accuracy during ramp", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f,
         5e-3f,  // Slightly relaxed during dynamic operation
-        yeet::testing::checker_activation_time_range{1.0}));
+        yeet::checker_activation_time_range{1.0}));
 
     EXPECT_TRUE(simulator.simulate_for(2.0f));
 }
@@ -315,30 +314,29 @@ TEST_F(ThreePhasePLLTest, AngleDisturbanceStep)
     waveform_generator.set_angle(angle_wrapped(pi / 2.0));
 
     // 1. Should achieve lock before disturbance
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked before disturbance", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.5, 0.95}));
+        yeet::checker_activation_time_range{0.5, 0.95}));
 
     // 2. Frequency should remain stable throughout (disturbance is phase-only)
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "frequency stability during disturbance", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
-        kNominalFrequency.value() * 0.9f, kNominalFrequency.value() * 1.1f,
-        yeet::testing::checker_activation_time_range{0.3}));
+        kNominalFrequency.value() * 0.9f, kNominalFrequency.value() * 1.1f, yeet::checker_activation_time_range{0.3}));
 
     // 3. D-axis should show transient response but then settle
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "d-axis settling after disturbance", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); },
-        0.0f, 0.02f, yeet::testing::checker_activation_time_range{1.3}));
+        0.0f, 0.02f, yeet::checker_activation_time_range{1.3}));
 
     // 4. Should regain lock after phase disturbance settles
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "locked after disturbance", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{1.4}));
+        yeet::checker_activation_time_range{1.4}));
 
     // 5. Signal reconstruction accuracy should be restored
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "reconstruction after disturbance", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f, 1e-3f,
-        yeet::testing::checker_activation_time_range{1.4}));
+        yeet::checker_activation_time_range{1.4}));
 
     // Execute the test scenario
     EXPECT_TRUE(simulator.simulate_for(1.0f));
@@ -354,33 +352,33 @@ TEST_F(ThreePhasePLLTest, SignalWithNoise)
     waveform_generator.enable_noise(0.01f);  // 5% noise level
 
     // 1. Should still achieve frequency lock despite noise
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "frequency tracking with noise", [&]() -> real_t { return pll.get_estimated_frequency().value(); },
         kNominalFrequency.value() - 0.01f, kNominalFrequency.value() + 0.01f,  // Slightly relaxed tolerance for noise
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 2. Should achieve lock despite noise (may take longer)
-    simulator.register_checker(yeet::testing::make_equal_checker<bool>(
+    simulator.register_checker(yeet::make_equal_checker<bool>(
         "lock achievement with noise", [&]() -> bool { return pll.is_locked(); }, true,
-        yeet::testing::checker_activation_time_range{0.5}));
+        yeet::checker_activation_time_range{0.5}));
 
     // 3. D-axis error should remain bounded despite noise
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "bounded d-axis error with noise", [&]() -> real_t { return std::abs(pll.get_voltage_dq().d().value()); }, 0.0f,
         0.05f,  // Allow higher error due to noise
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 4. Reconstruction should still be reasonable despite noise
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "reconstruction with noise", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f,
         0.05f,  // Relaxed due to noise impact on both amplitude and phase
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     // 5. Q-axis amplitude should still track signal despite noise
-    simulator.register_checker(yeet::testing::make_range_checker<real_t>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "Q-axis tracking with noise", [&]() -> real_t { return std::abs(pll.get_voltage_dq().q().value()); }, 0.9f,
         1.1f,  // Relaxed bounds for noisy conditions
-        yeet::testing::checker_activation_time_range{0.4}));
+        yeet::checker_activation_time_range{0.4}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0f));
 }

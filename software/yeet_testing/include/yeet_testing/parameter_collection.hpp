@@ -7,7 +7,7 @@
 #include "simulator.hpp"
 #include "yeet/model_registry.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
 template <typename T>
 class parameter_set {
@@ -107,4 +107,4 @@ private:
     }
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet

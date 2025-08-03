@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-namespace yeet::testing {
+namespace yeet {
 
 /**
  * @brief Base class for all simulation checkers
@@ -28,14 +28,17 @@ namespace yeet::testing {
 class simulator_checker {
 public:
     explicit simulator_checker(std::string name, double start_time = 0.0, double end_time = -1.0)
-        : _name(std::move(name)), _start_time(start_time), _end_time(end_time) {}
+        : _name(std::move(name)), _start_time(start_time), _end_time(end_time)
+    {
+    }
 
     virtual ~simulator_checker() = default;
 
     virtual bool check() = 0;
     virtual std::string get_failure_message() const = 0;
 
-    bool is_active(double current_time) const {
+    bool is_active(double current_time) const
+    {
         return current_time >= _start_time && (_end_time < 0.0 || current_time < _end_time);
     }
 
@@ -63,16 +66,21 @@ protected:
  */
 class lambda_checker : public simulator_checker {
 public:
-    lambda_checker(std::string name, std::function<bool()> check_fn,
-                   std::function<std::string()> failure_message_fn = nullptr, double start_time = 0.0,
-                   double end_time = -1.0)
+    lambda_checker(std::string name,
+        std::function<bool()> check_fn,
+        std::function<std::string()> failure_message_fn = nullptr,
+        double start_time = 0.0,
+        double end_time = -1.0)
         : simulator_checker(std::move(name), start_time, end_time),
           _check_fn(std::move(check_fn)),
-          _failure_message_fn(std::move(failure_message_fn)) {}
+          _failure_message_fn(std::move(failure_message_fn))
+    {
+    }
 
     bool check() override { return _check_fn(); }
 
-    std::string get_failure_message() const override {
+    std::string get_failure_message() const override
+    {
         if (_failure_message_fn) {
             return _failure_message_fn();
         }
@@ -119,12 +127,14 @@ public:
 
     explicit checker_type_max(T max) : _max(max) {}
 
-    bool check(T value) override {
+    bool check(T value) override
+    {
         _last_value = value;
         return value <= _max;
     }
 
-    std::string get_failure_message(std::string name) const override {
+    std::string get_failure_message(std::string name) const override
+    {
         return "Value " + std::to_string(_last_value) + " for '" + name + "' exceeds maximum " + std::to_string(_max);
     }
 
@@ -153,12 +163,14 @@ public:
 
     explicit checker_type_min(T min) : _min(min) {}
 
-    bool check(T value) override {
+    bool check(T value) override
+    {
         _last_value = value;
         return value >= _min;
     }
 
-    std::string get_failure_message(std::string name) const override {
+    std::string get_failure_message(std::string name) const override
+    {
         return "Value " + std::to_string(_last_value) + " for '" + name + "' is below minimum " + std::to_string(_min);
     }
 
@@ -188,12 +200,14 @@ public:
 
     explicit checker_type_range(T min, T max) : _min(min), _max(max) {}
 
-    bool check(T value) override {
+    bool check(T value) override
+    {
         _last_value = value;
         return value >= _min && value <= _max;
     }
 
-    std::string get_failure_message(std::string name) const override {
+    std::string get_failure_message(std::string name) const override
+    {
         return "Value " + std::to_string(_last_value) + " for '" + name + "' is outside range [" +
                std::to_string(_min) + ", " + std::to_string(_max) + "]";
     }
@@ -224,12 +238,14 @@ public:
 
     explicit checker_type_equal(T value) : _value(value) {}
 
-    bool check(T value) override {
+    bool check(T value) override
+    {
         _last_value = value;
         return value == _value;
     }
 
-    std::string get_failure_message(std::string name) const override {
+    std::string get_failure_message(std::string name) const override
+    {
         return "Value " + std::to_string(_last_value) + " for '" + name + "' is not equal to " + std::to_string(_value);
     }
 
@@ -256,12 +272,14 @@ public:
 
     explicit checker_type_near(T value, T tolerance) : _value(value), _tolerance(tolerance) {}
 
-    bool check(T value) override {
+    bool check(T value) override
+    {
         _last_value = value;
         return std::abs(value - _value) <= _tolerance;
     }
 
-    std::string get_failure_message(std::string name) const override {
+    std::string get_failure_message(std::string name) const override
+    {
         return "Value " + std::to_string(_last_value) + " for '" + name + "' is not near " + std::to_string(_value) +
                " within tolerance " + std::to_string(_tolerance);
     }
@@ -288,7 +306,9 @@ using checker_type_floating_near = checker_type_near<T>;
  */
 struct checker_activation_time_range {
     explicit checker_activation_time_range(double start_time, double end_time)
-        : start_time(start_time), end_time(end_time) {}
+        : start_time(start_time), end_time(end_time)
+    {
+    }
 
     explicit checker_activation_time_range(double start_time) : start_time(start_time), end_time(-1.0f) {}
 
@@ -307,8 +327,9 @@ struct checker_activation_time_range {
  * @endcode
  */
 struct checker_activation_exact_time {
-    explicit checker_activation_exact_time(double time, double sampling_time)
-        : time(time), sampling_time(sampling_time) {}
+    explicit checker_activation_exact_time(double time, double sampling_time) : time(time), sampling_time(sampling_time)
+    {
+    }
 
     double time;
     double sampling_time;
@@ -337,28 +358,43 @@ public:
     using value_type = typename CheckerType::value_type;
 
     // Constructor for time range activation
-    checker_type_templated(std::string name, std::function<value_type()> value_fn, CheckerType checker,
-                           checker_activation_time_range activation)
+    checker_type_templated(std::string name,
+        std::function<value_type()> value_fn,
+        CheckerType checker,
+        checker_activation_time_range activation)
         : simulator_checker(std::move(name), activation.start_time, activation.end_time),
           _value_fn(std::move(value_fn)),
-          _checker(std::move(checker)) {}
+          _checker(std::move(checker))
+    {
+    }
 
     // Constructor for exact time activation
-    checker_type_templated(std::string name, std::function<value_type()> value_fn, CheckerType checker,
-                           checker_activation_exact_time activation)
-        : simulator_checker(std::move(name), activation.time - activation.sampling_time / 2.0,
-                            activation.time + activation.sampling_time / 2.0),
+    checker_type_templated(std::string name,
+        std::function<value_type()> value_fn,
+        CheckerType checker,
+        checker_activation_exact_time activation)
+        : simulator_checker(std::move(name),
+              activation.time - activation.sampling_time / 2.0,
+              activation.time + activation.sampling_time / 2.0),
           _value_fn(std::move(value_fn)),
-          _checker(std::move(checker)) {}
+          _checker(std::move(checker))
+    {
+    }
 
     // Default time range constructor
-    checker_type_templated(std::string name, std::function<value_type()> value_fn, CheckerType checker,
-                           double start_time = 0.0, double end_time = -1.0)
+    checker_type_templated(std::string name,
+        std::function<value_type()> value_fn,
+        CheckerType checker,
+        double start_time = 0.0,
+        double end_time = -1.0)
         : simulator_checker(std::move(name), start_time, end_time),
           _value_fn(std::move(value_fn)),
-          _checker(std::move(checker)) {}
+          _checker(std::move(checker))
+    {
+    }
 
-    bool check() override {
+    bool check() override
+    {
         value_type const value = _value_fn();
         return _checker.check(value);
     }
@@ -372,78 +408,87 @@ private:
 
 // Helper functions for creating checkers with different types - Time Range version
 template <typename T>
-auto make_range_checker(std::string name, std::function<T()> value_fn, T min_value, T max_value,
-                        checker_activation_time_range activation) {
+auto make_range_checker(
+    std::string name, std::function<T()> value_fn, T min_value, T max_value, checker_activation_time_range activation)
+{
     checker_type_range<T> checker{min_value, max_value};
-    return checker_type_templated<checker_type_range<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                         activation);
+    return checker_type_templated<checker_type_range<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 // Point in time version
 template <typename T>
-auto make_range_checker(std::string name, std::function<T()> value_fn, T min_value, T max_value,
-                        checker_activation_exact_time activation) {
+auto make_range_checker(
+    std::string name, std::function<T()> value_fn, T min_value, T max_value, checker_activation_exact_time activation)
+{
     checker_type_range<T> checker{min_value, max_value};
-    return checker_type_templated<checker_type_range<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                         activation);
+    return checker_type_templated<checker_type_range<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 // Equal checker overloads
 template <typename T>
-auto make_equal_checker(std::string name, std::function<T()> value_fn, T expected_value,
-                        checker_activation_time_range activation) {
+auto make_equal_checker(
+    std::string name, std::function<T()> value_fn, T expected_value, checker_activation_time_range activation)
+{
     checker_type_equal<T> checker{expected_value};
-    return checker_type_templated<checker_type_equal<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                         activation);
+    return checker_type_templated<checker_type_equal<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 template <typename T>
-auto make_equal_checker(std::string name, std::function<T()> value_fn, T expected_value,
-                        checker_activation_exact_time activation) {
+auto make_equal_checker(
+    std::string name, std::function<T()> value_fn, T expected_value, checker_activation_exact_time activation)
+{
     checker_type_equal<T> checker{expected_value};
-    return checker_type_templated<checker_type_equal<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                         activation);
+    return checker_type_templated<checker_type_equal<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 // Min checker overloads
 template <typename T>
-auto make_min_checker(std::string name, std::function<T()> value_fn, T min_value,
-                      checker_activation_time_range activation) {
+auto make_min_checker(
+    std::string name, std::function<T()> value_fn, T min_value, checker_activation_time_range activation)
+{
     checker_type_min<T> checker{min_value};
-    return checker_type_templated<checker_type_min<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                       activation);
+    return checker_type_templated<checker_type_min<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 template <typename T>
-auto make_min_checker(std::string name, std::function<T()> value_fn, T min_value,
-                      checker_activation_exact_time activation) {
+auto make_min_checker(
+    std::string name, std::function<T()> value_fn, T min_value, checker_activation_exact_time activation)
+{
     checker_type_min<T> checker{min_value};
-    return checker_type_templated<checker_type_min<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                       activation);
+    return checker_type_templated<checker_type_min<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 // Max checker overloads
 template <typename T>
-auto make_max_checker(std::string name, std::function<T()> value_fn, T max_value,
-                      checker_activation_time_range activation) {
+auto make_max_checker(
+    std::string name, std::function<T()> value_fn, T max_value, checker_activation_time_range activation)
+{
     checker_type_max<T> checker{max_value};
-    return checker_type_templated<checker_type_max<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                       activation);
+    return checker_type_templated<checker_type_max<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 template <typename T>
-auto make_max_checker(std::string name, std::function<T()> value_fn, T max_value,
-                      checker_activation_exact_time activation) {
+auto make_max_checker(
+    std::string name, std::function<T()> value_fn, T max_value, checker_activation_exact_time activation)
+{
     checker_type_max<T> checker{max_value};
-    return checker_type_templated<checker_type_max<T>>(std::move(name), std::move(value_fn), std::move(checker),
-                                                       activation);
+    return checker_type_templated<checker_type_max<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
 template <typename CheckerType>
-std::unique_ptr<simulator_checker> make_unique_checker(CheckerType checker) {
+std::unique_ptr<simulator_checker> make_unique_checker(CheckerType checker)
+{
     return std::make_unique<CheckerType>(checker);
 }
 
-}  // namespace yeet::testing
+}  // namespace yeet
 
 #endif  // YEET_TESTING_SIMULATOR_CHECKER_HPP

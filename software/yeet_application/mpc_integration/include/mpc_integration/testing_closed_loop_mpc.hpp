@@ -60,12 +60,12 @@ public:
 
 // Define parameter types for this configuration
 using closed_loop_mpc_with_plant_model_parameter_types =
-    yeet::testing::parameter_collection<mpc_integration_datamodel::parameters,
+    yeet::parameter_collection<mpc_integration_datamodel::parameters,
         synchronous_machine_infinite_bus_integration_datamodel::parameters>;
 
 // Example of how to update the closed loop example
 class closed_loop_mpc_with_plant_model
-    : public yeet::testing::closed_loop_configuration<closed_loop_mpc_with_plant_model_parameter_types> {
+    : public yeet::closed_loop_configuration<closed_loop_mpc_with_plant_model_parameter_types> {
 public:
     using parameter_types = closed_loop_mpc_with_plant_model_parameter_types;
 
@@ -77,7 +77,7 @@ public:
         plant.initialize();
     }
 
-    void register_applications(yeet::testing::simulator& sim) override
+    void register_applications(yeet::simulator& sim) override
     {
         sim.register_lambda_runner(mpc.get_sampling_time(), [&]() { mpc.run(); });
         sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
@@ -114,7 +114,7 @@ private:
 };
 
 class closed_loop_mpc_with_indirect_excitation_plant_model
-    : public yeet::testing::closed_loop_configuration<closed_loop_mpc_with_plant_model_parameter_types> {
+    : public yeet::closed_loop_configuration<closed_loop_mpc_with_plant_model_parameter_types> {
 public:
     using parameter_types = closed_loop_mpc_with_plant_model_parameter_types;
 
@@ -126,7 +126,7 @@ public:
         plant.initialize();
     }
 
-    void register_applications(yeet::testing::simulator& sim) override
+    void register_applications(yeet::simulator& sim) override
     {
         sim.register_lambda_runner(mpc.get_sampling_time(), [&]() { mpc.run(); });
         sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });

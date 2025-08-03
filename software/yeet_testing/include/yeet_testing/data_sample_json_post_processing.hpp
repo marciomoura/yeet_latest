@@ -16,7 +16,7 @@
 #include "data_sample_post_processing_interface.hpp"
 #include "data_sampler_entry.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
 //    {
 //        "test_suite": "example_suite",
@@ -49,15 +49,18 @@ class data_sample_json_post_processing : public data_sample_post_processing_inte
                                          public checker_failures_post_processing_interface {
 public:
     // Only updates JSON structure, doesn't write to file
-    void dump(std::string test_suite, std::string test_name,
-              std::map<data_sampler_entry*, std::vector<std::vector<float>>> const& data_map) override {
+    void dump(std::string test_suite,
+        std::string test_name,
+        std::map<data_sampler_entry*, std::vector<std::vector<float>>> const& data_map) override
+    {
         _json_data["test_suite"] = test_suite;
         _json_data["test_name"] = test_name;
         _json_data["test_data"] = create_test_data_array(data_map);
     }
 
     // Only updates JSON structure, doesn't write to file
-    void dump(std::vector<checker_fail_info> const& failures) override {
+    void dump(std::vector<checker_fail_info> const& failures) override
+    {
         nlohmann::json failures_array = nlohmann::json::array();
 
         for (const auto& failure : failures) {
@@ -72,9 +75,10 @@ public:
     }
 
     // New method to write the complete JSON structure to file
-    void write_to_file() const {
-        assert(_json_data.contains("test_suite") && _json_data.contains("test_name") &&
-               _json_data.contains("test_data"));
+    void write_to_file() const
+    {
+        assert(
+            _json_data.contains("test_suite") && _json_data.contains("test_name") && _json_data.contains("test_data"));
 
         assert(_json_data["test_suite"].is_string() && _json_data["test_name"].is_string() &&
                _json_data["test_data"].is_array());
@@ -96,7 +100,8 @@ private:
     nlohmann::json _json_data;
 
     nlohmann::json create_test_data_array(
-        const std::map<data_sampler_entry*, std::vector<std::vector<float>>>& data_map) {
+        const std::map<data_sampler_entry*, std::vector<std::vector<float>>>& data_map)
+    {
         nlohmann::json json_test_data = nlohmann::json::array();
 
         for (auto const& [entry, data] : data_map) {
@@ -113,7 +118,8 @@ private:
                         sample_array.push_back(std::stod(format_and_trim_float_value(value, 5)));
                     }
                     data_elements.push_back(sample_array);
-                } else if (sample.size() == 1) {
+                }
+                else if (sample.size() == 1) {
                     // Single dimension case: add value directly
                     data_elements.push_back(std::stod(format_and_trim_float_value(sample[0], 5)));
                 }
@@ -127,7 +133,8 @@ private:
         return json_test_data;
     }
 
-    static inline void dump_json_to_file(nlohmann::json const& json_data, std::filesystem::path const& path) {
+    static inline void dump_json_to_file(nlohmann::json const& json_data, std::filesystem::path const& path)
+    {
         try {
             std::ofstream file(path);
             if (!file.is_open()) {
@@ -142,7 +149,8 @@ private:
         }
     }
 
-    static inline std::string format_and_trim_float_value(float value, int precision) {
+    static inline std::string format_and_trim_float_value(float value, int precision)
+    {
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(precision) << value;
         std::string formatted_value = oss.str();
@@ -159,6 +167,6 @@ private:
     }
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet
 
 #endif  // YEET_TESTING_DATA_SAMPLE_JSON_POST_PROCESSING_HPP

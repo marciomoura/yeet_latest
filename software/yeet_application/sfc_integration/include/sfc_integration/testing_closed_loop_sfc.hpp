@@ -17,7 +17,6 @@
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
 
-
 namespace yeet::application::sfc::integration {
 
 // Type aliases for datamodels - these define the signal contracts
@@ -331,7 +330,7 @@ public:
 
 // ==================== Parameter Collection Types ====================
 
-using closed_loop_sfc_parameter_types = yeet::testing::parameter_collection<sfc_speed_controller_datamodel::parameters,
+using closed_loop_sfc_parameter_types = yeet::parameter_collection<sfc_speed_controller_datamodel::parameters,
     sfc_current_controller_datamodel::parameters,
     sfc_grid_side_observer_datamodel::parameters,
     sfc_grid_side_modulator_datamodel::parameters,
@@ -347,8 +346,7 @@ using closed_loop_sfc_parameter_types = yeet::testing::parameter_collection<sfc_
 /**
  * @brief Complete closed-loop SFC control system configuration with aggregated connectors
  */
-class closed_loop_sfc_with_plant_model
-    : public yeet::testing::closed_loop_configuration<closed_loop_sfc_parameter_types> {
+class closed_loop_sfc_with_plant_model : public yeet::closed_loop_configuration<closed_loop_sfc_parameter_types> {
 public:
     using parameter_types = closed_loop_sfc_parameter_types;
 
@@ -386,7 +384,7 @@ public:
         machine_modulator.initialize();
     }
 
-    void register_applications(yeet::testing::simulator& sim) override
+    void register_applications(yeet::simulator& sim) override
     {
         // Register all runners with their respective sampling times
         sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });

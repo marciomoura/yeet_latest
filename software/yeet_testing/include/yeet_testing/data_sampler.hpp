@@ -13,24 +13,27 @@
 #include "yeet_testing/data_sample_post_processing_interface.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
 class data_sampler {
 public:
-    void register_entry(data_sampler_entry entry) {
+    void register_entry(data_sampler_entry entry)
+    {
         auto ptr = std::make_unique<data_sampler_entry>(std::move(entry));
         _data[ptr.get()] = std::vector<std::vector<float>>();
         _entries.push_back(std::move(ptr));
     }
 
-    void allocate(std::size_t size) {
+    void allocate(std::size_t size)
+    {
         for (const auto& entry : _entries) {
             auto& data = _data[entry.get()];
             data.resize(size);
         }
     }
 
-    void allocate_more(std::size_t size) {
+    void allocate_more(std::size_t size)
+    {
         for (const auto& entry : _entries) {
             auto& data = _data[entry.get()];
             data.resize(data.size() + size);
@@ -41,7 +44,8 @@ public:
         }
     }
 
-    void sample() {
+    void sample()
+    {
         for (const auto& entry : _entries) {
             auto& data = _data[entry.get()];
             if (_sample_position >= data.size()) {
@@ -56,12 +60,15 @@ public:
     // Updated dump functions to handle multi-dimensional data
     void dump(data_sample_post_processing_interface& post_processor) { post_processor.dump(_data); }
 
-    void dump(const std::string& test_suite, const std::string& test_name,
-              data_sample_post_processing_interface& post_processor) {
+    void dump(const std::string& test_suite,
+        const std::string& test_name,
+        data_sample_post_processing_interface& post_processor)
+    {
         post_processor.dump(test_suite, test_name, _data);
     }
 
-    std::vector<std::vector<float>> const& get_sampled_data(const std::string& entry_name) const {
+    std::vector<std::vector<float>> const& get_sampled_data(const std::string& entry_name) const
+    {
         for (const auto& entry : _entries) {
             if (entry->get_name() == entry_name) {
                 auto it = _data.find(entry.get());
@@ -82,6 +89,6 @@ private:
     std::map<data_sampler_entry*, std::vector<std::vector<float>>> _data{};
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet
 
 #endif  // YEET_TESTING_DATA_SAMPLER

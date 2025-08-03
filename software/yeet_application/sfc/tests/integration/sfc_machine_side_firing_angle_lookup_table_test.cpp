@@ -23,12 +23,13 @@ protected:
     // Simulation components using the new pattern
     sfc_simulation_components components;
     sfc_pulse_generator_conduit pulse_generator_conduit;
-    yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
+    yeet::simulator simulator = yeet::make_gtest_simulator();
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Configure plant model parameters
-        components.plant_model_simulator.plant().set_grid_parameters(sfc_plant_model_simulator::kNominalGridFrequency,
-                                                                     sfc_plant_model_simulator::kNominalGridVoltageRMS);
+        components.plant_model_simulator.plant().set_grid_parameters(
+            sfc_plant_model_simulator::kNominalGridFrequency, sfc_plant_model_simulator::kNominalGridVoltageRMS);
         components.plant_model_simulator.plant().set_machine_parameters(
             sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
 
@@ -66,46 +67,41 @@ protected:
         setup_logging();
     }
 
-    void setup_logging() {
+    void setup_logging()
+    {
         auto& plant_model = components.plant_model_simulator.plant();
         auto& measurement_and_filtering = components.measurement_and_filtering;
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "dc_link_current_ref_pu", [&]() { return dc_link_current_ref_pu.value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
-            "dc_link_current_measured_pu",
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("dc_link_current_measured_pu",
             [&]() { return measurement_and_filtering.get_dc_link_measurements().get_current_pu().value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
-            "dc_link_current_filtered_pu",
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("dc_link_current_filtered_pu",
             [&]() { return measurement_and_filtering.get_dc_link_filtering().get_filtered_current_pu().value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "grid_firing_angle_ref_pu", [&]() { return pulse_generator_conduit.grid_firing_angle_rad.get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
-            "machine_firing_angle_ref_pu",
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine_firing_angle_ref_pu",
             [&]() { return pulse_generator_conduit.machine_firing_angle_rad.get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>("grid_voltage_a_pu", [&]() {
-            return measurement_and_filtering.get_grid_side_measurements().get_voltage_pu().a().value();
-        }));
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid_voltage_a_pu",
+            [&]() { return measurement_and_filtering.get_grid_side_measurements().get_voltage_pu().a().value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>("grid_current_a_pu", [&]() {
-            return measurement_and_filtering.get_grid_side_measurements().get_current_pu().a().value();
-        }));
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid_current_a_pu",
+            [&]() { return measurement_and_filtering.get_grid_side_measurements().get_current_pu().a().value(); }));
 
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<std::array<bool, 6>>(
-            "grid_pulses",
+        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<std::array<bool, 6>>("grid_pulses",
             [&]() { return components.pulse_generators.grid_side_pulse_generator.get_pulses().to_array(); }));
-        simulator.register_sampler_entry(yeet::testing::make_lambda_array_sampler<std::array<bool, 6>>(
-            "machine_pulses",
+        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<std::array<bool, 6>>("machine_pulses",
             [&]() { return components.pulse_generators.machine_side_pulse_generator.get_pulses().to_array(); }));
     }
 };
 
-TEST_F(SfcMachineSideFiringAngleLookupTableTest, ShouldControlMachineFiringAngleWithLookupTable) {
+TEST_F(SfcMachineSideFiringAngleLookupTableTest, ShouldControlMachineFiringAngleWithLookupTable)
+{
     // Act: Run the simulation to allow system to stabilize
     simulator.simulate_for(0.5);
 

@@ -4,7 +4,7 @@
 
 namespace {
 
-using namespace yeet::testing;
+using namespace yeet;
 
 // Test fixture for simulator checker tests
 class SimulatorCheckerTest : public ::testing::Test {
@@ -14,7 +14,8 @@ protected:
 };
 
 // Lambda checker tests
-TEST_F(SimulatorCheckerTest, LambdaCheckerBasicOperation) {
+TEST_F(SimulatorCheckerTest, LambdaCheckerBasicOperation)
+{
     bool check_called = false;
     auto checker = lambda_checker("test_checker", [&check_called]() {
         check_called = true;
@@ -26,7 +27,8 @@ TEST_F(SimulatorCheckerTest, LambdaCheckerBasicOperation) {
     EXPECT_EQ(checker.get_name(), "test_checker");
 }
 
-TEST_F(SimulatorCheckerTest, LambdaCheckerCustomFailureMessage) {
+TEST_F(SimulatorCheckerTest, LambdaCheckerCustomFailureMessage)
+{
     auto checker = lambda_checker("test_checker", []() { return false; }, []() { return "Custom failure message"; });
 
     EXPECT_FALSE(checker.check());
@@ -34,7 +36,8 @@ TEST_F(SimulatorCheckerTest, LambdaCheckerCustomFailureMessage) {
 }
 
 // Range checker tests
-TEST_F(SimulatorCheckerTest, RangeCheckerWithinBounds) {
+TEST_F(SimulatorCheckerTest, RangeCheckerWithinBounds)
+{
     auto value = 5.0;
     auto checker = make_range_checker<double>(
         "range_test", [&value]() { return value; }, 0.0, 10.0, checker_activation_time_range{0.0, 1.0});
@@ -43,7 +46,8 @@ TEST_F(SimulatorCheckerTest, RangeCheckerWithinBounds) {
     EXPECT_TRUE(checker.is_active(0.5));
 }
 
-TEST_F(SimulatorCheckerTest, RangeCheckerOutOfBounds) {
+TEST_F(SimulatorCheckerTest, RangeCheckerOutOfBounds)
+{
     auto value = 15.0;
     auto checker = make_range_checker<double>(
         "range_test", [&value]() { return value; }, 0.0, 10.0, checker_activation_time_range{0.0, 1.0});
@@ -53,7 +57,8 @@ TEST_F(SimulatorCheckerTest, RangeCheckerOutOfBounds) {
 }
 
 // Equal checker tests
-TEST_F(SimulatorCheckerTest, EqualCheckerExactMatch) {
+TEST_F(SimulatorCheckerTest, EqualCheckerExactMatch)
+{
     auto value = 5.0;
     auto checker = make_equal_checker<double>(
         "equal_test", [&value]() { return value; }, 5.0, checker_activation_exact_time{0.5, sampling_time});
@@ -62,7 +67,8 @@ TEST_F(SimulatorCheckerTest, EqualCheckerExactMatch) {
     EXPECT_TRUE(checker.is_active(0.5));
 }
 
-TEST_F(SimulatorCheckerTest, EqualCheckerMismatch) {
+TEST_F(SimulatorCheckerTest, EqualCheckerMismatch)
+{
     auto value = 5.1;
     auto checker = make_equal_checker<double>(
         "equal_test", [&value]() { return value; }, 5.0, checker_activation_exact_time{0.5, sampling_time});
@@ -71,14 +77,16 @@ TEST_F(SimulatorCheckerTest, EqualCheckerMismatch) {
 }
 
 // Near checker tests
-TEST_F(SimulatorCheckerTest, NearCheckerWithinTolerance) {
+TEST_F(SimulatorCheckerTest, NearCheckerWithinTolerance)
+{
     auto value = 5.0001;
     auto checker = checker_type_near<double>(5.0, 0.001);
 
     EXPECT_TRUE(checker.check(value));
 }
 
-TEST_F(SimulatorCheckerTest, NearCheckerOutsideTolerance) {
+TEST_F(SimulatorCheckerTest, NearCheckerOutsideTolerance)
+{
     auto value = 5.1;
     auto checker = checker_type_near<double>(5.0, 0.001);
 
@@ -86,7 +94,8 @@ TEST_F(SimulatorCheckerTest, NearCheckerOutsideTolerance) {
 }
 
 // Min checker tests
-TEST_F(SimulatorCheckerTest, MinCheckerAboveMinimum) {
+TEST_F(SimulatorCheckerTest, MinCheckerAboveMinimum)
+{
     auto value = 5.0;
     auto checker = make_min_checker<double>(
         "min_test", [&value]() { return value; }, 0.0, checker_activation_time_range{0.0, 1.0});
@@ -94,7 +103,8 @@ TEST_F(SimulatorCheckerTest, MinCheckerAboveMinimum) {
     EXPECT_TRUE(checker.check());
 }
 
-TEST_F(SimulatorCheckerTest, MinCheckerBelowMinimum) {
+TEST_F(SimulatorCheckerTest, MinCheckerBelowMinimum)
+{
     auto value = -1.0;
     auto checker = make_min_checker<double>(
         "min_test", [&value]() { return value; }, 0.0, checker_activation_time_range{0.0, 1.0});
@@ -103,7 +113,8 @@ TEST_F(SimulatorCheckerTest, MinCheckerBelowMinimum) {
 }
 
 // Max checker tests
-TEST_F(SimulatorCheckerTest, MaxCheckerBelowMaximum) {
+TEST_F(SimulatorCheckerTest, MaxCheckerBelowMaximum)
+{
     auto value = 5.0;
     auto checker = make_max_checker<double>(
         "max_test", [&value]() { return value; }, 10.0, checker_activation_time_range{0.0, 1.0});
@@ -111,7 +122,8 @@ TEST_F(SimulatorCheckerTest, MaxCheckerBelowMaximum) {
     EXPECT_TRUE(checker.check());
 }
 
-TEST_F(SimulatorCheckerTest, MaxCheckerAboveMaximum) {
+TEST_F(SimulatorCheckerTest, MaxCheckerAboveMaximum)
+{
     auto value = 15.0;
     auto checker = make_max_checker<double>(
         "max_test", [&value]() { return value; }, 10.0, checker_activation_time_range{0.0, 1.0});
@@ -120,7 +132,8 @@ TEST_F(SimulatorCheckerTest, MaxCheckerAboveMaximum) {
 }
 
 // Activation time tests
-TEST_F(SimulatorCheckerTest, CheckerActivationTimeRange) {
+TEST_F(SimulatorCheckerTest, CheckerActivationTimeRange)
+{
     auto checker = make_range_checker<double>(
         "activation_test", []() { return 5.0; }, 0.0, 10.0, checker_activation_time_range{1.0, 2.0});
 
@@ -129,7 +142,8 @@ TEST_F(SimulatorCheckerTest, CheckerActivationTimeRange) {
     EXPECT_FALSE(checker.is_active(2.5));  // After range
 }
 
-TEST_F(SimulatorCheckerTest, CheckerActivationExactTime) {
+TEST_F(SimulatorCheckerTest, CheckerActivationExactTime)
+{
     auto checker = make_range_checker<double>(
         "activation_test", []() { return 5.0; }, 0.0, 10.0, checker_activation_exact_time{1.0, sampling_time});
 

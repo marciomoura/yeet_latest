@@ -57,40 +57,40 @@ private:
     void set_logger()
     {
         // Log reference angle in degrees
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "reference_angle_deg", [&]() -> double { return _current_reference_angle.get_pu(); }));
 
         // Log reference sine wave (normalized -1 to 1)
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "reference_sine", [&]() -> double { return std::sin(_current_reference_angle.get_radians()); }));
 
         // Log pulse without delay (0 or 1)
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_no_delay", [&]() -> double { return static_cast<double>(_pulse_no_delay); }));
 
         // Log pulse with delay (0 or 1)
-        _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_with_delay", [&]() -> double { return static_cast<double>(_pulse_with_delay); }));
 
         // // Log expected firing window start (no delay)
-        // _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        // _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
         //     "expected_window_start_no_delay", [&]() -> double { return firing_offset_deg; }));
 
         // Log expected firing window end (no delay)
-        // _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        // _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
         //     "expected_window_end_no_delay", [&]() -> double { return firing_offset_deg + pulse_width_deg; }));
 
         // Log expected firing window start (with delay)
-        // _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        // _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
         //     "expected_window_start_with_delay", [&]() -> double { return firing_offset_deg + firing_delay_deg; }));
 
         // Log expected firing window end (with delay)
-        // _simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
+        // _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
         //     "expected_window_end_with_delay",
         //     [&]() -> double { return firing_offset_deg + firing_delay_deg + pulse_width_deg; }));
     }
 
-    yeet::testing::simulator _simulator = yeet::testing::make_gtest_simulator();
+    yeet::simulator _simulator = yeet::make_gtest_simulator();
     three_phase_waveform_generator _waveform_generator{sampling_time};
     std::unique_ptr<pulse_generator> _pulse_gen;
 

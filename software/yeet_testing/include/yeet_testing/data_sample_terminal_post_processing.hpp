@@ -10,11 +10,12 @@
 #include "yeet_testing/data_sample_post_processing_interface.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
 class data_sample_terminal_post_processing : public data_sample_post_processing_interface {
 public:
-    virtual void dump(std::map<data_sampler_entry*, std::vector<std::vector<float>>> const& data) {
+    virtual void dump(std::map<data_sampler_entry*, std::vector<std::vector<float>>> const& data)
+    {
         for (auto& [entry, data] : data) {
             std::cout << entry->get_name() << ": ";
             for (auto& value : data) {
@@ -27,6 +28,6 @@ public:
     }
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet
 
 #endif  // YEET_TESTING_DATA_SAMPLER_TERMINAL_POST_PROCESSING_HPP

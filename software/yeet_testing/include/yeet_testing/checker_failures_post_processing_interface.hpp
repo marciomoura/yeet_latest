@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace yeet::testing {
+namespace yeet {
 
 struct checker_fail_info {
     std::string name{};
@@ -16,4 +16,4 @@ public:
     virtual void dump(std::vector<checker_fail_info> const& failures) = 0;
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet

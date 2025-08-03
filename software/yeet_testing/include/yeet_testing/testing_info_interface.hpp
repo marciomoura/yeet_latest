@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace yeet::testing {
+namespace yeet {
 
 class testing_info_interface {
 public:
@@ -30,6 +30,6 @@ private:
     const ::testing::UnitTest* _unit_test{};
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet
 
 #endif  // YEET_TESTING_TESTING_INFO_INTERFACE_HPP

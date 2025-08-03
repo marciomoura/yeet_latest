@@ -37,8 +37,10 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(
     ${PROJECT_NAME}
-    PUBLIC nlohmann_json::nlohmann_json yeet::yeet
-    PRIVATE gtest::gtest)
+    PUBLIC nlohmann_json::nlohmann_json yeet::yeet gtest::gtest # Place this one
+                                                                # in the private
+                                                                # scope.
+    PRIVATE)
 
 # Configure data logging based on the option
 if(YEET_ENABLE_DATA_LOGGING)

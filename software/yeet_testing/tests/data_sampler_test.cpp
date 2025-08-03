@@ -10,10 +10,12 @@
 namespace {
 
 // Mock post-processor for validation
-class TestPostProcessor : public yeet::testing::data_sample_post_processing_interface {
+class TestPostProcessor : public yeet::data_sample_post_processing_interface {
 public:
-    void dump(std::string test_suite, std::string test_name,
-              std::map<yeet::testing::data_sampler_entry*, std::vector<std::vector<float>>> const& data) override {
+    void dump(std::string test_suite,
+        std::string test_name,
+        std::map<yeet::data_sampler_entry*, std::vector<std::vector<float>>> const& data) override
+    {
         last_test_suite = test_suite;
         last_test_name = test_name;
         last_data = data;
@@ -21,7 +23,7 @@ public:
 
     std::string last_test_suite;
     std::string last_test_name;
-    std::map<yeet::testing::data_sampler_entry*, std::vector<std::vector<float>>> last_data;
+    std::map<yeet::data_sampler_entry*, std::vector<std::vector<float>>> last_data;
 };
 
 class DataSamplerTest : public ::testing::Test {
@@ -29,16 +31,18 @@ protected:
     static constexpr float kTolerance = 1e-6f;
     static constexpr std::size_t kNumSamples = 10;
 
-    void SetUp() override {
-        sampler = std::make_unique<yeet::testing::data_sampler>();
+    void SetUp() override
+    {
+        sampler = std::make_unique<yeet::data_sampler>();
         post_processor = std::make_unique<TestPostProcessor>();
     }
 
-    std::unique_ptr<yeet::testing::data_sampler> sampler{};
+    std::unique_ptr<yeet::data_sampler> sampler{};
     std::unique_ptr<TestPostProcessor> post_processor{};
 };
 
-TEST_F(DataSamplerTest, RegisterAndSampleAllTypes) {
+TEST_F(DataSamplerTest, RegisterAndSampleAllTypes)
+{
     // Test data
     int scalar_int = 42;
     double scalar_double = 3.14159;
@@ -47,12 +51,12 @@ TEST_F(DataSamplerTest, RegisterAndSampleAllTypes) {
     double changing_value = 0.0;
 
     // Register different types of samplers
-    sampler->register_entry(yeet::testing::make_reference_sampler("scalar_int", scalar_int));
-    sampler->register_entry(yeet::testing::make_reference_sampler("scalar_double", scalar_double));
-    sampler->register_entry(yeet::testing::make_array_reference_sampler("vector_data", vector_data));
-    sampler->register_entry(yeet::testing::make_array_reference_sampler("array_data", array_data));
-    sampler->register_entry(yeet::testing::make_lambda_sampler<double>(
-        "lambda_data", [&changing_value]() -> double { return changing_value; }));
+    sampler->register_entry(yeet::make_reference_sampler("scalar_int", scalar_int));
+    sampler->register_entry(yeet::make_reference_sampler("scalar_double", scalar_double));
+    sampler->register_entry(yeet::make_array_reference_sampler("vector_data", vector_data));
+    sampler->register_entry(yeet::make_array_reference_sampler("array_data", array_data));
+    sampler->register_entry(
+        yeet::make_lambda_sampler<double>("lambda_data", [&changing_value]() -> double { return changing_value; }));
 
     // Allocate space for samples
     sampler->allocate(kNumSamples);
@@ -85,25 +89,29 @@ TEST_F(DataSamplerTest, RegisterAndSampleAllTypes) {
                 EXPECT_EQ(sample.size(), 1);
                 EXPECT_NEAR(sample[0], 42.0f, kTolerance);
             }
-        } else if (name == "scalar_double") {
+        }
+        else if (name == "scalar_double") {
             for (const auto& sample : data) {
                 EXPECT_EQ(sample.size(), 1);
                 EXPECT_NEAR(sample[0], 3.14159f, kTolerance);
             }
-        } else if (name == "vector_data") {
+        }
+        else if (name == "vector_data") {
             for (const auto& sample : data) {
                 EXPECT_EQ(sample.size(), 3);
                 EXPECT_NEAR(sample[0], 1.0f, kTolerance);
                 EXPECT_NEAR(sample[1], 2.0f, kTolerance);
                 EXPECT_NEAR(sample[2], 3.0f, kTolerance);
             }
-        } else if (name == "array_data") {
+        }
+        else if (name == "array_data") {
             for (const auto& sample : data) {
                 EXPECT_EQ(sample.size(), 2);
                 EXPECT_NEAR(sample[0], 4.0f, kTolerance);
                 EXPECT_NEAR(sample[1], 5.0f, kTolerance);
             }
-        } else if (name == "lambda_data") {
+        }
+        else if (name == "lambda_data") {
             for (size_t i = 0; i < data.size(); ++i) {
                 EXPECT_EQ(data[i].size(), 1);
                 EXPECT_NEAR(data[i][0], static_cast<float>(i), kTolerance);
@@ -114,7 +122,7 @@ TEST_F(DataSamplerTest, RegisterAndSampleAllTypes) {
 
 // TEST_F(DataSamplerTest, ExceedingSampleSize) {
 //     double value = 1.0;
-//     sampler->register_entry(yeet::testing::make_sampler_entry("test", value));
+//     sampler->register_entry(yeet::make_sampler_entry("test", value));
 //     sampler->allocate(1);  // Only one sample
 
 //     testing::internal::CaptureStdout();
@@ -126,7 +134,8 @@ TEST_F(DataSamplerTest, RegisterAndSampleAllTypes) {
 //     EXPECT_TRUE(output.find("Sample position exceeds data size") != std::string::npos);
 // }
 
-TEST_F(DataSamplerTest, EmptyDataSampler) {
+TEST_F(DataSamplerTest, EmptyDataSampler)
+{
     sampler->dump("empty_suite", "empty_test", *post_processor);
     EXPECT_TRUE(post_processor->last_data.empty());
 }

@@ -3,8 +3,8 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
-#include "yeet_control/reference_frame.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/angle_wrapped.hpp"
+#include "yeet_control/units.hpp"
 
 /**
  * @file sfc_current_controller_datamodel.hpp

@@ -8,18 +8,20 @@
 #include "simulator_sampler_runner.hpp"
 #include "testing_info_interface.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
 class simulator {
 public:
     simulator() { register_simulation_time_to_data_sampler(); }
 
     simulator(std::shared_ptr<testing_info_interface> test_info_interface)
-        : _test_info_interface(std::move(test_info_interface)) {
+        : _test_info_interface(std::move(test_info_interface))
+    {
         register_simulation_time_to_data_sampler();
     }
 
-    ~simulator() {
+    ~simulator()
+    {
         if (!_test_info_interface) {
             return;
         }
@@ -30,18 +32,21 @@ public:
 #endif
     }
 
-    void register_lambda_runner(double sampling_time, std::function<void()> lambda_runner) {
+    void register_lambda_runner(double sampling_time, std::function<void()> lambda_runner)
+    {
         _runner.register_lambda_runner(sampling_time, std::move(lambda_runner));
     }
 
     void register_checker(std::unique_ptr<simulator_checker> checker) { _checker.register_checker(std::move(checker)); }
 
     template <typename CheckerType>
-    void register_checker(CheckerType checker) {
+    void register_checker(CheckerType checker)
+    {
         _checker.register_checker(std::move(checker));
     }
 
-    void register_sampler_entry(data_sampler_entry entry) {
+    void register_sampler_entry(data_sampler_entry entry)
+    {
 #ifdef YEET_ENABLE_DATA_LOGGING
         _sampler.register_entry(std::move(entry));
 #else
@@ -54,21 +59,25 @@ public:
      * @brief Configures the sampling rate for data collection.
      * @param sampling_rate The desired sampling rate in seconds. If <= 0, uses the maximum simulation rate.
      */
-    void configure_sampler_sampling_rate(double sampling_rate) {
+    void configure_sampler_sampling_rate(double sampling_rate)
+    {
         if (sampling_rate <= 0.0) {
             _use_custom_sampler_rate = false;
-        } else {
+        }
+        else {
             _custom_sampler_rate = sampling_rate;
             _use_custom_sampler_rate = true;
         }
     }
 
-    void initialize() {
+    void initialize()
+    {
         _runner.initialize();
         _current_simulation_time = 0.0;
     }
 
-    bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false) {
+    bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false)
+    {
         const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();
         const std::size_t num_simulation_ticks = static_cast<std::size_t>(time / simulation_sampling_rate);
 
@@ -105,11 +114,12 @@ public:
 
     double get_current_simulation_time() const { return _current_simulation_time; }
 
-    void dump_data() {
+    void dump_data()
+    {
         assert(_test_info_interface && "Test info interface not set");
 
         _sampler.dump(_test_info_interface->get_test_suite_name(), _test_info_interface->get_test_case_name(),
-                      _json_post_processor);
+            _json_post_processor);
 
         _checker.dump(_json_post_processor);
 
@@ -120,7 +130,8 @@ public:
     simulator_sampler_runner const& get_sampler() const { return _sampler; }
 
 private:
-    void register_simulation_time_to_data_sampler() {
+    void register_simulation_time_to_data_sampler()
+    {
         register_sampler_entry(data_sampler_entry("time", [this]() { return _current_simulation_time; }));
     }
 
@@ -139,4 +150,4 @@ private:
     double _custom_sampler_rate{0.0};
 };
 
-}  // namespace yeet::testing
+}  // namespace yeet

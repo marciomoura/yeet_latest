@@ -5,9 +5,10 @@
 #include "simulator.hpp"
 #include "testing_info_interface.hpp"
 
-namespace yeet::testing {
+namespace yeet {
 
-inline simulator make_gtest_simulator(double data_sampler_sampling_rate = 100e-6) {
+inline simulator make_gtest_simulator(double data_sampler_sampling_rate = 100e-6)
+{
     auto s = simulator{std::make_shared<gtest_testing_info>(::testing::UnitTest::GetInstance())};
 
 #ifdef YEET_ENABLE_DATA_LOGGING
@@ -20,4 +21,4 @@ inline simulator make_gtest_simulator(double data_sampler_sampling_rate = 100e-6
     return s;
 }
 
-}  // namespace yeet::testing
+}  // namespace yeet
