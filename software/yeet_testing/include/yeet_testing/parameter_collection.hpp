@@ -5,7 +5,6 @@
 #include <type_traits>
 
 #include "simulator.hpp"
-#include "testing_info_interface.hpp"
 #include "yeet/model_registry.hpp"
 
 namespace yeet::testing {
@@ -43,7 +42,8 @@ public:
     parameter_collection(Params&... args) : _parameters(parameter_set<Params>(args)...) {}
 
     template <typename T>
-    parameter_set<T>& get() {
+    parameter_set<T>& get()
+    {
         static_assert((std::is_same_v<T, Params> || ...), "Requested type not found in parameter_collection");
         return std::get<parameter_set<T>>(_parameters);
     }
@@ -57,7 +57,9 @@ template <typename ParametersTypes>
 class simulation_runner {
 public:
     explicit simulation_runner(simulator& sim, closed_loop_configuration<ParametersTypes>& config)
-        : _simulator(sim), _configuration(config), _parameters(config.create_parameter_collection()) {}
+        : _simulator(sim), _configuration(config), _parameters(config.create_parameter_collection())
+    {
+    }
 
     void initialize() { _simulator.initialize(); }
 
@@ -66,7 +68,8 @@ public:
     // void dump_results(const testing_info_interface& info) { _simulator.dump_json(info); }
 
     template <typename T>
-    parameter_set<T>& get_parameters() {
+    parameter_set<T>& get_parameters()
+    {
         return _parameters.template get<T>();
     }
 
@@ -81,7 +84,8 @@ template <typename ParametersTypes>
 class simulation_builder {
 public:
     static std::unique_ptr<simulation_runner<ParametersTypes>> create(
-        simulator& sim, closed_loop_configuration<ParametersTypes>& config) {
+        simulator& sim, closed_loop_configuration<ParametersTypes>& config)
+    {
         // Register all available applications
         // and data models into the simulator
         configure_simulator(sim, config);
@@ -90,7 +94,8 @@ public:
     }
 
 private:
-    static void configure_simulator(simulator& sim, closed_loop_configuration<ParametersTypes>& config) {
+    static void configure_simulator(simulator& sim, closed_loop_configuration<ParametersTypes>& config)
+    {
         // Register all available applications
         config.register_applications(sim);
 

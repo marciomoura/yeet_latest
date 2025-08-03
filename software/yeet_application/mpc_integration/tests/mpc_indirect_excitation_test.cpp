@@ -13,7 +13,8 @@ class mpc_indirect_excitation_test : public ::testing::Test {
 public:
     using parameter_types = closed_loop_mpc_with_plant_model::parameter_types;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         system.register_applications(simulator);
 
         // initialize here, it allocates plant model stuff
@@ -66,16 +67,18 @@ public:
     parameter_types parameter_collection() { return system.create_parameter_collection(); }
 
     template <typename T>
-    yeet::testing::parameter_set<T> parameters() {
+    yeet::testing::parameter_set<T> parameters()
+    {
         return parameter_collection().get<T>();
     }
 
-    yeet::testing::parameter_set<mpc_integration_datamodel::parameters> control_parameters() {
+    yeet::testing::parameter_set<mpc_integration_datamodel::parameters> control_parameters()
+    {
         return parameters<mpc_integration_datamodel::parameters>();
     }
 
-    yeet::testing::parameter_set<synchronous_machine_infinite_bus_integration_datamodel::parameters>
-    plant_parameters() {
+    yeet::testing::parameter_set<synchronous_machine_infinite_bus_integration_datamodel::parameters> plant_parameters()
+    {
         return parameters<synchronous_machine_infinite_bus_integration_datamodel::parameters>();
     }
 
@@ -84,7 +87,8 @@ public:
     yeet::testing::simulator simulator = yeet::testing::make_gtest_simulator();
 };
 
-TEST_F(mpc_indirect_excitation_test, mechanical_power_step) {
+TEST_F(mpc_indirect_excitation_test, mechanical_power_step)
+{
     simulate_for(5.0f);
 
     plant_parameters()->pmech = 0.3f;
@@ -103,7 +107,8 @@ TEST_F(mpc_indirect_excitation_test, mechanical_power_step) {
     simulate_for(20.0f);
 }
 
-TEST_F(mpc_indirect_excitation_test, terminal_voltage_step) {
+TEST_F(mpc_indirect_excitation_test, terminal_voltage_step)
+{
     simulate_for(5.0f);
 
     control_parameters()->mpc_terminal_voltage_reference = 1.02f;

@@ -3,520 +3,432 @@
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
+#include "sfc_integration/sfc_grid_side_modulator_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
-#include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
+#include "sfc_integration/sfc_machine_side_modulator_datamodel.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
-#include "yeet/application_datamodel.hpp"
-#include "yeet/application_interface.hpp"
 #include "yeet/data_model_connector.hpp"
 #include "yeet/model_registry.hpp"
-#include "yeet/parameter.hpp"
-#include "yeet/signal.hpp"
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc::integration {
 
-// ==================== Data Model Type Aliases ====================
-
+// Type aliases for datamodels - these define the signal contracts
 using speed_controller_datamodel =
     yeet::signal_flow_datamodel<sfc_speed_controller_datamodel::inputs, sfc_speed_controller_datamodel::outputs>;
-
 using current_controller_datamodel =
     yeet::signal_flow_datamodel<sfc_current_controller_datamodel::inputs, sfc_current_controller_datamodel::outputs>;
-
 using grid_observer_datamodel =
     yeet::signal_flow_datamodel<sfc_grid_side_observer_datamodel::inputs, sfc_grid_side_observer_datamodel::outputs>;
-
 using grid_modulator_datamodel =
     yeet::signal_flow_datamodel<sfc_grid_side_modulator_datamodel::inputs, sfc_grid_side_modulator_datamodel::outputs>;
-
 using grid_measurements_datamodel = yeet::signal_flow_datamodel<sfc_grid_side_measurements_datamodel::inputs,
-                                                                sfc_grid_side_measurements_datamodel::outputs>;
-
+    sfc_grid_side_measurements_datamodel::outputs>;
 using machine_observer_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_observer_datamodel::inputs,
-                                                               sfc_machine_side_observer_datamodel::outputs>;
-
+    sfc_machine_side_observer_datamodel::outputs>;
 using machine_modulator_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_modulator_datamodel::inputs,
-                                                                sfc_machine_side_modulator_datamodel::outputs>;
-
+    sfc_machine_side_modulator_datamodel::outputs>;
 using machine_measurements_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_measurements_datamodel::inputs,
-                                                                   sfc_machine_side_measurements_datamodel::outputs>;
-
+    sfc_machine_side_measurements_datamodel::outputs>;
 using dc_link_measurements_datamodel = yeet::signal_flow_datamodel<sfc_dc_link_measurements_datamodel::inputs,
-                                                                   sfc_dc_link_measurements_datamodel::outputs>;
-
+    sfc_dc_link_measurements_datamodel::outputs>;
 using plant_datamodel =
     yeet::signal_flow_datamodel<sfc_plant_model_datamodel::inputs, sfc_plant_model_datamodel::outputs>;
 
-// ==================== Speed Control Loop Connectors ====================
+// ==================== Aggregated Connector Classes ====================
 
 /**
- * @brief Connects machine-side observer outputs to speed controller inputs
+ * @brief Aggregated connector for all inputs to the speed controller
  *
- * This connector provides the measured speed from the machine observer to the speed controller
- * for the outer control loop feedback.
+ * Signal Flow: Machine Observer → Speed Controller
+ * Key Connections:
+ * - Machine Observer: estimated_speed_pu → measured_speed_pu
  */
-class machine_observer_to_speed_controller_connector
-    : public yeet::data_model_connector<speed_controller_datamodel, machine_observer_datamodel> {
+class to_speed_controller_connector
+    : public data_model_connector<inputs<speed_controller_datamodel>, outputs<machine_observer_datamodel>> {
 public:
-    machine_observer_to_speed_controller_connector(speed_controller_datamodel& speed_ctrl,
-                                                   machine_observer_datamodel& machine_obs)
-        : data_model_connector(speed_ctrl.get_inputs(), machine_obs.get_outputs()) {}
+    to_speed_controller_connector(speed_controller_datamodel& speed_ctrl, machine_observer_datamodel& machine_obs)
+        : data_model_connector(speed_ctrl.get_inputs(), machine_obs.get_outputs())
+    {
+    }
 
-    void connect() override {
-        // Connect estimated speed from observer to speed controller
-        yeet::signals_connector::connect_output_to_input(get_outputs().estimated_speed_pu,
-                                                         get_inputs().measured_speed_pu);
+    void connect() override
+    {
+        // Connect machine observer outputs to speed controller
+        signals_connector::connect_output_to_input(
+            get_outputs<machine_observer_datamodel>().estimated_speed, get_inputs().measured_speed_pu);
     }
 };
 
 /**
- * @brief Connects speed controller output to current controller input
+ * @brief Aggregated connector for all inputs to the current controller
  *
- * This connector transfers the current reference from the speed controller to the
- * current controller, forming the cascade control structure.
+ * Signal Flow: Speed Controller + DC Link Measurements + Grid Observer + Machine Observer → Current Controller
+ * Key Connections:
+ * - Speed Controller: current_reference → current_reference_pu
+ * - DC Link Measurements: dc_link_current_pu → dc_link_current_measured_pu
+ * - Grid Observer: ideal_dc_voltage → ideal_dc_voltage_pu (feedforward)
+ * - Machine Observer: estimated_back_emf_pu → inverter_back_emf_machine_pu (feedforward)
  */
-class speed_controller_to_current_controller_connector
-    : public yeet::data_model_connector<current_controller_datamodel, speed_controller_datamodel> {
+class to_current_controller_connector : public data_model_connector<inputs<current_controller_datamodel>,
+                                            outputs<speed_controller_datamodel>,
+                                            outputs<dc_link_measurements_datamodel>,
+                                            outputs<grid_observer_datamodel>,
+                                            outputs<machine_observer_datamodel>> {
 public:
-    speed_controller_to_current_controller_connector(current_controller_datamodel& current_ctrl,
-                                                     speed_controller_datamodel& speed_ctrl)
-        : data_model_connector(current_ctrl.get_inputs(), speed_ctrl.get_outputs()) {}
-
-    void connect() override {
-        // Connect current reference from speed controller to current controller
-        yeet::signals_connector::connect_output_to_input(get_outputs().current_reference,
-                                                         get_inputs().current_reference_pu);
+    to_current_controller_connector(current_controller_datamodel& current_ctrl,
+        speed_controller_datamodel& speed_ctrl,
+        dc_link_measurements_datamodel& dc_link,
+        grid_observer_datamodel& grid_obs,
+        machine_observer_datamodel& machine_obs)
+        : data_model_connector(current_ctrl.get_inputs(),
+              speed_ctrl.get_outputs(),
+              dc_link.get_outputs(),
+              grid_obs.get_outputs(),
+              machine_obs.get_outputs())
+    {
     }
-};
 
-// ==================== Current Control Loop Connectors ====================
+    void connect() override
+    {
+        // Connect speed controller output (cascade control)
+        signals_connector::connect_output_to_input(
+            get_outputs<speed_controller_datamodel>().current_reference, get_inputs().current_reference_pu);
 
-/**
- * @brief Connects DC link measurements to current controller
- *
- * This connector provides the measured DC link current for current control loop feedback.
- */
-class dc_link_to_current_controller_connector
-    : public yeet::data_model_connector<current_controller_datamodel, dc_link_measurements_datamodel> {
-public:
-    dc_link_to_current_controller_connector(current_controller_datamodel& current_ctrl,
-                                            dc_link_measurements_datamodel& dc_link)
-        : data_model_connector(current_ctrl.get_inputs(), dc_link.get_outputs()) {}
+        // Connect DC link measurements (feedback)
+        signals_connector::connect_output_to_input(get_outputs<dc_link_measurements_datamodel>().dc_current_filtered_pu,
+            get_inputs().dc_link_current_measured_pu);
 
-    void connect() override {
-        // Connect measured DC link current to current controller
-        yeet::signals_connector::connect_output_to_input(get_outputs().dc_current_filtered_pu,
-                                                         get_inputs().dc_link_current_measured_pu);
-    }
-};
+        // Connect grid observer feedforward
+        signals_connector::connect_output_to_input(
+            get_outputs<grid_observer_datamodel>().estimated_voltage_magnitude, get_inputs().ideal_dc_voltage_pu);
 
-/**
- * @brief Connects current controller output to grid-side modulator
- *
- * This connector transfers the firing angle reference from the current controller to
- * the grid-side modulator for pulse generation.
- */
-class current_controller_to_grid_modulator_connector
-    : public yeet::data_model_connector<grid_modulator_datamodel, current_controller_datamodel> {
-public:
-    current_controller_to_grid_modulator_connector(grid_modulator_datamodel& grid_mod,
-                                                   current_controller_datamodel& current_ctrl)
-        : data_model_connector(grid_mod.get_inputs(), current_ctrl.get_outputs()) {}
-
-    void connect() override {
-        // Connect firing angle reference from current controller to grid modulator
-        yeet::signals_connector::connect_output_to_input(get_outputs().firing_angle_reference,
-                                                         get_inputs().firing_angle_reference);
-    }
-};
-
-// ==================== Grid-Side Observer Chain Connectors ====================
-
-/**
- * @brief Connects grid-side measurements to grid-side observer
- *
- * This connector provides filtered grid voltage measurements to the PLL-based observer
- * for grid synchronization.
- */
-class grid_measurements_to_grid_observer_connector
-    : public yeet::data_model_connector<grid_observer_datamodel, grid_measurements_datamodel> {
-public:
-    grid_measurements_to_grid_observer_connector(grid_observer_datamodel& grid_obs,
-                                                 grid_measurements_datamodel& grid_meas)
-        : data_model_connector(grid_obs.get_inputs(), grid_meas.get_outputs()) {}
-
-    void connect() override {
-        // Connect filtered grid voltages to observer
-        yeet::signals_connector::connect_output_to_input(get_outputs().grid_voltage_abc_pu,
-                                                         get_inputs().grid_voltage_pu);
+        // Connect machine observer feedforward
+        signals_connector::connect_output_to_input(
+            get_outputs<machine_observer_datamodel>().estimated_voltage_magnitude,
+            get_inputs().inverter_back_emf_machine_pu);
     }
 };
 
 /**
- * @brief Connects grid-side observer outputs to grid-side modulator
+ * @brief Aggregated connector for all inputs to the grid observer
  *
- * This connector provides grid angle and frequency information from the observer to
- * the modulator for synchronized pulse generation.
+ * Signal Flow: Grid Measurements → Grid Observer
+ * Key Connections:
+ * - Grid Measurements: grid_voltage_abc_pu → grid_voltage_pu
  */
-class grid_observer_to_grid_modulator_connector
-    : public yeet::data_model_connector<grid_modulator_datamodel, grid_observer_datamodel> {
+class to_grid_observer_connector
+    : public data_model_connector<inputs<grid_observer_datamodel>, outputs<grid_measurements_datamodel>> {
 public:
-    grid_observer_to_grid_modulator_connector(grid_modulator_datamodel& grid_mod, grid_observer_datamodel& grid_obs)
-        : data_model_connector(grid_mod.get_inputs(), grid_obs.get_outputs()) {}
-
-    void connect() override {
-        // Connect estimated grid angle to modulator
-        yeet::signals_connector::connect_output_to_input(get_outputs().estimated_angle,
-                                                         get_inputs().grid_voltage_angle);
-        // Connect estimated frequency for adaptive pulse generation
-        yeet::signals_connector::connect_output_to_input(get_outputs().estimated_frequency,
-                                                         get_inputs().grid_frequency);
+    to_grid_observer_connector(grid_observer_datamodel& grid_obs, grid_measurements_datamodel& grid_meas)
+        : data_model_connector(grid_obs.get_inputs(), grid_meas.get_outputs())
+    {
     }
-};
 
-// ==================== Machine-Side Observer Chain Connectors ====================
-
-/**
- * @brief Connects machine-side measurements to machine-side observer
- *
- * This connector provides filtered machine voltage measurements to the adaptive observer
- * for machine speed and position estimation.
- */
-class machine_measurements_to_machine_observer_connector
-    : public yeet::data_model_connector<machine_observer_datamodel, machine_measurements_datamodel> {
-public:
-    machine_measurements_to_machine_observer_connector(machine_observer_datamodel& machine_obs,
-                                                       machine_measurements_datamodel& machine_meas)
-        : data_model_connector(machine_obs.get_inputs(), machine_meas.get_outputs()) {}
-
-    void connect() override {
-        // Connect filtered machine voltages to observer
-        yeet::signals_connector::connect_output_to_input(get_outputs().machine_voltage_abc_pu,
-                                                         get_inputs().machine_voltage_pu);
+    void connect() override
+    {
+        // Connect grid measurements to observer
+        signals_connector::connect_output_to_input(
+            get_outputs<grid_measurements_datamodel>().grid_voltage_abc_pu, get_inputs().grid_voltage_pu);
     }
 };
 
 /**
- * @brief Connects machine-side observer outputs to machine-side modulator
+ * @brief Aggregated connector for all inputs to the grid modulator
  *
- * This connector provides rotor position information from the observer to the modulator
- * for position-synchronized pulse generation.
+ * Signal Flow: Current Controller + Grid Observer → Grid Modulator
+ * Key Connections:
+ * - Current Controller: firing_angle_reference → firing_angle_reference
+ * - Grid Observer: estimated_angle → grid_voltage_angle, estimated_frequency → grid_frequency
  */
-class machine_observer_to_machine_modulator_connector
-    : public yeet::data_model_connector<machine_modulator_datamodel, machine_observer_datamodel> {
+class to_grid_modulator_connector : public data_model_connector<inputs<grid_modulator_datamodel>,
+                                        outputs<current_controller_datamodel>,
+                                        outputs<grid_observer_datamodel>> {
 public:
-    machine_observer_to_machine_modulator_connector(machine_modulator_datamodel& machine_mod,
-                                                    machine_observer_datamodel& machine_obs)
-        : data_model_connector(machine_mod.get_inputs(), machine_obs.get_outputs()) {}
+    to_grid_modulator_connector(grid_modulator_datamodel& grid_mod,
+        current_controller_datamodel& current_ctrl,
+        grid_observer_datamodel& grid_obs)
+        : data_model_connector(grid_mod.get_inputs(), current_ctrl.get_outputs(), grid_obs.get_outputs())
+    {
+    }
 
-    void connect() override {
-        // Connect estimated rotor position to machine modulator
-        yeet::signals_connector::connect_output_to_input(get_outputs().estimated_position,
-                                                         get_inputs().rotor_position_electrical);
+    void connect() override
+    {
+        // Connect current controller output
+        signals_connector::connect_output_to_input(
+            get_outputs<current_controller_datamodel>().firing_angle_reference, get_inputs().firing_angle_reference);
+
+        // Connect grid observer synchronization signals
+        signals_connector::connect_output_to_input(
+            get_outputs<grid_observer_datamodel>().estimated_angle, get_inputs().grid_voltage_angle);
+        signals_connector::connect_output_to_input(
+            get_outputs<grid_observer_datamodel>().estimated_frequency, get_inputs().grid_frequency);
     }
 };
 
 /**
- * @brief Connects DC link measurements to machine-side modulator
+ * @brief Aggregated connector for all inputs to the machine observer
  *
- * This connector provides DC current information to the machine modulator for
- * firing angle lookup table operation and advance angle calculation.
+ * Signal Flow: Machine Measurements → Machine Observer
+ * Key Connections:
+ * - Machine Measurements: machine_voltage_abc_pu → machine_voltage_pu, machine_current_abc_pu → machine_current_pu
  */
-class dc_link_to_machine_modulator_connector
-    : public yeet::data_model_connector<machine_modulator_datamodel, dc_link_measurements_datamodel> {
+class to_machine_observer_connector
+    : public data_model_connector<inputs<machine_observer_datamodel>, outputs<machine_measurements_datamodel>> {
 public:
-    dc_link_to_machine_modulator_connector(machine_modulator_datamodel& machine_mod,
-                                           dc_link_measurements_datamodel& dc_link)
-        : data_model_connector(machine_mod.get_inputs(), dc_link.get_outputs()) {}
-
-    void connect() override {
-        // Connect DC link current to machine modulator
-        yeet::signals_connector::connect_output_to_input(get_outputs().dc_current_filtered_pu,
-                                                         get_inputs().dc_link_current_pu);
+    to_machine_observer_connector(machine_observer_datamodel& machine_obs, machine_measurements_datamodel& machine_meas)
+        : data_model_connector(machine_obs.get_inputs(), machine_meas.get_outputs())
+    {
     }
-};
 
-// ==================== Plant Model Input Connectors ====================
-
-/**
- * @brief Connects plant model outputs to grid-side measurements
- *
- * This connector provides raw electrical measurements from the plant model to the
- * grid-side measurement and filtering component.
- */
-class plant_to_grid_measurements_connector
-    : public yeet::data_model_connector<grid_measurements_datamodel, plant_datamodel> {
-public:
-    plant_to_grid_measurements_connector(grid_measurements_datamodel& grid_meas, plant_datamodel& plant)
-        : data_model_connector(grid_meas.get_inputs(), plant.get_outputs()) {}
-
-    void connect() override {
-        // Connect grid voltages and currents from plant to measurements
-        yeet::signals_connector::connect_output_to_input(get_outputs().grid_voltage_ln, get_inputs().line_voltages_raw);
-        yeet::signals_connector::connect_output_to_input(get_outputs().grid_current, get_inputs().line_currents_raw);
-        yeet::signals_connector::connect_output_to_input(get_outputs().dc_link_voltage,
-                                                         get_inputs().dc_link_voltage_raw);
+    void connect() override
+    {
+        // Connect machine measurements to observer
+        signals_connector::connect_output_to_input(
+            get_outputs<machine_measurements_datamodel>().machine_voltage_abc_pu, get_inputs().machine_voltage_pu);
+        // signals_connector::connect_output_to_input(
+        // get_outputs<machine_measurements_datamodel>().machine_current_abc_pu, get_inputs().);
     }
 };
 
 /**
- * @brief Connects plant model outputs to machine-side measurements
+ * @brief Aggregated connector for all inputs to the machine modulator
  *
- * This connector provides raw machine electrical measurements from the plant model to
- * the machine-side measurement and filtering component.
+ * Signal Flow: DC Link Measurements + Machine Observer → Machine Modulator
+ * Key Connections:
+ * - DC Link Measurements: dc_link_current_pu → lookup_table_input (for firing angle calculation)
+ * - Machine Observer: estimated_position → rotor_position_electrical
  */
-class plant_to_machine_measurements_connector
-    : public yeet::data_model_connector<machine_measurements_datamodel, plant_datamodel> {
+class to_machine_modulator_connector : public data_model_connector<inputs<machine_modulator_datamodel>,
+                                           outputs<dc_link_measurements_datamodel>,
+                                           outputs<machine_observer_datamodel>> {
 public:
-    plant_to_machine_measurements_connector(machine_measurements_datamodel& machine_meas, plant_datamodel& plant)
-        : data_model_connector(machine_meas.get_inputs(), plant.get_outputs()) {}
+    to_machine_modulator_connector(machine_modulator_datamodel& machine_mod,
+        dc_link_measurements_datamodel& dc_link,
+        machine_observer_datamodel& machine_obs)
+        : data_model_connector(machine_mod.get_inputs(), dc_link.get_outputs(), machine_obs.get_outputs())
+    {
+    }
 
-    void connect() override {
-        // Connect machine voltages and currents from plant to measurements
-        yeet::signals_connector::connect_output_to_input(get_outputs().machine_voltage_ln,
-                                                         get_inputs().machine_voltages_raw);
-        yeet::signals_connector::connect_output_to_input(get_outputs().machine_current,
-                                                         get_inputs().machine_currents_raw);
-        // Connect mechanical measurements
-        yeet::signals_connector::connect_output_to_input(get_outputs().rotor_speed_mechanical,
-                                                         get_inputs().machine_speed_raw);
-        yeet::signals_connector::connect_output_to_input(get_outputs().rotor_position_mechanical,
-                                                         get_inputs().rotor_position_raw);
+    void connect() override
+    {
+        // Connect DC current for lookup table firing angle calculation
+        signals_connector::connect_output_to_input(
+            get_outputs<dc_link_measurements_datamodel>().dc_current_filtered_pu, get_inputs().dc_link_current_pu);
+
+        // Connect machine observer position for synchronization
+        signals_connector::connect_output_to_input(
+            get_outputs<machine_observer_datamodel>().estimated_position, get_inputs().rotor_position_electrical);
     }
 };
 
 /**
- * @brief Connects plant model outputs to DC link measurements
+ * @brief Aggregated connector for all inputs to grid measurements
  *
- * This connector provides raw DC link measurements from the plant model to the
- * DC link measurement and filtering component.
+ * Signal Flow: Plant Model → Grid Measurements
+ * Key Connections: Raw grid voltages, currents, and DC link voltage
  */
-class plant_to_dc_link_measurements_connector
-    : public yeet::data_model_connector<dc_link_measurements_datamodel, plant_datamodel> {
+class to_grid_measurements_connector
+    : public data_model_connector<inputs<grid_measurements_datamodel>, outputs<plant_datamodel>> {
 public:
-    plant_to_dc_link_measurements_connector(dc_link_measurements_datamodel& dc_link, plant_datamodel& plant)
-        : data_model_connector(dc_link.get_inputs(), plant.get_outputs()) {}
-
-    void connect() override {
-        // Connect DC link measurements from plant
-        yeet::signals_connector::connect_output_to_input(get_outputs().dc_link_voltage, get_inputs().dc_voltage);
-        yeet::signals_connector::connect_output_to_input(get_outputs().dc_link_current, get_inputs().dc_current);
+    to_grid_measurements_connector(grid_measurements_datamodel& grid_meas, plant_datamodel& plant)
+        : data_model_connector(grid_meas.get_inputs(), plant.get_outputs())
+    {
     }
-};
 
-// ==================== Plant Model Output Connectors ====================
-
-/**
- * @brief Connects modulator outputs to plant model inputs
- *
- * This connector transfers firing pulses from both grid and machine modulators to
- * the plant model for converter operation simulation.
- */
-class modulators_to_plant_connector {
-private:
-    plant_datamodel& _plant;
-    grid_modulator_datamodel& _grid_mod;
-    machine_modulator_datamodel& _machine_mod;
-
-public:
-    modulators_to_plant_connector(plant_datamodel& plant, grid_modulator_datamodel& grid_mod,
-                                  machine_modulator_datamodel& machine_mod)
-        : _plant(plant), _grid_mod(grid_mod), _machine_mod(machine_mod) {}
-
-    void connect() {
-        // Connect grid-side firing pulses
-        yeet::signals_connector::connect_output_to_input(_grid_mod.get_outputs().firing_pulses,
-                                                         _plant.get_inputs().grid_side_firing_pulses);
-        // Connect machine-side firing pulses
-        yeet::signals_connector::connect_output_to_input(_machine_mod.get_outputs().firing_pulses,
-                                                         _plant.get_inputs().machine_side_firing_pulses);
-    }
-};
-
-// ==================== Feedforward and Feedback Connectors ====================
-
-/**
- * @brief Connects grid observer to current controller for feedforward compensation
- *
- * This connector provides ideal DC voltage estimation from the grid observer to the
- * current controller for improved dynamic response.
- */
-class grid_observer_to_current_controller_connector
-    : public yeet::data_model_connector<current_controller_datamodel, grid_observer_datamodel> {
-public:
-    grid_observer_to_current_controller_connector(current_controller_datamodel& current_ctrl,
-                                                  grid_observer_datamodel& grid_obs)
-        : data_model_connector(current_ctrl.get_inputs(), grid_obs.get_outputs()) {}
-
-    void connect() override {
-        // Connect ideal DC voltage for feedforward compensation
-        yeet::signals_connector::connect_output_to_input(get_outputs().estimated_voltage_magnitude,
-                                                         get_inputs().ideal_dc_voltage_pu);
+    void connect() override
+    {
+        // Connect raw measurements from plant
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().grid_voltage_ln, get_inputs().line_voltages_raw);
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().grid_current, get_inputs().line_currents_raw);
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().dc_link_voltage, get_inputs().dc_link_voltage_raw);
     }
 };
 
 /**
- * @brief Connects machine observer back-EMF estimation to current controller
+ * @brief Aggregated connector for all inputs to machine measurements
  *
- * This connector provides estimated back-EMF from the machine observer to the current
- * controller for feedforward compensation of machine-side effects.
+ * Signal Flow: Plant Model → Machine Measurements
+ * Key Connections: Raw machine voltages and currents
  */
-class machine_observer_to_current_controller_connector
-    : public yeet::data_model_connector<current_controller_datamodel, machine_observer_datamodel> {
+class to_machine_measurements_connector
+    : public data_model_connector<inputs<machine_measurements_datamodel>, outputs<plant_datamodel>> {
 public:
-    machine_observer_to_current_controller_connector(current_controller_datamodel& current_ctrl,
-                                                     machine_observer_datamodel& machine_obs)
-        : data_model_connector(current_ctrl.get_inputs(), machine_obs.get_outputs()) {}
+    to_machine_measurements_connector(machine_measurements_datamodel& machine_meas, plant_datamodel& plant)
+        : data_model_connector(machine_meas.get_inputs(), plant.get_outputs())
+    {
+    }
 
-    void connect() override {
-        // Connect estimated back-EMF from machine observer to current controller
-        yeet::signals_connector::connect_output_to_input(get_outputs().estimated_voltage_magnitude,
-                                                         get_inputs().inverter_back_emf_machine_pu);
+    void connect() override
+    {
+        // Connect raw measurements from plant
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().machine_voltage_ln, get_inputs().machine_voltages_raw);
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().machine_current, get_inputs().machine_currents_raw);
     }
 };
 
 /**
- * @brief Connects firing pulses back to observers for commutation detection
+ * @brief Aggregated connector for all inputs to DC link measurements
  *
- * This connector provides firing pulse information from modulators back to observers
- * for commutation event detection and timing synchronization.
+ * Signal Flow: Plant Model → DC Link Measurements
+ * Key Connections: Raw DC link voltage and current
  */
-class modulators_to_observers_connector {
-private:
-    grid_observer_datamodel& _grid_obs;
-    machine_observer_datamodel& _machine_obs;
-    grid_modulator_datamodel& _grid_mod;
-    machine_modulator_datamodel& _machine_mod;
-
+class to_dc_link_measurements_connector
+    : public data_model_connector<inputs<dc_link_measurements_datamodel>, outputs<plant_datamodel>> {
 public:
-    modulators_to_observers_connector(grid_observer_datamodel& grid_obs, machine_observer_datamodel& machine_obs,
-                                      grid_modulator_datamodel& grid_mod, machine_modulator_datamodel& machine_mod)
-        : _grid_obs(grid_obs), _machine_obs(machine_obs), _grid_mod(grid_mod), _machine_mod(machine_mod) {}
+    to_dc_link_measurements_connector(dc_link_measurements_datamodel& dc_link, plant_datamodel& plant)
+        : data_model_connector(dc_link.get_inputs(), plant.get_outputs())
+    {
+    }
 
-    void connect() {
-        // Connect grid-side firing pulses to grid observer
-        yeet::signals_connector::connect_output_to_input(_grid_mod.get_outputs().firing_pulses,
-                                                         _grid_obs.get_inputs().grid_side_pulses);
-        // Connect machine-side firing pulses to machine observer
-        yeet::signals_connector::connect_output_to_input(_machine_mod.get_outputs().firing_pulses,
-                                                         _machine_obs.get_inputs().machine_side_pulses);
+    void connect() override
+    {
+        // Connect raw measurements from plant
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().dc_link_voltage, get_inputs().dc_voltage);
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().dc_link_current, get_inputs().dc_current);
+    }
+};
+
+/**
+ * @brief Aggregated connector for all inputs to the plant model
+ *
+ * Signal Flow: Grid Modulator + Machine Modulator → Plant Model
+ * Key Connections: Firing pulses from both modulators
+ */
+class to_plant_connector : public data_model_connector<inputs<plant_datamodel>,
+                               outputs<grid_modulator_datamodel>,
+                               outputs<machine_modulator_datamodel>> {
+public:
+    to_plant_connector(
+        plant_datamodel& plant, grid_modulator_datamodel& grid_mod, machine_modulator_datamodel& machine_mod)
+        : data_model_connector(plant.get_inputs(), grid_mod.get_outputs(), machine_mod.get_outputs())
+    {
+    }
+
+    void connect() override
+    {
+        // Connect firing pulses from both modulators
+        signals_connector::connect_output_to_input(
+            get_outputs<grid_modulator_datamodel>().firing_pulses, get_inputs().grid_side_firing_pulses);
+        signals_connector::connect_output_to_input(
+            get_outputs<machine_modulator_datamodel>().firing_pulses, get_inputs().machine_side_firing_pulses);
     }
 };
 
 // ==================== Parameter Collection Types ====================
 
-using closed_loop_sfc_parameter_types = yeet::testing::parameter_collection<
-    sfc_speed_controller_datamodel::parameters, sfc_current_controller_datamodel::parameters,
-    sfc_grid_side_observer_datamodel::parameters, sfc_grid_side_modulator_datamodel::parameters,
-    sfc_machine_side_observer_datamodel::parameters, sfc_machine_side_modulator_datamodel::parameters,
-    sfc_grid_side_measurements_datamodel::parameters, sfc_machine_side_measurements_datamodel::parameters,
-    sfc_dc_link_measurements_datamodel::parameters, sfc_plant_model_datamodel::parameters>;
+using closed_loop_sfc_parameter_types = yeet::testing::parameter_collection<sfc_speed_controller_datamodel::parameters,
+    sfc_current_controller_datamodel::parameters,
+    sfc_grid_side_observer_datamodel::parameters,
+    sfc_grid_side_modulator_datamodel::parameters,
+    sfc_machine_side_observer_datamodel::parameters,
+    sfc_machine_side_modulator_datamodel::parameters,
+    sfc_grid_side_measurements_datamodel::parameters,
+    sfc_machine_side_measurements_datamodel::parameters,
+    sfc_dc_link_measurements_datamodel::parameters,
+    sfc_plant_model_datamodel::parameters>;
 
 // ==================== Closed-Loop Configuration ====================
 
 /**
- * @brief Complete closed-loop SFC control system configuration
- *
- * This class implements a complete SFC/LCI control system by interconnecting all
- * control components, measurement systems, observers, modulators, and the plant model.
- * It follows the hierarchical control structure with speed control (outer loop),
- * current control (inner loop), and firing pulse generation (modulation layer).
+ * @brief Complete closed-loop SFC control system configuration with aggregated connectors
  */
 class closed_loop_sfc_with_plant_model
     : public yeet::testing::closed_loop_configuration<closed_loop_sfc_parameter_types> {
 public:
     using parameter_types = closed_loop_sfc_parameter_types;
 
-    closed_loop_sfc_with_plant_model() {
-        // Create shared per-unit system for consistent unit handling
-        _per_unit_system =
-            std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid voltage RMS (Line-to-Line)
-                                                       frequency_t(50.0),  // Grid frequency
-                                                       current_t(1044.0),  // DC link current base
-                                                       power_t(2950e3),    // Machine power
-                                                       voltage_t(1980.0),  // Machine voltage RMS (Line-to-Line)
-                                                       frequency_t(50.0),  // Machine frequency
-                                                       2                   // Number of pole pairs
-            );
+    closed_loop_sfc_with_plant_model()
+    {
+        // Create shared per-unit system
+        _per_unit_system = std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid voltage RMS
+            frequency_t(50.0),                                                            // Grid frequency
+            current_t(1044.0),                                                            // DC link current base
+            power_t(2950e3),                                                              // Machine power
+            voltage_t(1980.0),                                                            // Machine voltage RMS
+            frequency_t(50.0),                                                            // Machine frequency
+            2                                                                             // Number of poles
+        );
 
-        // Initialize all runners
+        // Initialize all runners with per-unit system where needed
         initialize_runners();
 
-        // Connect all datamodel components
+        // Connect all components using aggregated connectors
         connect_all_datamodels();
     }
 
-    void initialize() override {
-        // Initialize all components in proper sequence
-        // 1. Measurements first (they provide sensor validation)
+    void initialize()
+    {
+        // Initialize all components in dependency order
+        plant.initialize();
         grid_measurements.initialize();
         machine_measurements.initialize();
         dc_link_measurements.initialize();
-
-        // 2. Observers (they need measurements)
         grid_observer.initialize();
         machine_observer.initialize();
-
-        // 3. Controllers (they need observer outputs)
         current_controller.initialize();
         speed_controller.initialize();
-
-        // 4. Modulators (they need controller outputs)
         grid_modulator.initialize();
         machine_modulator.initialize();
-
-        // 5. Plant model last (it needs modulator outputs)
-        plant.initialize();
     }
 
-    void register_applications(yeet::testing::simulator& sim) override {
+    void register_applications(yeet::testing::simulator& sim) override
+    {
         // Register all runners with their respective sampling times
-        sim.register_lambda_runner(speed_controller.get_sampling_time(), [&]() { speed_controller.run(); });
-        sim.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
-        sim.register_lambda_runner(grid_observer.get_sampling_time(), [&]() { grid_observer.run(); });
-        sim.register_lambda_runner(grid_modulator.get_sampling_time(), [&]() { grid_modulator.run(); });
-        sim.register_lambda_runner(machine_observer.get_sampling_time(), [&]() { machine_observer.run(); });
-        sim.register_lambda_runner(machine_modulator.get_sampling_time(), [&]() { machine_modulator.run(); });
+        sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
         sim.register_lambda_runner(grid_measurements.get_sampling_time(), [&]() { grid_measurements.run(); });
         sim.register_lambda_runner(machine_measurements.get_sampling_time(), [&]() { machine_measurements.run(); });
         sim.register_lambda_runner(dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
-        sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
+        sim.register_lambda_runner(grid_observer.get_sampling_time(), [&]() { grid_observer.run(); });
+        sim.register_lambda_runner(machine_observer.get_sampling_time(), [&]() { machine_observer.run(); });
+        sim.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
+        sim.register_lambda_runner(speed_controller.get_sampling_time(), [&]() { speed_controller.run(); });
+        sim.register_lambda_runner(grid_modulator.get_sampling_time(), [&]() { grid_modulator.run(); });
+        sim.register_lambda_runner(machine_modulator.get_sampling_time(), [&]() { machine_modulator.run(); });
     }
 
-    void register_datamodel(yeet::model_registry& registry) override {
-        // Register all datamodels with the model registry
-        speed_controller.register_datamodel(registry);
-        current_controller.register_datamodel(registry);
-        grid_observer.register_datamodel(registry);
-        grid_modulator.register_datamodel(registry);
-        machine_observer.register_datamodel(registry);
-        machine_modulator.register_datamodel(registry);
+    void register_datamodel(yeet::model_registry& registry) override
+    {
+        // Register all datamodels
+        plant.register_datamodel(registry);
         grid_measurements.register_datamodel(registry);
         machine_measurements.register_datamodel(registry);
         dc_link_measurements.register_datamodel(registry);
-        plant.register_datamodel(registry);
+        grid_observer.register_datamodel(registry);
+        machine_observer.register_datamodel(registry);
+        current_controller.register_datamodel(registry);
+        speed_controller.register_datamodel(registry);
+        grid_modulator.register_datamodel(registry);
+        machine_modulator.register_datamodel(registry);
     }
 
-    parameter_types create_parameter_collection() override {
+    parameter_types create_parameter_collection() override
+    {
         return parameter_types(speed_controller.get_configuration_datamodel().get_parameters(),
-                               current_controller.get_configuration_datamodel().get_parameters(),
-                               grid_observer.get_configuration_datamodel().get_parameters(),
-                               grid_modulator.get_configuration_datamodel().get_parameters(),
-                               machine_observer.get_configuration_datamodel().get_parameters(),
-                               machine_modulator.get_configuration_datamodel().get_parameters(),
-                               grid_measurements.get_configuration_datamodel().get_parameters(),
-                               machine_measurements.get_configuration_datamodel().get_parameters(),
-                               dc_link_measurements.get_configuration_datamodel().get_parameters(),
-                               plant.get_configuration_datamodel().get_parameters());
+            current_controller.get_configuration_datamodel().get_parameters(),
+            grid_observer.get_configuration_datamodel().get_parameters(),
+            grid_modulator.get_configuration_datamodel().get_parameters(),
+            machine_observer.get_configuration_datamodel().get_parameters(),
+            machine_modulator.get_configuration_datamodel().get_parameters(),
+            grid_measurements.get_configuration_datamodel().get_parameters(),
+            machine_measurements.get_configuration_datamodel().get_parameters(),
+            dc_link_measurements.get_configuration_datamodel().get_parameters(),
+            plant.get_configuration_datamodel().get_parameters());
     }
 
-    // Public members for direct access and testing
+    // Public members for direct access if needed
     sfc_speed_controller_runner speed_controller;
     sfc_current_controller_runner current_controller;
     sfc_grid_side_observer_runner grid_observer;
@@ -531,13 +443,15 @@ public:
 private:
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
-    void initialize_runners() {
-        // Runners requiring per-unit system are initialized in member initializer list
-        // Other runners use default construction
+    void initialize_runners()
+    {
+        // Most runners are default-constructed
+        // Measurement runners and plant are constructed with per-unit system in member initializer list
     }
 
-    void connect_all_datamodels() {
-        // Get datamodel references for cleaner code
+    void connect_all_datamodels()
+    {
+        // Get datamodel references
         auto& speed_ctrl_model = speed_controller.get_signal_flow_datamodel();
         auto& current_ctrl_model = current_controller.get_signal_flow_datamodel();
         auto& grid_obs_model = grid_observer.get_signal_flow_datamodel();
@@ -549,62 +463,37 @@ private:
         auto& dc_link_model = dc_link_measurements.get_signal_flow_datamodel();
         auto& plant_model = plant.get_signal_flow_datamodel();
 
-        // ========== Speed Control Loop Connections ==========
-        machine_observer_to_speed_controller_connector machine_to_speed(speed_ctrl_model, machine_obs_model);
-        machine_to_speed.connect();
+        // Create and connect all aggregated connectors
+        to_speed_controller_connector to_speed_ctrl(speed_ctrl_model, machine_obs_model);
+        to_speed_ctrl.connect();
 
-        speed_controller_to_current_controller_connector speed_to_current(current_ctrl_model, speed_ctrl_model);
-        speed_to_current.connect();
+        to_current_controller_connector to_current_ctrl(
+            current_ctrl_model, speed_ctrl_model, dc_link_model, grid_obs_model, machine_obs_model);
+        to_current_ctrl.connect();
 
-        // ========== Current Control Loop Connections ==========
-        dc_link_to_current_controller_connector dc_to_current(current_ctrl_model, dc_link_model);
-        dc_to_current.connect();
+        to_grid_observer_connector to_grid_obs(grid_obs_model, grid_meas_model);
+        to_grid_obs.connect();
 
-        current_controller_to_grid_modulator_connector current_to_grid_mod(grid_mod_model, current_ctrl_model);
-        current_to_grid_mod.connect();
+        to_grid_modulator_connector to_grid_mod(grid_mod_model, current_ctrl_model, grid_obs_model);
+        to_grid_mod.connect();
 
-        // ========== Grid-Side Observer Chain ==========
-        grid_measurements_to_grid_observer_connector grid_meas_to_obs(grid_obs_model, grid_meas_model);
-        grid_meas_to_obs.connect();
+        to_machine_observer_connector to_machine_obs(machine_obs_model, machine_meas_model);
+        to_machine_obs.connect();
 
-        grid_observer_to_grid_modulator_connector grid_obs_to_mod(grid_mod_model, grid_obs_model);
-        grid_obs_to_mod.connect();
+        to_machine_modulator_connector to_machine_mod(machine_mod_model, dc_link_model, machine_obs_model);
+        to_machine_mod.connect();
 
-        // ========== Machine-Side Observer Chain ==========
-        machine_measurements_to_machine_observer_connector machine_meas_to_obs(machine_obs_model, machine_meas_model);
-        machine_meas_to_obs.connect();
+        to_grid_measurements_connector to_grid_meas(grid_meas_model, plant_model);
+        to_grid_meas.connect();
 
-        machine_observer_to_machine_modulator_connector machine_obs_to_mod(machine_mod_model, machine_obs_model);
-        machine_obs_to_mod.connect();
+        to_machine_measurements_connector to_machine_meas(machine_meas_model, plant_model);
+        to_machine_meas.connect();
 
-        // ========== Machine-Side Modulator Additional Connections ==========
-        dc_link_to_machine_modulator_connector dc_to_machine_mod(machine_mod_model, dc_link_model);
-        dc_to_machine_mod.connect();
+        to_dc_link_measurements_connector to_dc_meas(dc_link_model, plant_model);
+        to_dc_meas.connect();
 
-        // ========== Plant Model Input Connections ==========
-        plant_to_grid_measurements_connector plant_to_grid(grid_meas_model, plant_model);
-        plant_to_grid.connect();
-
-        plant_to_machine_measurements_connector plant_to_machine(machine_meas_model, plant_model);
-        plant_to_machine.connect();
-
-        plant_to_dc_link_measurements_connector plant_to_dc(dc_link_model, plant_model);
-        plant_to_dc.connect();
-
-        // ========== Plant Model Output Connections ==========
-        modulators_to_plant_connector mods_to_plant(plant_model, grid_mod_model, machine_mod_model);
-        mods_to_plant.connect();
-
-        // ========== Feedforward and Feedback Connections ==========
-        grid_observer_to_current_controller_connector grid_obs_to_current(current_ctrl_model, grid_obs_model);
-        grid_obs_to_current.connect();
-
-        machine_observer_to_current_controller_connector machine_obs_to_current(current_ctrl_model, machine_obs_model);
-        machine_obs_to_current.connect();
-
-        modulators_to_observers_connector mods_to_obs(grid_obs_model, machine_obs_model, grid_mod_model,
-                                                      machine_mod_model);
-        mods_to_obs.connect();
+        to_plant_connector to_plant_model(plant_model, grid_mod_model, machine_mod_model);
+        to_plant_model.connect();
     }
 };
 

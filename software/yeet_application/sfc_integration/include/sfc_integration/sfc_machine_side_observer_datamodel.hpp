@@ -40,6 +40,11 @@ public:
         /// Estimated machine frequency (electrical)
         /// Range: [0.0, 200.0] Hz for gas turbine applications
         yeet::signal_output<yeet::frequency_t> estimated_frequency;
+        yeet::signal_output<yeet::speed_pu_t> estimated_speed;
+
+        /// Estimated rotor position in radians
+        /// Range: [0.0, 2π] radians
+        yeet::signal_output<yeet::angle<yeet::zero_to_two_pi>> estimated_position;
 
         /// Estimated machine frequency in per-unit
         /// Range: [0.0, 4.0] pu for variable speed operation
