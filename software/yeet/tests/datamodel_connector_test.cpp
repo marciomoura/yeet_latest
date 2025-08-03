@@ -32,25 +32,35 @@ struct example_b_outputs {
 using example_b_datamodel = signal_flow_datamodel<example_b_inputs, example_b_outputs>;
 
 // class provides an a to b connection
-class connect_a_to_b : public data_model_connector<example_b_datamodel, example_a_datamodel> {
+class connect_a_to_b : public data_model_connector<inputs<example_b_datamodel>, outputs<example_a_datamodel>> {
 public:
     connect_a_to_b(example_b_datamodel& b, example_a_datamodel& a)
-        : data_model_connector(b.get_inputs(), a.get_outputs()) {}
+        : data_model_connector(b.get_inputs(), a.get_outputs())
+    {
+    }
 
-    void connect() override {
-        signals_connector::connect_output_to_input(get_outputs().ex_a_output_1, get_inputs().ex_b_input_1);
-        signals_connector::connect_output_to_input(get_outputs().ex_a_output_2, get_inputs().ex_b_input_2);
+    void connect() override
+    {
+        signals_connector::connect_output_to_input(
+            get_outputs<example_a_datamodel>().ex_a_output_1, get_inputs().ex_b_input_1);
+        signals_connector::connect_output_to_input(
+            get_outputs<example_a_datamodel>().ex_a_output_2, get_inputs().ex_b_input_2);
     }
 };
 
-class connect_b_to_a : public data_model_connector<example_a_datamodel, example_b_datamodel> {
+class connect_b_to_a : public data_model_connector<inputs<example_a_datamodel>, outputs<example_b_datamodel>> {
 public:
     connect_b_to_a(example_a_datamodel& a, example_b_datamodel& b)
-        : data_model_connector(a.get_inputs(), b.get_outputs()) {}
+        : data_model_connector(a.get_inputs(), b.get_outputs())
+    {
+    }
 
-    void connect() override {
-        signals_connector::connect_output_to_input(get_outputs().ex_b_output_1, get_inputs().ex_a_input_1);
-        signals_connector::connect_output_to_input(get_outputs().ex_b_output_2, get_inputs().ex_a_input_2);
+    void connect() override
+    {
+        signals_connector::connect_output_to_input(
+            get_outputs<example_b_datamodel>().ex_b_output_1, get_inputs().ex_a_input_1);
+        signals_connector::connect_output_to_input(
+            get_outputs<example_b_datamodel>().ex_b_output_2, get_inputs().ex_a_input_2);
     }
 };
 
@@ -80,28 +90,33 @@ struct example_d_outputs {
 
 using example_d_datamodel = signal_flow_datamodel<example_d_inputs, example_d_outputs>;
 
-class connect_b_and_c_to_d
-    : public data_model_connector<example_d_datamodel, example_b_datamodel, example_c_datamodel> {
+class connect_b_and_c_to_d : public data_model_connector<inputs<example_d_datamodel>,
+                                 outputs<example_b_datamodel>,
+                                 outputs<example_c_datamodel>> {
 public:
     connect_b_and_c_to_d(example_d_datamodel& d, example_b_datamodel& b, example_c_datamodel& c)
-        : data_model_connector(d.get_inputs(), b.get_outputs(), c.get_outputs()) {}
+        : data_model_connector(d.get_inputs(), b.get_outputs(), c.get_outputs())
+    {
+    }
 
-    void connect() override {
-        signals_connector::connect_output_to_input(get_outputs<example_b_datamodel>().ex_b_output_1,
-                                                   get_inputs().ex_d_input_1);
-        signals_connector::connect_output_to_input(get_outputs<example_b_datamodel>().ex_b_output_2,
-                                                   get_inputs().ex_d_input_2);
+    void connect() override
+    {
+        signals_connector::connect_output_to_input(
+            get_outputs<example_b_datamodel>().ex_b_output_1, get_inputs().ex_d_input_1);
+        signals_connector::connect_output_to_input(
+            get_outputs<example_b_datamodel>().ex_b_output_2, get_inputs().ex_d_input_2);
 
-        signals_connector::connect_output_to_input(get_outputs<example_c_datamodel>().ex_c_output_1,
-                                                   get_inputs().ex_d_input_3);
-        signals_connector::connect_output_to_input(get_outputs<example_c_datamodel>().ex_c_output_2,
-                                                   get_inputs().ex_d_input_4);
+        signals_connector::connect_output_to_input(
+            get_outputs<example_c_datamodel>().ex_c_output_1, get_inputs().ex_d_input_3);
+        signals_connector::connect_output_to_input(
+            get_outputs<example_c_datamodel>().ex_c_output_2, get_inputs().ex_d_input_4);
     }
 };
 
 }  // namespace yeet
 
-TEST(datamodel_test, connect_datamodel) {
+TEST(datamodel_test, connect_datamodel)
+{
     // Construct the A model
     yeet::example_a_inputs ex_a_inputs;
     yeet::example_a_outputs ex_a_outputs;
@@ -148,7 +163,8 @@ TEST(datamodel_test, connect_datamodel) {
     EXPECT_FLOAT_EQ(ex_a_inputs.ex_a_input_2.read(), 4.0);
 }
 
-TEST(datamodel_test, connect_b_and_c_to_a) {
+TEST(datamodel_test, connect_b_and_c_to_a)
+{
     // Construct the B model
     yeet::example_b_inputs ex_b_inputs;
     yeet::example_b_outputs ex_b_outputs;

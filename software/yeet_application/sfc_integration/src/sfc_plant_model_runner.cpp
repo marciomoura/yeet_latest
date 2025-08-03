@@ -7,18 +7,21 @@
 namespace yeet::application::sfc::integration {
 
 sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
-    : base_application(sampling_time), _mechanical_load(sampling_time), _per_unit_system(std::move(per_unit_system)) {
+    : base_application(sampling_time), _mechanical_load(sampling_time), _per_unit_system(std::move(per_unit_system))
+{
     assert(per_unit_system != nullptr);
 }
 
-void sfc_plant_model_runner::initialize() {
+void sfc_plant_model_runner::initialize()
+{
     _plant.initialize();
     set_parameters();
     set_parameter_callback();
     _mechanical_load.reset();  // Reset to zero initial speed and position
 }
 
-void sfc_plant_model_runner::run() {
+void sfc_plant_model_runner::run()
+{
     // 1. Read inputs from the datamodel and set them in the plant
     convert_inputs();
 
@@ -36,7 +39,8 @@ void sfc_plant_model_runner::run() {
 
 void sfc_plant_model_runner::stop() { _plant.terminate(); }
 
-void sfc_plant_model_runner::set_parameters() {
+void sfc_plant_model_runner::set_parameters()
+{
     _mode = _parameters.operation_mode;
 
     // Configure the plant's grid and machine parameters from the shared per-unit system
@@ -46,23 +50,25 @@ void sfc_plant_model_runner::set_parameters() {
     //                               _per_unit_system->get_machine_bases().voltage_base);
 
     // Configure the mechanical load with inertia and damping from parameters
-    _mechanical_load.configure(inertia_constant_pu_t{_parameters.motor_inertia_constant.read().value()},
-                               damping_coefficient_pu_t{_parameters.motor_damping_factor.read().value()});
+    // _mechanical_load.configure(_parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read());
 }
 
-void sfc_plant_model_runner::set_parameter_callback() {
+void sfc_plant_model_runner::set_parameter_callback()
+{
     _parameters.operation_mode.register_callback([&]() { set_parameters(); });
     _parameters.motor_inertia_constant.register_callback([&]() { set_parameters(); });
     _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
 }
 
-void sfc_plant_model_runner::convert_inputs() {
+void sfc_plant_model_runner::convert_inputs()
+{
     // Set firing pulses from input signals
     _plant.set_grid_side_pulses(_inputs.grid_side_firing_pulses.read().to_array());
     _plant.set_machine_side_pulses(_inputs.machine_side_firing_pulses.read().to_array());
 }
 
-void sfc_plant_model_runner::update_mechanical_load() {
+void sfc_plant_model_runner::update_mechanical_load()
+{
     // Calculate electromagnetic torque from DC link current in per-unit
     const auto& dc_bases = _per_unit_system->get_dc_link_bases();
     current_pu_t i_dc_pu = to_pu(_plant.get_dc_link_current(), dc_bases.base_current);
@@ -81,7 +87,8 @@ void sfc_plant_model_runner::update_mechanical_load() {
     _plant.set_machine_parameters(new_machine_frequency, machine_bases.base_voltage_peak_phase.value());
 }
 
-void sfc_plant_model_runner::convert_outputs() {
+void sfc_plant_model_runner::convert_outputs()
+{
     // Set SI electrical outputs directly from the plant model
     _outputs.grid_voltage_ln = _plant.get_grid_side_voltages_abc();
     _outputs.grid_current = _plant.get_grid_side_currents_abc();
@@ -94,8 +101,8 @@ void sfc_plant_model_runner::convert_outputs() {
     _outputs.rotor_speed_mechanical = _mechanical_load.get_speed_pu();
 
     // Convert rotor position from per-unit [0, 1) to a wrapped angle [0, 2*pi)
-    angle_pu_t pos_pu = _mechanical_load.get_position_pu();
-    _outputs.rotor_position_mechanical = angle<zero_to_two_pi>::from_radians(pos_pu.value() * two_pi);
+    // angle_pu_t pos_pu = _mechanical_load..get_position_pu();
+    // _outputs.rotor_position_mechanical = angle<zero_to_two_pi>::from_radians(pos_pu.value() * two_pi);
 
     // Calculate and set torque and power outputs in per-unit
     const auto& dc_bases = _per_unit_system->get_dc_link_bases();

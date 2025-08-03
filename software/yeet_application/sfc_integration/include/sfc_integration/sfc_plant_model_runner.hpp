@@ -19,9 +19,9 @@ namespace yeet::application::sfc::integration {
  *
  * Based on the sfc_plant_model_simulator but adapted for the integration framework.
  */
-class sfc_plant_model_runner
-    : public yeet::base_application<sfc_plant_model_datamodel::inputs, sfc_plant_model_datamodel::outputs,
-                                    sfc_plant_model_datamodel::parameters> {
+class sfc_plant_model_runner : public yeet::base_application<sfc_plant_model_datamodel::inputs,
+                                   sfc_plant_model_datamodel::outputs,
+                                   sfc_plant_model_datamodel::parameters> {
 public:
     using datamodel = sfc_plant_model_datamodel;
     static constexpr double sampling_time = sfc::sfc_6p_6p_plant_model::kSamplingTime;

@@ -41,38 +41,50 @@ struct sfc_pulse_generator_conduit {
 
 class sfc_simulator_pulse_generators {
 public:
-    static void register_ideal_pulse_generator(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                               sfc_6p_6p_plant_model& model,
-                                               sfc_simulator_pulse_generators& pulse_generator,
-                                               const angle<::zero_to_two_pi>& grid_firing_angle,
-                                               const angle<::zero_to_two_pi>& machine_firing_angle,
-                                               const bool& enable) {
+    static void register_ideal_pulse_generator(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_6p_6p_plant_model& model,
+        sfc_simulator_pulse_generators& pulse_generator,
+        const angle<::zero_to_two_pi>& grid_firing_angle,
+        const angle<::zero_to_two_pi>& machine_firing_angle,
+        const bool& enable)
+    {
         simulator.register_lambda_runner(
             sampling_time, [&]() { pulse_generator.update(model, grid_firing_angle, machine_firing_angle, enable); });
     }
 
-    static void register_pulse_generator(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                         sfc_6p_6p_plant_model& model, sfc_simulator_pulse_generators& pulse_generator,
-                                         const angle<::zero_to_two_pi>& grid_reference_frame,
-                                         const angle<::zero_to_two_pi>& grid_firing_angle,
-                                         const angle<::zero_to_two_pi>& machine_reference_frame,
-                                         const angle<::zero_to_two_pi>& machine_firing_angle, const bool& enable) {
+    static void register_pulse_generator(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_6p_6p_plant_model& model,
+        sfc_simulator_pulse_generators& pulse_generator,
+        const angle<::zero_to_two_pi>& grid_reference_frame,
+        const angle<::zero_to_two_pi>& grid_firing_angle,
+        const angle<::zero_to_two_pi>& machine_reference_frame,
+        const angle<::zero_to_two_pi>& machine_firing_angle,
+        const bool& enable)
+    {
         simulator.register_lambda_runner(sampling_time, [&]() {
-            pulse_generator.update(model, grid_reference_frame, grid_firing_angle, machine_reference_frame,
-                                   machine_firing_angle, enable);
+            pulse_generator.update(
+                model, grid_reference_frame, grid_firing_angle, machine_reference_frame, machine_firing_angle, enable);
         });
     }
 
-    void update(sfc_6p_6p_plant_model& model, const angle<::zero_to_two_pi>& grid_firing_angle,
-                const angle<::zero_to_two_pi>& machine_firing_angle, bool enable) {
+    void update(sfc_6p_6p_plant_model& model,
+        const angle<::zero_to_two_pi>& grid_firing_angle,
+        const angle<::zero_to_two_pi>& machine_firing_angle,
+        bool enable)
+    {
         update(model, model.get_grid_voltage_source_angle(), grid_firing_angle,
-               model.get_machine_voltage_source_angle(), machine_firing_angle, enable);
+            model.get_machine_voltage_source_angle(), machine_firing_angle, enable);
     }
 
-    void update(sfc_6p_6p_plant_model& model, const angle<::zero_to_two_pi>& grid_reference_angle,
-                const angle<::zero_to_two_pi>& grid_firing_angle,
-                const angle<::zero_to_two_pi>& machine_reference_angle,
-                const angle<::zero_to_two_pi>& machine_firing_angle, bool enable) {
+    void update(sfc_6p_6p_plant_model& model,
+        const angle<::zero_to_two_pi>& grid_reference_angle,
+        const angle<::zero_to_two_pi>& grid_firing_angle,
+        const angle<::zero_to_two_pi>& machine_reference_angle,
+        const angle<::zero_to_two_pi>& machine_firing_angle,
+        bool enable)
+    {
         control::six_pulse_generator::pulses const grid_pulses =
             grid_side_pulse_generator.update(grid_reference_angle, grid_firing_angle, enable);
         model.set_grid_side_pulses(grid_pulses.to_array());
@@ -92,37 +104,41 @@ public:
         : sampling_time(sampling_time),
           grid_side_filtering(sampling_time),
           dc_link_filtering(sampling_time),
-          machine_side_filtering(sampling_time) {}
-
-    static void register_measurements_and_filtering(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                                    sfc_per_unit_system& per_unit_system,
-                                                    sfc_simulator_measurement_and_filtering& measurements_and_filtering,
-                                                    sfc_6p_6p_plant_model& model) {
-        simulator.register_lambda_runner(sampling_time,
-                                         [&]() { measurements_and_filtering.update(model, per_unit_system); });
+          machine_side_filtering(sampling_time)
+    {
     }
 
-    void update(sfc_6p_6p_plant_model& model, const sfc_per_unit_system& per_unit_system) {
+    static void register_measurements_and_filtering(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_per_unit_system& per_unit_system,
+        sfc_simulator_measurement_and_filtering& measurements_and_filtering,
+        sfc_6p_6p_plant_model& model)
+    {
+        simulator.register_lambda_runner(
+            sampling_time, [&]() { measurements_and_filtering.update(model, per_unit_system); });
+    }
+
+    void update(sfc_6p_6p_plant_model& model, const sfc_per_unit_system& per_unit_system)
+    {
         // Update measurements for all three sides
-        grid_side_measurements.update(per_unit_system.get_grid_bases(), model.get_grid_side_voltages_abc(),
-                                      model.get_grid_side_currents_abc());
+        grid_side_measurements.update(
+            per_unit_system.get_grid_bases(), model.get_grid_side_voltages_abc(), model.get_grid_side_currents_abc());
 
         // For DC link, we need to estimate voltage since model doesn't provide it
         // Use a nominal DC voltage based on the per-unit system base
         voltage_t dc_voltage_estimate = per_unit_system.get_dc_link_bases().base_voltage.value();
-        dc_link_measurements.update(per_unit_system.get_dc_link_bases(), dc_voltage_estimate,
-                                    model.get_dc_link_current());
+        dc_link_measurements.update(
+            per_unit_system.get_dc_link_bases(), dc_voltage_estimate, model.get_dc_link_current());
 
         machine_side_measurements.update(per_unit_system.get_machine_bases(), model.get_machine_side_voltages_abc(),
-                                         model.get_machine_side_currents_abc());
+            model.get_machine_side_currents_abc());
 
         // Update filtering for all three sides
         grid_side_filtering.update(grid_side_measurements.get_voltage_pu(), grid_side_measurements.get_current_pu());
 
         dc_link_filtering.update(dc_link_measurements.get_voltage_pu(), dc_link_measurements.get_current_pu());
 
-        machine_side_filtering.update(
-            machine_side_measurements.get_voltage_pu(),
+        machine_side_filtering.update(machine_side_measurements.get_voltage_pu(),
             machine_side_measurements.get_current_pu());  // TODO: Get actual machine frequency from model
     }
 
@@ -152,13 +168,18 @@ public:
 class sfc_simulator_observers {
 public:
     sfc_simulator_observers(duration_t sampling_time)
-        : grid_side_observer(sampling_time), machine_side_observer(sampling_time), sampling_time(sampling_time) {}
+        : grid_side_observer(sampling_time), machine_side_observer(sampling_time), sampling_time(sampling_time)
+    {
+    }
 
-    static void register_observers(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                   sfc_6p_6p_plant_model& model, sfc_simulator_observers& observers,
-                                   sfc_simulator_pulse_generators& pulse_generator,
-                                   const abc<voltage_pu_t>& grid_voltage_pu,
-                                   const abc<voltage_pu_t>& machine_voltage_pu) {
+    static void register_observers(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_6p_6p_plant_model& model,
+        sfc_simulator_observers& observers,
+        sfc_simulator_pulse_generators& pulse_generator,
+        const abc<voltage_pu_t>& grid_voltage_pu,
+        const abc<voltage_pu_t>& machine_voltage_pu)
+    {
         simulator.register_lambda_runner(sampling_time, [&]() {
             observers.update_grid(grid_voltage_pu, pulse_generator.grid_side_pulse_generator.get_pulses());
 
@@ -166,13 +187,15 @@ public:
         });
     }
 
-    void update_grid(const abc<voltage_pu_t>& grid_voltage_pu,
-                     const control::six_pulse_generator::pulses& grid_side_pulses) {
+    void update_grid(
+        const abc<voltage_pu_t>& grid_voltage_pu, const control::six_pulse_generator::pulses& grid_side_pulses)
+    {
         grid_side_observer.update(grid_voltage_pu, grid_side_pulses);
     }
 
-    void update_machine(const abc<voltage_pu_t>& machine_voltage_pu,
-                        const control::six_pulse_generator::pulses& machine_side_pulses) {
+    void update_machine(
+        const abc<voltage_pu_t>& machine_voltage_pu, const control::six_pulse_generator::pulses& machine_side_pulses)
+    {
         machine_side_observer.update(machine_voltage_pu, machine_side_pulses);
     }
 
@@ -184,14 +207,18 @@ public:
 class sfc_simulator_current_controller {
 public:
     sfc_simulator_current_controller(duration_t sampling_time)
-        : current_controller(sampling_time), sampling_time(sampling_time) {}
+        : current_controller(sampling_time), sampling_time(sampling_time)
+    {
+    }
 
-    static void register_current_controller(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                            sfc_simulator_current_controller& controller,
-                                            sfc_pulse_generator_conduit& conduit,
-                                            const sfc_simulator_measurement_and_filtering& measurements,
-                                            const sfc_simulator_observers& observers,
-                                            const sfc_per_unit_system& per_unit_system) {
+    static void register_current_controller(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_simulator_current_controller& controller,
+        sfc_pulse_generator_conduit& conduit,
+        const sfc_simulator_measurement_and_filtering& measurements,
+        const sfc_simulator_observers& observers,
+        const sfc_per_unit_system& per_unit_system)
+    {
         simulator.register_lambda_runner(sampling_time, [&]() {
             // One should "enable current control"
             if (observers.grid_side_observer.is_locked() == false) {
@@ -212,9 +239,8 @@ public:
 
             // Update the current controller using the overload that performs automatic per-unit reflection
             controller.current_controller.update(conduit.current_ref_pu, measured_current_pu, ideal_dc_voltage_pu,
-                                                 inverter_back_emf_machine_pu,
-                                                 per_unit_system.get_machine_bases().base_voltage_peak_phase.value(),
-                                                 per_unit_system.get_grid_bases().base_voltage_peak_phase);
+                inverter_back_emf_machine_pu, per_unit_system.get_machine_bases().base_voltage_peak_phase.value(),
+                per_unit_system.get_grid_bases().base_voltage_peak_phase);
 
             // Get the firing angle output and update the conduit
             const angle_t firing_angle_radians = controller.current_controller.get_firing_angle_reference_radians();
@@ -225,19 +251,23 @@ public:
         });
     }
 
-    void configure_pi_gains(double proportional_gain, duration_t integral_time) {
+    void configure_pi_gains(double proportional_gain, duration_t integral_time)
+    {
         current_controller.configure_pi_gains(proportional_gain, integral_time);
     }
 
-    void configure_current_limits_pu(current_pu_t min_current_pu, current_pu_t max_current_pu) {
+    void configure_current_limits_pu(current_pu_t min_current_pu, current_pu_t max_current_pu)
+    {
         current_controller.configure_current_limits_pu(min_current_pu, max_current_pu);
     }
 
-    void configure_current_reference_slew_rate(double slew_rate_pu_per_second) {
+    void configure_current_reference_slew_rate(double slew_rate_pu_per_second)
+    {
         current_controller.configure_current_reference_slew_rate(slew_rate_pu_per_second);
     }
 
-    void configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle) {
+    void configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle)
+    {
         current_controller.configure_firing_angle_limits_radians(min_angle, max_angle);
     }
 
@@ -251,9 +281,11 @@ class sfc_simulator_machine_side_lookup_table {
 public:
     sfc_simulator_machine_side_lookup_table(double nominal_gamma_deg) : lookup_table(nominal_gamma_deg) {}
 
-    static void register_machine_side_lookup_table(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                                   sfc_simulator_machine_side_lookup_table& lookup,
-                                                   sfc_pulse_generator_conduit& conduit) {
+    static void register_machine_side_lookup_table(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_simulator_machine_side_lookup_table& lookup,
+        sfc_pulse_generator_conduit& conduit)
+    {
         simulator.register_lambda_runner(sampling_time, [&]() {
             angle<zero_to_two_pi> machine_firing_angle_rad = angle<zero_to_two_pi>::from_degrees(
                 lookup.lookup_table.get_firing_angle_deg(conduit.measured_speed_pu, conduit.measured_current_pu));
@@ -262,7 +294,8 @@ public:
         });
     }
 
-    void configure_table(double gamma_setpoint_deg, double machine_inductance_pu) {
+    void configure_table(double gamma_setpoint_deg, double machine_inductance_pu)
+    {
         lookup_table.recalculate_table(gamma_setpoint_deg, machine_inductance_pu);
     }
 
@@ -274,12 +307,16 @@ public:
 class sfc_simulator_speed_controller {
 public:
     sfc_simulator_speed_controller(duration_t sampling_time)
-        : speed_controller(sampling_time), sampling_time(sampling_time) {}
+        : speed_controller(sampling_time), sampling_time(sampling_time)
+    {
+    }
 
-    static void register_speed_controller(yeet::testing::simulator& simulator, duration_t sampling_time,
-                                          sfc_simulator_speed_controller& controller,
-                                          sfc_pulse_generator_conduit& conduit,
-                                          const sfc_simulator_observers& observers) {
+    static void register_speed_controller(yeet::testing::simulator& simulator,
+        duration_t sampling_time,
+        sfc_simulator_speed_controller& controller,
+        sfc_pulse_generator_conduit& conduit,
+        const sfc_simulator_observers& observers)
+    {
         simulator.register_lambda_runner(sampling_time, [&]() {
             // One should "enable current control"
             if (observers.grid_side_observer.is_locked() == false) {
@@ -295,11 +332,13 @@ public:
 
     void configure_pi_gains(double kp, double ti) { speed_controller.configure_pi_gains(kp, duration_t{ti}); }
 
-    void configure_torque_limits_pu(torque_pu_t min_pu, torque_pu_t max_pu) {
+    void configure_torque_limits_pu(torque_pu_t min_pu, torque_pu_t max_pu)
+    {
         speed_controller.configure_torque_limits_pu(min_pu, max_pu);
     }
 
-    void configure_speed_reference_filter(double frequency_hz) {
+    void configure_speed_reference_filter(double frequency_hz)
+    {
         // speed_controller.c(frequency_hz);
     }
 
@@ -321,7 +360,9 @@ struct sfc_simulation_components {
           observers(kControlSamplingTime),
           current_controller(kControlSamplingTime),
           machine_side_lookup_table(15.0),  // Default nominal extinction angle of 15 degrees
-          speed_controller(kControlSamplingTime) {}
+          speed_controller(kControlSamplingTime)
+    {
+    }
 
     sfc_plant_model_simulator plant_model_simulator;
     sfc_simulator_pulse_generators pulse_generators;
@@ -338,27 +379,31 @@ public:
     sfc_simulator_builder(sfc_simulation_components& components) : _components(components) {}
 
     // Add measurements and filtering to the simulation loop.
-    sfc_simulator_builder& with_measurements_and_filtering() {
+    sfc_simulator_builder& with_measurements_and_filtering()
+    {
         _use_measurements = true;
         return *this;
     }
 
     // Add observers to the simulation loop.
-    sfc_simulator_builder& with_observers() {
+    sfc_simulator_builder& with_observers()
+    {
         _use_observers = true;
         _use_measurements = true;  // Observers implicitly depend on measurements
         return *this;
     }
 
     // Configure pulse generators to use the plant's internal "perfect" angle.
-    sfc_simulator_builder& with_ideal_pulse_generation(const sfc_pulse_generator_conduit& conduit) {
+    sfc_simulator_builder& with_ideal_pulse_generation(const sfc_pulse_generator_conduit& conduit)
+    {
         _use_ideal_pulses = true;
         _pulse_generator_conduit = &conduit;
         return *this;
     }
 
     // Configure pulse generators to use the observer's estimated angle.
-    sfc_simulator_builder& with_observer_based_pulse_generation(const sfc_pulse_generator_conduit& conduit) {
+    sfc_simulator_builder& with_observer_based_pulse_generation(const sfc_pulse_generator_conduit& conduit)
+    {
         _use_ideal_pulses = false;
         _use_observers = true;  // This configuration depends on observers
         _pulse_generator_conduit = &conduit;
@@ -366,7 +411,8 @@ public:
     }
 
     // Add current controller to the simulation loop.
-    sfc_simulator_builder& with_current_controller(sfc_pulse_generator_conduit& conduit) {
+    sfc_simulator_builder& with_current_controller(sfc_pulse_generator_conduit& conduit)
+    {
         _use_current_controller = true;
         _pulse_generator_conduit = &conduit;
         _use_measurements = true;  // Current controller depends on measurements
@@ -374,7 +420,8 @@ public:
     }
 
     // Add machine-side lookup table to the simulation loop.
-    sfc_simulator_builder& with_machine_side_lookup_table(sfc_pulse_generator_conduit& conduit) {
+    sfc_simulator_builder& with_machine_side_lookup_table(sfc_pulse_generator_conduit& conduit)
+    {
         _use_machine_side_lookup = true;
         _pulse_generator_conduit = &conduit;
         _use_measurements = true;  // Machine-side lookup depends on measurements
@@ -382,7 +429,8 @@ public:
     }
 
     // Add speed controller to the simulation loop.
-    sfc_simulator_builder& with_speed_controller(sfc_pulse_generator_conduit& conduit) {
+    sfc_simulator_builder& with_speed_controller(sfc_pulse_generator_conduit& conduit)
+    {
         _use_speed_controller = true;
         _pulse_generator_conduit = &conduit;
         _use_measurements = true;  // Speed controller depends on measurements
@@ -390,7 +438,8 @@ public:
     }
 
     // Wires all the selected components together in the correct execution order.
-    void configure(yeet::testing::simulator& simulator) {
+    void configure(yeet::testing::simulator& simulator)
+    {
         auto& plant_model = _components.plant_model_simulator.plant();
         auto& per_unit_system = const_cast<sfc_per_unit_system&>(_components.plant_model_simulator.per_unit_system());
 
@@ -399,16 +448,14 @@ public:
 
         // The order of registration defines the execution order per simulation step.
         if (_use_measurements) {
-            sfc_simulator_measurement_and_filtering::register_measurements_and_filtering(
-                simulator, _components.kControlSamplingTime, per_unit_system, _components.measurement_and_filtering,
-                plant_model);
+            sfc_simulator_measurement_and_filtering::register_measurements_and_filtering(simulator,
+                _components.kControlSamplingTime, per_unit_system, _components.measurement_and_filtering, plant_model);
         }
 
         if (_use_observers) {
             assert(_use_measurements && "Observers require measurements to be enabled.");
-            sfc_simulator_observers::register_observers(
-                simulator, _components.kControlSamplingTime, plant_model, _components.observers,
-                _components.pulse_generators,
+            sfc_simulator_observers::register_observers(simulator, _components.kControlSamplingTime, plant_model,
+                _components.observers, _components.pulse_generators,
                 _components.measurement_and_filtering.get_grid_side_measurements().get_voltage_pu(),
                 _components.measurement_and_filtering.get_machine_side_measurements().get_voltage_pu());
         }
@@ -419,8 +466,8 @@ public:
                 assert(_use_measurements && "Current controller requires measurements to be enabled.");
                 assert(_use_observers &&
                        "Current controller requires observers for ideal DC voltage and back-EMF estimation.");
-                sfc_simulator_current_controller::register_current_controller(
-                    simulator, _components.kControlSamplingTime, _components.current_controller,
+                sfc_simulator_current_controller::register_current_controller(simulator,
+                    _components.kControlSamplingTime, _components.current_controller,
                     const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit),
                     _components.measurement_and_filtering, _components.observers, per_unit_system);
             }
@@ -428,28 +475,29 @@ public:
             if (_use_machine_side_lookup) {
                 // Machine-side lookup table manages machine firing angle
                 assert(_use_measurements && "Machine-side lookup table requires measurements to be enabled.");
-                sfc_simulator_machine_side_lookup_table::register_machine_side_lookup_table(
-                    simulator, _components.kControlSamplingTime, _components.machine_side_lookup_table,
+                sfc_simulator_machine_side_lookup_table::register_machine_side_lookup_table(simulator,
+                    _components.kControlSamplingTime, _components.machine_side_lookup_table,
                     const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit));
             }
 
             if (_use_speed_controller) {
                 // Speed controller manages current reference
                 assert(_use_measurements && "Speed controller requires measurements to be enabled.");
-                sfc_simulator_speed_controller::register_speed_controller(
-                    simulator, _components.kControlSamplingTime, _components.speed_controller,
-                    const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit), _components.observers);
+                sfc_simulator_speed_controller::register_speed_controller(simulator, _components.kControlSamplingTime,
+                    _components.speed_controller, const_cast<sfc_pulse_generator_conduit&>(*_pulse_generator_conduit),
+                    _components.observers);
             }
 
             if (_use_ideal_pulses) {
-                sfc_simulator_pulse_generators::register_ideal_pulse_generator(
-                    simulator, _components.kControlSamplingTime, plant_model, _components.pulse_generators,
+                sfc_simulator_pulse_generators::register_ideal_pulse_generator(simulator,
+                    _components.kControlSamplingTime, plant_model, _components.pulse_generators,
                     _pulse_generator_conduit->grid_firing_angle_rad, _pulse_generator_conduit->machine_firing_angle_rad,
                     _pulse_generator_conduit->enable);
-            } else {  // Observer-based pulses
+            }
+            else {  // Observer-based pulses
                 assert(_use_observers && "Observer-based pulse generation requires observers to be enabled.");
-                sfc_simulator_pulse_generators::register_pulse_generator(
-                    simulator, _components.kControlSamplingTime, plant_model, _components.pulse_generators,
+                sfc_simulator_pulse_generators::register_pulse_generator(simulator, _components.kControlSamplingTime,
+                    plant_model, _components.pulse_generators,
                     _components.observers.grid_side_observer.get_estimated_angle(),
                     _pulse_generator_conduit->grid_firing_angle_rad,
                     _components.observers.machine_side_observer.get_estimated_angle(),

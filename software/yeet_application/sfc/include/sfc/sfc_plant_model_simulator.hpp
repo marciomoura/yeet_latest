@@ -65,8 +65,14 @@ public:
     sfc_plant_model_simulator()
         : _mechanical_load(sfc_6p_6p_plant_model::kSamplingTime),
           _speed_voltage_relationship(sfc_6p_6p_plant_model::kSamplingTime),
-          _pu_system(kNominalGridVoltageRMS, kNominalGridFrequency, kBaseDCLinkCurrent, kMachineRatedPowerVA,
-                     kNominalMachineVoltageRMS, kNominalMachineFrequency, kMachineNumPoles) {
+          _pu_system(kNominalGridVoltageRMS,
+              kNominalGridFrequency,
+              kBaseDCLinkCurrent,
+              kMachineRatedPowerVA,
+              kNominalMachineVoltageRMS,
+              kNominalMachineFrequency,
+              kMachineNumPoles)
+    {
         // Configure with default mechanical parameters
         _plant.initialize();
         _mechanical_load.configure(kDefaultInertiaConstantH, kDefaultDampingFactorD);
@@ -94,8 +100,9 @@ public:
      * @param inertia_constant_seconds The inertia constant in seconds.
      * @param damping_coefficient The damping factor in per-unit.
      */
-    void configure_mechanical_load(inertia_constant_t inertia_constant_seconds,
-                                   damping_coefficient_pu_t damping_coefficient) {
+    void configure_mechanical_load(
+        inertia_constant_t inertia_constant_seconds, damping_coefficient_pu_t damping_coefficient)
+    {
         _mechanical_load.configure(inertia_constant_seconds, damping_coefficient);
     }
 
@@ -105,8 +112,8 @@ public:
      * @param offset_pu The voltage offset in per-unit.
      * @param time_constant_seconds The time constant for dynamics [s]. Use 0.0 for algebraic response.
      */
-    void configure_speed_voltage_relationship(real_t coefficient, real_t offset_pu,
-                                              real_t time_constant_seconds = 0.0f) {
+    void configure_speed_voltage_relationship(real_t coefficient, real_t offset_pu, real_t time_constant_seconds = 0.0f)
+    {
         _speed_voltage_relationship.configure_voltage_speed_coefficient(coefficient);
         _speed_voltage_relationship.configure_voltage_offset_pu(offset_pu);
         _speed_voltage_relationship.configure_time_constant(time_constant_seconds);
@@ -117,7 +124,8 @@ public:
      * @param min_voltage_pu Minimum voltage magnitude [pu].
      * @param max_voltage_pu Maximum voltage magnitude [pu].
      */
-    void configure_voltage_limits_pu(real_t min_voltage_pu, real_t max_voltage_pu) {
+    void configure_voltage_limits_pu(real_t min_voltage_pu, real_t max_voltage_pu)
+    {
         _speed_voltage_relationship.configure_voltage_limits_pu(min_voltage_pu, max_voltage_pu);
     }
 
@@ -129,7 +137,8 @@ public:
      * the initial conditions for the mechanical system. It is particularly useful
      * for soft-starter applications where the machine may already be rotating.
      */
-    void set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu) {
+    void set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
+    {
         _mechanical_load.reset(initial_speed_pu);
 
         _speed_voltage_relationship.reset(1.0, 1.0);  // initial_speed_pu.value());
@@ -159,7 +168,8 @@ public:
      * This method allows setting the load torque that the mechanical load model will apply
      * during the simulation. It is useful for simulating different loading conditions.
      */
-    void set_load_torque_pu(torque_pu_t load_torque_pu) {
+    void set_load_torque_pu(torque_pu_t load_torque_pu)
+    {
         // Set the load torque in the mechanical load model
         _load_torque_pu = load_torque_pu;
     }
@@ -192,18 +202,21 @@ public:
      * @brief Registers the simulator's step function with the simulator framework.
      * @param simulator The testing simulator instance.
      */
-    void setup_simulator(yeet::testing::simulator& simulator) {
+    void setup_simulator(yeet::testing::simulator& simulator)
+    {
         simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() { this->step(); });
     }
 
-    void setup_all_logging(yeet::testing::simulator& simulator) {
+    void setup_all_logging(yeet::testing::simulator& simulator)
+    {
         setup_grid_side_logging(simulator);
         setup_machine_side_logging(simulator);
         setup_dc_link_logging(simulator);
         setup_mechanical_load_logging(simulator);
     }
 
-    void setup_grid_side_logging(yeet::testing::simulator& simulator) {
+    void setup_grid_side_logging(yeet::testing::simulator& simulator)
+    {
         // Log grid-side voltages (abc)
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "grid_voltage_a", [&]() -> double { return _plant.get_grid_side_voltages_abc().a(); }));
@@ -225,7 +238,8 @@ public:
             "grid_angle_rad", [&]() -> double { return _plant.get_grid_voltage_source_angle().get_radians(); }));
     }
 
-    void setup_machine_side_logging(yeet::testing::simulator& simulator) {
+    void setup_machine_side_logging(yeet::testing::simulator& simulator)
+    {
         // Log machine-side voltages (abc)
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "machine_voltage_a", [&]() -> double { return _plant.get_machine_side_voltages_abc().a(); }));
@@ -247,13 +261,15 @@ public:
             "machine_angle_rad", [&]() -> double { return _plant.get_machine_voltage_source_angle().get_radians(); }));
     }
 
-    void setup_dc_link_logging(yeet::testing::simulator& simulator) {
+    void setup_dc_link_logging(yeet::testing::simulator& simulator)
+    {
         // Log DC link current
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "dc_link_current", [&]() -> double { return _plant.get_dc_link_current(); }));
     }
 
-    void setup_mechanical_load_logging(yeet::testing::simulator& simulator) {
+    void setup_mechanical_load_logging(yeet::testing::simulator& simulator)
+    {
         // Log mechanical speed
         simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
             "mechanical_speed_pu", [&]() -> double { return _mechanical_load.get_speed_pu(); }));
@@ -263,21 +279,22 @@ public:
             yeet::testing::make_lambda_sampler<double>("machine_frequency_hz", [&]() -> double {
                 if (_mode == machine_operation_mode::variable_speed) {
                     return _mechanical_load.get_speed_pu() * kNominalMachineFrequency.value();
-                } else {
+                }
+                else {
                     return kNominalMachineFrequency.value();
                 }
             }));
 
         // Log electromagnetic torque
-        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>(
-            "electromagnetic_torque_pu",
+        simulator.register_sampler_entry(yeet::testing::make_lambda_sampler<double>("electromagnetic_torque_pu",
             [&]() -> double { return _plant.get_dc_link_current() / kBaseDCLinkCurrent.value(); }));
     }
 
     /**
      * @brief Executes one simulation step, handling both fixed and variable speed modes.
      */
-    void step() {
+    void step()
+    {
         // Always step the plant model first
         _plant.step();
 
@@ -295,7 +312,8 @@ private:
     /**
      * @brief Steps the mechanical load dynamics if in variable speed mode.
      */
-    void step_mechanical_dynamics() {
+    void step_mechanical_dynamics()
+    {
         if (_mode != machine_operation_mode::variable_speed) {
             return;  // No mechanical dynamics in fixed speed mode
         }
@@ -307,7 +325,7 @@ private:
         // Calculate electromagnetic torque in per-unit
         // For LCI drives: T_e = k * I_dc where k is proportional to machine flux
         // In per-unit: T_e_pu = I_dc_pu (assuming unit flux)
-        const torque_pu_t electromagnetic_torque_pu = torque_pu_t{dc_link_current};
+        const torque_pu_t electromagnetic_torque_pu = torque_pu_t{dc_link_current.value()};
 
         // Step the mechanical load with electromagnetic torque
         _mechanical_load.update(electromagnetic_torque_pu, _load_torque_pu);
@@ -316,7 +334,8 @@ private:
     /**
      * @brief Steps the speed-voltage relationship if voltage control is enabled.
      */
-    void step_voltage_control() {
+    void step_voltage_control()
+    {
         if (_voltage_mode != voltage_control_mode::speed_dependent) {
             return;  // No voltage control in fixed voltage mode
         }
@@ -331,7 +350,8 @@ private:
     /**
      * @brief Updates the plant model parameters with computed frequency and voltage.
      */
-    void update_plant_parameters() {
+    void update_plant_parameters()
+    {
         const frequency_t machine_frequency_hz =
             (_mode == machine_operation_mode::variable_speed)
                 ? to_si(frequency_pu_t{_mechanical_load.get_speed_pu()}, kNominalMachineFrequency)
@@ -349,12 +369,14 @@ private:
      * @brief Gets the current machine voltage based on voltage control mode.
      * @return The machine voltage in RMS volts.
      */
-    voltage_t get_machine_voltage() const {
+    voltage_t get_machine_voltage() const
+    {
         if (_voltage_mode == voltage_control_mode::speed_dependent) {
             // Use voltage from speed-voltage relationship
             const real_t voltage_magnitude_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
             return voltage_t(voltage_magnitude_pu * kNominalMachineVoltageRMS.value());
-        } else {
+        }
+        else {
             // Use nominal voltage for fixed voltage mode
             return kNominalMachineVoltageRMS;
         }

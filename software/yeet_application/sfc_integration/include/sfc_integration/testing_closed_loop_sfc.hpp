@@ -8,6 +8,7 @@
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_datamodel.hpp"
+#include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
@@ -15,6 +16,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
+
 
 namespace yeet::application::sfc::integration {
 
