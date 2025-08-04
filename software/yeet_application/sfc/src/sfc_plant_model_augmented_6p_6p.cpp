@@ -1,7 +1,5 @@
 #include "sfc/sfc_plant_model_augmented_6p_6p.hpp"
 
-#include "yeet_control/constants.hpp"
-
 namespace yeet::application::sfc {
 
 namespace {
