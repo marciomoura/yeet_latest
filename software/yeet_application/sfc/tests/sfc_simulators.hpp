@@ -448,9 +448,6 @@ public:
         auto& per_unit_system =
             const_cast<sfc_per_unit_system&>(_components.plant_model_simulator.get_per_unit_system());
 
-        // Ensure the plant model is properly initialized before simulation starts
-        // plant_model.initialize();
-
         // Register the plant model simulator to run every sampling period
         simulator.register_lambda_runner(
             _components.plant_model_simulator.kSamplingTime, [&plant_model]() { plant_model.update(); });
