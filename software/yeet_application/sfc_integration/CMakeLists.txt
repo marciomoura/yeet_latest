@@ -28,8 +28,10 @@ target_sources(
     PUBLIC src/sfc_current_controller_runner.cpp
            src/sfc_dc_link_measurements_runner.cpp
            src/sfc_grid_side_measurements_runner.cpp
+           src/sfc_grid_side_modulator_runner.cpp
            src/sfc_grid_side_observer_runner.cpp
            src/sfc_machine_side_measurements_runner.cpp
+           src/sfc_machine_side_modulator_runner.cpp
            src/sfc_machine_side_observer_runner.cpp
            src/sfc_plant_model_runner.cpp
            src/sfc_speed_controller_runner.cpp)

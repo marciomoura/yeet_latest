@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sfc_6p_6p_plant_model.hpp"
-#include "sfc_per_unit_system.hpp"
+#include "sfc/sfc_per_unit_system.hpp"
+#include "sfc/sfc_plant_model_6p_6p.hpp"
 #include "yeet_control/mechanical_load.hpp"
 #include "yeet_control/speed_voltage_relationship.hpp"
 #include "yeet_control/units.hpp"
@@ -156,9 +156,9 @@ public:
 
     /**
      * @brief Gets a reference to the underlying plant model.
-     * @return A reference to the sfc_6p_6p_plant_model.
+     * @return A reference to the sfc_plant_model_6p_6p.
      */
-    sfc_6p_6p_plant_model& plant();
+    sfc_plant_model_6p_6p& plant();
 
     /**
      * @brief Registers the simulator's step function with the simulator framework.
@@ -232,7 +232,7 @@ private:
 private:
     torque_pu_t _load_torque_pu = torque_pu_t{0.0};  // Default load torque in per-unit
 
-    sfc_6p_6p_plant_model _plant;
+    sfc_plant_model_6p_6p _plant;
     control::mechanical_load _mechanical_load;
     control::speed_voltage_relationship _speed_voltage_relationship;
     sfc_per_unit_system _pu_system;

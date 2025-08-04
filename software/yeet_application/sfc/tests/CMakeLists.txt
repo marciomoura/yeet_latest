@@ -1,16 +1,26 @@
-project(yeet_application_sfc_unit_tests CXX)
+project(yeet_application_sfc_tests CXX)
 
 # Create the test executable
 add_executable(${PROJECT_NAME})
-add_executable(yeet::yeet_application_sfc_unit_tests ALIAS ${PROJECT_NAME})
+add_executable(yeet::yeet_application_sfc_tests ALIAS ${PROJECT_NAME})
 
 enable_testing()
 
 # Add test sources
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE sfc_commutation_mask_test.cpp
-            sfc_machine_side_lookup_table_test.cpp sfc_per_unit_system_test.cpp)
+    PRIVATE # Simulator
+            sfc_simulators.hpp
+            sfc_plant_model_simulator.hpp
+            sfc_plant_model_simulator.cpp
+            # Tests
+            sfc_commutation_mask_test.cpp
+            sfc_machine_side_lookup_table_test.cpp
+            sfc_per_unit_system_test.cpp
+            sfc_6p_6p_topology_integration_test.cpp
+            sfc_current_controller_test.cpp
+            sfc_machine_side_firing_angle_lookup_table_test.cpp
+            sfc_speed_controller_test.cpp)
 
 # Link dependencies
 target_link_libraries(

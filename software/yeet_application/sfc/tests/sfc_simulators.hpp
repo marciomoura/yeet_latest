@@ -2,24 +2,25 @@
 
 #include <cassert>
 
-#include "sfc_6p_6p_plant_model.hpp"
-#include "sfc_current_controller.hpp"
-#include "sfc_dc_link_filtering.hpp"
-#include "sfc_dc_link_measurements.hpp"
-#include "sfc_grid_side_filtering.hpp"
-#include "sfc_grid_side_measurements.hpp"
-#include "sfc_grid_side_observer.hpp"
-#include "sfc_machine_side_filtering.hpp"
-#include "sfc_machine_side_lookup_table.hpp"
-#include "sfc_machine_side_measurements.hpp"
-#include "sfc_machine_side_observer.hpp"
-#include "sfc_per_unit_system.hpp"
+#include "sfc/sfc_current_controller.hpp"
+#include "sfc/sfc_dc_link_filtering.hpp"
+#include "sfc/sfc_dc_link_measurements.hpp"
+#include "sfc/sfc_grid_side_filtering.hpp"
+#include "sfc/sfc_grid_side_measurements.hpp"
+#include "sfc/sfc_grid_side_observer.hpp"
+#include "sfc/sfc_machine_side_filtering.hpp"
+#include "sfc/sfc_machine_side_lookup_table.hpp"
+#include "sfc/sfc_machine_side_measurements.hpp"
+#include "sfc/sfc_machine_side_observer.hpp"
+#include "sfc/sfc_per_unit_system.hpp"
+#include "sfc/sfc_plant_model_6p_6p.hpp"
+#include "sfc/sfc_speed_controller.hpp"
 #include "sfc_plant_model_simulator.hpp"
-#include "sfc_speed_controller.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
+
 
 namespace yeet::application::sfc {
 
@@ -41,7 +42,7 @@ class sfc_simulator_pulse_generators {
 public:
     static void register_ideal_pulse_generator(yeet::simulator& simulator,
         duration_t sampling_time,
-        sfc_6p_6p_plant_model& model,
+        sfc_plant_model_6p_6p& model,
         sfc_simulator_pulse_generators& pulse_generator,
         const angle_wrapped& grid_firing_angle,
         const angle_wrapped& machine_firing_angle,
@@ -53,7 +54,7 @@ public:
 
     static void register_pulse_generator(yeet::simulator& simulator,
         duration_t sampling_time,
-        sfc_6p_6p_plant_model& model,
+        sfc_plant_model_6p_6p& model,
         sfc_simulator_pulse_generators& pulse_generator,
         const angle_wrapped& grid_reference_frame,
         const angle_wrapped& grid_firing_angle,
@@ -67,7 +68,7 @@ public:
         });
     }
 
-    void update(sfc_6p_6p_plant_model& model,
+    void update(sfc_plant_model_6p_6p& model,
         const angle_wrapped& grid_firing_angle,
         const angle_wrapped& machine_firing_angle,
         bool enable)
@@ -76,7 +77,7 @@ public:
             model.get_machine_voltage_source_angle(), machine_firing_angle, enable);
     }
 
-    void update(sfc_6p_6p_plant_model& model,
+    void update(sfc_plant_model_6p_6p& model,
         const angle_wrapped& grid_reference_angle,
         const angle_wrapped& grid_firing_angle,
         const angle_wrapped& machine_reference_angle,
@@ -110,13 +111,13 @@ public:
         duration_t sampling_time,
         sfc_per_unit_system& per_unit_system,
         sfc_simulator_measurement_and_filtering& measurements_and_filtering,
-        sfc_6p_6p_plant_model& model)
+        sfc_plant_model_6p_6p& model)
     {
         simulator.register_lambda_runner(
             sampling_time, [&]() { measurements_and_filtering.update(model, per_unit_system); });
     }
 
-    void update(sfc_6p_6p_plant_model& model, const sfc_per_unit_system& per_unit_system)
+    void update(sfc_plant_model_6p_6p& model, const sfc_per_unit_system& per_unit_system)
     {
         // Update measurements for all three sides
         grid_side_measurements.update(
@@ -172,7 +173,7 @@ public:
 
     static void register_observers(yeet::simulator& simulator,
         duration_t sampling_time,
-        sfc_6p_6p_plant_model& model,
+        sfc_plant_model_6p_6p& model,
         sfc_simulator_observers& observers,
         sfc_simulator_pulse_generators& pulse_generator,
         const abc<voltage_pu_t>& grid_voltage_pu,

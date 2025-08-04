@@ -2,11 +2,13 @@
 
 #include <memory>
 
-#include "sfc/sfc_6p_6p_plant_model.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
+#include "sfc/sfc_plant_model_6p_6p.hpp"
+#include "sfc/sfc_plant_model_simulator.hpp"
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "yeet/application_interface.hpp"
 #include "yeet_control/mechanical_load.hpp"
+
 
 namespace yeet::application::sfc::integration {
 
@@ -24,7 +26,7 @@ class sfc_plant_model_runner : public yeet::base_application<sfc_plant_model_dat
                                    sfc_plant_model_datamodel::parameters> {
 public:
     using datamodel = sfc_plant_model_datamodel;
-    static constexpr double sampling_time = sfc::sfc_6p_6p_plant_model::kSamplingTime;
+    static constexpr double sampling_time = sfc::sfc_plant_model_6p_6p::kSamplingTime;
 
     /**
      * @brief Constructor
@@ -39,17 +41,10 @@ public:
 private:
     void set_parameters();
     void set_parameter_callback();
-    void update_mechanical_load();
-    void convert_inputs();
-    void convert_outputs();
 
-    // Core components
-    sfc::sfc_6p_6p_plant_model _plant;
-    control::mechanical_load _mechanical_load;
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
-    // Configuration
-    datamodel::machine_operation_mode _mode = datamodel::machine_operation_mode::fixed_speed;
+    sfc::sfc_plant_model_simulator _plant;
 };
 
 }  // namespace yeet::application::sfc::integration

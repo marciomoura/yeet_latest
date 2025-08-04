@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-#include "sfc/sfc_simulators.hpp"
+#include "sfc_simulators.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"

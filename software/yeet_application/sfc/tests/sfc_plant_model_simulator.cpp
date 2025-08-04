@@ -1,10 +1,10 @@
-#include "sfc/sfc_plant_model_simulator.hpp"
+#include "sfc_plant_model_simulator.hpp"
 
 namespace yeet::application::sfc {
 
 sfc_plant_model_simulator::sfc_plant_model_simulator()
-    : _mechanical_load(sfc_6p_6p_plant_model::kSamplingTime),
-      _speed_voltage_relationship(sfc_6p_6p_plant_model::kSamplingTime),
+    : _mechanical_load(sfc_plant_model_6p_6p::kSamplingTime),
+      _speed_voltage_relationship(sfc_plant_model_6p_6p::kSamplingTime),
       _pu_system(kNominalGridVoltageRMS,
           kNominalGridFrequency,
           kBaseDCLinkCurrent,
@@ -85,11 +85,11 @@ control::speed_voltage_relationship& sfc_plant_model_simulator::speed_voltage_re
 
 const sfc_per_unit_system& sfc_plant_model_simulator::per_unit_system() const { return _pu_system; }
 
-sfc_6p_6p_plant_model& sfc_plant_model_simulator::plant() { return _plant; }
+sfc_plant_model_6p_6p& sfc_plant_model_simulator::plant() { return _plant; }
 
 void sfc_plant_model_simulator::setup_simulator(yeet::simulator& simulator)
 {
-    simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() { this->step(); });
+    simulator.register_lambda_runner(sfc_plant_model_6p_6p::kSamplingTime, [&]() { this->step(); });
 }
 
 void sfc_plant_model_simulator::setup_all_logging(yeet::simulator& simulator)
@@ -177,7 +177,7 @@ void sfc_plant_model_simulator::setup_mechanical_load_logging(yeet::simulator& s
 void sfc_plant_model_simulator::step()
 {
     // Always step the plant model first
-    _plant.step();
+    _plant.update();
 
     // Step the mechanical dynamics (if enabled)
     step_mechanical_dynamics();

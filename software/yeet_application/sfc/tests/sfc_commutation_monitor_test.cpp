@@ -37,7 +37,7 @@ protected:
 
     control::six_pulse_generator::pulses _grid_pulses{};
     control::six_pulse_generator::pulses _machine_pulses{};
-    control::dual_sogi_srf_pll _grid_side_pll{duration_t(sfc_6p_6p_plant_model::kSamplingTime)};
+    control::dual_sogi_srf_pll _grid_side_pll{duration_t(sfc_plant_model_6p_6p::kSamplingTime)};
 
     abc<voltage_pu_t> masked_voltage_pu{};
     sfc_commutation_mask _commutation_mask;
@@ -63,7 +63,7 @@ protected:
             sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
 
         // Register the main simulation loop
-        _simulator.register_lambda_runner(sfc_6p_6p_plant_model::kSamplingTime, [&]() {
+        _simulator.register_lambda_runner(sfc_plant_model_6p_6p::kSamplingTime, [&]() {
             auto const& plant_model = _plant_sim.plant();
             // Get reference angles from the plant model
             auto const grid_reference_angle = plant_model.get_grid_voltage_source_angle();

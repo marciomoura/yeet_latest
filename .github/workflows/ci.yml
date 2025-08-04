@@ -97,9 +97,8 @@ jobs:
             yeet_control_tests \
             yeet_application_mpc_tests \
             yeet_application_mpc_integration_tests \
-            yeet_application_sfc_unit_tests \
-            yeet_application_sfc_integration_tests 
-
+            yeet_application_sfc_tests 
+            
       - name: Run tests
         run: |
           ./build/bin/yeet_test
@@ -107,8 +106,7 @@ jobs:
           ./build/bin/yeet_control_tests
           ./build/bin/yeet_application_mpc_tests
           ./build/bin/yeet_application_mpc_integration_tests
-          ./build/bin/yeet_application_sfc_integration_tests
-          ./build/bin/yeet_application_sfc_unit_tests
+          ./build/bin/yeet_application_sfc_tests
 
       - name: Generate and check coverage
         run: |

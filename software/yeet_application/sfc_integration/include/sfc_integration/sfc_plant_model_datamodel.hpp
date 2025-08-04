@@ -45,7 +45,7 @@ public:
      */
     struct outputs {
         /// Grid-side voltage measurements (line-to-neutral)
-        signal_output<abc<voltage_t>> grid_voltage_ln;
+        signal_output<abc<voltage_t>> grid_voltage;
 
         /// Grid-side current measurements
         signal_output<abc<current_t>> grid_current;
@@ -57,34 +57,18 @@ public:
         signal_output<current_t> dc_link_current;
 
         /// Machine-side voltage measurements (line-to-neutral)
-        signal_output<abc<voltage_t>> machine_voltage_ln;
+        signal_output<abc<voltage_t>> machine_voltage;
 
         /// Machine-side current measurements
         signal_output<abc<current_t>> machine_current;
 
-        /// Motor rotor position (mechanical)
+        /// Grid voltage angular position
         /// Range: [0.0, 2π] radians
-        signal_output<angle_wrapped> rotor_position_mechanical;
+        signal_output<angle_wrapped> grid_voltage_source_angle;
 
-        /// Motor rotor speed (mechanical)
-        /// Range: [-3.0, 3.0] pu
-        signal_output<speed_pu_t> rotor_speed_mechanical;
-
-        /// Motor electromagnetic torque
-        /// Range: [-2.0, 2.0] pu
-        signal_output<torque_pu_t> electromagnetic_torque;
-
-        /// Total harmonic distortion - grid current
-        /// Range: [0.0, 1.0] (fraction)
-        signal_output<real_t> grid_current_thd;
-
-        /// Power factor at grid connection
-        /// Range: [-1.0, 1.0]
-        signal_output<real_t> power_factor;
-
-        /// Total active power (grid side)
-        /// Range: [-2.0, 2.0] pu
-        signal_output<power_pu_t> active_power_pu;
+        /// Grid voltage angular position
+        /// Range: [0.0, 2π] radians
+        signal_output<angle_wrapped> machine_voltage_source_angle;
     };
 
     /**

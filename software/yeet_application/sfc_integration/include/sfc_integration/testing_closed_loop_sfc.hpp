@@ -20,24 +20,44 @@
 namespace yeet::application::sfc::integration {
 
 // Type aliases for datamodels - these define the signal contracts
+
+// Speed and current controller datamodels
+
 using speed_controller_datamodel =
     yeet::signal_flow_datamodel<sfc_speed_controller_datamodel::inputs, sfc_speed_controller_datamodel::outputs>;
+
 using current_controller_datamodel =
     yeet::signal_flow_datamodel<sfc_current_controller_datamodel::inputs, sfc_current_controller_datamodel::outputs>;
-using grid_observer_datamodel =
-    yeet::signal_flow_datamodel<sfc_grid_side_observer_datamodel::inputs, sfc_grid_side_observer_datamodel::outputs>;
-using grid_modulator_datamodel =
-    yeet::signal_flow_datamodel<sfc_grid_side_modulator_datamodel::inputs, sfc_grid_side_modulator_datamodel::outputs>;
-using grid_measurements_datamodel = yeet::signal_flow_datamodel<sfc_grid_side_measurements_datamodel::inputs,
-    sfc_grid_side_measurements_datamodel::outputs>;
-using machine_observer_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_observer_datamodel::inputs,
-    sfc_machine_side_observer_datamodel::outputs>;
-using machine_modulator_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_modulator_datamodel::inputs,
-    sfc_machine_side_modulator_datamodel::outputs>;
-using machine_measurements_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_measurements_datamodel::inputs,
-    sfc_machine_side_measurements_datamodel::outputs>;
+
+// DC link measurements datamodel
+
 using dc_link_measurements_datamodel = yeet::signal_flow_datamodel<sfc_dc_link_measurements_datamodel::inputs,
     sfc_dc_link_measurements_datamodel::outputs>;
+
+// Grid side datamodels
+
+using grid_measurements_datamodel = yeet::signal_flow_datamodel<sfc_grid_side_measurements_datamodel::inputs,
+    sfc_grid_side_measurements_datamodel::outputs>;
+
+using grid_observer_datamodel =
+    yeet::signal_flow_datamodel<sfc_grid_side_observer_datamodel::inputs, sfc_grid_side_observer_datamodel::outputs>;
+
+using grid_modulator_datamodel =
+    yeet::signal_flow_datamodel<sfc_grid_side_modulator_datamodel::inputs, sfc_grid_side_modulator_datamodel::outputs>;
+
+// Machine side datamodels
+
+using machine_measurements_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_measurements_datamodel::inputs,
+    sfc_machine_side_measurements_datamodel::outputs>;
+
+using machine_observer_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_observer_datamodel::inputs,
+    sfc_machine_side_observer_datamodel::outputs>;
+
+using machine_modulator_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_modulator_datamodel::inputs,
+    sfc_machine_side_modulator_datamodel::outputs>;
+
+// Plant model datamodel
+
 using plant_datamodel =
     yeet::signal_flow_datamodel<sfc_plant_model_datamodel::inputs, sfc_plant_model_datamodel::outputs>;
 
@@ -169,6 +189,9 @@ public:
             get_outputs<grid_observer_datamodel>().estimated_angle, get_inputs().grid_voltage_angle);
         signals_connector::connect_output_to_input(
             get_outputs<grid_observer_datamodel>().estimated_frequency, get_inputs().grid_frequency);
+
+        // TODO: Connect enable command from system controller when available
+        // For now, enable command will be handled in the runner
     }
 };
 
@@ -225,6 +248,11 @@ public:
         // Connect machine observer position for synchronization
         signals_connector::connect_output_to_input(
             get_outputs<machine_observer_datamodel>().estimated_position, get_inputs().rotor_position_electrical);
+
+        // TODO: Connect lookup table firing angle when lookup table runner is implemented
+        // TODO: Connect operating mode from mode detector when available
+        // TODO: Connect commutation detection when available
+        // For now, these signals will be handled in the runner with default values
     }
 };
 
@@ -429,20 +457,21 @@ public:
     }
 
     // Public members for direct access if needed
+    // Per-unit system must be declared first since other members depend on it
+    std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
+
     sfc_speed_controller_runner speed_controller;
     sfc_current_controller_runner current_controller;
+    sfc_dc_link_measurements_runner dc_link_measurements{_per_unit_system};
     sfc_grid_side_observer_runner grid_observer;
     sfc_grid_side_modulator_runner grid_modulator;
+    sfc_grid_side_measurements_runner grid_measurements{_per_unit_system};
     sfc_machine_side_observer_runner machine_observer;
     sfc_machine_side_modulator_runner machine_modulator;
-    sfc_grid_side_measurements_runner grid_measurements{_per_unit_system};
     sfc_machine_side_measurements_runner machine_measurements{_per_unit_system};
-    sfc_dc_link_measurements_runner dc_link_measurements{_per_unit_system};
     sfc_plant_model_runner plant{_per_unit_system};
 
 private:
-    std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
-
     void initialize_runners()
     {
         // Most runners are default-constructed

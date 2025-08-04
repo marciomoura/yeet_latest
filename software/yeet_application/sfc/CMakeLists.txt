@@ -26,11 +26,10 @@ target_sources(
            include/sfc/sfc_per_unit_system.hpp
            include/sfc/sfc_speed_controller.hpp
            include/sfc/sfc_types.hpp
-           include/sfc/sfc_6p_6p_plant_model.hpp
-           include/sfc/sfc_plant_model_simulator.hpp
-           include/sfc/sfc_simulators.hpp
-    PRIVATE src/sfc_6p_6p_plant_model.cpp
-            src/sfc_commutation_mask.cpp
+           include/sfc/sfc_plant_model_augmented_6p_6p.hpp
+           include/sfc/sfc_plant_model_6p_6p.hpp
+           include/sfc/sfc_plant_model_parameters.hpp
+    PRIVATE src/sfc_commutation_mask.cpp
             src/sfc_current_controller.cpp
             src/sfc_machine_side_filtering.cpp
             src/sfc_grid_side_filtering.cpp
@@ -46,7 +45,8 @@ target_sources(
             src/sfc_mode_detector.cpp
             src/sfc_per_unit_system.cpp
             src/sfc_speed_controller.cpp
-            src/sfc_plant_model_simulator.cpp)
+            src/sfc_plant_model_augmented_6p_6p.cpp
+            src/sfc_plant_model_6p_6p.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

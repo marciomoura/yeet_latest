@@ -1,6 +1,6 @@
 #pragma once
 
-// #include "sfc/sfc_machine_side_observer.hpp"
+#include "sfc/sfc_machine_side_modulator.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_datamodel.hpp"
 #include "yeet/application_interface.hpp"
 
@@ -14,17 +14,20 @@ public:
 
     static constexpr double sampling_time = 100e-6;
 
-    sfc_machine_side_modulator_runner() : base_application(sampling_time) {}
+    sfc_machine_side_modulator_runner()
+        : base_application(sampling_time), _sfc_machine_side_modulator(duration_t{sampling_time})
+    {
+    }
 
-    void initialize() override {}
-    void run() override {}
-    void stop() override {}
+    void initialize() override;
+    void run() override;
+    void stop() override;
 
 private:
-    // void set_parameters();
-    // void set_parameter_callback();
+    void set_parameters();
+    void set_parameter_callback();
 
-    // sfc::sfc_machine_side_observer _sfc_machine_side_observer;
+    sfc::sfc_machine_side_modulator _sfc_machine_side_modulator;
 };
 
 }  // namespace yeet::application::sfc::integration
