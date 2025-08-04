@@ -3,12 +3,9 @@
 #include <memory>
 
 #include "sfc/sfc_per_unit_system.hpp"
-#include "sfc/sfc_plant_model_6p_6p.hpp"
-#include "sfc/sfc_plant_model_simulator.hpp"
+#include "sfc/sfc_plant_model_augmented_6p_6p.hpp"
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "yeet/application_interface.hpp"
-#include "yeet_control/mechanical_load.hpp"
-
 
 namespace yeet::application::sfc::integration {
 
@@ -19,14 +16,14 @@ namespace yeet::application::sfc::integration {
  * It manages the plant model execution, mechanical load dynamics, and per-unit system
  * conversion for interfacing with other control components.
  *
- * Based on the sfc_plant_model_simulator but adapted for the integration framework.
+ * Based on the sfc_plant_model_augmented_6p_6p.
  */
 class sfc_plant_model_runner : public yeet::base_application<sfc_plant_model_datamodel::inputs,
                                    sfc_plant_model_datamodel::outputs,
                                    sfc_plant_model_datamodel::parameters> {
 public:
     using datamodel = sfc_plant_model_datamodel;
-    static constexpr double sampling_time = sfc::sfc_plant_model_6p_6p::kSamplingTime;
+    static constexpr double sampling_time = sfc::sfc_plant_model_augmented_6p_6p::kSamplingTime;
 
     /**
      * @brief Constructor
@@ -44,7 +41,7 @@ private:
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
-    sfc::sfc_plant_model_simulator _plant;
+    sfc::sfc_plant_model_augmented_6p_6p _plant;
 };
 
 }  // namespace yeet::application::sfc::integration

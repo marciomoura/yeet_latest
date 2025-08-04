@@ -94,22 +94,22 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Register outputs in signal registry
-        entry.signal_registry.insert("firing_pulses", _model_outputs->firing_pulses);
-        entry.signal_registry.insert("actual_firing_angle", _model_outputs->actual_firing_angle);
-        entry.signal_registry.insert("is_enabled", _model_outputs->is_enabled);
-        entry.signal_registry.insert("is_synchronized", _model_outputs->is_synchronized);
+        // // Register outputs in signal registry
+        // entry.signal_registry.insert("firing_pulses", _model_outputs->firing_pulses);
+        // entry.signal_registry.insert("actual_firing_angle", _model_outputs->actual_firing_angle);
+        // entry.signal_registry.insert("is_enabled", _model_outputs->is_enabled);
+        // entry.signal_registry.insert("is_synchronized", _model_outputs->is_synchronized);
 
-        // Register parameters in parameter registry
-        entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
-        entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
-        entry.parameter_registry.insert("pulse_width", _model_parameters->pulse_width);
-        entry.parameter_registry.insert("deadtime", _model_parameters->deadtime);
-        entry.parameter_registry.insert("nominal_grid_frequency", _model_parameters->nominal_grid_frequency);
+        // // Register parameters in parameter registry
+        // entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
+        // entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
+        // entry.parameter_registry.insert("pulse_width", _model_parameters->pulse_width);
+        // entry.parameter_registry.insert("deadtime", _model_parameters->deadtime);
+        // entry.parameter_registry.insert("nominal_grid_frequency", _model_parameters->nominal_grid_frequency);
 
-        registry.insert("sfc_grid_side_modulator", std::move(entry));
+        // registry.insert("sfc_grid_side_modulator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

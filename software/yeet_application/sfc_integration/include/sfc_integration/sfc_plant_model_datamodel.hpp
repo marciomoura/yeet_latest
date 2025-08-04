@@ -86,7 +86,7 @@ public:
 
         /// Motor damping factor (D) in per-unit.
         /// Default: 0.01 pu
-        parameter<damping_coefficient_t> motor_damping_factor = damping_coefficient_t(0.01);
+        parameter<damping_coefficient_pu_t> motor_damping_factor = damping_coefficient_pu_t(0.01);
     };
 
 private:
