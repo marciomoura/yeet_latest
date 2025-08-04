@@ -19,7 +19,7 @@ class sfc_grid_side_pulse_generator_runner
           sfc_grid_side_pulse_generator_datamodel::parameters> {
 public:
     using datamodel = sfc_grid_side_pulse_generator_datamodel;
-    static constexpr double sampling_time = 100e-6;  // 100 µs sampling time (10 kHz)
+    static constexpr double sampling_time = 100e-6;  // 100 µs sampling time (100 kHz)
 
     /**
      * @brief Constructor

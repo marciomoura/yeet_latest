@@ -25,7 +25,7 @@ void sfc_plant_model_runner::run()
     // Set inputs to the plant model
     _plant.set_grid_side_pulses(_inputs.grid_side_firing_pulses.read().to_array());
     _plant.set_machine_side_pulses(_inputs.machine_side_firing_pulses.read().to_array());
-    _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
+    // _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
 
     // Execute one simulation step
     _plant.update();

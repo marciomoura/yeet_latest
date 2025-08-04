@@ -1,17 +1,21 @@
 #pragma once
 
+#include "sfc_grid_side_pulse_generator_datamodel.hpp"
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
+#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_datamodel.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
+#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_machine_side_pulse_generator_datamodel.hpp"
 #include "yeet/data_model_connector.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet_testing/parameter_collection.hpp"
@@ -55,6 +59,15 @@ using machine_observer_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_
 
 using machine_modulator_datamodel = yeet::signal_flow_datamodel<sfc_machine_side_modulator_datamodel::inputs,
     sfc_machine_side_modulator_datamodel::outputs>;
+
+// Pulse generator datamodels
+
+using grid_side_pulse_generator_datamodel = yeet::signal_flow_datamodel<sfc_grid_side_pulse_generator_datamodel::inputs,
+    sfc_grid_side_pulse_generator_datamodel::outputs>;
+
+using machine_side_pulse_generator_datamodel =
+    yeet::signal_flow_datamodel<sfc_machine_side_pulse_generator_datamodel::inputs,
+        sfc_machine_side_pulse_generator_datamodel::outputs>;
 
 // Plant model datamodel
 
@@ -274,7 +287,7 @@ public:
     {
         // Connect raw measurements from plant
         signals_connector::connect_output_to_input(
-            get_outputs<plant_datamodel>().grid_voltage_ln, get_inputs().line_voltages_raw);
+            get_outputs<plant_datamodel>().grid_voltage, get_inputs().line_voltages_raw);
         signals_connector::connect_output_to_input(
             get_outputs<plant_datamodel>().grid_current, get_inputs().line_currents_raw);
         signals_connector::connect_output_to_input(
@@ -300,7 +313,7 @@ public:
     {
         // Connect raw measurements from plant
         signals_connector::connect_output_to_input(
-            get_outputs<plant_datamodel>().machine_voltage_ln, get_inputs().machine_voltages_raw);
+            get_outputs<plant_datamodel>().machine_voltage, get_inputs().machine_voltages_raw);
         signals_connector::connect_output_to_input(
             get_outputs<plant_datamodel>().machine_current, get_inputs().machine_currents_raw);
     }
@@ -356,6 +369,62 @@ public:
     }
 };
 
+class ideal_pulse_generators_to_plant_model_connector : public data_model_connector<inputs<plant_datamodel>,
+                                                            outputs<grid_side_pulse_generator_datamodel>,
+                                                            outputs<machine_side_pulse_generator_datamodel>> {
+public:
+    ideal_pulse_generators_to_plant_model_connector(plant_datamodel& plant,
+        grid_side_pulse_generator_datamodel& grid_pulse_gen,
+        machine_side_pulse_generator_datamodel& machine_pulse_gen)
+        : data_model_connector(plant.get_inputs(), grid_pulse_gen.get_outputs(), machine_pulse_gen.get_outputs())
+    {
+    }
+
+    void connect() override
+    {
+        // Connect firing pulses from both modulators
+        signals_connector::connect_output_to_input(
+            get_outputs<grid_side_pulse_generator_datamodel>().firing_pulses, get_inputs().grid_side_firing_pulses);
+
+        signals_connector::connect_output_to_input(get_outputs<machine_side_pulse_generator_datamodel>().firing_pulses,
+            get_inputs().machine_side_firing_pulses);
+    }
+};
+
+// Plant model to grid pulse generators connector
+class plant_model_to_grid_pulse_generators_connector
+    : public data_model_connector<inputs<grid_side_pulse_generator_datamodel>, outputs<plant_datamodel>> {
+public:
+    plant_model_to_grid_pulse_generators_connector(
+        grid_side_pulse_generator_datamodel& grid_pulse_gen, plant_datamodel& plant)
+        : data_model_connector(grid_pulse_gen.get_inputs(), plant.get_outputs())
+    {
+    }
+    void connect() override
+    {
+        // Connect grid voltage source angle to pulse generator
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().grid_voltage_source_angle, get_inputs().reference_angle);
+    }
+};
+
+// Plant model to machine pulse generators connector
+class plant_model_to_machine_pulse_generators_connector
+    : public data_model_connector<inputs<machine_side_pulse_generator_datamodel>, outputs<plant_datamodel>> {
+public:
+    plant_model_to_machine_pulse_generators_connector(
+        machine_side_pulse_generator_datamodel& machine_pulse_gen, plant_datamodel& plant)
+        : data_model_connector(machine_pulse_gen.get_inputs(), plant.get_outputs())
+    {
+    }
+    void connect() override
+    {
+        // Connect machine voltage source angle to pulse generator
+        signals_connector::connect_output_to_input(
+            get_outputs<plant_datamodel>().machine_voltage_source_angle, get_inputs().reference_angle);
+    }
+};
+
 // ==================== Parameter Collection Types ====================
 
 using closed_loop_sfc_parameter_types = yeet::parameter_collection<sfc_speed_controller_datamodel::parameters,
@@ -370,6 +439,95 @@ using closed_loop_sfc_parameter_types = yeet::parameter_collection<sfc_speed_con
     sfc_plant_model_datamodel::parameters>;
 
 // ==================== Closed-Loop Configuration ====================
+
+using sfc_simulator_builder_parameters = yeet::parameter_collection<sfc_grid_side_pulse_generator_datamodel::parameters,
+    sfc_machine_side_pulse_generator_datamodel::parameters>;
+
+class sfc_simulator_builder : public yeet::closed_loop_configuration<sfc_simulator_builder_parameters> {
+public:
+    using parameter_types = sfc_simulator_builder_parameters;
+
+    sfc_simulator_builder() : plant{create_per_unit_system()}
+    {
+        // Connect pulse generators to plant model
+        connect_pulse_generators_to_plant();
+    }
+
+    void initialize()
+    {
+        // Initialize components in dependency order
+        grid_side_pulse_generator.initialize();
+        machine_side_pulse_generator.initialize();
+        plant.initialize();
+    }
+
+    void register_applications(yeet::simulator& sim) override
+    {
+        // Register all runners with their respective sampling times
+        sim.register_lambda_runner(
+            grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
+        sim.register_lambda_runner(
+            machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
+        sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
+    }
+
+    void register_datamodel(yeet::model_registry& registry) override
+    {
+        // Register all datamodels
+        grid_side_pulse_generator.register_datamodel(registry);
+        machine_side_pulse_generator.register_datamodel(registry);
+        plant.register_datamodel(registry);
+    }
+
+    parameter_types create_parameter_collection() override
+    {
+        return parameter_types(grid_side_pulse_generator.get_configuration_datamodel().get_parameters(),
+            machine_side_pulse_generator.get_configuration_datamodel().get_parameters());
+    }
+
+    // Public members for direct access
+    sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
+    sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
+    sfc_plant_model_runner plant;
+
+private:
+    static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
+    {
+        return std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid voltage RMS
+            frequency_t(50.0),                                                // Grid frequency
+            current_t(1044.0),                                                // DC link current base
+            power_t(2950e3),                                                  // Machine power
+            voltage_t(1980.0),                                                // Machine voltage RMS
+            frequency_t(50.0),                                                // Machine frequency
+            2                                                                 // Number of poles
+        );
+    }
+
+    void connect_pulse_generators_to_plant()
+    {
+        // Get datamodel references
+        auto& grid_pulse_gen_model = grid_side_pulse_generator.get_signal_flow_datamodel();
+        auto& machine_pulse_gen_model = machine_side_pulse_generator.get_signal_flow_datamodel();
+        auto& plant_model = plant.get_signal_flow_datamodel();
+
+        // Create and connect the pulse generators to plant model
+        ideal_pulse_generators_to_plant_model_connector connector(
+            plant_model, grid_pulse_gen_model, machine_pulse_gen_model);
+        connector.connect();
+
+        // Connect plant to grid pulse generators
+        plant_model_to_grid_pulse_generators_connector grid_connector(
+            grid_side_pulse_generator.get_signal_flow_datamodel(), plant.get_signal_flow_datamodel());
+        grid_connector.connect();
+
+        // Connect plant to machine pulse generators
+        plant_model_to_machine_pulse_generators_connector machine_connector(
+            machine_side_pulse_generator.get_signal_flow_datamodel(), plant.get_signal_flow_datamodel());
+        machine_connector.connect();
+    }
+};
+
+///
 
 /**
  * @brief Complete closed-loop SFC control system configuration with aggregated connectors

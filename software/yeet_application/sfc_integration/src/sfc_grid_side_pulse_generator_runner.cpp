@@ -13,9 +13,11 @@ void sfc_grid_side_pulse_generator_runner::initialize()
 void sfc_grid_side_pulse_generator_runner::run()
 {
     // Get inputs
+    // angle_wrapped reference_angle = _inputs.reference_angle.read();
+    angle_wrapped firing_angle_command = _parameters.firing_angle.read();
+    // bool enable = _inputs.enable.read();
     angle_wrapped reference_angle = _inputs.reference_angle.read();
-    angle_wrapped firing_angle_command = _inputs.firing_angle.read();
-    bool enable = _inputs.enable.read();
+    bool enable = _parameters.enable.read();
 
     // Generate pulses using the six-pulse generator
     control::six_pulse_generator::pulses pulses =

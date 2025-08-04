@@ -25,11 +25,11 @@ public:
 
         /// Firing angle command (alpha) in radians
         /// Range: [0.0, π] radians
-        signal_input<angle_wrapped> firing_angle;
+        // signal_input<angle_wrapped> firing_angle;
 
         /// Enable/disable signal for pulse generation
         /// true = pulses enabled, false = all pulses disabled
-        signal_input<bool> enable;
+        // signal_input<bool> enable;
     };
 
     /**
@@ -49,6 +49,14 @@ public:
      * @brief Configuration parameters for the grid-side pulse generator
      */
     struct parameters {
+        /// Firing angle command (alpha) in radians
+        /// Range: [0.0, π] radians
+        parameter<angle_wrapped> firing_angle;
+
+        /// Enable/disable signal for pulse generation
+        /// true = pulses enabled, false = all pulses disabled
+        parameter<bool> enable;
+
         /// Minimum allowed firing angle in radians
         /// Default: 0.0 rad (0°)
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);

@@ -23,13 +23,13 @@ public:
         /// Range: [0.0, 2π] radians
         signal_input<angle_wrapped> reference_angle;
 
-        /// Firing angle command (alpha) in radians
-        /// Range: [0.0, π] radians
-        signal_input<angle_wrapped> firing_angle;
+        // /// Firing angle command (alpha) in radians
+        // /// Range: [0.0, π] radians
+        // signal_input<angle_wrapped> firing_angle;
 
-        /// Enable/disable signal for pulse generation
-        /// true = pulses enabled, false = all pulses disabled
-        signal_input<bool> enable;
+        // /// Enable/disable signal for pulse generation
+        // /// true = pulses enabled, false = all pulses disabled
+        // signal_input<bool> enable;
     };
 
     /**
@@ -49,6 +49,16 @@ public:
      * @brief Configuration parameters for the machine-side pulse generator
      */
     struct parameters {
+        /// Firing angle command (alpha) in radians
+        /// Range: [0.0, π] radians
+        parameter<angle_wrapped> firing_angle;
+
+        /// Enable/disable signal for pulse generation
+        /// true = pulses enabled, false = all pulses disabled
+        parameter<bool> enable;
+
+        //
+        //
         /// Minimum allowed firing angle in radians
         /// Default: 2.62 rad (150°) for typical inverter operation
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(2.618);
