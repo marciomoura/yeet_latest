@@ -11,8 +11,6 @@ target_sources(
     ${PROJECT_NAME}
     PRIVATE # Simulator
             sfc_simulators.hpp
-            sfc_plant_model_simulator.hpp
-            sfc_plant_model_simulator.cpp
             # Tests
             sfc_commutation_mask_test.cpp
             sfc_machine_side_lookup_table_test.cpp

@@ -27,11 +27,10 @@ protected:
 
     void SetUp() override
     {
-        // Configure plant model parameters
-        components.plant_model_simulator.plant().set_grid_parameters(
-            sfc_plant_model_simulator::kNominalGridFrequency, sfc_plant_model_simulator::kNominalGridVoltageRMS);
-        components.plant_model_simulator.plant().set_machine_parameters(
-            sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
+        // Configure plant model parameters using the augmented model interface
+        components.plant_model_simulator.set_grid_parameters(frequency_t(50.0), voltage_t(2090.0));  // 50 Hz, 2090V RMS
+        components.plant_model_simulator.set_machine_parameters(
+            frequency_t(50.0), voltage_t(1980.0));  // 50 Hz, 1980V RMS
 
         // Configure the machine-side lookup table
         components.machine_side_lookup_table.configure_table(20.0, 0.1);  // gamma=20°, inductance=0.1pu
@@ -42,10 +41,9 @@ protected:
         // components.current_controller.configure_firing_angle_limits_radians(deg_to_rad(0.0), deg_to_rad(90.0));
 
         // Start with pulse generation disabled to allow system to stabilize
-        pulse_generator_conduit.grid_firing_angle_rad =
-            deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
+        pulse_generator_conduit.grid_firing_angle_rad = deg_to_rad(angle_t(13.0));  // 13° nominal grid firing angle
         pulse_generator_conduit.machine_firing_angle_rad =
-            deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg);
+            deg_to_rad(angle_t(180.0 - 26.84));  // 153.16° nominal machine firing angle
 
         // Use the builder to configure a simulation with both current controller and machine-side lookup
         sfc_simulator_builder(components)
@@ -69,7 +67,7 @@ protected:
 
     void setup_logging()
     {
-        auto& plant_model = components.plant_model_simulator.plant();
+        auto& plant_model = components.plant_model_simulator;  // Use the augmented model directly
         auto& measurement_and_filtering = components.measurement_and_filtering;
 
         simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(

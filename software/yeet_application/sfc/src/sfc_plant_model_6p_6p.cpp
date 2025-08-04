@@ -50,6 +50,7 @@ sfc_plant_model_6p_6p::sfc_plant_model_6p_6p(const sfc_plant_model_electrical_pa
       _mechanical_params(create_default_mechanical_parameters()),
       _voltage_control_params(create_default_voltage_control_parameters())
 {
+    _model->initialize();
 }
 
 sfc_plant_model_6p_6p::sfc_plant_model_6p_6p()
@@ -58,6 +59,7 @@ sfc_plant_model_6p_6p::sfc_plant_model_6p_6p()
       _mechanical_params(create_default_mechanical_parameters()),
       _voltage_control_params(create_default_voltage_control_parameters())
 {
+    _model->initialize();
 }
 
 sfc_plant_model_6p_6p::~sfc_plant_model_6p_6p()

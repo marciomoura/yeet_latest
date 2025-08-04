@@ -22,6 +22,7 @@
 
 namespace {
 
+using namespace yeet;
 using namespace yeet::control;
 using namespace yeet::application::sfc;
 
@@ -36,11 +37,10 @@ protected:
 
     void SetUp() override
     {
-        // Configure plant model parameters
-        components.plant_model_simulator.plant().set_grid_parameters(
-            sfc_plant_model_simulator::kNominalGridFrequency, sfc_plant_model_simulator::kNominalGridVoltageRMS);
-        components.plant_model_simulator.plant().set_machine_parameters(
-            sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
+        // Configure plant model parameters using the augmented model interface
+        components.plant_model_simulator.set_grid_parameters(frequency_t(50.0), voltage_t(2090.0));  // 50 Hz, 2090V RMS
+        components.plant_model_simulator.set_machine_parameters(
+            frequency_t(50.0), voltage_t(1980.0));  // 50 Hz, 1980V RMS
 
         sfc_simulator_builder(components).with_ideal_pulse_generation(pulse_generator_conduit).configure(simulator);
 
@@ -49,7 +49,7 @@ protected:
 
     void setup_logging()
     {
-        auto& plant_model = components.plant_model_simulator.plant();
+        auto& plant_model = components.plant_model_simulator;  // Use the augmented model directly
         simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
             "grid_voltage", [&]() { return plant_model.get_grid_side_voltages_abc(); }));
         simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
@@ -86,11 +86,10 @@ protected:
 
     void SetUp() override
     {
-        // Configure plant model parameters
-        components.plant_model_simulator.plant().set_grid_parameters(
-            sfc_plant_model_simulator::kNominalGridFrequency, sfc_plant_model_simulator::kNominalGridVoltageRMS);
-        components.plant_model_simulator.plant().set_machine_parameters(
-            sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
+        // Configure plant model parameters using the augmented model interface
+        components.plant_model_simulator.set_grid_parameters(frequency_t(50.0), voltage_t(2090.0));  // 50 Hz, 2090V RMS
+        components.plant_model_simulator.set_machine_parameters(
+            frequency_t(50.0), voltage_t(1980.0));  // 50 Hz, 1980V RMS
 
         pulse_generator_conduit.enable = false;  // Start disabled, enable only when observer is locked
 
@@ -111,7 +110,7 @@ protected:
 
     void setup_logging()
     {
-        auto& plant_model = components.plant_model_simulator.plant();
+        auto& plant_model = components.plant_model_simulator;  // Use the augmented model directly
         auto& measurement_and_filtering = components.measurement_and_filtering;
         auto& observers = components.observers;
 

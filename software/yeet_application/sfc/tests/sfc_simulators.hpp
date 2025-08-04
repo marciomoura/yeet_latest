@@ -13,23 +13,26 @@
 #include "sfc/sfc_machine_side_measurements.hpp"
 #include "sfc/sfc_machine_side_observer.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
-#include "sfc/sfc_plant_model_6p_6p.hpp"
+#include "sfc/sfc_plant_model_augmented_6p_6p.hpp"
 #include "sfc/sfc_speed_controller.hpp"
-#include "sfc_plant_model_simulator.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
-
+#include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc {
+
+// Constants for nominal firing angles (matching the augmented plant model defaults)
+static constexpr angle_t kNominalGridFiringAngleDeg = angle_t(13.0);              // Nominal firing angle for grid side
+static constexpr angle_t kNominalMachineFiringAngleDeg = angle_t(180.0 - 26.84);  // Nominal firing angle for motor side
 
 // A dedicated structure to hold control signals for the pulse generators.
 // This object is owned by the test fixture to guarantee its lifetime.
 struct sfc_pulse_generator_conduit {
     bool enable = true;
-    yeet::angle_wrapped grid_firing_angle_rad{deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg)};
-    yeet::angle_wrapped machine_firing_angle_rad{deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg)};
+    yeet::angle_wrapped grid_firing_angle_rad{deg_to_rad(kNominalGridFiringAngleDeg)};
+    yeet::angle_wrapped machine_firing_angle_rad{deg_to_rad(kNominalMachineFiringAngleDeg)};
 
     current_pu_t current_ref_pu{};
     current_pu_t measured_current_pu{};
@@ -42,7 +45,7 @@ class sfc_simulator_pulse_generators {
 public:
     static void register_ideal_pulse_generator(yeet::simulator& simulator,
         duration_t sampling_time,
-        sfc_plant_model_6p_6p& model,
+        sfc_plant_model_augmented_6p_6p& model,
         sfc_simulator_pulse_generators& pulse_generator,
         const angle_wrapped& grid_firing_angle,
         const angle_wrapped& machine_firing_angle,
@@ -54,7 +57,7 @@ public:
 
     static void register_pulse_generator(yeet::simulator& simulator,
         duration_t sampling_time,
-        sfc_plant_model_6p_6p& model,
+        sfc_plant_model_augmented_6p_6p& model,
         sfc_simulator_pulse_generators& pulse_generator,
         const angle_wrapped& grid_reference_frame,
         const angle_wrapped& grid_firing_angle,
@@ -68,7 +71,7 @@ public:
         });
     }
 
-    void update(sfc_plant_model_6p_6p& model,
+    void update(sfc_plant_model_augmented_6p_6p& model,
         const angle_wrapped& grid_firing_angle,
         const angle_wrapped& machine_firing_angle,
         bool enable)
@@ -77,7 +80,7 @@ public:
             model.get_machine_voltage_source_angle(), machine_firing_angle, enable);
     }
 
-    void update(sfc_plant_model_6p_6p& model,
+    void update(sfc_plant_model_augmented_6p_6p& model,
         const angle_wrapped& grid_reference_angle,
         const angle_wrapped& grid_firing_angle,
         const angle_wrapped& machine_reference_angle,
@@ -111,13 +114,13 @@ public:
         duration_t sampling_time,
         sfc_per_unit_system& per_unit_system,
         sfc_simulator_measurement_and_filtering& measurements_and_filtering,
-        sfc_plant_model_6p_6p& model)
+        sfc_plant_model_augmented_6p_6p& model)
     {
         simulator.register_lambda_runner(
             sampling_time, [&]() { measurements_and_filtering.update(model, per_unit_system); });
     }
 
-    void update(sfc_plant_model_6p_6p& model, const sfc_per_unit_system& per_unit_system)
+    void update(sfc_plant_model_augmented_6p_6p& model, const sfc_per_unit_system& per_unit_system)
     {
         // Update measurements for all three sides
         grid_side_measurements.update(
@@ -173,7 +176,7 @@ public:
 
     static void register_observers(yeet::simulator& simulator,
         duration_t sampling_time,
-        sfc_plant_model_6p_6p& model,
+        sfc_plant_model_augmented_6p_6p& model,
         sfc_simulator_observers& observers,
         sfc_simulator_pulse_generators& pulse_generator,
         const abc<voltage_pu_t>& grid_voltage_pu,
@@ -363,7 +366,7 @@ struct sfc_simulation_components {
     {
     }
 
-    sfc_plant_model_simulator plant_model_simulator;
+    sfc_plant_model_augmented_6p_6p plant_model_simulator;
     sfc_simulator_pulse_generators pulse_generators;
     sfc_simulator_measurement_and_filtering measurement_and_filtering;
     sfc_simulator_observers observers;
@@ -439,11 +442,18 @@ public:
     // Wires all the selected components together in the correct execution order.
     void configure(yeet::simulator& simulator)
     {
-        auto& plant_model = _components.plant_model_simulator.plant();
-        auto& per_unit_system = const_cast<sfc_per_unit_system&>(_components.plant_model_simulator.per_unit_system());
+        // Note: Since sfc_plant_model_augmented_6p_6p doesn't expose the underlying plant directly,
+        // we need to pass the augmented model itself to the functions that expect a plant model
+        auto& plant_model = _components.plant_model_simulator;
+        auto& per_unit_system =
+            const_cast<sfc_per_unit_system&>(_components.plant_model_simulator.get_per_unit_system());
 
-        // The plant model runner is now configured by the builder
-        _components.plant_model_simulator.setup_simulator(simulator);
+        // Ensure the plant model is properly initialized before simulation starts
+        // plant_model.initialize();
+
+        // Register the plant model simulator to run every sampling period
+        simulator.register_lambda_runner(
+            _components.plant_model_simulator.kSamplingTime, [&plant_model]() { plant_model.update(); });
 
         // The order of registration defines the execution order per simulation step.
         if (_use_measurements) {

@@ -8,7 +8,6 @@
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
-
 namespace generated::sfc {
 class sfc_6p_6p_topology;
 }

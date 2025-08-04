@@ -27,17 +27,14 @@ protected:
     yeet::simulator simulator = yeet::make_gtest_simulator();
     void SetUp() override
     {
-        // Configure plant model parameters
-        components.plant_model_simulator.plant().set_grid_parameters(
-            sfc_plant_model_simulator::kNominalGridFrequency, sfc_plant_model_simulator::kNominalGridVoltageRMS);
-        components.plant_model_simulator.plant().set_machine_parameters(
-            sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
+        // Configure plant model parameters using the augmented model interface
+        components.plant_model_simulator.set_grid_parameters(frequency_t(50.0), voltage_t(2090.0));  // 50 Hz, 2090V RMS
+        components.plant_model_simulator.set_machine_parameters(
+            frequency_t(50.0), voltage_t(1980.0));  // 50 Hz, 1980V RMS
 
         // Start with pulse generation disabled to allow system to stabilize
-        pulse_generator_conduit.grid_firing_angle_rad =
-            deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
-        pulse_generator_conduit.machine_firing_angle_rad =
-            deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg);
+        pulse_generator_conduit.grid_firing_angle_rad = deg_to_rad(kNominalGridFiringAngleDeg);
+        pulse_generator_conduit.machine_firing_angle_rad = deg_to_rad(kNominalMachineFiringAngleDeg);
 
         // Use the builder to configure a simulation with current controller
         sfc_simulator_builder(components)
@@ -61,7 +58,7 @@ protected:
 
     void setup_logging()
     {
-        auto& plant_model = components.plant_model_simulator.plant();
+        auto& plant_model = components.plant_model_simulator;  // Use the augmented model directly
         auto& measurement_and_filtering = components.measurement_and_filtering;
         simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>("dc_link_current_ref_limited_pu",
             [&]() { return components.current_controller.get_controller().get_current_reference_limited_pu(); }));
@@ -145,12 +142,10 @@ TEST_F(SfcCurrentControllerSimulationTest, TestDisturbanceRejection)
     success &= simulator.simulate_for(1.0);
 
     // Add a little bit of disturbance in the plant model to test the controller's response
-    components.plant_model_simulator.plant().set_machine_parameters(
-        frequency_t{sfc_plant_model_simulator::kNominalMachineFrequency},
-        0.95f * voltage_t{sfc_plant_model_simulator::kNominalMachineVoltageRMS});
+    components.plant_model_simulator.set_machine_parameters(frequency_t(50.0),  // 50 Hz nominal machine frequency
+        0.95f * voltage_t(1980.0));  // 95% of 1980V RMS nominal machine voltage
 
-    pulse_generator_conduit.machine_firing_angle_rad =
-        deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg - 10.0f);
+    pulse_generator_conduit.machine_firing_angle_rad = deg_to_rad(kNominalMachineFiringAngleDeg - 10.0f);
 
     // Execute the test for another seconds to allow the controller to respond
     success &= simulator.simulate_for(1.0);

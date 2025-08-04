@@ -30,24 +30,24 @@ protected:
     void SetUp() override
     {
         // Configure plant model for variable speed operation
-        components.plant_model_simulator.set_operation_mode(
-            sfc_plant_model_simulator::machine_operation_mode::variable_speed);
+        components.plant_model_simulator.set_operation_mode(plant_model_machine_operation_mode::variable_speed);
         components.plant_model_simulator.configure_mechanical_load(
             inertia_constant_t{0.5}, damping_coefficient_pu_t{0.001});  // 0.5s inertia, 0.001 damping
         components.plant_model_simulator.set_initial_mechanical_speed_pu(speed_pu_t(1.0));
 
         // Configure the machine-side lookup table
+        // Get machine side inductance from electrical parameters
+        const auto& electrical_params = components.plant_model_simulator.get_electrical_parameters();
         components.machine_side_lookup_table.configure_table(
-            20.0, to_pu(components.plant_model_simulator.kMachineSideInductance,
-                      components.plant_model_simulator.per_unit_system()
+            20.0, to_pu(electrical_params.machine_side_inductance,
+                      components.plant_model_simulator.get_per_unit_system()
                           .get_machine_bases()
                           .base_inductance));  // gamma=20°, inductance=0.1pu
 
-        // Configure plant model parameters
-        components.plant_model_simulator.plant().set_grid_parameters(
-            sfc_plant_model_simulator::kNominalGridFrequency, sfc_plant_model_simulator::kNominalGridVoltageRMS);
-        components.plant_model_simulator.plant().set_machine_parameters(
-            sfc_plant_model_simulator::kNominalMachineFrequency, sfc_plant_model_simulator::kNominalMachineVoltageRMS);
+        // Configure plant model parameters using the augmented model interface
+        components.plant_model_simulator.set_grid_parameters(frequency_t(50.0), voltage_t(2090.0));  // 50 Hz, 2090V RMS
+        components.plant_model_simulator.set_machine_parameters(
+            frequency_t(50.0), voltage_t(1980.0));  // 50 Hz, 1980V RMS
 
         // Configure the speed controller (outer loop)
         components.speed_controller.configure_pi_gains(10.0, duration_t(0.5));  // Kp, Ti
@@ -68,10 +68,9 @@ protected:
         components.measurement_and_filtering.dc_link_filtering.configure_current_filter(frequency_t{10.0});
 
         // Start with pulse generation disabled to allow system to stabilize
-        pulse_generator_conduit.grid_firing_angle_rad =
-            deg_to_rad(sfc_plant_model_simulator::kNominalGridFiringAngleDeg);
+        pulse_generator_conduit.grid_firing_angle_rad = deg_to_rad(angle_t(13.0));  // 13° nominal grid firing angle
         pulse_generator_conduit.machine_firing_angle_rad =
-            deg_to_rad(sfc_plant_model_simulator::kNominalMachineFiringAngleDeg);
+            deg_to_rad(angle_t(180.0 - 26.84));  // 153.16° nominal machine firing angle
 
         // Use the builder to configure a simulation with speed controller -> current controller cascade
         sfc_simulator_builder(components)
@@ -119,7 +118,7 @@ protected:
             "speed_measured_pu", [&]() { return pulse_generator_conduit.measured_speed_pu; }));
 
         simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>("speed_actual_pu",
-            [&]() { return speed_pu_t{components.plant_model_simulator.mechanical_load().get_speed_pu()}; }));
+            [&]() { return components.plant_model_simulator.get_mechanical_load().get_speed_pu(); }));
 
         simulator.register_sampler_entry(
             yeet::make_lambda_sampler<double>("speed_error_pu", [&]() { return get_speed_error_pu(); }));
@@ -253,8 +252,7 @@ TEST_F(SfcSpeedControllerSimulationTest, TestSpeedRegulationVariableSpeedModel)
     components.speed_controller.configure_pi_gains(5.0, duration_t(1.0));  // Kp, Ti
 
     // Configure the plant model for variable speed operation
-    components.plant_model_simulator.set_voltage_control_mode(
-        sfc_plant_model_simulator::voltage_control_mode::speed_dependent);
+    components.plant_model_simulator.set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     components.plant_model_simulator.configure_speed_voltage_relationship(1.0, 0.0, 1.0f / 50.0f);
     components.plant_model_simulator.set_initial_mechanical_speed_pu(speed_pu_t{1.0});
