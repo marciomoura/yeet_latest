@@ -7,6 +7,7 @@ void sfc_current_controller_runner::initialize()
     set_parameters();
     set_parameter_callback();
     _sfc_current_controller.reset();
+    _sfc_current_controller.configure_pi_gains(0.5, duration_t(ms(100.0)));
 }
 
 void sfc_current_controller_runner::run()
@@ -32,21 +33,21 @@ void sfc_current_controller_runner::stop() { _sfc_current_controller.reset(); }
 
 void sfc_current_controller_runner::set_parameters()
 {
-    // Convert integral gain to integral time constant
-    duration_t integral_time = duration_t(1.0 / _parameters.pi_integral_gain);
+    // // Convert integral gain to integral time constant
+    // duration_t integral_time = duration_t(1.0 / _parameters.pi_integral_gain);
 
-    _sfc_current_controller.configure_pi_gains(_parameters.pi_proportional_gain, integral_time);
+    // _sfc_current_controller.configure_pi_gains(_parameters.pi_proportional_gain, integral_time);
 
-    // Convert angle_wrapped to angle_t (radians)
-    angle_wrapped min_firing_angle_wrapped = _parameters.min_firing_angle;
-    angle_wrapped max_firing_angle_wrapped = _parameters.max_firing_angle;
-    angle_t min_angle = angle_t(min_firing_angle_wrapped.get_radians());
-    angle_t max_angle = angle_t(max_firing_angle_wrapped.get_radians());
-    _sfc_current_controller.configure_firing_angle_limits_radians(min_angle, max_angle);
+    // // Convert angle_wrapped to angle_t (radians)
+    // angle_wrapped min_firing_angle_wrapped = _parameters.min_firing_angle;
+    // angle_wrapped max_firing_angle_wrapped = _parameters.max_firing_angle;
+    // angle_t min_angle = angle_t(min_firing_angle_wrapped.get_radians());
+    // angle_t max_angle = angle_t(max_firing_angle_wrapped.get_radians());
+    // _sfc_current_controller.configure_firing_angle_limits_radians(min_angle, max_angle);
 
-    current_pu_t current_limit = _parameters.current_reference_magnitude_limit;
-    _sfc_current_controller.configure_current_limits_pu(current_pu_t(-current_limit.value()), current_limit);
-    _sfc_current_controller.configure_current_reference_slew_rate(_parameters.current_reference_rate_limit);
+    // current_pu_t current_limit = _parameters.current_reference_magnitude_limit;
+    // _sfc_current_controller.configure_current_limits_pu(current_pu_t(-current_limit.value()), current_limit);
+    // _sfc_current_controller.configure_current_reference_slew_rate(_parameters.current_reference_rate_limit);
 }
 
 void sfc_current_controller_runner::set_parameter_callback()

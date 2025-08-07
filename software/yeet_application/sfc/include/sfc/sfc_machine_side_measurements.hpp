@@ -21,13 +21,14 @@ public:
      * @param raw_voltages The raw three-phase voltage measurements [V].
      * @param raw_currents The raw three-phase current measurements [A].
      */
-    void update(sfc_per_unit_system::machine_side_bases const& bases, const abc<voltage_t>& raw_voltages,
-                const abc<current_t>& raw_currents);
+    void update(sfc_per_unit_system::machine_side_bases const& bases,
+        const abc<voltage_t>& raw_voltages,
+        const abc<current_t>& raw_currents);
 
     const abc<voltage_pu_t>& get_voltage_pu() const { return _voltage_pu; }
     const abc<current_pu_t>& get_current_pu() const { return _current_pu; }
     const alphabeta<voltage_pu_t>& get_voltage_alphabeta_pu() const { return _voltage_alphabeta_pu; }
-    double get_voltage_magnitude_pu() const { return _voltage_magnitude_pu; }
+    voltage_pu_t get_voltage_magnitude_pu() const { return _voltage_magnitude_pu; }
 
 private:
     abc<voltage_pu_t> _voltage_pu{};

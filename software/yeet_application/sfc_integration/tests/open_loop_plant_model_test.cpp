@@ -73,13 +73,15 @@ public:
 
 TEST_F(SfcBuilderTest, InitialTest)
 {
-    machine_side_pulse_generator()->firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);
-    grid_side_pulse_generator()->firing_angle = yeet::angle_wrapped::from_degrees(13.0);
+    system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(13.0);
+    system.machine_side_firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);
+
     machine_side_pulse_generator()->enable = true;
     grid_side_pulse_generator()->enable = true;
 
     simulate_for(0.25f);
-    // machine_side_pulse_generator()->firing_angle = yeet::angle_wrapped::from_radians(yeet::angle_t{180.0 - 26.84});
-    grid_side_pulse_generator()->firing_angle = yeet::angle_wrapped::from_degrees(25.0);
+
+    system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(25.0);
+
     simulate_for(0.25f);
 }

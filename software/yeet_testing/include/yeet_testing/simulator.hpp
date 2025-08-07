@@ -83,7 +83,13 @@ public:
 
 #ifdef YEET_ENABLE_DATA_LOGGING
         const double sampler_sampling_rate = _use_custom_sampler_rate ? _custom_sampler_rate : simulation_sampling_rate;
-        const std::size_t num_sampler_ticks = static_cast<std::size_t>(time / sampler_sampling_rate);
+        const double num_sampler_ticks_float = time / sampler_sampling_rate;
+        std::size_t num_sampler_ticks = static_cast<std::size_t>(num_sampler_ticks_float);
+        // Add one to account for the fractional part, ensuring enough space is allocated.
+        // This also accounts for the first sample at t=0.
+        if (num_sampler_ticks_float > static_cast<double>(num_sampler_ticks)) {
+            num_sampler_ticks++;
+        }
 
         // Calculate the sampling ratio (how many simulation ticks per sample)
         const std::size_t sampling_ratio =
