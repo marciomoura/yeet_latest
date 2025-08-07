@@ -16,7 +16,7 @@ class sfc_dc_link_measurements_runner : public yeet::base_application<sfc_dc_lin
 public:
     using datamodel = sfc_dc_link_measurements_datamodel;
 
-    static constexpr double sampling_time = 100e-6;
+    static constexpr duration_t sampling_time = us(200);
 
     sfc_dc_link_measurements_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
         : base_application(sampling_time), _per_unit_system(per_unit_system)

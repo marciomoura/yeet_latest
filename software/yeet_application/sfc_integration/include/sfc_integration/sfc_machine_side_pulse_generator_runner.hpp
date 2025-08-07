@@ -19,7 +19,7 @@ class sfc_machine_side_pulse_generator_runner
           sfc_machine_side_pulse_generator_datamodel::parameters> {
 public:
     using datamodel = sfc_machine_side_pulse_generator_datamodel;
-    static constexpr double sampling_time = 100e-6;  // 10 µs sampling time (100 kHz)
+    static constexpr duration_t sampling_time = us(10);
 
     /**
      * @brief Constructor
