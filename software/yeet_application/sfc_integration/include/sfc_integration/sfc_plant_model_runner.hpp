@@ -35,6 +35,8 @@ public:
     void run() override;
     void stop() override;
 
+    sfc::sfc_plant_model_augmented_6p_6p& get_plant_model() { return _plant; }
+
 private:
     void set_parameters();
     void set_parameter_callback();

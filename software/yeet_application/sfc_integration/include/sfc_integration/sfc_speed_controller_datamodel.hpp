@@ -24,7 +24,7 @@ public:
 
         /// Measured machine speed in per-unit (machine base)
         /// Range: [-1.5, 1.5] pu (includes measurement range)
-        signal_input<speed_pu_t> measured_speed_pu;
+        signal_input<frequency_t> measured_speed_pu;
 
         /// Measured DC link current for anti-windup logic
         /// Range: [-1.5, 1.5] pu
@@ -73,45 +73,45 @@ public:
      * @brief Configuration parameters for the speed controller
      */
     struct parameters {
-        /// PI controller proportional gain
-        /// Range: [1.0, 100.0]
-        parameter<real_t> pi_proportional_gain = real_t(10.0);
+        // /// PI controller proportional gain
+        // /// Range: [1.0, 100.0]
+        // parameter<real_t> pi_proportional_gain = real_t(10.0);
 
-        /// PI controller integral gain
-        /// Range: [10.0, 1000.0]
-        parameter<real_t> pi_integral_gain = real_t(100.0);
+        // /// PI controller integral gain
+        // /// Range: [10.0, 1000.0]
+        // parameter<real_t> pi_integral_gain = real_t(100.0);
 
-        /// Speed reference rate limit (acceleration/deceleration)
-        /// Range: [0.1, 10.0] pu/s
-        parameter<real_t> speed_reference_rate_limit = real_t(2.0);
+        // /// Speed reference rate limit (acceleration/deceleration)
+        // /// Range: [0.1, 10.0] pu/s
+        // parameter<real_t> speed_reference_rate_limit = real_t(2.0);
 
-        /// Speed reference magnitude limit
-        /// Range: [1.0, 1.2] pu
-        parameter<speed_pu_t> speed_reference_magnitude_limit = speed_pu_t(1.1);
+        // /// Speed reference magnitude limit
+        // /// Range: [1.0, 1.2] pu
+        // parameter<speed_pu_t> speed_reference_magnitude_limit = speed_pu_t(1.1);
 
-        /// Current reference output limit (positive)
-        /// Range: [1.0, 1.5] pu
-        parameter<current_pu_t> max_current_reference = current_pu_t(1.1);
+        // /// Current reference output limit (positive)
+        // /// Range: [1.0, 1.5] pu
+        // parameter<current_pu_t> max_current_reference = current_pu_t(1.1);
 
-        /// Current reference output limit (negative)
-        /// Range: [-1.5, -1.0] pu
-        parameter<current_pu_t> min_current_reference = current_pu_t(-1.1);
+        // /// Current reference output limit (negative)
+        // /// Range: [-1.5, -1.0] pu
+        // parameter<current_pu_t> min_current_reference = current_pu_t(-1.1);
 
-        /// Anti-windup gain for integral term protection
-        /// Range: [0.05, 0.5]
-        parameter<real_t> anti_windup_gain = real_t(0.1);
+        // /// Anti-windup gain for integral term protection
+        // /// Range: [0.05, 0.5]
+        // parameter<real_t> anti_windup_gain = real_t(0.1);
 
-        /// Deadband for speed error (reduces noise sensitivity)
-        /// Range: [0.0, 0.01] pu
-        parameter<speed_pu_t> speed_error_deadband = speed_pu_t(0.001);
+        // /// Deadband for speed error (reduces noise sensitivity)
+        // /// Range: [0.0, 0.01] pu
+        // parameter<speed_pu_t> speed_error_deadband = speed_pu_t(0.001);
 
-        /// Low-pass filter time constant for speed reference
-        /// Range: [0.001, 0.1] s
-        parameter<duration_t> speed_reference_filter_time_constant = duration_t(0.01);
+        // /// Low-pass filter time constant for speed reference
+        // /// Range: [0.001, 0.1] s
+        // parameter<duration_t> speed_reference_filter_time_constant = duration_t(0.01);
 
-        /// Torque-to-current conversion factor
-        /// Range: [0.5, 1.5]
-        parameter<real_t> torque_to_current_factor = real_t(1.0);
+        // /// Torque-to-current conversion factor
+        // /// Range: [0.5, 1.5]
+        // parameter<real_t> torque_to_current_factor = real_t(1.0);
     };
 
 private:
@@ -121,13 +121,15 @@ private:
 
 public:
     sfc_speed_controller_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
-        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters) {
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {
+    void register_data_model(model_registry& registry)
+    {
         // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // // Register outputs in signal registry

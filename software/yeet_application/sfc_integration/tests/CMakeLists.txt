@@ -6,8 +6,11 @@ add_executable(yeet::yeet_application::sfc_integration_tests ALIAS
 
 enable_testing()
 
-target_sources(${PROJECT_NAME} PRIVATE open_loop_plant_model_test.cpp
-                                       simplified_current_controller_test.cpp)
+target_sources(
+    ${PROJECT_NAME}
+    PRIVATE open_loop_plant_model_test.cpp
+            simplified_current_controller_test.cpp
+            simplified_speed_controller_test.cpp)
 
 target_link_libraries(
     ${PROJECT_NAME}
