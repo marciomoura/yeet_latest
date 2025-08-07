@@ -18,6 +18,7 @@
 #include "sfc_machine_side_pulse_generator_datamodel.hpp"
 #include "yeet/data_model_connector.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
 
@@ -434,6 +435,7 @@ public:
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
     sfc_plant_model_runner plant;
 
+    signal_output<torque_pu_t> load_torque_pu;
     signal_output<angle_wrapped> machine_side_firing_angle;
     signal_output<angle_wrapped> grid_side_firing_angle;
 
@@ -459,6 +461,7 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
+        signals_connector::connect_output_to_input(load_torque_pu, plant_model.get_inputs().load_torque_pu);
 
         signals_connector::connect_output_to_input(
             grid_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().grid_side_firing_pulses);
@@ -588,6 +591,7 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
+    signal_output<torque_pu_t> load_torque_pu;
     signal_output<current_pu_t> current_reference_pu;
     signal_output<angle_wrapped> machine_side_firing_angle;
     signal_output<voltage_pu_t> ideal_dc_voltage_pu;
@@ -632,8 +636,8 @@ private:
 
         signals_connector::connect_output_to_input(
             plant_model.get_outputs().grid_voltage_source_angle, grid_meas_model.get_inputs().grid_side_angle);
-        // signals_connector::connect_output_to_input(
-        // plant_model.get_outputs().grid_frequency, grid_meas_model.get_inputs().grid_side_frequency);
+        signals_connector::connect_output_to_input(
+            plant_model.get_outputs().grid_frequency, grid_meas_model.get_inputs().grid_side_frequency);
 
         // Machine measurements: Raw machine voltages and currents from plant
         signals_connector::connect_output_to_input(
@@ -644,8 +648,8 @@ private:
             machine_pulse_gen_model.get_outputs().firing_pulses, machine_meas_model.get_inputs().machine_pulses);
         signals_connector::connect_output_to_input(
             plant_model.get_outputs().machine_voltage_source_angle, machine_meas_model.get_inputs().machine_side_angle);
-        // signals_connector::connect_output_to_input(
-        // plant_model.get_outputs().machine_frequency, machine_meas_model.get_inputs().machine_side_frequency);
+        signals_connector::connect_output_to_input(
+            plant_model.get_outputs().machine_frequency, machine_meas_model.get_inputs().machine_side_frequency);
 
         // DC link measurements: Raw DC voltage and current from plant
         // signals_connector::connect_output_to_input(
@@ -669,6 +673,7 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
+        signals_connector::connect_output_to_input(load_torque_pu, plant_model.get_inputs().load_torque_pu);
 
         // Grid-side firing pulses to plant model
         signals_connector::connect_output_to_input(

@@ -19,8 +19,8 @@ void sfc_grid_side_measurements_runner::run()
     _commutation_monitor.update(_measurements.get_voltage_pu(), _inputs.grid_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
 
-    abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(_measurements.get_voltage_pu(),
-        _inputs.grid_side_angle, /*_inputs.grid_side_frequency*/ frequency_t{50.0}, _outputs.is_commuting);
+    abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(
+        _measurements.get_voltage_pu(), _inputs.grid_side_angle, _inputs.grid_side_frequency, _outputs.is_commuting);
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 

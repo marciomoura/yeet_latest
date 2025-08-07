@@ -69,6 +69,12 @@ public:
         /// Grid voltage angular position
         /// Range: [0.0, 2π] radians
         signal_output<angle_wrapped> machine_voltage_source_angle;
+
+        /// Machine frequency (Hz)
+        signal_output<frequency_t> machine_frequency;
+
+        /// Grid frequency (Hz)
+        signal_output<frequency_t> grid_frequency;
     };
 
     /**

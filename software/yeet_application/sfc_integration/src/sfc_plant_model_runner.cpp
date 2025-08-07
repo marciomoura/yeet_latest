@@ -25,7 +25,7 @@ void sfc_plant_model_runner::run()
     // Set inputs to the plant model
     _plant.set_grid_side_pulses(_inputs.grid_side_firing_pulses.read().to_array());
     _plant.set_machine_side_pulses(_inputs.machine_side_firing_pulses.read().to_array());
-    // _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
+    _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
 
     // Execute one simulation step
     _plant.update();
@@ -38,9 +38,8 @@ void sfc_plant_model_runner::run()
     _outputs.machine_current = _plant.get_machine_side_currents_abc();
     _outputs.grid_voltage_source_angle = _plant.get_grid_voltage_source_angle();
     _outputs.machine_voltage_source_angle = _plant.get_machine_voltage_source_angle();
-
-    // Note: dc_link_voltage is not available in the current plant model,
-    // so we leave it unassigned or could compute it from other signals
+    _outputs.machine_frequency = _plant.get_machine_frequency();
+    _outputs.grid_frequency = _plant.get_grid_frequency();
 }
 
 void sfc_plant_model_runner::stop() {}
