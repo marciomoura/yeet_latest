@@ -41,11 +41,11 @@ public:
     struct parameters {
         /// Target extinction angle (gamma) for constant gamma control
         /// Range: [5.0, 30.0] degrees
-        parameter<real_t> gamma_setpoint_deg = real_t(15.0);
+        parameter<real_t> gamma_setpoint_deg = real_t(20.0);
 
         /// Machine-side commutation reactance at base frequency
         /// Range: [0.1, 0.5] pu
-        parameter<real_t> machine_side_commutation_reactance_pu = real_t(0.15);
+        parameter<real_t> machine_side_commutation_reactance_pu = real_t(0.059);
 
         /// DC current axis points for lookup table (per-unit)
         /// Default: [0.0, 0.25, 0.5, 0.75, 1.0, 1.2]

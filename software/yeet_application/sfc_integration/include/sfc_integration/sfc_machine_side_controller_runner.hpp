@@ -13,11 +13,12 @@ class sfc_machine_side_controller_runner : public yeet::base_application<sfc_mac
 public:
     using datamodel = sfc_machine_side_controller_datamodel;
 
+    // static constexpr duration_t sampling_time = ms(1.0);
     static constexpr duration_t sampling_time = ms(1.0);
 
     sfc_machine_side_controller_runner()
         : base_application(sampling_time),
-          _lookup_table(15.0),  // Default gamma setpoint of 15 degrees
+          _lookup_table(20.0),  // Default gamma setpoint of 15 degrees
           _firing_angle_filter(sampling_time)
     {
     }

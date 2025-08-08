@@ -489,10 +489,12 @@ private:
 
 // ==================== Current Controller Simulation Builder ====================
 
+// Update the parameter collection to include machine side controller
 using sfc_current_controller_simulation_parameters =
     yeet::parameter_collection<sfc_current_controller_datamodel::parameters,
         sfc_grid_side_pulse_generator_datamodel::parameters,
         sfc_machine_side_pulse_generator_datamodel::parameters,
+        sfc_machine_side_controller_datamodel::parameters,
         sfc_grid_side_measurements_datamodel::parameters,
         sfc_machine_side_measurements_datamodel::parameters,
         sfc_dc_link_measurements_datamodel::parameters,
@@ -504,7 +506,7 @@ using sfc_current_controller_simulation_parameters =
  * This configuration provides:
  * - Plant model with augmented 6p-6p topology
  * - Grid-side current controller with firing angle control
- * - Machine-side constant firing angle (open-loop)
+ * - Machine-side lookup table controller for firing angle calculation
  * - Complete measurement and filtering chain
  * - Per-unit system for proper scaling
  */
@@ -532,6 +534,7 @@ public:
         machine_measurements.initialize();
         dc_link_measurements.initialize();
         current_controller.initialize();
+        machine_side_controller.initialize();
         grid_side_pulse_generator.initialize();
         machine_side_pulse_generator.initialize();
     }
@@ -544,6 +547,8 @@ public:
         sim.register_lambda_runner(machine_measurements.get_sampling_time(), [&]() { machine_measurements.run(); });
         sim.register_lambda_runner(dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
         sim.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
+        sim.register_lambda_runner(
+            machine_side_controller.get_sampling_time(), [&]() { machine_side_controller.run(); });
         sim.register_lambda_runner(
             grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
         sim.register_lambda_runner(
@@ -558,6 +563,7 @@ public:
         machine_measurements.register_datamodel(registry);
         dc_link_measurements.register_datamodel(registry);
         current_controller.register_datamodel(registry);
+        machine_side_controller.register_datamodel(registry);
         grid_side_pulse_generator.register_datamodel(registry);
         machine_side_pulse_generator.register_datamodel(registry);
     }
@@ -567,6 +573,7 @@ public:
         return parameter_types(current_controller.get_configuration_datamodel().get_parameters(),
             grid_side_pulse_generator.get_configuration_datamodel().get_parameters(),
             machine_side_pulse_generator.get_configuration_datamodel().get_parameters(),
+            machine_side_controller.get_configuration_datamodel().get_parameters(),
             grid_measurements.get_configuration_datamodel().get_parameters(),
             machine_measurements.get_configuration_datamodel().get_parameters(),
             dc_link_measurements.get_configuration_datamodel().get_parameters(),
@@ -578,6 +585,7 @@ public:
 
     // Control components
     sfc_current_controller_runner current_controller;
+    sfc_machine_side_controller_runner machine_side_controller;
 
     // Pulse generators
     sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
@@ -594,9 +602,6 @@ public:
     // External control signals
     signal_output<torque_pu_t> load_torque_pu;
     signal_output<current_pu_t> current_reference_pu;
-    signal_output<angle_wrapped> machine_side_firing_angle;
-    signal_output<voltage_pu_t> ideal_dc_voltage_pu;
-    signal_output<voltage_pu_t> inverter_back_emf_machine_pu;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -615,6 +620,7 @@ private:
     {
         // Get datamodel references for all components
         auto& current_ctrl_model = current_controller.get_signal_flow_datamodel();
+        auto& machine_ctrl_model = machine_side_controller.get_signal_flow_datamodel();
         auto& grid_pulse_gen_model = grid_side_pulse_generator.get_signal_flow_datamodel();
         auto& machine_pulse_gen_model = machine_side_pulse_generator.get_signal_flow_datamodel();
         auto& grid_meas_model = grid_measurements.get_signal_flow_datamodel();
@@ -655,8 +661,6 @@ private:
             plant_model.get_outputs().machine_frequency, machine_meas_model.get_inputs().machine_side_frequency);
 
         // DC link measurements: Raw DC voltage and current from plant
-        // signals_connector::connect_output_to_input(
-        // plant_model.get_outputs().dc_link_voltage, dc_link_model.get_inputs().dc_voltage);
         signals_connector::connect_output_to_input(
             plant_model.get_outputs().dc_link_current, dc_link_model.get_inputs().dc_current);
 
@@ -667,12 +671,30 @@ private:
         signals_connector::connect_output_to_input(dc_link_model.get_outputs().dc_current_filtered_pu,
             current_ctrl_model.get_inputs().dc_link_current_measured_pu);
 
+        // ==================== DC Link Measurements → Machine Side Controller ====================
+        // Connect DC link current and speed to machine side controller for lookup table
+
+        // DC link current for lookup table input
+        signals_connector::connect_output_to_input(
+            dc_link_model.get_outputs().dc_current_filtered_pu, machine_ctrl_model.get_inputs().dc_link_current);
+
+        // Machine speed for lookup table input
+        signals_connector::connect_output_to_input(
+            plant_model.get_outputs().machine_frequency, machine_ctrl_model.get_inputs().machine_speed);
+
         // ==================== Current Controller → Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
             current_ctrl_model.get_outputs().firing_angle_reference, grid_pulse_gen_model.get_inputs().firing_angle);
+
+        // ==================== Machine Side Controller → Machine Pulse Generator ====================
+        // Connect machine side controller output to machine-side firing angle control
+
+        // Firing angle command from machine side controller to machine pulse generator
+        signals_connector::connect_output_to_input(machine_ctrl_model.get_outputs().machine_side_firing_angle,
+            machine_pulse_gen_model.get_inputs().firing_angle);
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
@@ -700,14 +722,10 @@ private:
             current_reference_pu, current_ctrl_model.get_inputs().current_reference_pu);
 
         // Feedforward signals for improved control performance
-        signals_connector::connect_output_to_input(
-            ideal_dc_voltage_pu, current_ctrl_model.get_inputs().ideal_dc_voltage_pu);
-        signals_connector::connect_output_to_input(
-            inverter_back_emf_machine_pu, current_ctrl_model.get_inputs().inverter_back_emf_machine_pu);
-
-        // Constant machine-side firing angle (open-loop operation)
-        signals_connector::connect_output_to_input(
-            machine_side_firing_angle, machine_pulse_gen_model.get_inputs().firing_angle);
+        signals_connector::connect_output_to_input(grid_meas_model.get_outputs().grid_voltage_magnitude_filtered,
+            current_ctrl_model.get_inputs().ideal_dc_voltage_pu);
+        signals_connector::connect_output_to_input(machine_meas_model.get_outputs().machine_voltage_magnitude_filtered,
+            current_ctrl_model.get_inputs().inverter_back_emf_machine_pu);
     }
 };
 
@@ -889,8 +907,6 @@ private:
             plant_model.get_outputs().machine_frequency, machine_meas_model.get_inputs().machine_side_frequency);
 
         // DC link measurements: Raw DC voltage and current from plant
-        // signals_connector::connect_output_to_input(
-        // plant_model.get_outputs().dc_link_voltage, dc_link_model.get_inputs().dc_voltage);
         signals_connector::connect_output_to_input(
             plant_model.get_outputs().dc_link_current, dc_link_model.get_inputs().dc_current);
 
@@ -959,11 +975,8 @@ private:
         // ==================== Plant Model → Pulse Generators ====================
         // Connect reference angles from plant model to pulse generators for synchronization
 
-        // Grid voltage source angle to grid pulse generator for synchronization
         signals_connector::connect_output_to_input(
             plant_model.get_outputs().grid_voltage_source_angle, grid_pulse_gen_model.get_inputs().reference_angle);
-
-        // Machine voltage source angle to machine pulse generator for synchronization
         signals_connector::connect_output_to_input(plant_model.get_outputs().machine_voltage_source_angle,
             machine_pulse_gen_model.get_inputs().reference_angle);
 

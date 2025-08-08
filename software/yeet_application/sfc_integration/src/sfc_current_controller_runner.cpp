@@ -6,6 +6,8 @@ void sfc_current_controller_runner::initialize()
 {
     set_parameters();
     set_parameter_callback();
+
+    _sfc_current_controller.enable_current_reference_slew_rate(false);
     _sfc_current_controller.reset();
     _sfc_current_controller.configure_pi_gains(0.5, duration_t(ms(100.0)));
 }

@@ -14,12 +14,6 @@ class SfcSpeedControllerTest : public ::testing::Test {
 public:
     void SetUp() override
     {
-        system.plant.get_plant_model().configure_mechanical_load(
-            inertia_constant_t{1.0}, damping_coefficient_pu_t{0.01f});
-        system.plant.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
-        system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
-        system.plant.get_plant_model().configure_speed_voltage_relationship(1.0, 0.2f, 0.005f);
-
         // Configure sampler sampling rate for detailed data capture
         simulator.configure_sampler_sampling_rate(200e-6);
 
@@ -29,34 +23,34 @@ public:
         // Initialize the system - allocates plant model and all components
         initialize();
 
+        system.machine_side_controller.get_configuration_datamodel()
+            .get_parameters()
+            .machine_side_commutation_reactance_pu =
+            to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
+                system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
+
         // ==================== Speed Control Signals ====================
-
-        // Speed reference and measured values
-        simulator.register_sampler_entry(
-            {"speed_reference_pu", [&]() { return static_cast<float>(system.speed_reference_pu.read()); }});
-
-        simulator.register_sampler_entry(
-            {"speed_measured_pu", [&]() {
-                 return static_cast<float>(
-                     system.plant.get_signal_flow_datamodel().get_outputs().machine_frequency.read());
-             }});
-
-        simulator.register_sampler_entry(
-            {"speed_error_pu", [&]() {
-                 return static_cast<float>(
-                     system.speed_controller.get_signal_flow_datamodel().get_outputs().speed_error.read());
-             }});
-
         // ==================== Current Control Signals ====================
 
         // Current reference from speed controller
         simulator.register_sampler_entry(
-            {"current_reference_pu", [&]() {
+            {"dc_link_current_reference", [&]() {
                  return static_cast<float>(
                      system.speed_controller.get_signal_flow_datamodel().get_outputs().current_reference.read());
              }});
 
-        // DC link current measured values
+        simulator.register_sampler_entry(
+            {"speed in reference", [&]() {
+                 return static_cast<float>(
+                     system.speed_controller.get_signal_flow_datamodel().get_inputs().speed_reference_pu.read());
+             }});
+
+        simulator.register_sampler_entry(
+            {"speed in measured", [&]() {
+                 return static_cast<float>(
+                     system.speed_controller.get_signal_flow_datamodel().get_inputs().measured_speed_pu.read() / 50.0f);
+             }});
+
         simulator.register_sampler_entry({"dc_link_current_measured", [&]() {
                                               return static_cast<float>(
                                                   system.dc_link_measurements.get_signal_flow_datamodel()
@@ -65,7 +59,7 @@ public:
                                           }});
 
         // Firing angle from current controller
-        simulator.register_sampler_entry({"firing_angle_reference_pu", [&]() {
+        simulator.register_sampler_entry({"grid_side_firing_angle", [&]() {
                                               return static_cast<float>(
                                                   system.current_controller.get_signal_flow_datamodel()
                                                       .get_outputs()
@@ -73,46 +67,50 @@ public:
                                                       .get_pu());
                                           }});
 
-        simulator.register_sampler_entry({"firing_angle_reference_degrees", [&]() {
+        simulator.register_sampler_entry({"machine_side_firing_angle", [&]() {
                                               return static_cast<float>(
-                                                  system.current_controller.get_signal_flow_datamodel()
+                                                  system.machine_side_controller.get_signal_flow_datamodel()
                                                       .get_outputs()
-                                                      .firing_angle_reference.read()
-                                                      .get_degrees());
+                                                      .machine_side_firing_angle.read()
+                                                      .get_pu());
                                           }});
 
         // Current and speed errors for validation
-        simulator.register_sampler_entry(
-            {"dc_link_current_error", [&]() { return static_cast<float>(get_dc_link_current_error_pu()); }});
+        // simulator.register_sampler_entry(
+        //     {"dc_link_current_error", [&]() { return static_cast<float>(get_dc_link_current_error_pu()); }});
 
-        simulator.register_sampler_entry({"speed_error", [&]() { return static_cast<float>(get_speed_error_pu()); }});
+        // simulator.register_sampler_entry({"speed_error", [&]() { return static_cast<float>(get_speed_error_pu());
+        // }});
 
         // ==================== Plant Model Outputs ====================
 
         // Grid-side firing pulses
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<yeet::control::six_pulse_generator::pulses>(
-            "grid_firing_pulses", [&]() -> yeet::control::six_pulse_generator::pulses {
-                return system.grid_side_pulse_generator.get_signal_flow_datamodel().get_outputs().firing_pulses.read();
-            }));
+        // simulator.register_sampler_entry(yeet::make_lambda_array_sampler<yeet::control::six_pulse_generator::pulses>(
+        //     "grid_firing_pulses", [&]() -> yeet::control::six_pulse_generator::pulses {
+        //         return
+        //         system.grid_side_pulse_generator.get_signal_flow_datamodel().get_outputs().firing_pulses.read();
+        //     }));
 
-        // Machine-side firing pulses
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<yeet::control::six_pulse_generator::pulses>(
-            "machine_firing_pulses", [&]() -> yeet::control::six_pulse_generator::pulses {
-                return system.machine_side_pulse_generator.get_signal_flow_datamodel()
-                    .get_outputs()
-                    .firing_pulses.read();
-            }));
+        // // Machine-side firing pulses
+        // simulator.register_sampler_entry(yeet::make_lambda_array_sampler<yeet::control::six_pulse_generator::pulses>(
+        //     "machine_firing_pulses", [&]() -> yeet::control::six_pulse_generator::pulses {
+        //         return system.machine_side_pulse_generator.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .firing_pulses.read();
+        //     }));
 
         // Grid voltage (per-unit)
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_pu", [&]() {
-            return system.grid_measurements.get_signal_flow_datamodel().get_outputs().grid_voltage_abc.read();
-        }));
+        // simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_pu", [&]()
+        // {
+        //     return system.grid_measurements.get_signal_flow_datamodel().get_outputs().grid_voltage_abc.read();
+        // }));
 
-        // Machine voltage (per-unit)
-        simulator.register_sampler_entry(
-            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("machine_voltage_pu", [&]() {
-                return system.machine_measurements.get_signal_flow_datamodel().get_outputs().machine_voltage_abc.read();
-            }));
+        // // Machine voltage (per-unit)
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("machine_voltage_pu", [&]() {
+        //         return
+        //         system.machine_measurements.get_signal_flow_datamodel().get_outputs().machine_voltage_abc.read();
+        //     }));
     }
 
     void initialize() { system.initialize(); }
@@ -189,6 +187,20 @@ public:
 // Test regulation of machine speed to a reference value
 TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
 {
+    system.plant.get_configuration_datamodel().get_parameters().operation_mode.write(
+        sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+
+    system.plant.get_configuration_datamodel().get_parameters().motor_damping_factor.write(
+        damping_coefficient_pu_t{0.001f});
+    system.plant.get_configuration_datamodel().get_parameters().motor_inertia_constant.write(inertia_constant_t{0.5});
+    // system.plant.get_plant_model().configure_mechanical_load(inertia_constant_t{0.5},
+    // damping_coefficient_pu_t{0.001f});
+    system.plant.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
+    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+    system.plant.get_plant_model().configure_speed_voltage_relationship(1.0, 0.2f, 0.005f);
+    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{1.0f});
+    system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
+
     // const speed_pu_t speed_error_max_value{0.05f};
     // const speed_pu_t speed_error_min_value{-0.05f};
 
@@ -217,12 +229,12 @@ TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
     // ==================== Test Execution ====================
 
     // Simulate until system can stabilize
-    system.speed_reference_pu = speed_pu_t(0.5);
-    bool success = simulator.simulate_for(3.0);
+    system.speed_reference_pu = speed_pu_t(1.0);
+    bool success = simulator.simulate_for(10.0);
 
     // Set the speed reference to 0.5 per-unit, and test for 1.0 second
-    system.speed_reference_pu = speed_pu_t(1.0);
-    success &= simulator.simulate_for(4.0);
+    system.speed_reference_pu = speed_pu_t(0.8);
+    success &= simulator.simulate_for(10.0);
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";
 }

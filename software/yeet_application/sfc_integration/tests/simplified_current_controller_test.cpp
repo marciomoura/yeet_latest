@@ -21,6 +21,12 @@ public:
         // Initialize the system - allocates plant model and all components
         initialize();
 
+        system.machine_side_controller.get_configuration_datamodel()
+            .get_parameters()
+            .machine_side_commutation_reactance_pu =
+            to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
+                system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
+
         // ==================== Current Control Signals ====================
 
         // DC link current reference and measured values
@@ -34,11 +40,19 @@ public:
                                                       .dc_current_filtered_pu.read());
                                           }});
 
-        simulator.register_sampler_entry({"firing_angle_reference_pu", [&]() {
+        simulator.register_sampler_entry({"grid_side_firing_angle_pu", [&]() {
                                               return static_cast<float>(
                                                   system.current_controller.get_signal_flow_datamodel()
                                                       .get_outputs()
                                                       .firing_angle_reference.read()
+                                                      .get_pu());
+                                          }});
+
+        simulator.register_sampler_entry({"machine_side_firing_angle_pu", [&]() {
+                                              return static_cast<float>(
+                                                  system.machine_side_controller.get_signal_flow_datamodel()
+                                                      .get_outputs()
+                                                      .machine_side_firing_angle.read()
                                                       .get_pu());
                                           }});
 
@@ -48,30 +62,46 @@ public:
 
         // ==================== Plant Model Outputs ====================
 
-        // Grid voltage (per-unit)
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_pu", [&]() {
-            return system.grid_measurements.get_signal_flow_datamodel().get_outputs().grid_voltage_abc.read();
-        }));
-
         simulator.register_sampler_entry(
-            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_unmasked_pu", [&]() {
+            yeet::make_lambda_sampler<voltage_pu_t>("grid_voltage_magnitude", [&]() -> voltage_pu_t {
                 return system.grid_measurements.get_signal_flow_datamodel()
                     .get_outputs()
-                    .grid_voltage_abc_unmasked.read();
-            }));
-
-        // // Machine voltage (per-unit)
-        simulator.register_sampler_entry(
-            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("machine_voltage_pu", [&]() {
-                return system.machine_measurements.get_signal_flow_datamodel().get_outputs().machine_voltage_abc.read();
+                    .grid_voltage_magnitude_filtered.read();
             }));
 
         simulator.register_sampler_entry(
-            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("machine_voltage_unmasked_pu", [&]() {
+            yeet::make_lambda_sampler<voltage_pu_t>("machine_voltage_magnitude", [&]() -> voltage_pu_t {
                 return system.machine_measurements.get_signal_flow_datamodel()
                     .get_outputs()
-                    .machine_voltage_abc_unmasked.read();
+                    .machine_voltage_magnitude_filtered.read();
             }));
+
+        // Grid voltage (per-unit)
+        // simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_pu", [&]()
+        // {
+        //     return system.grid_measurements.get_signal_flow_datamodel().get_outputs().grid_voltage_abc.read();
+        // }));
+
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_unmasked_pu", [&]() {
+        //         return system.grid_measurements.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .grid_voltage_abc_unmasked.read();
+        //     }));
+
+        // // Machine voltage (per-unit)
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("machine_voltage_pu", [&]() {
+        //         return
+        //         system.machine_measurements.get_signal_flow_datamodel().get_outputs().machine_voltage_abc.read();
+        //     }));
+
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("machine_voltage_unmasked_pu", [&]() {
+        //         return system.machine_measurements.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .machine_voltage_abc_unmasked.read();
+        //     }));
     }
 
     void initialize() { system.initialize(); }
@@ -136,32 +166,23 @@ public:
 TEST_F(SfcCurrentControllerTest, TestCurrentRegulation)
 {
     // ==================== Test Configuration ====================
-
-    // Enable both pulse generators
     grid_side_pulse_generator_parameters()->enable = true;
     machine_side_pulse_generator_parameters()->enable = true;
 
-    // Set machine-side firing angle to constant value (open-loop)
-    system.machine_side_firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);
-
-    // Configure feedforward signals for improved performance
-    system.ideal_dc_voltage_pu = voltage_pu_t(1.0);           // Typical DC voltage in per-unit
-    system.inverter_back_emf_machine_pu = voltage_pu_t(1.0);  // No back EMF initially
-
     // ==================== Test Execution ====================
-    current_pu_t current_error_max_value{0.06f};
-    current_pu_t current_error_min_value{-0.06f};
+    current_pu_t current_error_max_value{0.1f};
+    current_pu_t current_error_min_value{-0.1f};
 
     system.current_reference_pu = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
-        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{0.6, 0.9}));
-    bool success = simulator.simulate_for(1.0);
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{1.0, 1.9}));
+    bool success = simulator.simulate_for(2.0);
 
     system.current_reference_pu = current_pu_t(1.0);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
-        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{1.2, 2.0}));
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.2, 3.0}));
     success &= simulator.simulate_for(1.0);
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";

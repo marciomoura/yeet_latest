@@ -38,7 +38,9 @@ public:
      * @param initial_gamma_setpoint_deg The initial target extinction angle in degrees.
      */
     sfc_machine_side_firing_angle_lookup_table(real_t initial_gamma_setpoint_deg)
-        : _gamma_setpoint_deg(initial_gamma_setpoint_deg) {}
+        : _gamma_setpoint_deg(initial_gamma_setpoint_deg)
+    {
+    }
 
     /**
      * @brief Recalculates the table using default axes.
@@ -48,9 +50,10 @@ public:
      * @param gamma_setpoint_deg The new target extinction angle in degrees.
      * @param machine_side_commutation_reactance_pu The machine-side commutation reactance at base frequency [p.u.].
      */
-    void recalculate_table(real_t gamma_setpoint_deg, real_t machine_side_commutation_reactance_pu) {
-        recalculate_table(gamma_setpoint_deg, kDefaultCurrentAxisPu, kDefaultSpeedAxisPu,
-                          machine_side_commutation_reactance_pu);
+    void recalculate_table(real_t gamma_setpoint_deg, real_t machine_side_commutation_reactance_pu)
+    {
+        recalculate_table(
+            gamma_setpoint_deg, kDefaultCurrentAxisPu, kDefaultSpeedAxisPu, machine_side_commutation_reactance_pu);
     }
 
     /**
@@ -64,9 +67,11 @@ public:
      * @param speed_axis_pu The axis definition for machine electrical frequency [p.u.].
      * @param machine_side_commutation_reactance_pu The machine-side commutation reactance at base frequency [p.u.].
      */
-    void recalculate_table(real_t gamma_setpoint_deg, const std::array<real_t, NUM_CURRENT_POINTS>& dc_current_axis_pu,
-                           const std::array<real_t, NUM_SPEED_POINTS>& speed_axis_pu,
-                           real_t machine_side_commutation_reactance_pu) {
+    void recalculate_table(real_t gamma_setpoint_deg,
+        const std::array<real_t, NUM_CURRENT_POINTS>& dc_current_axis_pu,
+        const std::array<real_t, NUM_SPEED_POINTS>& speed_axis_pu,
+        real_t machine_side_commutation_reactance_pu)
+    {
         _gamma_setpoint_deg = gamma_setpoint_deg;
         std::array<std::array<real_t, NUM_CURRENT_POINTS>, NUM_SPEED_POINTS> firing_angle_table_deg;
 
@@ -98,7 +103,8 @@ public:
      * @param dc_link_current_a The current measured DC link current [A].
      * @return The calculated beta firing angle in degrees [90-180].
      */
-    [[nodiscard]] real_t get_firing_angle_deg(real_t machine_speed_hz, real_t dc_link_current_a) const {
+    [[nodiscard]] real_t get_firing_angle_deg(real_t machine_speed_hz, real_t dc_link_current_a) const
+    {
         return _lookup_table.get_value(dc_link_current_a, machine_speed_hz);
     }
 
@@ -111,7 +117,8 @@ public:
      * @param dc_link_current_a The current measured DC link current [A].
      * @return The calculated beta firing angle in radians.
      */
-    [[nodiscard]] real_t get_firing_angle_rad(real_t machine_speed_hz, real_t dc_link_current_a) const {
+    [[nodiscard]] real_t get_firing_angle_rad(real_t machine_speed_hz, real_t dc_link_current_a) const
+    {
         return get_firing_angle_deg(machine_speed_hz, dc_link_current_a) * pi / 180.0;
     }
 
@@ -150,8 +157,9 @@ private:
      * @param commutation_reactance_pu The machine-side commutation reactance at base frequency [p.u.].
      * @return The calculated beta advance angle [degrees].
      */
-    static real_t calculate_beta_advance_angle_deg(real_t gamma_rad, real_t machine_frequency_pu, real_t dc_current_pu,
-                                                   real_t commutation_reactance_pu) {
+    static real_t calculate_beta_advance_angle_deg(
+        real_t gamma_rad, real_t machine_frequency_pu, real_t dc_current_pu, real_t commutation_reactance_pu)
+    {
         const real_t inductive_voltage_drop_pu =
             (3.0 / pi) * commutation_reactance_pu * machine_frequency_pu * dc_current_pu;
         real_t cos_beta_advance = std::cos(gamma_rad) - inductive_voltage_drop_pu;

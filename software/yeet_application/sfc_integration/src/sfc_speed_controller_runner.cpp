@@ -6,7 +6,13 @@ void sfc_speed_controller_runner::initialize()
 {
     set_parameters();
     set_parameter_callback();
-    _sfc_speed_controller.reset();
+
+    _sfc_speed_controller.configure_pi_gains(3.0, duration_t(1.0));  // Kp, Ti
+    _sfc_speed_controller.configure_torque_limits_pu(torque_pu_t(-1.5), torque_pu_t(1.5));
+    _sfc_speed_controller.configure_speed_reference_limits_pu(speed_pu_t(0.0), speed_pu_t(1.5));
+    _sfc_speed_controller.configure_speed_reference_rate_limit(1.0);  // 1.0 pu/s rate limit
+    _sfc_speed_controller.configure_feedforward_pu(0.0);              // Small feedforward gain
+    _sfc_speed_controller.reset(speed_pu_t{1.0});
 }
 
 void sfc_speed_controller_runner::run()
