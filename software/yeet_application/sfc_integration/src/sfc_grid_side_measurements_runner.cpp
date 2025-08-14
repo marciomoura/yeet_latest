@@ -24,6 +24,8 @@ void sfc_grid_side_measurements_runner::run()
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
+    _outputs.grid_side_frequency =
+        to_pu(_inputs.grid_side_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
     _outputs.grid_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_abc = masked_voltage_abc;

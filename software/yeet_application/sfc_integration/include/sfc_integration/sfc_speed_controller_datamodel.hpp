@@ -18,24 +18,17 @@ public:
      * @brief Input signals for the speed controller component
      */
     struct inputs {
-        /// Speed reference signal in per-unit (machine base)
-        /// Range: [-1.2, 1.2] pu for motoring/generating operation
-        signal_input<speed_pu_t> speed_reference_pu;
-
-        /// Measured machine speed in per-unit (machine base)
-        /// Range: [-1.5, 1.5] pu (includes measurement range)
-        signal_input<frequency_t> measured_speed_pu;
-
-        /// Measured DC link current for anti-windup logic
-        /// Range: [-1.5, 1.5] pu
-        signal_input<current_pu_t> measured_current_pu;
-
         /// Enable signal for speed control mode
         signal_input<bool> enable_speed_control;
 
-        /// External current reference for torque mode operation
-        /// Range: [-1.2, 1.2] pu
-        signal_input<current_pu_t> external_current_reference_pu;
+        /// Speed reference signal in per-unit (machine base)
+        signal_input<speed_pu_t> speed_reference_pu;
+
+        /// Measured machine speed in per-unit (machine base)
+        signal_input<speed_pu_t> measured_speed_pu;
+
+        /// Measured DC link current for anti-windup logic
+        // signal_input<current_pu_t> measured_current_pu;
     };
 
     /**
@@ -46,27 +39,27 @@ public:
         /// Range: [-1.2, 1.2] pu (limited to protect current loop)
         signal_output<current_pu_t> current_reference;
 
+        /// Estimated torque output (proportional to current reference)
+        /// Range: [-1.2, 1.2] pu
+        signal_output<torque_pu_t> torque_reference;
+
+        /// Speed reference after rate limiting
+        /// Range: [-1.2, 1.2] pu
+        signal_output<speed_pu_t> speed_reference_limited;
+
         /// Speed control error (reference - measured)
         /// Range: [-1.0, 1.0] pu
         signal_output<speed_pu_t> speed_error;
 
         /// PI controller output before limiting
         /// Range: [-2.0, 2.0] pu (before saturation)
-        // signal_output<current_pu_t> pi_output;
+        signal_output<real_t> pi_output;
 
-        // /// Controller saturation status
-        // signal_output<bool> is_saturated;
+        /// Controller saturation status
+        signal_output<bool> is_saturated;
 
-        // /// Speed control active status
-        // signal_output<bool> is_speed_control_active;
-
-        // /// Speed reference after rate limiting
-        // /// Range: [-1.2, 1.2] pu
-        // signal_output<speed_pu_t> speed_reference_limited;
-
-        // /// Estimated torque output (proportional to current reference)
-        // /// Range: [-1.2, 1.2] pu
-        // signal_output<torque_pu_t> estimated_torque;
+        /// Speed control active status
+        signal_output<bool> is_speed_control_active;
     };
 
     /**
@@ -75,30 +68,26 @@ public:
     struct parameters {
         // /// PI controller proportional gain
         // /// Range: [1.0, 100.0]
-        // parameter<real_t> pi_proportional_gain = real_t(10.0);
+        parameter<real_t> controller_proportional_gain_kp = real_t(3.0);
 
-        // /// PI controller integral gain
-        // /// Range: [10.0, 1000.0]
-        // parameter<real_t> pi_integral_gain = real_t(100.0);
+        /// PI controller integral gain
+        parameter<duration_t> controller_time_constant_ti = duration_t(1.0);
 
-        // /// Speed reference rate limit (acceleration/deceleration)
-        // /// Range: [0.1, 10.0] pu/s
-        // parameter<real_t> speed_reference_rate_limit = real_t(2.0);
+        /// Speed reference rate limit (acceleration/deceleration)
+        /// Range: [0.1, 10.0] pu/s
+        parameter<real_t> speed_reference_rate_limit = real_t(2.0);
 
-        // /// Speed reference magnitude limit
-        // /// Range: [1.0, 1.2] pu
-        // parameter<speed_pu_t> speed_reference_magnitude_limit = speed_pu_t(1.1);
+        /// Torque-to-current conversion factor
+        /// Range: [0.5, 1.5]
+        parameter<real_t> torque_to_current_factor = real_t(1.0);
 
-        // /// Current reference output limit (positive)
-        // /// Range: [1.0, 1.5] pu
-        // parameter<current_pu_t> max_current_reference = current_pu_t(1.1);
+        /// Speed-control feedforward inertia factor
+        /// This factor is used to adjust the feedforward term in the speed controller.
+        /// Range: [0.0, 1.0]
+        parameter<inertia_constant_pu_t> feedforward_inertia = inertia_constant_pu_t(0.0);
 
-        // /// Current reference output limit (negative)
-        // /// Range: [-1.5, -1.0] pu
-        // parameter<current_pu_t> min_current_reference = current_pu_t(-1.1);
-
-        // /// Anti-windup gain for integral term protection
-        // /// Range: [0.05, 0.5]
+        /// Anti-windup gain for integral term protection
+        /// Range: [0.05, 0.5]
         // parameter<real_t> anti_windup_gain = real_t(0.1);
 
         // /// Deadband for speed error (reduces noise sensitivity)
@@ -108,10 +97,6 @@ public:
         // /// Low-pass filter time constant for speed reference
         // /// Range: [0.001, 0.1] s
         // parameter<duration_t> speed_reference_filter_time_constant = duration_t(0.01);
-
-        // /// Torque-to-current conversion factor
-        // /// Range: [0.5, 1.5]
-        // parameter<real_t> torque_to_current_factor = real_t(1.0);
     };
 
 private:

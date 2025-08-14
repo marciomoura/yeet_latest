@@ -84,21 +84,32 @@ void sfc_speed_controller::update(speed_pu_t speed_ref_pu, speed_pu_t speed_meas
     // Step 3: Calculate speed error
     const real_t speed_error_pu = _processed_speed_ref_pu.value() - speed_measured_pu.value();
 
-    // Step 4: Update PI controller
-    const real_t pi_output = _pi_controller.update(speed_error_pu);
+    // Step 4: Update PI controller and store the output
+    _pi_output = _pi_controller.update(speed_error_pu);
 
     // Step 5: Calculate optional feed-forward term using the derivative class
     const real_t speed_derivative = _speed_ref_derivative.get_output();
     const real_t speed_derivative_speed_feedforward = _inertia_pu * speed_derivative;
 
-    // Step 6: Sum PI and feed-forward outputs.
-    const real_t total_torque_ref = pi_output + speed_derivative_speed_feedforward;
-    _torque_ref_pu = torque_pu_t{total_torque_ref};
+    // Step 6: Sum PI and feed-forward outputs to get unclamped torque reference
+    const real_t total_torque_ref = _pi_output + speed_derivative_speed_feedforward;
+    _torque_ref_unclamped = torque_pu_t{total_torque_ref};
+
+    // The final torque reference is the clamped version (PI controller handles clamping internally)
+    _torque_ref_pu = _torque_ref_unclamped;
 }
 
 torque_pu_t sfc_speed_controller::get_torque_ref_pu() const { return _torque_ref_pu; }
 
 speed_pu_t sfc_speed_controller::get_processed_speed_ref_pu() const { return _processed_speed_ref_pu; }
+
+real_t sfc_speed_controller::get_pi_output() const { return _pi_output; }
+
+bool sfc_speed_controller::is_saturated() const
+{
+    // Check if the PI controller is saturated by using the built-in saturation detection
+    return _pi_controller.is_output_saturated();
+}
 
 void sfc_speed_controller::reset(speed_pu_t initial_speed_pu)
 {
@@ -107,6 +118,8 @@ void sfc_speed_controller::reset(speed_pu_t initial_speed_pu)
     _speed_ref_derivative.reset(initial_speed_pu.value());
     _processed_speed_ref_pu = initial_speed_pu;
     _torque_ref_pu = torque_pu_t{0.0};
+    _pi_output = real_t{0.0};
+    _torque_ref_unclamped = torque_pu_t{0.0};
 }
 
 }  // namespace yeet::application::sfc

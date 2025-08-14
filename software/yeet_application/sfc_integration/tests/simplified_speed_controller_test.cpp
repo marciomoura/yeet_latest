@@ -54,7 +54,7 @@ public:
         simulator.register_sampler_entry(
             {"speed in measured", [&]() {
                  return static_cast<float>(
-                     system.speed_controller.get_signal_flow_datamodel().get_inputs().measured_speed_pu.read() / 50.0f);
+                     system.speed_controller.get_signal_flow_datamodel().get_inputs().measured_speed_pu.read());
              }});
 
         simulator.register_sampler_entry(
@@ -210,12 +210,10 @@ public:
                    .dc_current_filtered_pu.read();
     }
 
-    speed_pu_t get_speed_error_pu() const
+    speed_pu_t get_speed_error_pu()
     {
-        return {};
-        // Cast away const to access non-const methods - this is safe in test context
-        // auto& mutable_system = const_cast<sfc_speed_controller_simulation_builder&>(system);
-        // return mutable_system.speed_reference_pu.read() - mutable_system.measured_speed_pu.read();
+        return system.speed_controller.get_signal_flow_datamodel().get_inputs().speed_reference_pu.read() -
+               system.speed_controller.get_signal_flow_datamodel().get_inputs().measured_speed_pu.read();
     }
 
     // System under test

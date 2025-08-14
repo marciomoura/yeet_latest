@@ -33,6 +33,7 @@ public:
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
+        signal_output<speed_pu_t> machine_side_speed;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;

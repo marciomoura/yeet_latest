@@ -78,6 +78,18 @@ public:
     speed_pu_t get_processed_speed_ref_pu() const;
 
     /**
+     * @brief Gets the PI controller output before limiting.
+     * @return The PI controller output value.
+     */
+    real_t get_pi_output() const;
+
+    /**
+     * @brief Checks if the speed controller is in saturation.
+     * @return True if the controller is saturated, false otherwise.
+     */
+    bool is_saturated() const;
+
+    /**
      * @brief Resets the internal state of the controller.
      * @param initial_speed_pu The initial speed to reset to [pu].
      */
@@ -99,6 +111,8 @@ private:
     // Outputs
     torque_pu_t _torque_ref_pu{};
     speed_pu_t _processed_speed_ref_pu{};
+    real_t _pi_output{};
+    torque_pu_t _torque_ref_unclamped{};
 };
 
 }  // namespace yeet::application::sfc

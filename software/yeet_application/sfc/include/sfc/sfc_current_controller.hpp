@@ -67,8 +67,10 @@ public:
      * @param ideal_dc_voltage_pu The ideal no-load DC voltage from the rectifier [pu, grid-side base].
      * @param inverter_back_emf_pu Estimated per-unit inverter back-EMF [pu, grid-side reflected base].
      */
-    void update(current_pu_t dc_link_current_reference_pu, current_pu_t dc_link_current_measured_pu,
-                voltage_pu_t ideal_dc_voltage_pu, voltage_pu_t inverter_back_emf_grid_reflected_pu);
+    void update(current_pu_t dc_link_current_reference_pu,
+        current_pu_t dc_link_current_measured_pu,
+        voltage_pu_t ideal_dc_voltage_pu,
+        voltage_pu_t inverter_back_emf_grid_reflected_pu);
 
     /**
      * @brief Executes one update cycle of the current controller with automatic per-unit reflection.
@@ -84,10 +86,12 @@ public:
      * @param machine_side_base_voltage The machine-side voltage base for per-unit reflection [V].
      * @param grid_side_base_voltage The grid-side voltage base for per-unit reflection [V].
      */
-    void update(current_pu_t dc_link_current_reference_pu, current_pu_t dc_link_current_measured_pu,
-                voltage_pu_t ideal_dc_voltage_pu, voltage_pu_t inverter_back_emf_machine_pu,
-                const voltage_t& machine_side_base_voltage,
-                const precomputed_divisor<voltage_t>& grid_side_base_voltage);
+    void update(current_pu_t dc_link_current_reference_pu,
+        current_pu_t dc_link_current_measured_pu,
+        voltage_pu_t ideal_dc_voltage_pu,
+        voltage_pu_t inverter_back_emf_machine_pu,
+        const voltage_t& machine_side_base_voltage,
+        const precomputed_divisor<voltage_t>& grid_side_base_voltage);
 
     /**
      * @brief Gets the most recently calculated firing angle reference.
@@ -107,6 +111,24 @@ public:
      */
     double get_cos_alpha_clamped() const;
 
+    /**
+     * @brief Gets the current error in per-unit.
+     * @return The current error [pu].
+     */
+    current_pu_t get_current_error_pu() const;
+
+    /**
+     * @brief Gets the PI controller output before clamping.
+     * @return The PI controller output value.
+     */
+    real_t get_pi_output() const;
+
+    /**
+     * @brief Checks if the controller is in saturation.
+     * @return True if the controller is saturated, false otherwise.
+     */
+    bool is_saturated() const;
+
 private:
     void recompute_internal_limits();
 
@@ -125,8 +147,11 @@ private:
 
     // Outputs
     double _cos_alpha_clamped{};
+    double _cos_alpha_unclamped{};
     angle_t _firing_angle_reference_radians{};
     current_pu_t _current_reference_limited_pu{};
+    current_pu_t _current_error_pu{};
+    real_t _pi_output{};
 };
 
 }  // namespace yeet::application::sfc

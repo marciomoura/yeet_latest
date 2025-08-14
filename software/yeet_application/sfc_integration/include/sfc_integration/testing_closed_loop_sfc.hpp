@@ -915,11 +915,7 @@ private:
 
         // Machine speed feedback (from machine measurements or observer)
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().machine_frequency, speed_ctrl_model.get_inputs().measured_speed_pu);
-
-        // DC link current feedback for anti-windup
-        signals_connector::connect_output_to_input(
-            dc_link_model.get_outputs().dc_current_filtered_pu, speed_ctrl_model.get_inputs().measured_current_pu);
+            machine_meas_model.get_outputs().machine_side_speed, speed_ctrl_model.get_inputs().measured_speed_pu);
 
         // ==================== Speed Controller → Current Controller ====================
         // Connect speed controller output to current controller reference (cascade control)
@@ -990,10 +986,6 @@ private:
         // Speed control enable/disable
         signals_connector::connect_output_to_input(
             enable_speed_control, speed_ctrl_model.get_inputs().enable_speed_control);
-
-        // External current reference for torque mode operation
-        signals_connector::connect_output_to_input(
-            external_current_reference_pu, speed_ctrl_model.get_inputs().external_current_reference_pu);
 
         // Feedforward signals for improved current control performance
         signals_connector::connect_output_to_input(grid_meas_model.get_outputs().grid_voltage_magnitude_filtered,

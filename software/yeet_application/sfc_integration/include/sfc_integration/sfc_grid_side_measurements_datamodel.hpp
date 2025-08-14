@@ -43,6 +43,7 @@ public:
      * @brief Output signals from the grid-side measurements component
      */
     struct outputs {
+        signal_output<frequency_pu_t> grid_side_frequency;
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta;
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta_filtered;
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;

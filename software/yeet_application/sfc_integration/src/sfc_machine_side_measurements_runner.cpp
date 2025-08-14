@@ -23,6 +23,8 @@ void sfc_machine_side_measurements_runner::run()
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
+    _outputs.machine_side_speed =
+        speed_pu_t{to_pu(_inputs.machine_side_frequency.read(), _per_unit_system->get_machine_bases().base_frequency)};
     _outputs.machine_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_abc = masked_voltage_abc;
