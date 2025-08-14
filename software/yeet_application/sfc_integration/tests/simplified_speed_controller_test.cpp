@@ -34,9 +34,15 @@ public:
 
         // Current reference from speed controller
         simulator.register_sampler_entry(
-            {"dc_link_current_reference", [&]() {
+            {"dc_link_current_reference speed controller", [&]() {
                  return static_cast<float>(
                      system.speed_controller.get_signal_flow_datamodel().get_outputs().current_reference.read());
+             }});
+
+        simulator.register_sampler_entry(
+            {"dc_link_current_reference current controller", [&]() {
+                 return static_cast<float>(
+                     system.current_controller.get_signal_flow_datamodel().get_inputs().current_reference_pu.read());
              }});
 
         simulator.register_sampler_entry(
@@ -50,6 +56,41 @@ public:
                  return static_cast<float>(
                      system.speed_controller.get_signal_flow_datamodel().get_inputs().measured_speed_pu.read() / 50.0f);
              }});
+
+        simulator.register_sampler_entry(
+            {"speed error", [&]() {
+                 return static_cast<float>(
+                     system.speed_controller.get_signal_flow_datamodel().get_outputs().speed_error.read());
+             }});
+
+        simulator.register_sampler_entry(
+            {"load torque", [&]() {
+                 return static_cast<float>(system.plant.get_signal_flow_datamodel().get_inputs().load_torque_pu.read());
+             }});
+
+        simulator.register_sampler_entry({"actual machine firing angle", [&]() {
+                                              return static_cast<float>(
+                                                  system.machine_side_pulse_generator.get_signal_flow_datamodel()
+                                                      .get_outputs()
+                                                      .actual_firing_angle.read()
+                                                      .get_pu());
+                                          }});
+
+        simulator.register_sampler_entry({"actual grid firing angle", [&]() {
+                                              return static_cast<float>(
+                                                  system.grid_side_pulse_generator.get_signal_flow_datamodel()
+                                                      .get_outputs()
+                                                      .actual_firing_angle.read()
+                                                      .get_pu());
+                                          }});
+
+        // simulator.register_sampler_entry({"machine voltage magnitude", [&]() {
+        //                                       return static_cast<float>(system.plant.get_signal_flow_datamodel()
+        //                                               .get_outputs()
+        //                                               .machine_voltage.read()
+        //                                               .to_alphabeta()
+        //                                               .magnitude());
+        //                                   }});
 
         simulator.register_sampler_entry({"dc_link_current_measured", [&]() {
                                               return static_cast<float>(
@@ -191,28 +232,28 @@ TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
         sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
 
     system.plant.get_configuration_datamodel().get_parameters().motor_damping_factor.write(
-        damping_coefficient_pu_t{0.001f});
+        damping_coefficient_pu_t{0.01f});
     system.plant.get_configuration_datamodel().get_parameters().motor_inertia_constant.write(inertia_constant_t{0.5});
     // system.plant.get_plant_model().configure_mechanical_load(inertia_constant_t{0.5},
     // damping_coefficient_pu_t{0.001f});
     system.plant.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
-    system.plant.get_plant_model().configure_speed_voltage_relationship(1.0, 0.2f, 0.005f);
+    system.plant.get_plant_model().configure_speed_voltage_relationship(0.9, 0.2f, 0.0f);
     system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{1.0f});
     system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
 
-    // const speed_pu_t speed_error_max_value{0.05f};
-    // const speed_pu_t speed_error_min_value{-0.05f};
+    const speed_pu_t speed_error_max_value{0.05f};
+    const speed_pu_t speed_error_min_value{-0.05f};
 
-    // // Check speed error during steady state before disturbance
-    // simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-    //     "speed error pre disturbance", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
-    //     speed_error_max_value, yeet::checker_activation_time_range{1.0, 1.5}));
+    // Check speed error during steady state before disturbance
+    simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "speed error pre disturbance", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
+        speed_error_max_value, yeet::checker_activation_time_range{4.0, 8.0}));
 
-    // // Check speed error after disturbance
-    // simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-    //     "speed error after disturbance", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
-    //     speed_error_max_value, yeet::checker_activation_time_range{2.0}));
+    // Check speed error after disturbance
+    simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "speed error after disturbance", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
+        speed_error_max_value, yeet::checker_activation_time_range{15.0}));
 
     // // ==================== Test Configuration ====================
 

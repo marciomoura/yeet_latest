@@ -7,7 +7,7 @@ void sfc_speed_controller_runner::initialize()
     set_parameters();
     set_parameter_callback();
 
-    _sfc_speed_controller.configure_pi_gains(3.0, duration_t(1.0));  // Kp, Ti
+    _sfc_speed_controller.configure_pi_gains(3.0, duration_t(0.5));  // Kp, Ti
     _sfc_speed_controller.configure_torque_limits_pu(torque_pu_t(-1.5), torque_pu_t(1.5));
     _sfc_speed_controller.configure_speed_reference_limits_pu(speed_pu_t(0.0), speed_pu_t(1.5));
     _sfc_speed_controller.configure_speed_reference_rate_limit(1.0);  // 1.0 pu/s rate limit
@@ -17,19 +17,13 @@ void sfc_speed_controller_runner::initialize()
 
 void sfc_speed_controller_runner::run()
 {
-    _sfc_speed_controller.update(
-        _inputs.speed_reference_pu, speed_pu_t{_inputs.measured_speed_pu.read().value() / 50.0});
+    const speed_pu_t measured_speed = speed_pu_t{_inputs.measured_speed_pu.read().value() / 50.0};
+
+    _sfc_speed_controller.update(_inputs.speed_reference_pu, measured_speed);
     // Convert torque output to current (extract numerical value)
     torque_pu_t torque_ref = _sfc_speed_controller.get_torque_ref_pu();
     _outputs.current_reference = current_pu_t(torque_ref.value());
-
-    // // Convert torque to current for pi_output
-    // torque_pu_t torque_ref = _sfc_speed_controller.get_torque_ref_pu();
-    // _outputs.pi_output = current_pu_t(torque_ref.value());
-    // _outputs.is_saturated = false;  // This should be implemented in the controller
-    // _outputs.is_speed_control_active = _inputs.enable_speed_control;
-    // _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
-    // _outputs.estimated_torque = _sfc_speed_controller.get_torque_ref_pu();
+    _outputs.speed_error = speed_pu_t(_inputs.speed_reference_pu.read().value() - measured_speed);
 }
 
 void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }

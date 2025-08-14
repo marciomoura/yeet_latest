@@ -129,10 +129,11 @@ void sfc_plant_model_augmented_6p_6p::initialize()
 
 void sfc_plant_model_augmented_6p_6p::update()
 {
-    _plant.update();
     step_mechanical_dynamics();
     step_voltage_control();
     update_plant_parameters();
+
+    _plant.update();
 }
 
 void sfc_plant_model_augmented_6p_6p::update(const std::array<bool, 6>& grid_side_pulses,

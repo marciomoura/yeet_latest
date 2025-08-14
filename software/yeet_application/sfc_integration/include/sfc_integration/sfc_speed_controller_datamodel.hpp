@@ -52,21 +52,21 @@ public:
 
         /// PI controller output before limiting
         /// Range: [-2.0, 2.0] pu (before saturation)
-        signal_output<current_pu_t> pi_output;
+        // signal_output<current_pu_t> pi_output;
 
-        /// Controller saturation status
-        signal_output<bool> is_saturated;
+        // /// Controller saturation status
+        // signal_output<bool> is_saturated;
 
-        /// Speed control active status
-        signal_output<bool> is_speed_control_active;
+        // /// Speed control active status
+        // signal_output<bool> is_speed_control_active;
 
-        /// Speed reference after rate limiting
-        /// Range: [-1.2, 1.2] pu
-        signal_output<speed_pu_t> speed_reference_limited;
+        // /// Speed reference after rate limiting
+        // /// Range: [-1.2, 1.2] pu
+        // signal_output<speed_pu_t> speed_reference_limited;
 
-        /// Estimated torque output (proportional to current reference)
-        /// Range: [-1.2, 1.2] pu
-        signal_output<torque_pu_t> estimated_torque;
+        // /// Estimated torque output (proportional to current reference)
+        // /// Range: [-1.2, 1.2] pu
+        // signal_output<torque_pu_t> estimated_torque;
     };
 
     /**

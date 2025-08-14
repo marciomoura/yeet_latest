@@ -23,16 +23,7 @@ void sfc_machine_side_controller_runner::run()
     real_t const machine_side_firing_angle =
         _lookup_table.get_firing_angle_rad(_inputs.machine_speed.read().value() / 50.0, _inputs.dc_link_current.read());
 
-    // if (machine_side_firing_angle > (150.0f * pi / 180.0f)) {
-    // _outputs.machine_side_firing_angle = angle_wrapped::from_degrees(180.0f - 30.0f);
-    // }
-    // else {
     _outputs.machine_side_firing_angle = angle_wrapped::from_radians(angle_t{machine_side_firing_angle});
-    // }
-    // _outputs.machine_side_firing_angle =
-    // angle_wrapped::from_degrees(std::min(machine_side_firing_angle.get_degrees(), real_t(180.0f - 26.84f)));
-    // angle_wrapped::from_degrees(150.0);
-    // machine_side_firing_angle;  // _firing_angle_filter.update(machine_side_firing_angle);
 }
 
 void sfc_machine_side_controller_runner::stop()
