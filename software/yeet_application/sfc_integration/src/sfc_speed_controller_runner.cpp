@@ -17,7 +17,12 @@ void sfc_speed_controller_runner::initialize()
 
 void sfc_speed_controller_runner::run()
 {
-    _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
+    if (!_inputs.enable_speed_control.read()) {
+        _sfc_speed_controller.reset(_inputs.measured_speed_pu);
+    }
+    else {
+        _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
+    }
 
     // Convert torque output to current using the configured conversion factor
     torque_pu_t torque_ref = _sfc_speed_controller.get_torque_ref_pu();

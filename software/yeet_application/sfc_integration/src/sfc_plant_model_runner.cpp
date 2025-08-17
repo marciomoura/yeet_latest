@@ -39,6 +39,8 @@ void sfc_plant_model_runner::run()
     _outputs.grid_voltage_source_angle = _plant.get_grid_voltage_source_angle();
     _outputs.machine_voltage_source_angle = _plant.get_machine_voltage_source_angle();
     _outputs.machine_frequency = _plant.get_machine_frequency();
+    _outputs.machine_speed =
+        speed_pu_t{to_pu(_plant.get_machine_frequency(), _per_unit_system->get_machine_bases().base_frequency)};
     _outputs.grid_frequency = _plant.get_grid_frequency();
 }
 

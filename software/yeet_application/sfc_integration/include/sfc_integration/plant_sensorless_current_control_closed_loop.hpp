@@ -260,7 +260,7 @@ private:
 
         // Machine speed from observer instead of direct measurement
         signals_connector::connect_output_to_input(
-            machine_observer_model.get_outputs().estimated_frequency, machine_ctrl_model.get_inputs().machine_speed);
+            machine_observer_model.get_outputs().estimated_speed, machine_ctrl_model.get_inputs().machine_speed);
 
         // ==================== Current Controller → Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control

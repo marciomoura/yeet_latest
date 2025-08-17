@@ -211,7 +211,7 @@ private:
 
         // Machine speed for lookup table input
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().machine_frequency, machine_ctrl_model.get_inputs().machine_speed);
+            plant_model.get_outputs().machine_speed, machine_ctrl_model.get_inputs().machine_speed);
 
         // ==================== Current Controller → Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control

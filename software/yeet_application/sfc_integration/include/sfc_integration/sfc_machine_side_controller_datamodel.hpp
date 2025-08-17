@@ -20,7 +20,7 @@ public:
      */
     struct inputs {
         /// Measured machine electrical frequency in per-unit
-        signal_input<frequency_t> machine_speed;
+        signal_input<speed_pu_t> machine_speed;
 
         /// Measured DC link current in Amperes
         signal_input<current_pu_t> dc_link_current;

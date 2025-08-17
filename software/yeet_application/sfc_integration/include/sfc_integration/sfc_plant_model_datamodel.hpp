@@ -73,6 +73,9 @@ public:
         /// Machine frequency (Hz)
         signal_output<frequency_t> machine_frequency;
 
+        /// Machine speed pu
+        signal_output<speed_pu_t> machine_speed;
+
         /// Grid frequency (Hz)
         signal_output<frequency_t> grid_frequency;
     };
