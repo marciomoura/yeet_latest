@@ -50,7 +50,7 @@ public:
      * All inputs required for the estimation must be passed in this call.
      * @param grid_voltage_pu The three-phase measured grid voltage [pu].
      */
-    void update(const abc<voltage_pu_t>& grid_voltage_pu, const control::six_pulse_generator::pulses& grid_side_pulses);
+    void update(const abc<voltage_pu_t>& grid_voltage_pu);
 
     /**
      * @brief Resets all internal states of the observer.
@@ -101,12 +101,8 @@ public:
      */
     bool is_locked() const { return _pll.is_locked(); }
 
-    bool is_masking() const { return _commutation_mask.is_masking(); }
-
 private:
     control::dual_sogi_srf_pll _pll;
-    sfc_commutation_monitor _commutation_monitor;
-    sfc_commutation_mask _commutation_mask;
 
     // Configuration
     frequency_t _nominal_frequency{};
@@ -117,7 +113,6 @@ private:
     frequency_pu_t _estimated_frequency_pu{};
     voltage_pu_t _estimated_voltage_magnitude{};
     alphabeta<voltage_pu_t> _filtered_voltage_alphabeta{};
-    bool _is_commuting{false};
 };
 
 }  // namespace yeet::application::sfc

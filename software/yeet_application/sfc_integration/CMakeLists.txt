@@ -6,6 +6,10 @@ add_library(yeet::yeet_application_sfc_integration ALIAS ${PROJECT_NAME})
 target_sources(
     ${PROJECT_NAME}
     PRIVATE
+        include/sfc_integration/plant_sensorless_current_control_closed_loop.hpp
+        include/sfc_integration/plant_simplified_current_control.hpp
+        include/sfc_integration/plant_simplified_open_loop.hpp
+        include/sfc_integration/plant_simplified_speed_control.hpp
         include/sfc_integration/sfc_current_controller_datamodel.hpp
         include/sfc_integration/sfc_current_controller_runner.hpp
         include/sfc_integration/sfc_dc_link_measurements_datamodel.hpp

@@ -1,9 +1,7 @@
 #pragma once
 
 #include "sfc_grid_side_pulse_generator_datamodel.hpp"
-#include "sfc_integration/sfc_grid_side_modulator_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
-#include "sfc_integration/sfc_machine_side_modulator_datamodel.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_machine_side_pulse_generator_datamodel.hpp"
@@ -16,14 +14,15 @@ namespace yeet::application::sfc::integration {
 
 // ==================== Closed-Loop Configuration ====================
 
-using sfc_simulator_builder_parameters = yeet::parameter_collection<sfc_grid_side_pulse_generator_datamodel::parameters,
-    sfc_machine_side_pulse_generator_datamodel::parameters>;
+using sfc_open_loop_simulation_parameters =
+    yeet::parameter_collection<sfc_grid_side_pulse_generator_datamodel::parameters,
+        sfc_machine_side_pulse_generator_datamodel::parameters>;
 
-class sfc_simulator_builder : public yeet::closed_loop_configuration<sfc_simulator_builder_parameters> {
+class sfc_open_loop_simulation_builder : public yeet::closed_loop_configuration<sfc_open_loop_simulation_parameters> {
 public:
-    using parameter_types = sfc_simulator_builder_parameters;
+    using parameter_types = sfc_open_loop_simulation_parameters;
 
-    sfc_simulator_builder() : plant{create_per_unit_system()}
+    sfc_open_loop_simulation_builder() : plant{create_per_unit_system()}
     {
         // Connect pulse generators to plant model
         connect_pulse_generators_to_plant();

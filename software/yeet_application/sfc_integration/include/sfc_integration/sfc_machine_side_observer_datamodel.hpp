@@ -23,10 +23,6 @@ public:
         /// Three-phase machine voltage measurements in per-unit (machine-side base)
         /// Range: [0.0, 1.5] pu (wide range for variable speed operation)
         yeet::signal_input<yeet::abc<yeet::voltage_pu_t>> machine_voltage_pu;
-
-        /// Machine-side converter firing pulses for commutation detection
-        /// Type: six thyristor gate signals (true = firing)
-        yeet::signal_input<yeet::control::six_pulse_generator::pulses> machine_side_pulses;
     };
 
     /**
@@ -52,9 +48,6 @@ public:
 
         /// Filtered machine voltage in alpha-beta stationary frame
         yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
-
-        /// Machine-side commutation detection status
-        yeet::signal_output<bool> is_commuting;
 
         /// Observer convergence status
         yeet::signal_output<bool> is_converged;

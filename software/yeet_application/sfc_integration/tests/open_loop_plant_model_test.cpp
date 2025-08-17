@@ -66,7 +66,7 @@ public:
         return parameters<sfc_grid_side_pulse_generator_datamodel::parameters>();
     }
 
-    yeet::application::sfc::integration::sfc_simulator_builder system;
+    yeet::application::sfc::integration::sfc_open_loop_simulation_builder system;
 
     yeet::simulator simulator = yeet::make_gtest_simulator();
 };

@@ -39,18 +39,12 @@ public:
     void configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency);
 
     /**
-     * @brief Configures the voltage threshold for commutation failure detection.
-     * @param threshold_pu The per-unit voltage threshold.
-     */
-    void configure_commutation_failure_threshold(voltage_pu_t threshold_pu);
-
-    /**
      * @brief Executes one update cycle of the grid observer.
      *
      * All inputs required for the estimation must be passed in this call.
      * @param grid_voltage_pu The three-phase measured grid voltage [pu].
      */
-    void update(const abc<voltage_pu_t>& grid_voltage_pu, const control::six_pulse_generator::pulses& grid_side_pulses);
+    void update(const abc<voltage_pu_t>& grid_voltage_pu);
 
     /**
      * @brief Resets all internal states of the observer.
@@ -89,20 +83,10 @@ public:
      */
     alphabeta<voltage_pu_t> get_filtered_voltage_alphabeta() const;
 
-    /**
-     * @brief Gets the status of the commutation detection logic.
-     * @return True if a commutation is currently detected in any of the thyristors, false otherwise.
-     */
-    bool is_commuting() const;
-
     bool is_locked() const { return _pll.is_locked(); }
-
-    bool is_masking() const { return _commutation_mask.is_masking(); }
 
 private:
     control::dual_sogi_srf_pll _pll;
-    sfc_commutation_monitor _commutation_monitor;
-    sfc_commutation_mask _commutation_mask;
 
     // Configuration
     frequency_t _nominal_frequency{};
@@ -113,7 +97,6 @@ private:
     frequency_pu_t _estimated_frequency_pu{};
     voltage_pu_t _estimated_voltage_magnitude{};
     alphabeta<voltage_pu_t> _filtered_voltage_alphabeta{};
-    bool _is_commuting{false};
 };
 
 }  // namespace yeet::application::sfc

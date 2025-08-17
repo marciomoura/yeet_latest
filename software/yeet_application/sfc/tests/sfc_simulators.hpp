@@ -192,13 +192,13 @@ public:
     void update_grid(
         const abc<voltage_pu_t>& grid_voltage_pu, const control::six_pulse_generator::pulses& grid_side_pulses)
     {
-        grid_side_observer.update(grid_voltage_pu, grid_side_pulses);
+        grid_side_observer.update(grid_voltage_pu);
     }
 
     void update_machine(
         const abc<voltage_pu_t>& machine_voltage_pu, const control::six_pulse_generator::pulses& machine_side_pulses)
     {
-        machine_side_observer.update(machine_voltage_pu, machine_side_pulses);
+        machine_side_observer.update(machine_voltage_pu);
     }
 
     sfc_grid_side_observer grid_side_observer;

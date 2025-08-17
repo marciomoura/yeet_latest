@@ -27,10 +27,6 @@ public:
         /// Three-phase grid voltage measurements in per-unit (grid-side base)
         /// Range: [0.8, 1.2] pu under normal operating conditions
         signal_input<abc<voltage_pu_t>> grid_voltage_pu;
-
-        /// Grid-side converter firing pulses for commutation detection
-        /// Type: six thyristor gate signals (true = firing)
-        signal_input<control::six_pulse_generator::pulses> grid_side_pulses;
     };
 
     /**
@@ -56,10 +52,6 @@ public:
         /// Filtered grid voltage in alpha-beta stationary frame
         /// Provides clean voltage signals for downstream control
         signal_output<alphabeta<voltage_pu_t>> filtered_voltage_alphabeta;
-
-        /// Commutation detection status
-        /// Indicates when grid-side converter commutation is occurring
-        signal_output<bool> is_commuting;
 
         /// PLL lock status indication
         /// Indicates whether PLL has achieved frequency lock
