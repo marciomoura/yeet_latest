@@ -33,7 +33,6 @@ public:
     struct inputs {
         signal_input<abc<voltage_t>> grid_voltage_measurements;
         signal_input<abc<current_t>> grid_current_measurements;
-
         signal_input<control::six_pulse_generator::pulses> grid_pulses;
         signal_input<frequency_t> grid_side_frequency;
         signal_input<angle_wrapped> grid_side_angle;

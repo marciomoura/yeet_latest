@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sfc_integration/testing_closed_loop_sfc.hpp"
+#include "sfc_integration/plant_simplified_open_loop.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
