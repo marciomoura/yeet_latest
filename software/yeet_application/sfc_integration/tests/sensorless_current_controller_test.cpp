@@ -227,3 +227,99 @@ TEST_F(SfcSensorlessCurrentControllerTest, TestCurrentRegulation)
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";
 }
+
+// Test regulation of DC-link current to a reference value
+TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStep)
+{
+    // ==================== Test Configuration ====================
+    grid_side_pulse_generator_parameters()->enable = false;
+    machine_side_pulse_generator_parameters()->enable = false;
+
+    simulator.simulate_for(1.0);
+
+    grid_side_pulse_generator_parameters()->enable = true;
+    machine_side_pulse_generator_parameters()->enable = true;
+
+    // ==================== Test Execution ====================
+    current_pu_t current_error_max_value{0.1f};
+    current_pu_t current_error_min_value{-0.1f};
+
+    system.current_reference_pu = current_pu_t(0.5);
+    simulator.register_checker(yeet::make_range_checker<current_pu_t>(
+        "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.0, 2.9}));
+    bool success = simulator.simulate_for(2.0);
+
+    system.plant.get_plant_model().set_machine_parameters(frequency_t{40.0}, voltage_t{1980.0});
+    // simulator.register_checker(yeet::make_range_checker<current_pu_t>(
+    //     "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
+    //     current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{3.2, 4.0}));
+    success &= simulator.simulate_for(1.0);
+
+    EXPECT_TRUE(success) << "Simulation did not complete successfully.";
+}
+
+// Test regulation of DC-link current to a reference value
+TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepLowFrequency)
+{
+    // ==================== Test Configuration ====================
+    grid_side_pulse_generator_parameters()->enable = false;
+    machine_side_pulse_generator_parameters()->enable = false;
+
+    simulator.simulate_for(1.0);
+
+    grid_side_pulse_generator_parameters()->enable = true;
+    machine_side_pulse_generator_parameters()->enable = true;
+
+    // ==================== Test Execution ====================
+    current_pu_t current_error_max_value{0.1f};
+    current_pu_t current_error_min_value{-0.1f};
+
+    system.current_reference_pu = current_pu_t(0.5);
+    simulator.register_checker(yeet::make_range_checker<current_pu_t>(
+        "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.0, 2.9}));
+    bool success = simulator.simulate_for(2.0);
+
+    system.plant.get_plant_model().set_machine_parameters(frequency_t{30.0}, voltage_t{1980.0});
+    // simulator.register_checker(yeet::make_range_checker<current_pu_t>(
+    //     "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
+    //     current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{3.2, 4.0}));
+    success &= simulator.simulate_for(1.0);
+
+    EXPECT_TRUE(success) << "Simulation did not complete successfully.";
+}
+
+// Test regulation of DC-link current to a reference value
+TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepHighFrequency)
+{
+    // ==================== Test Configuration ====================
+    grid_side_pulse_generator_parameters()->enable = false;
+    machine_side_pulse_generator_parameters()->enable = false;
+
+    simulator.simulate_for(1.0);
+
+    grid_side_pulse_generator_parameters()->enable = true;
+    machine_side_pulse_generator_parameters()->enable = true;
+
+    // ==================== Test Execution ====================
+    current_pu_t current_error_max_value{0.1f};
+    current_pu_t current_error_min_value{-0.1f};
+
+    system.current_reference_pu = current_pu_t(0.5);
+    simulator.register_checker(yeet::make_range_checker<current_pu_t>(
+        "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.0, 2.9}));
+    bool success = simulator.simulate_for(2.0);
+
+    system.plant.get_plant_model().set_machine_parameters(frequency_t{60.0}, voltage_t{1980.0});
+    // simulator.register_checker(yeet::make_range_checker<current_pu_t>(
+    //     "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
+    //     current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{3.2, 4.0}));
+    success &= simulator.simulate_for(1.0);
+
+    EXPECT_TRUE(success) << "Simulation did not complete successfully.";
+}
+
+// 1 - Checkers return the instance, so you can just run in between periods of time; user can just deactivate when it
+// wants 2 - State-machine setting the booleans 3 -

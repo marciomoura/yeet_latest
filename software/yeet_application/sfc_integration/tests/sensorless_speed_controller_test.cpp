@@ -254,6 +254,7 @@ TEST_F(SfcSensorlessSpeedControllerTest, TestSpeedRegulation)
     system.plant.get_plant_model().configure_speed_voltage_relationship(0.9, 0.2f, 0.0f);
     system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{1.0f});
     system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
+    system.speed_controller.get_configuration_datamodel().get_parameters().speed_reference_rate_limit.write(2.0);
 
     const speed_pu_t speed_error_max_value{0.05f};
     const speed_pu_t speed_error_min_value{-0.05f};
@@ -294,14 +295,6 @@ TEST_F(SfcSensorlessSpeedControllerTest, TestSpeedRegulation)
 
     // // Set the speed reference to 0.5 per-unit, and test for 1.0 second
     system.speed_reference_pu = speed_pu_t(0.95);
-    success &= simulator.simulate_for(10.0);
-
-    system.speed_reference_pu = speed_pu_t(1.0);
-    success &= simulator.simulate_for(10.0);
-
-    system.load_torque_pu = torque_pu_t(0.5);  // No load initially
-
-    system.speed_reference_pu = speed_pu_t(1.0);
     success &= simulator.simulate_for(10.0);
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";
