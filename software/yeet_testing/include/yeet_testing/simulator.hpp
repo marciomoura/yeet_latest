@@ -37,12 +37,15 @@ public:
         _runner.register_lambda_runner(sampling_time, std::move(lambda_runner));
     }
 
-    void register_checker(std::unique_ptr<simulator_checker> checker) { _checker.register_checker(std::move(checker)); }
+    std::shared_ptr<user_checker_deactivation> register_checker(std::unique_ptr<simulator_checker> checker)
+    {
+        return _checker.register_checker(std::move(checker));
+    }
 
     template <typename CheckerType>
-    void register_checker(CheckerType checker)
+    std::shared_ptr<user_checker_deactivation> register_checker(CheckerType checker)
     {
-        _checker.register_checker(std::move(checker));
+        return _checker.register_checker(std::move(checker));
     }
 
     void register_sampler_entry(data_sampler_entry entry)

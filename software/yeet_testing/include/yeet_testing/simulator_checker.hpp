@@ -3,9 +3,31 @@
 
 #include <functional>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 
 namespace yeet {
+
+class user_checker_deactivation {
+public:
+    user_checker_deactivation() = default;
+
+    /**
+     * @brief Deactivate the checker
+     *
+     * This method allows the user to deactivate the checker, preventing it from running checks.
+     */
+    void deactivate() { _deactivated = true; }
+
+    /**
+     * @brief Check if the checker is deactivated
+     * @return true if the checker is deactivated, false otherwise
+     */
+    bool is_deactivated() const { return _deactivated; }
+
+private:
+    bool _deactivated{false};
+};
 
 /**
  * @brief Base class for all simulation checkers
@@ -39,15 +61,28 @@ public:
 
     bool is_active(double current_time) const
     {
+        // Check if the checker is deactivated by the user
+        if (_user_deactivation->is_deactivated()) {
+            return false;
+        }
+
+        // If both start and end times are negative, the checker is always active
+        if (_start_time < 0.0 && _end_time < 0.0) {
+            return true;
+        }
+
         return current_time >= _start_time && (_end_time < 0.0 || current_time < _end_time);
     }
 
     const std::string& get_name() const { return _name; }
 
+    std::shared_ptr<user_checker_deactivation> get_user_deactivation_control() { return _user_deactivation; }
+
 protected:
     std::string _name;
     double _start_time;
     double _end_time;
+    std::shared_ptr<user_checker_deactivation> _user_deactivation{std::make_shared<user_checker_deactivation>()};
 };
 
 /**
@@ -336,6 +371,21 @@ struct checker_activation_exact_time {
 };
 
 /**
+ * @brief Activation configuration for always-active checking
+ *
+ * Specifies that a checker should always be active (unless manually deactivated).
+ * The checker will run indefinitely and can only be controlled via user_checker_deactivation.
+ *
+ * Example:
+ * @code
+ * checker_activation_always always{};  // Always active
+ * @endcode
+ */
+struct checker_activation_always {
+    checker_activation_always() = default;
+};
+
+/**
  * @brief Template class combining checker types with activation timing
  *
  * Provides a unified interface for all checker types with time-based activation.
@@ -376,6 +426,17 @@ public:
         : simulator_checker(std::move(name),
               activation.time - activation.sampling_time / 2.0,
               activation.time + activation.sampling_time / 2.0),
+          _value_fn(std::move(value_fn)),
+          _checker(std::move(checker))
+    {
+    }
+
+    // Constructor for always active
+    checker_type_templated(std::string name,
+        std::function<value_type()> value_fn,
+        CheckerType checker,
+        checker_activation_always activation)
+        : simulator_checker(std::move(name), -1.0, -1.0),  // Both negative means always active
           _value_fn(std::move(value_fn)),
           _checker(std::move(checker))
     {
@@ -480,6 +541,75 @@ auto make_max_checker(
 {
     checker_type_max<T> checker{max_value};
     return checker_type_templated<checker_type_max<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+// Helper functions for creating checkers with different types - Always active version
+template <typename T>
+auto make_range_checker(
+    std::string name, std::function<T()> value_fn, T min_value, T max_value, checker_activation_always activation)
+{
+    checker_type_range<T> checker{min_value, max_value};
+    return checker_type_templated<checker_type_range<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+template <typename T>
+auto make_equal_checker(
+    std::string name, std::function<T()> value_fn, T expected_value, checker_activation_always activation)
+{
+    checker_type_equal<T> checker{expected_value};
+    return checker_type_templated<checker_type_equal<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+template <typename T>
+auto make_min_checker(std::string name, std::function<T()> value_fn, T min_value, checker_activation_always activation)
+{
+    checker_type_min<T> checker{min_value};
+    return checker_type_templated<checker_type_min<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+template <typename T>
+auto make_max_checker(std::string name, std::function<T()> value_fn, T max_value, checker_activation_always activation)
+{
+    checker_type_max<T> checker{max_value};
+    return checker_type_templated<checker_type_max<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+// Near checker overloads
+template <typename T>
+auto make_near_checker(std::string name,
+    std::function<T()> value_fn,
+    T expected_value,
+    T tolerance,
+    checker_activation_time_range activation)
+{
+    checker_type_near<T> checker{expected_value, tolerance};
+    return checker_type_templated<checker_type_near<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+template <typename T>
+auto make_near_checker(std::string name,
+    std::function<T()> value_fn,
+    T expected_value,
+    T tolerance,
+    checker_activation_exact_time activation)
+{
+    checker_type_near<T> checker{expected_value, tolerance};
+    return checker_type_templated<checker_type_near<T>>(
+        std::move(name), std::move(value_fn), std::move(checker), activation);
+}
+
+template <typename T>
+auto make_near_checker(
+    std::string name, std::function<T()> value_fn, T expected_value, T tolerance, checker_activation_always activation)
+{
+    checker_type_near<T> checker{expected_value, tolerance};
+    return checker_type_templated<checker_type_near<T>>(
         std::move(name), std::move(value_fn), std::move(checker), activation);
 }
 
