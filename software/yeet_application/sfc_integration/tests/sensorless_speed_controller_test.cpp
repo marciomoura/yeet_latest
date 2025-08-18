@@ -259,15 +259,12 @@ TEST_F(SfcSensorlessSpeedControllerTest, TestSpeedRegulation)
     const speed_pu_t speed_error_max_value{0.05f};
     const speed_pu_t speed_error_min_value{-0.05f};
 
-    // Check speed error during steady state before disturbance
-    simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed error pre disturbance", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
-        speed_error_max_value, yeet::checker_activation_time_range{4.0, 8.0}));
-
     // Check speed error after disturbance
-    simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed error after disturbance", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
-        speed_error_max_value, yeet::checker_activation_time_range{15.0}));
+    auto user_activation = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "speed error", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
+        speed_error_max_value, yeet::checker_activation_always{}));
+
+    user_activation->deactivate();  // Deactivate initially to avoid false positives
 
     // ==================== Test Configuration ====================
     grid_side_pulse_generator_parameters()->enable = false;
@@ -291,11 +288,19 @@ TEST_F(SfcSensorlessSpeedControllerTest, TestSpeedRegulation)
 
     // Simulate until system can stabilize
     system.speed_reference_pu = speed_pu_t(1.0);
-    bool success = simulator.simulate_for(10.0);
+    bool success = simulator.simulate_for(5.0);
+
+    user_activation->activate();
+    success &= simulator.simulate_for(5.0);
+    user_activation->deactivate();
 
     // // Set the speed reference to 0.5 per-unit, and test for 1.0 second
     system.speed_reference_pu = speed_pu_t(0.95);
-    success &= simulator.simulate_for(10.0);
+    success &= simulator.simulate_for(5.0);
+
+    user_activation->activate();
+    success &= simulator.simulate_for(5.0);
+    user_activation->deactivate();
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";
 }

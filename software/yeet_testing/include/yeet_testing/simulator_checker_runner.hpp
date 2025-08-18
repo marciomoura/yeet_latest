@@ -11,11 +11,11 @@ namespace yeet {
 
 class simulator_checker_runner {
 public:
-    std::shared_ptr<user_checker_deactivation> register_checker(std::unique_ptr<simulator_checker> checker)
+    std::shared_ptr<checker_user_activation> register_checker(std::unique_ptr<simulator_checker> checker)
     {
         assert(checker != nullptr);
 
-        std::shared_ptr<user_checker_deactivation> user_deactivation_control = checker->get_user_deactivation_control();
+        std::shared_ptr<checker_user_activation> user_deactivation_control = checker->get_user_deactivation_control();
         assert(user_deactivation_control != nullptr && "Checker must provide user deactivation control");
 
         _checkers.push_back(std::move(checker));
@@ -24,7 +24,7 @@ public:
     }
 
     template <typename CheckerType>
-    std::shared_ptr<user_checker_deactivation> register_checker(CheckerType checker)
+    std::shared_ptr<checker_user_activation> register_checker(CheckerType checker)
     {
         return register_checker(make_unique_checker(std::move(checker)));
     }

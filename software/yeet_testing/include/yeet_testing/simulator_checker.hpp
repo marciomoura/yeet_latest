@@ -8,25 +8,32 @@
 
 namespace yeet {
 
-class user_checker_deactivation {
+class checker_user_activation {
 public:
-    user_checker_deactivation() = default;
+    checker_user_activation() = default;
 
     /**
      * @brief Deactivate the checker
      *
      * This method allows the user to deactivate the checker, preventing it from running checks.
      */
-    void deactivate() { _deactivated = true; }
+    void deactivate() { _user_activated = false; }
+
+    /**
+     * @brief Activate the checker
+     *
+     * This method allows the user to reactivate the checker, enabling it to run checks again.
+     */
+    void activate() { _user_activated = true; }
 
     /**
      * @brief Check if the checker is deactivated
      * @return true if the checker is deactivated, false otherwise
      */
-    bool is_deactivated() const { return _deactivated; }
+    bool is_deactivated() const { return !_user_activated; }
 
 private:
-    bool _deactivated{false};
+    bool _user_activated{false};
 };
 
 /**
@@ -76,13 +83,13 @@ public:
 
     const std::string& get_name() const { return _name; }
 
-    std::shared_ptr<user_checker_deactivation> get_user_deactivation_control() { return _user_deactivation; }
+    std::shared_ptr<checker_user_activation> get_user_deactivation_control() { return _user_deactivation; }
 
 protected:
     std::string _name;
     double _start_time;
     double _end_time;
-    std::shared_ptr<user_checker_deactivation> _user_deactivation{std::make_shared<user_checker_deactivation>()};
+    std::shared_ptr<checker_user_activation> _user_deactivation{std::make_shared<checker_user_activation>()};
 };
 
 /**
@@ -374,7 +381,7 @@ struct checker_activation_exact_time {
  * @brief Activation configuration for always-active checking
  *
  * Specifies that a checker should always be active (unless manually deactivated).
- * The checker will run indefinitely and can only be controlled via user_checker_deactivation.
+ * The checker will run indefinitely and can only be controlled via checker_user_activation.
  *
  * Example:
  * @code
