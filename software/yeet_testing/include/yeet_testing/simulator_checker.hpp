@@ -33,7 +33,7 @@ public:
     bool is_deactivated() const { return !_user_activated; }
 
 private:
-    bool _user_activated{false};
+    bool _user_activated{true};  // Default to activated (not deactivated)
 };
 
 /**
