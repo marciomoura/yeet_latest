@@ -12,7 +12,8 @@ target_sources(
             sensorless_current_controller_test.cpp
             sensorless_speed_controller_test.cpp
             simplified_current_controller_test.cpp
-            simplified_speed_controller_test.cpp)
+            simplified_speed_controller_test.cpp
+            sfc_state_machine_runner_test.cpp)
 
 target_link_libraries(
     ${PROJECT_NAME}

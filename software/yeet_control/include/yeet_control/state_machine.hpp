@@ -58,7 +58,8 @@ public:
      * @brief Constructor with initial state
      * @param initial_state Pointer to the initial state
      */
-    explicit state_machine(state_type* initial_state) noexcept : _current_state(initial_state), _previous_state(nullptr)
+    explicit state_machine(state_type* initial_state) noexcept
+        : _current_state(initial_state), _previous_state(nullptr), _has_transitioned_this_cycle(false)
     {
     }
     /**
@@ -67,6 +68,9 @@ public:
      */
     void update(const InputType& inputs) noexcept
     {
+        // Reset transition flag at start of each update cycle
+        _has_transitioned_this_cycle = false;
+
         if (_current_state == nullptr) return;
 
         // Execute current state logic and check for transition
@@ -78,6 +82,7 @@ public:
             _previous_state = _current_state;
             _current_state = next_state;
             _current_state->on_entry();
+            _has_transitioned_this_cycle = true;
         }
 
         // Update outputs from current state
@@ -97,6 +102,7 @@ public:
         }
         _current_state = reset_state;
         _previous_state = nullptr;
+        _has_transitioned_this_cycle = false;
         if (_current_state != nullptr) {
             _current_state->on_entry();
             _outputs = _current_state->get_outputs();
@@ -119,7 +125,7 @@ public:
      * @brief Check if a state transition occurred in last update
      * @return True if state changed in last update cycle
      */
-    bool has_transitioned() const noexcept { return _previous_state != _current_state; }
+    bool has_transitioned() const noexcept { return _has_transitioned_this_cycle; }
 
     /**
      * @brief Get pointer to current state (for advanced usage)
@@ -131,6 +137,7 @@ private:
     state_type* _current_state{nullptr};
     state_type* _previous_state{nullptr};
     OutputType _outputs{};
+    bool _has_transitioned_this_cycle{false};
 };
 
 }  // namespace yeet_control

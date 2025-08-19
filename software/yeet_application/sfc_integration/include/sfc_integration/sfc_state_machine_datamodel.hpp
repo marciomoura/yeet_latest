@@ -1,0 +1,113 @@
+#pragma once
+
+#include "sfc/sfc_state_machine.hpp"
+#include "yeet/model_registry.hpp"
+#include "yeet/parameter.hpp"
+#include "yeet/signal.hpp"
+#include "yeet_control/units.hpp"
+
+/**
+ * @file sfc_state_machine_datamodel.hpp
+ * @brief Datamodel specification for SFC State Machine component
+ */
+
+namespace yeet::application::sfc::integration {
+
+class sfc_state_machine_datamodel {
+public:
+    /**
+     * @brief Input signals for the state machine component
+     */
+    struct inputs {
+        /// Auxiliaries power systems are operational
+        signal_input<bool> auxiliaries_are_on;
+
+        /// Main circuit breakers are closed and energized
+        signal_input<bool> breakers_are_on;
+
+        /// Start command from operator or control system
+        signal_input<bool> start_command;
+
+        /// Stop command from operator or control system
+        signal_input<bool> stop_command;
+
+        /// Emergency shutdown request signal
+        signal_input<bool> shutdown_request;
+
+        /// Current has been extinguished (safe for breaker operations)
+        signal_input<bool> is_current_extinguished;
+    };
+
+    /**
+     * @brief Output signals from the state machine component
+     */
+    struct outputs {
+        /// Enable firing pulse generation for converter operation
+        /// True when system is ready for active converter operation
+        signal_output<bool> pulse_releases;
+
+        /// Current state identifier for monitoring and diagnostics
+        /// Indicates which operational state the SFC system is currently in
+        signal_output<sfc::sfc_state_id> current_state_id;
+
+        /// State transition flag
+        /// True when a state transition occurred in the last update cycle
+        signal_output<bool> has_transitioned;
+
+        /// Individual state status flags for detailed monitoring
+        signal_output<bool> is_idle;
+        signal_output<bool> is_auxiliaries_on;
+        signal_output<bool> is_breakers_off;
+        signal_output<bool> is_breakers_on;
+        signal_output<bool> is_operation_off;
+        signal_output<bool> is_operation_on;
+        signal_output<bool> is_shutdown_requested;
+    };
+
+    /**
+     * @brief Configuration parameters for the state machine
+     */
+    struct parameters {};
+
+private:
+    inputs* _model_inputs;
+    outputs* _model_outputs;
+    parameters* _model_parameters;
+
+public:
+    sfc_state_machine_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
+        assert(_model_inputs != nullptr);
+        assert(_model_outputs != nullptr);
+        assert(_model_parameters != nullptr);
+    }
+
+    void register_data_model(model_registry& registry)
+    {
+        // Implementation would register all signals and parameters with the system registry
+        // Currently commented out to match the pattern from speed controller datamodel
+
+        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        // // Register outputs in signal registry
+        // entry.signal_registry.insert("pulse_releases", _model_outputs->pulse_releases);
+        // entry.signal_registry.insert("current_state_id", _model_outputs->current_state_id);
+        // entry.signal_registry.insert("has_transitioned", _model_outputs->has_transitioned);
+        // entry.signal_registry.insert("is_idle", _model_outputs->is_idle);
+        // entry.signal_registry.insert("is_auxiliaries_on", _model_outputs->is_auxiliaries_on);
+        // entry.signal_registry.insert("is_breakers_off", _model_outputs->is_breakers_off);
+        // entry.signal_registry.insert("is_breakers_on", _model_outputs->is_breakers_on);
+        // entry.signal_registry.insert("is_operation_off", _model_outputs->is_operation_off);
+        // entry.signal_registry.insert("is_operation_on", _model_outputs->is_operation_on);
+        // entry.signal_registry.insert("is_shutdown_requested", _model_outputs->is_shutdown_requested);
+
+        // registry.insert("sfc_state_machine", std::move(entry));
+    }
+
+    inputs* get_inputs() { return _model_inputs; }
+    outputs* get_outputs() { return _model_outputs; }
+    parameters* get_parameters() { return _model_parameters; }
+};
+
+}  // namespace yeet::application::sfc::integration

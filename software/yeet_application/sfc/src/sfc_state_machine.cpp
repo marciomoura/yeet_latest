@@ -170,6 +170,10 @@ sfc_state_type* operation_on_state::update(const sfc_state_inputs& inputs) noexc
         return _shutdown_requested_state;
     }
 
+    if (inputs.shutdown_request.is_true()) {
+        return _shutdown_requested_state;
+    }
+
     if (!inputs.start_command.is_true()) {
         return _shutdown_requested_state;
     }
