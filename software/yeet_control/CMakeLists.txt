@@ -31,6 +31,7 @@ target_sources(
            include/yeet_control/six_pulse_generator.hpp
            include/yeet_control/sogi_filter_sequence_extractor.hpp
            include/yeet_control/sogi_filter.hpp
+           include/yeet_control/state_machine.hpp
            include/yeet_control/three_phase_pll.hpp
            include/yeet_control/three_phase_waveform_generator.hpp
            include/yeet_control/type_traits.hpp

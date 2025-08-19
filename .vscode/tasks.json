@@ -76,6 +76,234 @@
             "detail": "Runs the yeet_application_mpc integration tests"
         },
         {
+            "label": "yeet_application_sfc_integration_tests",
+            "type": "shell",
+            "command": "./yeet_application_sfc_integration_tests.exe",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/bin/"
+            },
+            "problemMatcher": [],
+            "detail": "Runs the yeet_application_sfc_integration unit tests"
+        },
+        {
+            "label": "yeet_testing_tests",
+            "type": "shell",
+            "command": "./yeet_testing_tests.exe",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/build/bin/"
+            },
+            "problemMatcher": [],
+            "detail": "Runs the yeet_testing unit tests"
+        },
+        {
+            "label": "Build All Tests",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "yeet_test",
+                "yeet_control_tests",
+                "yeet_application_sfc_tests",
+                "yeet_application_sfc_integration_tests",
+                "yeet_testing_tests"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds all test executables"
+        },
+        {
+            "label": "Build SFC Library",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "yeet_application_sfc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds the yeet_application_sfc library"
+        },
+        {
+            "label": "Build SFC Integration Library",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "yeet_application_sfc_integration"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds the yeet_application_sfc_integration library"
+        },
+        {
+            "label": "Build Yeet Control Library",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "yeet_control"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds the yeet_control library"
+        },
+        {
+            "label": "Build Core Yeet Library",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "yeet"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds the core yeet library"
+        },
+        {
+            "label": "Build All Libraries",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "yeet",
+                "yeet_control",
+                "yeet_application_sfc",
+                "yeet_application_sfc_integration",
+                "yeet_testing"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds all core libraries"
+        },
+        {
+            "label": "Run All Tests",
+            "type": "shell",
+            "command": "ctest",
+            "args": [
+                "--test-dir",
+                "build",
+                "--output-on-failure",
+                "--verbose"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Runs all tests using CTest"
+        },
+        {
+            "label": "Run SFC Tests Only",
+            "type": "shell",
+            "command": "ctest",
+            "args": [
+                "--test-dir",
+                "build",
+                "--output-on-failure",
+                "-R",
+                "sfc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Runs only SFC-related tests using CTest"
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build",
+                "clean"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Cleans the build directory"
+        },
+        {
+            "label": "Full Build (All Targets)",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds all targets in the project"
+        },
+        {
             "label": "Yeet plotting (dec=10)",
             "type": "shell",
             "command": "python.exe",

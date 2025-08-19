@@ -26,6 +26,7 @@ target_sources(
            include/sfc/sfc_per_unit_system.hpp
            include/sfc/sfc_speed_controller.hpp
            include/sfc/sfc_types.hpp
+           include/sfc/sfc_state_machine.hpp
            include/sfc/sfc_plant_model_augmented_6p_6p.hpp
            include/sfc/sfc_plant_model_6p_6p.hpp
            include/sfc/sfc_plant_model_parameters.hpp
@@ -45,6 +46,7 @@ target_sources(
             src/sfc_mode_detector.cpp
             src/sfc_per_unit_system.cpp
             src/sfc_speed_controller.cpp
+            src/sfc_state_machine.cpp
             src/sfc_plant_model_augmented_6p_6p.cpp
             src/sfc_plant_model_6p_6p.cpp)
 
