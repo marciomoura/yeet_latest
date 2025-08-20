@@ -14,21 +14,15 @@ void sfc_current_controller_runner::initialize()
 
 void sfc_current_controller_runner::run()
 {
+    _sfc_current_controller.freeze_integrator(_inputs.freeze_integrator.read());
     _sfc_current_controller.update(_inputs.current_reference_pu, _inputs.dc_link_current_measured_pu,
         _inputs.ideal_dc_voltage_pu, _inputs.inverter_back_emf_machine_pu);
 
     // Convert angle_t to angle_wrapped
     angle_t firing_angle_rad = _sfc_current_controller.get_firing_angle_reference_radians();
-    _outputs.firing_angle_reference = angle_wrapped::from_radians(angle_t{firing_angle_rad});
+    _outputs.firing_angle_reference = angle_wrapped::from_radians(firing_angle_rad);
 
-    // Calculate current error
-    current_pu_t current_ref = _inputs.current_reference_pu;
-    current_pu_t current_meas = _inputs.dc_link_current_measured_pu;
-    _outputs.current_error = current_pu_t(current_ref.value() - current_meas.value());
-
-    _outputs.pi_output = angle_wrapped::from_radians(angle_t{firing_angle_rad});
-    _outputs.is_saturated = false;  // This should be implemented in the controller
-    _outputs.is_active = true;      // Assume always active for now
+    _outputs.current_error = _inputs.current_reference_pu.read() - _inputs.dc_link_current_measured_pu.read();
 }
 
 void sfc_current_controller_runner::stop() { _sfc_current_controller.reset(); }

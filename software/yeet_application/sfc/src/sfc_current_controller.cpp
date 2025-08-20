@@ -42,6 +42,8 @@ void sfc_current_controller::enable_current_reference_slew_rate(bool enable)
     _rate_of_change_limiter.configure_enable(enable);
 }
 
+void sfc_current_controller::freeze_integrator(bool status) { _pi_controller.enable_integrator(!status); }
+
 void sfc_current_controller::configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle)
 {
     _grid_firing_angle_min_radians = min_angle;

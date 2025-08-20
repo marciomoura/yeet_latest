@@ -122,4 +122,6 @@ void sfc_speed_controller::reset(speed_pu_t initial_speed_pu)
     _torque_ref_unclamped = torque_pu_t{0.0};
 }
 
+void sfc_speed_controller::freeze_integrator(bool status) { _pi_controller.enable_integrator(!status); }
+
 }  // namespace yeet::application::sfc

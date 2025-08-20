@@ -21,6 +21,7 @@ void sfc_speed_controller_runner::run()
         _sfc_speed_controller.reset(_inputs.measured_speed_pu);
     }
     else {
+        _sfc_speed_controller.freeze_integrator(_inputs.freeze_integrator.read());
         _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
     }
 

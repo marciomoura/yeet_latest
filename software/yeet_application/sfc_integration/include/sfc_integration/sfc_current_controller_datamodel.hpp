@@ -34,6 +34,8 @@ public:
         /// Estimated inverter back-EMF
         /// Range: [0.0, 1.2] pu
         signal_input<voltage_pu_t> inverter_back_emf_machine_pu;
+
+        signal_input<bool> freeze_integrator;
     };
 
     /**

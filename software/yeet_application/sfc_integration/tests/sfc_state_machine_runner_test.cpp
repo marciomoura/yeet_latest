@@ -206,7 +206,7 @@ TEST_F(SfcStateMachineRunnerTest, OperationOnToShutdownRequested)
     // Issue stop command -> should transition to SHUTDOWN_REQUESTED
     set_stop_command(true);
     run_cycle();
-    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, false);
+    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, true);
     verify_transition_occurred();
 }
 
@@ -227,7 +227,7 @@ TEST_F(SfcStateMachineRunnerTest, ShutdownRequestedToOperationOff)
 
     set_stop_command(true);
     run_cycle();  // OPERATION_ON -> SHUTDOWN_REQUESTED
-    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, false);
+    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, true);
 
     // Signal current extinguished and remove stop command
     set_current_extinguished(true);
@@ -292,7 +292,7 @@ TEST_F(SfcStateMachineRunnerTest, CompleteShutdownSequence)
     // 1. Request shutdown
     set_stop_command(true);
     run_cycle();
-    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, false);
+    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, true);
 
     // 2. Current extinguished
     set_current_extinguished(true);

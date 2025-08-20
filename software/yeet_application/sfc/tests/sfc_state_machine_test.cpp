@@ -166,7 +166,7 @@ TEST_F(SfcStateMachineTest, OperationOnToShutdownRequested)
     inputs = create_default_inputs();
     state_machine.update(inputs);
 
-    expected.pulse_releases = false;
+    expected.pulse_releases = true;
     verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
     EXPECT_TRUE(state_machine.has_transitioned());
 }
@@ -197,7 +197,7 @@ TEST_F(SfcStateMachineTest, ShutdownRequestedToOperationOff)
     inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
-    expected.pulse_releases = false;
+    expected.pulse_releases = true;
     verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
 
     // Then transition back to OPERATION_OFF when current is extinguished
@@ -272,11 +272,12 @@ TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
     stop = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);
-    expected.pulse_releases = false;
+    expected.pulse_releases = true;
     verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
 
     // 2. Current extinguished
     current_extinguished = true;
+    expected.pulse_releases = false;
     stop = false;  // Remove stop command
     inputs = create_default_inputs();
     state_machine.update(inputs);
@@ -297,6 +298,7 @@ TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
     auxiliaries_on = false;
     inputs = create_default_inputs();
     state_machine.update(inputs);  // BREAKERS_OFF -> IDLE
+    state_machine.update(inputs);  // AUXILIARIES_ON -> IDLE
     verify_state(sfc_state_id::IDLE, expected);
 }
 

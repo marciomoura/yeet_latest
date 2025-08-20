@@ -95,6 +95,12 @@ public:
      */
     void reset(speed_pu_t initial_speed_pu = speed_pu_t{0.0});
 
+    /**
+     * @brief Enables or disables the integrator state.
+     * @param status True to enable, false to disable.
+     */
+    void freeze_integrator(bool status);
+
 private:
     const duration_t _sampling_time;
 

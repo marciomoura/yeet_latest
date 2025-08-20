@@ -8,7 +8,8 @@ enable_testing()
 
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE open_loop_plant_model_test.cpp
+    PRIVATE complete_sensorless_speed_controller_test.cpp
+            open_loop_plant_model_test.cpp
             sensorless_current_controller_test.cpp
             sensorless_speed_controller_test.cpp
             simplified_current_controller_test.cpp

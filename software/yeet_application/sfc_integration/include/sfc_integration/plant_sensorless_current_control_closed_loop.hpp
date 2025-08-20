@@ -13,6 +13,7 @@
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_machine_side_pulse_generator_datamodel.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet/signal.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
@@ -63,6 +64,19 @@ public:
     {
         // Connect all components with observer-based feedback
         connect_all_components();
+        mock_inputs();
+    }
+
+    void mock_inputs()
+    {
+        yeet::mock_signal_input::write(
+            current_controller.get_signal_flow_datamodel().get_inputs().freeze_integrator, false);
+
+        // Mock pulse release signals for both pulse generators
+        yeet::mock_signal_input::write(
+            grid_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
+        yeet::mock_signal_input::write(
+            machine_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
     }
 
     void initialize()

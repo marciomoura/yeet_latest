@@ -27,8 +27,7 @@ public:
         /// Measured machine speed in per-unit (machine base)
         signal_input<speed_pu_t> measured_speed_pu;
 
-        /// Measured DC link current for anti-windup logic
-        // signal_input<current_pu_t> measured_current_pu;
+        signal_input<bool> freeze_integrator;
     };
 
     /**

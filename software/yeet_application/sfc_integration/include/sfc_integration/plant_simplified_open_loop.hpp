@@ -26,6 +26,16 @@ public:
     {
         // Connect pulse generators to plant model
         connect_pulse_generators_to_plant();
+        mock_inputs();
+    }
+
+    void mock_inputs()
+    {
+        // Mock pulse release signals for both pulse generators
+        yeet::mock_signal_input::write(
+            grid_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
+        yeet::mock_signal_input::write(
+            machine_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
     }
 
     void initialize()

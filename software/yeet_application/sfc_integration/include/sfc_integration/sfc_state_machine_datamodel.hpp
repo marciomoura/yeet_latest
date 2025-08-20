@@ -45,6 +45,7 @@ public:
         /// Enable firing pulse generation for converter operation
         /// True when system is ready for active converter operation
         signal_output<bool> pulse_releases;
+        signal_output<bool> freeze_integrator;
 
         /// Current state identifier for monitoring and diagnostics
         /// Indicates which operational state the SFC system is currently in

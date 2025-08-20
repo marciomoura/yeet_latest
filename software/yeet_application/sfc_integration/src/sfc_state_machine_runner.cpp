@@ -24,6 +24,7 @@ void sfc_state_machine_runner::run()
     _outputs.pulse_releases = state_outputs.pulse_releases;
     _outputs.current_state_id = current_state;
     _outputs.has_transitioned = _sfc_state_machine.has_transitioned();
+    _outputs.freeze_integrator = state_outputs.freeze_integrator;
 
     // Individual state status flags for detailed monitoring
     _outputs.is_idle = (current_state == sfc::sfc_state_id::IDLE);

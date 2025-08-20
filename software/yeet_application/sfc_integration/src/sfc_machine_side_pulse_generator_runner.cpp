@@ -12,10 +12,12 @@ void sfc_machine_side_pulse_generator_runner::initialize()
 
 void sfc_machine_side_pulse_generator_runner::run()
 {
+    _inputs.release_pulses.read();
+
     // Get inputs
     const angle_wrapped reference_angle = _inputs.reference_angle.read();
     const angle_wrapped firing_angle_command = _inputs.firing_angle.read();
-    const bool enable = _parameters.enable.read();
+    const bool enable = _parameters.enable.read() && _inputs.release_pulses.read();
 
     // Generate pulses using the six-pulse generator
     control::six_pulse_generator::pulses pulses =

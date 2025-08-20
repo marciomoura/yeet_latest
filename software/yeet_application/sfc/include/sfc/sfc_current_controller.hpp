@@ -55,6 +55,12 @@ public:
     void configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle);
 
     /**
+     * @brief Freezes the integrator state.
+     * @param status True to freeze, false to unfreeze.
+     */
+    void freeze_integrator(bool status);
+
+    /**
      * @brief Resets all internal states of the controller.
      */
     void reset();

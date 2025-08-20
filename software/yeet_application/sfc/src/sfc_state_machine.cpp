@@ -67,6 +67,7 @@ sfc_state_outputs auxiliaries_on_state::get_outputs() const noexcept
     sfc_state_outputs outputs{};
 
     outputs.pulse_releases = false;
+    outputs.freeze_integrator = true;
 
     return outputs;
 }
@@ -91,6 +92,7 @@ sfc_state_outputs breakers_off_state::get_outputs() const noexcept
     sfc_state_outputs outputs{};
 
     outputs.pulse_releases = false;
+    outputs.freeze_integrator = true;
 
     return outputs;
 }
@@ -119,6 +121,7 @@ sfc_state_outputs breakers_on_state::get_outputs() const noexcept
     sfc_state_outputs outputs{};
 
     outputs.pulse_releases = false;
+    outputs.freeze_integrator = true;
 
     return outputs;
 }
@@ -151,6 +154,8 @@ sfc_state_outputs operation_off_state::get_outputs() const noexcept
     sfc_state_outputs outputs{};
 
     outputs.pulse_releases = false;
+    outputs.freeze_integrator = true;
+
     return outputs;
 }
 
@@ -184,7 +189,10 @@ sfc_state_type* operation_on_state::update(const sfc_state_inputs& inputs) noexc
 sfc_state_outputs operation_on_state::get_outputs() const noexcept
 {
     sfc_state_outputs outputs{};
+
     outputs.pulse_releases = true;  // Enable pulse generation in OPERATION_ON
+    outputs.freeze_integrator = false;
+
     return outputs;
 }
 
@@ -202,7 +210,10 @@ sfc_state_type* shutdown_requested_state::update(const sfc_state_inputs& inputs)
 sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
 {
     sfc_state_outputs outputs{};
-    outputs.pulse_releases = false;  // Keep pulses active for controlled shutdown
+
+    outputs.pulse_releases = true;      // Keep pulses active for controlled shutdown
+    outputs.freeze_integrator = false;  // Do not freeze integrator during shutdown
+
     return outputs;
 }
 

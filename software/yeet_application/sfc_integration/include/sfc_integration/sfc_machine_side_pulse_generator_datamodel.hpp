@@ -26,6 +26,8 @@ public:
         /// Firing angle command (alpha) in radians
         /// Range: [0.0, π] radians
         signal_input<angle_wrapped> firing_angle;
+
+        signal_input<bool> release_pulses;
     };
 
     /**
