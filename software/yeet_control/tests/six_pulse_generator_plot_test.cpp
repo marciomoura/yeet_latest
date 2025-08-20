@@ -36,10 +36,13 @@ public:
             // Get the phase A angle as reference (synchronized with grid)
             angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
-            // Update six-pulse generator with different firing delays
+            // Update six-pulse generator. Note: The second update determines the logged sector state.
             _pulses_no_delay = _six_pulse_gen.update(reference_angle, angle_wrapped(0.0), true);
             _pulses_with_delay =
                 _six_pulse_gen.update(reference_angle, angle_wrapped(deg_to_rad(firing_delay_deg)), true);
+
+            // Store current sector information for plotting
+            _current_sector = _six_pulse_gen.get_sector();
 
             // Store current reference angle and three-phase voltages for plotting
             _current_reference_angle = reference_angle;
@@ -54,7 +57,7 @@ private:
     {
         // Log reference angle in degrees
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "reference_angle_deg", [&]() -> double { return _current_reference_angle.get_pu(); }));
+            "reference_angle_deg", [&]() -> double { return _current_reference_angle.get_degrees(); }));
 
         // Log three-phase reference voltages
         _simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<double>>(
@@ -97,6 +100,10 @@ private:
 
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "pulse_p6_with_delay", [&]() -> double { return _pulses_with_delay.p6 ? 1.0 : 0.0; }));
+
+        // Log sector information
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "sector", [&]() -> double { return static_cast<double>(_current_sector) / 6.0; }));
     }
 
     yeet::simulator _simulator = yeet::make_gtest_simulator();
@@ -109,6 +116,7 @@ private:
     abc<double> _current_three_phase_voltages{0.0, 0.0, 0.0};
     six_pulse_generator::pulses _pulses_no_delay{};
     six_pulse_generator::pulses _pulses_with_delay{};
+    int _current_sector{0};
 };
 
 TEST_F(SixPulseGeneratorPlotTest, SixPulseGeneratorBehaviorComparison)

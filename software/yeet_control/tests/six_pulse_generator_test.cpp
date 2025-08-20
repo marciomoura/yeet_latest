@@ -194,3 +194,81 @@ TEST(SixPulseGeneratorTest, AngleWrapping)
     auto p_after = gen.update(angle_wrapped(deg_to_rad(3.0001)), alpha58, true);
     EXPECT_FALSE(p_after.p6);
 }
+
+// Test that the sector is correctly identified based on the reference angle.
+TEST(SixPulseGeneratorTest, SectorIdentification)
+{
+    six_pulse_generator gen;
+    const angle_wrapped zero_alpha(0.0);
+
+    // Sector 1: [0, 60)
+    gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 1);
+    gen.update(angle_wrapped(deg_to_rad(59.999)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 1);
+
+    // Sector 2: [60, 120)
+    gen.update(angle_wrapped(deg_to_rad(60.1)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 2);
+    gen.update(angle_wrapped(deg_to_rad(119.999)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 2);
+
+    // Sector 3: [120, 180)
+    gen.update(angle_wrapped(deg_to_rad(120.01)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 3);
+
+    // Sector 4: [180, 240)
+    gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 4);
+
+    // Sector 5: [240, 300)
+    gen.update(angle_wrapped(deg_to_rad(240.1)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 5);
+
+    // Sector 6: [300, 360)
+    gen.update(angle_wrapped(deg_to_rad(300.1)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 6);
+    gen.update(angle_wrapped(deg_to_rad(359.999)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 6);
+}
+
+// Test that the sector changed flag behaves correctly.
+TEST(SixPulseGeneratorTest, SectorChangeDetection)
+{
+    six_pulse_generator gen;
+    const angle_wrapped zero_alpha(0.0);
+
+    // First update: sector changes from initial 0 to 1. Flag should be true.
+    gen.update(angle_wrapped(deg_to_rad(10.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 1);
+    EXPECT_TRUE(gen.get_sector_changed());
+
+    // Second update: still in sector 1. Flag should be false.
+    gen.update(angle_wrapped(deg_to_rad(20.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 1);
+    EXPECT_FALSE(gen.get_sector_changed());
+
+    // Third update: move to sector 2. Flag should be true.
+    gen.update(angle_wrapped(deg_to_rad(70.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 2);
+    EXPECT_TRUE(gen.get_sector_changed());
+
+    // Fourth update: still in sector 2. Flag should be false.
+    gen.update(angle_wrapped(deg_to_rad(80.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 2);
+    EXPECT_FALSE(gen.get_sector_changed());
+
+    // Test wrap-around from sector 6 to sector 1
+    gen.update(angle_wrapped(deg_to_rad(350.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 6);
+    EXPECT_TRUE(gen.get_sector_changed());
+
+    gen.update(angle_wrapped(deg_to_rad(5.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 1);
+    EXPECT_TRUE(gen.get_sector_changed());
+
+    // Final check: stay in sector 1. Flag should be false again.
+    gen.update(angle_wrapped(deg_to_rad(6.0)), zero_alpha, true);
+    EXPECT_EQ(gen.get_sector(), 1);
+    EXPECT_FALSE(gen.get_sector_changed());
+}

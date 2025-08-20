@@ -87,7 +87,28 @@ public:
      *
      * @return The current state of the six pulses.
      */
-    pulses get_pulses() const { return _pulses; }
+    pulses get_pulses() const;
+
+    /**
+     * @brief Gets the current operational sector.
+     *
+     * The sector is an integer from 1 to 6, corresponding to each 60-degree
+     * interval of the reference angle (e.g., Sector 1 is [0°, 60°)).
+     *
+     * @return The current sector (1-6).
+     */
+    int get_sector() const noexcept;
+
+    /**
+     * @brief Returns true for one cycle if the operational sector has changed.
+     *
+     * This flag is updated during the `update` call. It will be true if the
+     * calculated sector in the current `update` call is different from the
+     * sector in the previous call, and false otherwise.
+     *
+     * @return true if the sector has just changed, false otherwise.
+     */
+    bool get_sector_changed() const noexcept;
 
 private:
     // The type of reference angle provided to the update method.
@@ -97,6 +118,8 @@ private:
     std::array<pulse_generator, 6> _pulse_generators;
 
     pulses _pulses;
+    int _current_sector{0};
+    bool _sector_has_changed{false};
 
     // Default firing offsets for the 6-pulse bridge topology
     // These are spaced 60 degrees apart following the standard firing sequence

@@ -16,6 +16,17 @@ six_pulse_generator::six_pulse_generator(reference_type ref_type, angle_t pulse_
 
 six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle, angle_t firing_angle, bool enable)
 {
+    // Store the previous sector to detect a change
+    const int previous_sector = _current_sector;
+
+    // Calculate the current sector based on the reference angle.
+    // The 360-degree cycle is divided into 6 sectors of 60 degrees each.
+    // Sector 1: [0, 60), Sector 2: [60, 120), ..., Sector 6: [300, 360)
+    _current_sector = static_cast<int>(reference_angle.get_degrees() / 60.0) + 1;
+
+    // Set the flag if the sector has changed in this update cycle
+    _sector_has_changed = (_current_sector != previous_sector);
+
     angle_t final_firing_angle = firing_angle;
 
     // If the reference angle is from a phase voltage, a 30-degree phase shift
@@ -49,5 +60,11 @@ six_pulse_generator::angle_t six_pulse_generator::get_pulse_width() const
     // Return the pulse width from the first generator (they should all be the same)
     return _pulse_generators[0].get_pulse_width();
 }
+
+six_pulse_generator::pulses six_pulse_generator::get_pulses() const { return _pulses; }
+
+int six_pulse_generator::get_sector() const noexcept { return _current_sector; }
+
+bool six_pulse_generator::get_sector_changed() const noexcept { return _sector_has_changed; }
 
 }  // namespace yeet::control
