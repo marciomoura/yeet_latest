@@ -34,6 +34,7 @@ target_sources(
             six_pulse_generator_plot_test.cpp
             sogi_filter_sequence_extractor_test.cpp
             sogi_filter_test.cpp
+            srf_pll_test.cpp
             three_phase_pll_test.cpp
             three_phase_waveform_generator_test.cpp
             units_test.cpp

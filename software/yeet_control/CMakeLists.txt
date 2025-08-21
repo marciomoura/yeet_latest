@@ -38,6 +38,7 @@ target_sources(
            include/yeet_control/types.hpp
            include/yeet_control/units.hpp
            include/yeet_control/speed_voltage_relationship.hpp
+           include/yeet_control/srf_pll.hpp
     PRIVATE src/derivative.cpp
             src/dual_sogi_srf_pll.cpp
             src/edge_detector.cpp
@@ -53,7 +54,8 @@ target_sources(
             src/sogi_filter_sequence_extractor.cpp
             src/sogi_filter.cpp
             src/three_phase_pll.cpp
-            src/speed_voltage_relationship.cpp)
+            src/speed_voltage_relationship.cpp
+            src/srf_pll.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
