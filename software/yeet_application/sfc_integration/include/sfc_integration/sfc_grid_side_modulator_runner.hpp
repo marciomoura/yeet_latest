@@ -14,7 +14,7 @@ public:
 
     static constexpr duration_t sampling_time = us(200);
 
-    sfc_grid_side_modulator_runner() : base_application(sampling_time), _sfc_grid_side_modulator(sampling_time) {}
+    sfc_grid_side_modulator_runner() : base_application(sampling_time), _sfc_grid_side_modulator() {}
 
     void initialize() override;
     void run() override;

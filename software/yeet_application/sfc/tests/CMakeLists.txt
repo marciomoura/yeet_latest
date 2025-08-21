@@ -17,7 +17,9 @@ target_sources(
             sfc_per_unit_system_test.cpp
             sfc_6p_6p_topology_integration_test.cpp
             sfc_current_controller_test.cpp
+            sfc_grid_side_modulator_test.cpp
             sfc_machine_side_firing_angle_lookup_table_test.cpp
+            sfc_machine_side_modulator_test.cpp
             sfc_speed_controller_test.cpp
             sfc_state_machine_test.cpp)
 

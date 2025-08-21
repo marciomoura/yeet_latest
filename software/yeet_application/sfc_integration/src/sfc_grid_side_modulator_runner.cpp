@@ -11,28 +11,20 @@ void sfc_grid_side_modulator_runner::initialize()
 
 void sfc_grid_side_modulator_runner::run()
 {
-    // Extract enable command - default to true if not connected
-    bool enable = true;  // TODO: Connect from system controller
+    // Extract inputs for the simplified grid-side modulator interface
 
-    // For now, assume Load-Commutated Mode - this would come from a mode detector in a full implementation
-    sfc_operating_mode_t operating_mode = sfc::sfc_operating_mode_t::load_commutated;
+    // TODO: Connect to machine-side modulator for force commutation request
+    bool request_force_commutation = false;
 
-    // Extract current setpoint - for now use zero for pulse mode
-    current_pu_t current_setpoint_pu{0.0};
-
-    // Extract measured DC current - default to zero if not available
-    current_pu_t measured_dc_current_pu{0.0};
+    // TODO: Connect to current sensor for DC link current status
+    bool dc_link_current_is_zero = false;
 
     // Convert firing angle reference from angle_wrapped to angle_t
     angle_wrapped firing_angle_wrapped = _inputs.firing_angle_reference;
-    angle_t firing_angle_from_controller = angle_t(firing_angle_wrapped.get_radians());
+    angle_t firing_angle_from_main_pi = angle_t(firing_angle_wrapped.get_radians());
 
-    // For now, assume no rotor sector change request
-    bool rotor_sector_change_request = false;
-
-    // Update the modulator
-    _sfc_grid_side_modulator.update(enable, operating_mode, current_setpoint_pu, measured_dc_current_pu,
-        firing_angle_from_controller, rotor_sector_change_request);
+    // Update the modulator with simplified interface
+    _sfc_grid_side_modulator.update(request_force_commutation, dc_link_current_is_zero, firing_angle_from_main_pi);
 
     // Get outputs from modulator
     angle_t firing_angle_rad = _sfc_grid_side_modulator.get_firing_angle_rad();
@@ -44,29 +36,22 @@ void sfc_grid_side_modulator_runner::run()
     _outputs.firing_pulses = default_pulses;
 
     // Set status outputs
-    _outputs.is_enabled = enable;
+    _outputs.is_enabled = true;       // TODO: Connect from system controller
     _outputs.is_synchronized = true;  // Assume synchronized for now
+
+    // TODO: Export the force commutation acknowledgment and PI reset request signals
+    // bool force_commutation_acknowledged = _sfc_grid_side_modulator.get_force_commutation_acknowledged();
+    // bool pi_reset_requested = _sfc_grid_side_modulator.get_is_requesting_main_pi_reset();
 }
 
 void sfc_grid_side_modulator_runner::stop() { _sfc_grid_side_modulator.reset(); }
 
 void sfc_grid_side_modulator_runner::set_parameters()
 {
-    // Configure pulse mode current thresholds
-    current_pu_t zero_threshold{0.01};  // Default values - these would be parameterized
-    current_pu_t setpoint_threshold{0.05};
-    _sfc_grid_side_modulator.configure_pulse_mode_current_thresholds(zero_threshold, setpoint_threshold);
-
-    // Configure force commutation angle
+    // Configure force commutation angle from max firing angle parameter
     angle_wrapped max_firing_angle_wrapped = _parameters.max_firing_angle;
     angle_t force_commutation_angle = angle_t(max_firing_angle_wrapped.get_radians());
     _sfc_grid_side_modulator.configure_force_commutation_angle_rad(force_commutation_angle);
-
-    // Configure pulse mode timing
-    duration_t min_pulse_duration = duration_t(0.001);  // 1ms
-    duration_t max_pulse_duration = duration_t(0.010);  // 10ms
-    duration_t commutation_timeout = _parameters.deadtime;
-    _sfc_grid_side_modulator.configure_pulse_mode_timing(min_pulse_duration, max_pulse_duration, commutation_timeout);
 }
 
 void sfc_grid_side_modulator_runner::set_parameter_callback()

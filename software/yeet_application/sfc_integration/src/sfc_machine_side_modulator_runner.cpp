@@ -27,8 +27,12 @@ void sfc_machine_side_modulator_runner::run()
     // Convert lookup table firing angle from angle_wrapped to angle_t - default to 90 degrees
     angle_t firing_angle_from_lut = angle_t(pi / 2.0);  // TODO: Connect from lookup table when implemented
 
+    // TODO: Connect to grid-side modulator for force commutation acknowledgment
+    bool force_commutation_acknowledged = false;
+
     // Update the modulator
-    _sfc_machine_side_modulator.update(enable, operating_mode, rotor_position_rad, firing_angle_from_lut);
+    _sfc_machine_side_modulator.update(
+        enable, operating_mode, force_commutation_acknowledged, rotor_position_rad, firing_angle_from_lut);
 
     // Get outputs from modulator
     angle_t firing_angle_rad = _sfc_machine_side_modulator.get_firing_angle_rad();

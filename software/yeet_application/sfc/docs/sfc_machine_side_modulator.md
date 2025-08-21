@@ -2,110 +2,57 @@
 
 [← Back to Documentation Index](index.md)
 
-This document describes the `sfc_machine_side_modulator`, a component that manages the firing angle for the machine-side converter (inverter). Its function is to select the correct firing strategy based on machine speed, switching between a lookup-table-based angle for normal operation and a fixed, position-based angle for startup.
+This document describes the `sfc_machine_side_modulator`, a component that manages the firing pulses for the machine-side converter (inverter). Its primary role is to select the correct firing strategy based on the commanded operating mode and to actively manage the commutation sequence when operating at low speeds.
 
 ## 1. Overview
 
-The machine-side modulator acts as a mode-dependent switch for the inverter's firing angle. It ensures the inverter correctly synchronizes with the motor's back-EMF at high speed and correctly positions the rotor for torque production at low speed.
+The machine-side modulator is the initiator of the commutation process in forced-commutation (pulse) mode and acts as a simple angle follower in natural-commutation mode. It translates the rotor's physical position into precisely timed requests and firing commands to ensure correct torque production.
 
 ### Key Responsibilities:
--   **Mode Selection**: Automatically determines if the system should be in `Load-Commutated Mode` or `Pulse Mode` based on machine speed.
+-   **Mode Management**: Operates in one of two externally commanded modes: `Natural Commutation` or `Forced Commutation`.
+-   **Commutation Initiation**: In `Forced Commutation` mode, it detects when the motor rotor crosses into a new 60-degree electrical sector and generates a `request_force_commutation` signal. This signal instructs the grid-side converter to extinguish the DC link current.
+-   **Pulse Gating**: After requesting commutation, it blocks its own firing pulses and waits for confirmation that the DC link current is zero.
+-   **Pulse Release**: Once zero current is confirmed, it releases the firing pulses for the next thyristor pair in the sequence, completing the commutation.
 -   **Firing Angle Selection**:
-    -   In **Load-Commutated Mode**, it passes through the firing angle provided by the `sfc_machine_side_firing_angle_lookup_table`.
-    -   In **Pulse Mode**, it overrides the lookup table and calculates a fixed firing angle based on the absolute rotor position to generate maximum torque.
+    -   In **Natural Commutation Mode**, it passes through the firing angle (`β`) provided by the `sfc_machine_side_firing_angle_lookup_table`.
+    -   In **Forced Commutation Mode**, it uses a fixed firing angle calculated from the absolute rotor position to generate maximum torque.
 
 ## 2. Operating Modes
 
-### 2.1. Load-Commutated Mode (High-Speed)
+### 2.1. Natural Commutation Mode (High-Speed)
 
-When machine speed is sufficient for natural commutation, the modulator uses a sophisticated open-loop strategy.
+When machine speed is sufficient for the motor's back-EMF to commutate the thyristors, the modulator operates in a simple pass-through mode.
 
--   **Strategy**: Pass-through from lookup table.
--   **Operation**: The modulator simply outputs the firing angle (`β`) provided as an input, which is pre-calculated by the `sfc_machine_side_firing_angle_lookup_table`. This angle ensures a safe commutation margin (extinction angle γ) is maintained.
+-   **Strategy**: Continuously enable firing pulses using the angle from the lookup table.
+-   **Operation**: The modulator continuously enables the six-pulse generator and outputs the firing angle (`β`) provided as an input. The `request_force_commutation` signal is never asserted.
 
-### 2.2. Pulse Mode (Low-Speed / Startup)
+### 2.2. Forced Commutation Mode (Low-Speed / Startup)
 
-At low speeds, the modulator's role simplifies to that of a distributor, selecting the correct thyristor pair to fire based on rotor position.
+At low speeds where there is no back-EMF, the modulator orchestrates a "handshake" protocol to force the current to zero, allowing the thyristors to turn off.
 
--   **Strategy**: Override and calculate based on position.
--   **Operation**: The modulator calculates a firing angle that corresponds to the thyristor pair best aligned to produce torque for the current rotor position. This angle is typically fixed (e.g., 0 or 90 degrees, depending on the frame of reference) relative to the rotor flux. The modulator holds this angle constant for the duration of the DC link current pulse created by the grid-side converter.
+-   **Strategy**: Act as the master for the commutation event.
+-   **Operation**:
+    1.  The modulator tracks the rotor's 60-degree electrical sector.
+    2.  When the rotor transitions to a new sector, the modulator asserts the `request_force_commutation` output for one cycle.
+    3.  Simultaneously, it **blocks** its own firing pulses by de-asserting the `release_pulses` output.
+    4.  It then monitors the `dc_link_current_is_zero` input.
+    5.  Once `dc_link_current_is_zero` becomes true and remains true for a configurable hold time, the modulator re-asserts `release_pulses`, firing the correct thyristor pair for the new sector.
 
-## 3. Architecture and Interface
+## 3. Implementation Details
 
-```cpp
-// Proposed interface for sfc_machine_side_modulator.hpp
-class sfc_machine_side_modulator {
-public:
-    explicit sfc_machine_side_modulator(duration_t sampling_time);
+### 3.1. Forced Commutation State Machine
 
-    // --- Configuration Methods ---
-    void configure_mode_handover_speed_pu(speed_pu_t handover_speed);
-    void configure_pulse_mode_firing_angle_rad(angle_t fixed_angle);
+The core of the `Forced Commutation` logic is a state machine:
+1.  **`RUNNING`**: The modulator is releasing pulses for the current sector. It monitors the rotor position. If a sector change is detected, it asserts `request_force_commutation` for one cycle, de-asserts `release_pulses`, and transitions to `WAITING_FOR_ZERO_CURRENT`.
+2.  **`WAITING_FOR_ZERO_CURRENT`**: The modulator waits for the `dc_link_current_is_zero` input to become true. When it does, it starts a timer and transitions to `CONFIRMING_ZERO_CURRENT`.
+3.  **`CONFIRMING_ZERO_CURRENT`**: The modulator waits for the configured `zero_current_hold_time` to elapse. If the current remains zero for the entire duration, it re-asserts `release_pulses` and transitions back to `RUNNING`. If the current becomes non-zero, it transitions back to `WAITING_FOR_ZERO_CURRENT`.
 
-    // --- Main Execution Method ---
-    void update(
-        bool enable,
-        speed_pu_t measured_speed_pu,
-        angle_t absolute_rotor_position_rad,
-        angle_t firing_angle_from_lut
-    );
+### 3.2. Firing Angle Calculation
 
-    // --- State Reset Method ---
-    void reset();
+-   **Natural Commutation**: `firing_angle = firing_angle_from_lut`.
+-   **Forced Commutation**: The firing angle is calculated based on the rotor sector to align with the optimal torque-producing position. This is typically a fixed value (e.g., 90 degrees relative to the phase A flux).
 
-    // --- Getter Methods ---
-    angle_t get_firing_angle_rad() const noexcept;
-    operating_mode_t get_current_operating_mode() const noexcept;
-};
-```
-
-## 4. Implementation Details
-
-### 4.1. Mode Transition Logic
-
-The modulator switches between operating modes based on the `measured_speed_pu` compared to the configured `handover_speed_pu` threshold:
-
-- **Transition to Load-Commutated Mode**: When `measured_speed_pu >= handover_speed_pu`
-- **Transition to Pulse Mode**: When `measured_speed_pu < handover_speed_pu`
-
-### 4.2. Pulse Mode Firing Angle Calculation
-
-In Pulse Mode, the firing angle is calculated based on the rotor position to select the optimal thyristor pair for maximum torque production. The calculation considers:
-
-1. **Rotor Sector Determination**: The absolute rotor position is divided into 6 sectors (60° each)
-2. **Thyristor Pair Selection**: Each sector corresponds to a specific thyristor pair
-3. **Fixed Angle Application**: A configurable fixed angle (typically 0°) is applied relative to the selected pair
-
-### 4.3. Real-Time Constraints
-
-The modulator operates with strict real-time constraints:
-- All methods marked `noexcept` for deterministic execution
-- No dynamic memory allocation during runtime
-- Predictable execution time for all `update()` calls
-
-## 5. Usage Example
-
-```cpp
-#include "sfc_machine_side_modulator.hpp"
-
-// Create and configure the modulator
-sfc_machine_side_modulator modulator(duration_t(100e-6)); // 100µs sampling
-modulator.configure_mode_handover_speed_pu(speed_pu_t{0.1}); // 10% speed threshold
-modulator.configure_pulse_mode_firing_angle_rad(angle_t{0.0}); // 0° fixed angle
-
-// In the control loop
-modulator.update(
-    enable_signal,
-    measured_speed_pu,
-    absolute_rotor_position_rad,
-    firing_angle_from_lookup_table
-);
-
-// Get the output firing angle
-angle_t machine_firing_angle = modulator.get_firing_angle_rad();
-```
-
-## 6. Integration Notes
+## 4. Integration Notes
 
 The machine-side modulator is designed to integrate seamlessly with:
 - `sfc_machine_side_firing_angle_lookup_table` for Load-Commutated Mode operation

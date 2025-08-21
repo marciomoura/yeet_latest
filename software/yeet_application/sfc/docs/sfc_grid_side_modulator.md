@@ -2,63 +2,44 @@
 
 [← Back to Documentation Index](index.md)
 
-This document describes the `sfc_grid_side_modulator`, a component that manages the firing angle for the grid-side converter (rectifier). Its primary role is to select the correct firing strategy based on machine speed, switching between a closed-loop external controller for normal operation and an internal forced-commutation strategy for startup.
+This document describes the `sfc_grid_side_modulator`, the component that acts as the **master controller** for the forced commutation sequence in the LCI system.
 
 ## 1. Overview
 
-The grid-side modulator acts as a mode-dependent switch for the rectifier's firing angle. It ensures that the DC link current is controlled appropriately for both high-speed, efficient operation and low-speed, forced-commutation startup.
+The grid-side modulator is the central coordinator for the commutation process at low speeds. During normal operation, it allows the main DC link current controller to determine the firing angle. However, when a commutation is requested by the `sfc_machine_side_modulator`, it takes full command of the system. It forces the grid-side converter into inversion to extinguish the DC link current and, once the current is zero, sends a critical acknowledgment signal back to the machine-side modulator.
 
 ### Key Responsibilities:
--   **Mode Selection**: Automatically determines if the system should be in `Load-Commutated Mode` or `Pulse Mode` based on machine speed.
--   **Firing Angle Selection**:
-    -   In **Load-Commutated Mode**, it passes through the firing angle calculated by the main external `sfc_current_controller`.
-    -   In **Pulse Mode**, it overrides the external controller and generates its own firing angles to create controlled current pulses and force commutation.
--   **Handover Management**: Provides signals to ensure a smooth, bumpless transfer between modes, particularly by indicating when the external PI controller must be reset.
+-   **Commutation Master**: Manages the stateful handshake protocol for forced commutation.
+-   **Firing Angle Override**: Upon receiving a `request_force_commutation` signal, it immediately overrides the firing angle from the main current controller.
+-   **Forced Inversion**: It applies a pre-configured, deep inverting firing angle (e.g., 150°) to the grid-side converter to rapidly drive the DC link current to zero.
+-   **Controller Reset Management**: While overriding the firing angle, it asserts a signal to hold the main current controller's integrator in reset, preventing integral windup.
+-   **Commutation Acknowledgment**: After confirming the DC link current is zero, it asserts a `force_commutation_acknowledged` signal. This is the "all clear" for the machine-side modulator.
+-   **Relinquishing Control**: It returns control to the main current controller immediately after sending the acknowledgment, without waiting for the machine-side request to be cleared.
 
-## 2. Operating Modes
+## 2. Forced Commutation Handshake Protocol
 
-### 2.1. Load-Commutated Mode (High-Speed)
+The modulator executes a precise, state-driven sequence:
 
-When machine speed is sufficient for natural commutation, the modulator defers to the main current control loop.
+1.  **Request**: It continuously monitors the `request_force_commutation` input from the machine-side modulator.
+2.  **Invert**: When the request is asserted, the grid-side modulator immediately takes control, forces the firing angle into deep inversion, and requests a reset of the main PI controller.
+3.  **Confirm Zero Current**: It waits for the `dc_link_current_is_zero` input to become true.
+4.  **Acknowledge & Release**: Once zero current is confirmed, it asserts the `force_commutation_acknowledged` output signal for a single cycle and immediately returns to normal operation, handing control of the firing angle back to the PI controller.
 
--   **Strategy**: Pass-through.
--   **Operation**: The modulator simply outputs the firing angle (`α_grid`) provided by the external `sfc_current_controller`. This external controller is responsible for regulating the DC link current to the setpoint from the speed loop. For details, see the [LCI Current Controller documentation](current_control.md).
-
-### 2.2. Pulse Mode (Low-Speed / Startup)
-
-At low speeds, the modulator takes direct control of the grid-side firing angle to implement a forced-commutation sequence.
-
--   **Strategy**: Override and internal state machine control.
--   **Operation**: The modulator uses an internal state machine to pulse the DC link current.
-    1.  **Current Pulse (`pulse_on` state)**: An internal, dedicated PI controller calculates a firing angle to rapidly build DC link current to the desired setpoint. This PI controller is **only active during Pulse Mode**.
-    2.  **Forced Commutation (`force_commutation` state)**: To commutate the machine-side inverter, the modulator outputs a fixed, deep inverting angle (e.g., 150°) to drive the DC link current to zero, regardless of the PI controller's output.
-
-## 3. Critical Note on External PI Controller
-
-The main external `sfc_current_controller` is designed for continuous operation. Its integral term can wind up to invalid values during Pulse Mode.
-
-**ACTION REQUIRED**: The higher-level control task that orchestrates the system **must** reset the external `sfc_current_controller` immediately upon transitioning from Pulse Mode back to Load-Commutated Mode. The `sfc_grid_side_modulator` provides a `is_requesting_main_pi_reset()` flag to signal when this reset is necessary. Failure to do so will result in large current overshoots.
-
-## 4. Architecture and Interface
+## 3. Architecture and Interface
 
 ```cpp
 // Proposed interface for sfc_grid_side_modulator.hpp
 class sfc_grid_side_modulator {
 public:
-    explicit sfc_grid_side_modulator(duration_t sampling_time);
+    explicit sfc_grid_side_modulator();
 
     // --- Configuration Methods ---
-    void configure_mode_handover_speed_pu(speed_pu_t handover_speed);
-    void configure_pulse_mode_pi_gains(double kp, duration_t ti);
-    void configure_pulse_mode_current_thresholds(current_pu_t zero_threshold, current_pu_t setpoint_reached_threshold);
     void configure_force_commutation_angle_rad(angle_t angle);
 
     // --- Main Execution Method ---
     void update(
-        bool enable,
-        speed_pu_t measured_speed_pu,
-        current_pu_t current_setpoint_pu,
-        current_pu_t measured_dc_current_pu,
+        bool request_force_commutation,   // From machine-side modulator
+        bool dc_link_current_is_zero,
         angle_t firing_angle_from_main_pi
     );
 
@@ -67,8 +48,23 @@ public:
 
     // --- Getter Methods ---
     angle_t get_firing_angle_rad() const noexcept;
-    operating_mode_t get_current_operating_mode() const noexcept;
-    pulse_mode_state_t get_pulse_mode_state() const noexcept;
-    bool is_requesting_main_pi_reset() const noexcept;
+    bool get_force_commutation_acknowledged() const noexcept; // To machine-side modulator
+    bool get_is_requesting_main_pi_reset() const noexcept;
 };
 ```
+
+## 4. Implementation Details
+
+### 4.1. Forced Commutation State Machine
+
+The core of the logic is a simple two-state machine:
+1.  **`NORMAL_OPERATION`**: The default state. It passes through the firing angle from the PI controller. If `request_force_commutation` becomes true, it transitions to `FORCE_INVERSION`.
+2.  **`FORCE_INVERSION`**: The modulator has taken control. It outputs the deep inversion angle and requests a PI reset. It monitors the DC link current. If `dc_link_current_is_zero` becomes true, it asserts `force_commutation_acknowledged` for one cycle and transitions back to `NORMAL_OPERATION`.
+
+### 4.2. Future Safety Enhancement: Handshake Timer
+
+While the current design is efficient, a potential failure mode exists if the `dc_link_current_is_zero` signal never arrives after a request is made. To enhance safety, a timer can be added to monitor the duration of the `FORCE_INVERSION` state. If the state persists for longer than a configurable timeout period, a system alarm or fault should be triggered. This functionality can be added in the future without changing the core state machine logic.
+
+### 4.3. Critical Note on External PI Controller
+
+The `get_is_requesting_main_pi_reset()` flag **must** be used by the higher-level control task to hold the external `sfc_current_controller`'s integrator in reset during the `FORCE_INVERSION` state. Failure to do so will cause dangerous DC link current overshoots when control is handed back.
