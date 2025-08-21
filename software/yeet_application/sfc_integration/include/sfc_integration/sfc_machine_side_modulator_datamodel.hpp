@@ -1,14 +1,23 @@
 #pragma once
 
+#include <cstdint>
+
+#include "sfc/sfc_machine_side_modulator.hpp"
+#include "sfc/sfc_types.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
-#include "yeet_control/units.hpp"
+#include "yeet_control/angle_wrapped.hpp"
+#include "yeet_control/constants.hpp"
+
 
 /**
  * @file sfc_machine_side_modulator_datamodel.hpp
  * @brief Datamodel specification for SFC Machine-Side Modulator component
+ *
+ * The machine-side modulator initiates forced commutation events and manages
+ * firing angle selection based on operating mode. It coordinates with the
+ * grid-side modulator through a handshake protocol for commutation at low speeds.
  */
 
 namespace yeet::application::sfc::integration {
@@ -19,58 +28,43 @@ public:
      * @brief Input signals for the machine-side modulator component
      */
     struct inputs {
-        /// Enable command for the modulator
-        signal_input<bool> enable_command;
+        /// System enable command
+        signal_input<bool> enable;
 
-        /// Operating mode selection (pulse_mode, normal_mode, bypass_mode)
-        signal_input<int> operating_mode;  // enum represented as int
+        /// Operating mode selection from external mode detector
+        signal_input<sfc_operating_mode_t> operating_mode;
 
-        /// Rotor electrical position
+        /// Acknowledgment signal from grid-side modulator
+        signal_input<bool> force_commutation_acknowledged;
+
+        /// Absolute rotor electrical position for sector tracking
         /// Range: [0.0, 2π] radians
-        signal_input<angle_wrapped> rotor_position_electrical;
+        signal_input<angle_wrapped> absolute_rotor_position;
 
-        /// Firing angle from lookup table
+        /// Firing angle from lookup table for natural commutation mode
         /// Range: [0.0, π] radians
-        signal_input<angle_wrapped> lookup_table_firing_angle;
-
-        /// DC link current for advance angle calculation
-        /// Range: [-1.5, 1.5] pu
-        signal_input<current_pu_t> dc_link_current_pu;
-
-        /// Commutation detection signal
-        signal_input<bool> commutation_detected;
+        signal_input<angle_wrapped> firing_angle_from_lut;
     };
 
     /**
      * @brief Output signals from the machine-side modulator component
      */
     struct outputs {
-        /// Final calculated firing angle
+        /// Firing angle output to the pulse generator
         /// Range: [0.0, π] radians
         signal_output<angle_wrapped> firing_angle;
 
-        /// Six-pulse firing signals for machine-side thyristors
-        signal_output<control::six_pulse_generator::pulses> firing_pulses;
+        /// Pulse release control signal to pulse generator
+        signal_output<bool> release_pulses;
 
-        /// Active operating mode
-        signal_output<int> active_operating_mode;
+        /// Request signal to grid-side modulator for forced commutation
+        signal_output<bool> request_force_commutation;
 
-        /// Pulse mode firing angle (diagnostic)
-        /// Range: [π/4, π/2] radians
-        signal_output<angle_wrapped> pulse_mode_firing_angle;
+        /// Current commutation state for diagnostics
+        signal_output<machine_side_commutation_state_t> commutation_state;
 
-        /// Advance angle compensation
-        /// Range: [0.0, π/6] radians
-        signal_output<angle_wrapped> advance_angle;
-
-        /// Modulator enabled status
-        signal_output<bool> is_enabled;
-
-        /// Commutation failure detection
-        signal_output<bool> has_commutation_failure;
-
-        /// Next firing position prediction
-        signal_output<angle_wrapped> next_firing_position;
+        /// Current rotor sector (1-6) for diagnostics
+        signal_output<std::uint8_t> current_rotor_sector;
     };
 
     /**
@@ -78,32 +72,9 @@ public:
      */
     struct parameters {
         /// Fixed firing angle for pulse mode operation
-        /// Range: [π/4, π/2] radians
-        parameter<angle_wrapped> pulse_mode_firing_angle = angle_wrapped(1.5708);  // π/2 = 90°
-
-        /// Current threshold for advance angle activation
-        /// Range: [0.1, 0.5] pu
-        parameter<current_pu_t> advance_angle_current_threshold = current_pu_t(0.2);
-
-        /// Maximum advance angle compensation
-        /// Range: [0.0, π/6] radians
-        parameter<angle_wrapped> max_advance_angle = angle_wrapped(0.5236);  // π/6 = 30°
-
-        /// Firing pulse width
-        /// Range: [π/36, π/6] radians
-        parameter<angle_wrapped> firing_pulse_width = angle_wrapped(0.1745);  // π/18 = 10°
-
-        /// Commutation failure timeout
-        /// Range: [0.001, 0.01] s
-        parameter<duration_t> commutation_timeout = duration_t(0.005);
-
-        /// Minimum firing angle limit
-        /// Range: [0.0, π/6] radians
-        parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
-
-        /// Maximum firing angle limit
-        /// Range: [2π/3, π] radians
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped(3.1416);  // π = 180°
+        /// Range: [0.0, π] radians
+        /// Default: π radians (180°)
+        parameter<angle_wrapped> pulse_mode_firing_angle = angle_wrapped(pi);  // 180°
     };
 
 private:
@@ -122,29 +93,8 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("firing_angle", _model_outputs->firing_angle);
-        // entry.signal_registry.insert("firing_pulses", _model_outputs->firing_pulses);
-        // entry.signal_registry.insert("active_operating_mode", _model_outputs->active_operating_mode);
-        // entry.signal_registry.insert("pulse_mode_firing_angle", _model_outputs->pulse_mode_firing_angle);
-        // entry.signal_registry.insert("advance_angle", _model_outputs->advance_angle);
-        // entry.signal_registry.insert("is_enabled", _model_outputs->is_enabled);
-        // entry.signal_registry.insert("has_commutation_failure", _model_outputs->has_commutation_failure);
-        // entry.signal_registry.insert("next_firing_position", _model_outputs->next_firing_position);
-
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("pulse_mode_firing_angle", _model_parameters->pulse_mode_firing_angle);
-        // entry.parameter_registry.insert("advance_angle_current_threshold",
-        //                                 _model_parameters->advance_angle_current_threshold);
-        // entry.parameter_registry.insert("max_advance_angle", _model_parameters->max_advance_angle);
-        // entry.parameter_registry.insert("firing_pulse_width", _model_parameters->firing_pulse_width);
-        // entry.parameter_registry.insert("commutation_timeout", _model_parameters->commutation_timeout);
-        // entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
-        // entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
-
-        // registry.insert("sfc_machine_side_modulator", std::move(entry));
+        // Note: Implementation commented out due to compilation issues with signal registry
+        // TODO: Fix signal registry insert method compatibility
     }
 
     inputs* get_inputs() { return _model_inputs; }

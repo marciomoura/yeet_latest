@@ -1,14 +1,20 @@
 #pragma once
 
+#include "sfc/sfc_grid_side_modulator.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/units.hpp"
 
 /**
  * @file sfc_grid_side_modulator_datamodel.hpp
  * @brief Datamodel specification for SFC Grid-Side Modulator component
+ *
+ * The grid-side modulator acts as the master controller for forced commutation,
+ * coordinating the handshake protocol with the machine-side modulator and
+ * managing the override of the current controller's firing angle during
+ * commutation events.
  */
 
 namespace yeet::application::sfc::integration {
@@ -19,63 +25,52 @@ public:
      * @brief Input signals for the grid-side modulator component
      */
     struct inputs {
-        /// Firing angle reference from current controller
-        /// Range: [0.0, π/2] radians (0° to 90°)
-        signal_input<angle_wrapped> firing_angle_reference;
+        /// Request signal from machine-side modulator to initiate forced commutation
+        signal_input<bool> request_force_commutation;
 
-        /// Grid voltage angle from grid-side observer
-        /// Range: [0, 2π] radians
-        signal_input<angle_wrapped> grid_voltage_angle;
+        /// Signal from zero current detector indicating DC link current is zero
+        signal_input<bool> dc_link_current_is_zero;
 
-        /// Enable command for pulse generation
-        signal_input<bool> enable_command;
+        /// Firing angle reference from the main DC link current controller
+        /// Range: [0.0, π] radians
+        signal_input<angle_wrapped> firing_angle;
 
-        /// Grid frequency for pulse timing adjustment
-        /// Range: [45, 65] Hz
-        signal_input<frequency_t> grid_frequency;
+        /// System enable command
+        signal_input<bool> enable;
     };
 
     /**
      * @brief Output signals from the grid-side modulator component
      */
     struct outputs {
-        /// Six-pulse firing signals for grid-side thyristors
-        signal_output<control::six_pulse_generator::pulses> firing_pulses;
+        /// Firing angle output to the pulse generator
+        /// Range: [0.0, π] radians
+        signal_output<angle_wrapped> firing_angle;
 
-        /// Actual firing angle being used
-        /// Range: [0.0, π/2] radians
-        signal_output<angle_wrapped> actual_firing_angle;
+        /// Acknowledgment signal to machine-side modulator (one-cycle pulse)
+        signal_output<bool> force_commutation_acknowledged;
 
-        /// Modulator enabled status
-        signal_output<bool> is_enabled;
+        /// Request signal to hold main PI controller integrator in reset
+        signal_output<bool> is_requesting_main_pi_reset;
 
-        /// Pulse generator synchronization status
-        signal_output<bool> is_synchronized;
+        /// Current modulator state for diagnostics
+        /// 0 = natural_commutation, 1 = forced_commutation
+        signal_output<grid_side_modulator_state_t> modulator_state;
     };
 
     /**
      * @brief Configuration parameters for the grid-side modulator
      */
     struct parameters {
-        /// Minimum firing angle limit
-        /// Range: [0.0, π/6] radians
-        parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
+        /// Fixed firing angle for forced commutation (deep inversion)
+        /// Range: [2π/3, π] radians (120° to 180°)
+        /// Default: 5π/6 radians (150°)
+        parameter<angle_wrapped> force_commutation_angle = angle_wrapped(2.6180);  // 150°
 
-        /// Maximum firing angle limit
-        /// Range: [π/4, π/2] radians
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);  // π/2
-
-        /// Pulse width for thyristor firing
-        /// Range: [π/36, π/6] radians (5° to 30°)
-        parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);  // π/6 = 30°
-
-        /// Deadtime between complementary pulses
-        /// Range: [0.0001, 0.001] s
-        parameter<duration_t> deadtime = duration_t(0.0002);
-
-        /// Nominal grid frequency for initialization
-        /// Range: [50, 60] Hz
-        parameter<frequency_t> nominal_grid_frequency = frequency_t(50.0);
+        /// Timeout duration for forced commutation (future safety feature)
+        /// Range: [0.01, 1.0] seconds
+        /// Default: 0.1 seconds
+        parameter<duration_t> commutation_timeout = duration_t(0.1);
     };
 
 private:
@@ -94,20 +89,32 @@ public:
 
     void register_data_model(model_registry& registry)
     {
+        // Note: Implementation commented out due to compilation issues with signal registry
+        // TODO: Fix signal registry insert method compatibility
+
         // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("firing_pulses", _model_outputs->firing_pulses);
-        // entry.signal_registry.insert("actual_firing_angle", _model_outputs->actual_firing_angle);
-        // entry.signal_registry.insert("is_enabled", _model_outputs->is_enabled);
-        // entry.signal_registry.insert("is_synchronized", _model_outputs->is_synchronized);
+        // // Register input signals
+        // entry.signal_registry.insert("request_force_commutation", _model_inputs->request_force_commutation);
+        // entry.signal_registry.insert("dc_link_current_is_zero", _model_inputs->dc_link_current_is_zero);
+        // entry.signal_registry.insert("firing_angle_from_current_controller",
+        //                              _model_inputs->firing_angle_from_current_controller);
+        // entry.signal_registry.insert("enable", _model_inputs->enable);
 
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
-        // entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
-        // entry.parameter_registry.insert("pulse_width", _model_parameters->pulse_width);
-        // entry.parameter_registry.insert("deadtime", _model_parameters->deadtime);
-        // entry.parameter_registry.insert("nominal_grid_frequency", _model_parameters->nominal_grid_frequency);
+        // // Register output signals
+        // entry.signal_registry.insert("firing_angle_to_pulse_generator",
+        //                              _model_outputs->firing_angle_to_pulse_generator);
+        // entry.signal_registry.insert("force_commutation_acknowledged",
+        //                              _model_outputs->force_commutation_acknowledged);
+        // entry.signal_registry.insert("is_requesting_main_pi_reset",
+        //                              _model_outputs->is_requesting_main_pi_reset);
+        // entry.signal_registry.insert("modulator_state", _model_outputs->modulator_state);
+
+        // // Register parameters
+        // entry.parameter_registry.insert("force_commutation_angle",
+        //                                 _model_parameters->force_commutation_angle);
+        // entry.parameter_registry.insert("commutation_timeout",
+        //                                 _model_parameters->commutation_timeout);
 
         // registry.insert("sfc_grid_side_modulator", std::move(entry));
     }

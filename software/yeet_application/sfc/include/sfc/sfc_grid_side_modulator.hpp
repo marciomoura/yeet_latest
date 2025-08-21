@@ -9,8 +9,8 @@ namespace yeet::application::sfc {
  * @brief Operating states for the grid-side modulator.
  */
 enum class grid_side_modulator_state_t {
-    normal_operation,  ///< Normal operation - pass through PI controller angle
-    force_inversion    ///< Force commutation - apply deep inverting angle
+    natural_commutation,  ///< Normal operation - pass through PI controller angle
+    forced_commutation    ///< Force commutation - apply deep inverting angle
 };
 
 /**
@@ -23,11 +23,6 @@ enum class grid_side_modulator_state_t {
  * takes full command of the system, forcing the grid-side converter into inversion to
  * extinguish the DC link current.
  *
- * The modulator follows the yeet_application_sfc architectural patterns:
- * - Configuration methods with `configure_` prefix
- * - Main execution via `update()` method with all inputs as arguments
- * - State access via `get_` methods
- * - Real-time safety with no dynamic allocation
  */
 class sfc_grid_side_modulator {
 public:
@@ -76,7 +71,7 @@ public:
 
     /**
      * @brief Gets the current operating state.
-     * @return The current state (normal_operation or force_inversion).
+     * @return The current state (natural_commutation or forced_commutation).
      */
     grid_side_modulator_state_t get_current_state() const noexcept;
 
@@ -113,7 +108,7 @@ private:
     angle_t _force_commutation_angle_rad{deg_to_rad(150.0)};  ///< 150° for forced commutation
 
     // Internal state
-    grid_side_modulator_state_t _current_state{grid_side_modulator_state_t::normal_operation};
+    grid_side_modulator_state_t _current_state{grid_side_modulator_state_t::natural_commutation};
     angle_t _current_firing_angle_rad{0.0f};      ///< Current output firing angle
     bool _force_commutation_acknowledged{false};  ///< Acknowledgment signal for one cycle
     bool _main_pi_reset_requested{false};         ///< Flag for PI reset request

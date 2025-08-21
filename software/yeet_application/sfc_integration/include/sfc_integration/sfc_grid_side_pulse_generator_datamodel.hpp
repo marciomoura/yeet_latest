@@ -9,6 +9,10 @@
 /**
  * @file sfc_grid_side_pulse_generator_datamodel.hpp
  * @brief Datamodel specification for SFC Grid-Side Pulse Generator component
+ *
+ * The pulse generator creates the six firing pulses for the grid-side thyristor
+ * bridge based on the reference angle from the PLL and the firing angle from
+ * the modulator.
  */
 
 namespace yeet::application::sfc::integration {
@@ -19,15 +23,19 @@ public:
      * @brief Input signals for the grid-side pulse generator
      */
     struct inputs {
-        /// Reference angle from grid voltage source (typically from PLL)
+        /// Reference angle from grid voltage observer (PLL output)
         /// Range: [0.0, 2π] radians
         signal_input<angle_wrapped> reference_angle;
 
-        /// Firing angle command (alpha) in radians
+        /// Firing angle command from grid-side modulator
         /// Range: [0.0, π] radians
         signal_input<angle_wrapped> firing_angle;
 
+        /// Pulse release control (blocks all pulses when false)
         signal_input<bool> release_pulses;
+
+        /// System enable command
+        signal_input<bool> enable;
     };
 
     /**
@@ -38,28 +46,20 @@ public:
         /// Contains the state of all 6 thyristor firing signals
         signal_output<control::six_pulse_generator::pulses> firing_pulses;
 
-        /// Actual firing angle being used (for monitoring/debugging)
+        /// Actual firing angle being applied (pass-through for monitoring)
         /// Range: [0.0, π] radians
         signal_output<angle_wrapped> actual_firing_angle;
+
+        /// Pulse generator active status
+        signal_output<bool> is_active;
     };
 
     /**
      * @brief Configuration parameters for the grid-side pulse generator
      */
     struct parameters {
-        /// Enable/disable signal for pulse generation
-        /// true = pulses enabled, false = all pulses disabled
-        parameter<bool> enable;
-
-        /// Minimum allowed firing angle in radians
-        /// Default: 0.0 rad (0°)
-        parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
-
-        /// Maximum allowed firing angle in radians
-        /// Default: π/2 rad (90°)
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);
-
         /// Pulse width for each firing pulse in radians
+        /// Range: [π/36, π/3] radians (5° to 60°)
         /// Default: π/6 rad (30°)
         parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);
 
@@ -85,7 +85,7 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // Note: Commented out due to compilation issues with signal registry
+        // Note: Implementation commented out due to compilation issues with signal registry
         // TODO: Fix signal registry insert method compatibility
 
         // model_registry_entry entry{signal_registry{}, parameter_registry{}};
@@ -93,15 +93,15 @@ public:
         // // Register input signals
         // entry.signal_registry.insert("reference_angle", _model_inputs->reference_angle);
         // entry.signal_registry.insert("firing_angle", _model_inputs->firing_angle);
+        // entry.signal_registry.insert("release_pulses", _model_inputs->release_pulses);
         // entry.signal_registry.insert("enable", _model_inputs->enable);
 
         // // Register output signals
         // entry.signal_registry.insert("firing_pulses", _model_outputs->firing_pulses);
         // entry.signal_registry.insert("actual_firing_angle", _model_outputs->actual_firing_angle);
+        // entry.signal_registry.insert("is_active", _model_outputs->is_active);
 
         // // Register parameters
-        // entry.parameter_registry.insert("min_firing_angle", _model_parameters->min_firing_angle);
-        // entry.parameter_registry.insert("max_firing_angle", _model_parameters->max_firing_angle);
         // entry.parameter_registry.insert("pulse_width", _model_parameters->pulse_width);
         // entry.parameter_registry.insert("reference_type", _model_parameters->reference_type);
 

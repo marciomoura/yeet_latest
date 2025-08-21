@@ -22,11 +22,6 @@ enum class machine_side_commutation_state_t {
  * commands from the grid-side modulator. It translates rotor position into precisely
  * timed requests and firing commands for both natural and forced commutation modes.
  *
- * The modulator follows the yeet_application_sfc architectural patterns:
- * - Configuration methods with `configure_` prefix
- * - Main execution via `update()` method with all inputs as arguments
- * - State access via `get_` methods
- * - Real-time safety with no dynamic allocation
  */
 class sfc_machine_side_modulator {
 public:

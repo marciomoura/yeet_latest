@@ -22,7 +22,7 @@ void sfc_grid_side_modulator::update(
     _force_commutation_acknowledged = false;
 
     switch (_current_state) {
-        case grid_side_modulator_state_t::normal_operation:
+        case grid_side_modulator_state_t::natural_commutation:
             // In normal operation, pass through the firing angle from main PI controller
             _current_firing_angle_rad = firing_angle_from_main_pi;
 
@@ -37,20 +37,20 @@ void sfc_grid_side_modulator::update(
                 else {
                     // Normal case: transition to force inversion and request PI reset
                     _main_pi_reset_requested = true;
-                    _current_state = grid_side_modulator_state_t::force_inversion;
+                    _current_state = grid_side_modulator_state_t::forced_commutation;
                     _current_firing_angle_rad = _force_commutation_angle_rad;
                 }
             }
             break;
 
-        case grid_side_modulator_state_t::force_inversion:
+        case grid_side_modulator_state_t::forced_commutation:
             // Continue applying the forced commutation angle
             _current_firing_angle_rad = _force_commutation_angle_rad;
 
             // Check if DC link current has reached zero
             if (dc_link_current_is_zero) {
                 // Commutation is complete, return to normal operation
-                _current_state = grid_side_modulator_state_t::normal_operation;
+                _current_state = grid_side_modulator_state_t::natural_commutation;
                 _current_firing_angle_rad = firing_angle_from_main_pi;
 
                 // Signal acknowledgment for one cycle and clear PI reset
@@ -63,7 +63,7 @@ void sfc_grid_side_modulator::update(
 
 void sfc_grid_side_modulator::reset()
 {
-    _current_state = grid_side_modulator_state_t::normal_operation;
+    _current_state = grid_side_modulator_state_t::natural_commutation;
     _current_firing_angle_rad = get_safe_default_angle();
     _force_commutation_acknowledged = false;
     _main_pi_reset_requested = false;

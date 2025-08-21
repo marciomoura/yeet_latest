@@ -1,6 +1,6 @@
 #pragma once
-
 #include <array>
+#include <cstdint>
 
 #include "pulse_generator.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -25,6 +25,16 @@ public:
     enum class reference_type {
         line,  ///< Reference angle is from a line-to-line voltage (e.g., Vab). No offset needed.
         phase  ///< Reference angle is from a phase-to-neutral voltage (e.g., Van). A 30-degree offset is applied.
+    };
+
+    enum class pulse_sector_t : std::uint32_t {
+        none = 0,
+        sector_1 = 1,
+        sector_2 = 2,
+        sector_3 = 3,
+        sector_4 = 4,
+        sector_5 = 5,
+        sector_6 = 6
     };
 
     /**
@@ -92,12 +102,12 @@ public:
     /**
      * @brief Gets the current operational sector.
      *
-     * The sector is an integer from 1 to 6, corresponding to each 60-degree
+     * The sector is an enum from `pulse_sector_t`, corresponding to each 60-degree
      * interval of the reference angle (e.g., Sector 1 is [0°, 60°)).
      *
-     * @return The current sector (1-6).
+     * @return The current sector.
      */
-    int get_sector() const noexcept;
+    pulse_sector_t get_sector() const noexcept;
 
     /**
      * @brief Returns true for one cycle if the operational sector has changed.
@@ -118,7 +128,7 @@ private:
     std::array<pulse_generator, 6> _pulse_generators;
 
     pulses _pulses;
-    int _current_sector{0};
+    pulse_sector_t _current_sector{pulse_sector_t::none};
     bool _sector_has_changed{false};
 
     // Default firing offsets for the 6-pulse bridge topology
