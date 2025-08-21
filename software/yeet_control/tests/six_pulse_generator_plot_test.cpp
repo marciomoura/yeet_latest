@@ -103,7 +103,7 @@ private:
 
         // Log sector information
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "sector", [&]() -> double { return static_cast<double>(_current_sector) / 6.0; }));
+            "sector", [&]() -> double { return static_cast<double>(static_cast<int>(_current_sector)) / 6.0; }));
     }
 
     yeet::simulator _simulator = yeet::make_gtest_simulator();
@@ -116,7 +116,7 @@ private:
     abc<double> _current_three_phase_voltages{0.0, 0.0, 0.0};
     six_pulse_generator::pulses _pulses_no_delay{};
     six_pulse_generator::pulses _pulses_with_delay{};
-    int _current_sector{0};
+    six_pulse_generator::pulse_sector_t _current_sector{six_pulse_generator::pulse_sector_t::none};
 };
 
 TEST_F(SixPulseGeneratorPlotTest, SixPulseGeneratorBehaviorComparison)

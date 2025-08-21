@@ -62,7 +62,6 @@ public:
     {
         yeet::mock_signal_input::write(
             current_controller.get_signal_flow_datamodel().get_inputs().freeze_integrator, false);
-
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(
             grid_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);

@@ -33,9 +33,6 @@ public:
 
         /// Pulse release control (blocks all pulses when false)
         signal_input<bool> release_pulses;
-
-        /// System enable command
-        signal_input<bool> enable;
     };
 
     /**

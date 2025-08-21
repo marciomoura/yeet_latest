@@ -221,6 +221,7 @@ public:
     {
         set_auxiliaries_on(true);
         set_breakers_on(true);
+        simulate_for(0.2);
         set_start_command(true);
         simulate_for(0.1);
     }
@@ -285,10 +286,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     speed_regulation_checker->deactivate();  // Deactivate initially to avoid false positives
 
     // ==================== Test Configuration ====================
-    // Initially disable pulse generators
-    grid_side_pulse_generator_parameters()->enable = false;
-    machine_side_pulse_generator_parameters()->enable = false;
-
     // Simulate initial idle state
     // ==================== State Machine Startup Sequence ====================
     // Execute complete startup sequence to reach operational state
@@ -296,11 +293,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
 
     // At this point, state machine should be in OPERATION_ON and pulse_releases should be true
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
-
-    // Enable pulse generators (they should now release pulses due to state machine)
-    grid_side_pulse_generator_parameters()->enable = true;
-    machine_side_pulse_generator_parameters()->enable = true;
-
     // ==================== Test Execution ====================
     // Simulate until system can stabilize
     system.speed_reference_pu = speed_pu_t(1.0);

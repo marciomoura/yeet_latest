@@ -76,8 +76,10 @@ TEST_F(SfcBuilderTest, InitialTest)
     system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(13.0);
     system.machine_side_firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);
 
-    machine_side_pulse_generator()->enable = true;
-    grid_side_pulse_generator()->enable = true;
+    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
+    // The pulse generators are now controlled through signal flow, not parameters
+    // machine_side_pulse_generator()->enable = true;
+    // grid_side_pulse_generator()->enable = true;
 
     simulate_for(0.25f);
 

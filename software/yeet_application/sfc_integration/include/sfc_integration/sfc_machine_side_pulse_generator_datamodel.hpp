@@ -47,20 +47,6 @@ public:
      * @brief Configuration parameters for the machine-side pulse generator
      */
     struct parameters {
-        /// Enable/disable signal for pulse generation
-        /// true = pulses enabled, false = all pulses disabled
-        parameter<bool> enable;
-
-        //
-        //
-        /// Minimum allowed firing angle in radians
-        /// Default: 2.62 rad (150°) for typical inverter operation
-        parameter<angle_wrapped> min_firing_angle = angle_wrapped(2.618);
-
-        /// Maximum allowed firing angle in radians
-        /// Default: 3.14 rad (180°)
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped(3.14159);
-
         /// Pulse width for each firing pulse in radians
         /// Default: π/6 rad (30°)
         parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);
