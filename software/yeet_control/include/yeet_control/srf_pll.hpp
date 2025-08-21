@@ -3,9 +3,11 @@
 #include "angle_wrapped.hpp"
 #include "integrator.hpp"
 #include "pi_controller.hpp"
+#include "precomputed_divisor.hpp"
 #include "reference_frame.hpp"
 #include "types.hpp"
 #include "units.hpp"
+#include "yeet_control/precomputed_divisor.hpp"
 
 namespace yeet::control {
 
@@ -56,9 +58,9 @@ public:
 
     /**
      * @brief Updates the PLL with a new input sample.
-     * @param input_alphabeta The input signal in the alpha-beta frame.
+     * @param input_alphabeta The input per-unit voltages in the alpha-beta frame.
      */
-    void update(const alphabeta<real_t>& input_alphabeta);
+    void update(const alphabeta<voltage_pu_t>& input_alphabeta);
 
     /**
      * @brief Gets the estimated phase angle.
@@ -67,27 +69,41 @@ public:
     angle_wrapped get_estimated_angle() const;
 
     /**
-     * @brief Gets the estimated angular frequency.
-     * @return The estimated angular frequency in rad/s.
+     * @brief Gets the estimated frequency in Hz.
+     * @return The estimated frequency.
      */
-    real_t get_estimated_angular_frequency() const;
+    frequency_t get_estimated_frequency() const;
+
+    /**
+     * @brief Gets the estimated frequency in per-unit.
+     * @return The estimated frequency in per-unit relative to nominal.
+     */
+    frequency_pu_t get_estimated_frequency_pu() const;
+
+    /**
+     * @brief Gets the estimated angular frequency in rad/s.
+     * @return The estimated angular frequency.
+     */
+    angular_frequency_t get_estimated_angular_frequency() const;
 
     /**
      * @brief Gets the transformed d-q vector.
-     * @return The d-q vector from the last update.
+     * @return The d-q per-unit voltages from the last update.
      */
-    const dq<real_t>& get_dq_vector() const;
+    const dq<voltage_pu_t>& get_dq_vector() const;
 
 private:
     // Control components
     pi_controller<real_t> _frequency_pi_controller;
     integrator<angle_wrapped> _phase_integrator;
 
+    // Configuration
+    frequency_pu_t _initial_frequency{frequency_pu_t{1.0}};                  // Default to 1 per-unit
+    precomputed_divisor<frequency_t> _nominal_frequency{frequency_t{50.0}};  // Default to 50 Hz
+
     // State variables
-    frequency_pu_t _initial_frequency{0.0f};
-    real_t _nominal_angular_frequency{0.0f};
-    real_t _estimated_angular_frequency{0.0f};
-    dq<real_t> _dq_vector{};
+    frequency_t _estimated_frequency{frequency_t{50.0}};
+    dq<voltage_pu_t> _dq_vector{};
 };
 
 }  // namespace yeet::control

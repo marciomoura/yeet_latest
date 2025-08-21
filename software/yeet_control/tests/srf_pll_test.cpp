@@ -43,7 +43,9 @@ protected:
         // Simulator setup
         simulator.register_lambda_runner(kSamplingTime.value(), [&]() {
             waveform_generator.update();
-            const alphabeta<real_t> signal_ab = waveform_generator.get_signal_abc().to_alphabeta();
+
+            const alphabeta<voltage_pu_t> signal_ab =
+                to_dimension_alphabeta<voltage_pu_t>(waveform_generator.get_signal_abc().to_alphabeta());
             pll.update(signal_ab);
         });
         set_logger();
@@ -80,8 +82,8 @@ protected:
         simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>(
             "estimated angle pu", [&]() { return pll.get_estimated_angle().get_pu(); }));
 
-        simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("estimated frequency pu",
-            [&]() -> real_t { return pll.get_estimated_angular_frequency() / kTestAngularFrequency; }));
+        simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
+            "estimated frequency pu", [&]() -> real_t { return pll.get_estimated_frequency_pu(); }));
     }
 };
 
