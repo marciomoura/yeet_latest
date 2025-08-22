@@ -18,8 +18,8 @@ using namespace yeet::control;
 
 class SrfPllTest : public ::testing::Test {
 protected:
-    static constexpr duration_t kSamplingTime = duration_t{1e-4};     // 100 µs sampling time (10 kHz)
-    static constexpr frequency_t kTestFrequency = frequency_t{50.0};  // 50 Hz test frequency
+    static constexpr duration_t kSamplingTime = duration_t{us(100.0)};  // 100 µs sampling time (10 kHz)
+    static constexpr frequency_t kTestFrequency = frequency_t{50.0};    // 50 Hz test frequency
     static constexpr real_t kTestAngularFrequency = 2.0 * pi * kTestFrequency.value();
     static constexpr real_t kFrequencyTolerance = 2.0 * pi * 0.1;  // 0.1 Hz tolerance in rad/s
     static constexpr real_t kAngleTolerance = 0.05;                // radians (~3 degrees)
@@ -34,7 +34,7 @@ protected:
         // Configure a stable PI controller for the tests
         pll.reset(frequency_pu_t{1.0});
         pll.configure_nominal_frequency(kTestFrequency);
-        pll.configure_pi_controller(1, duration_t{0.1});
+        pll.configure_pi_controller(0.866, duration_t{ms(5.51)});
 
         // Default waveform generator configuration
         waveform_generator.set_fundamental_positive_sequence_signal_amplitude(kAmplitude);
@@ -46,6 +46,7 @@ protected:
 
             const alphabeta<voltage_pu_t> signal_ab =
                 to_dimension_alphabeta<voltage_pu_t>(waveform_generator.get_signal_abc().to_alphabeta());
+
             pll.update(signal_ab);
         });
         set_logger();
@@ -54,8 +55,8 @@ protected:
     real_t get_angle_error() const
     {
         // Added a small term to force wrapping around 2pi
-        return std::abs(0.01 - (waveform_generator.get_fundamental_signal_angle().a() - pll.get_estimated_angle() +
-                                   angle_wrapped{0.01})
+        return std::abs(0.01 - (waveform_generator.get_fundamental_signal_angle().a() -
+                                   pll.get_estimated_angle_aligned_phase_a() + angle_wrapped{0.01})
                                    .get_pu());
     }
 
@@ -80,7 +81,7 @@ protected:
             "estimated dq", [&]() -> dq<> { return dq<>{pll.get_dq_vector().d(), pll.get_dq_vector().q()}; }));
 
         simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>(
-            "estimated angle pu", [&]() { return pll.get_estimated_angle().get_pu(); }));
+            "estimated angle pu", [&]() { return pll.get_estimated_angle_aligned_phase_a().get_pu(); }));
 
         simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
             "estimated frequency pu", [&]() -> real_t { return pll.get_estimated_frequency_pu(); }));
@@ -224,6 +225,30 @@ TEST_F(SrfPllTest, TracksFrequencyRamp)
         yeet::checker_activation_time_range{ramp_end_time + 0.3}));
 
     EXPECT_TRUE(simulator.simulate_for(ramp_end_time + 0.5));
+}
+TEST_F(SrfPllTest, TracksFrequencyRampFromZero)
+{
+    // Test if the PLL can follow a frequency ramp starting from zero.
+    const frequency_t start_frequency = frequency_t{0.0};
+
+    // Initialize PLL and generator at zero frequency.
+    pll.reset(frequency_pu_t{0.0});
+    waveform_generator.set_signal_frequency(kTestFrequency.value());
+    waveform_generator.set_angle(angle_wrapped(pi / 4));
+    waveform_generator.update();
+
+    // Check that the frequency has settled at the nominal value.
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "final frequency", [&]() { return pll.get_estimated_angular_frequency(); },
+        kTestAngularFrequency - kFrequencyTolerance, kTestAngularFrequency + kFrequencyTolerance,
+        yeet::checker_activation_time_range{0.3}));
+
+    // Check that the angle error is small after settling.
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "final angle error", [&]() { return get_angle_error(); }, 0.0, kAngleTolerance,
+        yeet::checker_activation_time_range{0.3}));
+
+    EXPECT_TRUE(simulator.simulate_for(0.5));
 }
 
 }  // namespace

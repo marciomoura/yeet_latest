@@ -172,6 +172,7 @@ public:
     sfc_simulator_observers(duration_t sampling_time)
         : grid_side_observer(sampling_time), machine_side_observer(sampling_time), sampling_time(sampling_time)
     {
+        machine_side_observer.set_initial_speed(frequency_pu_t{1.0});
     }
 
     static void register_observers(yeet::simulator& simulator,
@@ -281,7 +282,7 @@ public:
 
 class sfc_simulator_machine_side_lookup_table {
 public:
-    sfc_simulator_machine_side_lookup_table(double nominal_gamma_deg) : lookup_table(nominal_gamma_deg) {}
+    sfc_simulator_machine_side_lookup_table(double nominal_gamma_deg) {}
 
     static void register_machine_side_lookup_table(yeet::simulator& simulator,
         duration_t sampling_time,
@@ -289,16 +290,13 @@ public:
         sfc_pulse_generator_conduit& conduit)
     {
         simulator.register_lambda_runner(sampling_time, [&]() {
-            angle_wrapped machine_firing_angle_rad = angle_wrapped::from_degrees(
-                lookup.lookup_table.get_firing_angle_deg(conduit.measured_speed_pu, conduit.measured_current_pu));
+            lookup.lookup_table.update(conduit.measured_current_pu);
+
+            angle_wrapped machine_firing_angle_rad =
+                angle_wrapped::from_degrees(lookup.lookup_table.get_firing_angle_deg());
 
             conduit.machine_firing_angle_rad = machine_firing_angle_rad;
         });
-    }
-
-    void configure_table(double gamma_setpoint_deg, double machine_inductance_pu)
-    {
-        lookup_table.recalculate_table(gamma_setpoint_deg, machine_inductance_pu);
     }
 
     const sfc_machine_side_firing_angle_lookup_table& get_lookup_table() const { return lookup_table; }

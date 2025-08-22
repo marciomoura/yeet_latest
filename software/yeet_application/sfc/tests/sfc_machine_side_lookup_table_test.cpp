@@ -5,128 +5,98 @@
 #include <array>
 
 #include "yeet_control/constants.hpp"
-#include "yeet_control/types.hpp"
 
 // Define the namespace to match the application structure
 namespace yeet::application::sfc {
 
 // Use the class's own constexprs for dimensions to ensure they are in sync
-constexpr size_t NUM_TEST_CURRENT_POINTS = sfc_machine_side_firing_angle_lookup_table::NUM_CURRENT_POINTS;
-constexpr size_t NUM_TEST_SPEED_POINTS = sfc_machine_side_firing_angle_lookup_table::NUM_SPEED_POINTS;
+constexpr size_t NUM_POINTS = sfc_machine_side_firing_angle_lookup_table::NUM_POINTS;
 
 // GTest Fixture for the Firing Angle LUT
 class SfcMachineSideFiringAngleLUTTest : public ::testing::Test {
 protected:
-    // This method is called before each test
-    void SetUp() override {
-        // --- Test Configuration ---
-        // Define the per-unit axes for our test lookup table
-        current_axis_pu = {0.0, 0.25, 0.5, 0.75, 1.0, 1.2};  // [p.u.]
-        speed_axis_pu = {0.0, 0.2, 0.5, 0.75, 1.0, 1.25};    // [p.u.]
-
-        // Configure the table to put it in a known state
-        beta_controller.recalculate_table(initial_gamma, current_axis_pu, speed_axis_pu, machine_reactance_pu);
+    // This method is called before each test to ensure a known state.
+    void SetUp() override
+    {
+        // Configure the controller with test-specific values.
+        // This makes the tests independent of the default values in the class.
+        controller.configure_table(test_current_axis, test_angle_axis);
     }
 
-    // --- Member variables accessible by all tests in this suite ---
-    const real_t initial_gamma = 18.0;
-    const real_t machine_reactance_pu = 0.0593;  // The base commutation reactance
+    // --- Test-specific configuration data ---
+    const std::array<real_t, NUM_POINTS> test_current_axis = {0.0, 0.3, 0.5, 1.0, 1.88, 2.0};
+    const std::array<real_t, NUM_POINTS> test_angle_axis = {165.0, 158.0, 152.0, 145.0, 135.0, 130.0};
 
-    std::array<real_t, NUM_TEST_CURRENT_POINTS> current_axis_pu;
-    std::array<real_t, NUM_TEST_SPEED_POINTS> speed_axis_pu;
-
-    // Pointer to the object under test
-    sfc_machine_side_firing_angle_lookup_table beta_controller{initial_gamma};
+    // The object under test, constructed before each test run.
+    sfc_machine_side_firing_angle_lookup_table controller;
 };
 
-// Test 1: Verify that the controller is constructed correctly and holds the initial gamma.
-TEST_F(SfcMachineSideFiringAngleLUTTest, ConstructionAndInitialState) {
-    EXPECT_EQ(beta_controller.get_current_gamma_setpoint(), initial_gamma);
+// Test 1: Verify that the controller's reset method works as expected.
+TEST_F(SfcMachineSideFiringAngleLUTTest, ResetState)
+{
+    // After setup, the controller is configured with our test data.
+    // Update to a non-reset state.
+    controller.update(current_pu_t{1.0});
+    EXPECT_FLOAT_EQ(controller.get_firing_angle_deg(), test_angle_axis[3]);
+
+    // Now, reset the controller. It should revert to the *default* initial value,
+    // not the one from our test configuration.
+    controller.reset();
+    EXPECT_EQ(controller.get_firing_angle_deg(), sfc_machine_side_firing_angle_lookup_table::kDefaultFiringAngleDeg[0]);
 }
 
-// Test 2: Verify the calculated firing angle at the nominal operating point (1.0 p.u. speed, 1.0 p.u. current).
-TEST_F(SfcMachineSideFiringAngleLUTTest, GetFiringAngleAtNominalPUPoint) {
-    const real_t nominal_speed_pu = 1.0;
-    const real_t nominal_current_pu = 1.0;
+// Test 2: Verify the firing angle at exact points defined in the test table.
+TEST_F(SfcMachineSideFiringAngleLUTTest, UpdateAtExactTestPoints)
+{
+    // Test at the first point (zero current)
+    controller.update(current_pu_t{test_current_axis[0]});
+    EXPECT_FLOAT_EQ(controller.get_firing_angle_deg(), test_angle_axis[0]);
 
-    // Manually calculate the expected value for verification:
-    // d_xM = (3/pi) * 0.0593 * 1.0 * 1.0 = 0.0566
-    // cos(beta_adv) = cos(18) - 0.0566 = 0.8945
-    // beta_adv = 26.55 deg
-    // beta_inv = 180 - 26.55 = 153.45 deg
-    const real_t expected_beta = 153.45;
+    // Test at a middle point
+    controller.update(current_pu_t{test_current_axis[3]});
+    EXPECT_FLOAT_EQ(controller.get_firing_angle_deg(), test_angle_axis[3]);
 
-    real_t actual_beta = beta_controller.get_firing_angle_deg(nominal_speed_pu, nominal_current_pu);
-
-    EXPECT_NEAR(actual_beta, expected_beta, 0.05);
+    // Test at the last point
+    controller.update(current_pu_t{test_current_axis.back()});
+    EXPECT_FLOAT_EQ(controller.get_firing_angle_deg(), test_angle_axis.back());
 }
 
-// Test 3: Verify the firing angles at the boundaries (corners) of the lookup table.
-TEST_F(SfcMachineSideFiringAngleLUTTest, GetFiringAngleAtTableCorners) {
-    // --- Test Case 1: Minimum speed, minimum current (zero load) ---
-    // At this point, d_xM = 0, so beta_adv should equal gamma.
-    // beta_inv = 180 - gamma = 180 - 18 = 162.
-    real_t beta_at_min = beta_controller.get_firing_angle_deg(speed_axis_pu.front(), current_axis_pu.front());
-    EXPECT_NEAR(beta_at_min, 162.0, 1e-9);
+// Test 3: Verify correct linear interpolation between points.
+TEST_F(SfcMachineSideFiringAngleLUTTest, InterpolatesBetweenPoints)
+{
+    // Test halfway between 0.3 (158 deg) and 0.5 (152 deg) -> (158+152)/2 = 155
+    controller.update(current_pu_t{0.4});
+    EXPECT_FLOAT_EQ(controller.get_firing_angle_deg(), 155.0);
 
-    // --- Test Case 2: Maximum speed, maximum current (max defined in table) ---
-    const real_t max_speed_pu = speed_axis_pu.back();
-    const real_t max_current_pu = current_axis_pu.back();
-
-    // Manually calculate the expected value using PU inputs:
-    // d_xM = (3/pi) * 0.0593 * max_speed_pu * max_current_pu
-    // d_xM = (3/pi) * 0.0593 * 1.25 * 1.2 = 0.0849
-    // cos(beta_adv) = cos(18) - 0.0849 = 0.8662
-    // beta_adv = 29.98 deg
-    // beta_inv = 180 - 29.98 = 150.02 deg
-    const real_t expected_beta_at_max = 150.02;
-
-    real_t beta_at_max = beta_controller.get_firing_angle_deg(max_speed_pu, max_current_pu);
-    EXPECT_NEAR(beta_at_max, expected_beta_at_max, 0.01);
-
-    // Verify the value is within the physical inverter range
-    EXPECT_GE(beta_at_max, 90.0);
-    EXPECT_LE(beta_at_max, 180.0);
+    // Test halfway between 1.0 (145 deg) and 1.88 (135 deg) -> (145+135)/2 = 140
+    controller.update(current_pu_t{1.44});
+    EXPECT_FLOAT_EQ(controller.get_firing_angle_deg(), 140.0);
 }
 
-// Test 4: Verify the online recalculation functionality.
-TEST_F(SfcMachineSideFiringAngleLUTTest, RecalculateTableAndVerifyChange) {
-    const real_t nominal_speed_pu = 1.0;
-    const real_t nominal_current_pu = 1.0;
+// Test 4: Verify behavior outside the defined table range.
+TEST_F(SfcMachineSideFiringAngleLUTTest, HandlesExtrapolationAndClamping)
+{
+    // Below the table range, should clamp to the first defined angle (165 deg)
+    controller.update(current_pu_t{-0.1});
+    EXPECT_EQ(controller.get_firing_angle_deg(), test_angle_axis.front());
 
-    // Get the initial firing angle
-    real_t initial_beta = beta_controller.get_firing_angle_deg(nominal_speed_pu, nominal_current_pu);
-    EXPECT_NEAR(initial_beta, 153.45, 0.05);
-
-    // Now, recommission with a new, more aggressive gamma
-    const real_t new_gamma = 15.0;
-    beta_controller.recalculate_table(new_gamma, current_axis_pu, speed_axis_pu, machine_reactance_pu);
-
-    // Verify the state has updated
-    EXPECT_EQ(beta_controller.get_current_gamma_setpoint(), new_gamma);
-
-    // Get the new firing angle and verify it has changed as expected
-    real_t new_beta = beta_controller.get_firing_angle_deg(nominal_speed_pu, nominal_current_pu);
-
-    // Manually calculate the new expected value:
-    // cos(beta_adv) = cos(15) - 0.0566 = 0.9093
-    // beta_adv = 24.59 deg
-    // beta_inv = 180 - 24.59 = 155.41 deg
-    const real_t expected_new_beta = 155.41;
-
-    EXPECT_NEAR(new_beta, expected_new_beta, 0.01);
-    EXPECT_NE(initial_beta, new_beta);  // Crucially, ensure the value actually changed.
+    // Above the table range, should clamp to the last defined angle (130 deg)
+    controller.update(current_pu_t{2.5});
+    EXPECT_EQ(controller.get_firing_angle_deg(), test_angle_axis.back());
 }
 
 // Test 5: Verify the new convenience function for radians.
-TEST_F(SfcMachineSideFiringAngleLUTTest, GetFiringAngleInRadians) {
-    const real_t nominal_speed_pu = 1.0;
-    const real_t nominal_current_pu = 1.0;
+TEST_F(SfcMachineSideFiringAngleLUTTest, GetFiringAngleInRadians)
+{
+    // Update the controller to a known state
+    controller.update(current_pu_t{1.0});
 
-    real_t beta_deg = beta_controller.get_firing_angle_deg(nominal_speed_pu, nominal_current_pu);
-    real_t beta_rad = beta_controller.get_firing_angle_rad(nominal_speed_pu, nominal_current_pu);
+    // Retrieve the angle in both degrees and radians
+    real_t angle_deg = controller.get_firing_angle_deg();
+    real_t angle_rad = controller.get_firing_angle_rad();
 
-    EXPECT_NEAR(beta_rad, beta_deg * pi / 180.0, 1e-9);
+    // Verify the conversion is correct
+    EXPECT_NEAR(angle_rad, angle_deg * pi / 180.0, 1e-9);
 }
 
 }  // namespace yeet::application::sfc

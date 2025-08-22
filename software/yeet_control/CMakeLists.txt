@@ -16,6 +16,7 @@ target_sources(
            include/yeet_control/integrator.hpp
            include/yeet_control/interval_timer.hpp
            include/yeet_control/limit.hpp
+           include/yeet_control/lookup_table_1d.hpp
            include/yeet_control/lookup_table_2d.hpp
            include/yeet_control/mechanical_load.hpp
            include/yeet_control/off_delay.hpp

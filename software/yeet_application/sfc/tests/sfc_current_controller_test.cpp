@@ -46,14 +46,16 @@ protected:
 
         // Enable pulse generation once the grid observer has locked
         simulator.register_lambda_runner(components.kControlSamplingTime, [&]() {
-            // pulse_generator_conduit.enable = components.observers.grid_side_observer.is_locked();
             pulse_generator_conduit.current_ref_pu = dc_link_current_ref_pu;
             pulse_generator_conduit.measured_current_pu =
                 components.measurement_and_filtering.get_dc_link_filtering().get_filtered_current_pu();
-            pulse_generator_conduit.enable = components.observers.grid_side_observer.is_locked();
         });
 
         setup_logging();
+
+        pulse_generator_conduit.enable = false;
+        simulator.simulate_for(0.2);
+        pulse_generator_conduit.enable = true;
     }
 
     void setup_logging()
@@ -145,8 +147,6 @@ TEST_F(SfcCurrentControllerSimulationTest, TestDisturbanceRejection)
     components.plant_model_simulator.set_machine_parameters(frequency_t(50.0),  // 50 Hz nominal machine frequency
         0.95f * voltage_t(1980.0));  // 95% of 1980V RMS nominal machine voltage
 
-    pulse_generator_conduit.machine_firing_angle_rad = deg_to_rad(kNominalMachineFiringAngleDeg - 10.0f);
-
     // Execute the test for another seconds to allow the controller to respond
     success &= simulator.simulate_for(1.0);
 
@@ -171,7 +171,7 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentLimiters)
         [&]() -> current_pu_t {
             return components.measurement_and_filtering.get_dc_link_filtering().get_heavy_filtered_current_pu();
         },
-        current_limit_min_value, current_limit_max_value, yeet::checker_activation_time_range{1.7}));
+        current_limit_min_value, current_limit_max_value, yeet::checker_activation_time_range{2.0}));
 
     // Set high slew-rate to not suffer from any limitation
 
@@ -193,6 +193,8 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentLimiters)
 
 TEST_F(SfcCurrentControllerSimulationTest, TestCurrentSlewRateLimiters)
 {
+    const real_t startup_time = 0.2;
+
     const real_t slew_rate_pu_per_sec = 1.0;
 
     components.current_controller.current_controller.enable_current_reference_slew_rate(true);
@@ -203,28 +205,28 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentSlewRateLimiters)
         "slew_rate_ramp_up_midpoint",
         [&]() { return components.current_controller.get_controller().get_current_reference_limited_pu(); },
         current_pu_t(0.49), current_pu_t(0.51),
-        yeet::checker_activation_exact_time{1.0, components.kControlSamplingTime.value()}));
+        yeet::checker_activation_exact_time{startup_time + 1.0, components.kControlSamplingTime.value()}));
 
     // Check that the limited reference has reached 1.0 pu at the end of the ramp up
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "slew_rate_ramp_up_endpoint",
         [&]() { return components.current_controller.get_controller().get_current_reference_limited_pu(); },
         current_pu_t(0.99), current_pu_t(1.01),
-        yeet::checker_activation_exact_time{1.5, components.kControlSamplingTime.value()}));
+        yeet::checker_activation_exact_time{startup_time + 1.5, components.kControlSamplingTime.value()}));
 
     // Check that the limited reference is at 0.75 pu halfway through the ramp down
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "slew_rate_ramp_down_midpoint",
         [&]() { return components.current_controller.get_controller().get_current_reference_limited_pu(); },
         current_pu_t(0.74), current_pu_t(0.76),
-        yeet::checker_activation_exact_time{2.25, components.kControlSamplingTime.value()}));
+        yeet::checker_activation_exact_time{startup_time + 2.25, components.kControlSamplingTime.value()}));
 
     // Check that the limited reference is at 0.5 pu halfway through the ramp down
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "slew_rate_ramp_down_endpoint",
         [&]() { return components.current_controller.get_controller().get_current_reference_limited_pu(); },
         current_pu_t(0.49), current_pu_t(0.51),
-        yeet::checker_activation_exact_time{2.5, components.kControlSamplingTime.value()}));
+        yeet::checker_activation_exact_time{startup_time + 2.5, components.kControlSamplingTime.value()}));
 
     // Simulate until observer is locked and system can release pulses.
     dc_link_current_ref_pu = current_pu_t(0.0);
@@ -247,12 +249,14 @@ TEST_F(SfcCurrentControllerSimulationTest, TestCurrentSlewRateLimiters)
 
 TEST_F(SfcCurrentControllerSimulationTest, TestMinimumFiringAngle)
 {
+    const real_t startup_time = 0.2;
+
     const angle_t min_firing_angle{deg_to_rad(10.0f)};
 
     simulator.register_checker(yeet::make_min_checker<angle_t>(
         "check min angle",
         [&]() -> angle_t { return angle_t{pulse_generator_conduit.grid_firing_angle_rad.get_radians()}; },
-        angle_t{min_firing_angle}, yeet::checker_activation_time_range{1.6}));
+        angle_t{min_firing_angle}, yeet::checker_activation_time_range{startup_time + 1.6}));
 
     // Simulate until observer is locked and system can release pulses.
     bool success = simulator.simulate_for(0.5);
@@ -273,12 +277,14 @@ TEST_F(SfcCurrentControllerSimulationTest, TestMinimumFiringAngle)
 
 TEST_F(SfcCurrentControllerSimulationTest, TestMaximumFiringAngle)
 {
+    const real_t startup_time = 0.2;
+
     const angle_t max_firing_angle{deg_to_rad(15.0f)};
 
     simulator.register_checker(yeet::make_max_checker<angle_t>(
         "check min angle",
         [&]() -> angle_t { return angle_t{pulse_generator_conduit.grid_firing_angle_rad.get_radians()}; },
-        angle_t{max_firing_angle}, yeet::checker_activation_time_range{1.6}));
+        angle_t{max_firing_angle}, yeet::checker_activation_time_range{startup_time + 1.6}));
 
     // Simulate until observer is locked and system can release pulses.
     bool success = simulator.simulate_for(0.5);

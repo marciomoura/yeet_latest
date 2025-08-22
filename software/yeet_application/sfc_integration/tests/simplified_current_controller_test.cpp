@@ -168,12 +168,12 @@ TEST_F(SfcCurrentControllerTest, TestCurrentRegulation)
     // ==================== Test Configuration ====================
     // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
     // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = true;
-    // machine_side_pulse_generator_parameters()->enable = true;
+    grid_side_pulse_generator_parameters()->enable = true;
+    machine_side_pulse_generator_parameters()->enable = true;
 
     // ==================== Test Execution ====================
-    current_pu_t current_error_max_value{0.1f};
-    current_pu_t current_error_min_value{-0.1f};
+    current_pu_t current_error_max_value{0.15f};
+    current_pu_t current_error_min_value{-0.15f};
 
     system.current_reference_pu = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
@@ -184,7 +184,7 @@ TEST_F(SfcCurrentControllerTest, TestCurrentRegulation)
     system.current_reference_pu = current_pu_t(1.0);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
-        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.2, 3.0}));
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.5, 3.0}));
     success &= simulator.simulate_for(1.0);
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";

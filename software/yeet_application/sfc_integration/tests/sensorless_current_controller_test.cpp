@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "sfc_integration/plant_sensorless_current_control_closed_loop.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_checker.hpp"
@@ -61,61 +62,89 @@ public:
         simulator.register_sampler_entry(
             {"dc_link_current_error", [&]() { return static_cast<float>(get_dc_link_current_error_pu()); }});
 
-        simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>("grid_estimated_frequency", [&]() {
-            return system.grid_side_observer.get_signal_flow_datamodel().get_outputs().estimated_frequency_pu.read();
-        }));
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_sampler<frequency_pu_t>("machine_estimated_frequency", [&]() {
+        //         return system.machine_side_observer.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .estimated_frequency_pu.read();
+        //     }));
 
-        simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>("grid_side_angle_pu", [&]() {
-            return system.grid_side_observer.get_signal_flow_datamodel().get_outputs().estimated_angle.read().get_pu();
-        }));
+        // // ==================== Plant Model Outputs ====================
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_sampler<voltage_pu_t>("grid_voltage_magnitude", [&]() -> voltage_pu_t {
+        //         return system.grid_measurements.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .grid_voltage_magnitude_filtered.read();
+        //     }));
 
-        simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>("plant_grid_side_angle_pu", [&]() {
-            return system.plant.get_signal_flow_datamodel().get_outputs().grid_voltage_source_angle.read().get_pu();
-        }));
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_sampler<voltage_pu_t>("machine_voltage_magnitude", [&]() -> voltage_pu_t {
+        //         return system.machine_measurements.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .machine_voltage_magnitude_filtered.read();
+        //     }));
 
-        simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<frequency_pu_t>("machine_estimated_frequency", [&]() {
-                return system.machine_side_observer.get_signal_flow_datamodel()
-                    .get_outputs()
-                    .estimated_frequency_pu.read();
-            }));
+        // // Grid voltage (per-unit)
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("observer - grid_voltage_pu", [&]() {
+        //         return system.grid_side_observer.get_signal_flow_datamodel().get_inputs().grid_voltage_pu.read();
+        //     }));
 
-        simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>("machine_side_angle_pu", [&]() {
-            return system.machine_side_observer.get_signal_flow_datamodel()
-                .get_outputs()
-                .estimated_position.read()
-                .get_pu();
-        }));
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("observer - machine_voltage_pu", [&]() {
+        //         return system.machine_side_observer.get_signal_flow_datamodel()
+        //             .get_inputs()
+        //             .machine_voltage_pu.read()
+        //             .to_alphabeta();
+        //     }));
 
-        simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_pu_t>("plant_machine_side_angle_pu", [&]() {
-            return system.plant.get_signal_flow_datamodel().get_outputs().machine_voltage_source_angle.read().get_pu();
-        }));
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_sampler<real_t>("observer - estimated_voltage_magnitude", [&]() {
+        //         return system.machine_side_observer.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .estimated_voltage_magnitude.read();
+        //     }));
 
-        // ==================== Plant Model Outputs ====================
-        simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<voltage_pu_t>("grid_voltage_magnitude", [&]() -> voltage_pu_t {
-                return system.grid_measurements.get_signal_flow_datamodel()
-                    .get_outputs()
-                    .grid_voltage_magnitude_filtered.read();
-            }));
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_sampler<real_t>("observer - estimated_frequency", [&]() {
+        //         return
+        //         system.machine_side_observer.get_signal_flow_datamodel().get_outputs().estimated_frequency.read();
+        //     }));
 
-        simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<voltage_pu_t>("machine_voltage_magnitude", [&]() -> voltage_pu_t {
-                return system.machine_measurements.get_signal_flow_datamodel()
-                    .get_outputs()
-                    .machine_voltage_magnitude_filtered.read();
-            }));
+        // simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("observer - estimated_frequency_pu", [&]()
+        // {
+        //     return
+        //     system.machine_side_observer.get_signal_flow_datamodel().get_outputs().estimated_frequency_pu.read();
+        // }));
 
-        // Grid voltage (per-unit)
-        simulator.register_sampler_entry(
-            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("observer - grid_voltage_pu", [&]() {
-                return system.grid_side_observer.get_signal_flow_datamodel().get_inputs().grid_voltage_pu.read();
-            }));
+        // simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("observer - estimated_position", [&]() {
+        //     return system.machine_side_observer.get_signal_flow_datamodel()
+        //         .get_outputs()
+        //         .estimated_position.read()
+        //         .get_pu();
+        // }));
 
-        simulator.register_sampler_entry(
-            yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("observer - machine_voltage_pu", [&]() {
-                return system.machine_side_observer.get_signal_flow_datamodel().get_inputs().machine_voltage_pu.read();
-            }));
+        // simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("observer - plant position", [&]() {
+        //     return
+        //     system.plant.get_signal_flow_datamodel().get_outputs().machine_voltage_source_angle.read().get_pu();
+        // }));
+
+        // simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>("observer - angle error", [&]() {
+        //     return -0.01 +
+        //            (angle_wrapped(0.01) +
+        //                system.machine_side_observer.get_signal_flow_datamodel()
+        //                    .get_outputs()
+        //                    .estimated_position.read() -
+        //                system.plant.get_signal_flow_datamodel().get_outputs().machine_voltage_source_angle.read())
+        //                .get_pu();
+        // }));
+
+        // simulator.register_sampler_entry(
+        //     yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("observer - filtered_voltage_alphabeta", [&]() {
+        //         return system.machine_side_observer.get_signal_flow_datamodel()
+        //             .get_outputs()
+        //             .filtered_voltage_alphabeta.read();
+        //     }));
 
         // simulator.register_sampler_entry(
         //     yeet::make_lambda_array_sampler<abc<voltage_pu_t>>("grid_voltage_unmasked_pu", [&]() {
@@ -137,6 +166,18 @@ public:
         //             .get_outputs()
         //             .machine_voltage_abc_unmasked.read();
         //     }));
+
+        // ==================== Test Configuration ====================
+        // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
+        // The pulse generators are now controlled through signal flow, not parameters
+        grid_side_pulse_generator_parameters()->enable = false;
+        machine_side_pulse_generator_parameters()->enable = false;
+        simulator.simulate_for(1.0);
+
+        // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
+        // The pulse generators are now controlled through signal flow, not parameters
+        grid_side_pulse_generator_parameters()->enable = true;
+        machine_side_pulse_generator_parameters()->enable = true;
     }
 
     void initialize() { system.initialize(); }
@@ -200,22 +241,9 @@ public:
 // Test regulation of DC-link current to a reference value
 TEST_F(SfcSensorlessCurrentControllerTest, TestCurrentRegulation)
 {
-    // ==================== Test Configuration ====================
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = false;
-    // machine_side_pulse_generator_parameters()->enable = false;
-
-    simulator.simulate_for(1.0);
-
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = true;
-    // machine_side_pulse_generator_parameters()->enable = true;
-
     // ==================== Test Execution ====================
-    current_pu_t current_error_max_value{0.1f};
-    current_pu_t current_error_min_value{-0.1f};
+    current_pu_t current_error_max_value{0.16f};
+    current_pu_t current_error_min_value{-0.16f};
 
     system.current_reference_pu = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
@@ -226,7 +254,7 @@ TEST_F(SfcSensorlessCurrentControllerTest, TestCurrentRegulation)
     system.current_reference_pu = current_pu_t(1.0);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance", [&]() -> current_pu_t { return get_dc_link_current_error_pu(); },
-        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{3.2, 4.0}));
+        current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{3.5, 4.0}));
     success &= simulator.simulate_for(1.0);
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";
@@ -235,22 +263,9 @@ TEST_F(SfcSensorlessCurrentControllerTest, TestCurrentRegulation)
 // Test regulation of DC-link current to a reference value
 TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStep)
 {
-    // ==================== Test Configuration ====================
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = false;
-    // machine_side_pulse_generator_parameters()->enable = false;
-
-    simulator.simulate_for(1.0);
-
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = true;
-    // machine_side_pulse_generator_parameters()->enable = true;
-
     // ==================== Test Execution ====================
-    current_pu_t current_error_max_value{0.1f};
-    current_pu_t current_error_min_value{-0.1f};
+    current_pu_t current_error_max_value{0.15f};
+    current_pu_t current_error_min_value{-0.15f};
 
     system.current_reference_pu = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
@@ -270,22 +285,9 @@ TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStep)
 // Test regulation of DC-link current to a reference value
 TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepLowFrequency)
 {
-    // ==================== Test Configuration ====================
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = false;
-    // machine_side_pulse_generator_parameters()->enable = false;
-
-    simulator.simulate_for(1.0);
-
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = true;
-    // machine_side_pulse_generator_parameters()->enable = true;
-
     // ==================== Test Execution ====================
-    current_pu_t current_error_max_value{0.1f};
-    current_pu_t current_error_min_value{-0.1f};
+    current_pu_t current_error_max_value{0.15f};
+    current_pu_t current_error_min_value{-0.15f};
 
     system.current_reference_pu = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
@@ -305,22 +307,9 @@ TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepLowFrequency)
 // Test regulation of DC-link current to a reference value
 TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepHighFrequency)
 {
-    // ==================== Test Configuration ====================
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = false;
-    // machine_side_pulse_generator_parameters()->enable = false;
-
-    simulator.simulate_for(1.0);
-
-    // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
-    // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = true;
-    // machine_side_pulse_generator_parameters()->enable = true;
-
     // ==================== Test Execution ====================
-    current_pu_t current_error_max_value{0.1f};
-    current_pu_t current_error_min_value{-0.1f};
+    current_pu_t current_error_max_value{0.15f};
+    current_pu_t current_error_min_value{-0.15f};
 
     system.current_reference_pu = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(

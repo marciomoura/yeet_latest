@@ -30,60 +30,47 @@ public:
      */
     struct outputs {
         /// Estimated machine voltage magnitude
-        /// Range: [0.0, 1.5] pu
         yeet::signal_output<yeet::voltage_pu_t> estimated_voltage_magnitude;
 
         /// Estimated machine frequency (electrical)
-        /// Range: [0.0, 200.0] Hz for gas turbine applications
         yeet::signal_output<yeet::frequency_t> estimated_frequency;
+
+        /// Estimated machine frequency in per-unit
+        yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
+
         yeet::signal_output<yeet::speed_pu_t> estimated_speed;
 
         /// Estimated rotor position in radians
         /// Range: [0.0, 2π] radians
         yeet::signal_output<angle_wrapped> estimated_position;
 
-        /// Estimated machine frequency in per-unit
-        /// Range: [0.0, 4.0] pu for variable speed operation
-        yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
-
         /// Filtered machine voltage in alpha-beta stationary frame
         yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
-
-        /// Observer convergence status
-        yeet::signal_output<bool> is_converged;
     };
 
     /**
      * @brief Configuration parameters for the machine-side observer
      */
     struct parameters {
-        /// Adaptive filter convergence rate
-        /// Range: [0.001, 0.1]
-        yeet::parameter<double> adaptive_filter_convergence_rate = 0.01;
+        /// PLL proportional gain
+        /// Range: [0.1, 10.0]
+        yeet::parameter<double> kp = 1.0;
 
-        /// Minimum frequency for tracking
-        /// Range: [0.1, 5.0] Hz
-        yeet::parameter<frequency_t> minimum_tracking_frequency = frequency_t{0.5};
+        /// PLL integral time constant
+        /// Range: [0.01, 1.0] s
+        yeet::parameter<duration_t> ti = duration_t{0.1};
 
-        /// Maximum frequency for tracking
-        /// Range: [100.0, 300.0] Hz
-        yeet::parameter<frequency_t> maximum_tracking_frequency = frequency_t{200.0};
+        /// Nominal machine frequency
+        /// Range: [30.0, 100.0] Hz
+        yeet::parameter<frequency_t> nominal_frequency = frequency_t{50.0};
+
+        /// Initial machine frequency for startup
+        /// Range: [0.0, 1.0] pu
+        yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{1.0};
 
         /// Voltage threshold for commutation detection
         /// Range: [0.05, 0.3] pu
         yeet::parameter<double> commutation_detection_threshold = 0.15;
-
-        /// Time window for commutation event detection
-        /// Range: [0.0005, 0.005] s
-        yeet::parameter<duration_t> commutation_detection_time_window = duration_t{0.001};
-
-        /// Convergence threshold for observer
-        /// Range: [0.01, 0.1] pu
-        yeet::parameter<double> convergence_threshold = 0.05;
-
-        /// Convergence time window
-        /// Range: [0.1, 1.0] s
-        yeet::parameter<duration_t> convergence_time_window = duration_t{0.2};
     };
 
 private:

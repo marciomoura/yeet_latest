@@ -14,16 +14,16 @@ public:
 
     static constexpr duration_t sampling_time = us(200);
 
-    sfc_machine_side_observer_runner() : base_application(sampling_time), _sfc_machine_side_observer(sampling_time) {}
+    sfc_machine_side_observer_runner() : base_application(sampling_time), _sfc_machine_side_observer(sampling_time)
+    {
+        initialize();
+    }
 
     void initialize() override;
     void run() override;
     void stop() override;
 
 private:
-    void set_parameters();
-    void set_parameter_callback();
-
     sfc::sfc_machine_side_observer _sfc_machine_side_observer;
 };
 

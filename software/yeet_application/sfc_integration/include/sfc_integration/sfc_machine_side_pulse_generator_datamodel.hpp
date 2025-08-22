@@ -47,6 +47,8 @@ public:
      * @brief Configuration parameters for the machine-side pulse generator
      */
     struct parameters {
+        parameter<bool> enable{true};
+
         /// Pulse width for each firing pulse in radians
         /// Default: π/6 rad (30°)
         parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);

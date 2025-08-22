@@ -32,9 +32,6 @@ protected:
         components.plant_model_simulator.set_machine_parameters(
             frequency_t(50.0), voltage_t(1980.0));  // 50 Hz, 1980V RMS
 
-        // Configure the machine-side lookup table
-        components.machine_side_lookup_table.configure_table(20.0, 0.1);  // gamma=20°, inductance=0.1pu
-
         // Configure the current controller for grid-side firing angle control
         // components.current_controller.configure_pi_gains(0.5, 0.05);  // Kp, Ti
         // components.current_controller.configure_current_limits_pu(-10.0, 10.0);

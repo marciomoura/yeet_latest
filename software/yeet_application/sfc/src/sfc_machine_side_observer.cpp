@@ -5,52 +5,56 @@
 namespace yeet::application::sfc {
 
 sfc_machine_side_observer::sfc_machine_side_observer(duration_t sampling_period)
-    : _pll(sampling_period), _nominal_frequency{default_nominal_frequency}
+    : _pll(sampling_period),
+      _filtered_voltage_filter(real_t{sampling_period.value()}),
+      _nominal_frequency{default_nominal_frequency}
 {
     // _commutation_mask.
-    configure_pll(default_pll_kp, default_pll_ti, default_nominal_frequency);
+    _filtered_voltage_filter.configure(10.0, 0.707);
+
+    auto gains = _pll.parameters_30_hz_crossover_frequency;
+    configure_pll(gains.kp, gains.ti, default_nominal_frequency);
     reset();
 }
 
 void sfc_machine_side_observer::configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency)
 {
-    assert(
-        nominal_frequency > 0.0f && kp > 0.0f && ti > 0.0f && "Nominal frequency, kp, and ti must be positive values");
+    assert(nominal_frequency.value() > 0.0f && kp > 0.0f && ti.value() > 0.0f &&
+           "Nominal frequency, kp, and ti must be positive values");
 
     _nominal_frequency = nominal_frequency;
-    // Configure PLL with default gains
+    // Configure PLL with specified gains
     _pll.configure_nominal_frequency(nominal_frequency);
-    _pll.configure_pi_controller(kp, ti);
-    _pll.configure_frequency_limits(frequency_t{10.0f}, frequency_t{100.0f});
-    _pll.configure_sequence_extractor(1.414, 1.0 / nominal_frequency, true);
     _pll.configure_pi_controller(kp, ti);
 }
 
+void sfc_machine_side_observer::set_initial_speed(frequency_pu_t initial_frequency) { _pll.reset(initial_frequency); }
+
 void sfc_machine_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu)
 {
-    // Convert masked voltage to dimensionless alpha-beta for PLL
+    // Convert machine voltage to alpha-beta for PLL
     alphabeta<voltage_pu_t> const grid_voltage_alphabeta = grid_voltage_pu.to_alphabeta();
 
     // Update PLL
     _pll.update(grid_voltage_alphabeta);
 
     // Update output states
-    _estimated_angle = _pll.get_estimated_angle();
-    _estimated_frequency = frequency_t{_pll.get_estimated_frequency()};
-    _estimated_frequency_pu = to_pu(_pll.get_estimated_frequency(), _nominal_frequency);
+    _estimated_angle = _pll.get_estimated_angle_aligned_phase_a();
+    _estimated_frequency_pu = _pll.get_estimated_frequency_pu();
+    _estimated_frequency = to_si(_estimated_frequency_pu, _nominal_frequency);
 
-    // Get the positive sequence voltage from the PLL
-    auto positive_sequence = _pll.get_positive_sequence();
-    _filtered_voltage_alphabeta =
-        alphabeta<voltage_pu_t>{voltage_pu_t{positive_sequence.alpha()}, voltage_pu_t{positive_sequence.beta()}};
+    // Use the transformed d-q voltages to calculate magnitude
+    const auto& dq_voltages = _pll.get_dq_vector();
+    _filtered_voltage_filter.update(dq_voltages.magnitude());
+    _estimated_voltage_magnitude = voltage_pu_t{_filtered_voltage_filter.get_output()};
 
-    // Calculate voltage magnitude from the filtered positive sequence
-    _estimated_voltage_magnitude = _filtered_voltage_alphabeta.magnitude();
+    // Store the input alpha-beta as filtered output (the PLL internally filters)
+    _filtered_voltage_alphabeta = _pll.get_alphabeta();
 }
 
 void sfc_machine_side_observer::reset()
 {
-    _pll.reset();
+    _pll.reset();  // Reset to nominal frequency
     _estimated_angle = angle_wrapped{0.0f};
     _estimated_frequency = _nominal_frequency;
     _estimated_frequency_pu = frequency_pu_t{1.0f};

@@ -16,12 +16,7 @@ public:
     // static constexpr duration_t sampling_time = ms(1.0);
     static constexpr duration_t sampling_time = ms(1.0);
 
-    sfc_machine_side_controller_runner()
-        : base_application(sampling_time),
-          _lookup_table(20.0),  // Default gamma setpoint of 15 degrees
-          _firing_angle_filter(sampling_time)
-    {
-    }
+    sfc_machine_side_controller_runner() : base_application(sampling_time), _firing_angle_filter(sampling_time) {}
 
     void initialize() override;
     void run() override;

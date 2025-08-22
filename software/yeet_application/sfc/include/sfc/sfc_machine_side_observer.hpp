@@ -1,10 +1,9 @@
 #pragma once
 
-#include "sfc/sfc_commutation_mask.hpp"
-#include "sfc/sfc_commutation_monitor.hpp"
 #include "yeet_control/angle_wrapped.hpp"
-#include "yeet_control/dual_sogi_srf_pll.hpp"
 #include "yeet_control/reference_frame.hpp"
+#include "yeet_control/second_order_filter.hpp"
+#include "yeet_control/srf_pll.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
 
@@ -21,9 +20,6 @@ namespace yeet::application::sfc {
 class sfc_machine_side_observer {
 public:
     static constexpr auto default_nominal_frequency = frequency_t{50.0};
-    static constexpr real_t default_pll_kp = 0.2;
-    static constexpr duration_t default_pll_ti = duration_t{ms(50.0)};
-    // static constexpr auto default_commutation_threshold = voltage_pu_t{0.02};
 
     /**
      * @brief Constructs the grid-side observer.
@@ -34,9 +30,17 @@ public:
 
     /**
      * @brief Configures the gains for the internal Phase-Locked Loop.
-     * @param gains The proportional and time constant for the PLL.
+     * @param kp The proportional gain for the PLL.
+     * @param ti The integral time constant for the PLL.
+     * @param nominal_frequency The nominal frequency.
      */
     void configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency);
+
+    /**
+     * @brief Sets the initial speed for the observer.
+     * @param initial_frequency The initial frequency to start tracking from.
+     */
+    void set_initial_speed(frequency_pu_t initial_frequency);
 
     /**
      * @brief Configures the voltage threshold for commutation failure detection.
@@ -95,14 +99,9 @@ public:
      */
     bool is_commuting() const;
 
-    /**
-     * @brief Gets the PLL lock status.
-     * @return True if the PLL is locked, false otherwise.
-     */
-    bool is_locked() const { return _pll.is_locked(); }
-
 private:
-    control::dual_sogi_srf_pll _pll;
+    control::srf_pll _pll;
+    control::second_order_low_pass_filter<real_t> _filtered_voltage_filter;
 
     // Configuration
     frequency_t _nominal_frequency{};

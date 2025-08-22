@@ -255,10 +255,14 @@ TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
 
     // // ==================== Test Configuration ====================
 
+    grid_side_pulse_generator_parameters()->enable = false;
+    machine_side_pulse_generator_parameters()->enable = false;
+    simulator.simulate_for(1.0);
+
     // Note: 'enable' has been moved from parameters to inputs in the updated datamodel
     // The pulse generators are now controlled through signal flow, not parameters
-    // grid_side_pulse_generator_parameters()->enable = true;
-    // machine_side_pulse_generator_parameters()->enable = true;
+    grid_side_pulse_generator_parameters()->enable = true;
+    machine_side_pulse_generator_parameters()->enable = true;
 
     // Enable speed control mode
     system.enable_speed_control = true;

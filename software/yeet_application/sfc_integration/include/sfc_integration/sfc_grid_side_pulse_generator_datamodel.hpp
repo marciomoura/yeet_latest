@@ -55,6 +55,8 @@ public:
      * @brief Configuration parameters for the grid-side pulse generator
      */
     struct parameters {
+        parameter<bool> enable{true};
+
         /// Pulse width for each firing pulse in radians
         /// Range: [π/36, π/3] radians (5° to 60°)
         /// Default: π/6 rad (30°)

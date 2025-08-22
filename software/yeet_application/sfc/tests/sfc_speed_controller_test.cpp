@@ -38,11 +38,6 @@ protected:
         // Configure the machine-side lookup table
         // Get machine side inductance from electrical parameters
         const auto& electrical_params = components.plant_model_simulator.get_electrical_parameters();
-        components.machine_side_lookup_table.configure_table(
-            20.0, to_pu(electrical_params.machine_side_inductance,
-                      components.plant_model_simulator.get_per_unit_system()
-                          .get_machine_bases()
-                          .base_inductance));  // gamma=20°, inductance=0.1pu
 
         // Configure plant model parameters using the augmented model interface
         components.plant_model_simulator.set_grid_parameters(frequency_t(50.0), voltage_t(2090.0));  // 50 Hz, 2090V RMS
