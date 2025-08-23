@@ -78,6 +78,56 @@ def add_checker_failures(failures: List[Dict[str, Any]], figure: go.Figure):
         )
 
 
+def parse_signal_name(name: str) -> tuple[str, str]:
+    """Parse signal name into category and signal.
+    
+    Args:
+        name: Signal name, potentially with category separator ":":
+        
+    Returns:
+        Tuple of (category, signal_name). If no separator, category is None.
+    """
+    if ":" in name:
+        parts = name.split(":", 1)
+        category = parts[0].strip()
+        signal = parts[1].strip()
+        return category, signal
+    return None, name
+
+
+def group_signals_by_category(data_timeseries: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Group signals by their category prefix.
+    
+    Args:
+        data_timeseries: List of data entries
+        
+    Returns:
+        Dictionary mapping category names to lists of data entries
+    """
+    groups = {}
+    
+    for entry in data_timeseries:
+        category, signal_name = parse_signal_name(entry["name"])
+        
+        if category is None:
+            category = "General"  # Default category for ungrouped signals
+        
+        if category not in groups:
+            groups[category] = []
+        
+        # Create a copy of the entry with updated name
+        entry_copy = entry.copy()
+        entry_copy["display_name"] = signal_name
+        entry_copy["category"] = category
+        groups[category].append(entry_copy)
+    
+    # Sort signals within each category alphabetically
+    for category in groups:
+        groups[category].sort(key=lambda x: x["display_name"])
+    
+    return groups
+
+
 # MODIFIED: Added decimate_factor parameter
 def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
     with open(input_path, "r") as file:
@@ -91,61 +141,202 @@ def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
     time_entry = next(entry for entry in data["test_data"] if entry["name"] == "time")
     time_timeseries = time_entry["data"]
     
-    # Get all non-time data entries
+    # Get all non-time data entries and sort alphabetically
     data_timeseries = [entry for entry in data["test_data"] if entry["name"] != "time"]
-
-    figure = go.Figure()
-
+    data_timeseries.sort(key=lambda x: x["name"])
+    
+    # Group signals by category
+    signal_groups = group_signals_by_category(data_timeseries)
+    
+    # Create subplots based on number of categories
+    from plotly.subplots import make_subplots
+    
+    num_subplots = len(signal_groups)
+    subplot_titles = sorted(signal_groups.keys())
+    
+    # Increase vertical spacing and adjust for better visibility
+    vertical_spacing = max(0.08, 0.15 / num_subplots)  # Dynamic spacing based on number of subplots
+    
+    figure = make_subplots(
+        rows=num_subplots,
+        cols=1,
+        subplot_titles=subplot_titles,
+        vertical_spacing=vertical_spacing,
+        shared_xaxes=True
+    )
+    
     # Inform the user if decimation is active
     if decimate_factor > 1:
         print(f"Plotting '{os.path.basename(input_path)}' with decimation factor: {decimate_factor}...")
     
-    # Create plots for each data entry
-    for entry in data_timeseries:
-        # MODIFIED: Pass the decimate_factor to the plotting function
-        create_plot_for_multidimensional_data(entry, time_timeseries, figure, decimate_factor)
+    # Create plots for each category
+    for idx, category in enumerate(sorted(signal_groups.keys()), start=1):
+        for entry in signal_groups[category]:
+            # Use the display_name for the legend
+            original_name = entry["name"]
+            entry["name"] = entry["display_name"]
+            
+            # Plot to the appropriate subplot with legend group
+            create_plot_for_multidimensional_data_subplot(
+                entry, time_timeseries, figure, 
+                row=idx, col=1, decimate_factor=decimate_factor,
+                legend_group=category
+            )
+            
+            # Restore original name
+            entry["name"] = original_name
 
-    # Add checker failures (vertical lines and draggable annotations) if present
+    # Add checker failures to all subplots
     if "checker_failures" in data:
-        add_checker_failures(data["checker_failures"], figure)
+        add_checker_failures_to_subplots(data["checker_failures"], figure, num_subplots)
 
-    # Update layout with title at the top and a failure summary annotation at the bottom
+    # Calculate appropriate height based on number of subplots
+    # Minimum 400px per subplot, with additional space for titles and margins
+    subplot_height = max(400, 600 // num_subplots)
+    total_height = subplot_height * num_subplots + 200  # Extra space for titles and margins
+    
+    # Update layout with better spacing and grouped legends
     figure.update_layout(
         template="plotly_dark",
-        xaxis=dict(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor="LightGray",
-            title="Time",
-            domain=[0, 0.95]  # reduce plot height slightly to make room
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor="LightGray",
-            title="Values"
-        ),
         title=dict(
             text=plot_name,
-            font=dict(size=14),
-            xanchor='left',
-            x=0,
+            font=dict(size=16),
+            xanchor='center',
+            x=0.5,
             yanchor='top',
             y=0.98
         ),
         showlegend=True,
         legend=dict(
             yanchor="top",
-            y=0.99,
+            y=0.95,
             xanchor="left",
-            x=0.01,
-            bgcolor="rgba(0,0,0,0.3)"
+            x=0.02,
+            bgcolor="rgba(0,0,0,0.7)",
+            bordercolor="rgba(255,255,255,0.2)",
+            borderwidth=1,
+            groupclick="toggleitem"  # Allow collapsing/expanding legend groups
         ),
-        margin=dict(t=150, b=200, l=50, r=50)  # Increase bottom margin to fully show the summary annotation
+        height=total_height,
+        margin=dict(t=80, b=80, l=80, r=50)
     )
-
-    # Write the plot to file and pass a config making annotations editable
+    
+    # Update x-axis labels and ticks for ALL subplots
+    for idx in range(1, num_subplots + 1):
+        figure.update_xaxes(
+            title_text="Time", 
+            row=idx, 
+            col=1,
+            showgrid=True,
+            gridwidth=1,
+            gridcolor="rgba(128,128,128,0.3)",
+            showticklabels=True,  # Show tick labels
+            tickmode='auto',      # Automatic tick placement
+            tickcolor='white',    # Color of tick marks
+            tickwidth=1,          # Width of tick marks
+            ticklen=5,            # Length of tick marks
+            ticks='outside'       # Position ticks outside the plot area
+        )
+    
+    # Update y-axis labels for each subplot with better formatting
+    for idx in range(1, num_subplots + 1):
+        figure.update_yaxes(
+            title_text="Values", 
+            row=idx, 
+            col=1, 
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor="rgba(128,128,128,0.3)",
+            zeroline=True,
+            zerolinewidth=1,
+            zerolinecolor="rgba(128,128,128,0.5)",
+            showticklabels=True,  # Show tick labels on y-axis too
+            tickcolor='white',    # Color of tick marks
+            tickwidth=1,          # Width of tick marks
+            ticklen=5,            # Length of tick marks
+            ticks='outside'       # Position ticks outside the plot area
+        )
+    
+    # Write the plot to file
     figure.write_html(file=output_path, config={"editable": True})
+
+
+def create_plot_for_multidimensional_data_subplot(entry: Dict[str, Any], time_timeseries: List[float], 
+                                                  figure: go.Figure, row: int, col: int, decimate_factor: int = 1, 
+                                                  legend_group: str = None):
+    """Handle multi-dimensional data plotting with decimation for subplots."""
+    # Apply decimation to the shared time data
+    decimated_time = time_timeseries[::decimate_factor]
+
+    dimension = entry.get("dimension", 1)
+    if dimension > 1:
+        data = entry["data"]
+        components = list(zip(*data))
+        for i, component in enumerate(components):
+            decimated_component = component[::decimate_factor]
+            figure.add_trace(
+                go.Scatter(
+                    x=decimated_time,
+                    y=decimated_component,
+                    mode="lines",
+                    name=f"{entry['name']}[{i}]",
+                    legendgroup=legend_group,
+                    legendgrouptitle_text=legend_group if i == 0 else None
+                ),
+                row=row, col=col
+            )
+    else:
+        decimated_data = entry["data"][::decimate_factor]
+        figure.add_trace(
+            go.Scatter(
+                x=decimated_time,
+                y=decimated_data,
+                mode="lines",
+                name=entry["name"],
+                legendgroup=legend_group,
+                legendgrouptitle_text=legend_group
+            ),
+            row=row, col=col
+        )
+
+
+def add_checker_failures_to_subplots(failures: List[Dict[str, Any]], figure: go.Figure, num_subplots: int):
+    """Add vertical lines for checker failures across all subplots."""
+    if not failures:
+        return
+
+    for failure in failures:
+        # Add vertical line to all subplots
+        for idx in range(1, num_subplots + 1):
+            figure.add_vline(
+                x=failure["time"],
+                line_dash="dash",
+                line_color="red",
+                line_width=2,
+                opacity=0.7,
+                row=idx, col=1
+            )
+        
+        # Add annotation only to the first subplot
+        figure.add_annotation(
+            x=failure["time"],
+            y=1,
+            xref="x",
+            yref="y domain",
+            text=f"{failure['name']}: {failure['message']}",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=2,
+            arrowcolor="red",
+            bgcolor="rgba(255,0,0,0.1)",
+            bordercolor="red",
+            borderwidth=2,
+            borderpad=4,
+            yanchor="bottom",
+            hovertext="Double-click to toggle editing. Drag to move.",
+            row=1, col=1
+        )
 
 
 if __name__ == "__main__":
