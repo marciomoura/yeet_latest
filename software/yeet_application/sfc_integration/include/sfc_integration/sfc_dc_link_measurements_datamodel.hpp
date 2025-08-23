@@ -42,6 +42,7 @@ public:
 
         /// Filtered DC current in per-unit (removes ripple)
         signal_output<current_pu_t> dc_current_filtered_pu;
+        signal_output<current_pu_t> dc_current_heavy_filtered_pu;
     };
 
     /**

@@ -219,7 +219,7 @@ private:
 
         // DC link current for lookup table input
         signals_connector::connect_output_to_input(
-            dc_link_model.get_outputs().dc_current_filtered_pu, machine_ctrl_model.get_inputs().dc_link_current);
+            dc_link_model.get_outputs().dc_current_heavy_filtered_pu, machine_ctrl_model.get_inputs().dc_link_current);
 
         // Machine speed for lookup table input
         signals_connector::connect_output_to_input(

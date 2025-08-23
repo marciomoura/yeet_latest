@@ -14,7 +14,10 @@ public:
 
     static constexpr duration_t sampling_time = ms(1.0);
 
-    sfc_current_controller_runner() : base_application(sampling_time), _sfc_current_controller(sampling_time) {}
+    sfc_current_controller_runner() : base_application(sampling_time), _sfc_current_controller(sampling_time)
+    {
+        initialize();
+    }
 
     void initialize() override;
     void run() override;

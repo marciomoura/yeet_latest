@@ -33,11 +33,18 @@ public:
         simulator.register_sampler_entry(
             {"dc_link_current_reference", [&]() { return static_cast<float>(system.current_reference_pu.read()); }});
 
-        simulator.register_sampler_entry({"dc_link_current_measured", [&]() {
+        simulator.register_sampler_entry({"dc_current_filtered_pu", [&]() {
                                               return static_cast<float>(
                                                   system.dc_link_measurements.get_signal_flow_datamodel()
                                                       .get_outputs()
                                                       .dc_current_filtered_pu.read());
+                                          }});
+
+        simulator.register_sampler_entry({"dc_current_heavy_filtered_pu", [&]() {
+                                              return static_cast<float>(
+                                                  system.dc_link_measurements.get_signal_flow_datamodel()
+                                                      .get_outputs()
+                                                      .dc_current_heavy_filtered_pu.read());
                                           }});
 
         simulator.register_sampler_entry({"grid_side_firing_angle_pu", [&]() {

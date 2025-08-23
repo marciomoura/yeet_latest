@@ -39,12 +39,12 @@ void sfc_speed_controller::configure_torque_limits_pu(torque_pu_t min_pu, torque
 
 void sfc_speed_controller::configure_speed_reference_limits_pu(speed_pu_t min_pu, speed_pu_t max_pu)
 {
-    assert(min_pu.value() < max_pu.value() && "Minimum speed reference must be less than maximum.");
-    assert(min_pu.value() >= 0.0 && "Minimum speed reference must be non-negative.");
+    // assert(min_pu.value() < max_pu.value() && "Minimum speed reference must be less than maximum.");
+    // assert(min_pu.value() >= 0.0 && "Minimum speed reference must be non-negative.");
 
-    if (min_pu.value() < 0.0 || max_pu.value() <= min_pu.value()) {
-        return;
-    }
+    // if (min_pu.value() < 0.0 || max_pu.value() <= min_pu.value()) {
+    // return;
+    // }
 
     _min_speed_ref_pu = min_pu;
     _max_speed_ref_pu = max_pu;

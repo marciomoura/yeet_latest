@@ -13,12 +13,13 @@ sfc_current_controller::sfc_current_controller(duration_t sampling_time)
       _rate_of_change_limiter(2.0, sampling_time.value(), current_pu_t{0.0}.value())
 {
     // The PI output is a per-unit voltage. A reasonable limit for the DC voltage is ~1.5 pu.
-    configure_pi_gains(0.2, duration_t(ms(100.0)));
+    configure_pi_gains(0.7, duration_t(ms(100.0)));
     configure_current_limits_pu(current_pu_t(-1.5), current_pu_t(1.5));
+    configure_current_reference_slew_rate(1000.0);
     configure_firing_angle_limits_radians(angle_t(deg_to_rad(0.0)), angle_t(deg_to_rad(90.0)));
+    _pi_controller.enable_integrator_clamping(false);
+    freeze_integrator(false);
     recompute_internal_limits();
-    _pi_controller.enable_integrator_clamping(true);
-    _rate_of_change_limiter.configure_enable(false);  // By default, the rate limiter is disabled
 }
 
 void sfc_current_controller::configure_pi_gains(double proportional_gain, duration_t integral_time)
@@ -74,7 +75,8 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 
     // Step 2: Apply a rate-of-change limit to the saturated reference for smooth transitions
     _rate_of_change_limiter.update(saturated_current_reference_pu.value());
-    _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output()};
+    _current_reference_limited_pu = saturated_current_reference_pu;
+    // _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output()};
 
     // Step 3: Calculate the error signal using the slew-rate-limited reference and store it
     _current_error_pu = _current_reference_limited_pu - dc_link_current_measured_pu;

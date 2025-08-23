@@ -36,6 +36,7 @@ This separation allows the loops to be tuned independently, ensuring stability. 
                                                                                                 |       (ω_m)
                                                                                                 (Id)
 ```
+*Note: The `arccos` block is a key element that linearizes the rectifier's response. By having the current PI controller output a voltage command (which is then converted to a firing angle `α`), the highly non-linear gain of the rectifier is cancelled out, allowing the current controller to operate with constant, robust gains.*
 
 ---
 
@@ -64,10 +65,11 @@ $$ I_{d,ref}(t) = K_p e_s(t) + K_i \int_0^t e_s(\tau) d\tau $$
 To improve the dynamic response and reduce the burden on the feedback controller, a feedforward term can be added. This term pre-emptively calculates the torque required to accelerate the motor according to the reference profile.
 
 The total current reference becomes:
-$$ I_{d,ref}(t) = \text{PI Output} + I_{d,ff}(t) = \left( K_p e_s(t) + K_i \int_0^t e_s(\tau) d\tau \right) + J \frac{d\omega_{ref}(t)}{dt} $$
+$$ I_{d,ref}(t) = \text{PI Output} + I_{d,ff}(t) = \left( K_p e_s(t) + K_i \int_0^t e_s(\tau) d\tau \right) + \frac{J}{K_t} \frac{d\omega_{ref}(t)}{dt} $$
 
 *   $I_{d,ff}(t)$: The feedforward current component.
-*   $J$: The total inertia of the motor and its connected load.
+*   $J$: The total inertia of the motor and its connected load (in kg·m²).
+*   $K_t$: The motor's torque constant (in Nm/A).
 *   $\frac{d\omega_{ref}(t)}{dt}$: The rate of change (acceleration) of the speed reference.
 
 By directly commanding the current needed to accelerate the known system inertia, the feedforward term allows the PI controller to focus on correcting for disturbances and model inaccuracies, leading to much tighter tracking of the speed ramp.
@@ -106,13 +108,21 @@ The speed controller's job is to ensure the actual motor speed $\omega_m(t)$ fol
 
 ## 5. Speed Feedback and Tuning
 
-#### **Speed Measurement ($\omega_m$)**
-Accurate and clean speed feedback is crucial. It is typically obtained from a **resolver** or **encoder** mounted on the motor shaft. The raw signals from these sensors are processed to calculate the rotational speed. This signal is often filtered to remove noise, but care must be taken as filtering introduces a phase lag, which can affect the stability of the control loop.
+#### Speed Measurement ($\omega_m$)
+Accurate and clean speed feedback is crucial. It is typically obtained from a **resolver** or **encoder** mounted on the motor shaft. However, the signal that reaches the speed controller is not an instantaneous, perfect measurement of the true mechanical speed. It is the result of a multi-stage signal processing chain that introduces significant, and often dominant, dynamic lag.
 
-#### **Tuning the Speed Loop**
-The speed loop must be tuned to be significantly **slower** than the inner current loop. A common rule of thumb is for the speed loop's bandwidth to be 5 to 10 times lower than the current loop's bandwidth. This ensures that the inner loop is fast enough to execute any command given by the outer loop without becoming unstable.
+### 5.1 The Speed Measurement Path as a Dynamic System
 
-The tuning parameters ($K_p$ and $K_i$) are chosen to achieve a desired response characteristic (e.g., critically damped or with a small amount of overshoot) based on the known mechanical properties of the system, primarily the total **inertia** of the motor and the connected load.
+It is a common and critical mistake to assume the speed feedback is instantaneous. The measurement path itself is a dynamic system that acts as a low-pass filter, introducing phase lag that directly impacts the stability of the speed controller. This path typically consists of two key stages:
+
+1.  **SRF-PLL for Frequency Estimation:** The Synchronous Reference Frame Phase-Locked Loop (SRF-PLL) is used to estimate the grid's electrical frequency from the motor's back-EMF or sensor position. The PLL is not a static calculator; it is a closed-loop control system in its own right. As such, it has its own dynamic response, which closely resembles a **second-order low-pass filter**. The bandwidth and damping of this "filter" are determined by the tuning of the PLL's internal PI controller.
+
+2.  **Additional Low-Pass Filtering:** The raw frequency estimate from the PLL is often noisy. To provide a clean signal to the speed controller, an additional explicit low-pass filter (typically first or second-order) is applied.
+
+The crucial insight is that these two stages are **cascaded**. The total dynamic behavior of the measurement path is the product of these individual stages. This cumulative filtering action is often the primary factor that limits how fast the speed controller can be.
+
+#### Tuning the Speed Loop
+The speed loop must be tuned to be significantly **slower** than both the inner current loop and, critically, the speed measurement path. A common rule of thumb is for the speed loop's bandwidth to be 5 to 10 times lower than the bandwidth of the components it depends on. The significant phase lag introduced by the measurement chain means that if the speed controller is tuned to be too aggressive (too high bandwidth), it will become unstable, regardless of how well the current loop is performing.
 
 ---
 
@@ -124,70 +134,104 @@ The stability and performance of the entire LCI drive depend on the correct tuni
 
 *   **Objective:** To make the DC link current respond as quickly as possible to the reference from the speed controller.
 *   **Governing Dynamics:** The primary factor limiting the current loop's response is the electrical time constant of the DC link, defined by its inductance ($L_{dc}$) and resistance ($R_{dc}$).
-*   **Typical Bandwidth:** The current loop is the fastest loop in the system. Its bandwidth is typically set as high as possible, limited by factors like:
-    *   The switching frequency of the converter (for thyristors, this is related to the line frequency, e.g., 360 Hz for a 6-pulse, 60 Hz system).
-    *   Delays in measurement and processing.
-    *   Noise in the current feedback signal.
-    A typical current loop bandwidth is in the range of **100 to 500 rad/s** (approximately 15 to 80 Hz).
+*   **Typical Bandwidth:** A typical current loop bandwidth is in the range of **100 to 500 rad/s** (approximately 15 to 80 Hz).
 
 #### **Outer Loop: Speed Controller**
 
 *   **Objective:** To regulate the mechanical speed of the motor and load.
 *   **Governing Dynamics:** The speed loop's response is dominated by the mechanical time constant of the system, which is determined by the total **inertia** of the motor and the connected load (e.g., the gas turbine).
-*   **Typical Bandwidth:** To ensure stability, the speed loop must be significantly slower than the current loop. A common rule of thumb is to set the speed loop bandwidth to be **5 to 10 times lower** than the current loop bandwidth.
-    A typical speed loop bandwidth is in the range of **5 to 50 rad/s** (approximately 0.8 to 8 Hz).
+*   **Typical Bandwidth:** To ensure stability, the speed loop must be significantly slower than the current loop. A common rule of thumb is to set the speed loop bandwidth to be **5 to 10 times lower** than the current loop bandwidth. A typical speed loop bandwidth is in the range of **5 to 50 rad/s** (approximately 0.8 to 8 Hz).
 
 #### **Tuning Methodology**
 
-The loops are tuned sequentially, starting from the innermost loop and working outwards:
-
-1.  **Tune the Current Loop First:** The speed loop is disabled. The current loop is tuned by applying a step change to the current reference ($I_{d,ref}$) and adjusting its $K_p$ and $K_i$ gains to achieve a fast, stable response with minimal overshoot. This is often done using model-based techniques (like pole placement) if the DC link parameters ($L_{dc}$, $R_{dc}$) are known.
-2.  **Tune the Speed Loop:** Once the current loop is tuned and stable, it can be considered a simple gain block. The speed loop is then enabled, and its $K_p$ and $K_i$ gains are adjusted by applying a step change to the speed reference ($\omega_{ref}$) to achieve the desired acceleration and settling time, based on the system's mechanical inertia.
+1.  **Tune the Current Loop First:** The speed loop is disabled. The current loop is tuned by applying a step change to the current reference ($I_{d,ref}$) and adjusting its $K_p$ and $K_i$ gains to achieve a fast, stable response with minimal overshoot.
+2.  **Tune the Speed Loop:** Once the current loop is tuned and stable, it can be considered a single, fast-responding block. The speed loop is then enabled, and its $K_p$ and $K_i$ gains are adjusted by applying a step change to the speed reference ($\omega_{ref}$) to achieve the desired acceleration and settling time.
 
 ---
 
-## 7. Speed Controller Plant Model for Tuning
+## 7. High-Fidelity Speed Controller Plant Model for Tuning
 
-To systematically tune the speed PI controller, we need a transfer function model of the system it commands. This "plant" represents everything in the loop *except* for the speed controller itself. The model describes the relationship between the speed controller's output (the current reference, $I_{d,ref}$) and its input (the measured motor speed, $\omega_m$).
+To systematically tune the speed PI controller, we need a high-fidelity transfer function model of the system it commands. This "plant" represents everything in the loop *except* for the speed controller itself. The model describes the dynamic relationship between the speed controller's output (the current reference, $I_{d,ref}$) and its feedback input (the measured motor speed, $\omega_{m,meas}$).
 
-The plant consists of three main parts in series:
-1.  The closed-loop current controller.
-2.  The motor's torque production and mechanical inertia.
-3.  The speed measurement filter.
+#### **1. The Closed-Loop Current Controller ($G_{CL,I}(s)$)**
+From the perspective of the slow outer speed loop, the entire fast inner current loop is represented by its **actual closed-loop transfer function** derived from the current loop's design.
 
-  <!-- Placeholder for a block diagram image -->
+$$ G_{CL,I}(s) = \frac{I_d(s)}{I_{d,ref}(s)} = \frac{G_{OL,I}(s)}{1 + G_{OL,I}(s)} $$
 
-#### **1. Inner Current Loop Model ($G_{CL,I}(s)$)**
-The inner current loop is tuned to be much faster than the speed loop. From the speed controller's perspective, the current loop's dynamics can be accurately approximated as a simple first-order low-pass filter. Its transfer function is:
+#### **2. Control Task Execution Delay ($G_{delay}(s)$)**
+The discrete execution of the speed control algorithm introduces a pure transport delay.
 
-$$ G_{CL,I}(s) = \frac{I_d(s)}{I_{d,ref}(s)} \approx \frac{1}{1 + s \tau_i} $$
+$$ G_{delay}(s) = e^{-s T_{delay}} $$
 
-*   $\tau_i$: The equivalent time constant of the closed-loop current controller. This is inversely related to the current loop's bandwidth ($\tau_i \approx 1 / \omega_{bw,i}$).
+#### **3. Torque Production ($K_t$)**
+The electromagnetic torque ($T_e$) is proportional to the DC link current ($I_d$).
 
-#### **2. Mechanical System Model ($G_{mech}(s)$)**
-This part models how motor torque creates speed. It combines two effects:
-*   **Torque Production:** The electromagnetic torque ($T_e$) is directly proportional to the DC link current ($I_d$) by the motor's torque constant ($K_t$).
-*   **Inertia:** The motor and load inertia ($J$) resist acceleration. The relationship between torque and angular acceleration is an integration.
+$$ T_e(s) = K_t \cdot I_d(s) $$
 
-The combined transfer function is:
+#### **4. Linearized Mechanical System ($G_{mech}(s)$)**
+For a gas turbine with a quadratic load torque ($T_{load} = k \cdot \omega^2$), the non-linear dynamics are linearized around a steady-state operating speed, $\omega_0$.
 
-$$ G_{mech}(s) = \frac{\omega_m(s)}{I_d(s)} = \frac{K_t}{J \cdot s} $$
+$$ G_{mech}(s) = \frac{\Delta\omega(s)}{\Delta T_e(s)} = \frac{1}{J s + B_{eff}} $$
 
-*   $K_t$: Motor torque constant (in Nm/A).
-*   $J$: Total system inertia (in kg·m²).
+*   $J$: Total system inertia (motor rotor + turbine) in kg·m².
+*   $k$: The quadratic load constant in Nm/(rad/s)².
+*   $B_{eff} = 2k\omega_0$: The effective viscous damping coefficient at the operating speed $\omega_0$.
 
-#### **3. Speed Feedback Filter ($H_{fb}(s)$)**
-The speed measurement is typically filtered to remove noise before being used by the controller. This is modeled as another first-order low-pass filter:
+#### **5. Speed Measurement Path Dynamics ($G_{meas}(s)$)**
+This block represents the entire signal processing chain from the true mechanical speed ($\omega_m$) to the final measured signal ($\omega_{m,meas}$) used by the controller. As discussed in Section 5.1, this is a cascade of the SRF-PLL and an additional filter.
 
-$$ H_{fb}(s) = \frac{\omega_{m,meas}(s)}{\omega_m(s)} = \frac{1}{1 + s \tau_f} $$
+The SRF-PLL's closed-loop response from actual frequency to estimated frequency is accurately modeled as a second-order low-pass filter:
+$$ G_{PLL}(s) = \frac{\omega_{n,PLL}^2}{s^2 + 2\zeta_{PLL}\omega_{n,PLL} s + \omega_{n,PLL}^2} $$
+*   $\omega_{n,PLL}$: The natural frequency of the PLL, set by its PI tuning.
+*   $\zeta_{PLL}$: The damping ratio of the PLL, also set by its PI tuning.
 
-*   $\tau_f$: The time constant of the speed measurement filter.
+The additional filter is also modeled as a second-order low-pass filter:
+$$ G_{filter}(s) = \frac{\omega_{n,filt}^2}{s^2 + 2\zeta_{filt}\omega_{n,filt} s + \omega_{n,filt}^2} $$
+*   $\omega_{n,filt}$: The cutoff frequency of the explicit filter.
+*   $\zeta_{filt}$: The damping ratio of the explicit filter (e.g., $\zeta=0.707$ for a Butterworth response).
+
+The total transfer function for the measurement path is the product of these two, resulting in a **fourth-order system**:
+$$ G_{meas}(s) = G_{PLL}(s) \cdot G_{filter}(s) = \left[ \frac{\omega_{n,PLL}^2}{s^2 + 2\zeta_{PLL}\omega_{n,PLL} s + \omega_{n,PLL}^2} \right] \cdot \left[ \frac{\omega_{n,filt}^2}{s^2 + 2\zeta_{filt}\omega_{n,filt} s + \omega_{n,filt}^2} \right] $$
+This fourth-order lag is often the dominant dynamic that limits the achievable bandwidth of the speed control loop.
 
 #### **Total Open-Loop Plant Model ($G_{OL,speed}(s)$)**
-The complete plant model for the speed loop is the product of these three stages:
 
-$$ G_{OL,speed}(s) = \frac{\omega_{m,meas}(s)}{I_{d,ref}(s)} = G_{CL,I}(s) \cdot G_{mech}(s) \cdot H_{fb}(s) $$
+The complete plant model is the product of these stages:
 
-$$ G_{OL,speed}(s) = \left( \frac{1}{1 + s \tau_i} \right) \cdot \left( \frac{K_t}{J \cdot s} \right) \cdot \left( \frac{1}{1 + s \tau_f} \right) = \frac{K_t}{s \cdot J \cdot (1 + s \tau_i) \cdot (1 + s \tau_f)} $$
+$$ G_{OL,speed}(s) = G_{CL,I}(s) \cdot G_{delay}(s) \cdot K_t \cdot G_{mech}(s) \cdot G_{meas}(s) $$
 
-This second-order model, containing an integrator, is the basis for tuning the speed controller's PI gains ($K_p, K_i$). Techniques like the Symmetrical Optimum or pole placement can be applied to this model to calculate gains that will achieve a desired phase margin and bandwidth for the speed control loop.
+$$ G_{OL,speed}(s) = \left[ \frac{G_{OL,I}(s)}{1 + G_{OL,I}(s)} \right] \cdot \left[ e^{-s T_{delay}} \right] \cdot \left[ K_t \right] \cdot \left[ \frac{1}{J s + B_{eff}} \right] \cdot \left[ G_{PLL}(s) \cdot G_{filter}(s) \right] $$
+
+The resulting transfer function, $G_{OL,speed}(s)$, has units of **[rad/s / A]**, representing the change in speed output for a given change in current reference input. This model is used in simulation tools to calculate the speed controller's PI gains.
+
+---
+
+## 8. Alternative: Per-Unit (pu) System Modeling for Universal Tuning
+
+While the SI-unit model in Section 7 is physically intuitive, a **per-unit (pu) system** offers a more standardized and universal approach. It normalizes all variables against a base value (e.g., nominal speed, nominal torque), making the control model independent of the machine's specific power or voltage rating. This is standard practice in high-power drives engineering.
+
+#### **Per-Unit Mechanical System ($G_{mech,pu}(s)$)**
+The per-unit equation of motion uses the inertia constant, **H** (in seconds), which is a more practical and scalable measure of inertia than $J$.
+
+$$ G_{mech,pu}(s) = \frac{\Delta\omega_{pu}(s)}{\Delta T_{e,pu}(s)} = \frac{1}{2H s + D_{eff}} $$
+
+*   **$D_{eff} = 2k_{pu}\omega_{0,pu}$**: The effective per-unit viscous damping coefficient.
+
+#### **Simplification of Torque Production**
+In a consistent per-unit system, the relationship between per-unit electromagnetic torque and per-unit DC link current becomes a direct 1-to-1 mapping. The physical torque constant block ($K_t$) is replaced with a simple gain of **1.0**.
+
+#### **Total Per-Unit Open-Loop Plant Model ($G_{OL,speed,pu}(s)$)**
+
+$$ G_{OL,speed,pu}(s) = G_{CL,I}(s) \cdot G_{delay}(s) \cdot (1.0) \cdot G_{mech,pu}(s) \cdot G_{meas}(s) $$
+
+$$ G_{OL,speed,pu}(s) = \left[ \frac{G_{OL,I}(s)}{1 + G_{OL,I}(s)} \right] \cdot \left[ e^{-s T_{delay}} \right] \cdot \left[ \frac{1}{2H s + D_{eff}} \right] \cdot \left[ G_{PLL}(s) \cdot G_{filter}(s) \right] $$
+
+Note that the transfer function for the measurement path, $G_{meas}(s)$, remains unchanged as its dynamics are defined by absolute frequencies and time constants, which are independent of the per-unit system's base values.
+
+---
+
+## 9. Advanced Considerations: Gain Scheduling
+
+The linearization in Section 7 shows that the mechanical plant's effective damping (`B_eff`) is not constant but increases linearly with speed. A single set of PI gains tuned for one speed (e.g., 50% nominal) may be too sluggish at high speed or too aggressive at low speed.
+
+To optimize performance across the entire starting ramp, an advanced technique called **Gain Scheduling** is often employed. In this strategy, the speed controller's gains ($K_p$ and $K_i$) are not fixed values. Instead, they are functions of the measured speed ($\omega_m$), automatically adjusting to maintain a consistent stability margin and dynamic response as the plant characteristics change. This ensures robust performance from breakaway to full speed.

@@ -1,132 +1,177 @@
+"""
+SRF-PLL Control Loop Analysis (Modified for Damping Control)
+
+This script performs comprehensive analysis of Synchronous Reference Frame Phase-Locked Loop
+(SRF-PLL) systems. It uses modular components for system modeling, PI controller tuning,
+and result visualization.
+
+The key change in this version is the PI controller tuning method. Instead of relying on
+open-loop phase margin, it directly targets closed-loop performance metrics:
+- Natural Frequency (ωn): Determines the speed of the response.
+- Damping Ratio (ζ): Controls overshoot and peaking. A value >= 0.707 prevents gain peaking.
+
+The analysis includes:
+- Multiple tuning scenarios with different natural frequencies and damping ratios.
+- Open-loop and Closed-loop Bode plots.
+- Step response comparison to visualize the effect of damping.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import control as ct
-from matplotlib.ticker import MultipleLocator
+
+# Assuming modules are in a 'modules' sub-folder or accessible in the path
+from modules.pi_controller_tuning import (
+    create_pi_controller,
+    validate_tuning_margins
+)
+from modules.analysis_utilities import (
+    configure_plot_style,
+    setup_bode_plot_figure,
+    setup_step_plot_figure,
+    plot_bode_response,
+    plot_step_response,
+    finalize_bode_plot,
+    finalize_step_plot,
+    print_controller_summary
+)
+
+# Configure plotting style
+configure_plot_style()
+
+# =============================================================================
+# SYSTEM PARAMETERS
+# =============================================================================
 
 # --- System Parameters ---
 f_nominal = 50.0  # Nominal grid frequency [Hz]
 w_nominal = 2 * np.pi * f_nominal  # Nominal grid frequency [rad/s]
-v_mag = 1.0  # Magnitude of the input voltage vector [p.u.]
 
-# --- Function to compute PI gains for a desired crossover and phase margin ---
-def compute_pi_gains(f_cutoff_hz, pm_deg, v_mag=1.0, w_nominal=w_nominal):
+# =============================================================================
+# SRF-PLL TUNING FUNCTIONS
+# =============================================================================
+
+def compute_srf_pll_gains_damping(natural_freq_hz, damping_ratio, v_mag=1.0, w_nominal=w_nominal):
     """
-    Compute PI controller gains (kp, ti) for a desired open-loop crossover
-    frequency and phase margin.
+    Compute PI controller gains for SRF-PLL based on closed-loop specifications.
+    
+    This method directly tunes for a desired natural frequency and damping ratio,
+    allowing for precise control over the closed-loop response shape and preventing gain peaking.
     
     Args:
-        f_cutoff_hz: Desired open-loop gain crossover frequency in Hz.
-        pm_deg: Desired phase margin in degrees.
+        natural_freq_hz: Desired closed-loop natural frequency (fn) in Hz.
+        damping_ratio: Desired closed-loop damping ratio (ζ). ζ >= 0.707 avoids peaking.
         v_mag: Input voltage magnitude.
         w_nominal: Nominal angular frequency.
         
     Returns:
         (kp, ti): Tuple of proportional gain and integral time constant.
     """
-    # Convert inputs to standard units (rad/s and radians)
-    w_c = 2 * np.pi * f_cutoff_hz
-    pm_rad = np.deg2rad(pm_deg)
+    # Convert natural frequency from Hz to rad/s
+    w_n = 2 * np.pi * natural_freq_hz
     
-    # From the phase margin equation: Phase(G_ol(j*w_c)) = atan(ti*w_c) - 180° = -180° + PM
-    # This gives: ti = tan(PM) / w_c
-    ti = np.tan(pm_rad) / w_c
+    # The closed-loop transfer function denominator for this system is:
+    # s^2 + (V_mag * w_nominal * Kp) * s + (V_mag * w_nominal * Kp / Ti)
+    # The standard second-order form is:
+    # s^2 + (2 * ζ * w_n) * s + w_n^2
     
-    # From the magnitude equation: |G_ol(j*w_c)| = 1
-    # This gives: kp = (w_c * sin(PM)) / (V_mag * w_nominal)
-    kp = (w_c * np.sin(pm_rad)) / (v_mag * w_nominal)
+    # By comparing coefficients, we derive the gains:
+    # 2*ζ*w_n = V_mag*w_nominal*Kp  => Kp = (2*ζ*w_n) / (V_mag*w_nominal)
+    # w_n^2 = V_mag*w_nominal*Ki = V_mag*w_nominal*(Kp/Ti) => Ti = V_mag*w_nominal*Kp / w_n^2
+    # Substituting Kp in the Ti equation gives: Ti = 2*ζ / w_n
+    
+    kp = (2 * damping_ratio * w_n) / (v_mag * w_nominal)
+    ti = (2 * damping_ratio) / w_n
     
     return kp, ti
 
-# --- Tuning Goals ---
-desired_cutoff_hz = 30.0  # Desired open-loop crossover frequency in Hz
-desired_phase_margin_deg = 60.0  # Desired phase margin for stability
+# =============================================================================
+# SCENARIO DEFINITIONS
+# =============================================================================
 
-# --- Calculate Controller Parameters ---
-kp, ti = compute_pi_gains(desired_cutoff_hz, desired_phase_margin_deg)
-ki = kp / ti
+# Tuning scenarios based on Damping Ratio and Natural Frequency
+# A damping ratio (ζ) of 0.707 is the critical value to eliminate gain peaking.
+# A value of 1.0 provides critical damping for the fastest step response without overshoot.
+pll_tuning_scenarios = [
+    # Critically damped: flat magnitude and no step response overshoot
+    {'natural_freq_hz': 50.0, 'damping_ratio': 1.0},
+    # A faster, critically damped response
+    {'natural_freq_hz': 100.0, 'damping_ratio': 1.0},
+]
 
-print("--- SRF-PLL Tuning for Crossover Frequency & Phase Margin ---")
-print(f"Desired Crossover Frequency: {desired_cutoff_hz:.1f} Hz")
-print(f"Desired Phase Margin: {desired_phase_margin_deg:.1f} deg")
-print("\nCalculated PI Controller Gains:")
-print(f"  Proportional Gain (Kp): {kp:.4f}")
-print(f"  Integral Time (Ti): {ti*1000:.2f} ms")
-print(f"  Integral Gain (Ki): {ki:.2f}")
+# Voltage magnitude scenarios
+voltage_scenarios = [
+    {'v_mag': 1.0},  # Nominal voltage
+]
 
-# --- Define Final Transfer Functions ---
+# =============================================================================
+# FIGURE SETUP
+# =============================================================================
+
+fig_cl, axes_cl = setup_bode_plot_figure('SRF-PLL: Closed-Loop Bode Plot Comparison (Phase Tracking)')
+fig_step, ax_step = setup_step_plot_figure('SRF-PLL: Closed-Loop Step Response Comparison')
+
+# =============================================================================
+# MAIN ANALYSIS LOOP
+# =============================================================================
+
+print("=" * 60)
+print("SRF-PLL CONTROLLER TUNING ANALYSIS (DAMPING CONTROL)")
+print("=" * 60)
+
 s = ct.tf('s')
-controller_tf = kp * (1 + 1/(ti*s))
 vco_tf = w_nominal / s
 
-# --- System Analysis (No LPF) ---
-open_loop_tf = v_mag * controller_tf * vco_tf
-closed_loop_tf = ct.feedback(open_loop_tf, 1)
-disturbance_rejection_tf = ct.feedback(1, open_loop_tf)
+for i, voltage_params in enumerate(voltage_scenarios):
+    v_mag_scenario = voltage_params['v_mag']
+    
+    for j, tune_params in enumerate(pll_tuning_scenarios):
+        # Calculate controller parameters using the new damping-based method
+        desired_natural_freq_hz = tune_params['natural_freq_hz']
+        desired_damping_ratio = tune_params['damping_ratio']
+        
+        kp, ti_s = compute_srf_pll_gains_damping(
+            desired_natural_freq_hz, 
+            desired_damping_ratio, 
+            v_mag=v_mag_scenario,
+            w_nominal=w_nominal
+        )
+        
+        # Create controller and system transfer functions
+        controller_tf = create_pi_controller(kp, ti_s)
+        open_loop_tf = v_mag_scenario * controller_tf * vco_tf
+        closed_loop_tf = ct.feedback(open_loop_tf, 1)
 
-# --- Verification ---
-gm, pm, wcg, wcp = ct.margin(open_loop_tf)
-print("\n--- Verification ---")
-print(f"Actual Gain Margin: {20*np.log10(gm):.2f} dB @ {wcp/(2*np.pi):.2f} Hz")
-print(f"Actual Phase Margin: {pm:.2f} deg @ {wcg/(2*np.pi):.2f} Hz")
+        # Generate a descriptive label for this scenario
+        scenario_label = (f"V_mag={v_mag_scenario:.1f}pu, "
+                         f"f_n={desired_natural_freq_hz}Hz, ζ={desired_damping_ratio:.3f}")
+        
+        # Print controller summary
+        print_controller_summary(
+            kp, ti_s, 
+            loop_type="SRF-PLL",
+            scenario_label=scenario_label,
+            units="[rad/s/rad]"
+        )
+        
+        # Validate the resulting open-loop margins
+        margins = validate_tuning_margins(controller_tf, v_mag_scenario * vco_tf)
+        print(f"  Resulting PM = {margins['phase_margin_deg']:.1f}°, "
+              f"Resulting GM = {margins['gain_margin_db']:.1f} dB")
+        
+        # Plot responses
+        plot_bode_response(axes_cl, closed_loop_tf, scenario_label, frequency_range_hz=(1, 1000))
+        plot_step_response(ax_step, closed_loop_tf, scenario_label, time_span_s=0.2)
 
-# --- Plotting ---
-plt.style.use('seaborn-v0_8-whitegrid')
+# =============================================================================
+# FINALIZE PLOTS
+# =============================================================================
 
-# 1. Open-Loop Bode Plot
-plt.figure(1, figsize=(10, 8))
-ct.bode_plot(open_loop_tf, omega_limits=(1, 1e5), plot=True, dB=True, Hz=True)
-plt.suptitle('Open-Loop Transfer Function', fontsize=14)
-ax_mag_ol, ax_phase_ol = plt.gcf().get_axes()
+finalize_bode_plot(fig_cl, axes_cl, frequency_range_hz=(1, 1000))
+finalize_step_plot(fig_step, ax_step)
 
-# Highlight 0dB crossover (Gain Crossover Frequency)
-if np.isfinite(wcg):
-    wcg_hz = wcg / (2 * np.pi)
-    ax_mag_ol.axvline(x=wcg_hz, color='purple', linestyle=':')
-    ax_phase_ol.axvline(x=wcg_hz, color='purple', linestyle=':')
-    ax_mag_ol.text(wcg_hz * 1.1, -5, f'Gain Crossover\n{wcg_hz:.1f} Hz',
-                   color='purple', verticalalignment='center', backgroundcolor='w')
-
-
-# 2. Closed-Loop Bode Plot
-plt.figure(2, figsize=(10, 8))
-ct.bode_plot(closed_loop_tf, omega_limits=(1, 1e5), plot=True, dB=True, Hz=True)
-plt.suptitle('Closed-Loop Transfer Function (Phase Tracking)', fontsize=14)
-ax_mag_cl, ax_phase_cl = plt.gcf().get_axes()
-
-# --- Add vertical line for 0dB crossover ---
-# Generate frequency response data to find the 0dB crossover point
-omega_vec = np.logspace(0, 5, 2000)  # rad/s
-resp = ct.frequency_response(closed_loop_tf, omega_vec)
-mag_db = 20 * np.log10(resp.magnitude)
-
-# Find the first frequency where gain crosses below 0 dB
-crossover_indices = np.where(np.diff(np.sign(mag_db)) < 0)[0]
-
-if len(crossover_indices) > 0:
-    zero_db_idx = crossover_indices[0]
-    zero_db_freq_rads = omega_vec[zero_db_idx]
-    zero_db_freq_hz = zero_db_freq_rads / (2 * np.pi)
-
-    # Draw the vertical line and add text
-    ax_mag_cl.axvline(x=zero_db_freq_hz, color='green', linestyle=':')
-    ax_phase_cl.axvline(x=zero_db_freq_hz, color='green', linestyle=':')
-    ax_mag_cl.text(zero_db_freq_hz * 1.1, -5, f' 0 dB Crossover\n {zero_db_freq_hz:.1f} Hz',
-                 color='green', verticalalignment='center', backgroundcolor='w')
-
-
-# 3. Disturbance Rejection Bode Plot
-plt.figure(3, figsize=(10, 8))
-ct.bode_plot(disturbance_rejection_tf, omega_limits=(1, 1e5), plot=True, dB=True, Hz=True)
-plt.suptitle('Disturbance Rejection Transfer Function', fontsize=14)
-
-# 4. Closed-Loop Step Response
-plt.figure(4, figsize=(10, 8))
-T = np.linspace(0, 0.5, 1500)  # Simulator for N seconds
-_, yout = ct.step_response(closed_loop_tf, T=T)
-plt.plot(T, yout)
-plt.title('Closed-Loop Step Response (Phase Tracking)')
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude')
-plt.grid(True)
+print("\n" + "=" * 60)
+print("ANALYSIS COMPLETE - Displaying Results")
+print("=" * 60)
 
 plt.show()

@@ -272,7 +272,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     system.plant.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
     system.plant.get_plant_model().configure_speed_voltage_relationship(0.8, 0.2f, 0.0f);
-    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{1.0f});
+    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{0.9f});
     system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
 
     const speed_pu_t speed_error_max_value{0.05f};
@@ -295,9 +295,12 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
     // ==================== Test Execution ====================
     // Simulate until system can stabilize
+    system.speed_reference_pu = speed_pu_t(0.9);
+    system.load_torque_pu = torque_pu_t(0.3f);
+    bool success = simulator.simulate_for(10.0);
+
     system.speed_reference_pu = speed_pu_t(1.0);
-    system.load_torque_pu = torque_pu_t(0.2f);
-    bool success = simulator.simulate_for(5.0);
+    success &= simulator.simulate_for(10.0);
 
     speed_regulation_checker->activate();
     success &= simulator.simulate_for(5.0);

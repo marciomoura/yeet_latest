@@ -20,6 +20,8 @@ void sfc_dc_link_measurements_runner::run()
     _sfc_dc_link_filtering.update(
         _sfc_dc_link_measurements.get_voltage_pu(), _sfc_dc_link_measurements.get_current_pu());
     _outputs.dc_current_filtered_pu = _sfc_dc_link_filtering.get_filtered_current_pu();
+
+    _outputs.dc_current_heavy_filtered_pu = _sfc_dc_link_filtering.get_heavy_filtered_current_pu();
 }
 
 void sfc_dc_link_measurements_runner::stop() {}

@@ -9,7 +9,16 @@ void sfc_current_controller_runner::initialize()
 
     _sfc_current_controller.enable_current_reference_slew_rate(false);
     _sfc_current_controller.reset();
-    _sfc_current_controller.configure_pi_gains(0.5, duration_t(ms(100.0)));
+    // _sfc_current_controller.configure_pi_gains(0.5, duration_t(ms(100.0)));
+
+    // Desired Crossover Frequency: 20.0 Hz
+    // Desired Phase Margin: 60.0 deg
+    // Actual Gain Margin: 12.01 dB @ 20.00 Hz
+    // Actual Phase Margin: 60.00 deg @ 63.09 Hz
+    // Processing: f_c=20.0Hz, PM=60.0°, f_filt=100.0Hz
+    //   Kp=0.7439, Ti=101.64ms
+    // _sfc_current_controller.configure_pi_gains(0.7439 / 1.35, duration_t(ms(101.64)));
+    _sfc_current_controller.configure_pi_gains(0.7439 / 1.35, duration_t(ms(101.64)));
 }
 
 void sfc_current_controller_runner::run()

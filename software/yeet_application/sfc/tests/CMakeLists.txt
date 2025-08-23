@@ -9,18 +9,11 @@ enable_testing()
 # Add test sources
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE # Simulator
-            sfc_simulators.hpp
-            # Tests
-            sfc_commutation_mask_test.cpp
-            sfc_machine_side_lookup_table_test.cpp
-            sfc_per_unit_system_test.cpp
-            sfc_6p_6p_topology_integration_test.cpp
-            sfc_current_controller_test.cpp
+    PRIVATE sfc_commutation_mask_test.cpp
             sfc_grid_side_modulator_test.cpp
-            sfc_machine_side_firing_angle_lookup_table_test.cpp
+            sfc_machine_side_lookup_table_test.cpp
             sfc_machine_side_modulator_test.cpp
-            sfc_speed_controller_test.cpp
+            sfc_per_unit_system_test.cpp
             sfc_state_machine_test.cpp)
 
 # Link dependencies

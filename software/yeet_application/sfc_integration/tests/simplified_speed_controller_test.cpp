@@ -239,7 +239,7 @@ TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
     system.plant.get_plant_model().configure_speed_voltage_relationship(0.8, 0.2f, 0.0f);
     system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{1.0f});
     system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
-
+    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{0.9f});
     const speed_pu_t speed_error_max_value{0.05f};
     const speed_pu_t speed_error_min_value{-0.05f};
 
@@ -273,11 +273,11 @@ TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
     // ==================== Test Execution ====================
 
     // Simulate until system can stabilize
-    system.speed_reference_pu = speed_pu_t(1.0);
+    system.speed_reference_pu = speed_pu_t(0.9);
     bool success = simulator.simulate_for(10.0);
 
     // Set the speed reference to 0.5 per-unit, and test for 1.0 second
-    system.speed_reference_pu = speed_pu_t(0.8);
+    system.speed_reference_pu = speed_pu_t(1.0);
     success &= simulator.simulate_for(10.0);
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully.";
