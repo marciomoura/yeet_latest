@@ -2,6 +2,7 @@
 
 #include "sfc_integration/plant_complete_sfc_closed_loop.hpp"
 #include "sfc_loggers.hpp"
+#include "sfc_plant_configuration.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -37,15 +38,6 @@ public:
     void initialize() { system.initialize(); }
 
     void simulate_for(double time) { simulator.simulate_for(time); }
-
-    // Helper functions to calculate errors
-    speed_pu_t get_speed_error_pu() const
-    {
-        // Cast away const to access non-const methods - this is safe in test context
-        auto& mutable_system = const_cast<sfc_complete_sfc_closed_loop_simulation_builder&>(system);
-        return mutable_system.speed_controller.get_inputs().speed_reference_pu.read() -
-               mutable_system.speed_controller.get_inputs().measured_speed_pu.read();
-    }
 
     // State machine control helpers
     void set_auxiliaries_on(bool on) { system.auxiliaries_are_on = on; }
@@ -105,26 +97,18 @@ public:
 // Test speed regulation with state machine startup - based on sensorless_speed_controller_test.cpp
 TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachine)
 {
-    // Configure plant for variable speed operation (same as original test)
-    system.plant.get_parameters().operation_mode.write(
-        sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
-
-    system.plant.get_parameters().motor_damping_factor.write(damping_coefficient_pu_t{0.01f});
-    system.plant.get_parameters().motor_inertia_constant.write(inertia_constant_t{0.5});
-
-    system.plant.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
-    system.plant.get_plant_model().configure_speed_voltage_relationship(0.8, 0.2f, 0.0f);
-    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{0.9f});
-    system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
+    // Configure plant for variable speed operation using standardized configuration
+    yeet::application::sfc::integration::test::variable_speed_config config{};
+    config.initial_speed = speed_pu_t{0.9f};  // Custom initial speed for this test
+    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
     const speed_pu_t speed_error_max_value{0.05f};
     const speed_pu_t speed_error_min_value{-0.05f};
 
     // Check speed error after disturbance
     auto speed_regulation_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed error", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
-        speed_error_max_value, yeet::checker_activation_always{}));
+        "speed error", [&]() -> speed_pu_t { return system.speed_controller.get_outputs().speed_error.read(); },
+        speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
 
     speed_regulation_checker->deactivate();  // Deactivate initially to avoid false positives
 
@@ -136,6 +120,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
 
     // At this point, state machine should be in OPERATION_ON and pulse_releases should be true
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+
     // ==================== Test Execution ====================
     // Simulate until system can stabilize
     system.speed_reference_pu = speed_pu_t(0.9);

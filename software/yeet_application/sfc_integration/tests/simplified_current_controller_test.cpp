@@ -21,10 +21,6 @@ public:
         // Initialize the system - allocates plant model and all components
         initialize();
 
-        system.machine_side_controller.get_parameters().machine_side_commutation_reactance_pu =
-            to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
-                system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
-
         // ==================== Logger Registration ====================
         register_complete_logger(simulator, system.current_controller);
     }
