@@ -20,6 +20,7 @@ public:
         initialize();
 
         // ==================== Logger Registration ====================
+        register_minimal_logger(simulator, system.plant);
         register_minimal_logger(simulator, system.grid_side_pulse_generator);
         register_minimal_logger(simulator, system.machine_side_pulse_generator);
     }

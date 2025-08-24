@@ -20,16 +20,32 @@ public:
         // Register all applications with the simulator
         system.register_applications(simulator);
 
+        // Configure plant model
+        configure_plant_model();
+
         // Initialize the system - allocates plant model and all components
         initialize();
 
-        system.machine_side_controller.get_parameters().machine_side_commutation_reactance_pu =
-            to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
-                system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
-
         // ==================== Logger Registration ====================
+        register_loggers();
+    }
+
+    void register_loggers()
+    {
         register_complete_logger(simulator, system.speed_controller);
         register_complete_logger(simulator, system.current_controller);
+        register_complete_logger(simulator, system.machine_side_controller);
+        register_complete_logger(simulator, system.dc_link_measurements);
+    }
+
+    void configure_plant_model()
+    {
+        // Configure plant and speed controller for variable speed operation
+        test::variable_speed_config config;
+        config.initial_speed = speed_pu_t{0.9f};  // Custom initial speed for this test
+        config.voltage_at_base_speed = 0.8f;      // Custom voltage relationship
+
+        test::configure_variable_speed_plant(system.plant, config);
     }
 
     void initialize() { system.initialize(); }
@@ -46,13 +62,6 @@ public:
 // Test regulation of machine speed to a reference value
 TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
 {
-    // Configure plant and speed controller for variable speed operation
-    test::variable_speed_config config;
-    config.initial_speed = speed_pu_t{0.9f};  // Custom initial speed for this test
-    config.voltage_at_base_speed = 0.8f;      // Custom voltage relationship
-
-    test::configure_variable_speed_system(system.plant, config);
-
     const speed_pu_t speed_error_max_value{0.05f};
     const speed_pu_t speed_error_min_value{-0.05f};
 

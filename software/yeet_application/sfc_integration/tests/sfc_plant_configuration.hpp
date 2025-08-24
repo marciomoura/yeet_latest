@@ -73,22 +73,6 @@ inline void configure_variable_speed_plant(
 }
 
 /**
- * @brief Complete setup for variable speed operation (plant + controller)
- *
- * This is a convenience function that configures both the plant and speed controller
- * for variable speed operation using consistent parameters.
- *
- * @param plant_runner The plant runner to configure
- * @param speed_controller_runner The speed controller runner to configure
- * @param config Configuration parameters (uses default if not specified)
- */
-inline void configure_variable_speed_system(
-    sfc_plant_model_runner& plant_runner, const variable_speed_config& config = default_variable_speed_config)
-{
-    configure_variable_speed_plant(plant_runner, config);
-}
-
-/**
  * @brief Configuration parameters for fixed speed plant operation
  */
 struct fixed_speed_config {
