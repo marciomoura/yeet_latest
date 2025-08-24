@@ -27,12 +27,10 @@ from modules.pi_controller_tuning import (
 )
 from modules.analysis_utilities import (
     configure_plot_style,
-    setup_bode_plot_figure,
-    setup_step_plot_figure,
-    plot_bode_response,
-    plot_step_response,
-    finalize_bode_plot,
-    finalize_step_plot,
+    setup_comprehensive_analysis_figure,
+    plot_bode_subplot_pair,
+    plot_step_subplot,
+    finalize_comprehensive_analysis_figure,
     print_controller_summary
 )
 
@@ -108,8 +106,13 @@ voltage_scenarios = [
 # FIGURE SETUP
 # =============================================================================
 
-fig_cl, axes_cl = setup_bode_plot_figure('SRF-PLL: Closed-Loop Bode Plot Comparison (Phase Tracking)')
-fig_step, ax_step = setup_step_plot_figure('SRF-PLL: Closed-Loop Step Response Comparison')
+# Create comprehensive analysis figure (no plant model for PLL, but include step response)
+fig, axes_dict = setup_comprehensive_analysis_figure(
+    'SRF-PLL Control Analysis Dashboard',
+    include_plant=False,
+    include_step=True,
+    figsize=(14, 8)
+)
 
 # =============================================================================
 # MAIN ANALYSIS LOOP
@@ -159,16 +162,26 @@ for i, voltage_params in enumerate(voltage_scenarios):
         print(f"  Resulting PM = {margins['phase_margin_deg']:.1f}°, "
               f"Resulting GM = {margins['gain_margin_db']:.1f} dB")
         
-        # Plot responses
-        plot_bode_response(axes_cl, closed_loop_tf, scenario_label, frequency_range_hz=(1, 1000))
-        plot_step_response(ax_step, closed_loop_tf, scenario_label, time_span_s=0.2)
+        # Plot responses using the comprehensive subplot layout
+        plot_bode_subplot_pair(
+            axes_dict['ol_mag'], axes_dict['ol_phase'], 
+            open_loop_tf, scenario_label, frequency_range_hz=(1, 1000)
+        )
+        plot_bode_subplot_pair(
+            axes_dict['cl_mag'], axes_dict['cl_phase'], 
+            closed_loop_tf, scenario_label, frequency_range_hz=(1, 1000)
+        )
+        plot_bode_subplot_pair(
+            axes_dict['dist_mag'], axes_dict['dist_phase'], 
+            ct.feedback(1, open_loop_tf), scenario_label, frequency_range_hz=(1, 1000)
+        )
+        plot_step_subplot(axes_dict['step'], closed_loop_tf, scenario_label, time_span_s=0.2)
 
 # =============================================================================
 # FINALIZE PLOTS
 # =============================================================================
 
-finalize_bode_plot(fig_cl, axes_cl, frequency_range_hz=(1, 1000))
-finalize_step_plot(fig_step, ax_step)
+finalize_comprehensive_analysis_figure(fig, axes_dict, frequency_range_hz=(1, 1000))
 
 print("\n" + "=" * 60)
 print("ANALYSIS COMPLETE - Displaying Results")

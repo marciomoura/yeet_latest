@@ -26,12 +26,10 @@ from modules.pi_controller_tuning import (
 )
 from modules.analysis_utilities import (
     configure_plot_style,
-    setup_bode_plot_figure,
-    setup_step_plot_figure,
-    plot_bode_response,
-    plot_step_response,
-    finalize_bode_plot,
-    finalize_step_plot,
+    setup_comprehensive_analysis_figure,
+    plot_bode_subplot_pair,
+    plot_step_subplot,
+    finalize_comprehensive_analysis_figure,
     print_controller_summary
 )
 
@@ -73,12 +71,13 @@ filter_scenarios = [
 # FIGURE SETUP
 # =============================================================================
 
-# Create figures for comprehensive analysis
-fig_plant, axes_plant = setup_bode_plot_figure('Plant Model Comparison (Actuator + DC Link + Sensor)')
-fig_ol, axes_ol = setup_bode_plot_figure('Open-Loop Bode Plot Comparison')
-fig_cl, axes_cl = setup_bode_plot_figure('Closed-Loop Bode Plot Comparison (Tracking)')
-fig_dist, axes_dist = setup_bode_plot_figure('Disturbance Rejection Bode Plot Comparison')
-fig_step, ax_step = setup_step_plot_figure('Closed-Loop Step Response Comparison')
+# Create comprehensive analysis figure with all subplots
+fig, axes_dict = setup_comprehensive_analysis_figure(
+    'LCI Current Controller Analysis Dashboard',
+    include_plant=True,
+    include_step=True,
+    figsize=(18, 10)
+)
 
 # =============================================================================
 # MAIN ANALYSIS LOOP
@@ -103,7 +102,10 @@ for i, filter_params in enumerate(filter_scenarios):
     
     # Plot plant model for this filter scenario
     plant_label = f"Filter: {filter_params['f_meas_cutoff_hz']} Hz"
-    plot_bode_response(axes_plant, current_model.get_design_plant_tf(), plant_label)
+    plot_bode_subplot_pair(
+        axes_dict['plant_mag'], axes_dict['plant_phase'], 
+        current_model.get_design_plant_tf(), plant_label
+    )
     
     for j, tune_params in enumerate(tuning_scenarios):
         # Calculate controller parameters
@@ -140,22 +142,27 @@ for i, filter_params in enumerate(filter_scenarios):
         print(f"  Actual PM = {margins['phase_margin_deg']:.1f}°, "
               f"GM = {margins['gain_margin_db']:.1f} dB")
         
-        # Plot all responses
-        plot_bode_response(axes_ol, open_loop_tf, scenario_label)
-        plot_bode_response(axes_cl, closed_loop_tf, scenario_label)
-        plot_bode_response(axes_dist, disturbance_tf, scenario_label)
-        plot_step_response(ax_step, closed_loop_tf, scenario_label, time_span_s=1.0)
+        # Plot all responses using subplot pairs
+        plot_bode_subplot_pair(
+            axes_dict['ol_mag'], axes_dict['ol_phase'], 
+            open_loop_tf, scenario_label
+        )
+        plot_bode_subplot_pair(
+            axes_dict['cl_mag'], axes_dict['cl_phase'], 
+            closed_loop_tf, scenario_label
+        )
+        plot_bode_subplot_pair(
+            axes_dict['dist_mag'], axes_dict['dist_phase'], 
+            disturbance_tf, scenario_label
+        )
+        plot_step_subplot(axes_dict['step'], closed_loop_tf, scenario_label, time_span_s=1.0)
 
 # =============================================================================
 # FINALIZE PLOTS
 # =============================================================================
 
-# Apply standard formatting to all figures
-finalize_bode_plot(fig_plant, axes_plant)
-finalize_bode_plot(fig_ol, axes_ol)
-finalize_bode_plot(fig_cl, axes_cl)
-finalize_bode_plot(fig_dist, axes_dist)
-finalize_step_plot(fig_step, ax_step)
+# Apply standard formatting to the comprehensive analysis figure
+finalize_comprehensive_analysis_figure(fig, axes_dict)
 
 print("\n" + "=" * 60)
 print("ANALYSIS COMPLETE - Displaying Results")
