@@ -2,7 +2,6 @@
 
 #include "sfc_integration/plant_simplified_open_loop.hpp"
 #include "sfc_loggers.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -21,21 +20,15 @@ public:
         // initialize here, it allocates plant model stuff
         initialize();
 
+        // ==================== Logger Registration ====================
+        register_minimal_logger(simulator, system.grid_side_pulse_generator);
+        register_minimal_logger(simulator, system.machine_side_pulse_generator);
+
         simulator.register_sampler_entry(
             {"dc_link_current", [&]() {
                  return static_cast<float>(
                      system.plant.get_signal_flow_datamodel().get_outputs().dc_link_current.read());
              }});
-
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<yeet::control::six_pulse_generator::pulses>(
-            "grid_firing_pulses", [&]() -> yeet::control::six_pulse_generator::pulses {
-                return system.grid_side_pulse_generator.get_signal_flow_datamodel().get_outputs().firing_pulses.read();
-            }));
-
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<yeet::control::six_pulse_generator::pulses>(
-            "machine_firing_pulses", [&]() -> yeet::control::six_pulse_generator::pulses {
-                return system.grid_side_pulse_generator.get_signal_flow_datamodel().get_outputs().firing_pulses.read();
-            }));
 
         simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>("grid_voltage_pu",
             [&]() { return system.plant.get_signal_flow_datamodel().get_outputs().grid_voltage.read(); }));
@@ -47,25 +40,6 @@ public:
     void initialize() { system.initialize(); }
 
     void simulate_for(double time) { simulator.simulate_for(time); }
-
-    // make it constructible/copyable/movable
-    auto parameter_collection() { return system.create_parameter_collection(); }
-
-    template <typename T>
-    yeet::parameter_set<T> parameters()
-    {
-        return parameter_collection().get<T>();
-    }
-
-    yeet::parameter_set<sfc_machine_side_pulse_generator_datamodel::parameters> machine_side_pulse_generator()
-    {
-        return parameters<sfc_machine_side_pulse_generator_datamodel::parameters>();
-    }
-
-    yeet::parameter_set<sfc_grid_side_pulse_generator_datamodel::parameters> grid_side_pulse_generator()
-    {
-        return parameters<sfc_grid_side_pulse_generator_datamodel::parameters>();
-    }
 
     yeet::application::sfc::integration::sfc_open_loop_simulation_builder system;
 

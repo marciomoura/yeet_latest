@@ -2,8 +2,6 @@
 
 #include "sfc_integration/plant_sensorless_speed_control_closed_loop.hpp"
 #include "sfc_loggers.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
-#include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -28,35 +26,16 @@ public:
             to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
                 system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
 
-        // ==================== Speed Control Signals ====================
-        register_complete_speed_controller_logger(simulator, system.speed_controller);
-
-        // ==================== Current Control Signals ====================
-        register_complete_current_controller_logger(simulator, system.current_controller);
-        register_complete_dc_link_measurements_logger(simulator, system.dc_link_measurements);
-        register_complete_grid_side_observer_logger(simulator, system.grid_side_observer);
+        // ==================== Logger Registration ====================
+        register_complete_logger(simulator, system.speed_controller);
+        register_complete_logger(simulator, system.current_controller);
+        register_complete_logger(simulator, system.dc_link_measurements);
+        register_complete_logger(simulator, system.grid_side_observer);
     }
 
     void initialize() { system.initialize(); }
 
     void simulate_for(double time) { simulator.simulate_for(time); }
-
-    // Helper functions to calculate errors
-    current_pu_t get_dc_link_current_error_pu() const
-    {
-        // Cast away const to access non-const methods - this is safe in test context
-        auto& mutable_system = const_cast<sfc_sensorless_speed_controller_simulation_builder&>(system);
-        return mutable_system.speed_controller.get_signal_flow_datamodel().get_outputs().current_reference.read() -
-               mutable_system.dc_link_measurements.get_signal_flow_datamodel()
-                   .get_outputs()
-                   .dc_current_filtered_pu.read();
-    }
-
-    speed_pu_t get_speed_error_pu()
-    {
-        return system.speed_controller.get_inputs().speed_reference_pu.read() -
-               system.speed_controller.get_inputs().measured_speed_pu.read();
-    }
 
     // System under test
     yeet::application::sfc::integration::sfc_sensorless_speed_controller_simulation_builder system;
@@ -87,8 +66,8 @@ TEST_F(SfcSensorlessSpeedControllerTest, TestSpeedRegulation)
 
     // Check speed error after disturbance
     auto user_activation = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed error", [&]() -> speed_pu_t { return get_speed_error_pu(); }, speed_error_min_value,
-        speed_error_max_value, yeet::checker_activation_always{}));
+        "speed error", [&]() -> speed_pu_t { return system.speed_controller.get_outputs().speed_error.read(); },
+        speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
 
     user_activation->deactivate();  // Deactivate initially to avoid false positives
 

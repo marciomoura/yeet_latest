@@ -26,16 +26,12 @@ public:
             to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
                 system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
 
-        // ==================== State Machine Signals ====================
-        register_complete_state_machine_logger(simulator, system.state_machine);
-
-        // ==================== Current Control Signals ====================
-        register_complete_current_controller_logger(simulator, system.current_controller);
-        register_complete_dc_link_measurements_logger(simulator, system.dc_link_measurements);
-
-        // ==================== Observer Signals ====================
-        register_complete_grid_side_observer_logger(simulator, system.grid_side_observer);
-        register_complete_machine_side_observer_logger(simulator, system.machine_side_observer);
+        // ==================== Logger Registration ====================
+        register_complete_logger(simulator, system.state_machine);
+        register_complete_logger(simulator, system.current_controller);
+        register_complete_logger(simulator, system.dc_link_measurements);
+        register_complete_logger(simulator, system.grid_side_observer);
+        register_complete_logger(simulator, system.machine_side_observer);
     }
 
     void initialize() { system.initialize(); }
