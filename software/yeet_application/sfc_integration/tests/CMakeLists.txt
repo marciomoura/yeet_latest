@@ -9,6 +9,7 @@ enable_testing()
 target_sources(
     ${PROJECT_NAME}
     PRIVATE sfc_loggers.hpp
+            sfc_plant_configuration.hpp
             complete_sensorless_speed_controller_test.cpp
             open_loop_plant_model_test.cpp
             sensorless_current_controller_test.cpp

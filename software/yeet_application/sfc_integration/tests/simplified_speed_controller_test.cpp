@@ -2,7 +2,7 @@
 
 #include "sfc_integration/plant_simplified_speed_control.hpp"
 #include "sfc_loggers.hpp"
-#include "yeet_testing/data_sampler_entry.hpp"
+#include "sfc_plant_configuration.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -46,19 +46,13 @@ public:
 // Test regulation of machine speed to a reference value
 TEST_F(SfcSpeedControllerTest, TestSpeedRegulation)
 {
-    system.plant.get_parameters().operation_mode.write(
-        sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+    // Configure plant and speed controller for variable speed operation
+    test::variable_speed_config config;
+    config.initial_speed = speed_pu_t{0.9f};  // Custom initial speed for this test
+    config.voltage_at_base_speed = 0.8f;      // Custom voltage relationship
 
-    system.plant.get_parameters().motor_damping_factor.write(damping_coefficient_pu_t{0.01f});
-    system.plant.get_parameters().motor_inertia_constant.write(inertia_constant_t{0.5});
-    // system.plant.get_plant_model().configure_mechanical_load(inertia_constant_t{0.5},
-    // damping_coefficient_pu_t{0.001f});
-    system.plant.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
-    system.plant.get_plant_model().configure_speed_voltage_relationship(0.8, 0.2f, 0.0f);
-    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{1.0f});
-    system.plant.get_plant_model().set_load_torque_pu(torque_pu_t{0.3f});
-    system.plant.get_plant_model().set_initial_mechanical_speed_pu(speed_pu_t{0.9f});
+    test::configure_variable_speed_system(system.plant, config);
+
     const speed_pu_t speed_error_max_value{0.05f};
     const speed_pu_t speed_error_min_value{-0.05f};
 

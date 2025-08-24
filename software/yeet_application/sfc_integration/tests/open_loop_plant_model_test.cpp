@@ -2,7 +2,6 @@
 
 #include "sfc_integration/plant_simplified_open_loop.hpp"
 #include "sfc_loggers.hpp"
-#include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
 using namespace yeet::application::sfc::integration;
@@ -23,18 +22,6 @@ public:
         // ==================== Logger Registration ====================
         register_minimal_logger(simulator, system.grid_side_pulse_generator);
         register_minimal_logger(simulator, system.machine_side_pulse_generator);
-
-        simulator.register_sampler_entry(
-            {"dc_link_current", [&]() {
-                 return static_cast<float>(
-                     system.plant.get_signal_flow_datamodel().get_outputs().dc_link_current.read());
-             }});
-
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>("grid_voltage_pu",
-            [&]() { return system.plant.get_signal_flow_datamodel().get_outputs().grid_voltage.read(); }));
-
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>("machine_voltage_pu",
-            [&]() { return system.plant.get_signal_flow_datamodel().get_outputs().machine_voltage.read(); }));
     }
 
     void initialize() { system.initialize(); }
