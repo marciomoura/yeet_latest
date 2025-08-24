@@ -8,6 +8,7 @@ current and speed control loop analysis.
 import numpy as np
 import matplotlib.pyplot as plt
 import control as ct
+from matplotlib.widgets import Cursor
 
 
 def setup_bode_plot_figure(title, num_subplot_pairs=1, figsize=(12, 9)):
@@ -123,6 +124,52 @@ def finalize_bode_plot(fig, axes, frequency_range_hz=(0.1, 1000)):
     axes[1].legend(fontsize='small')
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
+    
+    # Add interactive cursors
+    cursors = []
+    for i, ax in enumerate(axes):
+        cursor = Cursor(ax, useblit=True, color='yellow', linewidth=1, alpha=0.8)
+        cursors.append(cursor)
+        
+        # Add value display annotation
+        text_annotation = ax.annotate('', xy=(0, 0), xytext=(20, 20),
+                                    textcoords="offset points",
+                                    bbox=dict(boxstyle="round,pad=0.3",
+                                            facecolor='black',
+                                            edgecolor='yellow',
+                                            alpha=0.8),
+                                    fontsize=8, color='white',
+                                    visible=False)
+        ax._cursor_annotation = text_annotation
+        
+        # Connect mouse motion event
+        def on_mouse_move(event, ax=ax, is_mag=(i==0)):
+            if event.inaxes == ax and ax.get_lines():
+                x_cursor = event.xdata
+                y_cursor = event.ydata
+                
+                if x_cursor is not None and y_cursor is not None:
+                    if is_mag:
+                        text = f'f: {x_cursor:.2f} Hz\nMag: {y_cursor:.2f} dB'
+                    else:
+                        text = f'f: {x_cursor:.2f} Hz\nPhase: {y_cursor:.1f}°'
+                    
+                    ax._cursor_annotation.set_text(text)
+                    ax._cursor_annotation.xy = (x_cursor, y_cursor)
+                    ax._cursor_annotation.set_visible(True)
+                    fig.canvas.draw_idle()
+                else:
+                    ax._cursor_annotation.set_visible(False)
+                    fig.canvas.draw_idle()
+            else:
+                if hasattr(ax, '_cursor_annotation'):
+                    ax._cursor_annotation.set_visible(False)
+                    fig.canvas.draw_idle()
+        
+        fig.canvas.mpl_connect('motion_notify_event', 
+                             lambda event, ax=ax, is_mag=(i==0): on_mouse_move(event, ax, is_mag))
+    
+    return cursors
 
 
 def finalize_step_plot(fig, ax):
@@ -497,7 +544,7 @@ def finalize_comprehensive_analysis_figure(fig, axes_dict, frequency_range_hz=(0
             fig.canvas.mpl_connect('pick_event', on_pick)
             
             # Add instruction text at bottom of figure
-            fig.text(0.02, 0.01, 'Click legend items to toggle visibility', 
+            fig.text(0.02, 0.01, 'Click legend items to toggle visibility | Left-click plots to mark points | Right-click plots to clear markers', 
                     fontsize=7, style='italic', color='#AAAAAA',
                     ha='left', va='bottom')
     else:
@@ -511,6 +558,411 @@ def finalize_comprehensive_analysis_figure(fig, axes_dict, frequency_range_hz=(0
             axes_dict['step'].legend(fontsize='x-small', loc='best')
         
         plt.tight_layout(rect=[0.02, 0.02, 0.98, 0.94])
+    
+    # Add interactive cursors to all plots
+    add_interactive_cursors(fig, axes_dict)
+
+
+def add_interactive_cursors(fig, axes_dict):
+    """
+    Add interactive crosshair cursors with axis lines to all Bode plot axes.
+    
+    Args:
+        fig: Figure handle
+        axes_dict: Dictionary of axes from setup_comprehensive_analysis_figure
+    """
+    cursors = []
+    
+    # Add cursors to all Bode plot axes (magnitude and phase)
+    bode_axes_keys = [
+        'plant_mag', 'plant_phase',
+        'ol_mag', 'ol_phase',
+        'cl_mag', 'cl_phase', 
+        'dist_mag', 'dist_phase'
+    ]
+    
+    for ax_key in bode_axes_keys:
+        if ax_key in axes_dict:
+            ax = axes_dict[ax_key]
+            
+            # Create interactive axis lines for crosshair effect
+            # Vertical line (frequency)
+            vline = ax.axvline(x=0, color='yellow', linestyle='-', linewidth=1, alpha=0.7, visible=False)
+            # Horizontal line (magnitude/phase)
+            hline = ax.axhline(y=0, color='yellow', linestyle='-', linewidth=1, alpha=0.7, visible=False)
+            
+            # Store references to the lines
+            ax._cursor_vline = vline
+            ax._cursor_hline = hline
+            
+            # Add text annotation for displaying values
+            text_annotation = ax.annotate('', xy=(0, 0), xytext=(20, 20), 
+                                        textcoords="offset points",
+                                        bbox=dict(boxstyle="round,pad=0.3", 
+                                                facecolor='black', 
+                                                edgecolor='yellow',
+                                                alpha=0.8),
+                                        fontsize=8, color='white',
+                                        visible=False)
+            
+            # Store reference to annotation in the axis for later use
+            ax._cursor_annotation = text_annotation
+            
+            # Initialize persistent markers list
+            ax._persistent_markers = []
+            ax._persistent_annotations = []
+            
+            # Determine if this is a magnitude plot (fix closure issue)
+            is_magnitude_plot = 'mag' in ax_key
+            
+            # Connect mouse motion event for value display
+            def on_mouse_move(event, ax=ax, is_mag=is_magnitude_plot):
+                if event.inaxes == ax:
+                    # Get cursor position
+                    x_cursor = event.xdata
+                    y_cursor = event.ydata
+                    
+                    if x_cursor is not None and y_cursor is not None:
+                        # Find the closest point on any of the plotted lines
+                        closest_x = x_cursor
+                        closest_y = y_cursor
+                        min_distance = float('inf')
+                        closest_line = None
+                        
+                        # Check all lines in this axis
+                        for line in ax.get_lines():
+                            if line.get_visible() and not line.get_label().startswith('_'):
+                                xdata = line.get_xdata()
+                                ydata = line.get_ydata()
+                                
+                                if len(xdata) > 0 and len(ydata) > 0:
+                                    # Find closest x point in log scale
+                                    log_x_cursor = np.log10(x_cursor) if x_cursor > 0 else -10
+                                    log_xdata = np.log10(np.maximum(xdata, 1e-10))  # Avoid log(0)
+                                    
+                                    # Find the closest frequency point
+                                    idx = np.argmin(np.abs(log_xdata - log_x_cursor))
+                                    
+                                    # Get the corresponding y value
+                                    snap_x = xdata[idx]
+                                    snap_y = ydata[idx]
+                                    
+                                    # Calculate distance in plot coordinates (considering log scale for x)
+                                    if snap_x > 0:
+                                        x_dist = abs(np.log10(snap_x) - log_x_cursor)
+                                    else:
+                                        x_dist = float('inf')
+                                    
+                                    # Normalize y distance based on plot range
+                                    y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+                                    y_dist = abs(snap_y - y_cursor) / y_range if y_range > 0 else 0
+                                    
+                                    # Combined distance metric (weighted more towards x)
+                                    distance = x_dist * 2 + y_dist
+                                    
+                                    if distance < min_distance:
+                                        min_distance = distance
+                                        closest_x = snap_x
+                                        closest_y = snap_y
+                                        closest_line = line
+                        
+                        # Update crosshair lines to snap to closest point
+                        ax._cursor_vline.set_xdata([closest_x, closest_x])
+                        ax._cursor_hline.set_ydata([closest_y, closest_y])
+                        ax._cursor_vline.set_visible(True)
+                        ax._cursor_hline.set_visible(True)
+                        
+                        # Format the display text based on axis type
+                        if is_mag:
+                            text = f'f: {closest_x:.2f} Hz\nMag: {closest_y:.2f} dB'
+                            if closest_line:
+                                text += f'\nCurve: {closest_line.get_label()}'
+                        else:  # phase plot
+                            text = f'f: {closest_x:.2f} Hz\nPhase: {closest_y:.1f}°'
+                            if closest_line:
+                                text += f'\nCurve: {closest_line.get_label()}'
+                        
+                        # Update annotation to show at the snapped position
+                        ax._cursor_annotation.set_text(text)
+                        ax._cursor_annotation.xy = (closest_x, closest_y)
+                        ax._cursor_annotation.set_visible(True)
+                        fig.canvas.draw_idle()
+                    else:
+                        # Hide crosshair lines and annotation
+                        ax._cursor_vline.set_visible(False)
+                        ax._cursor_hline.set_visible(False)
+                        ax._cursor_annotation.set_visible(False)
+                        fig.canvas.draw_idle()
+                else:
+                    # Mouse is outside this axis
+                    if hasattr(ax, '_cursor_annotation'):
+                        ax._cursor_vline.set_visible(False)
+                        ax._cursor_hline.set_visible(False)
+                        ax._cursor_annotation.set_visible(False)
+                        fig.canvas.draw_idle()
+            
+            fig.canvas.mpl_connect('motion_notify_event', 
+                                 lambda event, ax=ax, is_mag=is_magnitude_plot: on_mouse_move(event, ax, is_mag))
+            
+            # Add click handler for persistent markers
+            def on_click(event, ax=ax, is_mag=is_magnitude_plot):
+                if event.inaxes == ax and event.button == 1:  # Left click
+                    x_cursor = event.xdata
+                    y_cursor = event.ydata
+                    
+                    if x_cursor is not None and y_cursor is not None:
+                        # Find the closest point (same logic as mouse move)
+                        closest_x = x_cursor
+                        closest_y = y_cursor
+                        min_distance = float('inf')
+                        closest_line = None
+                        
+                        for line in ax.get_lines():
+                            if line.get_visible() and not line.get_label().startswith('_'):
+                                xdata = line.get_xdata()
+                                ydata = line.get_ydata()
+                                
+                                if len(xdata) > 0 and len(ydata) > 0:
+                                    log_x_cursor = np.log10(x_cursor) if x_cursor > 0 else -10
+                                    log_xdata = np.log10(np.maximum(xdata, 1e-10))
+                                    idx = np.argmin(np.abs(log_xdata - log_x_cursor))
+                                    
+                                    snap_x = xdata[idx]
+                                    snap_y = ydata[idx]
+                                    
+                                    if snap_x > 0:
+                                        x_dist = abs(np.log10(snap_x) - log_x_cursor)
+                                    else:
+                                        x_dist = float('inf')
+                                    
+                                    y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+                                    y_dist = abs(snap_y - y_cursor) / y_range if y_range > 0 else 0
+                                    distance = x_dist * 2 + y_dist
+                                    
+                                    if distance < min_distance:
+                                        min_distance = distance
+                                        closest_x = snap_x
+                                        closest_y = snap_y
+                                        closest_line = line
+                        
+                        # Create persistent marker
+                        marker_color = closest_line.get_color() if closest_line else 'red'
+                        marker = ax.plot(closest_x, closest_y, marker='o', markersize=8, 
+                                       markerfacecolor=marker_color, markeredgecolor='white', 
+                                       markeredgewidth=2, linestyle='', zorder=10)[0]
+                        
+                        # Create persistent annotation
+                        if is_mag:
+                            text = f'f: {closest_x:.2f} Hz\nMag: {closest_y:.2f} dB'
+                            if closest_line:
+                                text += f'\n{closest_line.get_label()}'
+                        else:
+                            text = f'f: {closest_x:.2f} Hz\nPhase: {closest_y:.1f}°'
+                            if closest_line:
+                                text += f'\n{closest_line.get_label()}'
+                        
+                        persistent_annotation = ax.annotate(text, xy=(closest_x, closest_y), 
+                                                          xytext=(10, 10), textcoords="offset points",
+                                                          bbox=dict(boxstyle="round,pad=0.3",
+                                                                  facecolor=marker_color,
+                                                                  edgecolor='white',
+                                                                  alpha=0.8),
+                                                          fontsize=7, color='white',
+                                                          arrowprops=dict(arrowstyle='->', 
+                                                                        connectionstyle='arc3,rad=0',
+                                                                        color='white', lw=1))
+                        
+                        # Store references
+                        ax._persistent_markers.append(marker)
+                        ax._persistent_annotations.append(persistent_annotation)
+                        
+                        fig.canvas.draw_idle()
+                
+                elif event.inaxes == ax and event.button == 3:  # Right click to clear markers
+                    # Remove all persistent markers and annotations
+                    for marker in ax._persistent_markers:
+                        marker.remove()
+                    for annotation in ax._persistent_annotations:
+                        annotation.remove()
+                    ax._persistent_markers.clear()
+                    ax._persistent_annotations.clear()
+                    fig.canvas.draw_idle()
+            
+            fig.canvas.mpl_connect('button_press_event',
+                                 lambda event, ax=ax, is_mag=is_magnitude_plot: on_click(event, ax, is_mag))
+    
+    # Add cursor to step response if present
+    if 'step' in axes_dict:
+        step_ax = axes_dict['step']
+        
+        # Create interactive axis lines for step response
+        step_vline = step_ax.axvline(x=0, color='yellow', linestyle='-', linewidth=1, alpha=0.7, visible=False)
+        step_hline = step_ax.axhline(y=0, color='yellow', linestyle='-', linewidth=1, alpha=0.7, visible=False)
+        
+        step_ax._cursor_vline = step_vline
+        step_ax._cursor_hline = step_hline
+        
+        # Add text annotation for step response
+        step_text = step_ax.annotate('', xy=(0, 0), xytext=(20, 20),
+                                   textcoords="offset points",
+                                   bbox=dict(boxstyle="round,pad=0.3",
+                                           facecolor='black',
+                                           edgecolor='yellow',
+                                           alpha=0.8),
+                                   fontsize=8, color='white',
+                                   visible=False)
+        step_ax._cursor_annotation = step_text
+        
+        # Initialize persistent markers for step response
+        step_ax._persistent_markers = []
+        step_ax._persistent_annotations = []
+        
+        def on_step_mouse_move(event):
+            if event.inaxes == step_ax:
+                x_cursor = event.xdata
+                y_cursor = event.ydata
+                
+                if x_cursor is not None and y_cursor is not None:
+                    # Find the closest point on any of the plotted lines
+                    closest_x = x_cursor
+                    closest_y = y_cursor
+                    min_distance = float('inf')
+                    closest_line = None
+                    
+                    # Check all lines in the step response axis
+                    for line in step_ax.get_lines():
+                        if line.get_visible() and not line.get_label().startswith('_'):
+                            xdata = line.get_xdata()
+                            ydata = line.get_ydata()
+                            
+                            if len(xdata) > 0 and len(ydata) > 0:
+                                # Find the closest time point
+                                idx = np.argmin(np.abs(xdata - x_cursor))
+                                
+                                # Get the corresponding y value
+                                snap_x = xdata[idx]
+                                snap_y = ydata[idx]
+                                
+                                # Calculate distance in plot coordinates
+                                x_range = step_ax.get_xlim()[1] - step_ax.get_xlim()[0]
+                                y_range = step_ax.get_ylim()[1] - step_ax.get_ylim()[0]
+                                
+                                x_dist = abs(snap_x - x_cursor) / x_range if x_range > 0 else 0
+                                y_dist = abs(snap_y - y_cursor) / y_range if y_range > 0 else 0
+                                
+                                # Combined distance metric
+                                distance = x_dist * 2 + y_dist  # Weight x more heavily
+                                
+                                if distance < min_distance:
+                                    min_distance = distance
+                                    closest_x = snap_x
+                                    closest_y = snap_y
+                                    closest_line = line
+                    
+                    # Update crosshair lines to snap to closest point
+                    step_ax._cursor_vline.set_xdata([closest_x, closest_x])
+                    step_ax._cursor_hline.set_ydata([closest_y, closest_y])
+                    step_ax._cursor_vline.set_visible(True)
+                    step_ax._cursor_hline.set_visible(True)
+                    
+                    text = f't: {closest_x:.3f} s\nAmpl: {closest_y:.3f} p.u.'
+                    if closest_line:
+                        text += f'\nCurve: {closest_line.get_label()}'
+                        
+                    step_ax._cursor_annotation.set_text(text)
+                    step_ax._cursor_annotation.xy = (closest_x, closest_y)
+                    step_ax._cursor_annotation.set_visible(True)
+                    fig.canvas.draw_idle()
+                else:
+                    step_ax._cursor_vline.set_visible(False)
+                    step_ax._cursor_hline.set_visible(False)
+                    step_ax._cursor_annotation.set_visible(False)
+                    fig.canvas.draw_idle()
+            else:
+                if hasattr(step_ax, '_cursor_annotation'):
+                    step_ax._cursor_vline.set_visible(False)
+                    step_ax._cursor_hline.set_visible(False)
+                    step_ax._cursor_annotation.set_visible(False)
+                    fig.canvas.draw_idle()
+        
+        fig.canvas.mpl_connect('motion_notify_event', on_step_mouse_move)
+        
+        # Add click handler for persistent markers on step response
+        def on_step_click(event):
+            if event.inaxes == step_ax and event.button == 1:  # Left click
+                x_cursor = event.xdata
+                y_cursor = event.ydata
+                
+                if x_cursor is not None and y_cursor is not None:
+                    # Find the closest point (same logic as mouse move)
+                    closest_x = x_cursor
+                    closest_y = y_cursor
+                    min_distance = float('inf')
+                    closest_line = None
+                    
+                    for line in step_ax.get_lines():
+                        if line.get_visible() and not line.get_label().startswith('_'):
+                            xdata = line.get_xdata()
+                            ydata = line.get_ydata()
+                            
+                            if len(xdata) > 0 and len(ydata) > 0:
+                                idx = np.argmin(np.abs(xdata - x_cursor))
+                                snap_x = xdata[idx]
+                                snap_y = ydata[idx]
+                                
+                                x_range = step_ax.get_xlim()[1] - step_ax.get_xlim()[0]
+                                y_range = step_ax.get_ylim()[1] - step_ax.get_ylim()[0]
+                                x_dist = abs(snap_x - x_cursor) / x_range if x_range > 0 else 0
+                                y_dist = abs(snap_y - y_cursor) / y_range if y_range > 0 else 0
+                                distance = x_dist * 2 + y_dist
+                                
+                                if distance < min_distance:
+                                    min_distance = distance
+                                    closest_x = snap_x
+                                    closest_y = snap_y
+                                    closest_line = line
+                    
+                    # Create persistent marker
+                    marker_color = closest_line.get_color() if closest_line else 'red'
+                    marker = step_ax.plot(closest_x, closest_y, marker='o', markersize=8,
+                                        markerfacecolor=marker_color, markeredgecolor='white',
+                                        markeredgewidth=2, linestyle='', zorder=10)[0]
+                    
+                    # Create persistent annotation
+                    text = f't: {closest_x:.3f} s\nAmpl: {closest_y:.3f} p.u.'
+                    if closest_line:
+                        text += f'\n{closest_line.get_label()}'
+                    
+                    persistent_annotation = step_ax.annotate(text, xy=(closest_x, closest_y),
+                                                           xytext=(10, 10), textcoords="offset points",
+                                                           bbox=dict(boxstyle="round,pad=0.3",
+                                                                   facecolor=marker_color,
+                                                                   edgecolor='white',
+                                                                   alpha=0.8),
+                                                           fontsize=7, color='white',
+                                                           arrowprops=dict(arrowstyle='->',
+                                                                         connectionstyle='arc3,rad=0',
+                                                                         color='white', lw=1))
+                    
+                    # Store references
+                    step_ax._persistent_markers.append(marker)
+                    step_ax._persistent_annotations.append(persistent_annotation)
+                    
+                    fig.canvas.draw_idle()
+            
+            elif event.inaxes == step_ax and event.button == 3:  # Right click to clear
+                # Remove all persistent markers and annotations
+                for marker in step_ax._persistent_markers:
+                    marker.remove()
+                for annotation in step_ax._persistent_annotations:
+                    annotation.remove()
+                step_ax._persistent_markers.clear()
+                step_ax._persistent_annotations.clear()
+                fig.canvas.draw_idle()
+        
+        fig.canvas.mpl_connect('button_press_event', on_step_click)
+    
+    return cursors
 
 
 def configure_plot_style():
