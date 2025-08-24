@@ -455,16 +455,10 @@ public:
 
     parameter_types create_parameter_collection() override
     {
-        return parameter_types(speed_controller.get_configuration_datamodel().get_parameters(),
-            current_controller.get_configuration_datamodel().get_parameters(),
-            grid_observer.get_configuration_datamodel().get_parameters(),
-            grid_modulator.get_configuration_datamodel().get_parameters(),
-            machine_observer.get_configuration_datamodel().get_parameters(),
-            machine_modulator.get_configuration_datamodel().get_parameters(),
-            grid_measurements.get_configuration_datamodel().get_parameters(),
-            machine_measurements.get_configuration_datamodel().get_parameters(),
-            dc_link_measurements.get_configuration_datamodel().get_parameters(),
-            plant.get_configuration_datamodel().get_parameters());
+        return parameter_types(speed_controller.get_parameters(), current_controller.get_parameters(),
+            grid_observer.get_parameters(), grid_modulator.get_parameters(), machine_observer.get_parameters(),
+            machine_modulator.get_parameters(), grid_measurements.get_parameters(),
+            machine_measurements.get_parameters(), dc_link_measurements.get_parameters(), plant.get_parameters());
     }
 
     // Public members for direct access if needed

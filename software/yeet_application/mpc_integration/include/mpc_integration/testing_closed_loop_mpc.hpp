@@ -91,8 +91,7 @@ public:
 
     parameter_types create_parameter_collection() override
     {
-        return parameter_types(
-            mpc.get_configuration_datamodel().get_parameters(), plant.get_configuration_datamodel().get_parameters());
+        return parameter_types(mpc.get_parameters(), plant.get_parameters());
     }
 
     mpc_integration_runner mpc;
@@ -140,8 +139,7 @@ public:
 
     parameter_types create_parameter_collection() override
     {
-        return parameter_types(
-            mpc.get_configuration_datamodel().get_parameters(), plant.get_configuration_datamodel().get_parameters());
+        return parameter_types(mpc.get_parameters(), plant.get_parameters());
     }
 
     mpc_integration_runner mpc;

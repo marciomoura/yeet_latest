@@ -75,14 +75,14 @@ public:
     {
         // Mock state machine inputs for standalone testing
         // yeet::mock_signal_input::write(
-        //     state_machine.get_signal_flow_datamodel().get_inputs().auxiliaries_are_on, false);
-        // yeet::mock_signal_input::write(state_machine.get_signal_flow_datamodel().get_inputs().breakers_are_on,
-        // false); yeet::mock_signal_input::write(state_machine.get_signal_flow_datamodel().get_inputs().start_command,
-        // false); yeet::mock_signal_input::write(state_machine.get_signal_flow_datamodel().get_inputs().stop_command,
+        //     state_machine.get_inputs().auxiliaries_are_on, false);
+        // yeet::mock_signal_input::write(state_machine.get_inputs().breakers_are_on,
+        // false); yeet::mock_signal_input::write(state_machine.get_inputs().start_command,
+        // false); yeet::mock_signal_input::write(state_machine.get_inputs().stop_command,
         // false);
-        // yeet::mock_signal_input::write(state_machine.get_signal_flow_datamodel().get_inputs().shutdown_request,
+        // yeet::mock_signal_input::write(state_machine.get_inputs().shutdown_request,
         // false); yeet::mock_signal_input::write(
-        //     state_machine.get_signal_flow_datamodel().get_inputs().is_current_extinguished, false);
+        //     state_machine.get_inputs().is_current_extinguished, false);
     }
 
     void initialize()
@@ -155,18 +155,12 @@ public:
 
     parameter_types create_parameter_collection() override
     {
-        return parameter_types(current_controller.get_configuration_datamodel().get_parameters(),
-            grid_side_pulse_generator.get_configuration_datamodel().get_parameters(),
-            machine_side_pulse_generator.get_configuration_datamodel().get_parameters(),
-            machine_side_controller.get_configuration_datamodel().get_parameters(),
-            grid_measurements.get_configuration_datamodel().get_parameters(),
-            machine_measurements.get_configuration_datamodel().get_parameters(),
-            dc_link_measurements.get_configuration_datamodel().get_parameters(),
-            grid_side_observer.get_configuration_datamodel().get_parameters(),
-            machine_side_observer.get_configuration_datamodel().get_parameters(),
-            plant.get_configuration_datamodel().get_parameters(),
-            speed_controller.get_configuration_datamodel().get_parameters(),
-            state_machine.get_configuration_datamodel().get_parameters());
+        return parameter_types(current_controller.get_parameters(), grid_side_pulse_generator.get_parameters(),
+            machine_side_pulse_generator.get_parameters(), machine_side_controller.get_parameters(),
+            grid_measurements.get_parameters(), machine_measurements.get_parameters(),
+            dc_link_measurements.get_parameters(), grid_side_observer.get_parameters(),
+            machine_side_observer.get_parameters(), plant.get_parameters(), speed_controller.get_parameters(),
+            state_machine.get_parameters());
     }
 
     // Public members for direct access

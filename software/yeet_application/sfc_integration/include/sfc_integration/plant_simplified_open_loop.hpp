@@ -32,10 +32,8 @@ public:
     void mock_inputs()
     {
         // Mock pulse release signals for both pulse generators
-        yeet::mock_signal_input::write(
-            grid_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
-        yeet::mock_signal_input::write(
-            machine_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
+        yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
+        yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
     }
 
     void initialize()
@@ -66,8 +64,8 @@ public:
 
     parameter_types create_parameter_collection() override
     {
-        return parameter_types(grid_side_pulse_generator.get_configuration_datamodel().get_parameters(),
-            machine_side_pulse_generator.get_configuration_datamodel().get_parameters());
+        return parameter_types(
+            grid_side_pulse_generator.get_parameters(), machine_side_pulse_generator.get_parameters());
     }
 
     // Public members for direct access

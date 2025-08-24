@@ -71,16 +71,12 @@ public:
 
     void mock_inputs()
     {
-        yeet::mock_signal_input::write(
-            current_controller.get_signal_flow_datamodel().get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(
-            speed_controller.get_signal_flow_datamodel().get_inputs().freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
+        yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
 
         // Mock pulse release signals for both pulse generators
-        yeet::mock_signal_input::write(
-            grid_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
-        yeet::mock_signal_input::write(
-            machine_side_pulse_generator.get_signal_flow_datamodel().get_inputs().release_pulses, true);
+        yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
+        yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
     }
 
     void initialize()
@@ -146,17 +142,11 @@ public:
 
     parameter_types create_parameter_collection() override
     {
-        return parameter_types(speed_controller.get_configuration_datamodel().get_parameters(),
-            current_controller.get_configuration_datamodel().get_parameters(),
-            grid_side_pulse_generator.get_configuration_datamodel().get_parameters(),
-            machine_side_pulse_generator.get_configuration_datamodel().get_parameters(),
-            machine_side_controller.get_configuration_datamodel().get_parameters(),
-            grid_measurements.get_configuration_datamodel().get_parameters(),
-            machine_measurements.get_configuration_datamodel().get_parameters(),
-            dc_link_measurements.get_configuration_datamodel().get_parameters(),
-            grid_side_observer.get_configuration_datamodel().get_parameters(),
-            machine_side_observer.get_configuration_datamodel().get_parameters(),
-            plant.get_configuration_datamodel().get_parameters());
+        return parameter_types(speed_controller.get_parameters(), current_controller.get_parameters(),
+            grid_side_pulse_generator.get_parameters(), machine_side_pulse_generator.get_parameters(),
+            machine_side_controller.get_parameters(), grid_measurements.get_parameters(),
+            machine_measurements.get_parameters(), dc_link_measurements.get_parameters(),
+            grid_side_observer.get_parameters(), machine_side_observer.get_parameters(), plant.get_parameters());
     }
 
     // Public members for direct access

@@ -195,7 +195,7 @@ def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
     subplot_height = max(400, 600 // num_subplots)
     total_height = subplot_height * num_subplots + 200  # Extra space for titles and margins
     
-    # Update layout with better spacing and grouped legends
+    # Update layout with enhanced legend
     figure.update_layout(
         template="plotly_dark",
         title=dict(
@@ -208,17 +208,26 @@ def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
         ),
         showlegend=True,
         legend=dict(
+            title=dict(
+                text="Signals",
+                font=dict(size=14, color="white")
+            ),
             yanchor="top",
             y=0.95,
             xanchor="left",
-            x=0.02,
-            bgcolor="rgba(0,0,0,0.7)",
-            bordercolor="rgba(255,255,255,0.2)",
+            x=1.02,  # Position legend to the right of the plot area
+            bgcolor="rgba(0,0,0,0.8)",
+            bordercolor="rgba(255,255,255,0.3)",
             borderwidth=1,
-            groupclick="toggleitem"  # Allow collapsing/expanding legend groups
+            font=dict(size=11),
+            itemsizing='constant',
+            tracegroupgap=10,  # Add gap between trace groups
+            itemclick='toggle',  # Single click toggles individual trace
+            itemdoubleclick='toggleothers'  # Double click isolates trace
         ),
         height=total_height,
-        margin=dict(t=80, b=80, l=80, r=50)
+        margin=dict(t=80, b=80, l=80, r=300),  # Increased right margin for legend space
+        hovermode='x unified'  # Show all y-values at the same x position
     )
     
     # Update x-axis labels and ticks for ALL subplots
@@ -257,6 +266,34 @@ def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
             ticks='outside'       # Position ticks outside the plot area
         )
     
+    # Add custom buttons for better signal control
+    figure.update_layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="left",
+                buttons=list([
+                    dict(
+                        args=["visible", "legendonly"],
+                        label="Hide All",
+                        method="restyle"
+                    ),
+                    dict(
+                        args=["visible", True],
+                        label="Show All",
+                        method="restyle"
+                    )
+                ]),
+                pad={"r": 10, "t": 10},
+                showactive=False,
+                x=0.02,
+                xanchor="left",
+                y=1.02,
+                yanchor="bottom"
+            )
+        ]
+    )
+    
     # Write the plot to file
     figure.write_html(file=output_path, config={"editable": True})
 
@@ -274,27 +311,33 @@ def create_plot_for_multidimensional_data_subplot(entry: Dict[str, Any], time_ti
         components = list(zip(*data))
         for i, component in enumerate(components):
             decimated_component = component[::decimate_factor]
+            # Add category prefix to name for clarity in legend
+            display_name = f"[{legend_group}] {entry['name']}[{i}]" if legend_group != "General" else f"{entry['name']}[{i}]"
             figure.add_trace(
                 go.Scatter(
                     x=decimated_time,
                     y=decimated_component,
                     mode="lines",
-                    name=f"{entry['name']}[{i}]",
-                    legendgroup=legend_group,
-                    legendgrouptitle_text=legend_group if i == 0 else None
+                    name=display_name,
+                    # Remove legendgroup to allow individual control
+                    # legendgroup=legend_group,
+                    # legendgrouptitle_text=legend_group if i == 0 else None
                 ),
                 row=row, col=col
             )
     else:
         decimated_data = entry["data"][::decimate_factor]
+        # Add category prefix to name for clarity in legend
+        display_name = f"[{legend_group}] {entry['name']}" if legend_group != "General" else entry['name']
         figure.add_trace(
             go.Scatter(
                 x=decimated_time,
                 y=decimated_data,
                 mode="lines",
-                name=entry["name"],
-                legendgroup=legend_group,
-                legendgrouptitle_text=legend_group
+                name=display_name,
+                # Remove legendgroup to allow individual control
+                # legendgroup=legend_group,
+                # legendgrouptitle_text=legend_group
             ),
             row=row, col=col
         )

@@ -38,8 +38,24 @@ public:
 
     signal_flow_datamodel<InputType, OutputType>& get_signal_flow_datamodel() { return _signal_flow_datamodel; }
 
-    application_configuration_datamodel<ParameterType>& get_configuration_datamodel() {
+    application_configuration_datamodel<ParameterType>& get_configuration_datamodel()
+    {
         return _application_configuration_datamodel;
+    }
+
+    typename application_configuration_datamodel<ParameterType>::parameters_type& get_parameters()
+    {
+        return _application_configuration_datamodel.get_parameters();
+    }
+
+    typename signal_flow_datamodel<InputType, OutputType>::inputs_type& get_inputs()
+    {
+        return _signal_flow_datamodel.get_inputs();
+    }
+
+    typename signal_flow_datamodel<InputType, OutputType>::outputs_type& get_outputs()
+    {
+        return _signal_flow_datamodel.get_outputs();
     }
 
 protected:

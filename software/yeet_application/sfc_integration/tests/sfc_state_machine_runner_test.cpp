@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include "sfc_loggers.hpp"
+
+
 namespace yeet::application::sfc::integration {
 
 class SfcStateMachineRunnerTest : public ::testing::Test {
