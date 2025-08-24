@@ -419,7 +419,7 @@ def finalize_comprehensive_analysis_figure(fig, axes_dict, frequency_range_hz=(0
             axes_dict[mag_key].set_xlim(frequency_range_hz)
             axes_dict[mag_key].tick_params(axis='both', which='major', labelsize=9)
             # Add 0 dB reference line
-            axes_dict[mag_key].axhline(y=0, color='red', linestyle='--', alpha=0.7, linewidth=1.5)
+            axes_dict[mag_key].axhline(y=0, color='white', linestyle='--', alpha=0.7, linewidth=1.5)
             
             # Phase subplot formatting  
             axes_dict[phase_key].set_ylabel('Phase (deg)', fontsize=10)
@@ -427,7 +427,7 @@ def finalize_comprehensive_analysis_figure(fig, axes_dict, frequency_range_hz=(0
             axes_dict[phase_key].set_xlim(frequency_range_hz)
             axes_dict[phase_key].tick_params(axis='both', which='major', labelsize=9)
             # Add -180° reference line
-            axes_dict[phase_key].axhline(y=-180, color='red', linestyle='--', alpha=0.7, linewidth=1.5)
+            axes_dict[phase_key].axhline(y=-180, color='white', linestyle='--', alpha=0.7, linewidth=1.5)
     
     # Format step response if present
     if 'step' in axes_dict:
@@ -587,9 +587,9 @@ def add_interactive_cursors(fig, axes_dict):
             
             # Create interactive axis lines for crosshair effect
             # Vertical line (frequency)
-            vline = ax.axvline(x=0, color='yellow', linestyle='-', linewidth=1, alpha=0.7, visible=False)
+            vline = ax.axvline(x=0, color='white', linestyle='--', linewidth=0.7, alpha=0.7, visible=False)
             # Horizontal line (magnitude/phase)
-            hline = ax.axhline(y=0, color='yellow', linestyle='-', linewidth=1, alpha=0.7, visible=False)
+            hline = ax.axhline(y=0, color='white', linestyle='--', linewidth=0.7, alpha=0.7, visible=False)
             
             # Store references to the lines
             ax._cursor_vline = vline
@@ -600,7 +600,7 @@ def add_interactive_cursors(fig, axes_dict):
                                         textcoords="offset points",
                                         bbox=dict(boxstyle="round,pad=0.3", 
                                                 facecolor='black', 
-                                                edgecolor='yellow',
+                                                edgecolor='grey',
                                                 alpha=0.8),
                                         fontsize=8, color='white',
                                         visible=False)
@@ -616,7 +616,7 @@ def add_interactive_cursors(fig, axes_dict):
             is_magnitude_plot = 'mag' in ax_key
             
             # Connect mouse motion event for value display
-            def on_mouse_move(event, ax=ax, is_mag=is_magnitude_plot):
+            def on_mouse_move(event, ax=ax, is_mag=is_magnitude_plot, ax_key_local=ax_key):
                 if event.inaxes == ax:
                     # Get cursor position
                     x_cursor = event.xdata
@@ -672,15 +672,57 @@ def add_interactive_cursors(fig, axes_dict):
                         ax._cursor_vline.set_visible(True)
                         ax._cursor_hline.set_visible(True)
                         
-                        # Format the display text based on axis type
-                        if is_mag:
-                            text = f'f: {closest_x:.2f} Hz\nMag: {closest_y:.2f} dB'
-                            if closest_line:
-                                text += f'\nCurve: {closest_line.get_label()}'
-                        else:  # phase plot
-                            text = f'f: {closest_x:.2f} Hz\nPhase: {closest_y:.1f}°'
-                            if closest_line:
-                                text += f'\nCurve: {closest_line.get_label()}'
+                        # Format the display text to show both magnitude and phase
+                        # Find the paired axis to get both mag and phase values
+                        mag_value = None
+                        phase_value = None
+                        
+                        # Determine the axis pair key
+                        axis_base = ax_key_local.replace('_mag', '').replace('_phase', '')
+                        mag_ax_key = f"{axis_base}_mag"
+                        phase_ax_key = f"{axis_base}_phase"
+                        
+                        # Get values from both magnitude and phase axes at the same frequency
+                        if mag_ax_key in axes_dict and phase_ax_key in axes_dict:
+                            # Get magnitude value
+                            mag_ax = axes_dict[mag_ax_key]
+                            for line in mag_ax.get_lines():
+                                if (line.get_visible() and not line.get_label().startswith('_') and 
+                                    closest_line and line.get_label() == closest_line.get_label()):
+                                    xdata = line.get_xdata()
+                                    ydata = line.get_ydata()
+                                    if len(xdata) > 0:
+                                        log_x_target = np.log10(closest_x) if closest_x > 0 else -10
+                                        log_xdata = np.log10(np.maximum(xdata, 1e-10))
+                                        idx = np.argmin(np.abs(log_xdata - log_x_target))
+                                        mag_value = ydata[idx]
+                                        break
+                            
+                            # Get phase value  
+                            phase_ax = axes_dict[phase_ax_key]
+                            for line in phase_ax.get_lines():
+                                if (line.get_visible() and not line.get_label().startswith('_') and 
+                                    closest_line and line.get_label() == closest_line.get_label()):
+                                    xdata = line.get_xdata()
+                                    ydata = line.get_ydata()
+                                    if len(xdata) > 0:
+                                        log_x_target = np.log10(closest_x) if closest_x > 0 else -10
+                                        log_xdata = np.log10(np.maximum(xdata, 1e-10))
+                                        idx = np.argmin(np.abs(log_xdata - log_x_target))
+                                        phase_value = ydata[idx]
+                                        break
+                        
+                        # Build text with both values when available
+                        text = f'f: {closest_x:.2f} Hz'
+                        if mag_value is not None and phase_value is not None:
+                            text += f'\nMag: {mag_value:.2f} dB\nPhase: {phase_value:.1f}°'
+                        elif is_mag:
+                            text += f'\nMag: {closest_y:.2f} dB'
+                        else:
+                            text += f'\nPhase: {closest_y:.1f}°'
+                        
+                        if closest_line:
+                            text += f'\nCurve: {closest_line.get_label()}'
                         
                         # Update annotation to show at the snapped position
                         ax._cursor_annotation.set_text(text)
@@ -702,10 +744,10 @@ def add_interactive_cursors(fig, axes_dict):
                         fig.canvas.draw_idle()
             
             fig.canvas.mpl_connect('motion_notify_event', 
-                                 lambda event, ax=ax, is_mag=is_magnitude_plot: on_mouse_move(event, ax, is_mag))
+                                 lambda event, ax=ax, is_mag=is_magnitude_plot, ax_key_local=ax_key: on_mouse_move(event, ax, is_mag, ax_key_local))
             
             # Add click handler for persistent markers
-            def on_click(event, ax=ax, is_mag=is_magnitude_plot):
+            def on_click(event, ax=ax, is_mag=is_magnitude_plot, ax_key_local=ax_key):
                 if event.inaxes == ax and event.button == 1:  # Left click
                     x_cursor = event.xdata
                     y_cursor = event.ydata
@@ -751,15 +793,57 @@ def add_interactive_cursors(fig, axes_dict):
                                        markerfacecolor=marker_color, markeredgecolor='white', 
                                        markeredgewidth=2, linestyle='', zorder=10)[0]
                         
-                        # Create persistent annotation
-                        if is_mag:
-                            text = f'f: {closest_x:.2f} Hz\nMag: {closest_y:.2f} dB'
-                            if closest_line:
-                                text += f'\n{closest_line.get_label()}'
+                        # Create persistent annotation with both mag and phase values
+                        # Find the paired axis to get both mag and phase values
+                        mag_value = None
+                        phase_value = None
+                        
+                        # Determine the axis pair key
+                        axis_base = ax_key_local.replace('_mag', '').replace('_phase', '')
+                        mag_ax_key = f"{axis_base}_mag"
+                        phase_ax_key = f"{axis_base}_phase"
+                        
+                        # Get values from both magnitude and phase axes at the same frequency
+                        if mag_ax_key in axes_dict and phase_ax_key in axes_dict:
+                            # Get magnitude value
+                            mag_ax = axes_dict[mag_ax_key]
+                            for line in mag_ax.get_lines():
+                                if (line.get_visible() and not line.get_label().startswith('_') and 
+                                    closest_line and line.get_label() == closest_line.get_label()):
+                                    xdata = line.get_xdata()
+                                    ydata = line.get_ydata()
+                                    if len(xdata) > 0:
+                                        log_x_target = np.log10(closest_x) if closest_x > 0 else -10
+                                        log_xdata = np.log10(np.maximum(xdata, 1e-10))
+                                        idx = np.argmin(np.abs(log_xdata - log_x_target))
+                                        mag_value = ydata[idx]
+                                        break
+                            
+                            # Get phase value  
+                            phase_ax = axes_dict[phase_ax_key]
+                            for line in phase_ax.get_lines():
+                                if (line.get_visible() and not line.get_label().startswith('_') and 
+                                    closest_line and line.get_label() == closest_line.get_label()):
+                                    xdata = line.get_xdata()
+                                    ydata = line.get_ydata()
+                                    if len(xdata) > 0:
+                                        log_x_target = np.log10(closest_x) if closest_x > 0 else -10
+                                        log_xdata = np.log10(np.maximum(xdata, 1e-10))
+                                        idx = np.argmin(np.abs(log_xdata - log_x_target))
+                                        phase_value = ydata[idx]
+                                        break
+                        
+                        # Build text with both values when available
+                        text = f'f: {closest_x:.2f} Hz'
+                        if mag_value is not None and phase_value is not None:
+                            text += f'\nMag: {mag_value:.2f} dB\nPhase: {phase_value:.1f}°'
+                        elif is_mag:
+                            text += f'\nMag: {closest_y:.2f} dB'
                         else:
-                            text = f'f: {closest_x:.2f} Hz\nPhase: {closest_y:.1f}°'
-                            if closest_line:
-                                text += f'\n{closest_line.get_label()}'
+                            text += f'\nPhase: {closest_y:.1f}°'
+                        
+                        if closest_line:
+                            text += f'\n{closest_line.get_label()}'
                         
                         persistent_annotation = ax.annotate(text, xy=(closest_x, closest_y), 
                                                           xytext=(10, 10), textcoords="offset points",
@@ -789,7 +873,7 @@ def add_interactive_cursors(fig, axes_dict):
                     fig.canvas.draw_idle()
             
             fig.canvas.mpl_connect('button_press_event',
-                                 lambda event, ax=ax, is_mag=is_magnitude_plot: on_click(event, ax, is_mag))
+                                 lambda event, ax=ax, is_mag=is_magnitude_plot, ax_key_local=ax_key: on_click(event, ax, is_mag, ax_key_local))
     
     # Add cursor to step response if present
     if 'step' in axes_dict:
