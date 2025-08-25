@@ -5,16 +5,7 @@
 #include "yeet/signal.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
-
-/**
- * @file sfc_grid_side_observer_datamodel.hpp
- * @brief Datamodel specification for SFC Grid-Side Observer component
- *
- * This file defines the interface contract for the SFC Grid-Side Observer component
- * following the yeet framework datamodel pattern with proper unit types.
- */
 
 namespace yeet::application::sfc::integration {
 
@@ -25,7 +16,6 @@ public:
      */
     struct inputs {
         /// Three-phase grid voltage measurements in per-unit (grid-side base)
-        /// Range: [0.8, 1.2] pu under normal operating conditions
         signal_input<abc<voltage_pu_t>> grid_voltage_pu;
     };
 
@@ -33,62 +23,37 @@ public:
      * @brief Output signals from the grid-side observer component
      */
     struct outputs {
-        /// Estimated grid voltage angle (electrical)
-        /// Range: [0, 2π] radians
-        signal_output<angle_wrapped> estimated_angle;
+        /// Estimated machine voltage magnitude
+        yeet::signal_output<yeet::voltage_pu_t> estimated_voltage_magnitude;
 
-        /// Estimated grid frequency (absolute)
-        /// Range: [45, 65] Hz for 50 Hz systems
-        signal_output<frequency_t> estimated_frequency;
+        /// Estimated machine frequency (electrical)
+        yeet::signal_output<yeet::frequency_t> estimated_frequency;
 
-        /// Estimated grid frequency in per-unit
-        /// Range: [0.9, 1.3] pu
-        signal_output<frequency_pu_t> estimated_frequency_pu;
+        /// Estimated machine frequency in per-unit
+        yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
 
-        /// Estimated positive-sequence voltage magnitude
-        /// Range: [0.8, 1.2] pu under normal conditions
-        signal_output<voltage_pu_t> estimated_voltage_magnitude;
+        /// Estimated rotor position in radians
+        yeet::signal_output<angle_wrapped> estimated_position;
 
-        /// Filtered grid voltage in alpha-beta stationary frame
-        /// Provides clean voltage signals for downstream control
-        signal_output<alphabeta<voltage_pu_t>> filtered_voltage_alphabeta;
-
-        /// PLL lock status indication
-        /// Indicates whether PLL has achieved frequency lock
-        signal_output<bool> is_locked;
+        /// Filtered machine voltage in alpha-beta stationary frame
+        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
     };
 
     /**
      * @brief Configuration parameters for the grid-side observer component
      */
     struct parameters {
-        /// PLL proportional gain for frequency tracking
-        /// Range: [50, 500] Hz
-        parameter<frequency_t> pll_proportional_gain = frequency_t(200.0);
+        /// PLL proportional gain
+        yeet::parameter<double> kp = 1.0;
 
-        /// PLL integral gain for steady-state accuracy
-        /// Range: [10000, 100000] Hz
-        parameter<frequency_t> pll_integral_gain = frequency_t(40000.0);
+        /// PLL integral time constant
+        yeet::parameter<duration_t> ti = duration_t{0.1};
 
-        /// Nominal grid frequency for initialization
-        /// Range: [50, 60] Hz
-        parameter<frequency_t> grid_nominal_frequency = frequency_t(50.0);
+        /// Nominal machine frequency
+        yeet::parameter<frequency_t> nominal_frequency = frequency_t{50.0};
 
-        /// Voltage threshold for commutation detection
-        /// Range: [0.05, 0.3] pu
-        parameter<voltage_pu_t> commutation_detection_threshold = voltage_pu_t(0.1);
-
-        /// Time window for commutation event detection
-        /// Range: [0.0005, 0.005] s
-        parameter<duration_t> commutation_detection_time_window = duration_t(0.001);
-
-        /// Frequency error threshold for PLL lock detection
-        /// Range: [0.01, 0.1] pu
-        parameter<voltage_pu_t> lock_detection_threshold = voltage_pu_t(0.05);
-
-        /// Time window for PLL lock verification
-        /// Range: [0.05, 0.5] s
-        parameter<duration_t> lock_detection_time_window = duration_t(0.1);
+        /// Initial machine frequency for startup
+        yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{1.0};
     };
 
 private:
@@ -105,32 +70,7 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
-    {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("estimated_angle", _model_outputs->estimated_angle);
-        // entry.signal_registry.insert("estimated_frequency", _model_outputs->estimated_frequency);
-        // entry.signal_registry.insert("estimated_frequency_pu", _model_outputs->estimated_frequency_pu);
-        // entry.signal_registry.insert("estimated_voltage_magnitude", _model_outputs->estimated_voltage_magnitude);
-        // entry.signal_registry.insert("filtered_voltage_alphabeta", _model_outputs->filtered_voltage_alphabeta);
-        // entry.signal_registry.insert("is_commuting", _model_outputs->is_commuting);
-        // entry.signal_registry.insert("is_locked", _model_outputs->is_locked);
-
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("pll_proportional_gain", _model_parameters->pll_proportional_gain);
-        // entry.parameter_registry.insert("pll_integral_gain", _model_parameters->pll_integral_gain);
-        // entry.parameter_registry.insert("grid_nominal_frequency", _model_parameters->grid_nominal_frequency);
-        // entry.parameter_registry.insert("commutation_detection_threshold",
-        //                                 _model_parameters->commutation_detection_threshold);
-        // entry.parameter_registry.insert("commutation_detection_time_window",
-        //                                 _model_parameters->commutation_detection_time_window);
-        // entry.parameter_registry.insert("lock_detection_threshold", _model_parameters->lock_detection_threshold);
-        // entry.parameter_registry.insert("lock_detection_time_window", _model_parameters->lock_detection_time_window);
-
-        // registry.insert("sfc_grid_side_observer", std::move(entry));
-    }
+    void register_data_model(model_registry& registry) {}
 
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }

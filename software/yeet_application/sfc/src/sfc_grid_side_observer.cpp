@@ -25,32 +25,20 @@ void sfc_grid_side_observer::configure_pll(real_t kp, duration_t ti, frequency_t
 
 void sfc_grid_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu)
 {
-    // Convert masked voltage to dimensionless alpha-beta for PLL
-    alphabeta<voltage_pu_t> const machine_voltage_alphabeta = grid_voltage_pu.to_alphabeta();
+    _pll.update(grid_voltage_pu.to_alphabeta());
 
-    // Update PLL
-    _pll.update(machine_voltage_alphabeta);
-
-    // Update output states
     _estimated_angle = _pll.get_estimated_angle();
-    _estimated_frequency = frequency_t{_pll.get_estimated_frequency()};
-    _estimated_frequency_pu = to_pu(_pll.get_estimated_frequency(), _nominal_frequency);
-
-    // Get the positive sequence voltage from the PLL
-    auto positive_sequence = _pll.get_positive_sequence();
-    _filtered_voltage_alphabeta =
-        alphabeta<voltage_pu_t>{voltage_pu_t{positive_sequence.alpha()}, voltage_pu_t{positive_sequence.beta()}};
-
-    // Calculate voltage magnitude from the filtered positive sequence
-    _estimated_voltage_magnitude = _filtered_voltage_alphabeta.magnitude();
+    _estimated_frequency = _pll.get_estimated_frequency();
+    _estimated_frequency_pu = _pll.get_estimated_frequency_pu();
+    _estimated_voltage_magnitude = abs(_pll.get_estimated_voltage_magnitude());
 }
 
-void sfc_grid_side_observer::reset()
+void sfc_grid_side_observer::reset(frequency_pu_t initial_frequency)
 {
     _pll.reset();
     _estimated_angle = angle_wrapped{0.0f};
-    _estimated_frequency = _nominal_frequency;
-    _estimated_frequency_pu = frequency_pu_t{1.0f};
+    _estimated_frequency = to_si(initial_frequency, _nominal_frequency);
+    _estimated_frequency_pu = initial_frequency;
     _estimated_voltage_magnitude = voltage_pu_t{0.0f};
     _filtered_voltage_alphabeta = alphabeta<voltage_pu_t>{voltage_pu_t{0.0f}, voltage_pu_t{0.0f}};
 }

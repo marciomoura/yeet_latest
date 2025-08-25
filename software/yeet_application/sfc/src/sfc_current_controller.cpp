@@ -65,8 +65,8 @@ void sfc_current_controller::reset()
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
-    current_pu_t dc_link_current_measured_pu,
-    voltage_pu_t ideal_dc_voltage_pu,
+    current_pu_t dc_link_current_measured,
+    voltage_pu_t grid_side_voltage_magnitude,
     voltage_pu_t inverter_back_emf_pu)
 {
     // Step 1: Saturate the incoming current reference to its absolute limits
@@ -75,11 +75,10 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 
     // Step 2: Apply a rate-of-change limit to the saturated reference for smooth transitions
     _rate_of_change_limiter.update(saturated_current_reference_pu.value());
-    _current_reference_limited_pu = saturated_current_reference_pu;
-    // _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output()};
+    _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output()};
 
     // Step 3: Calculate the error signal using the slew-rate-limited reference and store it
-    _current_error_pu = _current_reference_limited_pu - dc_link_current_measured_pu;
+    _current_error_pu = _current_reference_limited_pu - dc_link_current_measured;
 
     // Step 4: Update the PI controller to get the corrective control voltage and store it
     _pi_output = _pi_controller.update(_current_error_pu.value());
@@ -89,7 +88,7 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 
     // Step 6: Linearize by normalizing with V_do to get cos(alpha) command
     // Avoid division by zero or small numbers for stability.
-    const double v_do_safe = std::max(ideal_dc_voltage_pu.value(), 0.2);
+    const double v_do_safe = std::max(grid_side_voltage_magnitude.value(), 0.2);
     _cos_alpha_unclamped = v_ctrl_total / v_do_safe;
 
     // Step 7: Clamp the cosine of the firing angle based on pre-calculated limits
@@ -100,18 +99,18 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
-    current_pu_t dc_link_current_measured_pu,
-    voltage_pu_t ideal_dc_voltage_pu,
-    voltage_pu_t inverter_back_emf_machine_pu,
+    current_pu_t dc_link_current_measured,
+    voltage_pu_t grid_side_voltage_magnitude,
+    voltage_pu_t machine_side_voltage_magnitude,
     const voltage_t& machine_side_base_voltage,
     const precomputed_divisor<voltage_t>& grid_side_base_voltage)
 {
     // Reflect the machine-side inverter back-EMF to grid-side per-unit
     const voltage_pu_t inverter_back_emf_grid_reflected_pu = reflect_machine_to_grid_voltage_pu(
-        inverter_back_emf_machine_pu, machine_side_base_voltage, grid_side_base_voltage);
+        machine_side_voltage_magnitude, machine_side_base_voltage, grid_side_base_voltage);
 
     // Call the main update method with the reflected voltage
-    update(dc_link_current_reference_pu, dc_link_current_measured_pu, ideal_dc_voltage_pu,
+    update(dc_link_current_reference_pu, dc_link_current_measured, grid_side_voltage_magnitude,
         inverter_back_emf_grid_reflected_pu);
 }
 

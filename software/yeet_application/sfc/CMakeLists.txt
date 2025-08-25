@@ -33,6 +33,7 @@ target_sources(
     PRIVATE src/sfc_commutation_mask.cpp
             src/sfc_current_controller.cpp
             src/sfc_machine_side_filtering.cpp
+            src/sfc_machine_side_lookup_table.cpp
             src/sfc_grid_side_filtering.cpp
             src/sfc_dc_link_filtering.cpp
             src/sfc_grid_side_observer.cpp

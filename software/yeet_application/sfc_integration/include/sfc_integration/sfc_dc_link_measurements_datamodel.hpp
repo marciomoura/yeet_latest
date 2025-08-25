@@ -18,12 +18,7 @@ public:
      * @brief Input signals for the DC link measurements component
      */
     struct inputs {
-        /// DC link voltage measurement (raw sensor value)
-        /// Range: [0, 15000] V typical for high voltage DC links
         // signal_input<voltage_t> dc_voltage;
-
-        /// DC link current measurement (raw sensor value)
-        /// Range: [-5000, 5000] A typical for high power applications
         signal_input<current_t> dc_current;
     };
 
@@ -31,16 +26,9 @@ public:
      * @brief Output signals from the DC link measurements component
      */
     struct outputs {
-        /// DC voltage in per-unit
         // signal_output<voltage_pu_t> dc_voltage_pu;
-
-        /// DC current in per-unit
-        signal_output<current_pu_t> dc_current_pu;
-
-        /// Filtered DC voltage in per-unit (removes ripple)
         // signal_output<voltage_pu_t> dc_voltage_filtered_pu;
-
-        /// Filtered DC current in per-unit (removes ripple)
+        signal_output<current_pu_t> dc_current_pu;
         signal_output<current_pu_t> dc_current_filtered_pu;
         signal_output<current_pu_t> dc_current_heavy_filtered_pu;
     };
@@ -49,8 +37,8 @@ public:
      * @brief Configuration parameters for the DC link measurements
      */
     struct parameters {
-        /// Low-pass filter cutoff frequency for ripple removal
         parameter<frequency_t> filter_cutoff_frequency = frequency_t(100.0);
+        parameter<frequency_t> heavy_filter_cutoff_frequency = frequency_t(10.0);
     };
 
 private:

@@ -24,7 +24,8 @@ protected:
     }
 
     // --- Test-specific configuration data ---
-    const std::array<real_t, NUM_POINTS> test_current_axis = {0.0, 0.3, 0.5, 1.0, 1.88, 2.0};
+    const std::array<current_pu_t, NUM_POINTS> test_current_axis = {current_pu_t{0.0}, current_pu_t{0.3},
+        current_pu_t{0.5}, current_pu_t{1.0}, current_pu_t{1.88}, current_pu_t{2.0}};
     const std::array<real_t, NUM_POINTS> test_angle_axis = {165.0, 158.0, 152.0, 145.0, 135.0, 130.0};
 
     // The object under test, constructed before each test run.

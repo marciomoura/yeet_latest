@@ -41,6 +41,13 @@ public:
     explicit sfc_commutation_monitor(const Config& config);
 
     /**
+     * @brief Sets the configuration parameters for the monitor.
+     *
+     * @param config The new configuration parameters.
+     */
+    void set_parameters(const Config& config);
+
+    /**
      * @brief Updates the commutation status based on the latest phase voltage measurements and firing pulses.
      *
      * This function should be called at each time step of the control loop.
@@ -66,8 +73,8 @@ private:
      * @param line_voltage The current absolute line voltage.
      * @param has_fired True if a relevant thyristor has just been fired.
      */
-    void update_line_commutation_state(bool& is_line_commuting, bool& is_line_armed, voltage_pu_t line_voltage,
-                                       bool has_fired);
+    void update_line_commutation_state(
+        bool& is_line_commuting, bool& is_line_armed, voltage_pu_t line_voltage, bool has_fired);
 
     Config _config;
 

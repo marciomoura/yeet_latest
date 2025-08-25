@@ -20,6 +20,7 @@ namespace yeet::application::sfc {
 class sfc_machine_side_observer {
 public:
     static constexpr auto default_nominal_frequency = frequency_t{50.0};
+    static constexpr frequency_t default_frequency_filter_cutoff{frequency_t{10.0}};
 
     /**
      * @brief Constructs the grid-side observer.
@@ -37,10 +38,11 @@ public:
     void configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency);
 
     /**
-     * @brief Sets the initial speed for the observer.
-     * @param initial_frequency The initial frequency to start tracking from.
+     * @brief Configures the voltage filter.
+     * @param cutoff_frequency The cutoff frequency for the filter.
+     * @param damping_ratio The damping ratio for the filter.
      */
-    void set_initial_speed(frequency_pu_t initial_frequency);
+    void configure_voltage_filter(frequency_t cutoff_frequency, real_t damping_ratio = 0.707);
 
     /**
      * @brief Configures the voltage threshold for commutation failure detection.
@@ -60,8 +62,9 @@ public:
      * @brief Resets all internal states of the observer.
      *
      * This will reset the PLL and the commutation monitor to their initial states.
+     * @param initial_frequency The initial frequency to reset the observer.
      */
-    void reset();
+    void reset(frequency_pu_t initial_frequency = frequency_pu_t{1.0});
 
     /**
      * @brief Gets the estimated grid angle.

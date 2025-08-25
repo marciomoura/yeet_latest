@@ -4,7 +4,8 @@ namespace yeet::application::sfc::integration {
 
 void sfc_current_controller_runner::initialize()
 {
-    set_parameters();
+    set_controller_parameters();
+    set_limit_parameters();
     set_parameter_callback();
 
     _sfc_current_controller.enable_current_reference_slew_rate(false);
@@ -24,45 +25,50 @@ void sfc_current_controller_runner::initialize()
 void sfc_current_controller_runner::run()
 {
     _sfc_current_controller.freeze_integrator(_inputs.freeze_integrator.read());
-    _sfc_current_controller.update(_inputs.current_reference_pu, _inputs.dc_link_current_measured_pu,
-        _inputs.ideal_dc_voltage_pu, _inputs.inverter_back_emf_machine_pu);
 
-    // Convert angle_t to angle_wrapped
-    angle_t firing_angle_rad = _sfc_current_controller.get_firing_angle_reference_radians();
-    _outputs.firing_angle_reference = angle_wrapped::from_radians(firing_angle_rad);
+    _sfc_current_controller.update(_inputs.dc_link_current_reference.read(), _inputs.dc_link_current_measured.read(),
+        _inputs.grid_side_voltage_magnitude.read(), _inputs.machine_side_voltage_magnitude.read());
 
-    _outputs.current_error = _inputs.current_reference_pu.read() - _inputs.dc_link_current_measured_pu.read();
+    _outputs.firing_angle.write(
+        angle_wrapped::from_radians(_sfc_current_controller.get_firing_angle_reference_radians()));
+
+    _outputs.current_error.write(_inputs.dc_link_current_reference.read() - _inputs.dc_link_current_measured.read());
+    _outputs.current_controller_is_saturated.write(_sfc_current_controller.is_saturated());
 }
 
 void sfc_current_controller_runner::stop() { _sfc_current_controller.reset(); }
 
-void sfc_current_controller_runner::set_parameters()
+void sfc_current_controller_runner::set_limit_parameters()
 {
-    // // Convert integral gain to integral time constant
-    // duration_t integral_time = duration_t(1.0 / _parameters.pi_integral_gain);
+    const angle_t min_firing_angle = _parameters.min_firing_angle.read().get_radians();
+    const angle_t max_firing_angle = _parameters.max_firing_angle.read().get_radians();
+    const real_t current_reference_rate_limit = _parameters.current_reference_rate_limit.read();
+    const current_pu_t current_reference_magnitude_limit = _parameters.current_reference_magnitude_limit.read();
 
-    // _sfc_current_controller.configure_pi_gains(_parameters.pi_proportional_gain, integral_time);
+    _sfc_current_controller.configure_firing_angle_limits_radians(min_firing_angle, max_firing_angle);
+    _sfc_current_controller.configure_current_limits_pu(
+        -current_reference_magnitude_limit, current_reference_magnitude_limit);
+    _sfc_current_controller.configure_current_reference_slew_rate(current_reference_rate_limit);
+}
 
-    // // Convert angle_wrapped to angle_t (radians)
-    // angle_wrapped min_firing_angle_wrapped = _parameters.min_firing_angle;
-    // angle_wrapped max_firing_angle_wrapped = _parameters.max_firing_angle;
-    // angle_t min_angle = angle_t(min_firing_angle_wrapped.get_radians());
-    // angle_t max_angle = angle_t(max_firing_angle_wrapped.get_radians());
-    // _sfc_current_controller.configure_firing_angle_limits_radians(min_angle, max_angle);
+void sfc_current_controller_runner::set_controller_parameters()
+{
+    const real_t kp = _parameters.kp.read();
+    const duration_t ti = _parameters.ti.read();
+    // const real_t anti_windup_gain = _parameters.anti_windup_gain.read();
 
-    // current_pu_t current_limit = _parameters.current_reference_magnitude_limit;
-    // _sfc_current_controller.configure_current_limits_pu(current_pu_t(-current_limit.value()), current_limit);
-    // _sfc_current_controller.configure_current_reference_slew_rate(_parameters.current_reference_rate_limit);
+    _sfc_current_controller.configure_pi_gains(kp, ti);
 }
 
 void sfc_current_controller_runner::set_parameter_callback()
 {
-    _parameters.pi_proportional_gain.register_callback([&]() { set_parameters(); });
-    _parameters.pi_integral_gain.register_callback([&]() { set_parameters(); });
-    _parameters.min_firing_angle.register_callback([&]() { set_parameters(); });
-    _parameters.max_firing_angle.register_callback([&]() { set_parameters(); });
-    _parameters.current_reference_rate_limit.register_callback([&]() { set_parameters(); });
-    _parameters.current_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
+    _parameters.kp.register_callback([&]() { set_controller_parameters(); });
+    _parameters.ti.register_callback([&]() { set_controller_parameters(); });
+    // _parameters.anti_windup_gain.register_callback([&]() { set_controller_parameters(); });
+    _parameters.min_firing_angle.register_callback([&]() { set_limit_parameters(); });
+    _parameters.max_firing_angle.register_callback([&]() { set_limit_parameters(); });
+    _parameters.current_reference_rate_limit.register_callback([&]() { set_limit_parameters(); });
+    _parameters.current_reference_magnitude_limit.register_callback([&]() { set_limit_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

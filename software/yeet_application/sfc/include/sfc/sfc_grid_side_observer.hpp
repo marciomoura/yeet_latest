@@ -1,7 +1,5 @@
 #pragma once
 
-#include "sfc/sfc_commutation_mask.hpp"
-#include "sfc/sfc_commutation_monitor.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/dual_sogi_srf_pll.hpp"
 #include "yeet_control/reference_frame.hpp"
@@ -51,7 +49,7 @@ public:
      *
      * This will reset the PLL and the commutation monitor to their initial states.
      */
-    void reset();
+    void reset(frequency_pu_t initial_frequency = frequency_pu_t{1.0});
 
     /**
      * @brief Gets the estimated grid angle.

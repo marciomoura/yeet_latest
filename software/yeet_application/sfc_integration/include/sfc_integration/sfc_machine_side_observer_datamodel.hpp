@@ -4,7 +4,6 @@
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/reference_frame.hpp"
-#include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -21,7 +20,6 @@ public:
      */
     struct inputs {
         /// Three-phase machine voltage measurements in per-unit (machine-side base)
-        /// Range: [0.0, 1.5] pu (wide range for variable speed operation)
         yeet::signal_input<yeet::abc<yeet::voltage_pu_t>> machine_voltage_pu;
     };
 
@@ -38,10 +36,10 @@ public:
         /// Estimated machine frequency in per-unit
         yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
 
+        /// Estimated machine speed in per-unit
         yeet::signal_output<yeet::speed_pu_t> estimated_speed;
 
         /// Estimated rotor position in radians
-        /// Range: [0.0, 2π] radians
         yeet::signal_output<angle_wrapped> estimated_position;
 
         /// Filtered machine voltage in alpha-beta stationary frame
@@ -87,32 +85,7 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(yeet::model_registry& registry)
-    {
-        // yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
-
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("estimated_voltage_magnitude", _model_outputs->estimated_voltage_magnitude);
-        // entry.signal_registry.insert("estimated_frequency", _model_outputs->estimated_frequency);
-        // entry.signal_registry.insert("estimated_frequency_pu", _model_outputs->estimated_frequency_pu);
-        // entry.signal_registry.insert("filtered_voltage_alphabeta", _model_outputs->filtered_voltage_alphabeta);
-        // entry.signal_registry.insert("is_commuting", _model_outputs->is_commuting);
-        // entry.signal_registry.insert("is_converged", _model_outputs->is_converged);
-
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("adaptive_filter_convergence_rate",
-        //                                 _model_parameters->adaptive_filter_convergence_rate);
-        // entry.parameter_registry.insert("minimum_tracking_frequency", _model_parameters->minimum_tracking_frequency);
-        // entry.parameter_registry.insert("maximum_tracking_frequency", _model_parameters->maximum_tracking_frequency);
-        // entry.parameter_registry.insert("commutation_detection_threshold",
-        //                                 _model_parameters->commutation_detection_threshold);
-        // entry.parameter_registry.insert("commutation_detection_time_window",
-        //                                 _model_parameters->commutation_detection_time_window);
-        // entry.parameter_registry.insert("convergence_threshold", _model_parameters->convergence_threshold);
-        // entry.parameter_registry.insert("convergence_time_window", _model_parameters->convergence_time_window);
-
-        // registry.insert("sfc_machine_side_observer", std::move(entry));
-    }
+    void register_data_model(yeet::model_registry& registry) {}
 
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }

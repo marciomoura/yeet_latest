@@ -24,7 +24,9 @@ public:
     void stop() override;
 
 private:
-    void set_parameters();
+    void set_controller_parameters();
+    void set_limit_parameters();
+
     void set_parameter_callback();
 
     sfc::sfc_current_controller _sfc_current_controller;

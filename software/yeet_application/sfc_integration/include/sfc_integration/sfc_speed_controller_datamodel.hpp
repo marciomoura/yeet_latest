@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet_control/constants.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -28,6 +29,7 @@ public:
         signal_input<speed_pu_t> measured_speed_pu;
 
         signal_input<bool> freeze_integrator;
+        signal_input<bool> current_controller_is_saturated;
     };
 
     /**
@@ -58,7 +60,7 @@ public:
         signal_output<bool> is_saturated;
 
         /// Speed control active status
-        signal_output<bool> is_speed_control_active;
+        signal_output<bool> is_active;
     };
 
     /**
@@ -67,35 +69,30 @@ public:
     struct parameters {
         // /// PI controller proportional gain
         // /// Range: [1.0, 100.0]
-        parameter<real_t> controller_proportional_gain_kp = real_t(3.0);
+        parameter<real_t> kp = real_t(6.0);
 
         /// PI controller integral gain
-        parameter<duration_t> controller_time_constant_ti = duration_t(1.0);
+        parameter<duration_t> ti = duration_t{ms(550.0)};
 
         /// Speed reference rate limit (acceleration/deceleration)
-        /// Range: [0.1, 10.0] pu/s
-        parameter<real_t> speed_reference_rate_limit = real_t(2.0);
+        /// Range: (0.0, 100.0] pu/s
+        parameter<real_t> speed_reference_rate_limit = real_t(10.0);
+
+        /// Speed reference magnitude limit
+        parameter<speed_pu_t> speed_reference_magnitude_limit = speed_pu_t(2.0);
 
         /// Torque-to-current conversion factor
-        /// Range: [0.5, 1.5]
         parameter<real_t> torque_to_current_factor = real_t(1.0);
+
+        /// Torque reference limits
+        parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{2.0};
+
+        /// Initial speed reference
+        parameter<speed_pu_t> initial_speed{speed_pu_t{0.0}};
 
         /// Speed-control feedforward inertia factor
         /// This factor is used to adjust the feedforward term in the speed controller.
-        /// Range: [0.0, 1.0]
         parameter<inertia_constant_pu_t> feedforward_inertia = inertia_constant_pu_t(0.0);
-
-        /// Anti-windup gain for integral term protection
-        /// Range: [0.05, 0.5]
-        // parameter<real_t> anti_windup_gain = real_t(0.1);
-
-        // /// Deadband for speed error (reduces noise sensitivity)
-        // /// Range: [0.0, 0.01] pu
-        // parameter<speed_pu_t> speed_error_deadband = speed_pu_t(0.001);
-
-        // /// Low-pass filter time constant for speed reference
-        // /// Range: [0.001, 0.1] s
-        // parameter<duration_t> speed_reference_filter_time_constant = duration_t(0.01);
     };
 
 private:
@@ -121,7 +118,7 @@ public:
         // entry.signal_registry.insert("speed_error", _model_outputs->speed_error);
         // entry.signal_registry.insert("pi_output", _model_outputs->pi_output);
         // entry.signal_registry.insert("is_saturated", _model_outputs->is_saturated);
-        // entry.signal_registry.insert("is_speed_control_active", _model_outputs->is_speed_control_active);
+        // entry.signal_registry.insert("is_active", _model_outputs->is_active);
         // entry.signal_registry.insert("speed_reference_limited", _model_outputs->speed_reference_limited);
         // entry.signal_registry.insert("estimated_torque", _model_outputs->estimated_torque);
 

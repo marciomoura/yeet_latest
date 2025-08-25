@@ -8,21 +8,6 @@
 #include "yeet_control/six_pulse_generator.hpp"  // for pulses
 #include "yeet_control/units.hpp"
 
-//     _is_commuting = _commutation_monitor.update(grid_voltage_pu, grid_side_pulses);
-
-//  abc<voltage_pu_t> masked_grid_voltage_pu = _commutation_mask.update(
-//      grid_voltage_pu, _pll.get_estimated_angle(), frequency_t{_pll.get_estimated_frequency()}, _is_commuting);
-
-//  // Convert masked voltage to dimensionless alpha-beta for PLL
-//  alphabeta<voltage_pu_t> const masked_voltage = masked_grid_voltage_pu.to_alphabeta();
-
-/**
- * @file sfc_grid_side_measurements_datamodel.hpp
- * @brief Integrated datamodel for SFC Grid-Side Measurements with filtering
- *
- * This component handles both raw measurement conditioning and signal filtering
- * to provide clean, filtered measurement signals for control algorithms.
- */
 namespace yeet::application::sfc::integration {
 
 class sfc_grid_side_measurements_datamodel {
@@ -58,8 +43,11 @@ public:
      * @brief Configuration parameters for measurements and filtering
      */
     struct parameters {
-        // Scaling parameters
-        parameter<frequency_t> lpf_cutoff_frequency = frequency_t(200.0);
+        parameter<frequency_t> voltage_lpf_cutoff_frequency{frequency_t{100.0}};
+        parameter<frequency_t> current_lpf_cutoff_frequency{frequency_t{100.0}};
+        parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
+        parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
+        parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
     };
 
 private:

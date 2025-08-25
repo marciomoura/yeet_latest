@@ -50,8 +50,7 @@ public:
         parameter<bool> enable{true};
 
         /// Pulse width for each firing pulse in radians
-        /// Default: π/6 rad (30°)
-        parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);
+        parameter<angle_wrapped> pulse_width = angle_wrapped(pi / 3);
 
         /// Reference type (line or phase voltage reference)
         /// Default: phase voltage reference

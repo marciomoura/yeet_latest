@@ -7,40 +7,29 @@ void sfc_speed_controller_runner::initialize()
     set_parameters();
     set_parameter_callback();
 
-    //  Kp_N=5.4882 [pu_A/pu_w], Ti_N=253.4ms
-    //  Kp_N=5.9817 [pu_A/pu_w], Ti_N=546.6ms
-    _sfc_speed_controller.configure_pi_gains(6.0, duration_t(ms(550.0)));  // Kp, Ti
-    _sfc_speed_controller.configure_torque_limits_pu(torque_pu_t(-2.0), torque_pu_t(2.0));
-    _sfc_speed_controller.configure_speed_reference_limits_pu(speed_pu_t(-1.0), speed_pu_t(1.5));
-    _sfc_speed_controller.configure_speed_reference_rate_limit(100.0);  // 1.0 pu/s rate limit
-    _sfc_speed_controller.configure_feedforward_pu(0.0);                // Small feedforward gain
-    _sfc_speed_controller.reset(speed_pu_t{1.0});
+    // Initialize to initial speed
+    _sfc_speed_controller.reset(_parameters.initial_speed);
 }
 
 void sfc_speed_controller_runner::run()
 {
     if (!_inputs.enable_speed_control.read()) {
+        _outputs.is_active.write(false);
         _sfc_speed_controller.reset(_inputs.measured_speed_pu);
     }
     else {
-        _sfc_speed_controller.freeze_integrator(_inputs.freeze_integrator.read());
+        _outputs.is_active.write(true);
+        _sfc_speed_controller.freeze_integrator(
+            _inputs.freeze_integrator.read() || _inputs.current_controller_is_saturated.read());
         _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
     }
 
-    // Convert torque output to current using the configured conversion factor
-    torque_pu_t torque_ref = _sfc_speed_controller.get_torque_ref_pu();
-    real_t current_value = torque_ref.value() * _parameters.torque_to_current_factor;
-    _outputs.current_reference = current_pu_t(current_value);
-
-    // Calculate speed error for monitoring
     _outputs.speed_error = _inputs.speed_reference_pu.read() - _inputs.measured_speed_pu.read();
-
-    // Additional outputs using available methods
-    _outputs.torque_reference = torque_ref;
+    _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
+    _outputs.current_reference = current_pu_t{_parameters.torque_to_current_factor * _outputs.torque_reference.read()};
     _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
     _outputs.pi_output = _sfc_speed_controller.get_pi_output();
     _outputs.is_saturated = _sfc_speed_controller.is_saturated();
-    _outputs.is_speed_control_active = _inputs.enable_speed_control;
 }
 
 void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }
@@ -48,25 +37,35 @@ void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }
 void sfc_speed_controller_runner::set_parameters()
 {
     // Configure PI controller gains
-    _sfc_speed_controller.configure_pi_gains(
-        _parameters.controller_proportional_gain_kp, _parameters.controller_time_constant_ti);
+    _sfc_speed_controller.configure_pi_gains(_parameters.kp, _parameters.ti);
 
     // Configure speed reference rate limiting for smooth acceleration/deceleration
     _sfc_speed_controller.configure_speed_reference_rate_limit(_parameters.speed_reference_rate_limit);
 
     // Configure feedforward control based on inertia constant
-    // Access inertia constant parameter directly (no .value() needed for parameters)
-    inertia_constant_pu_t feedforward_inertia = _parameters.feedforward_inertia;
-    real_t feedforward_gain = feedforward_inertia.value();
-    _sfc_speed_controller.configure_feedforward_pu(feedforward_gain);
+    _sfc_speed_controller.configure_feedforward_pu(_parameters.feedforward_inertia);
+
+    // Configure torque limits
+    _sfc_speed_controller.configure_torque_limits_pu(
+        -_parameters.torque_reference_magnitude_limit.read(), _parameters.torque_reference_magnitude_limit.read());
+
+    // Configure speed reference limits
+    _sfc_speed_controller.configure_speed_reference_limits_pu(
+        speed_pu_t(0.0f), _parameters.speed_reference_magnitude_limit);
+
+    // Configure speed reference rate limit
+    _sfc_speed_controller.configure_speed_reference_rate_limit(_parameters.speed_reference_rate_limit);
 }
 
 void sfc_speed_controller_runner::set_parameter_callback()
 {
-    _parameters.controller_proportional_gain_kp.register_callback([&]() { set_parameters(); });
-    _parameters.controller_time_constant_ti.register_callback([&]() { set_parameters(); });
+    _parameters.kp.register_callback([&]() { set_parameters(); });
+    _parameters.ti.register_callback([&]() { set_parameters(); });
     _parameters.speed_reference_rate_limit.register_callback([&]() { set_parameters(); });
+    _parameters.speed_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
     _parameters.torque_to_current_factor.register_callback([&]() { set_parameters(); });
+    _parameters.torque_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
+    // _parameters.initial_speed.register_callback([&]() { set_parameters(); });
     _parameters.feedforward_inertia.register_callback([&]() { set_parameters(); });
 }
 

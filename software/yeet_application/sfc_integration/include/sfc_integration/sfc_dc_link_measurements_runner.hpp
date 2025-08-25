@@ -21,9 +21,7 @@ public:
     sfc_dc_link_measurements_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
         : base_application(sampling_time), _per_unit_system(per_unit_system)
     {
-        _sfc_dc_link_filtering.configure_current_filter(_parameters.filter_cutoff_frequency);
     }
-
     void initialize() override;
     void run() override;
     void stop() override;

@@ -20,8 +20,9 @@ public:
 
     explicit sfc_grid_side_filtering(duration_t sampling_period);
 
-    void configure(frequency_t voltage_filter_cutoff_freq, frequency_t current_filter_cutoff_freq,
-                   real_t damping_ratio = default_damping_ratio);
+    void configure_voltage_filter(frequency_t cutoff_freq, real_t damping_ratio = default_damping_ratio);
+
+    void configure_current_filter(frequency_t cutoff_freq, real_t damping_ratio = default_damping_ratio);
 
     void configure_voltage_magnitude_filter(frequency_t cutoff_freq, real_t damping_ratio = default_damping_ratio);
 

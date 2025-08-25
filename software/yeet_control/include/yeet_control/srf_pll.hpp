@@ -31,6 +31,7 @@ public:
         duration_t ti;  // Integral time constant
     };
 
+    static constexpr frequency_t default_estimation_filter_cutoff_frequency = frequency_t{100.0};
     static constexpr pi_gains parameters_50_hz_crossover_frequency{0.866, duration_t{ms(5.51)}};
     static constexpr pi_gains parameters_30_hz_crossover_frequency{0.5196, duration_t{ms(9.19)}};
 

@@ -48,7 +48,13 @@ public:
     /**
      * @brief Configuration parameters for measurements and filtering
      */
-    struct parameters {};
+    struct parameters {
+        parameter<frequency_t> voltage_lpf_cutoff_frequency{frequency_t{100.0}};
+        parameter<frequency_t> current_lpf_cutoff_frequency{frequency_t{100.0}};
+        parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
+        parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
+        parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
+    };
 
 private:
     inputs* _model_inputs;

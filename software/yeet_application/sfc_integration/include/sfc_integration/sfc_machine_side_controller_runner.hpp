@@ -13,7 +13,6 @@ class sfc_machine_side_controller_runner : public yeet::base_application<sfc_mac
 public:
     using datamodel = sfc_machine_side_controller_datamodel;
 
-    // static constexpr duration_t sampling_time = ms(1.0);
     static constexpr duration_t sampling_time = ms(1.0);
 
     sfc_machine_side_controller_runner() : base_application(sampling_time), _firing_angle_filter(sampling_time) {}
@@ -40,6 +39,7 @@ private:
     void recalculate_lookup_table();
 
     sfc::sfc_machine_side_firing_angle_lookup_table _lookup_table;
+
     control::first_order_low_pass_filter<real_t> _firing_angle_filter;
 };
 

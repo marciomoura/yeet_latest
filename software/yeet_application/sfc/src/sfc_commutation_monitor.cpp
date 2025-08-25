@@ -8,8 +8,9 @@ namespace yeet {
 
 sfc_commutation_monitor::sfc_commutation_monitor(const sfc_commutation_monitor::Config& config) : _config(config) {}
 
-bool sfc_commutation_monitor::update(const abc<voltage_pu_t>& phase_voltages,
-                                     const control::six_pulse_generator::pulses& pulses) {
+bool sfc_commutation_monitor::update(
+    const abc<voltage_pu_t>& phase_voltages, const control::six_pulse_generator::pulses& pulses)
+{
     // Step 1: Convert phase voltages to line voltages
     const auto v_ab = (phase_voltages.a() - phase_voltages.b()) / std::sqrt(3.0f);
     const auto v_bc = (phase_voltages.b() - phase_voltages.c()) / std::sqrt(3.0f);
@@ -43,10 +44,13 @@ bool sfc_commutation_monitor::update(const abc<voltage_pu_t>& phase_voltages,
     return is_commuting();
 }
 
+void sfc_commutation_monitor::set_parameters(const Config& config) { _config = config; }
+
 bool sfc_commutation_monitor::is_commuting() const { return _is_commuting_ab || _is_commuting_bc || _is_commuting_ca; }
 
-void sfc_commutation_monitor::update_line_commutation_state(bool& is_line_commuting, bool& is_line_armed,
-                                                            voltage_pu_t line_voltage, bool has_fired) {
+void sfc_commutation_monitor::update_line_commutation_state(
+    bool& is_line_commuting, bool& is_line_armed, voltage_pu_t line_voltage, bool has_fired)
+{
     if (has_fired) {
         is_line_armed = true;
     }
@@ -57,7 +61,8 @@ void sfc_commutation_monitor::update_line_commutation_state(bool& is_line_commut
         if (line_voltage < _config.commutation_start_threshold) {
             is_line_commuting = true;
         }
-    } else if (is_line_commuting) {
+    }
+    else if (is_line_commuting) {
         // If we are already in a commutation state, we only exit it if the voltage has recovered.
         if (line_voltage > _config.commutation_end_threshold) {
             is_line_commuting = false;

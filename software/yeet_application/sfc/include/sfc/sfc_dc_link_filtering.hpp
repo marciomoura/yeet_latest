@@ -24,6 +24,7 @@ public:
     void configure_voltage_filter(frequency_t voltage_filter_cutoff_freq);
 
     void configure_current_filter(frequency_t current_filter_cutoff_freq);
+    void configure_heavy_current_filter(frequency_t current_filter_cutoff_freq);
 
     void update(voltage_pu_t voltage_pu, current_pu_t current_pu);
 

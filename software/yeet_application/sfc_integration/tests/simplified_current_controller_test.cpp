@@ -49,14 +49,14 @@ TEST_F(SfcCurrentControllerTest, TestCurrentRegulation)
     current_pu_t current_error_max_value{0.15f};
     current_pu_t current_error_min_value{-0.15f};
 
-    system.current_reference_pu = current_pu_t(0.5);
+    system.dc_link_current_reference = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },
         current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{1.0, 1.9}));
     bool success = simulator.simulate_for(2.0);
 
-    system.current_reference_pu = current_pu_t(1.0);
+    system.dc_link_current_reference = current_pu_t(1.0);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },

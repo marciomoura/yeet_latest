@@ -312,13 +312,13 @@ private:
 
         // DC link current feedback (still use direct measurement as it's most reliable)
         signals_connector::connect_output_to_input(dc_link_model.get_outputs().dc_current_filtered_pu,
-            current_ctrl_model.get_inputs().dc_link_current_measured_pu);
+            current_ctrl_model.get_inputs().dc_link_current_measured);
 
         // Feedforward signals from observers instead of direct measurements
         signals_connector::connect_output_to_input(grid_observer_model.get_outputs().estimated_voltage_magnitude,
-            current_ctrl_model.get_inputs().ideal_dc_voltage_pu);
+            current_ctrl_model.get_inputs().grid_side_voltage_magnitude);
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_voltage_magnitude,
-            current_ctrl_model.get_inputs().inverter_back_emf_machine_pu);
+            current_ctrl_model.get_inputs().machine_side_voltage_magnitude);
 
         // ==================== Observers → Machine Side Controller ====================
         // Connect observer-estimated speed to machine side controller for lookup table
@@ -336,7 +336,7 @@ private:
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
-            current_ctrl_model.get_outputs().firing_angle_reference, grid_pulse_gen_model.get_inputs().firing_angle);
+            current_ctrl_model.get_outputs().firing_angle, grid_pulse_gen_model.get_inputs().firing_angle);
 
         // ==================== Machine Side Controller → Machine Pulse Generator ====================
         // Connect machine side controller output to machine-side firing angle control
@@ -360,7 +360,7 @@ private:
 
         // Grid side: Use observer-estimated angle for pulse generator synchronization
         signals_connector::connect_output_to_input(
-            grid_observer_model.get_outputs().estimated_angle, grid_pulse_gen_model.get_inputs().reference_angle);
+            grid_observer_model.get_outputs().estimated_position, grid_pulse_gen_model.get_inputs().reference_angle);
 
         // Machine side: Use observer-estimated position for pulse generator synchronization
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_position,
@@ -382,10 +382,13 @@ private:
         signals_connector::connect_output_to_input(
             state_machine_model.get_outputs().freeze_integrator, speed_controller_model.get_inputs().freeze_integrator);
 
+        signals_connector::connect_output_to_input(current_ctrl_model.get_outputs().current_controller_is_saturated,
+            speed_controller_model.get_inputs().current_controller_is_saturated);
+
         // ==================== Speed Controller → Current Controller ====================
         // Connect speed controller output (current reference) to current controller
         signals_connector::connect_output_to_input(speed_controller_model.get_outputs().current_reference,
-            current_ctrl_model.get_inputs().current_reference_pu);
+            current_ctrl_model.get_inputs().dc_link_current_reference);
     }
 };
 

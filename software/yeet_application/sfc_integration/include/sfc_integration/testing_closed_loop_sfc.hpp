@@ -107,9 +107,9 @@ public:
  * Signal Flow: Speed Controller + DC Link Measurements + Grid Observer + Machine Observer → Current Controller
  * Key Connections:
  * - Speed Controller: current_reference → current_reference_pu
- * - DC Link Measurements: dc_link_current_pu → dc_link_current_measured_pu
- * - Grid Observer: ideal_dc_voltage → ideal_dc_voltage_pu (feedforward)
- * - Machine Observer: estimated_back_emf_pu → inverter_back_emf_machine_pu (feedforward)
+ * - DC Link Measurements: dc_link_current_pu → dc_link_current_measured
+ * - Grid Observer: ideal_dc_voltage → grid_side_voltage_magnitude (feedforward)
+ * - Machine Observer: estimated_back_emf_pu → machine_side_voltage_magnitude (feedforward)
  */
 class to_current_controller_connector : public data_model_connector<inputs<current_controller_datamodel>,
                                             outputs<speed_controller_datamodel>,
@@ -134,20 +134,20 @@ public:
     {
         // Connect speed controller output (cascade control)
         signals_connector::connect_output_to_input(
-            get_outputs<speed_controller_datamodel>().current_reference, get_inputs().current_reference_pu);
+            get_outputs<speed_controller_datamodel>().current_reference, get_inputs().dc_link_current_reference);
 
         // Connect DC link measurements (feedback)
         signals_connector::connect_output_to_input(get_outputs<dc_link_measurements_datamodel>().dc_current_filtered_pu,
-            get_inputs().dc_link_current_measured_pu);
+            get_inputs().dc_link_current_measured);
 
         // Connect grid observer feedforward
-        signals_connector::connect_output_to_input(
-            get_outputs<grid_observer_datamodel>().estimated_voltage_magnitude, get_inputs().ideal_dc_voltage_pu);
+        signals_connector::connect_output_to_input(get_outputs<grid_observer_datamodel>().estimated_voltage_magnitude,
+            get_inputs().grid_side_voltage_magnitude);
 
         // Connect machine observer feedforward
         signals_connector::connect_output_to_input(
             get_outputs<machine_observer_datamodel>().estimated_voltage_magnitude,
-            get_inputs().inverter_back_emf_machine_pu);
+            get_inputs().machine_side_voltage_magnitude);
     }
 };
 
@@ -197,7 +197,7 @@ public:
     {
         // Connect current controller output
         signals_connector::connect_output_to_input(
-            get_outputs<current_controller_datamodel>().firing_angle_reference, get_inputs().firing_angle_reference);
+            get_outputs<current_controller_datamodel>().firing_angle, get_inputs().firing_angle);
 
         // Connect grid observer synchronization signals
         signals_connector::connect_output_to_input(

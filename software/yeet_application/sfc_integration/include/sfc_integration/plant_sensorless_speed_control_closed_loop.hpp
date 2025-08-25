@@ -266,24 +266,24 @@ private:
         // Connect speed controller output to current controller reference (cascade control)
 
         // Current reference from speed controller to current controller
-        signals_connector::connect_output_to_input(
-            speed_ctrl_model.get_outputs().current_reference, current_ctrl_model.get_inputs().current_reference_pu);
+        signals_connector::connect_output_to_input(speed_ctrl_model.get_outputs().current_reference,
+            current_ctrl_model.get_inputs().dc_link_current_reference);
 
         // ==================== DC Link Measurements → Current Controller ====================
         // Connect DC link current feedback to current controller
 
         // DC link current feedback (still use direct measurement as it's most reliable)
         signals_connector::connect_output_to_input(dc_link_model.get_outputs().dc_current_filtered_pu,
-            current_ctrl_model.get_inputs().dc_link_current_measured_pu);
+            current_ctrl_model.get_inputs().dc_link_current_measured);
 
         // ==================== Observers → Current Controller (Feedforward) ====================
         // Connect observer-estimated values to current controller feedforward inputs
 
         // Feedforward signals from observers instead of direct measurements
         signals_connector::connect_output_to_input(grid_observer_model.get_outputs().estimated_voltage_magnitude,
-            current_ctrl_model.get_inputs().ideal_dc_voltage_pu);
+            current_ctrl_model.get_inputs().grid_side_voltage_magnitude);
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_voltage_magnitude,
-            current_ctrl_model.get_inputs().inverter_back_emf_machine_pu);
+            current_ctrl_model.get_inputs().machine_side_voltage_magnitude);
 
         // ==================== Observers → Machine Side Controller ====================
         // Connect observer-estimated values to machine side controller for lookup table
@@ -303,7 +303,7 @@ private:
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
-            current_ctrl_model.get_outputs().firing_angle_reference, grid_pulse_gen_model.get_inputs().firing_angle);
+            current_ctrl_model.get_outputs().firing_angle, grid_pulse_gen_model.get_inputs().firing_angle);
 
         // ==================== Machine Side Controller → Machine Pulse Generator ====================
         // Connect machine side controller output to machine-side firing angle control
@@ -327,7 +327,7 @@ private:
 
         // Grid side: Use observer-estimated angle for pulse generator synchronization
         signals_connector::connect_output_to_input(
-            grid_observer_model.get_outputs().estimated_angle, grid_pulse_gen_model.get_inputs().reference_angle);
+            grid_observer_model.get_outputs().estimated_position, grid_pulse_gen_model.get_inputs().reference_angle);
 
         // Machine side: Use observer-estimated position for pulse generator synchronization
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_position,
@@ -343,6 +343,9 @@ private:
         // Enable signal for speed control
         signals_connector::connect_output_to_input(
             enable_speed_control, speed_ctrl_model.get_inputs().enable_speed_control);
+
+        signals_connector::connect_output_to_input(current_ctrl_model.get_outputs().current_controller_is_saturated,
+            speed_ctrl_model.get_inputs().current_controller_is_saturated);
 
         // Optional external current reference override (for manual current control mode)
         // Note: This would typically be switched in via a mode selector in a real application

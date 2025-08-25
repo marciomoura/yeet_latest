@@ -22,10 +22,6 @@ public:
         // Initialize the system - allocates plant model and all components
         initialize();
 
-        system.machine_side_controller.get_parameters().machine_side_commutation_reactance_pu =
-            to_pu(system.plant.get_plant_model().get_electrical_parameters().machine_side_inductance,
-                system.plant.get_plant_model().get_per_unit_system().get_machine_bases().base_inductance);
-
         // ==================== Logger Registration ====================
         register_complete_logger(simulator, system.current_controller);
         register_complete_logger(simulator, system.dc_link_measurements);
@@ -62,14 +58,14 @@ TEST_F(SfcSensorlessCurrentControllerTest, TestCurrentRegulation)
     current_pu_t current_error_max_value{0.16f};
     current_pu_t current_error_min_value{-0.16f};
 
-    system.current_reference_pu = current_pu_t(0.5);
+    system.dc_link_current_reference = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },
         current_error_min_value, current_error_max_value, yeet::checker_activation_time_range{2.0, 2.9}));
     bool success = simulator.simulate_for(2.0);
 
-    system.current_reference_pu = current_pu_t(1.0);
+    system.dc_link_current_reference = current_pu_t(1.0);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },
@@ -86,7 +82,7 @@ TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStep)
     current_pu_t current_error_max_value{0.15f};
     current_pu_t current_error_min_value{-0.15f};
 
-    system.current_reference_pu = current_pu_t(0.5);
+    system.dc_link_current_reference = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },
@@ -109,7 +105,7 @@ TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepLowFrequency)
     current_pu_t current_error_max_value{0.15f};
     current_pu_t current_error_min_value{-0.15f};
 
-    system.current_reference_pu = current_pu_t(0.5);
+    system.dc_link_current_reference = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },
@@ -132,7 +128,7 @@ TEST_F(SfcSensorlessCurrentControllerTest, MachineFrequencyStepHighFrequency)
     current_pu_t current_error_max_value{0.15f};
     current_pu_t current_error_min_value{-0.15f};
 
-    system.current_reference_pu = current_pu_t(0.5);
+    system.dc_link_current_reference = current_pu_t(0.5);
     simulator.register_checker(yeet::make_range_checker<current_pu_t>(
         "current error pre disturbance",
         [&]() -> current_pu_t { return system.current_controller.get_outputs().current_error.read(); },

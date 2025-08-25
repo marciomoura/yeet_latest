@@ -6,7 +6,8 @@ namespace yeet::application::sfc::integration {
 
 void sfc_grid_side_measurements_runner::initialize()
 {
-    set_parameters();
+    set_filter_parameters();
+    set_commutation_parameters();
     set_parameter_callback();
 }
 
@@ -38,15 +39,27 @@ void sfc_grid_side_measurements_runner::run()
 
 void sfc_grid_side_measurements_runner::stop() {}
 
-void sfc_grid_side_measurements_runner::set_parameters()
+void sfc_grid_side_measurements_runner::set_filter_parameters()
 {
-    // No parameters to set - per-unit system is managed externally
+    _measurement_filters.configure_voltage_filter(_parameters.voltage_lpf_cutoff_frequency);
+    _measurement_filters.configure_current_filter(_parameters.current_lpf_cutoff_frequency);
+    _measurement_filters.configure_voltage_magnitude_filter(_parameters.voltage_magnitude_lpf_cutoff_frequency);
+}
+
+void sfc_grid_side_measurements_runner::set_commutation_parameters()
+{
+    _commutation_monitor = sfc_commutation_monitor{
+        sfc_commutation_monitor::Config{.commutation_start_threshold = _parameters.commutation_start_threshold,
+            .commutation_end_threshold = _parameters.commutation_end_threshold}};
 }
 
 void sfc_grid_side_measurements_runner::set_parameter_callback()
 {
-    // Register callbacks for non-per-unit parameters only
-    // (No base value parameters to register callbacks for)
+    _parameters.voltage_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
+    _parameters.current_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
+    _parameters.voltage_magnitude_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
+    _parameters.commutation_start_threshold.register_callback([&]() { set_commutation_parameters(); });
+    _parameters.commutation_end_threshold.register_callback([&]() { set_commutation_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

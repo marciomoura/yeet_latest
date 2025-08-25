@@ -25,10 +25,10 @@ static inline void register_minimal_current_controller_logger(
     yeet::simulator& simulator, sfc_current_controller_runner& current_controller)
 {
     const std::string group{"current_controller:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input current_reference",
-        [&]() { return current_controller.get_inputs().current_reference_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current_reference",
+        [&]() { return current_controller.get_inputs().dc_link_current_reference.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current_measured",
-        [&]() { return current_controller.get_inputs().dc_link_current_measured_pu.read(); }));
+        [&]() { return current_controller.get_inputs().dc_link_current_measured.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input freeze_integrator", [&]() { return current_controller.get_inputs().freeze_integrator.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "output current_error",
@@ -42,13 +42,16 @@ static inline void register_complete_current_controller_logger(
 
     register_minimal_current_controller_logger(simulator, current_controller);
 
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_pu_t>(group + "input ideal_dc_voltage",
-        [&]() { return current_controller.get_inputs().ideal_dc_voltage_pu.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "input grid_side_voltage_magnitude",
+            [&]() { return current_controller.get_inputs().grid_side_voltage_magnitude.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "input machine_side_voltage_magnitude",
+            [&]() { return current_controller.get_inputs().machine_side_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_active",
         [&]() { return current_controller.get_signal_flow_datamodel().get_outputs().is_active.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle_reference", [&]() {
-        return current_controller.get_signal_flow_datamodel().get_outputs().firing_angle_reference.read().get_pu();
-    }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
+        [&]() { return current_controller.get_signal_flow_datamodel().get_outputs().firing_angle.read().get_pu(); }));
 }
 
 static inline void register_minimal_speed_controller_logger(
@@ -61,6 +64,8 @@ static inline void register_minimal_speed_controller_logger(
         group + "input measured_speed", [&]() { return speed_controller.get_inputs().measured_speed_pu.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input freeze_integrator", [&]() { return speed_controller.get_inputs().freeze_integrator.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input is_active", [&]() { return speed_controller.get_outputs().is_active.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "output speed_error",
         [&]() { return speed_controller.get_signal_flow_datamodel().get_outputs().speed_error.read(); }));
 }
@@ -84,8 +89,8 @@ static inline void register_complete_speed_controller_logger(
         [&]() { return speed_controller.get_signal_flow_datamodel().get_outputs().pi_output.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_saturated",
         [&]() { return speed_controller.get_signal_flow_datamodel().get_outputs().is_saturated.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_speed_control_active",
-        [&]() { return speed_controller.get_signal_flow_datamodel().get_outputs().is_speed_control_active.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_active",
+        [&]() { return speed_controller.get_signal_flow_datamodel().get_outputs().is_active.read(); }));
 }
 
 static inline void register_minimal_dc_link_measurements_logger(
@@ -249,7 +254,7 @@ static inline void register_minimal_grid_side_observer_logger(
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(
         group + "input_grid_voltage_pu", [&]() { return grid_side_observer.get_inputs().grid_voltage_pu.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output estimated_angle", [&]() {
-        return grid_side_observer.get_signal_flow_datamodel().get_outputs().estimated_angle.read().get_pu();
+        return grid_side_observer.get_signal_flow_datamodel().get_outputs().estimated_position.read().get_pu();
     }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output estimated_frequency_pu",
         [&]() { return grid_side_observer.get_signal_flow_datamodel().get_outputs().estimated_frequency_pu.read(); }));
@@ -272,8 +277,6 @@ static inline void register_complete_grid_side_observer_logger(
         yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_filtered_voltage_alphabeta", [&]() {
             return grid_side_observer.get_signal_flow_datamodel().get_outputs().filtered_voltage_alphabeta.read();
         }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_locked",
-        [&]() { return grid_side_observer.get_signal_flow_datamodel().get_outputs().is_locked.read(); }));
 }
 
 static inline void register_minimal_state_machine_logger(

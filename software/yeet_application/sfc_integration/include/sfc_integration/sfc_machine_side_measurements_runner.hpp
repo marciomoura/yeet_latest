@@ -31,8 +31,9 @@ public:
     void stop() override;
 
 private:
-    void set_parameters();
+    void set_filter_parameters();
     void set_parameter_callback();
+    void set_commutation_parameters();
 
     sfc_machine_side_measurements _measurements{};
 

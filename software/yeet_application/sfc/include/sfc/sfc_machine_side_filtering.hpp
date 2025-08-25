@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cmath>
-
-#include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/second_order_filter.hpp"
 #include "yeet_control/units.hpp"

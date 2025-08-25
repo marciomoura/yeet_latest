@@ -15,8 +15,11 @@ srf_pll::srf_pll(duration_t sampling_time)
       _frequency_estimation_filter(sampling_time.value())
 {
     assert(sampling_time.value() > 0.0f && "Sampling time must be positive");
-    // Default to 10 Hz cutoff, 0.707 damping
-    _frequency_estimation_filter.configure(10.0f, 0.707f);
+
+    configure_frequency_estimation_filter(default_estimation_filter_cutoff_frequency);
+
+    configure_pi_controller(parameters_50_hz_crossover_frequency.kp, parameters_50_hz_crossover_frequency.ti);
+
     reset();
 }
 

@@ -137,7 +137,7 @@ public:
 
     // External control signals
     signal_output<torque_pu_t> load_torque_pu;
-    signal_output<current_pu_t> current_reference_pu;
+    signal_output<current_pu_t> dc_link_current_reference;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -205,7 +205,7 @@ private:
 
         // DC link current feedback (primary feedback signal)
         signals_connector::connect_output_to_input(dc_link_model.get_outputs().dc_current_filtered_pu,
-            current_ctrl_model.get_inputs().dc_link_current_measured_pu);
+            current_ctrl_model.get_inputs().dc_link_current_measured);
 
         // ==================== DC Link Measurements → Machine Side Controller ====================
         // Connect DC link current and speed to machine side controller for lookup table
@@ -223,7 +223,7 @@ private:
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
-            current_ctrl_model.get_outputs().firing_angle_reference, grid_pulse_gen_model.get_inputs().firing_angle);
+            current_ctrl_model.get_outputs().firing_angle, grid_pulse_gen_model.get_inputs().firing_angle);
 
         // ==================== Machine Side Controller → Machine Pulse Generator ====================
         // Connect machine side controller output to machine-side firing angle control
@@ -255,13 +255,13 @@ private:
 
         // Current reference command (setpoint)
         signals_connector::connect_output_to_input(
-            current_reference_pu, current_ctrl_model.get_inputs().current_reference_pu);
+            dc_link_current_reference, current_ctrl_model.get_inputs().dc_link_current_reference);
 
         // Feedforward signals for improved control performance
         signals_connector::connect_output_to_input(grid_meas_model.get_outputs().grid_voltage_magnitude_filtered,
-            current_ctrl_model.get_inputs().ideal_dc_voltage_pu);
+            current_ctrl_model.get_inputs().grid_side_voltage_magnitude);
         signals_connector::connect_output_to_input(machine_meas_model.get_outputs().machine_voltage_magnitude_filtered,
-            current_ctrl_model.get_inputs().inverter_back_emf_machine_pu);
+            current_ctrl_model.get_inputs().machine_side_voltage_magnitude);
     }
 };
 

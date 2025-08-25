@@ -8,9 +8,7 @@ void sfc_machine_side_observer_runner::initialize()
     _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
 
     // Set initial speed
-    _sfc_machine_side_observer.set_initial_speed(_parameters.initial_frequency);
-
-    _sfc_machine_side_observer.reset();
+    _sfc_machine_side_observer.reset(_parameters.initial_frequency);
 }
 
 void sfc_machine_side_observer_runner::run()

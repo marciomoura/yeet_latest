@@ -5,22 +5,30 @@ namespace yeet::application::sfc {
 sfc_grid_side_filtering::sfc_grid_side_filtering(duration_t sampling_period)
     : _voltage_filter(sampling_period.value()),
       _current_filter(sampling_period.value()),
-      _voltage_magnitude_filter(sampling_period.value()) {
-    configure(default_cutoff_frequency, default_cutoff_frequency);
+      _voltage_magnitude_filter(sampling_period.value())
+{
+    configure_voltage_filter(default_cutoff_frequency, default_damping_ratio);
+    configure_current_filter(default_cutoff_frequency, default_damping_ratio);
     configure_voltage_magnitude_filter(default_voltage_magnitude_cutoff_frequency);
 }
 
-void sfc_grid_side_filtering::configure(frequency_t voltage_filter_cutoff_freq, frequency_t current_filter_cutoff_freq,
-                                        real_t damping_ratio) {
-    _voltage_filter.configure(voltage_filter_cutoff_freq.value(), damping_ratio);
-    _current_filter.configure(current_filter_cutoff_freq.value(), damping_ratio);
+void sfc_grid_side_filtering::configure_voltage_filter(frequency_t cutoff_freq, real_t damping_ratio)
+{
+    _voltage_filter.configure(cutoff_freq.value(), damping_ratio);
 }
 
-void sfc_grid_side_filtering::configure_voltage_magnitude_filter(frequency_t cutoff_freq, real_t damping_ratio) {
+void sfc_grid_side_filtering::configure_current_filter(frequency_t cutoff_freq, real_t damping_ratio)
+{
+    _current_filter.configure(cutoff_freq.value(), damping_ratio);
+}
+
+void sfc_grid_side_filtering::configure_voltage_magnitude_filter(frequency_t cutoff_freq, real_t damping_ratio)
+{
     _voltage_magnitude_filter.configure(cutoff_freq.value(), damping_ratio);
 }
 
-void sfc_grid_side_filtering::update(const abc<voltage_pu_t>& voltage_pu, const abc<current_pu_t>& current_pu) {
+void sfc_grid_side_filtering::update(const abc<voltage_pu_t>& voltage_pu, const abc<current_pu_t>& current_pu)
+{
     // Filter voltages
     auto const voltage_pu_dimensionless = to_dimensionless_abc(voltage_pu);
     auto const filtered_voltage = _voltage_filter.update(voltage_pu_dimensionless);

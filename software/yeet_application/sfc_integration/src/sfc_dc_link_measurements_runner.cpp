@@ -1,7 +1,5 @@
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 
-#include "sfc/sfc_per_unit_system.hpp"
-
 namespace yeet::application::sfc::integration {
 
 void sfc_dc_link_measurements_runner::initialize()
@@ -29,13 +27,13 @@ void sfc_dc_link_measurements_runner::stop() {}
 void sfc_dc_link_measurements_runner::set_parameters()
 {
     _sfc_dc_link_filtering.configure_current_filter(_parameters.filter_cutoff_frequency);
+    _sfc_dc_link_filtering.configure_heavy_current_filter(_parameters.heavy_filter_cutoff_frequency);
 }
 
 void sfc_dc_link_measurements_runner::set_parameter_callback()
 {
-    // Register callbacks for non-per-unit parameters only
-    // (No base value parameters to register callbacks for)
     _parameters.filter_cutoff_frequency.register_callback([&]() { set_parameters(); });
+    _parameters.heavy_filter_cutoff_frequency.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration
