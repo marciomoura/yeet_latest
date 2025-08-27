@@ -71,12 +71,12 @@ public:
      * @param dc_link_current_reference_pu The per-unit current reference from the outer loop.
      * @param dc_link_current_measured The measured per-unit DC link current.
      * @param grid_side_voltage_magnitude The ideal no-load DC voltage from the rectifier [pu, grid-side base].
-     * @param inverter_back_emf_pu Estimated per-unit inverter back-EMF [pu, grid-side reflected base].
+     * @param machine_side_voltage_magnitude Estimated per-unit inverter back-EMF [pu, reflected to grid-side base].
      */
     void update(current_pu_t dc_link_current_reference_pu,
         current_pu_t dc_link_current_measured,
         voltage_pu_t grid_side_voltage_magnitude,
-        voltage_pu_t inverter_back_emf_grid_reflected_pu);
+        voltage_pu_t machine_side_voltage_magnitude);
 
     /**
      * @brief Executes one update cycle of the current controller with automatic per-unit reflection.

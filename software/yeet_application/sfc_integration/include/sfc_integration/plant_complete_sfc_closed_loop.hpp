@@ -64,7 +64,8 @@ public:
           plant{_per_unit_system},
           grid_measurements{_per_unit_system},
           machine_measurements(_per_unit_system),
-          dc_link_measurements{_per_unit_system}
+          dc_link_measurements{_per_unit_system},
+          current_controller(_per_unit_system)
     {
         // Connect all components with observer-based feedback
         connect_all_components();

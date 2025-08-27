@@ -5,13 +5,23 @@
 
 namespace yeet::control {
 
+rate_of_change_limiter::rate_of_change_limiter(real_t sampling_time)
+{
+    assert(sampling_time > 0.0f && "Sampling time must be positive.");
+    _sampling_time = sampling_time;
+    _current_output = 0.0f;
+    _enabled = false;
+}
+
 rate_of_change_limiter::rate_of_change_limiter(real_t rate_limit_per_second, real_t sampling_time, real_t initial_value)
-    : _sampling_time(sampling_time), _current_output(initial_value), _enabled(true) {
+    : _sampling_time(sampling_time), _current_output(initial_value), _enabled(true)
+{
     assert(sampling_time > 0.0f && "Sampling time must be positive.");
     configure(rate_limit_per_second);
 }
 
-void rate_of_change_limiter::configure(real_t rate_limit_per_second) {
+void rate_of_change_limiter::configure(real_t rate_limit_per_second)
+{
     assert(rate_limit_per_second > 0.0f && "Rate limit must be positive.");
     _max_change_per_sample = rate_limit_per_second * _sampling_time;
 }
@@ -22,7 +32,8 @@ bool rate_of_change_limiter::is_enabled() const { return _enabled; }
 
 void rate_of_change_limiter::reset(real_t reset_value) { _current_output = reset_value; }
 
-void rate_of_change_limiter::update(real_t input) {
+void rate_of_change_limiter::update(real_t input)
+{
     if (!_enabled) {
         // Pass-through mode: input directly becomes output
         _current_output = input;

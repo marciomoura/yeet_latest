@@ -27,14 +27,10 @@ public:
 
     const abc<voltage_pu_t>& get_voltage_pu() const { return _voltage_pu; }
     const abc<current_pu_t>& get_current_pu() const { return _current_pu; }
-    const alphabeta<voltage_pu_t>& get_voltage_alphabeta_pu() const { return _voltage_alphabeta_pu; }
-    voltage_pu_t get_voltage_magnitude_pu() const { return _voltage_magnitude_pu; }
 
 private:
     abc<voltage_pu_t> _voltage_pu{};
     abc<current_pu_t> _current_pu{};
-    alphabeta<voltage_pu_t> _voltage_alphabeta_pu{};
-    voltage_pu_t _voltage_magnitude_pu{};
 };
 
 }  // namespace yeet::application::sfc

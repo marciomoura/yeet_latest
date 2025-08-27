@@ -18,6 +18,13 @@ public:
     /**
      * @brief Constructs the rate of change limiter.
      *
+     * @param sampling_time The execution interval (sampling time) in seconds.
+     */
+    rate_of_change_limiter(real_t sampling_time);
+
+    /**
+     * @brief Constructs the rate of change limiter.
+     *
      * @param rate_limit_per_second The maximum rate of change in units per second. Must be positive.
      * @param sampling_time The execution interval (sampling time) in seconds.
      * @param initial_value The initial value of the output signal.

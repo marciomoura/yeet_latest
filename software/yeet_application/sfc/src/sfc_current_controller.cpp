@@ -9,17 +9,13 @@
 namespace yeet::application::sfc {
 
 sfc_current_controller::sfc_current_controller(duration_t sampling_time)
-    : _pi_controller(sampling_time.value()),
-      _rate_of_change_limiter(2.0, sampling_time.value(), current_pu_t{0.0}.value())
+    : _pi_controller(sampling_time.value()), _rate_of_change_limiter(sampling_time.value())
 {
     // The PI output is a per-unit voltage. A reasonable limit for the DC voltage is ~1.5 pu.
+    freeze_integrator(false);
     configure_pi_gains(0.7, duration_t(ms(100.0)));
     configure_current_limits_pu(current_pu_t(-1.5), current_pu_t(1.5));
-    configure_current_reference_slew_rate(1000.0);
     configure_firing_angle_limits_radians(angle_t(deg_to_rad(0.0)), angle_t(deg_to_rad(90.0)));
-    _pi_controller.enable_integrator_clamping(false);
-    freeze_integrator(false);
-    recompute_internal_limits();
 }
 
 void sfc_current_controller::configure_pi_gains(double proportional_gain, duration_t integral_time)
@@ -49,7 +45,11 @@ void sfc_current_controller::configure_firing_angle_limits_radians(angle_t min_a
 {
     _grid_firing_angle_min_radians = min_angle;
     _grid_firing_angle_max_radians = max_angle;
-    recompute_internal_limits();
+
+    // Pre-calculate the cosine limits to avoid repeated calculations in the update loop.
+    // The relationship is reversed: min angle -> max cos, max angle -> min cos.
+    _cos_alpha_max = std::cos(_grid_firing_angle_min_radians.value());
+    _cos_alpha_min = std::cos(_grid_firing_angle_max_radians.value());
 }
 
 void sfc_current_controller::reset()
@@ -67,7 +67,7 @@ void sfc_current_controller::reset()
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
     current_pu_t dc_link_current_measured,
     voltage_pu_t grid_side_voltage_magnitude,
-    voltage_pu_t inverter_back_emf_pu)
+    voltage_pu_t machine_side_voltage_magnitude)
 {
     // Step 1: Saturate the incoming current reference to its absolute limits
     const auto saturated_current_reference_pu =
@@ -75,6 +75,7 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 
     // Step 2: Apply a rate-of-change limit to the saturated reference for smooth transitions
     _rate_of_change_limiter.update(saturated_current_reference_pu.value());
+
     _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output()};
 
     // Step 3: Calculate the error signal using the slew-rate-limited reference and store it
@@ -84,12 +85,13 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
     _pi_output = _pi_controller.update(_current_error_pu.value());
 
     // Step 5: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
-    const auto v_ctrl_total = _pi_output + inverter_back_emf_pu.value();
+    const voltage_pu_t compensated_control_voltage = voltage_pu_t{_pi_output} + machine_side_voltage_magnitude;
 
     // Step 6: Linearize by normalizing with V_do to get cos(alpha) command
     // Avoid division by zero or small numbers for stability.
-    const double v_do_safe = std::max(grid_side_voltage_magnitude.value(), 0.2);
-    _cos_alpha_unclamped = v_ctrl_total / v_do_safe;
+    const voltage_pu_t saturated_grid_side_voltage_magnitude = max(grid_side_voltage_magnitude, voltage_pu_t{0.2});
+
+    _cos_alpha_unclamped = compensated_control_voltage / saturated_grid_side_voltage_magnitude;
 
     // Step 7: Clamp the cosine of the firing angle based on pre-calculated limits
     _cos_alpha_clamped = std::clamp(_cos_alpha_unclamped, _cos_alpha_min, _cos_alpha_max);
@@ -130,14 +132,6 @@ bool sfc_current_controller::is_saturated() const
     // This provides accurate saturation detection by comparing the actual values
     constexpr double tolerance = 1e-10;
     return std::abs(_cos_alpha_clamped - _cos_alpha_unclamped) > tolerance;
-}
-
-void sfc_current_controller::recompute_internal_limits()
-{
-    // Pre-calculate the cosine limits to avoid repeated calculations in the update loop.
-    // The relationship is reversed: min angle -> max cos, max angle -> min cos.
-    _cos_alpha_max = std::cos(_grid_firing_angle_min_radians.value());
-    _cos_alpha_min = std::cos(_grid_firing_angle_max_radians.value());
 }
 
 }  // namespace yeet::application::sfc
