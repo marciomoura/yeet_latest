@@ -37,7 +37,7 @@ public:
 TEST_F(SfcBuilderTest, InitialTest)
 {
     system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(13.0);
-    system.machine_side_firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);
+    system.firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);
 
     simulate_for(0.25f);
 

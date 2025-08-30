@@ -9,10 +9,13 @@ enable_testing()
 # Add test sources
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE sfc_commutation_mask_test.cpp
+    PRIVATE sfc_combined_modulators_test.cpp
+            sfc_commutation_mask_test.cpp
+            sfc_discontinuous_conduction_detector_test.cpp
             sfc_grid_side_modulator_test.cpp
             sfc_machine_side_lookup_table_test.cpp
             sfc_machine_side_modulator_test.cpp
+            sfc_mode_detector_test.cpp
             sfc_per_unit_system_test.cpp
             sfc_state_machine_test.cpp)
 

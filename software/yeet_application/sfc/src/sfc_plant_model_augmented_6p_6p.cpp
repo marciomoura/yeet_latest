@@ -184,7 +184,7 @@ void sfc_plant_model_augmented_6p_6p::set_voltage_control_mode(plant_model_volta
 void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
 {
     _mechanical_load.reset(initial_speed_pu);
-    _speed_voltage_relationship.reset(1.0, 1.0);
+    _speed_voltage_relationship.reset(initial_speed_pu, initial_speed_pu);  // TODO: FIX INITIAL VOLTAGE
 
     if (_mode == plant_model_machine_operation_mode::variable_speed) {
         frequency_pu_t initial_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);

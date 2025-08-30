@@ -1,27 +1,31 @@
 #pragma once
 
-#include "sfc_grid_side_pulse_generator_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
-#include "sfc_machine_side_pulse_generator_datamodel.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet_control/units.hpp"
-#include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc::integration {
 
-// ==================== Closed-Loop Configuration ====================
+// ==================== Open Loop Simulation Builder ====================
 
-using sfc_open_loop_simulation_parameters =
-    yeet::parameter_collection<sfc_grid_side_pulse_generator_datamodel::parameters,
-        sfc_machine_side_pulse_generator_datamodel::parameters>;
-
-class sfc_open_loop_simulation_builder : public yeet::closed_loop_configuration<sfc_open_loop_simulation_parameters> {
+/**
+ * @brief Open loop simulation builder with plant model and pulse generators
+ *
+ * This configuration provides:
+ * - Plant model with augmented 6p-6p topology
+ * - Grid-side and machine-side pulse generators
+ * - Direct firing angle control (open loop operation)
+ * - Per-unit system for proper scaling
+ * - Simplified configuration for open loop testing
+ *
+ * Signal Flow:
+ * External Firing Angles → Pulse Generators → Plant Model
+ */
+class sfc_open_loop_simulation_builder {
 public:
-    using parameter_types = sfc_open_loop_simulation_parameters;
-
     sfc_open_loop_simulation_builder() : plant{create_per_unit_system()}
     {
         // Connect pulse generators to plant model
@@ -44,7 +48,7 @@ public:
         plant.initialize();
     }
 
-    void register_applications(yeet::simulator& sim) override
+    void register_applications(yeet::simulator& sim)
     {
         // Register all runners with their respective sampling times
         sim.register_lambda_runner(
@@ -54,18 +58,12 @@ public:
         sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
     }
 
-    void register_datamodel(yeet::model_registry& registry) override
+    void register_datamodel(yeet::model_registry& registry)
     {
         // Register all datamodels
         grid_side_pulse_generator.register_datamodel(registry);
         machine_side_pulse_generator.register_datamodel(registry);
         plant.register_datamodel(registry);
-    }
-
-    parameter_types create_parameter_collection() override
-    {
-        return parameter_types(
-            grid_side_pulse_generator.get_parameters(), machine_side_pulse_generator.get_parameters());
     }
 
     // Public members for direct access
@@ -74,7 +72,7 @@ public:
     sfc_plant_model_runner plant;
 
     signal_output<torque_pu_t> load_torque_pu;
-    signal_output<angle_wrapped> machine_side_firing_angle;
+    signal_output<angle_wrapped> firing_angle;
     signal_output<angle_wrapped> grid_side_firing_angle;
 
 private:
@@ -92,35 +90,30 @@ private:
 
     void connect_pulse_generators_to_plant()
     {
-        // Get datamodel references
-        auto& grid_pulse_gen_model = grid_side_pulse_generator.get_signal_flow_datamodel();
-        auto& machine_pulse_gen_model = machine_side_pulse_generator.get_signal_flow_datamodel();
-        auto& plant_model = plant.get_signal_flow_datamodel();
-
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
-        signals_connector::connect_output_to_input(load_torque_pu, plant_model.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
 
         signals_connector::connect_output_to_input(
-            grid_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
         // Connect reference angles from plant model to pulse generators for synchronization
 
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().grid_voltage_source_angle, grid_pulse_gen_model.get_inputs().reference_angle);
-        signals_connector::connect_output_to_input(plant_model.get_outputs().machine_voltage_source_angle,
-            machine_pulse_gen_model.get_inputs().reference_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_side_pulse_generator.get_inputs().reference_angle);
+        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+            machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== External Control Signals ====================
         // Connect external firing angle commands to pulse generators
 
         signals_connector::connect_output_to_input(
-            grid_side_firing_angle, grid_pulse_gen_model.get_inputs().firing_angle);
+            grid_side_firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
         signals_connector::connect_output_to_input(
-            machine_side_firing_angle, machine_pulse_gen_model.get_inputs().firing_angle);
+            firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
     }
 };
 

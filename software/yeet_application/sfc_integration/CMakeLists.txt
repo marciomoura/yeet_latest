@@ -34,6 +34,8 @@ target_sources(
         include/sfc_integration/sfc_machine_side_observer_runner.hpp
         include/sfc_integration/sfc_machine_side_pulse_generator_datamodel.hpp
         include/sfc_integration/sfc_machine_side_pulse_generator_runner.hpp
+        include/sfc_integration/sfc_operation_mode_monitor_datamodel.hpp
+        include/sfc_integration/sfc_operation_mode_monitor_runner.hpp
         include/sfc_integration/sfc_plant_model_datamodel.hpp
         include/sfc_integration/sfc_plant_model_runner.hpp
         include/sfc_integration/sfc_speed_controller_datamodel.hpp
@@ -51,6 +53,7 @@ target_sources(
            src/sfc_machine_side_modulator_runner.cpp
            src/sfc_machine_side_observer_runner.cpp
            src/sfc_machine_side_pulse_generator_runner.cpp
+           src/sfc_operation_mode_monitor_runner.cpp
            src/sfc_plant_model_runner.cpp
            src/sfc_speed_controller_runner.cpp
            src/sfc_state_machine_runner.cpp)

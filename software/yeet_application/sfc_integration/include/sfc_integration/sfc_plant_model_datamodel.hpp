@@ -86,6 +86,8 @@ public:
      * These parameters reflect the configurable aspects of the sfc_plant_model_simulator.
      */
     struct parameters {
+        parameter<real_t> initial_speed = real_t(1.0);
+
         /// Defines if the machine runs at a fixed speed or if speed is determined by the load model.
         parameter<machine_operation_mode> operation_mode = machine_operation_mode::fixed_speed;
 

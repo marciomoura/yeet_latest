@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sfc_grid_side_pulse_generator_datamodel.hpp"
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
@@ -12,29 +11,13 @@
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
-#include "sfc_machine_side_pulse_generator_datamodel.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet_control/units.hpp"
-#include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc::integration {
 
 // ==================== Sensorless Speed Controller Simulation Builder ====================
-
-// Parameter collection with observers and speed controller included
-using sfc_sensorless_speed_controller_simulation_parameters =
-    yeet::parameter_collection<sfc_speed_controller_datamodel::parameters,
-        sfc_current_controller_datamodel::parameters,
-        sfc_grid_side_pulse_generator_datamodel::parameters,
-        sfc_machine_side_pulse_generator_datamodel::parameters,
-        sfc_machine_side_controller_datamodel::parameters,
-        sfc_grid_side_measurements_datamodel::parameters,
-        sfc_machine_side_measurements_datamodel::parameters,
-        sfc_dc_link_measurements_datamodel::parameters,
-        sfc_grid_side_observer_datamodel::parameters,
-        sfc_machine_side_observer_datamodel::parameters,
-        sfc_plant_model_datamodel::parameters>;
 
 /**
  * @brief Sensorless speed controller simulation builder with cascaded control and observers
@@ -48,15 +31,14 @@ using sfc_sensorless_speed_controller_simulation_parameters =
  * - Complete measurement and filtering chain (raw measurements for observers)
  * - Observer-based feedback instead of direct measurements
  * - Per-unit system for proper scaling
+ * - Simplified configuration without state machine, modulators, or operation mode monitor
  *
  * Signal Flow:
- * Plant → Raw Measurements → Observers → Estimated Values → Speed Controller → Current Controller
+ * Plant → Raw Measurements → Observers → Estimated Values → Speed Controller → Current Controller → Pulse Generators →
+ * Plant
  */
-class sfc_sensorless_speed_controller_simulation_builder
-    : public yeet::closed_loop_configuration<sfc_sensorless_speed_controller_simulation_parameters> {
+class sfc_sensorless_speed_controller_simulation_builder {
 public:
-    using parameter_types = sfc_sensorless_speed_controller_simulation_parameters;
-
     sfc_sensorless_speed_controller_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
           plant{_per_unit_system},
@@ -72,7 +54,9 @@ public:
 
     void mock_inputs()
     {
+        // Mock control signals for standalone testing
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
         yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
 
         // Mock pulse release signals for both pulse generators
@@ -96,58 +80,36 @@ public:
         machine_side_pulse_generator.initialize();
     }
 
-    void register_applications(yeet::simulator& sim) override
+    void register_applications(yeet::simulator& simulator)
     {
         // Register all runners with their respective sampling times
-        sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
+        simulator.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
 
-        sim.register_lambda_runner(grid_measurements.get_sampling_time(), [&]() { grid_measurements.run(); });
+        simulator.register_lambda_runner(grid_measurements.get_sampling_time(), [&]() { grid_measurements.run(); });
 
-        sim.register_lambda_runner(machine_measurements.get_sampling_time(), [&]() { machine_measurements.run(); });
+        simulator.register_lambda_runner(
+            machine_measurements.get_sampling_time(), [&]() { machine_measurements.run(); });
 
-        sim.register_lambda_runner(dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
+        simulator.register_lambda_runner(
+            dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
 
-        sim.register_lambda_runner(grid_side_observer.get_sampling_time(), [&]() { grid_side_observer.run(); });
+        simulator.register_lambda_runner(grid_side_observer.get_sampling_time(), [&]() { grid_side_observer.run(); });
 
-        sim.register_lambda_runner(machine_side_observer.get_sampling_time(), [&]() { machine_side_observer.run(); });
+        simulator.register_lambda_runner(
+            machine_side_observer.get_sampling_time(), [&]() { machine_side_observer.run(); });
 
-        sim.register_lambda_runner(speed_controller.get_sampling_time(), [&]() { speed_controller.run(); });
+        simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() { speed_controller.run(); });
 
-        sim.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
+        simulator.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
 
-        sim.register_lambda_runner(
+        simulator.register_lambda_runner(
             machine_side_controller.get_sampling_time(), [&]() { machine_side_controller.run(); });
 
-        sim.register_lambda_runner(
+        simulator.register_lambda_runner(
             grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
 
-        sim.register_lambda_runner(
+        simulator.register_lambda_runner(
             machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
-    }
-
-    void register_datamodel(yeet::model_registry& registry) override
-    {
-        // Register all datamodels
-        plant.register_datamodel(registry);
-        grid_measurements.register_datamodel(registry);
-        machine_measurements.register_datamodel(registry);
-        dc_link_measurements.register_datamodel(registry);
-        grid_side_observer.register_datamodel(registry);
-        machine_side_observer.register_datamodel(registry);
-        speed_controller.register_datamodel(registry);
-        current_controller.register_datamodel(registry);
-        machine_side_controller.register_datamodel(registry);
-        grid_side_pulse_generator.register_datamodel(registry);
-        machine_side_pulse_generator.register_datamodel(registry);
-    }
-
-    parameter_types create_parameter_collection() override
-    {
-        return parameter_types(speed_controller.get_parameters(), current_controller.get_parameters(),
-            grid_side_pulse_generator.get_parameters(), machine_side_pulse_generator.get_parameters(),
-            machine_side_controller.get_parameters(), grid_measurements.get_parameters(),
-            machine_measurements.get_parameters(), dc_link_measurements.get_parameters(),
-            grid_side_observer.get_parameters(), machine_side_observer.get_parameters(), plant.get_parameters());
     }
 
     // Public members for direct access
@@ -310,8 +272,8 @@ private:
         // Connect machine side controller output to machine-side firing angle control
 
         // Firing angle command from machine side controller to machine pulse generator
-        signals_connector::connect_output_to_input(machine_ctrl_model.get_outputs().machine_side_firing_angle,
-            machine_pulse_gen_model.get_inputs().firing_angle);
+        signals_connector::connect_output_to_input(
+            machine_ctrl_model.get_outputs().firing_angle, machine_pulse_gen_model.get_inputs().firing_angle);
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs

@@ -12,6 +12,23 @@ sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit
 
 void sfc_plant_model_runner::initialize()
 {
+    // Configure the plant's grid and machine parameters from the shared per-unit system
+    const auto& grid_bases = _per_unit_system->get_grid_bases();
+    const auto& machine_bases = _per_unit_system->get_machine_bases();
+
+    // Convert peak phase voltage to RMS line voltage for grid side
+    voltage_t grid_voltage_rms =
+        voltage_t(grid_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
+
+    _plant.set_grid_parameters(grid_bases.base_frequency.value(), grid_voltage_rms);
+
+    // Convert peak phase voltage to RMS line voltage for machine side
+    voltage_t machine_voltage_rms =
+        voltage_t(machine_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
+
+    _plant.set_machine_parameters(_parameters.initial_speed.read() * machine_bases.base_frequency.value(),
+        _parameters.initial_speed.read() * machine_voltage_rms);
+
     // Initialize the plant model
     _plant.initialize();
 
@@ -48,28 +65,13 @@ void sfc_plant_model_runner::stop() {}
 
 void sfc_plant_model_runner::set_parameters()
 {
-    // Convert the datamodel operation mode to the plant model operation mode
-    sfc::plant_model_machine_operation_mode plant_mode = sfc::plant_model_machine_operation_mode::fixed_speed;
     if (_parameters.operation_mode.read() == datamodel::machine_operation_mode::variable_speed) {
-        plant_mode = sfc::plant_model_machine_operation_mode::variable_speed;
+        _plant.set_operation_mode(sfc::plant_model_machine_operation_mode::variable_speed);
     }
-    _plant.set_operation_mode(plant_mode);
+    else if (_parameters.operation_mode.read() == datamodel::machine_operation_mode::fixed_speed) {
+        _plant.set_operation_mode(sfc::plant_model_machine_operation_mode::fixed_speed);
+    }
 
-    // Configure the plant's grid and machine parameters from the shared per-unit system
-    const auto& grid_bases = _per_unit_system->get_grid_bases();
-    const auto& machine_bases = _per_unit_system->get_machine_bases();
-
-    // Convert peak phase voltage to RMS line voltage for grid side
-    voltage_t grid_voltage_rms =
-        voltage_t(grid_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
-    _plant.set_grid_parameters(grid_bases.base_frequency.value(), grid_voltage_rms);
-
-    // Convert peak phase voltage to RMS line voltage for machine side
-    voltage_t machine_voltage_rms =
-        voltage_t(machine_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
-    _plant.set_machine_parameters(machine_bases.base_frequency.value(), machine_voltage_rms);
-
-    // Configure the mechanical load with inertia and damping from parameters
     _plant.configure_mechanical_load(
         _parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read());
 }

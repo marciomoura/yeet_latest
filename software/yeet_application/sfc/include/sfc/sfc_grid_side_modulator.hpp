@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc_types.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/units.hpp"
 
@@ -9,8 +10,8 @@ namespace yeet::application::sfc {
  * @brief Operating states for the grid-side modulator.
  */
 enum class grid_side_modulator_state_t {
-    natural_commutation,  ///< Normal operation - pass through PI controller angle
-    forced_commutation    ///< Force commutation - apply deep inverting angle
+    running,            ///< Normal operation - pass through PI controller angle and firing angle
+    forced_commutation  ///< Force commutation - apply deep inverting angle to bring current to zero
 };
 
 /**
@@ -32,28 +33,22 @@ public:
     explicit sfc_grid_side_modulator();
 
     /**
-     * @brief Configures the fixed firing angle used for forced commutation.
-     *
-     * This angle is applied during force commutation to rapidly drive the DC link
-     * current to zero. Typical values are around 150° (deep inversion).
-     *
-     * @param angle The commutation angle in radians.
-     */
-    void configure_force_commutation_angle_rad(angle_t angle);
-
-    /**
      * @brief Updates the modulator with current system state.
      *
      * This method implements the handshake protocol for forced commutation.
      * All real-time inputs must be provided as arguments following the
      * yeet_application_sfc pattern.
      *
+     * @param enable System enable signal.
      * @param request_force_commutation Signal from machine-side modulator requesting commutation.
      * @param dc_link_current_is_zero Signal indicating DC link current has reached zero.
      * @param firing_angle_from_main_pi Firing angle from external PI current controller.
      */
-    void update(
-        bool request_force_commutation, bool dc_link_current_is_zero, angle_t firing_angle_from_main_pi) noexcept;
+    void update(bool enable,
+        sfc_operating_mode_t operating_mode,
+        bool request_force_commutation,
+        bool dc_link_current_is_zero,
+        angle_t firing_angle_from_main_pi) noexcept;
 
     /**
      * @brief Resets the modulator to initial state.
@@ -103,15 +98,39 @@ public:
      */
     void acknowledge_main_pi_reset();
 
+    /**
+     * @brief Gets the pulse release status.
+     *
+     * This signal indicates whether the firing pulses for the grid-side
+     * converter should be enabled.
+     *
+     * @return True if pulses should be released, false otherwise.
+     */
+    bool get_pulse_release() const noexcept;
+
 private:
+    /**
+     * @brief Internal state update structure for pulse mode operation.
+     */
+    struct pulse_mode_state_update {
+        grid_side_modulator_state_t new_state;
+        angle_t new_firing_angle;
+        bool new_force_commutation_acknowledged;
+        bool new_main_pi_reset_requested;
+    };
+
+    pulse_mode_state_update compute_pulse_mode_state_update(
+        bool request_force_commutation, bool dc_link_current_is_zero, angle_t firing_angle) const noexcept;
+
     // Configuration parameters
     angle_t _force_commutation_angle_rad{deg_to_rad(150.0)};  ///< 150° for forced commutation
 
     // Internal state
-    grid_side_modulator_state_t _current_state{grid_side_modulator_state_t::natural_commutation};
+    grid_side_modulator_state_t _current_state{grid_side_modulator_state_t::running};
     angle_t _current_firing_angle_rad{0.0f};      ///< Current output firing angle
     bool _force_commutation_acknowledged{false};  ///< Acknowledgment signal for one cycle
     bool _main_pi_reset_requested{false};         ///< Flag for PI reset request
+    bool _release_pulses{true};                   ///< Pulse release control
 
     /**
      * @brief Gets the safe default firing angle when system is disabled.

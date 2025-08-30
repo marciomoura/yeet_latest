@@ -23,47 +23,40 @@ protected:
     // Common test parameters
     static constexpr duration_t sampling_time{100e-6};  // 100µs
     static constexpr angle_t test_lut_angle = deg_to_rad(45.0);
-    static constexpr angle_t custom_pulse_angle = deg_to_rad(120.0);
+    static constexpr angle_t pulse_mode_angle = deg_to_rad(180.0);  // Fixed pulse mode angle from implementation
+
+    // Helper function to convert degrees to radians for cleaner test code
+    constexpr angle_t deg_to_rad_helper(real_t degrees) const { return angle_t(degrees * pi / 180.0); }
 };
 
 }  // namespace
 
 // ========================================
-// Constructor and Configuration Tests
+// Constructor and Initial State Tests
 // ========================================
 
 TEST_F(SfcMachineSideModulatorTest, ConstructorInitializesToSafeState)
 {
     // After construction, modulator should be in safe default state
-    EXPECT_EQ(modulator->get_current_operating_mode(), sfc_operating_mode_t::pulse_mode);
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_TRUE(modulator->get_release_pulses());
     EXPECT_FALSE(modulator->get_request_force_commutation());
     EXPECT_EQ(modulator->get_firing_angle_rad().value(), 0.0);  // Safe default angle
 }
 
-TEST_F(SfcMachineSideModulatorTest, ConfigurePulseModeAngle)
-{
-    // Configure custom pulse mode firing angle
-    modulator->configure_pulse_mode_firing_angle_rad(custom_pulse_angle);
-
-    // Enable system in pulse mode and verify the configured angle is used
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, angle_t(0.0), test_lut_angle);
-
-    // The firing angle should be calculated based on rotor position (sector 0) + configured offset
-    const real_t expected_angle = 0.0 + custom_pulse_angle.value();  // Sector 0 base + offset
-    EXPECT_NEAR(modulator->get_firing_angle_rad().value(), expected_angle, 1e-6);
-}
-
 TEST_F(SfcMachineSideModulatorTest, ResetFunctionRestoresInitialState)
 {
-    // Put modulator in a non-initial state
-    modulator->update(true, sfc_operating_mode_t::load_commutated, true, deg_to_rad(100.0), test_lut_angle);
+    // Put modulator in a non-initial state by triggering commutation request
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(30.0), test_lut_angle);
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);
+
+    // Verify we're in waiting state
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+    EXPECT_TRUE(modulator->get_request_force_commutation());
 
     // Reset and verify initial state is restored
     modulator->reset();
 
-    EXPECT_EQ(modulator->get_current_operating_mode(), sfc_operating_mode_t::pulse_mode);
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_TRUE(modulator->get_release_pulses());
     EXPECT_FALSE(modulator->get_request_force_commutation());
@@ -77,24 +70,34 @@ TEST_F(SfcMachineSideModulatorTest, ResetFunctionRestoresInitialState)
 TEST_F(SfcMachineSideModulatorTest, LoadCommutatedModePassesThroughLutAngle)
 {
     // Test that in load_commutated mode, the firing angle from lookup table is passed through
-    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad(45.0), test_lut_angle);
+    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad_helper(45.0), test_lut_angle);
 
-    EXPECT_EQ(modulator->get_current_operating_mode(), sfc_operating_mode_t::load_commutated);
     EXPECT_EQ(modulator->get_firing_angle_rad().value(), test_lut_angle.value());
     EXPECT_TRUE(modulator->get_release_pulses());              // Always release pulses in natural commutation
     EXPECT_FALSE(modulator->get_request_force_commutation());  // Never request commutation
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
 }
 
-TEST_F(SfcMachineSideModulatorTest, PulseModeCalculatesPositionBasedAngle)
+TEST_F(SfcMachineSideModulatorTest, PulseModeUsesFixedFiringAngle)
 {
-    // Test that in pulse_mode, the firing angle is calculated based on rotor position
-    modulator->update(
-        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(30.0), test_lut_angle);  // Rotor in sector 0
+    // Test that in pulse_mode, the firing angle is the fixed 180° value
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(30.0), test_lut_angle);
 
-    EXPECT_EQ(modulator->get_current_operating_mode(), sfc_operating_mode_t::pulse_mode);
-    // Firing angle should be sector base (0°) + default pulse offset (90°)
-    EXPECT_NEAR(modulator->get_firing_angle_rad().value(), deg_to_rad(90.0).value(), 1e-6);
+    EXPECT_EQ(modulator->get_firing_angle_rad().value(), pulse_mode_angle.value());
+    EXPECT_TRUE(modulator->get_release_pulses());              // Should start with pulses enabled
+    EXPECT_FALSE(modulator->get_request_force_commutation());  // No commutation request initially
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
+}
+
+TEST_F(SfcMachineSideModulatorTest, NoCommutationRequestInLoadCommutatedMode)
+{
+    // Sector changes in load_commutated mode should not generate commutation requests
+    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad_helper(30.0), test_lut_angle);
+    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad_helper(70.0), test_lut_angle);
+
+    EXPECT_FALSE(modulator->get_request_force_commutation());
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
+    EXPECT_TRUE(modulator->get_release_pulses());
 }
 
 // ========================================
@@ -104,7 +107,7 @@ TEST_F(SfcMachineSideModulatorTest, PulseModeCalculatesPositionBasedAngle)
 TEST_F(SfcMachineSideModulatorTest, DisabledSystemOutputsSafeDefaults)
 {
     // When system is disabled, should output safe values regardless of inputs
-    modulator->update(false, sfc_operating_mode_t::load_commutated, true, deg_to_rad(100.0), test_lut_angle);
+    modulator->update(false, sfc_operating_mode_t::pulse_mode, true, deg_to_rad_helper(100.0), test_lut_angle);
 
     EXPECT_EQ(modulator->get_firing_angle_rad().value(), 0.0);  // Safe default angle
     EXPECT_FALSE(modulator->get_release_pulses());              // Block pulses when disabled
@@ -112,211 +115,177 @@ TEST_F(SfcMachineSideModulatorTest, DisabledSystemOutputsSafeDefaults)
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
 }
 
-TEST_F(SfcMachineSideModulatorTest, EnabledSystemProcessesInputsNormally)
+TEST_F(SfcMachineSideModulatorTest, DisableSystemDuringCommutationClears)
 {
-    // When system is enabled, should process inputs normally
-    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad(45.0), test_lut_angle);
+    // Start commutation sequence
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(30.0), test_lut_angle);
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);
 
-    EXPECT_EQ(modulator->get_firing_angle_rad().value(), test_lut_angle.value());
-    EXPECT_TRUE(modulator->get_release_pulses());
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+    EXPECT_TRUE(modulator->get_request_force_commutation());
+
+    // Disable system - should clear all commutation state
+    modulator->update(false, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);
+
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
+    EXPECT_FALSE(modulator->get_request_force_commutation());
+    EXPECT_FALSE(modulator->get_release_pulses());  // Pulses blocked when disabled
 }
 
 // ========================================
-// Rotor Sector Tracking Tests
+// Rotor Sector Calculation Tests
 // ========================================
 
-TEST_F(SfcMachineSideModulatorTest, RotorSectorCalculationIsCorrect)
+TEST_F(SfcMachineSideModulatorTest, RotorSectorCalculationAndBoundaries)
 {
-    // Test sector boundaries (each sector is 60 degrees)
+    // Test sector boundaries and wraparound (each sector is 60 degrees)
     const struct {
         real_t rotor_degrees;
         int expected_sector;
-    } test_cases[] = {{0.0, 0},               // Sector 0: [0°, 60°)
-        {30.0, 0}, {59.999, 0}, {60.0, 1},    // Sector 1: [60°, 120°)
-        {90.0, 1}, {119.999, 1}, {120.0, 2},  // Sector 2: [120°, 180°)
-        {180.0, 3},                           // Sector 3: [180°, 240°)
-        {240.0, 4},                           // Sector 4: [240°, 300°)
-        {300.0, 5},                           // Sector 5: [300°, 360°)
-        {359.999, 5}};
+    } test_cases[] = {
+        {0.0, 0}, {30.0, 0}, {59.999, 0},    // Sector 0: [0°, 60°)
+        {60.0, 1}, {90.0, 1}, {119.999, 1},  // Sector 1: [60°, 120°)
+        {120.0, 2}, {180.0, 3}, {240.0, 4},  // Sectors 2, 3, 4
+        {300.0, 5}, {359.999, 5},            // Sector 5: [300°, 360°)
+        {450.0, 1}, {-30.0, 5}               // Wraparound cases
+    };
 
     for (const auto& test_case : test_cases) {
-        modulator->update(
-            true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(test_case.rotor_degrees), test_lut_angle);
+        auto test_modulator = std::make_unique<sfc_machine_side_modulator>(sampling_time);
 
-        // Calculate expected firing angle: sector_base + pulse_offset
-        const real_t sector_base_rad = (test_case.expected_sector * 60.0) * pi / 180.0;
-        const real_t expected_firing_angle = sector_base_rad + deg_to_rad(90.0).value();
+        test_modulator->update(
+            true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(test_case.rotor_degrees), test_lut_angle);
 
-        EXPECT_NEAR(modulator->get_firing_angle_rad().value(), expected_firing_angle, 1e-5)
-            << "Failed for rotor angle: " << test_case.rotor_degrees
-            << "°, expected sector: " << test_case.expected_sector;
+        // In pulse mode, firing angle should always be 180° regardless of rotor position
+        EXPECT_EQ(test_modulator->get_firing_angle_rad().value(), pulse_mode_angle.value())
+            << "Failed for rotor angle: " << test_case.rotor_degrees << "°";
     }
 }
 
 // ========================================
-// Forced Commutation Handshake Tests
+// Complete Forced Commutation Handshake
 // ========================================
 
-TEST_F(SfcMachineSideModulatorTest, SectorChangeInitiatesCommutationRequest)
+TEST_F(SfcMachineSideModulatorTest, CompleteCommutationHandshakeSequence)
 {
-    // Start in sector 0
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(30.0), test_lut_angle);
+    // Test the complete handshake sequence including sector changes, acknowledgment, and state transitions
 
+    // Phase 1: Start in sector 0 - running state
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(30.0), test_lut_angle);
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_TRUE(modulator->get_release_pulses());
     EXPECT_FALSE(modulator->get_request_force_commutation());
 
-    // Move to sector 1 - should initiate commutation request
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(70.0), test_lut_angle);
-
+    // Phase 2: Move to sector 1 - should initiate commutation request
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
-    EXPECT_FALSE(modulator->get_release_pulses());            // Pulses should be blocked
+    EXPECT_FALSE(modulator->get_release_pulses());            // Pulses should be blocked immediately
     EXPECT_TRUE(modulator->get_request_force_commutation());  // Request should be asserted
-}
 
-TEST_F(SfcMachineSideModulatorTest, AcknowledgmentCompletesHandshake)
-{
-    // Move to sector change to initiate commutation
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(30.0), test_lut_angle);
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(70.0), test_lut_angle);
+    // Phase 3: Request persists until acknowledged
+    for (int i = 0; i < 3; ++i) {
+        modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);
+        EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+        EXPECT_TRUE(modulator->get_request_force_commutation());
+        EXPECT_FALSE(modulator->get_release_pulses());
+    }
 
-    // Verify we're waiting for acknowledgment
-    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
-    EXPECT_TRUE(modulator->get_request_force_commutation());
-    EXPECT_FALSE(modulator->get_release_pulses());
-
-    // Provide acknowledgment from grid-side
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, true, deg_to_rad(70.0), test_lut_angle);
-
-    // Handshake should be complete
+    // Phase 4: Provide acknowledgment from grid-side
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, true, deg_to_rad_helper(70.0), test_lut_angle);
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_FALSE(modulator->get_request_force_commutation());  // Request should be cleared
     EXPECT_TRUE(modulator->get_release_pulses());              // Pulses should be released
+
+    // Phase 5: Test multiple consecutive sector changes
+    modulator->update(
+        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(130.0), test_lut_angle);  // Sector 1→2
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+    EXPECT_TRUE(modulator->get_request_force_commutation());
+
+    modulator->update(
+        true, sfc_operating_mode_t::pulse_mode, true, deg_to_rad_helper(130.0), test_lut_angle);  // Acknowledge
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
+    EXPECT_FALSE(modulator->get_request_force_commutation());
 }
 
-TEST_F(SfcMachineSideModulatorTest, RequestRemainsActiveUntilAcknowledged)
+// ========================================
+// Edge Cases and Error Conditions
+// ========================================
+
+TEST_F(SfcMachineSideModulatorTest, AllSectorTransitionsGenerateRequests)
 {
-    // Initiate commutation request
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(30.0), test_lut_angle);
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(70.0), test_lut_angle);
+    // Test transitions between all adjacent sectors including wraparound
+    const std::vector<std::pair<real_t, real_t>> sector_transitions = {
+        {30.0, 70.0},    // Sector 0 → 1
+        {90.0, 130.0},   // Sector 1 → 2
+        {150.0, 190.0},  // Sector 2 → 3
+        {210.0, 250.0},  // Sector 3 → 4
+        {270.0, 310.0},  // Sector 4 → 5
+        {330.0, 10.0}    // Sector 5 → 0 (wraparound)
+    };
 
-    // Request should remain active across multiple update cycles
-    for (int i = 0; i < 10; ++i) {
-        modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(70.0), test_lut_angle);
+    for (const auto& transition : sector_transitions) {
+        modulator->reset();
 
-        EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+        // Start in first sector
+        modulator->update(
+            true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(transition.first), test_lut_angle);
+        EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
+
+        // Move to second sector
+        modulator->update(
+            true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(transition.second), test_lut_angle);
+
+        EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack)
+            << "Failed for transition " << transition.first << "° → " << transition.second << "°";
         EXPECT_TRUE(modulator->get_request_force_commutation());
         EXPECT_FALSE(modulator->get_release_pulses());
     }
 }
 
-TEST_F(SfcMachineSideModulatorTest, MultipleSectorChangesHandledCorrectly)
+TEST_F(SfcMachineSideModulatorTest, RapidSectorChangesAndModeTransitions)
 {
-    // Test sequence: Sector 0 -> 1 -> 2
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(30.0), test_lut_angle);  // Sector 0
-
-    // Move to sector 1
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(70.0), test_lut_angle);  // Sector 1
-    EXPECT_TRUE(modulator->get_request_force_commutation());
-
-    // Acknowledge and complete first handshake
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, true, deg_to_rad(70.0), test_lut_angle);
-    EXPECT_FALSE(modulator->get_request_force_commutation());
-    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
-
-    // Move to sector 2 - should initiate new commutation
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(130.0), test_lut_angle);  // Sector 2
-    EXPECT_TRUE(modulator->get_request_force_commutation());
-    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
-}
-
-// ========================================
-// Edge Case Tests
-// ========================================
-
-TEST_F(SfcMachineSideModulatorTest, RotorPositionWraparoundHandledCorrectly)
-{
-    // Test wraparound from sector 5 to sector 0
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(330.0), test_lut_angle);  // Sector 5
-
-    // Move to sector 0 (wraparound case)
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(10.0), test_lut_angle);  // Sector 0
-
-    EXPECT_TRUE(modulator->get_request_force_commutation());
-    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
-}
-
-TEST_F(SfcMachineSideModulatorTest, NoCommutationRequestInLoadCommutatedMode)
-{
-    // Sector changes in load_commutated mode should not generate commutation requests
+    // Test rapid sector changes (faster than typical acknowledgment)
     modulator->update(
-        true, sfc_operating_mode_t::load_commutated, false, deg_to_rad(30.0), test_lut_angle);  // Sector 0
-
+        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(30.0), test_lut_angle);  // Sector 0
     modulator->update(
-        true, sfc_operating_mode_t::load_commutated, false, deg_to_rad(70.0), test_lut_angle);  // Sector 1
+        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);  // Sector 1
 
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+    EXPECT_TRUE(modulator->get_request_force_commutation());
+
+    // Move to another sector before acknowledgment - should remain in waiting state
+    modulator->update(
+        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(130.0), test_lut_angle);  // Sector 2
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
+    EXPECT_TRUE(modulator->get_request_force_commutation());
+
+    // Test mode transition during commutation - should clear commutation state
+    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad_helper(130.0), test_lut_angle);
     EXPECT_FALSE(modulator->get_request_force_commutation());
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_TRUE(modulator->get_release_pulses());
 }
 
-TEST_F(SfcMachineSideModulatorTest, ModeTransitionClearsCommutationState)
+TEST_F(SfcMachineSideModulatorTest, BackwardRotorMovementAndAcknowledgmentEdgeCases)
 {
-    // Start commutation sequence in pulse mode
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(30.0), test_lut_angle);
-    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(70.0), test_lut_angle);
+    // Test backward rotor movement
+    modulator->update(
+        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(130.0), test_lut_angle);  // Sector 2
+    modulator->update(
+        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(70.0), test_lut_angle);  // Sector 1
 
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
     EXPECT_TRUE(modulator->get_request_force_commutation());
 
-    // Switch to load_commutated mode - should clear commutation state
-    modulator->update(true, sfc_operating_mode_t::load_commutated, false, deg_to_rad(70.0), test_lut_angle);
+    // Test acknowledgment ignored in running state
+    modulator->reset();
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad_helper(30.0), test_lut_angle);
+    EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
 
-    EXPECT_FALSE(modulator->get_request_force_commutation());
+    // Provide acknowledgment while in running state (shouldn't affect anything)
+    modulator->update(true, sfc_operating_mode_t::pulse_mode, true, deg_to_rad_helper(30.0), test_lut_angle);
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_TRUE(modulator->get_release_pulses());
-}
-
-// ========================================
-// Boundary Condition Tests
-// ========================================
-
-TEST_F(SfcMachineSideModulatorTest, ExactSectorBoundaryPositions)
-{
-    // Test exact sector boundary positions
-    const real_t sector_boundaries[] = {0.0, 60.0, 120.0, 180.0, 240.0, 300.0};
-
-    for (size_t i = 0; i < sizeof(sector_boundaries) / sizeof(sector_boundaries[0]); ++i) {
-        modulator->reset();  // Reset for clean test
-        modulator->update(
-            true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(sector_boundaries[i]), test_lut_angle);
-
-        // Should be in the expected sector
-        const real_t sector_base_rad = sector_boundaries[i] * pi / 180.0;
-        const real_t expected_firing_angle = sector_base_rad + deg_to_rad(90.0).value();
-
-        EXPECT_NEAR(modulator->get_firing_angle_rad().value(), expected_firing_angle, 1e-5)
-            << "Failed for boundary angle: " << sector_boundaries[i] << "°";
-    }
-}
-
-TEST_F(SfcMachineSideModulatorTest, LargeRotorAngleInputsHandledCorrectly)
-{
-    // Test with angles beyond 360°
-    modulator->update(
-        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(450.0), test_lut_angle);  // 450° = 90° (sector 1)
-
-    // Should be equivalent to 90° (sector 1)
-    const real_t expected_firing_angle = deg_to_rad(60.0).value() + deg_to_rad(90.0).value();
-    EXPECT_NEAR(modulator->get_firing_angle_rad().value(), expected_firing_angle, 1e-5);
-}
-
-TEST_F(SfcMachineSideModulatorTest, NegativeRotorAngleInputsHandledCorrectly)
-{
-    // Test with negative angles
-    modulator->update(
-        true, sfc_operating_mode_t::pulse_mode, false, deg_to_rad(-30.0), test_lut_angle);  // -30° = 330° (sector 5)
-
-    // Should be equivalent to 330° (sector 5)
-    const real_t expected_firing_angle = deg_to_rad(300.0).value() + deg_to_rad(90.0).value();
-    EXPECT_NEAR(modulator->get_firing_angle_rad().value(), expected_firing_angle, 1e-5);
+    EXPECT_FALSE(modulator->get_request_force_commutation());
 }

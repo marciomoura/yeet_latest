@@ -15,7 +15,8 @@ public:
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
-        simulator.configure_sampler_sampling_rate(ms(0.5));
+        // simulator.configure_sampler_sampling_rate(ms(0.5));
+        simulator.configure_sampler_sampling_rate(2e-3);
 
         // Register all applications with the simulator
         system.register_applications(simulator);
@@ -24,15 +25,26 @@ public:
         initialize();
 
         // ==================== Logger Registration ====================
-        register_complete_logger(simulator, system.speed_controller);
-        register_complete_logger(simulator, system.state_machine);
-        register_complete_logger(simulator, system.current_controller);
-        // register_complete_logger(simulator, system.dc_link_measurements);
+        // register_complete_logger(simulator, system.plant);
+        // register_complete_logger(simulator, system.state_machine);
         // register_complete_logger(simulator, system.grid_side_observer);
         // register_complete_logger(simulator, system.machine_side_observer);
+
+        register_complete_logger(simulator, system.speed_controller);
+        register_complete_logger(simulator, system.current_controller);
+        register_complete_logger(simulator, system.dc_link_measurements);
+        register_complete_logger(simulator, system.machine_side_modulator);
+        register_complete_logger(simulator, system.grid_side_modulator);
+        register_minimal_operation_mode_monitor_logger(simulator, system.operation_mode_monitor);
     }
 
-    void initialize() { system.initialize(); }
+    void initialize()
+    {
+        // Initializing the system with very low speed for speed control
+        parameter<real_t> initial_speed = real_t(0.005);
+
+        system.initialize();
+    }
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
@@ -122,11 +134,13 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     // Simulate until system can stabilize
     system.speed_reference_pu = speed_pu_t(0.9);
     system.load_torque_pu = torque_pu_t(0.3f);
-    bool success = simulator.simulate_for(10.0);
+    bool success = simulator.simulate_for(5.0);
+    speed_regulation_checker->activate();
+    success &= simulator.simulate_for(5.0);
+    speed_regulation_checker->deactivate();
 
     system.speed_reference_pu = speed_pu_t(1.0);
-    success &= simulator.simulate_for(10.0);
-
+    success &= simulator.simulate_for(5.0);
     speed_regulation_checker->activate();
     success &= simulator.simulate_for(5.0);
     speed_regulation_checker->deactivate();
@@ -136,4 +150,51 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     // Verify that pulse releases are active during operation
     EXPECT_TRUE(system.state_machine.get_signal_flow_datamodel().get_outputs().pulse_releases.read())
         << "Pulse releases should be active during OPERATION_ON state";
+}
+
+// Test speed regulation with state machine startup - based on sensorless_speed_controller_test.cpp
+TEST_F(CompleteSensorlessSpeedControllerTest, SpeedRegulationRampingUpTest)
+{
+    simulator.configure_sampler_sampling_rate(20e-3);
+
+    // Configure plant for variable speed operation using standardized configuration
+    yeet::application::sfc::integration::test::variable_speed_config config{};
+    config.initial_speed = speed_pu_t{0.01f};  // Custom initial speed for this test
+    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
+
+    const speed_pu_t speed_error_max_value{0.05f};
+    const speed_pu_t speed_error_min_value{-0.05f};
+
+    // Check speed error after disturbance
+    auto speed_regulation_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "speed error", [&]() -> speed_pu_t { return system.speed_controller.get_outputs().speed_error.read(); },
+        speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
+
+    speed_regulation_checker->deactivate();  // Deactivate initially to avoid false positives
+
+    // ==================== Test Configuration ====================
+    // Simulate initial idle state
+    // ==================== State Machine Startup Sequence ====================
+    // Execute complete startup sequence to reach operational state
+    execute_startup_sequence();
+
+    // At this point, state machine should be in OPERATION_ON and pulse_releases should be true
+    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+
+    // ==================== Test Execution ====================
+    // Simulate until system can stabilize
+    system.speed_reference_pu = speed_pu_t(1.0);
+    const real_t ramp_time = 40.0;                                                                       // seconds
+    system.speed_controller.get_parameters().speed_reference_rate_limit.write(real_t{1.0} / ramp_time);  // pu/s
+    system.load_torque_pu = torque_pu_t(0.2f);
+
+    // Simulate a little bit to get rid of possible initial oscillations
+    bool success = simulator.simulate_for(1.0);
+
+    // Because the ramp is very slow, we can allow the checker to be on at all times
+    speed_regulation_checker->activate();
+    success &= simulator.simulate_for(50.0);
+    speed_regulation_checker->deactivate();
+
+    EXPECT_TRUE(success) << "Simulation did not complete successfully with speed regulation and state machine.";
 }

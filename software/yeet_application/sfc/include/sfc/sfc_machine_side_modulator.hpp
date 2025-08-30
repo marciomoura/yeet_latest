@@ -15,6 +15,15 @@ enum class machine_side_commutation_state_t {
 };
 
 /**
+ * @brief Output data from the forced commutation state machine logic.
+ */
+struct forced_commutation_outputs {
+    bool release_pulses;                          ///< Whether to release firing pulses to thyristors
+    bool request_force_commutation;               ///< Request signal to grid-side modulator
+    machine_side_commutation_state_t next_state;  ///< Next state for the state machine
+};
+
+/**
  * @class sfc_machine_side_modulator
  * @brief Manages firing angle selection and commutation handshake for the machine-side converter (inverter).
  *
@@ -32,16 +41,6 @@ public:
     explicit sfc_machine_side_modulator(duration_t sampling_time);
 
     /**
-     * @brief Configures the fixed firing angle used in Pulse Mode.
-     *
-     * This angle is applied relative to the selected thyristor pair to generate
-     * maximum torque. Typical values are 0° or 90° depending on the reference frame.
-     *
-     * @param fixed_angle The fixed firing angle in radians.
-     */
-    void configure_pulse_mode_firing_angle_rad(angle_t fixed_angle);
-
-    /**
      * @brief Updates the modulator with current system state and operating mode.
      *
      * This method selects the appropriate firing angle source based on the provided
@@ -52,13 +51,13 @@ public:
      * @param operating_mode The current operating mode (from external mode detector).
      * @param force_commutation_acknowledged Acknowledgment signal from grid-side modulator.
      * @param absolute_rotor_position_rad Absolute rotor position for sector tracking.
-     * @param firing_angle_from_lut Firing angle from lookup table for Natural Commutation Mode.
+     * @param firing_angle_rad Firing angle from lookup table for Natural Commutation Mode.
      */
     void update(bool enable,
         sfc_operating_mode_t operating_mode,
         bool force_commutation_acknowledged,
         angle_t absolute_rotor_position_rad,
-        angle_t firing_angle_from_lut) noexcept;
+        angle_t firing_angle_rad) noexcept;
 
     /**
      * @brief Resets the modulator to initial state.
@@ -73,12 +72,6 @@ public:
      * @return The firing angle in radians to be applied to the machine-side converter.
      */
     angle_t get_firing_angle_rad() const noexcept;
-
-    /**
-     * @brief Gets the current operating mode.
-     * @return The current operating mode (load_commutated or pulse_mode).
-     */
-    sfc_operating_mode_t get_current_operating_mode() const noexcept;
 
     /**
      * @brief Gets the pulse release signal for the six-pulse generator.
@@ -109,12 +102,11 @@ public:
 
 private:
     // Configuration parameters
-    angle_t _pulse_mode_firing_angle_rad{deg_to_rad(90.0)};  ///< Fixed angle for Pulse Mode (90° for max torque)
+    const angle_t _pulse_mode_firing_angle_rad{
+        angle_t(deg_to_rad(180.0))};  ///< Fixed angle for Pulse Mode (180° for max torque)
 
     // Internal state
-    sfc_operating_mode_t _current_mode{sfc_operating_mode_t::pulse_mode};  ///< Current operating mode
-    angle_t _current_firing_angle_rad{0.0f};                               ///< Current output firing angle
-    bool _system_enabled{false};                                           ///< System enable state
+    angle_t _current_firing_angle_rad{0.0f};  ///< Current output firing angle
 
     // Forced commutation handshake state
     machine_side_commutation_state_t _commutation_state{machine_side_commutation_state_t::running};
@@ -122,27 +114,15 @@ private:
     bool _request_force_commutation{false};  ///< Request signal to grid-side
 
     // Rotor sector tracking
-    int _previous_rotor_sector{-1};     ///< Previous rotor sector (0-5)
-    bool _rotor_sector_changed{false};  ///< Sector change detection flag
+    int _previous_rotor_sector{-1};
 
     /**
-     * @brief Calculates firing angle for Pulse Mode based on rotor position.
-     * @param rotor_position_rad Absolute rotor position.
-     * @return The calculated firing angle for maximum torque.
+     * @brief Checks if the rotor sector has changed since the last update.
+     *
+     * @param rotor_position_rad Current absolute rotor position in radians
+     * @return True if the rotor has moved to a different sector, false otherwise
      */
-    angle_t calculate_pulse_mode_firing_angle(angle_t rotor_position_rad) const noexcept;
-
-    /**
-     * @brief Updates rotor sector tracking and detects sector changes.
-     * @param rotor_position_rad Current absolute rotor position.
-     */
-    void update_rotor_sector_tracking(angle_t rotor_position_rad) noexcept;
-
-    /**
-     * @brief Updates the forced commutation state machine.
-     * @param force_commutation_acknowledged Acknowledgment from grid-side modulator.
-     */
-    void update_forced_commutation_state_machine(bool force_commutation_acknowledged) noexcept;
+    [[nodiscard]] bool has_rotor_sector_changed(angle_t rotor_position_rad) const noexcept;
 
     /**
      * @brief Determines the current rotor sector from position.
@@ -156,6 +136,19 @@ private:
      * @return A safe firing angle (typically 0°).
      */
     angle_t get_safe_default_angle() const noexcept;
+
+    /**
+     * @brief Computes the outputs for the forced commutation state machine.
+     *
+     * This const function performs pure state machine logic without side effects,
+     * making it easily testable and debuggable.
+     *
+     * @param force_commutation_acknowledged Acknowledgment signal from grid-side modulator
+     * @param rotor_position_rad Current rotor position for sector change detection
+     * @return Computed outputs including pulse release, commutation request, and next state
+     */
+    [[nodiscard]] forced_commutation_outputs compute_forced_commutation_outputs(
+        bool force_commutation_acknowledged, angle_t rotor_position_rad) const noexcept;
 };
 
 }  // namespace yeet::application::sfc

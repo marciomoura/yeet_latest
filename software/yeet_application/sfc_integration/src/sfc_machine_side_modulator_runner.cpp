@@ -17,8 +17,8 @@ void sfc_machine_side_modulator_runner::run()
     const bool enable = _inputs.enable.read();
     const sfc_operating_mode_t operating_mode = _inputs.operating_mode.read();
     const bool force_commutation_acknowledged = _inputs.force_commutation_acknowledged.read();
-    const angle_t rotor_position_rad = _inputs.absolute_rotor_position.read();
-    const angle_t firing_angle_from_lut = _inputs.firing_angle_from_lut.read();
+    const angle_t rotor_position_rad = _inputs.machine_side_angle.read();
+    const angle_t firing_angle_from_lut = _inputs.firing_angle.read();
 
     // Update the modulator
     _sfc_machine_side_modulator.update(
@@ -43,8 +43,8 @@ void sfc_machine_side_modulator_runner::stop() { _sfc_machine_side_modulator.res
 void sfc_machine_side_modulator_runner::set_parameters()
 {
     // Configure pulse mode firing angle
-    const angle_t pulse_angle = _parameters.pulse_mode_firing_angle.read();
-    _sfc_machine_side_modulator.configure_pulse_mode_firing_angle_rad(pulse_angle);
+    // const angle_t pulse_angle = _parameters.pulse_mode_firing_angle.read();
+    // _sfc_machine_side_modulator.configure_pulse_mode_firing_angle_rad(pulse_angle);
 }
 
 void sfc_machine_side_modulator_runner::set_parameter_callback()

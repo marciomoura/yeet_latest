@@ -13,6 +13,7 @@ target_sources(
            include/sfc/sfc_machine_side_filtering.hpp
            include/sfc/sfc_grid_side_filtering.hpp
            include/sfc/sfc_dc_link_filtering.hpp
+           include/sfc/sfc_discontinuous_conduction_detector.hpp
            include/sfc/sfc_grid_side_observer.hpp
            include/sfc/sfc_machine_side_observer.hpp
            include/sfc/sfc_grid_side_measurements.hpp
@@ -36,6 +37,7 @@ target_sources(
             src/sfc_machine_side_lookup_table.cpp
             src/sfc_grid_side_filtering.cpp
             src/sfc_dc_link_filtering.cpp
+            src/sfc_discontinuous_conduction_detector.cpp
             src/sfc_grid_side_observer.cpp
             src/sfc_machine_side_observer.cpp
             src/sfc_grid_side_measurements.cpp

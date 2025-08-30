@@ -15,6 +15,7 @@ target_sources(
             edge_detector_test.cpp
             elapsed_timer_test.cpp
             first_order_low_pass_filter_test.cpp
+            hysteresis_limiter_test.cpp
             integrator_test.cpp
             interval_timer_test.cpp
             limit_tests.cpp
@@ -23,6 +24,7 @@ target_sources(
             mechanical_load_test.cpp
             off_delay_test.cpp
             on_delay_test.cpp
+            on_off_delay_test.cpp
             per_unit_test.cpp
             pi_controller_test.cpp
             precomputed_divisor_test.cpp

@@ -11,19 +11,19 @@ void sfc_machine_side_controller_runner::initialize()
     _firing_angle_filter.configure(_firing_angle_filter.calculate_cutoff_frequency(ms(10.0)));
 
     _lookup_table.reset();
-    _outputs.machine_side_firing_angle = _lookup_table.get_firing_angle_rad();
+    _outputs.firing_angle = _lookup_table.get_firing_angle_rad();
 }
 
 void sfc_machine_side_controller_runner::run()
 {
     _lookup_table.update(_inputs.dc_link_current.read());
 
-    _outputs.machine_side_firing_angle = _lookup_table.get_firing_angle_rad();
+    _outputs.firing_angle = _lookup_table.get_firing_angle_rad();
 }
 
 void sfc_machine_side_controller_runner::stop()
 {
-    _outputs.machine_side_firing_angle = angle_wrapped::from_degrees(150.0);  // Safe shutdown angle
+    _outputs.firing_angle = angle_wrapped::from_degrees(150.0);  // Safe shutdown angle
 }
 
 void sfc_machine_side_controller_runner::set_parameters() {}

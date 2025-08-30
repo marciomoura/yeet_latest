@@ -24,10 +24,10 @@ void sfc_speed_controller_runner::run()
         _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
     }
 
-    _outputs.speed_error = _inputs.speed_reference_pu.read() - _inputs.measured_speed_pu.read();
     _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
     _outputs.current_reference = current_pu_t{_parameters.torque_to_current_factor * _outputs.torque_reference.read()};
     _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
+    _outputs.speed_error = _outputs.speed_reference_limited.read() - _inputs.measured_speed_pu.read();
     _outputs.pi_output = _sfc_speed_controller.get_pi_output();
     _outputs.is_saturated = _sfc_speed_controller.is_saturated();
 }

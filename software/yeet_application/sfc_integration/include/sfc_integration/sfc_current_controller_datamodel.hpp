@@ -28,6 +28,7 @@ public:
         signal_input<voltage_pu_t> machine_side_voltage_magnitude;
 
         signal_input<bool> freeze_integrator;
+        signal_input<bool> modulator_freeze_integrator;  // needs additional logic to handle all freezes
     };
 
     /**

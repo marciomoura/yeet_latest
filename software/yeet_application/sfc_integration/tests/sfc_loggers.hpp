@@ -13,9 +13,11 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "sfc_integration/sfc_state_machine_runner.hpp"
+#include "yeet_control/types.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator.hpp"
 
@@ -31,6 +33,8 @@ static inline void register_minimal_current_controller_logger(
         [&]() { return current_controller.get_inputs().dc_link_current_measured.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input freeze_integrator", [&]() { return current_controller.get_inputs().freeze_integrator.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input modulator_freeze",
+        [&]() { return current_controller.get_inputs().modulator_freeze_integrator.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "output current_error",
         [&]() { return current_controller.get_signal_flow_datamodel().get_outputs().current_error.read(); }));
 }
@@ -326,6 +330,48 @@ static inline void register_complete_state_machine_logger(
         [&]() { return state_machine.get_signal_flow_datamodel().get_outputs().is_shutdown_requested.read(); }));
 }
 
+static inline void register_minimal_operation_mode_monitor_logger(
+    yeet::simulator& simulator, sfc_operation_mode_monitor_runner& operation_mode_monitor)
+{
+    const std::string group{"operation_mode_monitor:"};
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input enable", [&]() { return operation_mode_monitor.get_inputs().enable.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "input measured_speed_pu",
+        [&]() { return operation_mode_monitor.get_inputs().measured_speed_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current_pu",
+        [&]() { return operation_mode_monitor.get_inputs().dc_link_current_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<sfc_operating_mode_t>(
+        group + "output operating_mode", [&]() { return operation_mode_monitor.get_outputs().operating_mode.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output has_mode_changed",
+        [&]() { return operation_mode_monitor.get_outputs().has_mode_changed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_current_zero",
+        [&]() { return operation_mode_monitor.get_outputs().is_current_zero.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_discontinuous_mode",
+        [&]() { return operation_mode_monitor.get_outputs().is_discontinuous_mode.read(); }));
+}
+
+static inline void register_complete_operation_mode_monitor_logger(
+    yeet::simulator& simulator, sfc_operation_mode_monitor_runner& operation_mode_monitor)
+{
+    const std::string group{"operation_mode_monitor:"};
+
+    register_minimal_operation_mode_monitor_logger(simulator, operation_mode_monitor);
+
+    // Add parameter logging for debugging
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "param mode_handover_speed_pu",
+        [&]() { return operation_mode_monitor.get_parameters().mode_handover_speed_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "param mode_hysteresis_factor",
+        [&]() { return operation_mode_monitor.get_parameters().mode_hysteresis_factor.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "param zero_current_threshold_pu",
+        [&]() { return operation_mode_monitor.get_parameters().zero_current_threshold_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "param is_zero_on_delay_s",
+        [&]() { return operation_mode_monitor.get_parameters().is_zero_on_delay_s.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "param discontinuous_on_delay_s",
+        [&]() { return operation_mode_monitor.get_parameters().discontinuous_on_delay_s.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "param discontinuous_off_delay_s",
+        [&]() { return operation_mode_monitor.get_parameters().discontinuous_off_delay_s.read(); }));
+}
+
 static inline void register_minimal_machine_side_controller_logger(
     yeet::simulator& simulator, sfc_machine_side_controller_runner& machine_side_controller)
 {
@@ -334,13 +380,9 @@ static inline void register_minimal_machine_side_controller_logger(
         group + "input machine_speed", [&]() { return machine_side_controller.get_inputs().machine_speed.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current",
         [&]() { return machine_side_controller.get_inputs().dc_link_current.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_sampler<real_t>(group + "output machine_side_firing_angle", [&]() {
-            return machine_side_controller.get_signal_flow_datamodel()
-                .get_outputs()
-                .machine_side_firing_angle.read()
-                .get_pu();
-        }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle", [&]() {
+        return machine_side_controller.get_signal_flow_datamodel().get_outputs().firing_angle.read().get_pu();
+    }));
 }
 
 static inline void register_complete_machine_side_controller_logger(
@@ -392,6 +434,11 @@ static inline void register_minimal_machine_side_modulator_logger(
         group + "input enable", [&]() { return machine_side_modulator.get_inputs().enable.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle", [&]() {
         return machine_side_modulator.get_signal_flow_datamodel().get_outputs().firing_angle.read().get_pu();
+    }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output current_rotor_sector", [&]() {
+        return static_cast<real_t>(
+                   machine_side_modulator.get_signal_flow_datamodel().get_outputs().current_rotor_sector.read()) /
+               6.0f;
     }));
 }
 
@@ -702,6 +749,16 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_plant
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_plant_model_runner& runner)
 {
     register_complete_plant_model_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_operation_mode_monitor_runner& runner)
+{
+    register_minimal_operation_mode_monitor_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_operation_mode_monitor_runner& runner)
+{
+    register_complete_operation_mode_monitor_logger(simulator, runner);
 }
 
 }  // namespace yeet::application::sfc::integration

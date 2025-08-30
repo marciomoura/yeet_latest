@@ -56,13 +56,6 @@ static constexpr variable_speed_config default_variable_speed_config{};
 inline void configure_variable_speed_plant(
     sfc_plant_model_runner& plant_runner, const variable_speed_config& config = default_variable_speed_config)
 {
-    // Configure plant datamodel parameters
-    plant_runner.get_parameters().operation_mode.write(
-        sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
-
-    plant_runner.get_parameters().motor_damping_factor.write(config.damping_factor);
-    plant_runner.get_parameters().motor_inertia_constant.write(config.inertia_constant);
-
     // Configure underlying plant model
     plant_runner.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
     plant_runner.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
@@ -70,6 +63,11 @@ inline void configure_variable_speed_plant(
         config.voltage_at_base_speed, config.voltage_slope, config.voltage_offset);
     plant_runner.get_plant_model().set_initial_mechanical_speed_pu(config.initial_speed);
     plant_runner.get_plant_model().set_load_torque_pu(config.load_torque);
+
+    plant_runner.get_parameters().operation_mode.write(
+        sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+    plant_runner.get_parameters().motor_damping_factor.write(config.damping_factor);
+    plant_runner.get_parameters().motor_inertia_constant.write(config.inertia_constant);
 }
 
 /**

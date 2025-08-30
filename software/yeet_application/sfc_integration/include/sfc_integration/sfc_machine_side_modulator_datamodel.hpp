@@ -10,7 +10,6 @@
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 
-
 /**
  * @file sfc_machine_side_modulator_datamodel.hpp
  * @brief Datamodel specification for SFC Machine-Side Modulator component
@@ -38,12 +37,10 @@ public:
         signal_input<bool> force_commutation_acknowledged;
 
         /// Absolute rotor electrical position for sector tracking
-        /// Range: [0.0, 2π] radians
-        signal_input<angle_wrapped> absolute_rotor_position;
+        signal_input<angle_wrapped> machine_side_angle;
 
-        /// Firing angle from lookup table for natural commutation mode
-        /// Range: [0.0, π] radians
-        signal_input<angle_wrapped> firing_angle_from_lut;
+        /// Machine-side firing angle
+        signal_input<angle_wrapped> firing_angle;
     };
 
     /**

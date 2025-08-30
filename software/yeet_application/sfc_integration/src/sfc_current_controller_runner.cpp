@@ -14,7 +14,8 @@ void sfc_current_controller_runner::initialize()
 
 void sfc_current_controller_runner::run()
 {
-    _sfc_current_controller.freeze_integrator(_inputs.freeze_integrator.read());
+    _sfc_current_controller.freeze_integrator(
+        _inputs.freeze_integrator.read() || _inputs.modulator_freeze_integrator.read());
 
     const voltage_pu_t reflected_machine_side_voltage_magnitude =
         _per_unit_system->reflect_machine_to_grid_voltage_pu(_inputs.machine_side_voltage_magnitude.read());
@@ -27,6 +28,8 @@ void sfc_current_controller_runner::run()
 
     _outputs.current_error.write(_inputs.dc_link_current_reference.read() - _inputs.dc_link_current_measured.read());
     _outputs.current_controller_is_saturated.write(_sfc_current_controller.is_saturated());
+
+    _outputs.is_active.write(true);  // TODO: Implement
 }
 
 void sfc_current_controller_runner::stop() { _sfc_current_controller.reset(); }

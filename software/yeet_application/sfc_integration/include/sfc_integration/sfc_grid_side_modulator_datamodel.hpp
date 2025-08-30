@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sfc/sfc_grid_side_modulator.hpp"
+#include "sfc/sfc_types.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
@@ -37,6 +38,9 @@ public:
 
         /// System enable command
         signal_input<bool> enable;
+
+        /// Operating mode selector for load commutated vs pulse mode
+        signal_input<sfc_operating_mode_t> operating_mode;
     };
 
     /**

@@ -64,7 +64,7 @@ public:
 
         /// Initial machine frequency for startup
         /// Range: [0.0, 1.0] pu
-        yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{1.0};
+        yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{0.01};
 
         /// Voltage threshold for commutation detection
         /// Range: [0.05, 0.3] pu

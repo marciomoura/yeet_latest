@@ -27,7 +27,7 @@ public:
      */
     struct outputs {
         /// Calculated firing angle
-        signal_output<angle_wrapped> machine_side_firing_angle;
+        signal_output<angle_wrapped> firing_angle;
     };
 
     /**
