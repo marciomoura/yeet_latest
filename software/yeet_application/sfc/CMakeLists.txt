@@ -8,7 +8,9 @@ add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
 
 target_sources(
     ${PROJECT_NAME}
-    PUBLIC include/sfc/sfc_commutation_mask.hpp
+    PUBLIC include/sfc/grid_side_hardware_mock.hpp
+           include/sfc/machine_side_hardware_mock.hpp
+           include/sfc/sfc_commutation_mask.hpp
            include/sfc/sfc_current_controller.hpp
            include/sfc/sfc_machine_side_filtering.hpp
            include/sfc/sfc_grid_side_filtering.hpp
@@ -31,7 +33,9 @@ target_sources(
            include/sfc/sfc_plant_model_augmented_6p_6p.hpp
            include/sfc/sfc_plant_model_6p_6p.hpp
            include/sfc/sfc_plant_model_parameters.hpp
-    PRIVATE src/sfc_commutation_mask.cpp
+    PRIVATE src/grid_side_hardware_mock.cpp
+            src/machine_side_hardware_mock.cpp
+            src/sfc_commutation_mask.cpp
             src/sfc_current_controller.cpp
             src/sfc_machine_side_filtering.cpp
             src/sfc_machine_side_lookup_table.cpp

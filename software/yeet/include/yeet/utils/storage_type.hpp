@@ -8,7 +8,7 @@
 #define YEET_UTILS_STORAGE_TYPE_HPP
 
 #include <cassert>
-#include <functional>
+#include <iostream>
 #include <memory>
 #include <type_traits>
 
@@ -23,33 +23,42 @@ public:
     storage_type(std::shared_ptr<T> value) : _value(value) {}
     ~storage_type() = default;
 
-    operator T() const {
+    operator T() const
+    {
+        if (_value == nullptr) {
+            std::cout << "Trap here\n";
+            assert(_value != nullptr);
+        }
+        return *_value;
+    }
+
+    operator T&()
+    {
         assert(_value != nullptr);
         return *_value;
     }
 
-    operator T&() {
-        assert(_value != nullptr);
-        return *_value;
-    }
-
-    T& operator=(const T& value) {
+    T& operator=(const T& value)
+    {
         assert(_value != nullptr);
         return *_value = value;
     }
 
-    T& operator=(T&& value) {
+    T& operator=(T&& value)
+    {
         assert(_value != nullptr);
         return *_value = std::move(value);
     }
 
-    void connect(storage_type<T> storage) {
+    void connect(storage_type<T> storage)
+    {
         _value = storage.get_internal_storage();
         assert(_value != nullptr);
     }
 
     template <typename U>
-    void connect(storage_type<U> storage) {
+    void connect(storage_type<U> storage)
+    {
         _value = storage.template get_internal_storage<U>();
         assert(_value != nullptr);
     }
@@ -60,7 +69,8 @@ public:
     // the stored type. This can be done using std::dynamic_pointer_cast for polymorphic types or
     // std::static_pointer_cast for non-polymorphic types.
     template <typename U = T>
-    std::shared_ptr<U> get_internal_storage() const {
+    std::shared_ptr<U> get_internal_storage() const
+    {
         // static_assert(!std::is_void_v<U>, "U must not be void");
         // static_assert(std::is_copy_constructible_v<U>, "U must be copy constructible");
         // static_assert(std::is_base_of_v<T, U> || std::is_base_of_v<U, T>, "U must be a base or derived class of T");
@@ -68,7 +78,8 @@ public:
         //               "T and U must be the same type or polymorphic types");
         if constexpr (std::is_same_v<T, U>) {
             return _value;
-        } else {
+        }
+        else {
             static_assert(std::is_default_constructible_v<U>, "U must be default constructible");
             return std::static_pointer_cast<U>(_value);
         }
@@ -83,7 +94,8 @@ public:
     storage_type_erased() = default;
 
     template <typename T>
-    storage_type_erased(storage_type<T> storage) {
+    storage_type_erased(storage_type<T> storage)
+    {
         static_assert(!std::is_void_v<T>, "T must not be void");
         static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
         static_assert(std::is_copy_constructible_v<T>, "T must be copy constructible");
@@ -100,7 +112,8 @@ public:
     bool empty() const { return _value == nullptr; }
 
     template <typename T>
-    storage_type<T> get_storage_with_type() const {
+    storage_type<T> get_storage_with_type() const
+    {
         if (empty()) {
             return storage_type<T>();
         }

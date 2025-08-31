@@ -62,7 +62,7 @@ public:
 
 private:
     current_pu_t _zero_current_threshold{0.0f};
-    control::off_delay _is_zero_timer;
+    control::on_delay _is_zero_timer;
     control::on_off_delay _is_discontinuous_mode_timer;
 };
 

@@ -58,6 +58,7 @@ public:
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
         yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
         yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
+        yeet::mock_signal_input::write(speed_controller.get_inputs().modulator_freeze_integrator, false);
 
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);

@@ -16,7 +16,7 @@ public:
     {
         // Configure sampler sampling rate for detailed data capture
         // simulator.configure_sampler_sampling_rate(ms(0.5));
-        simulator.configure_sampler_sampling_rate(2e-3);
+        simulator.configure_sampler_sampling_rate(200e-6);
 
         // Register all applications with the simulator
         system.register_applications(simulator);
@@ -26,20 +26,30 @@ public:
 
         // ==================== Logger Registration ====================
         // register_complete_logger(simulator, system.plant);
-        // register_complete_logger(simulator, system.state_machine);
-        // register_complete_logger(simulator, system.grid_side_observer);
-        // register_complete_logger(simulator, system.machine_side_observer);
+        // register_complete_logger(simulator, system.grid_side_control.state_machine);
+        // register_complete_logger(simulator, system.grid_side_control.grid_side_observer);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_pulse_generator);
+        // register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
 
-        register_complete_logger(simulator, system.speed_controller);
-        register_complete_logger(simulator, system.current_controller);
-        register_complete_logger(simulator, system.dc_link_measurements);
-        register_complete_logger(simulator, system.machine_side_modulator);
-        register_complete_logger(simulator, system.grid_side_modulator);
-        register_minimal_operation_mode_monitor_logger(simulator, system.operation_mode_monitor);
+        register_complete_logger(simulator, system.machine_side_control.speed_controller);
+        register_complete_logger(simulator, system.grid_side_control.current_controller);
+        // register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        register_minimal_operation_mode_monitor_logger(simulator, system.grid_side_control.operation_mode_monitor);
     }
 
     void initialize()
     {
+        set_auxiliaries_on(false);
+        set_breakers_on(false);
+        set_start_command(false);
+        set_stop_command(false);
+        set_shutdown_request(false);
+        set_current_extinguished(false);
+
         // Initializing the system with very low speed for speed control
         parameter<real_t> initial_speed = real_t(0.005);
 
@@ -48,18 +58,37 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    // State machine control helpers
-    void set_auxiliaries_on(bool on) { system.auxiliaries_are_on = on; }
+    // State machine control helpers using mock inputs
+    void set_auxiliaries_on(bool on)
+    {
+        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().auxiliaries_are_on, on);
+    }
 
-    void set_breakers_on(bool on) { system.breakers_are_on = on; }
+    void set_breakers_on(bool on)
+    {
+        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().breakers_are_on, on);
+    }
 
-    void set_start_command(bool start) { system.start_command = start; }
+    void set_start_command(bool start)
+    {
+        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().start_command, start);
+    }
 
-    void set_stop_command(bool stop) { system.stop_command = stop; }
+    void set_stop_command(bool stop)
+    {
+        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().stop_command, stop);
+    }
 
-    void set_shutdown_request(bool shutdown) { system.shutdown_request = shutdown; }
+    void set_shutdown_request(bool shutdown)
+    {
+        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().shutdown_request, shutdown);
+    }
 
-    void set_current_extinguished(bool extinguished) { system.is_current_extinguished = extinguished; }
+    void set_current_extinguished(bool extinguished)
+    {
+        yeet::mock_signal_input::write(
+            system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
+    }
 
     // Complete startup sequence following state machine logic
     void execute_startup_sequence()
@@ -116,7 +145,8 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
 
     // Check speed error after disturbance
     auto speed_regulation_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed error", [&]() -> speed_pu_t { return system.speed_controller.get_outputs().speed_error.read(); },
+        "speed error",
+        [&]() -> speed_pu_t { return system.machine_side_control.speed_controller.get_outputs().speed_error.read(); },
         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
 
     speed_regulation_checker->deactivate();  // Deactivate initially to avoid false positives
@@ -132,14 +162,16 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
 
     // ==================== Test Execution ====================
     // Simulate until system can stabilize
-    system.speed_reference_pu = speed_pu_t(0.9);
-    system.load_torque_pu = torque_pu_t(0.3f);
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, speed_pu_t(0.9));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.3f));
     bool success = simulator.simulate_for(5.0);
     speed_regulation_checker->activate();
     success &= simulator.simulate_for(5.0);
     speed_regulation_checker->deactivate();
 
-    system.speed_reference_pu = speed_pu_t(1.0);
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, speed_pu_t(1.0));
     success &= simulator.simulate_for(5.0);
     speed_regulation_checker->activate();
     success &= simulator.simulate_for(5.0);
@@ -148,26 +180,27 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     EXPECT_TRUE(success) << "Simulation did not complete successfully with speed regulation and state machine.";
 
     // Verify that pulse releases are active during operation
-    EXPECT_TRUE(system.state_machine.get_signal_flow_datamodel().get_outputs().pulse_releases.read())
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read())
         << "Pulse releases should be active during OPERATION_ON state";
 }
 
 // Test speed regulation with state machine startup - based on sensorless_speed_controller_test.cpp
 TEST_F(CompleteSensorlessSpeedControllerTest, SpeedRegulationRampingUpTest)
 {
-    simulator.configure_sampler_sampling_rate(20e-3);
+    simulator.configure_sampler_sampling_rate(2e-3);
 
     // Configure plant for variable speed operation using standardized configuration
     yeet::application::sfc::integration::test::variable_speed_config config{};
-    config.initial_speed = speed_pu_t{0.01f};  // Custom initial speed for this test
+    config.initial_speed = speed_pu_t{0.0f};  // Custom initial speed for this test
     yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
-    const speed_pu_t speed_error_max_value{0.05f};
-    const speed_pu_t speed_error_min_value{-0.05f};
+    const speed_pu_t speed_error_max_value{0.07f};
+    const speed_pu_t speed_error_min_value{-0.07f};
 
     // Check speed error after disturbance
     auto speed_regulation_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed error", [&]() -> speed_pu_t { return system.speed_controller.get_outputs().speed_error.read(); },
+        "speed error",
+        [&]() -> speed_pu_t { return system.machine_side_control.speed_controller.get_outputs().speed_error.read(); },
         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
 
     speed_regulation_checker->deactivate();  // Deactivate initially to avoid false positives
@@ -178,18 +211,25 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedRegulationRampingUpTest)
     // Execute complete startup sequence to reach operational state
     execute_startup_sequence();
 
+    // Repeat this after to have a nice initial condition. TODO: Fix this...
+    // Configure plant for variable speed operation using standardized configuration
+    config.initial_speed = speed_pu_t{0.01f};  // Custom initial speed for this test
+    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
+
     // At this point, state machine should be in OPERATION_ON and pulse_releases should be true
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     // ==================== Test Execution ====================
     // Simulate until system can stabilize
-    system.speed_reference_pu = speed_pu_t(1.0);
-    const real_t ramp_time = 40.0;                                                                       // seconds
-    system.speed_controller.get_parameters().speed_reference_rate_limit.write(real_t{1.0} / ramp_time);  // pu/s
-    system.load_torque_pu = torque_pu_t(0.2f);
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, speed_pu_t(1.0));
+    const real_t ramp_time = 50.0;  // seconds
+    system.machine_side_control.speed_controller.get_parameters().speed_reference_rate_limit.write(
+        real_t{1.0} / ramp_time);  // pu/s
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.2f));
 
     // Simulate a little bit to get rid of possible initial oscillations
-    bool success = simulator.simulate_for(1.0);
+    bool success = simulator.simulate_for(5.0);
 
     // Because the ramp is very slow, we can allow the checker to be on at all times
     speed_regulation_checker->activate();

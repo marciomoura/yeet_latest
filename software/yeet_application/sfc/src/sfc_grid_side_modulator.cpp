@@ -64,6 +64,7 @@ sfc_grid_side_modulator::pulse_mode_state_update sfc_grid_side_modulator::comput
                 // Applying the forced commutation angle immediately
                 state_update.new_state = grid_side_modulator_state_t::forced_commutation;
                 state_update.new_firing_angle = _force_commutation_angle_rad;
+                // Acknowledge immediately if DC link current is already zero
                 state_update.new_force_commutation_acknowledged = false;
                 state_update.new_main_pi_reset_requested = true;
             }

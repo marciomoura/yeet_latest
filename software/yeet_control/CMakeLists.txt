@@ -5,7 +5,9 @@ add_library(yeet::yeet_control ALIAS ${PROJECT_NAME})
 
 target_sources(
     ${PROJECT_NAME}
-    PUBLIC include/yeet_control/adaptive_band_reject_filter.hpp
+    PUBLIC include/yeet_control/adc_value_t.hpp
+           include/yeet_control/adc_mock.hpp
+           include/yeet_control/adaptive_band_reject_filter.hpp
            include/yeet_control/angle_wrapped.hpp
            include/yeet_control/constants.hpp
            include/yeet_control/derivative.hpp
@@ -42,7 +44,9 @@ target_sources(
            include/yeet_control/speed_voltage_relationship.hpp
            include/yeet_control/srf_pll.hpp
            include/yeet_control/hysteresis_limiter.hpp
-    PRIVATE src/derivative.cpp
+    PRIVATE src/adc_value_t.cpp
+            src/adc_mock.cpp
+            src/derivative.cpp
             src/dual_sogi_srf_pll.cpp
             src/edge_detector.cpp
             src/elapsed_timer.cpp

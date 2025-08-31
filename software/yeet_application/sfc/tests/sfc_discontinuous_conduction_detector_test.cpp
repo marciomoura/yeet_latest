@@ -8,14 +8,14 @@ using namespace yeet;
 class DiscontinuousConductionDetectorTest : public ::testing::Test {
 protected:
     const current_pu_t zero_current_threshold{0.01f};
-    const duration_t is_zero_on_delay{0.01f};
+    const duration_t is_zero_on_delay{0.01f};  // 10ms on-delay
     const duration_t discontinuous_on_delay{0.01f};
     const duration_t discontinuous_off_delay{0.5f};
 
     void SetUp() override
     {
         // Configure with typical values
-        // is_zero: 10ms on/off delay for debouncing
+        // is_zero: 10ms on-delay (output true after input true for 10ms)
         // discontinuous_mode: 500ms on-delay to confirm exit, 10ms off-delay to detect entry
         detector.configure(zero_current_threshold, is_zero_on_delay, discontinuous_on_delay, discontinuous_off_delay);
     }
@@ -47,17 +47,23 @@ TEST_F(DiscontinuousConductionDetectorTest, ResetReturnsToInitialState)
     EXPECT_FALSE(detector.get_is_discontinuous_mode());
 }
 
-TEST_F(DiscontinuousConductionDetectorTest, IsCurrentZeroDebouncing)
+TEST_F(DiscontinuousConductionDetectorTest, IsCurrentZeroOnDelayBehavior)
 {
-    // Current drops below threshold
+    // Current drops below threshold - with on_delay, output stays false until delay is met
     simulate_steps(1, current_pu_t{0.0f});
-    EXPECT_TRUE(detector.get_is_current_zero());
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should remain false until on-delay is met";
 
-    // Current rises above threshold
-    simulate_steps(8, current_pu_t{0.1f});
-    EXPECT_TRUE(detector.get_is_current_zero());  // Not yet met on-delay
-    simulate_steps(2, current_pu_t{0.1f});
-    EXPECT_FALSE(detector.get_is_current_zero());  // Met on-delay (10ms)
+    // Continue with current below threshold for 9 more steps (total 10ms)
+    simulate_steps(7, current_pu_t{0.0f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should still be false - on-delay not yet met";
+
+    // One more step completes the 10ms on-delay
+    simulate_steps(1, current_pu_t{0.0f});
+    EXPECT_TRUE(detector.get_is_current_zero()) << "Should be true after on-delay is met";
+
+    // Current rises above threshold - with on_delay, output immediately goes false
+    simulate_steps(1, current_pu_t{0.1f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should immediately go false when current rises";
 }
 
 TEST_F(DiscontinuousConductionDetectorTest, IsDiscontinuousModeLongOnDelay)
@@ -77,19 +83,46 @@ TEST_F(DiscontinuousConductionDetectorTest, IsDiscontinuousModeLongOnDelay)
     EXPECT_FALSE(detector.get_is_discontinuous_mode()) << "Should exit discontinuous mode after on-delay is met";
 }
 
-TEST_F(DiscontinuousConductionDetectorTest, JitterAroundThreshold)
+TEST_F(DiscontinuousConductionDetectorTest, JitterAroundThresholdWithOnDelay)
 {
-    // Enter zero current state
-    simulate_steps(10, current_pu_t{0.0f});
-    EXPECT_TRUE(detector.get_is_current_zero());
-
-    // Jitter: one cycle above threshold
-    simulate_steps(1, current_pu_t{0.1f});
-    EXPECT_TRUE(detector.get_is_current_zero());  // Output should not change
-
-    // Jitter: a few more cycles
+    // Start with current below threshold but don't meet the on-delay yet
     simulate_steps(5, current_pu_t{0.0f});
-    EXPECT_TRUE(detector.get_is_current_zero());  // Output should remain stable
-    simulate_steps(2, current_pu_t{0.1f});        // This will immediately reset the off-delay
-    simulate_steps(2, current_pu_t{0.0f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should be false - on-delay not met";
+
+    // Jitter: current goes above threshold, resets the on-delay timer
+    simulate_steps(1, current_pu_t{0.1f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should remain false";
+
+    // Current goes back below threshold, timer restarts
+    simulate_steps(5, current_pu_t{0.0f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should still be false - timer was reset by jitter";
+
+    // More jitter - current above threshold again
+    simulate_steps(1, current_pu_t{0.1f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should remain false";
+
+    // Finally, current stays below threshold long enough to meet on-delay
+    simulate_steps(10, current_pu_t{0.0f});
+    EXPECT_TRUE(detector.get_is_current_zero()) << "Should be true after uninterrupted on-delay period";
+}
+
+TEST_F(DiscontinuousConductionDetectorTest, OnDelayDebouncesProperly)
+{
+    // Test that the on-delay properly debounces the input
+
+    // Current below threshold for exactly the on_delay period
+    simulate_steps(10, current_pu_t{0.0f});
+    EXPECT_TRUE(detector.get_is_current_zero()) << "Should be true after exactly on_delay period";
+
+    // Current above threshold - should immediately go false
+    simulate_steps(1, current_pu_t{0.1f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should immediately go false when current rises";
+
+    // Current below threshold again - debounce should reset
+    simulate_steps(5, current_pu_t{0.0f});
+    EXPECT_FALSE(detector.get_is_current_zero()) << "Should be false - on-delay timer reset by current rise";
+
+    // Current stays below threshold for 15ms (1.5 times the on_delay)
+    simulate_steps(15, current_pu_t{0.0f});
+    EXPECT_TRUE(detector.get_is_current_zero()) << "Should be true after sufficient time below threshold";
 }

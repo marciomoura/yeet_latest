@@ -8,8 +8,10 @@
 #define YEET_UTILS_LOW_LEVEL_ACCESS_HPP
 
 #include <cassert>
+#include <functional>
 
 #include "storage_type.hpp"
+
 
 class low_level_access {
 public:
@@ -20,7 +22,8 @@ public:
     low_level_access() = default;
 
     template <typename T>
-    low_level_access(storage_type<T>& storage) : _storage(storage) {
+    low_level_access(storage_type<T>& storage) : _storage(storage)
+    {
         const storage_type<T> typed_storage = _storage.get_storage_with_type<T>();
 
         const std::shared_ptr<T> internal_storage = typed_storage.get_internal_storage();
@@ -34,7 +37,8 @@ public:
     bool empty() const { return _storage.empty(); }
 
     template <typename T>
-    T read() const {
+    T read() const
+    {
         const storage_type<T> typed_storage = _storage.get_storage_with_type<T>();
         if (typed_storage.empty()) {
             return {};
@@ -51,7 +55,8 @@ public:
     sampler_accessor get_sampler_accessor() const { return sampler_accessor{_read_as_float_function}; }
 
     template <typename T>
-    void write(T value) {
+    void write(T value)
+    {
         storage_type<T> typed_storage = _storage.get_storage_with_type<T>();
         if (typed_storage.empty()) {
             return;

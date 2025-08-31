@@ -3,6 +3,7 @@
 #include "sfc/sfc_speed_controller.hpp"
 #include "sfc_integration/sfc_speed_controller_datamodel.hpp"
 #include "yeet/application_interface.hpp"
+#include "yeet/signal.hpp"
 #include "yeet_control/constants.hpp"
 
 namespace yeet::application::sfc::integration {

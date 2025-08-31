@@ -52,7 +52,7 @@ void sfc_machine_side_modulator::update(bool enable,
             // Forced commutation mode: calculate position-based firing angle and manage handshake
             _current_firing_angle_rad = _pulse_mode_firing_angle_rad;
 
-            // Compute the forced commutation outputs using the const function
+            // Compute the forced commutation outputs
             const forced_commutation_outputs outputs =
                 compute_forced_commutation_outputs(force_commutation_acknowledged, rotor_position_rad);
 

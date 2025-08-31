@@ -48,12 +48,27 @@ public:
         return _application_configuration_datamodel.get_parameters();
     }
 
+    typename application_configuration_datamodel<ParameterType>::parameters_type const& get_parameters() const
+    {
+        return _application_configuration_datamodel.get_parameters();
+    }
+
     typename signal_flow_datamodel<InputType, OutputType>::inputs_type& get_inputs()
     {
         return _signal_flow_datamodel.get_inputs();
     }
 
+    typename signal_flow_datamodel<InputType, OutputType>::inputs_type const& get_inputs() const
+    {
+        return _signal_flow_datamodel.get_inputs();
+    }
+
     typename signal_flow_datamodel<InputType, OutputType>::outputs_type& get_outputs()
+    {
+        return _signal_flow_datamodel.get_outputs();
+    }
+
+    typename signal_flow_datamodel<InputType, OutputType>::outputs_type const& get_outputs() const
     {
         return _signal_flow_datamodel.get_outputs();
     }

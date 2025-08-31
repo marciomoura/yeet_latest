@@ -19,8 +19,9 @@ void sfc_speed_controller_runner::run()
     }
     else {
         _outputs.is_active.write(true);
-        _sfc_speed_controller.freeze_integrator(
-            _inputs.freeze_integrator.read() || _inputs.current_controller_is_saturated.read());
+        _sfc_speed_controller.freeze_integrator(_inputs.freeze_integrator.read() ||
+                                                _inputs.current_controller_is_saturated.read() ||
+                                                _inputs.modulator_freeze_integrator.read());
         _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
     }
 

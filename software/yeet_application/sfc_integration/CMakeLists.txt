@@ -16,6 +16,7 @@ target_sources(
         include/sfc_integration/sfc_current_controller_runner.hpp
         include/sfc_integration/sfc_dc_link_measurements_datamodel.hpp
         include/sfc_integration/sfc_dc_link_measurements_runner.hpp
+        include/sfc_integration/sfc_grid_side_control.hpp
         include/sfc_integration/sfc_grid_side_measurements_datamodel.hpp
         include/sfc_integration/sfc_grid_side_measurements_runner.hpp
         include/sfc_integration/sfc_grid_side_modulator_datamodel.hpp
@@ -24,6 +25,7 @@ target_sources(
         include/sfc_integration/sfc_grid_side_observer_datamodel.hpp
         include/sfc_integration/sfc_grid_side_pulse_generator_datamodel.hpp
         include/sfc_integration/sfc_grid_side_pulse_generator_runner.hpp
+        include/sfc_integration/sfc_machine_side_control.hpp
         include/sfc_integration/sfc_machine_side_controller_datamodel.hpp
         include/sfc_integration/sfc_machine_side_controller_runner.hpp
         include/sfc_integration/sfc_machine_side_measurements_datamodel.hpp
@@ -44,10 +46,12 @@ target_sources(
         include/sfc_integration/sfc_state_machine_runner.hpp
     PUBLIC src/sfc_current_controller_runner.cpp
            src/sfc_dc_link_measurements_runner.cpp
+           src/sfc_grid_side_control.cpp
            src/sfc_grid_side_measurements_runner.cpp
            src/sfc_grid_side_modulator_runner.cpp
            src/sfc_grid_side_observer_runner.cpp
            src/sfc_grid_side_pulse_generator_runner.cpp
+           src/sfc_machine_side_control.cpp
            src/sfc_machine_side_controller_runner.cpp
            src/sfc_machine_side_measurements_runner.cpp
            src/sfc_machine_side_modulator_runner.cpp

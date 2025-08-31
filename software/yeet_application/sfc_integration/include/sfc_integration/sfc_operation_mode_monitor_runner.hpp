@@ -38,6 +38,11 @@ public:
     /**
      * @brief Executes one time step of the monitoring logic.
      */
+    void run_slow();
+
+    /**
+     * @brief Executes one time step of the monitoring logic.
+     */
     void run() override;
 
     /**

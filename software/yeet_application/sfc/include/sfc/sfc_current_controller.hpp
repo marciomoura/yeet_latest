@@ -65,6 +65,8 @@ public:
      */
     void reset();
 
+    void reset_pi_controller() { _pi_controller.reset(); }
+
     /**
      * @brief Executes one update cycle of the current controller.
      *

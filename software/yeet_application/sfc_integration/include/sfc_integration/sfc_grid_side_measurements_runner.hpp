@@ -34,7 +34,7 @@ private:
     void set_commutation_parameters();
     void set_parameter_callback();
 
-    sfc_grid_side_measurements _measurements;
+    sfc_grid_side_measurements_ideal _measurements;
 
     sfc_grid_side_filtering _measurement_filters{duration_t{sampling_time}};
 

@@ -54,17 +54,17 @@ public:
     struct parameters {
         // Mode Detector Parameters
         /// @brief Base speed for switching between pulse and load-commutated modes.
-        parameter<speed_pu_t> mode_handover_speed_pu{speed_pu_t{0.2f}};
+        parameter<speed_pu_t> mode_handover_speed_pu{speed_pu_t{0.25f}};
 
         /// @brief Hysteresis factor for mode switching to prevent chattering.
-        parameter<real_t> mode_hysteresis_factor{0.05f};
+        parameter<real_t> mode_hysteresis_factor{0.15f};
 
         // Discontinuous Conduction Detector Parameters
         /// @brief Current level below which DC link current is considered zero.
-        parameter<current_pu_t> zero_current_threshold_pu{current_pu_t{0.01F}};
+        parameter<current_pu_t> zero_current_threshold_pu{current_pu_t{0.01f}};
 
         /// @brief On-delay in seconds to confirm current is zero.
-        parameter<duration_t> is_zero_on_delay_s{duration_t{0.002f}};
+        parameter<duration_t> is_zero_on_delay_s{duration_t{(1.0 / 50.0 / 6.0)}};
 
         parameter<duration_t> discontinuous_on_delay_s{duration_t{0.002f}};
         parameter<duration_t> discontinuous_off_delay_s{duration_t{0.05f}};
