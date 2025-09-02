@@ -1,0 +1,32 @@
+services:
+  build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cn-control:build
+    container_name: build
+    volumes:
+      - .:/home/user/ws
+    working_dir: /home/user/ws
+    networks:
+      - cn
+
+  code:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_IMAGE_BASE: idelchi/code:latest
+    image: cn-control:code
+    container_name: code
+    volumes:
+      - .:/home/user/ws
+    working_dir: /home/user/ws
+    networks:
+      - cn
+
+networks:
+  cn:
+    name: cn
+    driver: bridge
+
