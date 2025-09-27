@@ -2,11 +2,13 @@
 
 namespace yeet::application::sfc {
 
-void sfc_dc_link_measurements::update(sfc_per_unit_system::dc_link_bases const& bases, voltage_t raw_voltage,
-                                      current_t raw_current) {
-    // Convert to per-unit
-    _voltage_pu = to_pu(raw_voltage, bases.base_voltage);
-    _current_pu = to_pu(raw_current, bases.base_current);
+void sfc_dc_link_measurements::update(sfc_per_unit_system const& bases, abc<current_pu_t> const& grid_side_current)
+{
+    auto const dc_link_current_grid_side_base = real_t{0.5} * sum(grid_side_current.absolute());
+
+    // The snubber is to high, therefore im decreasing 0.05 from the measured current to compensate...
+    _current_pu = max(bases.reflect_grid_to_dc_link_current_pu(dc_link_current_grid_side_base) - current_pu_t{0.05},
+        current_pu_t{0.0});
 }
 
 }  // namespace yeet::application::sfc

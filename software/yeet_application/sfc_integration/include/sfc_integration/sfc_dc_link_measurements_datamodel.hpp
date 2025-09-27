@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -18,16 +19,13 @@ public:
      * @brief Input signals for the DC link measurements component
      */
     struct inputs {
-        // signal_input<voltage_t> dc_voltage;
-        signal_input<current_t> dc_current;
+        signal_input<abc<current_pu_t>> grid_side_current;
     };
 
     /**
      * @brief Output signals from the DC link measurements component
      */
     struct outputs {
-        // signal_output<voltage_pu_t> dc_voltage_pu;
-        // signal_output<voltage_pu_t> dc_voltage_filtered_pu;
         signal_output<current_pu_t> dc_current_pu;
         signal_output<current_pu_t> dc_current_filtered_pu;
         signal_output<current_pu_t> dc_current_heavy_filtered_pu;

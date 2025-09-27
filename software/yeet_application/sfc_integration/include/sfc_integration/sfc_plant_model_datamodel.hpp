@@ -119,11 +119,11 @@ public:
         // model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // // Register outputs in signal registry
-        // entry.signal_registry.insert("grid_voltage_ln", _model_outputs->grid_voltage_ln);
+        // entry.signal_registry.insert("grid_voltage", _model_outputs->grid_voltage);
         // entry.signal_registry.insert("grid_current", _model_outputs->grid_current);
         // entry.signal_registry.insert("dc_link_voltage", _model_outputs->dc_link_voltage);
         // entry.signal_registry.insert("dc_link_current", _model_outputs->dc_link_current);
-        // entry.signal_registry.insert("machine_voltage_ln", _model_outputs->machine_voltage_ln);
+        // entry.signal_registry.insert("machine_voltage", _model_outputs->machine_voltage);
         // entry.signal_registry.insert("machine_current", _model_outputs->machine_current);
         // entry.signal_registry.insert("rotor_position_mechanical", _model_outputs->rotor_position_mechanical);
         // entry.signal_registry.insert("rotor_speed_mechanical", _model_outputs->rotor_speed_mechanical);

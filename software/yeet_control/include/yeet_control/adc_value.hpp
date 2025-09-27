@@ -86,3 +86,68 @@ private:
 };
 
 }  // namespace yeet::control
+
+// New lightweight ADC abstraction components
+namespace yeet::control {
+
+/**
+ * @brief Plain container for raw ADC sample counts (signed bipolar representation).
+ */
+struct adc_counts {
+    std::int32_t value{0};
+    adc_counts() = default;
+    explicit adc_counts(std::int32_t v) : value(v) {}
+};
+
+/**
+ * @brief Converter holding scaling factors (bits & full-scale) to map counts <-> real.
+ *
+ * Configure once, then use to convert any number of samples. All operations are
+ * noexcept and allocation free.
+ */
+class adc_converter {
+public:
+    adc_converter() = default;
+
+    adc_converter(int bits, real_t full_scale) { configure(bits, full_scale); }
+
+    void configure(int bits, real_t full_scale) noexcept
+    {
+        // Basic asserts left to debug builds; in release we still guard divisions.
+        if (bits <= 1) bits = 2;
+        if (full_scale <= real_t{0}) full_scale = real_t{1};
+        _bits = bits;
+        _full_scale = full_scale;
+        _max_counts = (1 << (bits - 1)) - 1;  // e.g., 2047 for 12-bit
+        _counts_to_real = _full_scale / static_cast<real_t>(_max_counts);
+        _real_to_counts = static_cast<real_t>(_max_counts) / _full_scale;
+    }
+
+    [[nodiscard]] adc_counts to_counts(real_t real_value) const noexcept
+    {
+        auto raw = static_cast<std::int32_t>(std::llround(real_value * _real_to_counts));
+        if (raw > _max_counts)
+            raw = _max_counts;
+        else if (raw < -_max_counts - 1)
+            raw = -_max_counts - 1;  // symmetric two's complement range
+        return adc_counts{raw};
+    }
+
+    [[nodiscard]] real_t to_real(adc_counts counts) const noexcept
+    {
+        return static_cast<real_t>(counts.value) * _counts_to_real;
+    }
+
+    [[nodiscard]] int bits() const noexcept { return _bits; }
+    [[nodiscard]] real_t full_scale() const noexcept { return _full_scale; }
+    [[nodiscard]] std::int32_t max_counts() const noexcept { return _max_counts; }
+
+private:
+    int _bits{12};
+    real_t _full_scale{1.0};
+    std::int32_t _max_counts{2047};
+    real_t _counts_to_real{1.0 / 2047.0};
+    real_t _real_to_counts{2047.0};
+};
+
+}  // namespace yeet::control

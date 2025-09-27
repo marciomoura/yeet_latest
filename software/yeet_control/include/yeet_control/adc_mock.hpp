@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "first_order_low_pass_filter.hpp"
-#include "units.hpp"
+#include "units.hpp"  // provides real_t alias used in interface
 
 namespace yeet::control {
 namespace mock {
@@ -39,12 +39,12 @@ public:
     void configure_filter(real_t cutoff_freq_hz);
 
     /**
-     * @brief Configures the quantization parameters.
+     * @brief Configures the quantization parameters (generic analog quantity).
      * @param bits The number of bits for the ADC (e.g., 12, 16).
-     * @param full_scale_voltage The maximum voltage of the ADC's input range. The range is assumed to be bipolar [-V,
-     * +V].
+     * @param full_scale_value The maximum magnitude of the ADC's bipolar input range. Range assumed [-V,+V] where V =
+     * full_scale_value.
      */
-    void configure_quantization(int bits, real_t full_scale_voltage);
+    void configure_quantization(int bits, real_t full_scale_value);
 
     /**
      * @brief Processes a new input voltage sample through the mock ADC chain.
@@ -54,7 +54,7 @@ public:
      *
      * @param input_voltage The raw analog input voltage.
      */
-    void update(real_t input_voltage) noexcept;
+    void update(real_t input_value) noexcept;
 
     /**
      * @brief Resets the internal state of the component.
@@ -67,14 +67,23 @@ public:
      * @brief Gets the latest quantized output value from the ADC.
      * @return The quantized output as a signed 32-bit integer.
      */
-    std::int32_t get_output() const noexcept;
+    std::int32_t get_output() const noexcept;  ///< Latest quantized counts (two's complement style range)
+
+    real_t get_filtered() const noexcept { return _last_filtered; }  ///< Last filtered analog value pre-quantization
+    int get_bits() const noexcept { return _bits; }
+    real_t get_full_scale() const noexcept { return _full_scale_value; }
+
+    // Compile-time guard ensuring real_t is a floating type (uses units.hpp definition).
+    // Ensure units infrastructure is available (quantity defined in units.hpp)
+    static_assert(std::is_floating_point_v<real_t>, "real_t must be a floating point type");
 
 private:
     real_t _gain{1.0};
     first_order_low_pass_filter<real_t> _filter;
     int _bits{12};
-    real_t _full_scale_voltage{1.0};
+    real_t _full_scale_value{1.0};
     std::int32_t _output{0};
+    real_t _last_filtered{0.0};
 };
 
 }  // namespace mock

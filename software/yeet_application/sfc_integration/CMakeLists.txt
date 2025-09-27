@@ -6,9 +6,13 @@ add_library(yeet::yeet_application_sfc_integration ALIAS ${PROJECT_NAME})
 target_sources(
     ${PROJECT_NAME}
     PRIVATE
+        include/sfc_integration/plant_hardware_definition.hpp
         include/sfc_integration/plant_complete_sfc_closed_loop.hpp
         include/sfc_integration/plant_sensorless_current_control_closed_loop.hpp
+        include/sfc_integration/plant_sensorless_current_control_closed_loop_mocked_hardware.hpp
         include/sfc_integration/plant_sensorless_speed_control_closed_loop.hpp
+        include/sfc_integration/plant_sensorless_speed_control_closed_loop_mocked_hardware.hpp
+        include/sfc_integration/plant_simplified_current_control_mocked_hardware.hpp
         include/sfc_integration/plant_simplified_current_control.hpp
         include/sfc_integration/plant_simplified_open_loop.hpp
         include/sfc_integration/plant_simplified_speed_control.hpp
@@ -17,6 +21,8 @@ target_sources(
         include/sfc_integration/sfc_dc_link_measurements_datamodel.hpp
         include/sfc_integration/sfc_dc_link_measurements_runner.hpp
         include/sfc_integration/sfc_grid_side_control.hpp
+        include/sfc_integration/sfc_grid_side_hardware_mock_datamodel.hpp
+        include/sfc_integration/sfc_grid_side_hardware_mock_runner.hpp
         include/sfc_integration/sfc_grid_side_measurements_datamodel.hpp
         include/sfc_integration/sfc_grid_side_measurements_runner.hpp
         include/sfc_integration/sfc_grid_side_modulator_datamodel.hpp
@@ -28,6 +34,8 @@ target_sources(
         include/sfc_integration/sfc_machine_side_control.hpp
         include/sfc_integration/sfc_machine_side_controller_datamodel.hpp
         include/sfc_integration/sfc_machine_side_controller_runner.hpp
+        include/sfc_integration/sfc_machine_side_hardware_mock_datamodel.hpp
+        include/sfc_integration/sfc_machine_side_hardware_mock_runner.hpp
         include/sfc_integration/sfc_machine_side_measurements_datamodel.hpp
         include/sfc_integration/sfc_machine_side_measurements_runner.hpp
         include/sfc_integration/sfc_machine_side_modulator_datamodel.hpp
@@ -47,12 +55,14 @@ target_sources(
     PUBLIC src/sfc_current_controller_runner.cpp
            src/sfc_dc_link_measurements_runner.cpp
            src/sfc_grid_side_control.cpp
+           src/sfc_grid_side_hardware_mock_runner.cpp
            src/sfc_grid_side_measurements_runner.cpp
            src/sfc_grid_side_modulator_runner.cpp
            src/sfc_grid_side_observer_runner.cpp
            src/sfc_grid_side_pulse_generator_runner.cpp
            src/sfc_machine_side_control.cpp
            src/sfc_machine_side_controller_runner.cpp
+           src/sfc_machine_side_hardware_mock_runner.cpp
            src/sfc_machine_side_measurements_runner.cpp
            src/sfc_machine_side_modulator_runner.cpp
            src/sfc_machine_side_observer_runner.cpp

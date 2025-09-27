@@ -8,6 +8,11 @@
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
 
+// Mocks
+#include "sfc_grid_side_hardware_mock_runner.hpp"
+#include "sfc_integration/plant_hardware_definition.hpp"  // hardware scaling parameter staging
+#include "sfc_machine_side_hardware_mock_runner.hpp"
+
 namespace yeet::application::sfc::integration {
 
 // Parameter collection simplified - only plant model parameters
@@ -33,8 +38,25 @@ public:
         : _per_unit_system{create_per_unit_system()},
           grid_side_control{_per_unit_system},
           machine_side_control{_per_unit_system},
-          plant{_per_unit_system}
+          plant{_per_unit_system},
+          grid_side_hardware_mock{duration_t{10e-6}},
+          machine_side_hardware_mock{duration_t{10e-6}}
     {
+        // Stage parameters for hardware mocks (ADC + transducers)
+        plant_hardware::stage_grid_side_hardware_mock_parameters(grid_side_hardware_mock);
+        plant_hardware::stage_machine_side_hardware_mock_parameters(machine_side_hardware_mock);
+        // Apply transformer ratio scaling for hardware mocks so ADC counts reflect primary values
+        plant_hardware::stage_transformer_ratios_for_grid_side(grid_side_hardware_mock, *_per_unit_system);
+        plant_hardware::stage_transformer_ratios_for_machine_side(machine_side_hardware_mock, *_per_unit_system);
+
+        // Stage measurement runner parameters (so runners configure ADC converters during initialize)
+        plant_hardware::stage_grid_side_measurement_parameters(grid_side_control.grid_measurements);
+        plant_hardware::stage_machine_side_measurement_parameters(machine_side_control.machine_measurements);
+        // Apply inverse transformer ratio scaling in measurement reconstruction
+        plant_hardware::stage_transformer_ratios_for_grid_side_measurements(
+            grid_side_control.grid_measurements, *_per_unit_system);
+        plant_hardware::stage_transformer_ratios_for_machine_side_measurements(
+            machine_side_control.machine_measurements, *_per_unit_system);
         // Connect all signal flows between control classes and plant
         connect_all_components();
         mock_inputs();
@@ -75,34 +97,38 @@ public:
     {
         // Initialize in dependency order
         plant.initialize();
+        grid_side_hardware_mock.initialize();
+        machine_side_hardware_mock.initialize();
         grid_side_control.initialize();
         machine_side_control.initialize();
     }
 
-    void register_applications(yeet::simulator& sim)
+    void register_applications(yeet::simulator& simulation)
     {
-        // Register time-based update methods for proper sampling
-
-        // 10ms sampling (100 Hz): State machine, speed controller
-        sim.register_lambda_runner(10e-3, [&]() {
-            machine_side_control.update_10ms();
-            grid_side_control.update_10ms();
-        });
-
-        // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor
-        sim.register_lambda_runner(1e-3, [&]() {
-            machine_side_control.update_1ms();
-            grid_side_control.update_1ms();
+        // Plant model runs at its own sampling time
+        simulation.register_lambda_runner(plant.get_sampling_time(), [&]() {
+            plant.run();
+            grid_side_hardware_mock.run();
+            machine_side_hardware_mock.run();
         });
 
         // 200µs sampling (5 kHz): Measurements, observers, modulators, pulse generators
-        sim.register_lambda_runner(200e-6, [&]() {
+        simulation.register_lambda_runner(200e-6, [&]() {
             machine_side_control.update_200us();
             grid_side_control.update_200us();
         });
 
-        // Plant model runs at its own sampling time
-        sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
+        // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor
+        simulation.register_lambda_runner(1e-3, [&]() {
+            machine_side_control.update_1ms();
+            grid_side_control.update_1ms();
+        });
+
+        // 10ms sampling (100 Hz): State machine, speed controller
+        simulation.register_lambda_runner(10e-3, [&]() {
+            machine_side_control.update_10ms();
+            grid_side_control.update_10ms();
+        });
     }
 
     // Public members for direct access
@@ -111,6 +137,10 @@ public:
     // Control subsystems
     sfc_grid_side_control grid_side_control;
     sfc_machine_side_control machine_side_control;
+
+    // Hardware mocks
+    sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;
+    sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;
 
     // Plant model
     sfc_plant_model_runner plant;
@@ -143,14 +173,29 @@ private:
 
     void connect_all_components()
     {
+        // ==================== Plant Inputs to Hardware Mock Measurements ====================
+        // Connect plant inputs to hardware mock measurements
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
+        // signals_connector::connect_output_to_input(plant.get_outputs().machine_current,
+        // machine_side_hardware_mock.get_inputs().machine_current_measurements);
+
         // ==================== Plant Outputs to Control Class Measurements ====================
         // Connect plant outputs to internal measurement components within control classes
 
         // Grid side measurements from plant to grid side control internal components
-        signals_connector::connect_output_to_input(plant.get_outputs().grid_voltage,
-            grid_side_control.grid_measurements.get_inputs().grid_voltage_measurements);
-        signals_connector::connect_output_to_input(plant.get_outputs().grid_current,
-            grid_side_control.grid_measurements.get_inputs().grid_current_measurements);
+        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().v_ab_counts,
+            grid_side_control.grid_measurements.get_inputs().v_ab_counts);
+        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().v_bc_counts,
+            grid_side_control.grid_measurements.get_inputs().v_bc_counts);
+        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().i_a_counts,
+            grid_side_control.grid_measurements.get_inputs().i_a_counts);
+        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().i_c_counts,
+            grid_side_control.grid_measurements.get_inputs().i_c_counts);
 
         // Additional grid measurements inputs
         signals_connector::connect_output_to_input(plant.get_outputs().grid_voltage_source_angle,
@@ -161,15 +206,11 @@ private:
             grid_side_control.grid_side_pulse_generator.get_outputs().firing_pulses,
             grid_side_control.grid_measurements.get_inputs().grid_pulses);
 
-        // DC link measurements from plant to grid side control internal components
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().dc_link_current, grid_side_control.dc_link_measurements.get_inputs().dc_current);
-
         // Machine side measurements from plant to machine side control internal components
-        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage,
-            machine_side_control.machine_measurements.get_inputs().machine_voltage_measurements);
-        signals_connector::connect_output_to_input(plant.get_outputs().machine_current,
-            machine_side_control.machine_measurements.get_inputs().machine_current_measurements);
+        signals_connector::connect_output_to_input(machine_side_hardware_mock.get_outputs().v_ab_counts,
+            machine_side_control.machine_measurements.get_inputs().v_ab_counts);
+        signals_connector::connect_output_to_input(machine_side_hardware_mock.get_outputs().v_bc_counts,
+            machine_side_control.machine_measurements.get_inputs().v_bc_counts);
 
         // Additional machine measurements inputs
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
@@ -222,8 +263,9 @@ private:
             grid_side_control.operation_mode_monitor.get_inputs().measured_speed_pu);
 
         // 4. Connect machine voltage magnitude for current controller feedforward
+        // Use machine-side observer estimated voltage magnitude instead of filtered measurement for sensorless parity
         signals_connector::connect_output_to_input(
-            machine_side_control.machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
+            machine_side_control.machine_side_observer.get_outputs().estimated_voltage_magnitude,
             grid_side_control.current_controller.get_inputs().machine_side_voltage_magnitude);
 
         // 5. DC link current to machine-side controller for lookup table

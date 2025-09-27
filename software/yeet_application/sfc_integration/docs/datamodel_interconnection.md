@@ -95,7 +95,7 @@ Grid Voltages → Grid Measurements → Grid Observer → Grid Modulator → Fir
 4. Grid Modulator generates synchronized firing pulses
 
 **Key Connections**:
-- `plant.grid_voltage_ln` → `grid_measurements.line_voltages_raw`
+- `plant.grid_voltage` → `grid_measurements.line_voltages_raw`
 - `grid_measurements.grid_voltage_abc_pu` → `grid_observer.grid_voltage_pu`
 - `grid_observer.estimated_angle` → `grid_modulator.grid_voltage_angle`
 - `grid_observer.estimated_frequency` → `grid_modulator.grid_frequency`

@@ -1,8 +1,7 @@
 #include <cassert>
 #include <cmath>
 
-#include "yeet_control/adc_value_t.hpp"
-
+#include "yeet_control/adc_value.hpp"
 
 namespace yeet::control {
 

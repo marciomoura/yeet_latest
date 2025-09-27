@@ -69,16 +69,21 @@ public:
      * @param machine_frequency Rated frequency on the machine-side [Hz].
      * @param machine_num_poles Number of poles of the synchronous machine.
      */
-    sfc_per_unit_system(voltage_t grid_voltage_ll_rms, frequency_t grid_frequency, current_t dc_link_current_rated,
-                        power_t machine_power, voltage_t machine_voltage_ll_rms, frequency_t machine_frequency,
-                        int machine_num_poles)
+    sfc_per_unit_system(voltage_t grid_voltage_ll_rms,
+        frequency_t grid_frequency,
+        current_t dc_link_current_rated,
+        power_t machine_power,
+        voltage_t machine_voltage_ll_rms,
+        frequency_t machine_frequency,
+        int machine_num_poles)
         : _grid_voltage_ll_rms(grid_voltage_ll_rms),
           _grid_frequency(grid_frequency),
           _dc_link_current_rated(dc_link_current_rated),
           _machine_power(machine_power),
           _machine_voltage_ll_rms(machine_voltage_ll_rms),
           _machine_frequency(machine_frequency),
-          _machine_num_poles(machine_num_poles) {
+          _machine_num_poles(machine_num_poles)
+    {
         assert(grid_voltage_ll_rms.value() > 0.0 && "Grid voltage must be positive");
         assert(grid_frequency.value() > 0.0 && "Grid frequency must be positive");
         assert(dc_link_current_rated.value() > 0.0 && "DC link current must be positive");
@@ -103,7 +108,8 @@ public:
      * @param machine_side_voltage_pu Voltage in machine-side per-unit [pu]
      * @return Voltage reflected to grid-side per-unit [pu]
      */
-    voltage_pu_t reflect_machine_to_grid_voltage_pu(voltage_pu_t machine_side_voltage_pu) const {
+    voltage_pu_t reflect_machine_to_grid_voltage_pu(voltage_pu_t machine_side_voltage_pu) const
+    {
         // V_grid_pu = V_machine_pu * (V_base_machine / V_base_grid)
         const double voltage_reflection_ratio = _machine_voltage_ll_rms.value() / _grid_voltage_ll_rms.value();
         return voltage_pu_t{machine_side_voltage_pu.value() * voltage_reflection_ratio};
@@ -118,10 +124,19 @@ public:
      * @param grid_side_voltage_pu Voltage in grid-side per-unit [pu]
      * @return Voltage reflected to machine-side per-unit [pu]
      */
-    voltage_pu_t reflect_grid_to_machine_voltage_pu(voltage_pu_t grid_side_voltage_pu) const {
+    voltage_pu_t reflect_grid_to_machine_voltage_pu(voltage_pu_t grid_side_voltage_pu) const
+    {
         // V_machine_pu = V_grid_pu * (V_base_grid / V_base_machine)
-        const double voltage_reflection_ratio = _grid_voltage_ll_rms.value() / _machine_voltage_ll_rms.value();
-        return voltage_pu_t{grid_side_voltage_pu.value() * voltage_reflection_ratio};
+        const auto voltage_reflection_ratio = _grid_voltage_ll_rms.value() / _machine_voltage_ll_rms;
+        return voltage_pu_t{grid_side_voltage_pu.value() * voltage_reflection_ratio.value()};
+    }
+
+    // function to reflect grid-side per-unit to dc-link current per-unit
+    current_pu_t reflect_grid_to_dc_link_current_pu(current_pu_t grid_side_current_pu) const
+    {
+        // I_dc_link_pu = I_grid_pu * (I_base_grid / I_base_dc_link)
+        const auto current_reflection_ratio = _grid_side.base_current_peak_phase / _dc_link.base_current;
+        return current_pu_t{grid_side_current_pu.value() * current_reflection_ratio.value()};
     }
 
 private:
@@ -162,8 +177,10 @@ private:
  * @return The per-unit quantity reflected to the target base system [pu]
  */
 template <typename T, typename BaseType>
-inline T reflect_per_unit_base_to_another_base(const T& source_pu_quantity, const BaseType& source_base_value,
-                                               const precomputed_divisor<BaseType>& target_base_value) {
+inline T reflect_per_unit_base_to_another_base(const T& source_pu_quantity,
+    const BaseType& source_base_value,
+    const precomputed_divisor<BaseType>& target_base_value)
+{
     // Reflection ratio = source_base / target_base
     const real_t reflection_ratio = source_base_value / target_base_value;
     return reflection_ratio * source_pu_quantity;
@@ -180,10 +197,11 @@ inline T reflect_per_unit_base_to_another_base(const T& source_pu_quantity, cons
  */
 template <typename T>
 inline T reflect_machine_to_grid_voltage_pu(const T& machine_side_voltage_pu,
-                                            const voltage_t& machine_side_base_voltage,
-                                            const precomputed_divisor<voltage_t>& grid_side_base_voltage) {
-    return reflect_per_unit_base_to_another_base(machine_side_voltage_pu, machine_side_base_voltage,
-                                                 grid_side_base_voltage);
+    const voltage_t& machine_side_base_voltage,
+    const precomputed_divisor<voltage_t>& grid_side_base_voltage)
+{
+    return reflect_per_unit_base_to_another_base(
+        machine_side_voltage_pu, machine_side_base_voltage, grid_side_base_voltage);
 }
 
 /**
@@ -196,10 +214,12 @@ inline T reflect_machine_to_grid_voltage_pu(const T& machine_side_voltage_pu,
  * @return Voltage reflected to machine-side per-unit [pu]
  */
 template <typename T>
-inline T reflect_grid_to_machine_voltage_pu(const T& grid_side_voltage_pu, const voltage_t& grid_side_base_voltage,
-                                            const precomputed_divisor<voltage_t>& machine_side_base_voltage) {
-    return reflect_per_unit_base_to_another_base(grid_side_voltage_pu, grid_side_base_voltage,
-                                                 machine_side_base_voltage);
+inline T reflect_grid_to_machine_voltage_pu(const T& grid_side_voltage_pu,
+    const voltage_t& grid_side_base_voltage,
+    const precomputed_divisor<voltage_t>& machine_side_base_voltage)
+{
+    return reflect_per_unit_base_to_another_base(
+        grid_side_voltage_pu, grid_side_base_voltage, machine_side_base_voltage);
 }
 
 }  // namespace yeet::application::sfc

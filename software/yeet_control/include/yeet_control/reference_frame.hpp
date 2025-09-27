@@ -171,7 +171,7 @@ public:
     auto end() const { return _values.end(); }
     std::size_t size() const { return _values.size(); }
 
-    abc<T> absolute() const { return abc<T>{std::abs(_values[0]), std::abs(_values[1]), std::abs(_values[2])}; }
+    abc<T> absolute() const { return abc<T>{abs(_values[0]), abs(_values[1]), abs(_values[2])}; }
 
 private:
     std::array<T, 3> _values{};
@@ -726,6 +726,78 @@ abc<T> to_line(abc<T> phase)
 {
     // Convert phase voltages to line voltages
     return abc<T>{phase.a() - phase.b(), phase.b() - phase.c(), phase.c() - phase.a()};
+}
+
+/**
+ * @brief Converts line-to-line quantities (v_ab, v_bc) to phase quantities (a, b, c).
+ *
+ * This function assumes a balanced system where the sum of the phase quantities is zero
+ * (i.e., no zero-sequence component).
+ *
+ * Given:
+ * v_ab = a - b
+ * v_bc = b - c
+ * a + b + c = 0 (assumption)
+ *
+ * We can solve for a, b, and c:
+ * a = (2 * v_ab + v_bc) / 3
+ * b = (-v_ab + v_bc) / 3
+ * c = (-v_ab - 2 * v_bc) / 3
+ *
+ * @tparam T The underlying value type.
+ * @param v_ab The quantity between phase a and phase b.
+ * @param v_bc The quantity between phase b and phase c.
+ * @return An abc<T> object containing the calculated phase quantities.
+ */
+template <typename T>
+constexpr abc<T> from_line(T v_ab, T v_bc)
+{
+    const T a = (static_cast<real_t>(2.0 / 3.0) * v_ab) + (static_cast<real_t>(1.0 / 3.0) * v_bc);
+    const T b = -(static_cast<real_t>(1.0 / 3.0) * v_ab) + (static_cast<real_t>(1.0 / 3.0) * v_bc);
+    const T c = -(static_cast<real_t>(1.0 / 3.0) * v_ab) - (static_cast<real_t>(2.0 / 3.0) * v_bc);
+    return abc<T>{a, b, c};
+}
+
+template <typename T>
+T sum(abc<T> const& value)
+{
+    return value.a() + value.b() + value.c();
+}
+
+template <typename T>
+T max(abc<T> const& value)
+{
+    return std::max({value.a(), value.b(), value.c()});
+}
+
+template <typename T>
+T max(alphabeta<T> const& value)
+{
+    return std::max({value.alpha(), value.beta()});
+}
+
+template <typename T>
+T max(dq<T> const& value)
+{
+    return std::max({value.d(), value.q()});
+}
+
+template <typename T>
+T min(abc<T> const& value)
+{
+    return std::min({value.a(), value.b(), value.c()});
+}
+
+template <typename T>
+T min(alphabeta<T> const& value)
+{
+    return std::min({value.alpha(), value.beta()});
+}
+
+template <typename T>
+T min(dq<T> const& value)
+{
+    return std::min({value.d(), value.q()});
 }
 
 }  // namespace yeet

@@ -130,8 +130,8 @@ public:
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
 
     // Measurements and filtering (raw measurements for observers)
-    sfc_grid_side_measurements_runner grid_measurements;
-    sfc_machine_side_measurements_runner machine_measurements;
+    sfc_grid_side_measurements_ideal_runner grid_measurements;
+    sfc_machine_side_measurements_ideal_runner machine_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
 
     // Plant model
@@ -206,7 +206,7 @@ private:
 
         // DC link measurements: Raw DC voltage and current from plant
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().dc_link_current, dc_link_model.get_inputs().dc_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_model.get_inputs().grid_side_current);
 
         // ==================== Raw Measurements → Observers ====================
         // Connect filtered measurements to observers for estimation

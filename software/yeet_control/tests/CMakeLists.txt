@@ -9,7 +9,7 @@ enable_testing()
 # Add test sources
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE adc_value_t_test.cpp
+    PRIVATE adc_value_test.cpp
             adc_mock_test.cpp
             angle_test.cpp
             derivative_test.cpp

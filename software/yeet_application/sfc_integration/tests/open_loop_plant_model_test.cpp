@@ -7,7 +7,7 @@
 using namespace yeet::application::sfc::integration;
 using namespace yeet;
 
-class SfcBuilderTest : public ::testing::Test {
+class SfcOpenLoopPlantModel : public ::testing::Test {
 public:
     // using parameter_types ::parameter_types;
 
@@ -23,6 +23,11 @@ public:
         register_minimal_logger(simulator, system.plant);
         register_minimal_logger(simulator, system.grid_side_pulse_generator);
         register_minimal_logger(simulator, system.machine_side_pulse_generator);
+        register_complete_logger(simulator, system.grid_side_hardware_mock);
+        register_complete_logger(simulator, system.machine_side_hardware_mock);
+        register_minimal_logger(simulator, system.grid_side_measurements);
+        register_minimal_logger(simulator, system.machine_side_measurements);
+        register_complete_logger(simulator, system.dc_link_measurements);
     }
 
     void initialize() { system.initialize(); }
@@ -34,7 +39,7 @@ public:
     yeet::simulator simulator = yeet::make_gtest_simulator();
 };
 
-TEST_F(SfcBuilderTest, InitialTest)
+TEST_F(SfcOpenLoopPlantModel, OpenLoopStepResponseTest)
 {
     system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(13.0);
     system.firing_angle = yeet::angle_wrapped::from_degrees(180.0 - 26.84);

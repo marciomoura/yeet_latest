@@ -1,7 +1,6 @@
-#include "yeet_control/adc_value_t.hpp"
+#include "yeet_control/adc_value.hpp"
 
 #include <gtest/gtest.h>
-
 
 using namespace yeet::control;
 using yeet::real_t;
@@ -164,4 +163,30 @@ TEST_F(AdcValueTest, ClampingBehavior)
 
     value.set_real(-full_scale_value * 2.0);         // Try to set beyond negative full scale
     EXPECT_GE(value.get_counts(), -max_counts - 1);  // Should be clamped to min
+}
+
+// -------- New abstraction tests ---------
+
+TEST(AdcCountsTest, DefaultIsZero)
+{
+    yeet::control::adc_counts c;
+    EXPECT_EQ(c.value, 0);
+}
+
+TEST(AdcConverterTest, ConfigureAndRoundTrip)
+{
+    yeet::control::adc_converter conv;
+    conv.configure(12, 5.0);
+    auto counts = conv.to_counts(2.5);
+    auto back = conv.to_real(counts);
+    EXPECT_NEAR(back, 2.5, 0.01);  // quantization tolerance
+}
+
+TEST(AdcConverterTest, Saturation)
+{
+    yeet::control::adc_converter conv(12, 5.0);
+    auto hi = conv.to_counts(10.0);  // way above full-scale
+    EXPECT_LE(hi.value, conv.max_counts());
+    auto lo = conv.to_counts(-10.0);
+    EXPECT_GE(lo.value, -conv.max_counts() - 1);
 }

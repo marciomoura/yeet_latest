@@ -15,10 +15,10 @@ protected:
 
 TEST_F(GridSideMeasurementsMockTest, InitialStateIsZero)
 {
-    EXPECT_EQ(meas_mock.get_v_ab_counts().get_counts(), 0);
-    EXPECT_EQ(meas_mock.get_v_bc_counts().get_counts(), 0);
-    EXPECT_EQ(meas_mock.get_i_a_counts().get_counts(), 0);
-    EXPECT_EQ(meas_mock.get_i_c_counts().get_counts(), 0);
+    EXPECT_EQ(meas_mock.get_v_ab_counts().value, 0);
+    EXPECT_EQ(meas_mock.get_v_bc_counts().value, 0);
+    EXPECT_EQ(meas_mock.get_i_a_counts().value, 0);
+    EXPECT_EQ(meas_mock.get_i_c_counts().value, 0);
 }
 
 TEST_F(GridSideMeasurementsMockTest, ResetReturnsToZero)
@@ -26,13 +26,13 @@ TEST_F(GridSideMeasurementsMockTest, ResetReturnsToZero)
     meas_mock.configure_voltage_adc(1.0, frequency_t{100.0}, 12, 5.0);
     meas_mock.configure_current_adc(1.0, frequency_t{100.0}, 12, 5.0);
     meas_mock.update(1.0, 1.0, 1.0, 1.0);
-    ASSERT_NE(meas_mock.get_v_ab_counts().get_counts(), 0);
+    ASSERT_NE(meas_mock.get_v_ab_counts().value, 0);
 
     meas_mock.reset();
-    EXPECT_EQ(meas_mock.get_v_ab_counts().get_counts(), 0);
-    EXPECT_EQ(meas_mock.get_v_bc_counts().get_counts(), 0);
-    EXPECT_EQ(meas_mock.get_i_a_counts().get_counts(), 0);
-    EXPECT_EQ(meas_mock.get_i_c_counts().get_counts(), 0);
+    EXPECT_EQ(meas_mock.get_v_ab_counts().value, 0);
+    EXPECT_EQ(meas_mock.get_v_bc_counts().value, 0);
+    EXPECT_EQ(meas_mock.get_i_a_counts().value, 0);
+    EXPECT_EQ(meas_mock.get_i_c_counts().value, 0);
 }
 
 // TEST_F(GridSideMeasurementsMockTest, UpdatePropagatesToOutputs)

@@ -1,7 +1,8 @@
 #pragma once
 
 #include "sfc_per_unit_system.hpp"
-#include "yeet_control/adc_value_t.hpp"
+#include "yeet_control/adc_value.hpp"
+#include "yeet_control/precomputed_divisor.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
@@ -63,6 +64,37 @@ public:
     void configure_current_conversion(int bits, real_t full_scale_current);
 
     /**
+     * @brief Configure the voltage transducer gain (secondary transformer output to ADC card input).
+     * Gain defined as V_card / V_secondary_LL. Must be > 0. Stored internally as divisor for fast inversion.
+     */
+    void configure_voltage_transducer_gain(real_t gain) noexcept;
+
+    /**
+     * @brief Configure the current transducer gain (ADC card input volts per secondary ampere).
+     * Gain defined as V_card / I_secondary. Must be > 0. Stored as divisor for fast inversion.
+     */
+    void configure_current_transducer_gain(real_t gain) noexcept;
+
+    /**
+     * @brief Configures potential transformer (PT) and current transformer (CT) ratios.
+     * Ratios defined as Primary/Secondary. Provided as raw scalar ratios.
+     * Stored internally as precomputed divisors for fast primary reconstruction.
+     * @param pt_ratio Primary line-line voltage / secondary line-line voltage.
+     * @param ct_ratio Primary current / secondary current.
+     */
+    void configure_transformer_ratios(real_t pt_ratio, real_t ct_ratio) noexcept;
+
+    /**
+     * @brief Configure PT using primary & secondary voltages directly.
+     */
+    void configure_voltage_transformer(real_t primary_ll_voltage, real_t secondary_ll_voltage) noexcept;
+
+    /**
+     * @brief Configure CT using primary & secondary currents directly.
+     */
+    void configure_current_transformer(real_t primary_current, real_t secondary_current) noexcept;
+
+    /**
      * @brief Updates the per-unit values from ADC counts.
      * @param bases The per-unit base values for the grid side.
      * @param v_ab_counts ADC counts for line voltage Vab.
@@ -71,10 +103,10 @@ public:
      * @param i_c_counts ADC counts for line current Ic.
      */
     void update(sfc_per_unit_system::grid_side_bases const& bases,
-        const yeet::control::adc_value_t& v_ab_counts,
-        const yeet::control::adc_value_t& v_bc_counts,
-        const yeet::control::adc_value_t& i_a_counts,
-        const yeet::control::adc_value_t& i_c_counts);
+        yeet::control::adc_counts v_ab_counts,
+        yeet::control::adc_counts v_bc_counts,
+        yeet::control::adc_counts i_a_counts,
+        yeet::control::adc_counts i_c_counts);
 
     /**
      * @brief Resets all internal states.
@@ -85,17 +117,39 @@ public:
     const abc<current_pu_t>& get_current_pu() const { return _current_pu; }
 
     // Individual raw measurements after ADC conversion
-    real_t get_raw_v_ab() const { return _v_ab_counts.to_real(); }
-    real_t get_raw_v_bc() const { return _v_bc_counts.to_real(); }
-    real_t get_raw_i_a() const { return _i_a_counts.to_real(); }
-    real_t get_raw_i_c() const { return _i_c_counts.to_real(); }
+    real_t get_raw_v_ab() const { return _voltage_converter.to_real(_v_ab_counts); }
+    real_t get_raw_v_bc() const { return _voltage_converter.to_real(_v_bc_counts); }
+    real_t get_raw_i_a() const { return _current_converter.to_real(_i_a_counts); }
+    real_t get_raw_i_c() const { return _current_converter.to_real(_i_c_counts); }
+
+    // Reconstructed primary (pre-transformer) quantities using configured ratios
+    real_t get_primary_v_ab() const { return get_raw_v_ab() * _pt_ratio.value(); }
+    real_t get_primary_v_bc() const { return get_raw_v_bc() * _pt_ratio.value(); }
+    real_t get_primary_i_a() const { return get_raw_i_a() * _ct_ratio.value(); }
+    real_t get_primary_i_c() const { return get_raw_i_c() * _ct_ratio.value(); }
+
+    real_t get_voltage_transducer_gain() const { return _voltage_transducer_gain.value(); }
+    real_t get_current_transducer_gain() const { return _current_transducer_gain.value(); }
+
+    real_t get_pt_ratio() const { return _pt_ratio.value(); }
+    real_t get_ct_ratio() const { return _ct_ratio.value(); }
 
 private:
     // ADC values for each measurement channel
-    yeet::control::adc_value_t _v_ab_counts;
-    yeet::control::adc_value_t _v_bc_counts;
-    yeet::control::adc_value_t _i_a_counts;
-    yeet::control::adc_value_t _i_c_counts;
+    yeet::control::adc_counts _v_ab_counts{};
+    yeet::control::adc_counts _v_bc_counts{};
+    yeet::control::adc_counts _i_a_counts{};
+    yeet::control::adc_counts _i_c_counts{};
+
+    yeet::control::adc_converter _voltage_converter{};
+    yeet::control::adc_converter _current_converter{};
+
+    // Transformer ratios (Primary / Secondary) stored as divisors for fast secondary->primary reconstruction
+    yeet::precomputed_divisor<real_t> _pt_ratio{real_t{1.0}};
+    yeet::precomputed_divisor<real_t> _ct_ratio{real_t{1.0}};
+    // Transducer gains (card input volts per secondary quantity)
+    yeet::precomputed_divisor<real_t> _voltage_transducer_gain{real_t{1.0}};  // V_card / V_secondary_LL
+    yeet::precomputed_divisor<real_t> _current_transducer_gain{real_t{1.0}};  // V_card / I_secondary
 
     // Per-unit outputs
     abc<voltage_pu_t> _voltage_pu{};

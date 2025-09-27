@@ -61,7 +61,7 @@ public:
 
         // Discontinuous Conduction Detector Parameters
         /// @brief Current level below which DC link current is considered zero.
-        parameter<current_pu_t> zero_current_threshold_pu{current_pu_t{0.01f}};
+        parameter<current_pu_t> zero_current_threshold_pu{current_pu_t{0.02f}};
 
         /// @brief On-delay in seconds to confirm current is zero.
         parameter<duration_t> is_zero_on_delay_s{duration_t{(1.0 / 50.0 / 6.0)}};

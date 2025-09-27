@@ -13,7 +13,7 @@ public:
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
-        simulator.configure_sampler_sampling_rate(200e-6);
+        simulator.configure_sampler_sampling_rate(50e-6);
 
         // Register all applications with the simulator
         system.register_applications(simulator);
@@ -23,6 +23,7 @@ public:
 
         // ==================== Logger Registration ====================
         register_complete_logger(simulator, system.current_controller);
+        register_complete_logger(simulator, system.dc_link_measurements);
     }
 
     void initialize() { system.initialize(); }

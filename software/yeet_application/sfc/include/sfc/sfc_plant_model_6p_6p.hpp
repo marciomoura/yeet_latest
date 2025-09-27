@@ -3,6 +3,8 @@
 #include <array>
 #include <memory>
 
+#include "grid_side_hardware_mock.hpp"
+#include "machine_side_hardware_mock.hpp"
 #include "sfc_plant_model_parameters.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"

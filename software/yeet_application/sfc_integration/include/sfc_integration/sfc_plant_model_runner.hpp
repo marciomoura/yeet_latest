@@ -36,6 +36,7 @@ public:
     void stop() override;
 
     sfc::sfc_plant_model_augmented_6p_6p& get_plant_model() { return _plant; }
+    const std::shared_ptr<sfc::sfc_per_unit_system>& get_per_unit_system() const noexcept { return _per_unit_system; }
 
 private:
     void set_parameters();

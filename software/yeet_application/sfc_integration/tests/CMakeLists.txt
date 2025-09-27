@@ -13,7 +13,10 @@ target_sources(
             complete_sensorless_speed_controller_test.cpp
             open_loop_plant_model_test.cpp
             sensorless_current_controller_test.cpp
+            sensorless_current_controller_mocked_hardware_test.cpp
             sensorless_speed_controller_test.cpp
+            sensorless_speed_controller_mocked_hardware_test.cpp
+            simplified_current_controller_mocked_hardware_test.cpp
             simplified_current_controller_test.cpp
             simplified_speed_controller_test.cpp
             sfc_state_machine_runner_test.cpp)

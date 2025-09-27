@@ -11,39 +11,31 @@ void adc_mock::configure_gain(real_t gain) { _gain = gain; }
 
 void adc_mock::configure_filter(real_t cutoff_freq_hz) { _filter.configure(cutoff_freq_hz); }
 
-void adc_mock::configure_quantization(int bits, real_t full_scale_voltage)
+void adc_mock::configure_quantization(int bits, real_t full_scale_value)
 {
     _bits = bits;
-    _full_scale_voltage = full_scale_voltage;
+    _full_scale_value = full_scale_value;
 }
 
-void adc_mock::update(real_t input_voltage) noexcept
+void adc_mock::update(real_t input_value) noexcept
 {
-    // 1. Amplify the signal
-    const real_t amplified_signal = input_voltage * _gain;
+    const real_t amplified = input_value * _gain;  // 1. apply gain
+    _filter.update(amplified);                     // 2. low-pass filter
+    _last_filtered = _filter.get_output();
 
-    // 2. Filter the signal
-    _filter.update(amplified_signal);
-    const real_t filtered_signal = _filter.get_output();
+    const real_t max_val = _full_scale_value;
+    const real_t min_val = -_full_scale_value;
+    const real_t clamped = std::clamp(_last_filtered, min_val, max_val);  // 3. clamp
 
-    // 3. Quantize the signal
-    const real_t max_val = _full_scale_voltage;
-    const real_t min_val = -_full_scale_voltage;
-
-    // Clamp the signal to the ADC's full-scale range
-    const real_t clamped_signal = std::clamp(filtered_signal, min_val, max_val);
-
-    // Calculate the maximum integer value for the given bit depth (for a signed integer)
-    const std::int32_t max_adc_count = (1 << (_bits - 1)) - 1;
-
-    // Scale the clamped signal to the integer range and round to the nearest integer
-    _output = static_cast<std::int32_t>(std::round((clamped_signal / _full_scale_voltage) * max_adc_count));
+    const std::int32_t max_counts = (1 << (_bits - 1)) - 1;  // symmetric bipolar
+    _output = static_cast<std::int32_t>(std::llround((clamped / _full_scale_value) * max_counts));
 }
 
 void adc_mock::reset()
 {
     _filter.reset();
     _output = 0;
+    _last_filtered = 0.0;
 }
 
 std::int32_t adc_mock::get_output() const noexcept { return _output; }

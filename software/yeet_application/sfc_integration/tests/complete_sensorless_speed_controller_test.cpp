@@ -15,8 +15,7 @@ public:
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
-        // simulator.configure_sampler_sampling_rate(ms(0.5));
-        simulator.configure_sampler_sampling_rate(200e-6);
+        simulator.configure_sampler_sampling_rate(ms(1.0));
 
         // Register all applications with the simulator
         system.register_applications(simulator);
@@ -35,8 +34,10 @@ public:
 
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
-        // register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);
+        register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);
+        register_complete_logger(simulator, system.grid_side_control.grid_measurements);
         register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
+        register_complete_logger(simulator, system.machine_side_control.machine_measurements);
         register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         register_minimal_operation_mode_monitor_logger(simulator, system.grid_side_control.operation_mode_monitor);
     }
@@ -157,6 +158,9 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
     // Execute complete startup sequence to reach operational state
     execute_startup_sequence();
 
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
+
     // At this point, state machine should be in OPERATION_ON and pulse_releases should be true
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
@@ -187,7 +191,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TestSpeedRegulationWithStateMachin
 // Test speed regulation with state machine startup - based on sensorless_speed_controller_test.cpp
 TEST_F(CompleteSensorlessSpeedControllerTest, SpeedRegulationRampingUpTest)
 {
-    simulator.configure_sampler_sampling_rate(2e-3);
+    simulator.configure_sampler_sampling_rate(1e-3);
 
     // Configure plant for variable speed operation using standardized configuration
     yeet::application::sfc::integration::test::variable_speed_config config{};
@@ -210,6 +214,9 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedRegulationRampingUpTest)
     // ==================== State Machine Startup Sequence ====================
     // Execute complete startup sequence to reach operational state
     execute_startup_sequence();
+
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
 
     // Repeat this after to have a nice initial condition. TODO: Fix this...
     // Configure plant for variable speed operation using standardized configuration

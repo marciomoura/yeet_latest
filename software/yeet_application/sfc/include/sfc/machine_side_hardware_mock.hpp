@@ -1,7 +1,8 @@
 #pragma once
 
 #include "yeet_control/adc_mock.hpp"
-#include "yeet_control/adc_value_t.hpp"
+#include "yeet_control/adc_value.hpp"
+#include "yeet_control/precomputed_divisor.hpp"
 #include "yeet_control/units.hpp"
 
 
@@ -32,6 +33,24 @@ public:
     void configure_voltage_adc(real_t gain, frequency_t cutoff_freq_hz, int bits, real_t full_scale_voltage);
 
     /**
+     * @brief Configures potential transformer (PT) ratio for machine-side voltages.
+     *
+     * Ratio is defined Primary / Secondary. Example: 3300 V / 100 V => pt_ratio = 33.
+     * The analog voltage seen by ADC chain is V_secondary = V_primary / pt_ratio.
+     * Default is 1.0 (no scaling).
+     *
+     * @param pt_ratio Primary-to-secondary voltage ratio (Primary_V / Secondary_V)
+     */
+    void configure_transformer_ratio(real_t pt_ratio) noexcept;
+
+    /**
+     * @brief Configure PT using primary & secondary line-to-line voltages.
+     * pt_ratio = primary_ll_voltage / secondary_ll_voltage.
+     * If secondary_ll_voltage <= 0 the ratio remains unchanged.
+     */
+    void configure_voltage_transformer(real_t primary_ll_voltage, real_t secondary_ll_voltage) noexcept;
+
+    /**
      * @brief Processes new analog input values through the mock ADC chains.
      * @param v_ab The raw analog line-to-line voltage Vab.
      * @param v_bc The raw analog line-to-line voltage Vbc.
@@ -43,19 +62,29 @@ public:
      */
     void reset();
 
-    /** @return The latest quantized output for voltage Vab. */
-    yeet::control::adc_value_t get_v_ab_counts() const noexcept;
-
-    /** @return The latest quantized output for voltage Vbc. */
-    yeet::control::adc_value_t get_v_bc_counts() const noexcept;
+    /** @return Raw ADC counts for voltage Vab. */
+    yeet::control::adc_counts get_v_ab_counts() const noexcept
+    {
+        return yeet::control::adc_counts{_v_ab_adc.get_output()};
+    }
+    /** @return Raw ADC counts for voltage Vbc. */
+    yeet::control::adc_counts get_v_bc_counts() const noexcept
+    {
+        return yeet::control::adc_counts{_v_bc_adc.get_output()};
+    }
 
 private:
     yeet::control::mock::adc_mock _v_ab_adc;
     yeet::control::mock::adc_mock _v_bc_adc;
 
-    // Conversion parameters for creating adc_value_t instances
+    // Embedded converter for voltage channels
+    yeet::control::adc_converter _voltage_converter{};
     int _voltage_bits{12};
     real_t _voltage_full_scale{1.0};
+    yeet::precomputed_divisor<real_t> _pt_ratio{real_t{1.0}};  // V_secondary = V_primary / pt_ratio
+
+public:
+    const yeet::control::adc_converter& get_voltage_converter() const noexcept { return _voltage_converter; }
 };
 
 }  // namespace yeet::application::sfc::mock

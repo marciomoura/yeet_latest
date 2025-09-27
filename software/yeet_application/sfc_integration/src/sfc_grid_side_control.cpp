@@ -67,13 +67,13 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
         current_controller.get_inputs().grid_side_voltage_magnitude);
 
+    // DC link measurements from grid measurements
+    signals_connector::connect_output_to_input(
+        grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+
     // DC link measurement → Current controller
     signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_filtered_pu,
         current_controller.get_inputs().dc_link_current_measured);
-
-    // External current reference
-    // signals_connector::connect_output_to_input(
-    //     dc_link_current_reference, current_controller.get_inputs().dc_link_current_reference);
 
     // Current controller → Modulator
     signals_connector::connect_output_to_input(

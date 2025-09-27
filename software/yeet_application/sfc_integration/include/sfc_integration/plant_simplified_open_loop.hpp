@@ -1,8 +1,16 @@
 #pragma once
 
+#include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
+#include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
+
+// Hardware mocks (ADC front-end simulation)
+#include "sfc_grid_side_hardware_mock_runner.hpp"
+#include "sfc_integration/plant_hardware_definition.hpp"  // staging helpers for mock parameters
+#include "sfc_machine_side_hardware_mock_runner.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
@@ -17,6 +25,7 @@ namespace yeet::application::sfc::integration {
  * This configuration provides:
  * - Plant model with augmented 6p-6p topology
  * - Grid-side and machine-side pulse generators
+ * - Grid-side and machine-side hardware mocks (ADC quantization of plant analog signals)
  * - Direct firing angle control (open loop operation)
  * - Per-unit system for proper scaling
  * - Simplified configuration for open loop testing
@@ -26,10 +35,31 @@ namespace yeet::application::sfc::integration {
  */
 class sfc_open_loop_simulation_builder {
 public:
-    sfc_open_loop_simulation_builder() : plant{create_per_unit_system()}
+    sfc_open_loop_simulation_builder()
+        : plant{create_per_unit_system()},
+          grid_side_hardware_mock{duration_t{10e-6}},
+          machine_side_hardware_mock{duration_t{10e-6}},
+          grid_side_measurements{plant.get_per_unit_system()},
+          machine_side_measurements{plant.get_per_unit_system()},
+          dc_link_measurements{plant.get_per_unit_system()}
     {
-        // Connect pulse generators to plant model
-        connect_pulse_generators_to_plant();
+        // Stage hardware mock parameters (ADC + transducer chain)
+        plant_hardware::stage_grid_side_hardware_mock_parameters(grid_side_hardware_mock);
+        plant_hardware::stage_machine_side_hardware_mock_parameters(machine_side_hardware_mock);
+        // Compute and stage transformer ratios for target spans (1.3 pu voltage, 2.0 pu current)
+        plant_hardware::stage_transformer_ratios_for_grid_side(grid_side_hardware_mock, *plant.get_per_unit_system());
+        plant_hardware::stage_transformer_ratios_for_machine_side(
+            machine_side_hardware_mock, *plant.get_per_unit_system());
+        // Mirror ratios to measurement runners so reconstruction uses same scaling
+        plant_hardware::stage_transformer_ratios_for_grid_side_measurements(
+            grid_side_measurements, *plant.get_per_unit_system());
+        plant_hardware::stage_transformer_ratios_for_machine_side_measurements(
+            machine_side_measurements, *plant.get_per_unit_system());
+        // Stage measurement conversion parameters (ADC + transducer) for runners
+        plant_hardware::stage_grid_side_measurement_parameters(grid_side_measurements);
+        plant_hardware::stage_machine_side_measurement_parameters(machine_side_measurements);
+        // Connect pulse generators and hardware mocks to plant model
+        connect_components();
         mock_inputs();
     }
 
@@ -42,34 +72,55 @@ public:
 
     void initialize()
     {
-        // Initialize components in dependency order
-        grid_side_pulse_generator.initialize();
-        machine_side_pulse_generator.initialize();
+        // Initialize components in dependency order (plant first so mocks have valid sources)
         plant.initialize();
+        grid_side_hardware_mock.initialize();
+        machine_side_hardware_mock.initialize();
+        grid_side_measurements.initialize();
+        machine_side_measurements.initialize();
+        dc_link_measurements.initialize();
     }
 
-    void register_applications(yeet::simulator& sim)
+    void register_applications(yeet::simulator& simulator)
     {
-        // Register all runners with their respective sampling times
-        sim.register_lambda_runner(
+        // Register pulse generators at their sampling times
+        simulator.register_lambda_runner(
             grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
-        sim.register_lambda_runner(
+        simulator.register_lambda_runner(
             machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
-        sim.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
+        // Plant + hardware mocks: run plant then convert analog → ADC counts
+        simulator.register_lambda_runner(plant.get_sampling_time(), [&]() {
+            plant.run();
+            grid_side_hardware_mock.run();
+            machine_side_hardware_mock.run();
+            grid_side_measurements.run();
+            machine_side_measurements.run();
+            dc_link_measurements.run();
+        });
     }
 
     void register_datamodel(yeet::model_registry& registry)
     {
-        // Register all datamodels
+        // Register all datamodels (order: plant, mocks, pulse generators)
+        plant.register_datamodel(registry);
+        grid_side_hardware_mock.register_datamodel(registry);
+        machine_side_hardware_mock.register_datamodel(registry);
+        grid_side_measurements.register_datamodel(registry);
+        machine_side_measurements.register_datamodel(registry);
+        dc_link_measurements.register_datamodel(registry);
         grid_side_pulse_generator.register_datamodel(registry);
         machine_side_pulse_generator.register_datamodel(registry);
-        plant.register_datamodel(registry);
     }
 
     // Public members for direct access
     sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
     sfc_plant_model_runner plant;
+    sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;        // ADC mock for grid-side voltages & currents
+    sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;  // ADC mock for machine-side voltages
+    sfc_grid_side_measurements_runner grid_side_measurements;          // ADC-based grid-side measurement chain
+    sfc_machine_side_measurements_runner machine_side_measurements;    // ADC-based machine-side measurement chain
+    sfc_dc_link_measurements_runner dc_link_measurements;              // DC link measurement chain
 
     signal_output<torque_pu_t> load_torque_pu;
     signal_output<angle_wrapped> firing_angle;
@@ -88,32 +139,70 @@ private:
         );
     }
 
-    void connect_pulse_generators_to_plant()
+    void connect_components()
     {
         // ==================== Pulse Generators → Plant Model ====================
-        // Connect firing pulses from both pulse generators to plant model inputs
         signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
-
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
         signals_connector::connect_output_to_input(
             machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
-        // Connect reference angles from plant model to pulse generators for synchronization
-
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage_source_angle, grid_side_pulse_generator.get_inputs().reference_angle);
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
             machine_side_pulse_generator.get_inputs().reference_angle);
 
-        // ==================== External Control Signals ====================
-        // Connect external firing angle commands to pulse generators
+        // ==================== Plant Outputs → Hardware Mocks (analog → ADC counts) ====================
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
 
+        // ==================== Hardware Mocks → Measurement Runners (ADC counts to PU) ====================
+        // Grid side: connect ADC counts outputs to measurement runner inputs
+        // Voltage line-line counts Vab, Vbc
+        signals_connector::connect_output_to_input(
+            grid_side_hardware_mock.get_outputs().v_ab_counts, grid_side_measurements.get_inputs().v_ab_counts);
+        signals_connector::connect_output_to_input(
+            grid_side_hardware_mock.get_outputs().v_bc_counts, grid_side_measurements.get_inputs().v_bc_counts);
+        // Currents phase A and C (two-sensor reconstruction)
+        signals_connector::connect_output_to_input(
+            grid_side_hardware_mock.get_outputs().i_a_counts, grid_side_measurements.get_inputs().i_a_counts);
+        signals_connector::connect_output_to_input(
+            grid_side_hardware_mock.get_outputs().i_c_counts, grid_side_measurements.get_inputs().i_c_counts);
+        signals_connector::connect_output_to_input(
+            grid_side_pulse_generator.get_outputs().firing_pulses, grid_side_measurements.get_inputs().grid_pulses);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().grid_voltage_source_angle, grid_side_measurements.get_inputs().grid_side_angle);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().grid_frequency, grid_side_measurements.get_inputs().grid_side_frequency);
+
+        // Machine side: connect ADC counts outputs to measurement runner inputs
+        signals_connector::connect_output_to_input(
+            machine_side_hardware_mock.get_outputs().v_ab_counts, machine_side_measurements.get_inputs().v_ab_counts);
+        signals_connector::connect_output_to_input(
+            machine_side_hardware_mock.get_outputs().v_bc_counts, machine_side_measurements.get_inputs().v_bc_counts);
+        signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
+            machine_side_measurements.get_inputs().machine_pulses);
+        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+            machine_side_measurements.get_inputs().machine_side_angle);
+        signals_connector::connect_output_to_input(
+            plant.get_outputs().machine_frequency, machine_side_measurements.get_inputs().machine_side_frequency);
+
+        // ==================== External Control Signals ====================
         signals_connector::connect_output_to_input(
             grid_side_firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
         signals_connector::connect_output_to_input(
             firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
+
+        // ==================== Measurements → DC Link Measurements ====================
+        // Use reconstructed grid phase currents (abc) from grid-side measurements as input
+        signals_connector::connect_output_to_input(
+            grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
     }
 };
 

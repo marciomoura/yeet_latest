@@ -10,15 +10,13 @@ void sfc_dc_link_measurements_runner::initialize()
 
 void sfc_dc_link_measurements_runner::run()
 {
-    _sfc_dc_link_measurements.update(_per_unit_system->get_dc_link_bases(), {}, _inputs.dc_current);
+    _sfc_dc_link_measurements.update(*_per_unit_system, _inputs.grid_side_current);
 
-    // _outputs.dc_voltage_pu = _sfc_dc_link_measurements.get_voltage_pu();
     _outputs.dc_current_pu = _sfc_dc_link_measurements.get_current_pu();
 
-    _sfc_dc_link_filtering.update(
-        _sfc_dc_link_measurements.get_voltage_pu(), _sfc_dc_link_measurements.get_current_pu());
-    _outputs.dc_current_filtered_pu = _sfc_dc_link_filtering.get_filtered_current_pu();
+    _sfc_dc_link_filtering.update(_sfc_dc_link_measurements.get_current_pu());
 
+    _outputs.dc_current_filtered_pu = _sfc_dc_link_filtering.get_filtered_current_pu();
     _outputs.dc_current_heavy_filtered_pu = _sfc_dc_link_filtering.get_heavy_filtered_current_pu();
 }
 
