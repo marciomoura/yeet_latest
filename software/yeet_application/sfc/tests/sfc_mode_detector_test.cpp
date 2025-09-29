@@ -24,7 +24,7 @@ protected:
 
 TEST_F(SfcModeDetectorTest, InitialStateIsPulseMode)
 {
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     EXPECT_FALSE(detector.has_mode_changed());
 }
 
@@ -32,21 +32,21 @@ TEST_F(SfcModeDetectorTest, ResetReturnsToPulseMode)
 {
     // Go to load commutated mode first
     detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
-    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
 
     detector.reset();
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
 }
 
 TEST_F(SfcModeDetectorTest, DisabledStateForcesPulseMode)
 {
     // Go to load commutated mode first
     detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
-    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
 
     // Now disable the system, it should immediately revert to pulse mode
     detector.update(!enable, speed_pu_t{switch_up_speed + 0.01F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 }
 
@@ -54,17 +54,17 @@ TEST_F(SfcModeDetectorTest, TransitionToLoadCommutatedMode)
 {
     // Speed is below the high threshold, should not switch
     detector.update(enable, speed_pu_t{switch_up_speed - 0.001F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     EXPECT_FALSE(detector.has_mode_changed());
 
     // Speed crosses the high threshold, should switch
     detector.update(enable, speed_pu_t{switch_up_speed + 0.001F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 
     // Call update again with the same speed, mode should not change again
     detector.update(enable, speed_pu_t{switch_up_speed + 0.001F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_FALSE(detector.has_mode_changed());
 }
 
@@ -73,17 +73,17 @@ TEST_F(SfcModeDetectorTest, TransitionToPulseMode)
     // First, go to load commutated mode
     detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
     detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});  // second step to clear has_mode_changed
-    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     ASSERT_FALSE(detector.has_mode_changed());
 
     // Speed is above the low threshold, should not switch back
     detector.update(enable, speed_pu_t{switch_down_speed + 0.001F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_FALSE(detector.has_mode_changed());
 
     // Speed crosses the low threshold, should switch back to pulse mode
     detector.update(enable, speed_pu_t{switch_down_speed - 0.001F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 }
 
@@ -91,23 +91,23 @@ TEST_F(SfcModeDetectorTest, HysteresisPreventsChattering)
 {
     // 1. Go to load commutated mode
     detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
-    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
 
     // 2. Jitter inside the hysteresis band, should stay in load commutated mode
     detector.update(enable, speed_pu_t{switch_up_speed - 0.005F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     detector.update(enable, speed_pu_t{switch_down_speed + 0.005F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
 
     // 3. Go back to pulse mode
     detector.update(enable, speed_pu_t{switch_down_speed - 0.01F});
-    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
 
     // 4. Jitter inside the hysteresis band again, should stay in pulse mode
     detector.update(enable, speed_pu_t{switch_down_speed + 0.005F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     detector.update(enable, speed_pu_t{switch_up_speed - 0.005F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
 }
 
 TEST_F(SfcModeDetectorTest, ConfigurationChangesThresholds)
@@ -118,10 +118,10 @@ TEST_F(SfcModeDetectorTest, ConfigurationChangesThresholds)
 
     // New thresholds should be 0.18 and 0.22
     detector.update(enable, speed_pu_t{0.21F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
 
     detector.update(enable, speed_pu_t{0.22F + 0.001F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 }
 
@@ -132,14 +132,14 @@ TEST_F(SfcModeDetectorTest, ZeroHysteresisCreatesSharpTransition)
 
     // Both thresholds should be at 0.1
     detector.update(enable, speed_pu_t{0.099F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
 
     detector.update(enable, speed_pu_t{0.101F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 
     detector.update(enable, speed_pu_t{0.099F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 }
 
@@ -150,19 +150,19 @@ TEST_F(SfcModeDetectorTest, LargeHysteresisCreatesWideDeadBand)
 
     // Thresholds should be 0.05 and 0.15
     detector.update(enable, speed_pu_t{0.14F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
 
     detector.update(enable, speed_pu_t{0.16F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 
     // Large dead band - should stay in load commutated mode
     detector.update(enable, speed_pu_t{0.06F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
     EXPECT_FALSE(detector.has_mode_changed());
 
     detector.update(enable, speed_pu_t{0.04F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
     EXPECT_TRUE(detector.has_mode_changed());
 }
 
@@ -170,16 +170,16 @@ TEST_F(SfcModeDetectorTest, RepeatedEnableDisableCycles)
 {
     // Go to load commutated mode
     detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
-    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
 
     // Disable and re-enable multiple times
     for (int i = 0; i < 3; ++i) {
         detector.update(!enable, speed_pu_t{switch_up_speed + 0.01F});
-        EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::pulse_mode);
+        EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
         EXPECT_TRUE(detector.has_mode_changed());
 
         detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
-        EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::load_commutated);
+        EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
         EXPECT_TRUE(detector.has_mode_changed());
     }
 }

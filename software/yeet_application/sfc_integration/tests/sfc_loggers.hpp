@@ -95,8 +95,7 @@ static inline void register_complete_speed_controller_logger(
         group + "output pi_output", [&]() { return speed_controller.get_outputs().pi_output.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_saturated", [&]() { return speed_controller.get_outputs().is_saturated.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_active", [&]() { return speed_controller.get_outputs().is_active.read(); }));
+    // 'is_active' already registered by minimal logger (avoid duplicate)
 }
 
 static inline void register_minimal_dc_link_measurements_logger(
@@ -151,23 +150,19 @@ static inline void register_complete_grid_side_measurements_logger(
     simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output grid_side_frequency",
         [&]() { return grid_side_measurements.get_outputs().grid_side_frequency.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_grid_voltage_alphabeta",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output grid_voltage_alphabeta",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_alphabeta.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_grid_voltage_alphabeta_filtered",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output grid_voltage_alphabeta_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_alphabeta_filtered.read(); }));
+    // raw grid_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_grid_voltage_abc",
-            [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_grid_voltage_abc_unmasked",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_unmasked",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_unmasked.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_grid_voltage_abc_filtered",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_filtered.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<current_pu_t>>(group + "output_grid_current_abc",
-            [&]() { return grid_side_measurements.get_outputs().grid_current_abc.read(); }));
+    // raw grid_current_abc already in minimal logger
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<voltage_pu_t>(group + "output grid_voltage_magnitude_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_magnitude_filtered.read(); }));
@@ -201,23 +196,19 @@ static inline void register_complete_grid_side_measurements_logger(
     simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output grid_side_frequency",
         [&]() { return grid_side_measurements.get_outputs().grid_side_frequency.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_grid_voltage_alphabeta",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output grid_voltage_alphabeta",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_alphabeta.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_grid_voltage_alphabeta_filtered",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output grid_voltage_alphabeta_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_alphabeta_filtered.read(); }));
+    // raw grid_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_grid_voltage_abc",
-            [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_grid_voltage_abc_unmasked",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_unmasked",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_unmasked.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_grid_voltage_abc_filtered",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_filtered.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<current_pu_t>>(group + "output_grid_current_abc",
-            [&]() { return grid_side_measurements.get_outputs().grid_current_abc.read(); }));
+    // raw grid_current_abc already in minimal logger
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<voltage_pu_t>(group + "output grid_voltage_magnitude_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_magnitude_filtered.read(); }));
@@ -249,24 +240,18 @@ static inline void register_complete_machine_side_measurements_logger(
 
     register_minimal_machine_side_measurements_logger(simulator, machine_side_measurements);
 
+    // raw machine_voltage_alphabeta already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_machine_voltage_alphabeta",
-            [&]() { return machine_side_measurements.get_outputs().machine_voltage_alphabeta.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_machine_voltage_alphabeta_filtered",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output machine_voltage_alphabeta_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_alphabeta_filtered.read(); }));
+    // raw machine_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_machine_voltage_abc",
-            [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_machine_voltage_abc_unmasked",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_unmasked",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_unmasked.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_machine_voltage_abc_filtered",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_filtered.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<current_pu_t>>(group + "output_machine_current_abc",
-            [&]() { return machine_side_measurements.get_outputs().machine_current_abc.read(); }));
+    // raw machine_current_abc already in minimal logger
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<voltage_pu_t>(group + "output machine_voltage_magnitude_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_magnitude_filtered.read(); }));
@@ -298,20 +283,16 @@ static inline void register_complete_machine_side_measurements_logger(
 
     register_minimal_machine_side_measurements_logger(simulator, machine_side_measurements);
 
+    // raw machine_voltage_alphabeta already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_machine_voltage_alphabeta",
-            [&]() { return machine_side_measurements.get_outputs().machine_voltage_alphabeta.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_machine_voltage_alphabeta_filtered",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output machine_voltage_alphabeta_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_alphabeta_filtered.read(); }));
+    // raw machine_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_machine_voltage_abc",
-            [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_machine_voltage_abc_unmasked",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_unmasked",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_unmasked.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output_machine_voltage_abc_filtered",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_filtered.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<voltage_pu_t>(group + "output machine_voltage_magnitude_filtered",
@@ -325,7 +306,7 @@ static inline void register_minimal_grid_side_observer_logger(
 {
     const std::string group{"grid_side_observer:"};
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(
-        group + "input_grid_voltage_pu", [&]() { return grid_side_observer.get_inputs().grid_voltage_pu.read(); }));
+        group + "input grid_voltage_pu", [&]() { return grid_side_observer.get_inputs().grid_voltage_pu.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output estimated_angle",
         [&]() { return grid_side_observer.get_outputs().estimated_position.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output estimated_frequency_pu",
@@ -339,13 +320,12 @@ static inline void register_complete_grid_side_observer_logger(
 
     register_minimal_grid_side_observer_logger(simulator, grid_side_observer);
 
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output estimated_frequency_pu",
-        [&]() { return grid_side_observer.get_outputs().estimated_frequency_pu.read(); }));
+    // estimated_frequency_pu already in minimal logger
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<voltage_pu_t>(group + "output estimated_voltage_magnitude",
             [&]() { return grid_side_observer.get_outputs().estimated_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_filtered_voltage_alphabeta",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output filtered_voltage_alphabeta",
             [&]() { return grid_side_observer.get_outputs().filtered_voltage_alphabeta.read(); }));
 }
 
@@ -520,15 +500,15 @@ static inline void register_minimal_machine_side_observer_logger(
 {
     const std::string group{"machine_side_observer:"};
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "input_machine_voltage_pu",
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "input machine_voltage_pu",
             [&]() { return machine_side_observer.get_inputs().machine_voltage_pu.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<voltage_pu_t>(group + "output estimated_voltage_magnitude",
             [&]() { return machine_side_observer.get_outputs().estimated_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output estimated_frequency_pu",
         [&]() { return machine_side_observer.get_outputs().estimated_frequency_pu.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "output estimated_speed",
-        [&]() { return machine_side_observer.get_outputs().estimated_speed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output estimated_position",
+        [&]() { return machine_side_observer.get_outputs().estimated_position.read().get_pu(); }));
 }
 
 static inline void register_complete_machine_side_observer_logger(
@@ -538,12 +518,8 @@ static inline void register_complete_machine_side_observer_logger(
 
     register_minimal_machine_side_observer_logger(simulator, machine_side_observer);
 
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output estimated_frequency_pu",
-        [&]() { return machine_side_observer.get_outputs().estimated_frequency_pu.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output estimated_position",
-        [&]() { return machine_side_observer.get_outputs().estimated_position.read().get_pu(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output_filtered_voltage_alphabeta",
+        yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output filtered_voltage_alphabeta",
             [&]() { return machine_side_observer.get_outputs().filtered_voltage_alphabeta.read(); }));
 }
 
@@ -558,7 +534,7 @@ static inline void register_minimal_grid_side_pulse_generator_logger(
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_pulses",
         [&]() { return grid_side_pulse_generator.get_inputs().release_pulses.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output_firing_pulses",
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
             [&]() { return grid_side_pulse_generator.get_outputs().firing_pulses.read().to_array(); }));
 }
 
@@ -586,7 +562,7 @@ static inline void register_minimal_machine_side_pulse_generator_logger(
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_pulses",
         [&]() { return machine_side_pulse_generator.get_inputs().release_pulses.read(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output_firing_pulses",
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
             [&]() { return machine_side_pulse_generator.get_outputs().firing_pulses.read().to_array(); }));
 }
 
@@ -605,10 +581,10 @@ static inline void register_minimal_plant_model_logger(yeet::simulator& simulato
 {
     const std::string group{"plant_model:"};
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input_grid_side_firing_pulses",
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input grid_side_firing_pulses",
             [&]() { return plant_model.get_inputs().grid_side_firing_pulses.read().to_array(); }));
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input_machine_side_firing_pulses",
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input machine_side_firing_pulses",
             [&]() { return plant_model.get_inputs().machine_side_firing_pulses.read().to_array(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(
         group + "input load_torque_pu", [&]() { return plant_model.get_inputs().load_torque_pu.read(); }));
@@ -629,13 +605,13 @@ static inline void register_complete_plant_model_logger(yeet::simulator& simulat
     register_minimal_plant_model_logger(simulator, plant_model);
 
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
-        group + "output_grid_voltage", [&]() { return plant_model.get_outputs().grid_voltage.read(); }));
+        group + "output grid_voltage", [&]() { return plant_model.get_outputs().grid_voltage.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
-        group + "output_grid_current", [&]() { return plant_model.get_outputs().grid_current.read(); }));
+        group + "output grid_current", [&]() { return plant_model.get_outputs().grid_current.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
-        group + "output_machine_voltage", [&]() { return plant_model.get_outputs().machine_voltage.read(); }));
+        group + "output machine_voltage", [&]() { return plant_model.get_outputs().machine_voltage.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
-        group + "output_machine_current", [&]() { return plant_model.get_outputs().machine_current.read(); }));
+        group + "output machine_current", [&]() { return plant_model.get_outputs().machine_current.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output grid_voltage_source_angle",
         [&]() { return plant_model.get_outputs().grid_voltage_source_angle.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output machine_voltage_source_angle",

@@ -112,14 +112,14 @@ private:
     /**
      * @brief Internal state update structure for pulse mode operation.
      */
-    struct pulse_mode_state_update {
+    struct forced_commutation_state_update {
         grid_side_modulator_state_t new_state;
         angle_t new_firing_angle;
         bool new_force_commutation_acknowledged;
         bool new_main_pi_reset_requested;
     };
 
-    pulse_mode_state_update compute_pulse_mode_state_update(
+    forced_commutation_state_update compute_forced_commutation_state_update(
         bool request_force_commutation, bool dc_link_current_is_zero, angle_t firing_angle) const noexcept;
 
     // Configuration parameters

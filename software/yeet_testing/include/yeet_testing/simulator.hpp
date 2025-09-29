@@ -32,6 +32,12 @@ public:
 #endif
     }
 
+    template <typename T>
+    void register_runner(T& runner)
+    {
+        register_lambda_runner(runner.get_sampling_time(), [&]() { runner.run(); });
+    }
+
     void register_lambda_runner(double sampling_time, std::function<void()> lambda_runner)
     {
         _runner.register_lambda_runner(sampling_time, std::move(lambda_runner));

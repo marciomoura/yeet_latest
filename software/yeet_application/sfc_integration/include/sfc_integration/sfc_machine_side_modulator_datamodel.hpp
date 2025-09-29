@@ -71,7 +71,7 @@ public:
         /// Fixed firing angle for pulse mode operation
         /// Range: [0.0, π] radians
         /// Default: π radians (180°)
-        parameter<angle_wrapped> pulse_mode_firing_angle = angle_wrapped(pi);  // 180°
+        parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);  // 180°
     };
 
 private:

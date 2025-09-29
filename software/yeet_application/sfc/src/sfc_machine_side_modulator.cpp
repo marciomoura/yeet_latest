@@ -40,7 +40,7 @@ void sfc_machine_side_modulator::update(bool enable,
 
     // Select firing angle based on operating mode
     switch (operating_mode) {
-        case sfc_operating_mode_t::load_commutated:
+        case sfc_operating_mode_t::natural_commutation:
             // Natural commutation mode: pass through the machine firing angle
             _current_firing_angle_rad = firing_angle_rad;
             _release_pulses = true;              // Always release pulses in natural commutation
@@ -48,9 +48,9 @@ void sfc_machine_side_modulator::update(bool enable,
             _commutation_state = machine_side_commutation_state_t::running;
             break;
 
-        case sfc_operating_mode_t::pulse_mode:
+        case sfc_operating_mode_t::forced_commutation:
             // Forced commutation mode: calculate position-based firing angle and manage handshake
-            _current_firing_angle_rad = _pulse_mode_firing_angle_rad;
+            _current_firing_angle_rad = _forced_commutation_firing_angle_rad;
 
             // Compute the forced commutation outputs
             const forced_commutation_outputs outputs =

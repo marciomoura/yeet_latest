@@ -83,10 +83,10 @@ public:
     bool is_enabled() const;
 
 private:
-    real_t _sampling_time;          ///< System sampling time in seconds.
-    real_t _max_change_per_sample;  ///< The maximum allowed change in one sample.
-    real_t _current_output;         ///< The current output value of the limiter.
-    bool _enabled;                  ///< Enable/disable flag for rate limiting.
+    real_t _sampling_time;               ///< System sampling time in seconds.
+    real_t _max_change_per_sample{1e6};  ///< The maximum allowed change in one sample.
+    real_t _current_output{};            ///< The current output value of the limiter.
+    bool _enabled{};                     ///< Enable/disable flag for rate limiting.
 };
 
 }  // namespace yeet::control

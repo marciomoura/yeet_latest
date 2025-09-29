@@ -7,15 +7,16 @@ target_sources(
     ${PROJECT_NAME}
     PRIVATE
         include/sfc_integration/plant_hardware_definition.hpp
-        include/sfc_integration/plant_complete_sfc_closed_loop.hpp
-        include/sfc_integration/plant_sensorless_current_control_closed_loop.hpp
-        include/sfc_integration/plant_sensorless_current_control_closed_loop_mocked_hardware.hpp
-        include/sfc_integration/plant_sensorless_speed_control_closed_loop.hpp
-        include/sfc_integration/plant_sensorless_speed_control_closed_loop_mocked_hardware.hpp
-        include/sfc_integration/plant_simplified_current_control_mocked_hardware.hpp
-        include/sfc_integration/plant_simplified_current_control.hpp
-        include/sfc_integration/plant_simplified_open_loop.hpp
-        include/sfc_integration/plant_simplified_speed_control.hpp
+        include/sfc_integration/plant_complete_sfc_closed_loop_simulation_builder.hpp
+        include/sfc_integration/plant_current_control_with_modulators_simulation_builder.hpp
+        include/sfc_integration/plant_open_loop_simulation_builder.hpp
+        include/sfc_integration/plant_sensorless_current_control_mocked_hardware_simulation_builder.hpp
+        include/sfc_integration/plant_sensorless_current_control_simulation_builder.hpp
+        include/sfc_integration/plant_sensorless_speed_control_mocked_hardware_simulation_builder.hpp
+        include/sfc_integration/plant_sensorless_speed_control_simulation_builder.hpp
+        include/sfc_integration/plant_simplified_current_control_mocked_hardware_simulation_builder.hpp
+        include/sfc_integration/plant_simplified_current_control_simulation_builder.hpp
+        include/sfc_integration/plant_speed_control_simulation_builder.hpp
         include/sfc_integration/sfc_current_controller_datamodel.hpp
         include/sfc_integration/sfc_current_controller_runner.hpp
         include/sfc_integration/sfc_dc_link_measurements_datamodel.hpp

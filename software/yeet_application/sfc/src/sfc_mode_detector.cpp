@@ -25,24 +25,24 @@ void sfc_mode_detector::update(bool enable, speed_pu_t measured_speed_pu) noexce
     _previous_mode = _current_mode;
 
     if (!enable) {
-        _current_mode = sfc_operating_mode_t::pulse_mode;
+        _current_mode = sfc_operating_mode_t::forced_commutation;
         _speed_limiter.reset();
     }
     else {
         _speed_limiter.update(measured_speed_pu.value());
         if (_speed_limiter.get_output()) {
-            _current_mode = sfc_operating_mode_t::load_commutated;
+            _current_mode = sfc_operating_mode_t::natural_commutation;
         }
         else {
-            _current_mode = sfc_operating_mode_t::pulse_mode;
+            _current_mode = sfc_operating_mode_t::forced_commutation;
         }
     }
 }
 
 void sfc_mode_detector::reset()
 {
-    _current_mode = sfc_operating_mode_t::pulse_mode;
-    _previous_mode = sfc_operating_mode_t::pulse_mode;
+    _current_mode = sfc_operating_mode_t::forced_commutation;
+    _previous_mode = sfc_operating_mode_t::forced_commutation;
     _speed_limiter.reset();
     update_limiter_thresholds();
 }

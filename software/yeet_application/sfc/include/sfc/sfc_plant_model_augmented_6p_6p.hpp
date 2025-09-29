@@ -148,6 +148,47 @@ public:
      */
     void set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms);
 
+    // ==================== Per-Unit Runtime Setters (Grid) ====================
+    void set_grid_voltage_pu(voltage_pu_t v_pu) noexcept;
+    void set_grid_frequency_pu(frequency_pu_t f_pu) noexcept;
+    void set_grid_operating_point(voltage_pu_t v_pu, frequency_pu_t f_pu) noexcept;
+
+    // ==================== Per-Unit Runtime Setters (Machine) ====================
+    void set_machine_voltage_pu(voltage_pu_t v_pu) noexcept;
+    void set_machine_frequency_pu(frequency_pu_t f_pu) noexcept;
+    void set_machine_operating_point(voltage_pu_t v_pu, frequency_pu_t f_pu) noexcept;
+
+    // ==================== Granular Frequency / Voltage Setters (New) ====================
+    /**
+     * @brief Sets only the grid frequency (voltage preserved / or override value if enabled).
+     */
+    void set_grid_frequency(frequency_t frequency_hz);
+
+    /**
+     * @brief Sets only the grid RMS line voltage (frequency preserved / or override value if enabled).
+     */
+    void set_grid_voltage(voltage_t voltage_rms);
+
+    /**
+     * @brief Sets only the machine electrical frequency (subject to override semantics).
+     * If machine frequency override is enabled this value persists; otherwise it may be
+     * overwritten by variable-speed mode updates.
+     */
+    void set_machine_frequency(frequency_t frequency_hz);
+
+    /**
+     * @brief Sets only the machine RMS line voltage (subject to override semantics).
+     * If machine voltage override is enabled this value persists; otherwise it may be
+     * overwritten by speed-dependent voltage control each update.
+     */
+    void set_machine_voltage(voltage_t voltage_rms);
+
+    /**
+     * @brief Reset dynamic sub-models (mechanical + voltage relationship) and clear overrides.
+     * Equivalent to initialize() for internal state but keeps configured parameters.
+     */
+    void reset();
+
     /**
      * @brief Sets the machine's operational mode (fixed or variable speed).
      * @param mode The desired operation mode.
@@ -210,6 +251,12 @@ public:
     plant_model_machine_operation_mode get_operation_mode() const noexcept;
     plant_model_voltage_control_mode get_voltage_control_mode() const noexcept;
 
+    // ==================== Per-Unit Runtime Getters ====================
+    voltage_pu_t get_grid_voltage_pu() const noexcept;
+    voltage_pu_t get_machine_voltage_pu() const noexcept;
+    frequency_pu_t get_grid_frequency_pu() const noexcept;
+    frequency_pu_t get_machine_frequency_pu() const noexcept;
+
 private:
     /**
      * @brief Creates default electrical parameters for 6p-6p topology.
@@ -243,6 +290,24 @@ private:
      * @brief Updates the plant model parameters with computed frequency and voltage.
      */
     void update_plant_parameters();
+
+    // ==================== Resolution Helpers ====================
+    frequency_t resolve_machine_frequency() const noexcept;  // effective machine electrical frequency
+    voltage_t resolve_machine_voltage() const noexcept;      // effective machine RMS volts
+    frequency_t resolve_grid_frequency() const noexcept;     // effective grid electrical frequency
+    voltage_t resolve_grid_voltage() const noexcept;         // effective grid RMS volts
+
+    // ==================== Nominal Bases (immutable after construct unless reconfigured) ====================
+    voltage_t _nominal_grid_voltage_rms{};
+    voltage_t _nominal_machine_voltage_rms{};
+    frequency_t _nominal_grid_frequency{};
+    frequency_t _nominal_machine_frequency{};
+
+    // ==================== Runtime Per-Unit Scalars ====================
+    voltage_pu_t _grid_voltage_pu{voltage_pu_t{1.0f}};
+    voltage_pu_t _machine_voltage_pu{voltage_pu_t{1.0f}};
+    frequency_pu_t _grid_frequency_pu{frequency_pu_t{1.0f}};
+    frequency_pu_t _machine_frequency_pu{frequency_pu_t{1.0f}};  // used only when not variable_speed
 
     torque_pu_t _load_torque_pu = torque_pu_t{0.0};  // Current load torque in per-unit
 

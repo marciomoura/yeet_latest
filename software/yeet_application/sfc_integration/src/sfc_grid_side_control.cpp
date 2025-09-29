@@ -72,8 +72,8 @@ void sfc_grid_side_control::connect_internal_signals()
         grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
 
     // DC link measurement → Current controller
-    signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_filtered_pu,
-        current_controller.get_inputs().dc_link_current_measured);
+    signals_connector::connect_output_to_input(
+        dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
 
     // Current controller → Modulator
     signals_connector::connect_output_to_input(

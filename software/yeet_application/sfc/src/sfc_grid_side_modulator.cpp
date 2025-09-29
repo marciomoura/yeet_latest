@@ -30,7 +30,7 @@ void sfc_grid_side_modulator::update(bool enable,
 
     // Operating mode determines behavior - similar to machine-side modulator pattern
     switch (operating_mode) {
-        case sfc_operating_mode_t::load_commutated:
+        case sfc_operating_mode_t::natural_commutation:
             // Natural commutation mode: ignore force commutation requests, always pass through PI angle
             _current_state = grid_side_modulator_state_t::running;
             _current_firing_angle_rad = firing_angle;
@@ -38,10 +38,10 @@ void sfc_grid_side_modulator::update(bool enable,
             _main_pi_reset_requested = false;
             break;
 
-        case sfc_operating_mode_t::pulse_mode: {
+        case sfc_operating_mode_t::forced_commutation: {
             // Forced commutation mode: respond to force commutation requests
-            const auto state_update =
-                compute_pulse_mode_state_update(request_force_commutation, dc_link_current_is_zero, firing_angle);
+            const auto state_update = compute_forced_commutation_state_update(
+                request_force_commutation, dc_link_current_is_zero, firing_angle);
 
             _current_state = state_update.new_state;
             _current_firing_angle_rad = state_update.new_firing_angle;
@@ -51,10 +51,11 @@ void sfc_grid_side_modulator::update(bool enable,
         }
     }
 }
-sfc_grid_side_modulator::pulse_mode_state_update sfc_grid_side_modulator::compute_pulse_mode_state_update(
+sfc_grid_side_modulator::forced_commutation_state_update
+sfc_grid_side_modulator::compute_forced_commutation_state_update(
     bool request_force_commutation, bool dc_link_current_is_zero, angle_t firing_angle) const noexcept
 {
-    sfc_grid_side_modulator::pulse_mode_state_update state_update{};
+    sfc_grid_side_modulator::forced_commutation_state_update state_update{};
 
     switch (_current_state) {
         case grid_side_modulator_state_t::running:

@@ -11,7 +11,6 @@
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
 
@@ -37,9 +36,11 @@ namespace yeet::application::sfc::integration {
  * Plant → Raw Measurements → Observers → Estimated Values → Speed Controller → Current Controller → Pulse Generators →
  * Plant
  */
-class sfc_sensorless_speed_controller_simulation_builder {
+class plant_sensorless_speed_control_simulation_builder {
 public:
-    sfc_sensorless_speed_controller_simulation_builder()
+    static constexpr std::string_view name = "PlantSensorlessSpeedControl";
+
+    plant_sensorless_speed_control_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
           plant{_per_unit_system},
           grid_measurements{_per_unit_system},
@@ -83,34 +84,18 @@ public:
 
     void register_applications(yeet::simulator& simulator)
     {
-        // Register all runners with their respective sampling times
-        simulator.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
-
-        simulator.register_lambda_runner(grid_measurements.get_sampling_time(), [&]() { grid_measurements.run(); });
-
-        simulator.register_lambda_runner(
-            machine_measurements.get_sampling_time(), [&]() { machine_measurements.run(); });
-
-        simulator.register_lambda_runner(
-            dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
-
-        simulator.register_lambda_runner(grid_side_observer.get_sampling_time(), [&]() { grid_side_observer.run(); });
-
-        simulator.register_lambda_runner(
-            machine_side_observer.get_sampling_time(), [&]() { machine_side_observer.run(); });
-
-        simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() { speed_controller.run(); });
-
-        simulator.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
-
-        simulator.register_lambda_runner(
-            machine_side_controller.get_sampling_time(), [&]() { machine_side_controller.run(); });
-
-        simulator.register_lambda_runner(
-            grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
-
-        simulator.register_lambda_runner(
-            machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
+        // Register all runners directly (sampling time encapsulated in each runner)
+        simulator.register_runner(plant);
+        simulator.register_runner(grid_measurements);
+        simulator.register_runner(machine_measurements);
+        simulator.register_runner(dc_link_measurements);
+        simulator.register_runner(grid_side_observer);
+        simulator.register_runner(machine_side_observer);
+        simulator.register_runner(speed_controller);
+        simulator.register_runner(current_controller);
+        simulator.register_runner(machine_side_controller);
+        simulator.register_runner(grid_side_pulse_generator);
+        simulator.register_runner(machine_side_pulse_generator);
     }
 
     // Public members for direct access

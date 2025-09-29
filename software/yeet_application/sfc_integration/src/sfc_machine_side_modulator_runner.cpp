@@ -43,13 +43,13 @@ void sfc_machine_side_modulator_runner::stop() { _sfc_machine_side_modulator.res
 void sfc_machine_side_modulator_runner::set_parameters()
 {
     // Configure pulse mode firing angle
-    // const angle_t pulse_angle = _parameters.pulse_mode_firing_angle.read();
-    // _sfc_machine_side_modulator.configure_pulse_mode_firing_angle_rad(pulse_angle);
+    // const angle_t pulse_angle = _parameters.forced_commutation_firing_angle.read();
+    // _sfc_machine_side_modulator.configure_forced_commutation_firing_angle_rad(pulse_angle);
 }
 
 void sfc_machine_side_modulator_runner::set_parameter_callback()
 {
-    _parameters.pulse_mode_firing_angle.register_callback([&]() { set_parameters(); });
+    _parameters.forced_commutation_firing_angle.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

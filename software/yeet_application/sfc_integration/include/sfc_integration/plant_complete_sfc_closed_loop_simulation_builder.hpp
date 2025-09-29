@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include "sfc_integration/sfc_grid_side_control.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
@@ -32,9 +34,11 @@ using sfc_complete_sfc_closed_loop_parameters = yeet::parameter_collection<sfc_p
  * Signal Flow:
  * Plant → Control Classes → Observers → Controllers → Modulators → Pulse Generators → Plant
  */
-class sfc_complete_sfc_closed_loop_simulation_builder {
+class plant_complete_sfc_closed_loop_simulation_builder {
 public:
-    sfc_complete_sfc_closed_loop_simulation_builder()
+    static constexpr std::string_view name = "PlantCompleteSFCClosedLoop";
+
+    plant_complete_sfc_closed_loop_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
           grid_side_control{_per_unit_system},
           machine_side_control{_per_unit_system},

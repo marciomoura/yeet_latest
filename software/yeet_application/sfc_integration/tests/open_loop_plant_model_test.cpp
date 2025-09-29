@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sfc_integration/plant_simplified_open_loop.hpp"
+#include "sfc_integration/plant_open_loop_simulation_builder.hpp"
 #include "sfc_loggers.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -34,7 +34,7 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    yeet::application::sfc::integration::sfc_open_loop_simulation_builder system;
+    yeet::application::sfc::integration::plant_open_loop_simulation_builder system;
 
     yeet::simulator simulator = yeet::make_gtest_simulator();
 };

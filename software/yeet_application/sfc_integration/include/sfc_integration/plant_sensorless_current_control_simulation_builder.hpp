@@ -3,38 +3,43 @@
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
+#include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
+#include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
-#include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet/signal.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc::integration {
 
-// ==================== Speed Controller Simulation Builder ====================
+// ==================== Sensorless Current Controller Simulation Builder ====================
 
 /**
- * @brief Speed controller simulation builder with cascaded speed and current control
+ * @brief Sensorless current controller simulation builder with observers
  *
  * This configuration provides:
  * - Plant model with augmented 6p-6p topology
- * - Cascaded speed and current controller (speed outer loop, current inner loop)
- * - Grid-side current controller with firing angle control
- * - Machine-side lookup table controller for firing angle calculation
- * - Complete measurement and filtering chain
+ * - Grid-side and machine-side observers for sensorless estimation
+ * - Grid-side current controller with firing angle control using estimated values
+ * - Machine-side lookup table controller using estimated speed
+ * - Complete measurement and filtering chain (raw measurements for observers)
+ * - Observer-based feedback instead of direct measurements
  * - Per-unit system for proper scaling
- * - Simplified configuration without observers, state machine, or modulators
+ * - Simplified configuration without state machine, modulators, or speed controller
  *
  * Signal Flow:
- * Plant → Raw Measurements → Speed Controller → Current Controller → Pulse Generators → Plant
+ * Plant → Raw Measurements → Observers → Estimated Values → Controllers → Pulse Generators → Plant
  */
-class sfc_speed_controller_simulation_builder {
+class plant_sensorless_current_control_simulation_builder {
 public:
-    sfc_speed_controller_simulation_builder()
+    static constexpr std::string_view name = "PlantSensorlessCurrentControl";
+
+    plant_sensorless_current_control_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
           plant{_per_unit_system},
           grid_measurements{_per_unit_system},
@@ -42,7 +47,7 @@ public:
           dc_link_measurements{_per_unit_system},
           current_controller(_per_unit_system)
     {
-        // Connect all components
+        // Connect all components with observer-based feedback
         connect_all_components();
         mock_inputs();
     }
@@ -52,8 +57,6 @@ public:
         // Mock control signals for standalone testing
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
         yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().modulator_freeze_integrator, false);
 
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
@@ -67,7 +70,8 @@ public:
         grid_measurements.initialize();
         machine_measurements.initialize();
         dc_link_measurements.initialize();
-        speed_controller.initialize();
+        grid_side_observer.initialize();
+        machine_side_observer.initialize();
         current_controller.initialize();
         machine_side_controller.initialize();
         grid_side_pulse_generator.initialize();
@@ -76,21 +80,17 @@ public:
 
     void register_applications(yeet::simulator& simulator)
     {
-        // Register all runners with their respective sampling times
-        simulator.register_lambda_runner(plant.get_sampling_time(), [&]() { plant.run(); });
-        simulator.register_lambda_runner(grid_measurements.get_sampling_time(), [&]() { grid_measurements.run(); });
-        simulator.register_lambda_runner(
-            machine_measurements.get_sampling_time(), [&]() { machine_measurements.run(); });
-        simulator.register_lambda_runner(
-            dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
-        simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() { speed_controller.run(); });
-        simulator.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
-        simulator.register_lambda_runner(
-            machine_side_controller.get_sampling_time(), [&]() { machine_side_controller.run(); });
-        simulator.register_lambda_runner(
-            grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
-        simulator.register_lambda_runner(
-            machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
+        // Register all runners directly in execution order
+        simulator.register_runner(plant);
+        simulator.register_runner(grid_measurements);
+        simulator.register_runner(machine_measurements);
+        simulator.register_runner(dc_link_measurements);
+        simulator.register_runner(grid_side_observer);
+        simulator.register_runner(machine_side_observer);
+        simulator.register_runner(current_controller);
+        simulator.register_runner(machine_side_controller);
+        simulator.register_runner(grid_side_pulse_generator);
+        simulator.register_runner(machine_side_pulse_generator);
     }
 
     void register_datamodel(yeet::model_registry& registry)
@@ -100,7 +100,8 @@ public:
         grid_measurements.register_datamodel(registry);
         machine_measurements.register_datamodel(registry);
         dc_link_measurements.register_datamodel(registry);
-        speed_controller.register_datamodel(registry);
+        grid_side_observer.register_datamodel(registry);
+        machine_side_observer.register_datamodel(registry);
         current_controller.register_datamodel(registry);
         machine_side_controller.register_datamodel(registry);
         grid_side_pulse_generator.register_datamodel(registry);
@@ -111,15 +112,18 @@ public:
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
     // Control components
-    sfc_speed_controller_runner speed_controller;
     sfc_current_controller_runner current_controller;
     sfc_machine_side_controller_runner machine_side_controller;
+
+    // Observer components (key addition for sensorless operation)
+    sfc_grid_side_observer_runner grid_side_observer;
+    sfc_machine_side_observer_runner machine_side_observer;
 
     // Pulse generators
     sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
 
-    // Measurements and filtering
+    // Measurements and filtering (raw measurements for observers)
     sfc_grid_side_measurements_ideal_runner grid_measurements;
     sfc_machine_side_measurements_ideal_runner machine_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
@@ -129,35 +133,37 @@ public:
 
     // External control signals
     signal_output<torque_pu_t> load_torque_pu;
-    signal_output<speed_pu_t> speed_reference_pu;
-    signal_output<bool> enable_speed_control;
-    signal_output<current_pu_t> external_current_reference_pu;
+    signal_output<current_pu_t> dc_link_current_reference;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
     {
-        return std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid voltage RMS
-            frequency_t(50.0),                                                // Grid frequency
-            current_t(1044.0),                                                // DC link current base
-            power_t(2950e3),                                                  // Machine power
-            voltage_t(1980.0),                                                // Machine voltage RMS
-            frequency_t(50.0),                                                // Machine frequency
-            2                                                                 // Number of poles
+        // Standard per-unit system for SFC applications
+        // Grid side: 2090V RMS, 50Hz, DC link: 1044A, Machine: 1980V RMS, 2950kW
+        return std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid line-to-line voltage (V RMS)
+            frequency_t(50.0),                                                // Grid frequency (Hz)
+            current_t(1044.0),                                                // DC link current base (A)
+            power_t(2950e3),                                                  // Rated power (W)
+            voltage_t(1980.0),                                                // Machine line-to-line voltage (V RMS)
+            frequency_t(50.0),                                                // Machine base frequency (Hz)
+            2                                                                 // Number of pole pairs
         );
     }
 
     void connect_all_components()
     {
-        // ==================== Plant Model → Measurements ====================
-        // Connect raw plant outputs to measurement system inputs
+        // ==================== Plant Model → Raw Measurements ====================
+        // Connect plant outputs to measurement components
 
         // Grid measurements: Raw grid voltages and currents from plant
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage, grid_measurements.get_inputs().grid_voltage_measurements);
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_current, grid_measurements.get_inputs().grid_current_measurements);
+
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
+
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
         signals_connector::connect_output_to_input(
@@ -168,8 +174,10 @@ private:
             plant.get_outputs().machine_voltage, machine_measurements.get_inputs().machine_voltage_measurements);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_current, machine_measurements.get_inputs().machine_current_measurements);
+
         signals_connector::connect_output_to_input(
             machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
+
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage_source_angle, machine_measurements.get_inputs().machine_side_angle);
         signals_connector::connect_output_to_input(
@@ -179,40 +187,43 @@ private:
         signals_connector::connect_output_to_input(
             grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
 
-        // ==================== Speed Measurements → Speed Controller ====================
-        // Connect speed measurements to speed controller feedback
+        // ==================== Raw Measurements → Observers ====================
+        // Connect filtered measurements to observers for estimation
 
-        // Machine speed feedback (from machine measurements)
+        // Grid side observer inputs: filtered grid voltage and firing pulses
         signals_connector::connect_output_to_input(
-            machine_measurements.get_outputs().machine_side_speed, speed_controller.get_inputs().measured_speed_pu);
+            grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_pu);
 
-        // ==================== Speed Controller → Current Controller ====================
-        // Connect speed controller output to current controller reference (cascade control)
+        // Machine side observer inputs: filtered machine voltage and firing pulses
+        signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_abc,
+            machine_side_observer.get_inputs().machine_voltage_pu);
 
-        // Current reference from speed controller to current controller
-        signals_connector::connect_output_to_input(speed_controller.get_outputs().current_reference,
-            current_controller.get_inputs().dc_link_current_reference);
+        // ==================== Observers → Current Controller ====================
+        // Connect observer-estimated values to current controller (key difference from direct measurement)
 
-        // ==================== DC Link Measurements → Current Controller ====================
-        // Connect DC link current feedback to current controller
+        // DC link current feedback (still use direct measurement as it's most reliable)
+        signals_connector::connect_output_to_input(
+            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
 
-        // DC link current feedback (primary feedback signal for current loop)
-        signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_filtered_pu,
-            current_controller.get_inputs().dc_link_current_measured);
+        // Feedforward signals from observers instead of direct measurements
+        signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
+            current_controller.get_inputs().grid_side_voltage_magnitude);
+        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
+            current_controller.get_inputs().machine_side_voltage_magnitude);
 
         // Mock the modulator freeze integrator signal for this simplified configuration
         yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
 
-        // ==================== Speed Controller → Machine Side Controller ====================
-        // Connect speed controller output and speed to machine side controller for lookup table
+        // ==================== Observers → Machine Side Controller ====================
+        // Connect observer-estimated speed to machine side controller for lookup table
 
-        // DC link current reference for lookup table input
-        signals_connector::connect_output_to_input(
-            speed_controller.get_outputs().current_reference, machine_side_controller.get_inputs().dc_link_current);
+        // DC link current for lookup table input (direct measurement)
+        signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_heavy_filtered_pu,
+            machine_side_controller.get_inputs().dc_link_current);
 
-        // Machine speed for lookup table input
+        // Machine speed from observer instead of direct measurement
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_speed, machine_side_controller.get_inputs().machine_speed);
+            machine_side_observer.get_outputs().estimated_speed, machine_side_controller.get_inputs().machine_speed);
 
         // ==================== Current Controller → Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control
@@ -230,8 +241,6 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
-
-        // Load torque input to plant model
         signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
 
         signals_connector::connect_output_to_input(
@@ -241,33 +250,22 @@ private:
             machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
-        // Connect reference angles from plant model to pulse generators for synchronization
+        // For sensorless operation, use observer-estimated angles instead of direct plant angles
 
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_side_pulse_generator.get_inputs().reference_angle);
-        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+        // Grid side: Use observer-estimated angle for pulse generator synchronization
+        signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_position,
+            grid_side_pulse_generator.get_inputs().reference_angle);
+
+        // Machine side: Use observer-estimated position for pulse generator synchronization
+        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_position,
             machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== External Control Signals ====================
-        // Connect external control signals to speed controller inputs
+        // Connect external control signals to current controller inputs
 
-        // Speed reference command (setpoint for outer loop)
+        // Current reference command (setpoint)
         signals_connector::connect_output_to_input(
-            speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
-
-        // Speed control enable/disable
-        signals_connector::connect_output_to_input(
-            enable_speed_control, speed_controller.get_inputs().enable_speed_control);
-
-        signals_connector::connect_output_to_input(current_controller.get_outputs().current_controller_is_saturated,
-            speed_controller.get_inputs().current_controller_is_saturated);
-
-        // Feedforward signals for improved current control performance
-        signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
-        signals_connector::connect_output_to_input(
-            machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            dc_link_current_reference, current_controller.get_inputs().dc_link_current_reference);
     }
 };
 

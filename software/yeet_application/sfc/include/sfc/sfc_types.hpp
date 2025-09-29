@@ -17,7 +17,7 @@ enum class sfc_operating_mode_t {
      * natural thyristor commutation. This is the high-efficiency operating mode
      * for speeds typically above 10% of nominal.
      */
-    load_commutated,
+    natural_commutation,
 
     /**
      * @brief Startup operation with forced commutation.
@@ -26,7 +26,7 @@ enum class sfc_operating_mode_t {
      * for natural commutation. The system uses forced commutation techniques
      * to control thyristor switching.
      */
-    pulse_mode
+    forced_commutation
 };
 
 }  // namespace yeet::application::sfc

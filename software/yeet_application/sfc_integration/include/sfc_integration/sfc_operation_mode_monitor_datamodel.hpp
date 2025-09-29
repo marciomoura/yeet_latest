@@ -35,7 +35,7 @@ public:
      * @brief Output signals from the operation mode monitor.
      */
     struct outputs {
-        /// @brief The current operating mode (pulse_mode or load_commutated).
+        /// @brief The current operating mode (forced_commutation or natural_commutation).
         signal_output<sfc_operating_mode_t> operating_mode;
 
         /// @brief True for one cycle immediately after an operating mode transition.

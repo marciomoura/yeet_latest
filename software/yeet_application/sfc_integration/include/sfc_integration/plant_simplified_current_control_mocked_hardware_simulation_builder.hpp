@@ -16,9 +16,11 @@
 
 namespace yeet::application::sfc::integration {
 
-class plant_simplified_current_control_mocked_hardware {
+class plant_simplified_current_control_mocked_hardware_simulation_builder {
 public:
-    plant_simplified_current_control_mocked_hardware()
+    static constexpr std::string_view name = "PlantSimplifiedCurrentControlMockedHardware";
+
+    plant_simplified_current_control_mocked_hardware_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
           plant{_per_unit_system},
           grid_side_hardware_mock{duration_t{10e-6}},
@@ -57,26 +59,16 @@ public:
 
     void register_applications(yeet::simulator& sim)
     {
-        sim.register_lambda_runner(plant.get_sampling_time(), [&]() {
-            plant.run();
-            grid_side_hardware_mock.run();
-            machine_side_hardware_mock.run();
-        });
-
-        sim.register_lambda_runner(grid_measurements.get_sampling_time(), [&]() {
-            grid_measurements.run();
-            machine_measurements.run();
-            dc_link_measurements.run();
-        });
-
-        sim.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
-
-        sim.register_lambda_runner(
-            machine_side_controller.get_sampling_time(), [&]() { machine_side_controller.run(); });
-        sim.register_lambda_runner(
-            grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
-        sim.register_lambda_runner(
-            machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
+        sim.register_runner(plant);
+        sim.register_runner(grid_side_hardware_mock);
+        sim.register_runner(machine_side_hardware_mock);
+        sim.register_runner(grid_measurements);
+        sim.register_runner(machine_measurements);
+        sim.register_runner(dc_link_measurements);
+        sim.register_runner(current_controller);
+        sim.register_runner(machine_side_controller);
+        sim.register_runner(grid_side_pulse_generator);
+        sim.register_runner(machine_side_pulse_generator);
     }
 
     void register_datamodel(yeet::model_registry& registry)
@@ -185,8 +177,8 @@ private:
             grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
 
         // DC link → controllers
-        signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_filtered_pu,
-            current_controller.get_inputs().dc_link_current_measured);
+        signals_connector::connect_output_to_input(
+            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
         signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_heavy_filtered_pu,
             machine_side_controller.get_inputs().dc_link_current);
 

@@ -83,8 +83,13 @@ public:
         assert(_json_data["test_suite"].is_string() && _json_data["test_name"].is_string() &&
                _json_data["test_data"].is_array());
 
-        std::string const filename = "testing_" + _json_data["test_suite"].get<std::string>() + "_" +
-                                     _json_data["test_name"].get<std::string>() + ".json";
+        const std::string suite_raw = _json_data["test_suite"].get<std::string>();
+        const std::string name_raw = _json_data["test_name"].get<std::string>();
+
+        const std::string suite = sanitize_filename(suite_raw);
+        const std::string test = sanitize_filename(name_raw);
+
+        std::string const filename = "testing_" + suite + "_" + test + ".json";
 
         std::filesystem::path const path = std::filesystem::current_path() / filename;
 
@@ -92,6 +97,13 @@ public:
     }
 
     void write_to_file(std::filesystem::path const& path) const { dump_json_to_file(_json_data, path); }
+
+    // Sanitize filename by replacing invalid characters with underscores
+    static std::string sanitize_filename(std::string filename)
+    {
+        std::replace_if(filename.begin(), filename.end(), [](char c) { return !std::isalnum(c) && c != '_'; }, '_');
+        return filename;
+    }
 
     // New method to get the JSON data (useful for testing or custom file handling)
     const nlohmann::json& get_json_data() const { return _json_data; }
@@ -138,7 +150,7 @@ private:
         try {
             std::ofstream file(path);
             if (!file.is_open()) {
-                throw std::ios_base::failure("Unable to open file");
+                throw std::ios_base::failure("Unable to open file " + path.string());
             }
             file << json_data.dump();
             file.close();

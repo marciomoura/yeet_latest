@@ -41,19 +41,19 @@ public:
     /**
      * @brief Updates the mode detector with the current machine speed.
      *
-     * @param enable System enable signal. When false, defaults to pulse_mode.
+     * @param enable System enable signal. When false, defaults to forced_commutation.
      * @param measured_speed_pu Current machine speed in per-unit.
      */
     void update(bool enable, speed_pu_t measured_speed_pu) noexcept;
 
     /**
-     * @brief Resets the mode detector to its initial state (pulse_mode).
+     * @brief Resets the mode detector to its initial state (forced_commutation).
      */
     void reset();
 
     /**
      * @brief Gets the current detected operating mode.
-     * @return The current operating mode (load_commutated or pulse_mode).
+     * @return The current operating mode (natural_commutation or forced_commutation).
      */
     [[nodiscard]] sfc_operating_mode_t get_operating_mode() const noexcept;
 
@@ -69,8 +69,8 @@ private:
     real_t _hysteresis_factor{0.05f};
 
     // Internal state
-    sfc_operating_mode_t _current_mode{sfc_operating_mode_t::pulse_mode};
-    sfc_operating_mode_t _previous_mode{sfc_operating_mode_t::pulse_mode};
+    sfc_operating_mode_t _current_mode{sfc_operating_mode_t::forced_commutation};
+    sfc_operating_mode_t _previous_mode{sfc_operating_mode_t::forced_commutation};
     control::hysteresis_limiter _speed_limiter;
 
     /**

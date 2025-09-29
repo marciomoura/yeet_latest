@@ -37,6 +37,8 @@ option(
     YEET_PRECISION_DOUBLE
     "Use double precision for floating-point types (because we like it precise 💎)"
     ON)
+# Option to disable data logging for faster CI execution
+option(YEET_ENABLE_DATA_LOGGING "Enable JSON data logging for simulations" ON)
 
 # Set output directories before any targets are created (keeping it organized
 # bestie)
@@ -71,6 +73,10 @@ else()
         STATUS
             "yeet build-config: Single precision enabled (for the speed demons 💨)"
     )
+endif()
+
+if(YEET_ENABLE_DATA_LOGGING)
+    add_compile_definitions(YEET_ENABLE_DATA_LOGGING)
 endif()
 
 # Generator-specific configuration - checking the fit

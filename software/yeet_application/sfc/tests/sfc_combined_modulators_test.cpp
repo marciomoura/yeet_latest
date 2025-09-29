@@ -30,7 +30,7 @@ protected:
     static constexpr duration_t sampling_time{100e-6};  // 100µs sampling time
     static constexpr angle_t test_pi_angle = deg_to_rad(45.0);
     static constexpr angle_t default_commutation_angle = deg_to_rad(150.0);
-    static constexpr angle_t pulse_mode_angle = deg_to_rad(180.0);
+    static constexpr angle_t forced_commutation_angle = deg_to_rad(180.0);
 
     // Helper function for cleaner test code
     constexpr angle_t deg_to_rad_helper(real_t degrees) const { return angle_t(degrees * pi / 180.0); }
@@ -79,9 +79,9 @@ TEST_F(SfcCombinedModulatorsTest, InitialStateCoherence)
 TEST_F(SfcCombinedModulatorsTest, LoadCommutatedModeNoInteraction)
 {
     // In load commutated mode, no handshake should occur even with sector changes
-    simulate_control_cycle(true, sfc_operating_mode_t::load_commutated, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::load_commutated, deg_to_rad_helper(70.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::load_commutated, deg_to_rad_helper(130.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::natural_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::natural_commutation, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::natural_commutation, deg_to_rad_helper(130.0), false);
 
     // Machine-side should never request commutation
     EXPECT_FALSE(machine_modulator->get_request_force_commutation());
@@ -103,7 +103,7 @@ TEST_F(SfcCombinedModulatorsTest, CompleteHandshakeSequence)
     // Test complete handshake with direct signal connections
 
     // Phase 1: Start in sector 0 - both modulators in running state
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
@@ -111,14 +111,14 @@ TEST_F(SfcCombinedModulatorsTest, CompleteHandshakeSequence)
     EXPECT_FALSE(machine_modulator->get_request_force_commutation());
 
     // Phase 2: Move to sector 1 - machine-side initiates commutation request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
     EXPECT_FALSE(machine_modulator->get_release_pulses());  // Machine blocks its pulses
     EXPECT_TRUE(machine_modulator->get_request_force_commutation());
 
     // Extra cycle for grid-side to see the request and respond
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     // Grid-side should enter forced commutation
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
@@ -126,20 +126,20 @@ TEST_F(SfcCombinedModulatorsTest, CompleteHandshakeSequence)
     EXPECT_EQ(grid_modulator->get_firing_angle_rad().value(), default_commutation_angle.value());
 
     // Phase 3: DC current reaches zero - grid-side acknowledges
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     EXPECT_TRUE(grid_modulator->get_force_commutation_acknowledged());
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Phase 4: Machine-side receives acknowledgment and clears request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_TRUE(machine_modulator->get_release_pulses());  // Machine releases pulses
     EXPECT_FALSE(machine_modulator->get_request_force_commutation());
 
     // Extra cycle for grid-side to see the cleared request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     // Grid-side should return to natural commutation
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
@@ -152,18 +152,18 @@ TEST_F(SfcCombinedModulatorsTest, IntermediateHandshakeStateWithRequestStillActi
     // Test the intermediate state where DC current is zero but request is still active
 
     // Start handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // DC current reaches zero, but machine-side hasn't seen acknowledgment yet
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     // This is the intermediate state - grid acknowledges but stays in forced commutation
     EXPECT_TRUE(grid_modulator->get_force_commutation_acknowledged());
@@ -171,13 +171,13 @@ TEST_F(SfcCombinedModulatorsTest, IntermediateHandshakeStateWithRequestStillActi
     EXPECT_TRUE(machine_modulator->get_request_force_commutation());  // Still requesting
 
     // Machine-side sees acknowledgment and clears request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_FALSE(machine_modulator->get_request_force_commutation());
 
     // Extra cycle for grid-side to see the cleared request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     // Grid-side transitions back to natural commutation
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
@@ -193,39 +193,39 @@ TEST_F(SfcCombinedModulatorsTest, ConsecutiveSectorChanges)
     // Test multiple consecutive sector changes
 
     // First commutation: Sector 0 → 1
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Complete first handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
 
     // Second commutation: Sector 1 → 2
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
     EXPECT_TRUE(machine_modulator->get_request_force_commutation());
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Complete second handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), true);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
@@ -251,27 +251,33 @@ TEST_F(SfcCombinedModulatorsTest, AllSectorTransitions)
         grid_modulator->reset();
 
         // Start in first sector
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(transition.first), false);
+        simulate_control_cycle(
+            true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(transition.first), false);
 
         EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running)
             << "Failed at transition " << i << " initial state";
 
         // Move to second sector
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(transition.second), false);
+        simulate_control_cycle(
+            true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(transition.second), false);
 
         EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack)
             << "Failed at transition " << i << " (" << transition.first << "° → " << transition.second << "°)";
         EXPECT_TRUE(machine_modulator->get_request_force_commutation());
 
         // Extra cycle for grid-side to see the request
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(transition.second), false);
+        simulate_control_cycle(
+            true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(transition.second), false);
 
         EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
         // Complete handshake
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(transition.second), true);
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(transition.second), true);
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(transition.second), true);
+        simulate_control_cycle(
+            true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(transition.second), true);
+        simulate_control_cycle(
+            true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(transition.second), true);
+        simulate_control_cycle(
+            true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(transition.second), true);
 
         EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running)
             << "Failed to complete transition " << i;
@@ -286,18 +292,18 @@ TEST_F(SfcCombinedModulatorsTest, AllSectorTransitions)
 TEST_F(SfcCombinedModulatorsTest, SystemDisableInterruptsHandshake)
 {
     // Start handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Disable system during handshake
-    simulate_control_cycle(false, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(false, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     // Machine-side should clear its state immediately
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
@@ -311,18 +317,18 @@ TEST_F(SfcCombinedModulatorsTest, SystemDisableInterruptsHandshake)
 TEST_F(SfcCombinedModulatorsTest, ModeChangeInterruptsHandshake)
 {
     // Start handshake in pulse mode
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_TRUE(machine_modulator->get_request_force_commutation());
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Switch to load commutated mode during handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::load_commutated, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::natural_commutation, deg_to_rad_helper(70.0), false);
 
     // Machine-side should clear commutation request immediately
     EXPECT_FALSE(machine_modulator->get_request_force_commutation());
@@ -337,17 +343,17 @@ TEST_F(SfcCombinedModulatorsTest, DelayedDcCurrentZeroDetection)
     // Test scenario where DC current zero detection is delayed
 
     // Start handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // DC current takes several cycles to reach zero (realistic scenario)
     for (int i = 0; i < 5; ++i) {
-        simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+        simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
         // Grid should stay in forced commutation, no acknowledgment yet
         EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
@@ -356,13 +362,13 @@ TEST_F(SfcCombinedModulatorsTest, DelayedDcCurrentZeroDetection)
     }
 
     // Finally, DC current reaches zero
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     EXPECT_TRUE(grid_modulator->get_force_commutation_acknowledged());
 
     // Complete the handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
@@ -373,27 +379,27 @@ TEST_F(SfcCombinedModulatorsTest, RapidSectorChangesBeforeAcknowledgment)
     // Test rapid sector changes before acknowledgment is received
 
     // Start first commutation
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(30.0), false);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(30.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
 
     // Extra cycle for grid-side to see the request
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(70.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
 
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Move to another sector before acknowledgment - should remain in waiting state
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), false);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), false);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::waiting_for_ack);
     EXPECT_TRUE(machine_modulator->get_request_force_commutation());
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::forced_commutation);
 
     // Complete handshake
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), true);
-    simulate_control_cycle(true, sfc_operating_mode_t::pulse_mode, deg_to_rad_helper(130.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), true);
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(130.0), true);
 
     EXPECT_EQ(machine_modulator->get_commutation_state(), machine_side_commutation_state_t::running);
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);

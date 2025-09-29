@@ -102,7 +102,7 @@ public:
 
 private:
     // Configuration parameters
-    const angle_t _pulse_mode_firing_angle_rad{
+    const angle_t _forced_commutation_firing_angle_rad{
         angle_t(deg_to_rad(180.0))};  ///< Fixed angle for Pulse Mode (180° for max torque)
 
     // Internal state

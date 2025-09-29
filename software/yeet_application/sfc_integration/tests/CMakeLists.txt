@@ -8,17 +8,19 @@ enable_testing()
 
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE sfc_loggers.hpp
+    PRIVATE # Helpers
+            sfc_loggers.hpp
             sfc_plant_configuration.hpp
-            complete_sensorless_speed_controller_test.cpp
+            # Complete closed loop tests
+            complete_sensorless_speed_control_test.cpp
+            # Open loop tests
             open_loop_plant_model_test.cpp
-            sensorless_current_controller_test.cpp
-            sensorless_current_controller_mocked_hardware_test.cpp
-            sensorless_speed_controller_test.cpp
-            sensorless_speed_controller_mocked_hardware_test.cpp
-            simplified_current_controller_mocked_hardware_test.cpp
-            simplified_current_controller_test.cpp
-            simplified_speed_controller_test.cpp
+            # Current control tests
+            current_control_forced_commutation_test.cpp
+            current_control_natural_commutation_test.cpp
+            # Speed control tests
+            speed_control_test.cpp
+            # State machine tests
             sfc_state_machine_runner_test.cpp)
 
 target_link_libraries(

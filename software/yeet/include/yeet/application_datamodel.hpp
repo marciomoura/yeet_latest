@@ -10,14 +10,19 @@ public:
     using outputs_type = OutputType;
 
     signal_flow_datamodel(inputs_type& model_inputs, outputs_type& model_outputs)
-        : _model_inputs(&model_inputs), _model_outputs(&model_outputs) {
+        : _model_inputs(&model_inputs), _model_outputs(&model_outputs)
+    {
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
     }
 
     inputs_type& get_inputs() { return *_model_inputs; }
 
+    inputs_type const& get_inputs() const { return *_model_inputs; }
+
     outputs_type& get_outputs() { return *_model_outputs; }
+
+    outputs_type const& get_outputs() const { return *_model_outputs; }
 
 private:
     inputs_type* _model_inputs{};
@@ -30,11 +35,13 @@ class application_configuration_datamodel {
 public:
     using parameters_type = ParameterType;
 
-    application_configuration_datamodel(parameters_type& model_parameters) : _model_parameters(&model_parameters) {
+    application_configuration_datamodel(parameters_type& model_parameters) : _model_parameters(&model_parameters)
+    {
         assert(_model_parameters != nullptr);
     }
 
     parameters_type& get_parameters() { return *_model_parameters; }
+    parameters_type const& get_parameters() const { return *_model_parameters; }
 
 private:
     parameters_type* _model_parameters{};

@@ -33,9 +33,11 @@ namespace yeet::application::sfc::integration {
  * Signal Flow:
  * External Firing Angles → Pulse Generators → Plant Model
  */
-class sfc_open_loop_simulation_builder {
+class plant_open_loop_simulation_builder {
 public:
-    sfc_open_loop_simulation_builder()
+    static constexpr std::string_view name = "PlantOpenLoop";
+
+    plant_open_loop_simulation_builder()
         : plant{create_per_unit_system()},
           grid_side_hardware_mock{duration_t{10e-6}},
           machine_side_hardware_mock{duration_t{10e-6}},
