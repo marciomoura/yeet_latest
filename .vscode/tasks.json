@@ -330,6 +330,50 @@
             ],
             "problemMatcher": [],
             "detail": "Runs the Python script after the executable"
+        },
+        {
+            "label": "Flash Embedded Target (Debug)",
+            "type": "shell",
+            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "-w",
+                "${workspaceFolder}/build-embedded/bin/yeet_embedded_app.elf",
+                "-v",
+                "-rst"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Flash the debug build to STM32F407G-DISC1 via ST-Link"
+        },
+        {
+            "label": "Flash Embedded Target (Release)",
+            "type": "shell",
+            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "-w",
+                "${workspaceFolder}/build-embedded-release/bin/yeet_embedded_app.elf",
+                "-v",
+                "-rst"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Flash the release build to STM32F407G-DISC1 via ST-Link"
         }
     ]
 }

@@ -19,9 +19,11 @@ project(
     VERSION 1.0.0.0
     DESCRIPTION "No 🧢 Yeet Platform fr fr"
     HOMEPAGE_URL "https://github.com/marciomoura/yeet/"
-    LANGUAGES C CXX)
+    LANGUAGES C CXX ASM)
 
 # Define all options upfront with proper descriptions - keeping it 💯
+option(YEET_BUILD_EMBEDDED "Build embedded targets for ARM microcontrollers"
+       OFF)
 option(YEET_CODE_COVERAGE
        "Enable code coverage (because we test our code like bosses)" OFF)
 option(YEET_SANITIZE "Enable clang-sanitizer builds (catch those bugs bestie)"
@@ -143,16 +145,50 @@ message(
 
 include(json)
 include(eigen)
-include(qpoases)
+# include(qpoases)
+
+# Only include embedded board if explicitly requested
+if(YEET_BUILD_EMBEDDED)
+    message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
+
+    # Add the board as a subdirectory - this builds the stm32cubemx library
+    add_subdirectory(boards/stm32f407g-disc1)
+
+    # Create the embedded application executable
+    add_executable(
+        yeet_embedded_app
+        # Use the STM32CubeMX generated main.c
+        boards/stm32f407g-disc1/Core/Src/main.c)
+
+    # Link against the board library and yeet control libraries
+    target_link_libraries(
+        yeet_embedded_app
+        PRIVATE -Wl,--whole-archive
+                stm32f407g-disc1 # The board library (includes stm32cubemx)
+                -Wl,--no-whole-archive
+                m # Math library
+                # yeet::yeet_control # Your control algorithms (if
+                # embedded-safe) Do NOT link: yeet::yeet, nlohmann_json, gtest
+                # (host-only dependencies)
+    )
+
+    # Add any embedded-specific compile definitions
+    target_compile_definitions(
+        yeet_embedded_app PRIVATE USE_HAL_DRIVER STM32F407xx
+                                  # Disable features not suitable for embedded
+    )
+
+    # Skip host-only targets when building for embedded
+    return()
+endif()
 
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
 add_subdirectory(software/yeet_testing)
 add_subdirectory(software/yeet_control)
 
-# Build the MPC application
-add_subdirectory(software/yeet_application/mpc)
-add_subdirectory(software/yeet_application/mpc_integration)
+# Build the MPC application add_subdirectory(software/yeet_application/mpc)
+# add_subdirectory(software/yeet_application/mpc_integration)
 
 # Build the SFC application
 add_subdirectory(software/yeet_application/sfc)
@@ -166,8 +202,8 @@ if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
     add_subdirectory(software/yeet_testing/tests)
-    add_subdirectory(software/yeet_application/mpc/tests)
-    add_subdirectory(software/yeet_application/mpc_integration/tests)
+    # add_subdirectory(software/yeet_application/mpc/tests)
+    # add_subdirectory(software/yeet_application/mpc_integration/tests)
     add_subdirectory(software/yeet_application/sfc/tests)
     add_subdirectory(software/yeet_application/sfc_integration/tests)
 endif()

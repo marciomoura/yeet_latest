@@ -149,3 +149,21 @@ Please review the [Development Guidelines](docs/development.md) before contribut
 - Advanced control algorithms
 
 For issues, feature requests, or technical discussions, please use the GitHub issue tracker.
+
+## Embedded Target
+
+To configure and compile the embedded target, run:
+
+```bash
+cmake -B build-embedded -S . -DCMAKE_BUILD_TYPE=Debug -DYEET_BUILD_EMBEDDED=ON "-DCMAKE_TOOLCHAIN_FILE=boards/stm32f407g-disc1/cmake/gcc-arm-none-eabi.cmake" -G Ninja
+cmake --build build-embedded --parallel
+```
+
+# Build release version
+cmake --preset embedded-release
+cmake --build --preset embedded-release
+
+# Flash using STM32CubeProgrammer CLI
+```bash
+C:\ST\STM32CubeCLT_1.19.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe -c port=SWD -w build-embedded-release/bin/yeet_embedded_app.elf -v -rst
+```
