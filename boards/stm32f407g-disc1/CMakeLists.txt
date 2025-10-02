@@ -39,6 +39,9 @@ add_library(${CMAKE_PROJECT_NAME} STATIC)
 # necessary sources to the stm32f407g-disc1 library
 add_subdirectory(cmake/stm32cubemx)
 
+# Add wide character function stubs for newlib-nano compatibility
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE Core/Src/wchar_stubs.c)
+
 # Link the stm32cubemx interface library PUBLIC so consumers get headers
 target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC stm32cubemx)
 

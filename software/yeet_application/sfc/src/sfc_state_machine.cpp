@@ -10,7 +10,7 @@ sfc_state_machine::sfc_state_machine() noexcept
       _operation_off_state(&_operation_on_state, &_breakers_on_state),
       _operation_on_state(&_shutdown_requested_state),
       _shutdown_requested_state(&_operation_off_state),
-      _state_machine(&_idle_state)
+      _state_machine(&_idle_state)  // ✅ Initialize state machine LAST
 {
     initialize_transitions();
 }
@@ -77,7 +77,7 @@ sfc_state_outputs auxiliaries_on_state::get_outputs() const noexcept
 sfc_state_type* breakers_off_state::update(const sfc_state_inputs& inputs) noexcept
 {
     if (!inputs.auxiliaries_are_on_event.is_true()) {
-        return _idle;
+        return _idle_state;
     }
 
     if (inputs.breakers_are_on_event.is_true()) {

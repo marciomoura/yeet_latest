@@ -167,3 +167,24 @@ cmake --build --preset embedded-release
 ```bash
 C:\ST\STM32CubeCLT_1.19.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe -c port=SWD -w build-embedded-release/bin/yeet_embedded_app.elf -v -rst
 ```
+
+```
+# Clean previous builds
+rm -rf build-embedded build-embedded-release
+
+# Configure with the new toolchain (Release mode with -O3 optimization)
+cmake --preset embedded-release
+
+# Verify flags are applied (look for -O3, -flto, -ffast-math)
+cmake --build build-embedded-release --verbose 2>&1 | grep "g++" | head -3
+
+# Expected output should contain:
+# -O3 -flto -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti 
+# -ffast-math -funroll-loops -finline-functions
+
+# Build the target
+cmake --build build-embedded-release
+
+# Check memory usage (printed automatically due to -Wl,--print-memory-usage)
+# Output will show Flash and RAM consumption
+```

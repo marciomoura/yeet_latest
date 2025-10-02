@@ -16,14 +16,17 @@ void sfc_grid_side_control::initialize()
 
 void sfc_grid_side_control::update_10ms() { state_machine.run(); }
 
-void sfc_grid_side_control::update_1ms() { current_controller.run(); }
+void sfc_grid_side_control::update_1ms()
+{
+    operation_mode_monitor.run();
+    current_controller.run();
+}
 
 void sfc_grid_side_control::update_200us()
 {
     grid_measurements.run();
     dc_link_measurements.run();
-    operation_mode_monitor.run();
-    grid_side_observer.run();
+    // grid_side_observer.run();
     grid_side_modulator.run();
     grid_side_pulse_generator.run();
 }

@@ -147,6 +147,22 @@ include(json)
 include(eigen)
 # include(qpoases)
 
+# Source directories - let's get this party started 🎉
+add_subdirectory(software/yeet)
+add_subdirectory(software/yeet_control)
+
+# Build the MPC application add_subdirectory(software/yeet_application/mpc)
+# add_subdirectory(software/yeet_application/mpc_integration)
+
+# Build the SFC application
+add_subdirectory(software/yeet_application/sfc)
+add_subdirectory(software/yeet_application/sfc_integration)
+
+# Add SFC embedded application (only for embedded builds)
+if(YEET_BUILD_EMBEDDED)
+    add_subdirectory(software/yeet_application/sfc_embedded)
+endif()
+
 # Only include embedded board if explicitly requested
 if(YEET_BUILD_EMBEDDED)
     message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
@@ -164,41 +180,26 @@ if(YEET_BUILD_EMBEDDED)
     target_link_libraries(
         yeet_embedded_app
         PRIVATE -Wl,--whole-archive
-                stm32f407g-disc1 # The board library (includes stm32cubemx)
+                yeet::yeet_sfc_embedded # ← Your C++ application logic
+                stm32f407g-disc1 # ← STM32 HAL/BSP (also needs whole-archive for
+                                 # _sbrk)
                 -Wl,--no-whole-archive
-                m # Math library
-                # yeet::yeet_control # Your control algorithms (if
-                # embedded-safe) Do NOT link: yeet::yeet, nlohmann_json, gtest
-                # (host-only dependencies)
-    )
+                m) # Math library
 
-    # Add any embedded-specific compile definitions
+    # Add any embedded-specific compile definitions Embedded compile definitions
     target_compile_definitions(
         yeet_embedded_app PRIVATE USE_HAL_DRIVER STM32F407xx
-                                  # Disable features not suitable for embedded
-    )
-
+                                  YEET_EMBEDDED_TARGET)
     # Skip host-only targets when building for embedded
     return()
 endif()
-
-# Source directories - let's get this party started 🎉
-add_subdirectory(software/yeet)
-add_subdirectory(software/yeet_testing)
-add_subdirectory(software/yeet_control)
-
-# Build the MPC application add_subdirectory(software/yeet_application/mpc)
-# add_subdirectory(software/yeet_application/mpc_integration)
-
-# Build the SFC application
-add_subdirectory(software/yeet_application/sfc)
-add_subdirectory(software/yeet_application/sfc_integration)
 
 # Add generated plant models
 add_subdirectory(software/yeet_generated/synchronous_machine_infinite_bus)
 add_subdirectory(software/yeet_generated/indirect_excitation_2mva_plant_model)
 
 if(YEET_BUILD_TESTING)
+    add_subdirectory(software/yeet_testing)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
     add_subdirectory(software/yeet_testing/tests)

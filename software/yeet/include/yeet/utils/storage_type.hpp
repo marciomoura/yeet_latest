@@ -26,7 +26,6 @@ public:
     operator T() const
     {
         if (_value == nullptr) {
-            std::cout << "Trap here\n";
             assert(_value != nullptr);
         }
         return *_value;

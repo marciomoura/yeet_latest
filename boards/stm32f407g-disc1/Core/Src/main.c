@@ -20,6 +20,7 @@
 #include "main.h"
 
 #include "stm32f4xx_hal_tim.h"
+#include "stm32f4xx_it.h"
 #include "usb_host.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -34,6 +35,11 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+// LED toggle counts for 1 Hz blink rate (500ms ON, 500ms OFF)
+#define TASK1_TOGGLE_COUNT 2500  // Task 1 @ 200µs: 2500 × 200µs = 500ms
+#define TASK2_TOGGLE_COUNT 500   // Task 2 @ 1ms:   500 × 1ms = 500ms
+#define TASK3_TOGGLE_COUNT 50    // Task 3 @ 10ms:  50 × 10ms = 500ms
 
 /* USER CODE END PD */
 
@@ -95,7 +101,7 @@ int main(void)
     HAL_Init();
 
     /* USER CODE BEGIN Init */
-
+    yeet_embedded_init();
     /* USER CODE END Init */
 
     /* Configure the system clock */
@@ -554,11 +560,40 @@ static void MX_GPIO_Init(void)
 // HAL_TIM_PeriodElapsedCallback is where the measurement logic is added.
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM2) {  // Task A
+    // Static counters for LED toggle (visual task execution verification)
+    static uint32_t task1_counter = 0;
+    static uint32_t task2_counter = 0;
+    static uint32_t task3_counter = 0;
+
+    if (htim->Instance == TIM2) {  // Task 1 - 200µs period (5 kHz)
+        yeet_task_1();
+
+        // Toggle Blue LED (PD15) at 1 Hz for visual feedback
+        task1_counter++;
+        if (task1_counter >= TASK1_TOGGLE_COUNT) {
+            HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
+            task1_counter = 0;
+        }
     }
-    else if (htim->Instance == TIM3) {  // Task B
+    else if (htim->Instance == TIM3) {  // Task 2 - 1ms period (1 kHz)
+        yeet_task_2();
+
+        // Toggle Red LED (PD14) at 1 Hz for visual feedback
+        task2_counter++;
+        if (task2_counter >= TASK2_TOGGLE_COUNT) {
+            HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14);
+            task2_counter = 0;
+        }
     }
-    else if (htim->Instance == TIM4) {  // Task C
+    else if (htim->Instance == TIM4) {  // Task 3 - 10ms period (100 Hz)
+        yeet_task_3();
+
+        // Toggle Orange LED (PD13) at 1 Hz for visual feedback
+        task3_counter++;
+        if (task3_counter >= TASK3_TOGGLE_COUNT) {
+            HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+            task3_counter = 0;
+        }
     }
 }
 

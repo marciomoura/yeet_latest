@@ -16,7 +16,7 @@ public:
     static constexpr duration_t sampling_time = ms(1.0);
 
     sfc_current_controller_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
-        : base_application(sampling_time), _sfc_current_controller(sampling_time), _per_unit_system(per_unit_system)
+        : base_application(sampling_time), _per_unit_system(per_unit_system), _sfc_current_controller(sampling_time)
     {
     }
 

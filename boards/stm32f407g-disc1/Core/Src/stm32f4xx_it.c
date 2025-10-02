@@ -34,6 +34,11 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+// LED toggle counts for 1 Hz blink rate (500ms ON, 500ms OFF)
+#define TASK1_TOGGLE_COUNT 2500  // Task 1 @ 200µs: 2500 × 200µs = 500ms
+#define TASK2_TOGGLE_COUNT 500   // Task 2 @ 1ms:   500 × 1ms = 500ms
+#define TASK3_TOGGLE_COUNT 50    // Task 3 @ 10ms:  50 × 10ms = 500ms
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,6 +48,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+
+// Static counters for LED toggle (visual task execution verification)
+static int task1_counter = 0;
+static int task2_counter = 0;
+static int task3_counter = 0;
 
 /* USER CODE END PV */
 
@@ -205,7 +215,16 @@ void TIM2_IRQHandler(void)
 {
     /* USER CODE BEGIN TIM2_IRQn 0 */
     __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
+
+    // Toggle Blue LED (PD15) at 1 Hz for visual feedback
+    task1_counter++;
+    if (task1_counter >= TASK1_TOGGLE_COUNT) {
+        HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
+        task1_counter = 0;
+    }
+
     yeet_task_1();
+
     /* USER CODE END TIM2_IRQn 0 */
     // HAL_TIM_IRQHandler(&htim2);
     /* USER CODE BEGIN TIM2_IRQn 1 */
@@ -220,7 +239,16 @@ void TIM3_IRQHandler(void)
 {
     /* USER CODE BEGIN TIM3_IRQn 0 */
     __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);
+
+    // Toggle Red LED (PD14) at 1 Hz for visual feedback
+    task2_counter++;
+    if (task2_counter >= TASK2_TOGGLE_COUNT) {
+        HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14);
+        task2_counter = 0;
+    }
+
     yeet_task_2();
+
     /* USER CODE END TIM3_IRQn 0 */
     // HAL_TIM_IRQHandler(&htim3);
     /* USER CODE BEGIN TIM3_IRQn 1 */
@@ -235,7 +263,16 @@ void TIM4_IRQHandler(void)
 {
     /* USER CODE BEGIN TIM4_IRQn 0 */
     __HAL_TIM_CLEAR_IT(&htim4, TIM_IT_UPDATE);
+
+    // Toggle Orange LED (PD13) at 1 Hz for visual feedback
+    task3_counter++;
+    if (task3_counter >= TASK3_TOGGLE_COUNT) {
+        HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+        task3_counter = 0;
+    }
+
     yeet_task_3();
+
     /* USER CODE END TIM4_IRQn 0 */
     // HAL_TIM_IRQHandler(&htim4);
     /* USER CODE BEGIN TIM4_IRQn 1 */
