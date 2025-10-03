@@ -76,7 +76,19 @@ else()
 endif()
 
 if(YEET_ENABLE_DATA_LOGGING)
+    message(
+        STATUS
+            "yeet build-config: Data logging enabled - show me the receipts 👀")
     add_compile_definitions(YEET_ENABLE_DATA_LOGGING)
+else()
+    message(
+        STATUS
+            "yeet build-config: Data logging DISABLED - CI speed mode activated 🚀"
+    )
+    message(
+        STATUS
+            "yeet build-config: YEET_ENABLE_DATA_LOGGING=${YEET_ENABLE_DATA_LOGGING}"
+    )
 endif()
 
 # Generator-specific configuration - checking the fit
