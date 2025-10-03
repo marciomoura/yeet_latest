@@ -35,7 +35,7 @@
             "name": "host-release-gcc",
             "displayName": "Host Release Build (GCC)",
             "description": "Optimized build for host machine using GCC",
-            "binaryDir": "${sourceDir}/build-release",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
@@ -50,7 +50,7 @@
             "name": "host-release-clang",
             "displayName": "Host Release Build (Clang)",
             "description": "Optimized build for host machine using Clang",
-            "binaryDir": "${sourceDir}/build-release-clang",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/clang.exe",

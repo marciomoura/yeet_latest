@@ -206,7 +206,7 @@ if(YEET_BUILD_TESTING)
     # add_subdirectory(software/yeet_application/mpc/tests)
     # add_subdirectory(software/yeet_application/mpc_integration/tests)
     add_subdirectory(software/yeet_application/sfc/tests)
-    add_subdirectory(software/yeet_application/sfc_integration/tests)
+    # Note: sfc_integration/tests is added by sfc_integration/CMakeLists.txt
 endif()
 
 if(YEET_CODE_COVERAGE)
