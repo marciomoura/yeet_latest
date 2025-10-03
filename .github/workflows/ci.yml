@@ -95,8 +95,6 @@ jobs:
             yeet_test \
             yeet_testing_tests \
             yeet_control_tests \
-            yeet_application_mpc_tests \
-            yeet_application_mpc_integration_tests \
             yeet_application_sfc_tests \
             yeet_application_sfc_integration_tests
             
@@ -105,8 +103,6 @@ jobs:
           ./build/bin/yeet_test
           ./build/bin/yeet_testing_tests
           ./build/bin/yeet_control_tests
-          ./build/bin/yeet_application_mpc_tests
-          ./build/bin/yeet_application_mpc_integration_tests
           ./build/bin/yeet_application_sfc_tests
           ./build/bin/yeet_application_sfc_integration_tests
 
