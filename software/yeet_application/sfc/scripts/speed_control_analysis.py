@@ -85,9 +85,11 @@ speed_tuning_scenarios = [
 ]
 observer_filter_scenarios = [
     {'f_obs_cutoff_hz': 10.0, 'damping': 0.707},
-    {'f_obs_cutoff_hz': 20.0, 'damping': 0.707},
+    # {'f_obs_cutoff_hz': 20.0, 'damping': 0.707},
 ]
 pll_scenarios = [
+    {'pll_cutoff_hz': 10.0, 'pll_damping': 1.0}, 
+    {'pll_cutoff_hz': 50.0, 'pll_damping': 1.0}, 
     {'pll_cutoff_hz': 100.0, 'pll_damping': 1.0}, 
     # {'pll_cutoff_hz': 25.0, 'pll_damping': 1.0}, 
 ]

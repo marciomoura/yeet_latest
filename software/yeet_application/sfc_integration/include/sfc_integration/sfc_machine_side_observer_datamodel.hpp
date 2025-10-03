@@ -52,11 +52,11 @@ public:
     struct parameters {
         /// PLL proportional gain
         /// Range: [0.1, 10.0]
-        yeet::parameter<double> kp = 1.0;
+        yeet::parameter<real_t> kp = 0.4;
 
         /// PLL integral time constant
         /// Range: [0.01, 1.0] s
-        yeet::parameter<duration_t> ti = duration_t{0.1};
+        yeet::parameter<duration_t> ti = duration_t{ms(31.8)};
 
         /// Nominal machine frequency
         /// Range: [30.0, 100.0] Hz

@@ -91,6 +91,7 @@ def compute_srf_pll_gains_damping(natural_freq_hz, damping_ratio, v_mag=1.0, w_n
 # A damping ratio (ζ) of 0.707 is the critical value to eliminate gain peaking.
 # A value of 1.0 provides critical damping for the fastest step response without overshoot.
 pll_tuning_scenarios = [
+    {'natural_freq_hz': 10.0, 'damping_ratio': 1.0},
     # Critically damped: flat magnitude and no step response overshoot
     {'natural_freq_hz': 50.0, 'damping_ratio': 1.0},
     # A faster, critically damped response

@@ -70,10 +70,12 @@ public:
     struct parameters {
         // /// PI controller proportional gain
         // /// Range: [1.0, 100.0]
-        parameter<real_t> kp = real_t(6.0);
+        // parameter<real_t> kp = real_t(6.0);
+        parameter<real_t> kp = real_t(6.32);
 
         /// PI controller integral gain
-        parameter<duration_t> ti = duration_t{ms(550.0)};
+        // parameter<duration_t> ti = duration_t{ms(550.0)};
+        parameter<duration_t> ti = duration_t{ms(2200.0)};
 
         /// Speed reference rate limit (acceleration/deceleration)
         /// Range: (0.0, 100.0] pu/s

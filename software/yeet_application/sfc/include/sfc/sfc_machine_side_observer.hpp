@@ -105,6 +105,7 @@ public:
 private:
     control::srf_pll _pll;
     control::second_order_low_pass_filter<real_t> _filtered_voltage_filter;
+    control::second_order_low_pass_filter<real_t> _filtered_frequency;
 
     // Configuration
     frequency_t _nominal_frequency{};
