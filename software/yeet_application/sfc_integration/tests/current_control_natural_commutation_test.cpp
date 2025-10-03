@@ -68,11 +68,13 @@ public:
                            register_complete_logger(sim, sys->current_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->machine_side_observer);
+                           register_complete_logger(sim, sys->grid_side_observer);
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
                            register_complete_logger(sim, sys->current_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->machine_side_observer);
+                           register_complete_logger(sim, sys->grid_side_observer);
                        },
                        // NEW: plant_current_control_with_modulators_simulation_builder
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {

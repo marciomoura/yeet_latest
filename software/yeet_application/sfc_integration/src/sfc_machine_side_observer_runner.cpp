@@ -7,6 +7,9 @@ void sfc_machine_side_observer_runner::initialize()
     // Configure PLL with parameters from datamodel
     _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
 
+    // Configure frequency filter
+    _sfc_machine_side_observer.configure_frequency_filter(_parameters.frequency_filter_cutoff);
+
     // Set initial speed
     _sfc_machine_side_observer.reset(_parameters.initial_frequency);
 }

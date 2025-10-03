@@ -26,7 +26,6 @@ public:
         // ==================== Logger Registration ====================
         // register_complete_logger(simulator, system.plant);
         // register_complete_logger(simulator, system.grid_side_control.state_machine);
-        // register_complete_logger(simulator, system.grid_side_control.grid_side_observer);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_pulse_generator);
@@ -36,6 +35,7 @@ public:
         register_complete_logger(simulator, system.grid_side_control.current_controller);
         register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
         register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_observer);
         // register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);
         // register_complete_logger(simulator, system.grid_side_control.grid_measurements);
         // register_complete_logger(simulator, system.machine_side_control.machine_measurements);

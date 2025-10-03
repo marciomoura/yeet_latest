@@ -25,6 +25,7 @@ void sfc_grid_side_observer_runner::stop() { _sfc_grid_side_observer.reset(); }
 void sfc_grid_side_observer_runner::set_parameters()
 {
     _sfc_grid_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
+    _sfc_grid_side_observer.configure_frequency_filter(_parameters.frequency_filter_cutoff);
 }
 
 void sfc_grid_side_observer_runner::set_parameter_callback()
@@ -32,6 +33,7 @@ void sfc_grid_side_observer_runner::set_parameter_callback()
     _parameters.kp.register_callback([&]() { set_parameters(); });
     _parameters.ti.register_callback([&]() { set_parameters(); });
     _parameters.nominal_frequency.register_callback([&]() { set_parameters(); });
+    _parameters.frequency_filter_cutoff.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

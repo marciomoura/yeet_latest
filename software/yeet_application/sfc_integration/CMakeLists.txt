@@ -107,8 +107,3 @@ if(YEET_BUILD_TESTING)
                                                         # Matlab
     )
 endif()
-
-# Add tests subdirectory only when building tests
-if(YEET_BUILD_TESTING)
-    add_subdirectory(tests)
-endif()

@@ -78,7 +78,19 @@ else()
 endif()
 
 if(YEET_ENABLE_DATA_LOGGING)
+    message(
+        STATUS
+            "yeet build-config: Data logging enabled - show me the receipts 👀")
     add_compile_definitions(YEET_ENABLE_DATA_LOGGING)
+else()
+    message(
+        STATUS
+            "yeet build-config: Data logging DISABLED - CI speed mode activated 🚀"
+    )
+    message(
+        STATUS
+            "yeet build-config: YEET_ENABLE_DATA_LOGGING=${YEET_ENABLE_DATA_LOGGING}"
+    )
 endif()
 
 # Generator-specific configuration - checking the fit
@@ -144,15 +156,9 @@ message(
 )
 
 include(json)
-include(eigen)
-# include(qpoases)
-
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
 add_subdirectory(software/yeet_control)
-
-# Build the MPC application add_subdirectory(software/yeet_application/mpc)
-# add_subdirectory(software/yeet_application/mpc_integration)
 
 # Build the SFC application
 add_subdirectory(software/yeet_application/sfc)
@@ -194,19 +200,13 @@ if(YEET_BUILD_EMBEDDED)
     return()
 endif()
 
-# Add generated plant models
-add_subdirectory(software/yeet_generated/synchronous_machine_infinite_bus)
-add_subdirectory(software/yeet_generated/indirect_excitation_2mva_plant_model)
-
 if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet_testing)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
     add_subdirectory(software/yeet_testing/tests)
-    # add_subdirectory(software/yeet_application/mpc/tests)
-    # add_subdirectory(software/yeet_application/mpc_integration/tests)
     add_subdirectory(software/yeet_application/sfc/tests)
-    # Note: sfc_integration/tests is added by sfc_integration/CMakeLists.txt
+    add_subdirectory(software/yeet_application/sfc_integration/tests)
 endif()
 
 if(YEET_CODE_COVERAGE)

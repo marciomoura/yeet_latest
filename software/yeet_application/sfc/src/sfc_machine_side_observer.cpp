@@ -2,18 +2,20 @@
 
 #include "yeet_control/units.hpp"
 
-
 namespace yeet::application::sfc {
 
 sfc_machine_side_observer::sfc_machine_side_observer(duration_t sampling_period)
     : _pll(sampling_period),
       _filtered_voltage_filter(real_t{sampling_period.value()}),
+      _filtered_frequency(real_t{sampling_period.value()}),
       _nominal_frequency{default_nominal_frequency}
 {
-    configure_voltage_filter(default_frequency_filter_cutoff);
+    configure_voltage_filter(default_voltage_estimation_filter_cutoff);
 
     const auto gains = _pll.parameters_30_hz_crossover_frequency;
     configure_pll(gains.kp, gains.ti, default_nominal_frequency);
+
+    configure_frequency_filter(default_frequency_estimation_filter_cutoff);
 
     reset();
 }
@@ -34,6 +36,11 @@ void sfc_machine_side_observer::configure_voltage_filter(frequency_t cutoff_freq
     _filtered_voltage_filter.configure(cutoff_frequency, damping_ratio);
 }
 
+void sfc_machine_side_observer::configure_frequency_filter(frequency_t cutoff_frequency, real_t damping_ratio)
+{
+    _filtered_frequency.configure(cutoff_frequency, damping_ratio);
+}
+
 void sfc_machine_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu)
 {
     // Convert machine voltage to alpha-beta for PLL
@@ -44,7 +51,8 @@ void sfc_machine_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu)
 
     // Update output states
     _estimated_angle = _pll.get_estimated_angle_aligned_phase_a();
-    _estimated_frequency_pu = _pll.get_estimated_frequency_pu();
+    _filtered_frequency.update(_pll.get_estimated_frequency_pu());
+    _estimated_frequency_pu = frequency_pu_t{_filtered_frequency.get_output()};
     _estimated_frequency = to_si(_estimated_frequency_pu, _nominal_frequency);
 
     // Use the transformed d-q voltages to calculate magnitude
