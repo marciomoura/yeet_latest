@@ -20,7 +20,8 @@ namespace yeet::application::sfc {
 class sfc_machine_side_observer {
 public:
     static constexpr auto default_nominal_frequency = frequency_t{50.0};
-    static constexpr frequency_t default_frequency_filter_cutoff{frequency_t{10.0}};
+    static constexpr frequency_t default_voltage_estimation_filter_cutoff{frequency_t{10.0}};
+    static constexpr frequency_t default_frequency_estimation_filter_cutoff{frequency_t{10.0}};
 
     /**
      * @brief Constructs the grid-side observer.
@@ -43,6 +44,13 @@ public:
      * @param damping_ratio The damping ratio for the filter.
      */
     void configure_voltage_filter(frequency_t cutoff_frequency, real_t damping_ratio = 0.707);
+
+    /**
+     * @brief Configures the frequency estimation filter.
+     * @param cutoff_frequency The cutoff frequency for the filter.
+     * @param damping_ratio The damping ratio for the filter.
+     */
+    void configure_frequency_filter(frequency_t cutoff_frequency, real_t damping_ratio = 0.707);
 
     /**
      * @brief Configures the voltage threshold for commutation failure detection.
@@ -105,6 +113,7 @@ public:
 private:
     control::srf_pll _pll;
     control::second_order_low_pass_filter<real_t> _filtered_voltage_filter;
+    control::second_order_low_pass_filter<real_t> _filtered_frequency;
 
     // Configuration
     frequency_t _nominal_frequency{};

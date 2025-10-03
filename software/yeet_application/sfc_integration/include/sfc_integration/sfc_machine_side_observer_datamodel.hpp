@@ -52,11 +52,11 @@ public:
     struct parameters {
         /// PLL proportional gain
         /// Range: [0.1, 10.0]
-        yeet::parameter<double> kp = 1.0;
+        yeet::parameter<real_t> kp = 0.4;
 
         /// PLL integral time constant
         /// Range: [0.01, 1.0] s
-        yeet::parameter<duration_t> ti = duration_t{0.1};
+        yeet::parameter<duration_t> ti = duration_t{ms(31.8)};
 
         /// Nominal machine frequency
         /// Range: [30.0, 100.0] Hz
@@ -65,6 +65,10 @@ public:
         /// Initial machine frequency for startup
         /// Range: [0.0, 1.0] pu
         yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{0.01};
+
+        /// Frequency estimation filter cutoff frequency
+        /// Range: [1.0, 50.0] Hz
+        yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
 
         /// Voltage threshold for commutation detection
         /// Range: [0.05, 0.3] pu

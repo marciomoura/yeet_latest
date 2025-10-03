@@ -139,6 +139,7 @@ protected:
                            register_complete_logger(sim, sys->current_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->grid_side_observer);
+                           register_complete_logger(sim, sys->machine_side_observer);
                        },
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
                            register_complete_logger(sim, sys->speed_controller);
@@ -152,7 +153,7 @@ protected:
 
     void initial_settling_sequence()
     {
-        sim.simulate_for(0.1);
+        sim.simulate_for(0.5);
         enable_speed_control(false);
         set_load_torque(torque_pu_t{0.3f});
         enable_speed_control(true);
@@ -187,16 +188,16 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
 
     checker->deactivate();
     this->set_speed_reference(speed_pu_t{1.0f});
-    ASSERT_TRUE(this->sim.simulate_for(2.0));
+    EXPECT_TRUE(this->sim.simulate_for(2.0));
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(3.0));
+    EXPECT_TRUE(this->sim.simulate_for(3.0));
 
     // Phase 2
     checker->deactivate();
     this->set_speed_reference(speed_pu_t{1.05f});
-    ASSERT_TRUE(this->sim.simulate_for(1.0));
+    EXPECT_TRUE(this->sim.simulate_for(1.0));
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(3.0));
+    EXPECT_TRUE(this->sim.simulate_for(3.0));
 }
 
 // ============================================================================
@@ -209,23 +210,23 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulationWithTorqueDisturbance)
     // Phase 1: Settle at initial speed reference and load
     checker->deactivate();
     this->set_speed_reference(speed_pu_t{1.0f});
-    ASSERT_TRUE(this->sim.simulate_for(2.0));
+    EXPECT_TRUE(this->sim.simulate_for(2.0));
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(2.5));
+    EXPECT_TRUE(this->sim.simulate_for(2.5));
 
     // Phase 2: Step-up torque disturbance
     checker->deactivate();
     this->set_load_torque(torque_pu_t{0.60f});
-    ASSERT_TRUE(this->sim.simulate_for(1.0));  // Disturbance transient
+    EXPECT_TRUE(this->sim.simulate_for(1.0));  // Disturbance transient
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(3.0));  // Recovery steady-state after step-up
+    EXPECT_TRUE(this->sim.simulate_for(3.0));  // Recovery steady-state after step-up
 
     // Phase 3: Step-down torque disturbance (return to initial load)
     checker->deactivate();
     this->set_load_torque(torque_pu_t{0.30f});  // Return to initial load from SetUp
-    ASSERT_TRUE(this->sim.simulate_for(1.0));   // Disturbance transient
+    EXPECT_TRUE(this->sim.simulate_for(1.0));   // Disturbance transient
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(3.0));  // Final recovery steady-state
+    EXPECT_TRUE(this->sim.simulate_for(3.0));  // Final recovery steady-state
 }
 
 // ============================================================================
@@ -237,17 +238,17 @@ TYPED_TEST(SpeedControlTypedTest, SpeedReferenceRampTracking)
 
     checker->deactivate();
     this->set_speed_reference(speed_pu_t{0.80f});
-    ASSERT_TRUE(this->sim.simulate_for(1.5));
+    EXPECT_TRUE(this->sim.simulate_for(1.5));
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(1.0));
+    EXPECT_TRUE(this->sim.simulate_for(1.0));
 
     const float targets[] = {0.85f, 0.90f, 1.00f, 1.05f};
     for (float r : targets) {
         checker->deactivate();
         this->set_speed_reference(speed_pu_t{r});
-        ASSERT_TRUE(this->sim.simulate_for(0.5));
+        EXPECT_TRUE(this->sim.simulate_for(0.5));
         checker->activate();
-        ASSERT_TRUE(this->sim.simulate_for(0.8));
+        EXPECT_TRUE(this->sim.simulate_for(0.8));
     }
 }
 
@@ -262,7 +263,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRampUpFromLowSpeedNaturalCommutation)
     checker->deactivate();
     this->set_speed_reference(speed_pu_t{0.25f});
     this->set_load_torque(torque_pu_t{0.2f});
-    ASSERT_TRUE(this->sim.simulate_for(2.0));  // low-speed settling
+    EXPECT_TRUE(this->sim.simulate_for(2.0));  // low-speed settling
 
     // Phase 2: Configure a 50 s linear ramp to 1.0 pu via rate limiter
     const real_t ramp_time_s = 50.0;
@@ -273,9 +274,9 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRampUpFromLowSpeedNaturalCommutation)
     checker->activate();
     bool success = this->sim.simulate_for(ramp_time_s);
     checker->deactivate();
-    ASSERT_TRUE(success);
+    EXPECT_TRUE(success);
 
     // Phase 3: Final steady-state hold at 1.0 pu
     checker->activate();
-    ASSERT_TRUE(this->sim.simulate_for(3.0));
+    EXPECT_TRUE(this->sim.simulate_for(3.0));
 }
