@@ -142,32 +142,20 @@ message(
 )
 
 include(json)
-include(eigen)
-include(qpoases)
 
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
 add_subdirectory(software/yeet_testing)
 add_subdirectory(software/yeet_control)
 
-# Build the MPC application
-add_subdirectory(software/yeet_application/mpc)
-add_subdirectory(software/yeet_application/mpc_integration)
-
 # Build the SFC application
 add_subdirectory(software/yeet_application/sfc)
 add_subdirectory(software/yeet_application/sfc_integration)
-
-# Add generated plant models
-add_subdirectory(software/yeet_generated/synchronous_machine_infinite_bus)
-add_subdirectory(software/yeet_generated/indirect_excitation_2mva_plant_model)
 
 if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
     add_subdirectory(software/yeet_testing/tests)
-    add_subdirectory(software/yeet_application/mpc/tests)
-    add_subdirectory(software/yeet_application/mpc_integration/tests)
     add_subdirectory(software/yeet_application/sfc/tests)
     add_subdirectory(software/yeet_application/sfc_integration/tests)
 endif()
