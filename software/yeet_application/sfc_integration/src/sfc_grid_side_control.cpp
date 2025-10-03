@@ -26,7 +26,7 @@ void sfc_grid_side_control::update_200us()
 {
     grid_measurements.run();
     dc_link_measurements.run();
-    // grid_side_observer.run();
+    grid_side_observer.run();
     grid_side_modulator.run();
     grid_side_pulse_generator.run();
 }
