@@ -1,43 +1,65 @@
 #include "sfc/sfc_grid_side_observer.hpp"
 
+#include "yeet_control/units.hpp"
+
 namespace yeet::application::sfc {
 
 sfc_grid_side_observer::sfc_grid_side_observer(duration_t sampling_period)
-    : _pll(sampling_period), _nominal_frequency{default_nominal_frequency}
+    : _pll(sampling_period),
+      _filtered_voltage_filter(real_t{sampling_period.value()}),
+      _nominal_frequency{default_nominal_frequency}
 {
-    configure_pll(default_pll_kp, default_pll_ti, default_nominal_frequency);
+    configure_voltage_filter(default_frequency_filter_cutoff);
+
+    const auto gains = _pll.parameters_30_hz_crossover_frequency;
+    configure_pll(gains.kp, gains.ti, default_nominal_frequency);
+
     reset();
 }
 
 void sfc_grid_side_observer::configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency)
 {
-    assert(
-        nominal_frequency > 0.0f && kp > 0.0f && ti > 0.0f && "Nominal frequency, kp, and ti must be positive values");
+    assert(nominal_frequency.value() > 0.0f && kp > 0.0f && ti.value() > 0.0f &&
+           "Nominal frequency, kp, and ti must be positive values");
 
     _nominal_frequency = nominal_frequency;
-    // Configure PLL with default gains
+    // Configure PLL with specified gains
     _pll.configure_nominal_frequency(nominal_frequency);
     _pll.configure_pi_controller(kp, ti);
-    _pll.configure_frequency_limits(frequency_t{10.0f}, frequency_t{100.0f});
-    _pll.configure_sequence_extractor(1.414, 1.0 / nominal_frequency, true);
-    _pll.configure_pi_controller(kp, ti);
+}
+
+void sfc_grid_side_observer::configure_voltage_filter(frequency_t cutoff_frequency, real_t damping_ratio)
+{
+    _filtered_voltage_filter.configure(cutoff_frequency, damping_ratio);
 }
 
 void sfc_grid_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu)
 {
-    _pll.update(grid_voltage_pu.to_alphabeta());
+    // Convert machine voltage to alpha-beta for PLL
+    alphabeta<voltage_pu_t> const grid_voltage_alphabeta = grid_voltage_pu.to_alphabeta();
 
-    _estimated_angle = _pll.get_estimated_angle();
-    _estimated_frequency = _pll.get_estimated_frequency();
+    // Update PLL
+    _pll.update(grid_voltage_alphabeta);
+
+    // Update output states
+    _estimated_angle = _pll.get_estimated_angle_aligned_phase_a();
     _estimated_frequency_pu = _pll.get_estimated_frequency_pu();
-    _estimated_voltage_magnitude = abs(_pll.get_estimated_voltage_magnitude());
+    _estimated_frequency = to_si(_estimated_frequency_pu, _nominal_frequency);
+
+    // Use the transformed d-q voltages to calculate magnitude
+    const auto& dq_voltages = _pll.get_dq_vector();
+    _filtered_voltage_filter.update(dq_voltages.magnitude());
+    _estimated_voltage_magnitude = voltage_pu_t{_filtered_voltage_filter.get_output()};
+
+    // Store the input alpha-beta as filtered output (the PLL internally filters)
+    _filtered_voltage_alphabeta = _pll.get_alphabeta();
 }
 
 void sfc_grid_side_observer::reset(frequency_pu_t initial_frequency)
 {
-    _pll.reset();
+    _pll.reset(initial_frequency);
     _estimated_angle = angle_wrapped{0.0f};
-    _estimated_frequency = to_si(initial_frequency, _nominal_frequency);
+    _estimated_frequency = _nominal_frequency;
     _estimated_frequency_pu = initial_frequency;
     _estimated_voltage_magnitude = voltage_pu_t{0.0f};
     _filtered_voltage_alphabeta = alphabeta<voltage_pu_t>{voltage_pu_t{0.0f}, voltage_pu_t{0.0f}};

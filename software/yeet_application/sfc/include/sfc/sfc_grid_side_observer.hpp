@@ -1,8 +1,9 @@
 #pragma once
 
 #include "yeet_control/angle_wrapped.hpp"
-#include "yeet_control/dual_sogi_srf_pll.hpp"
 #include "yeet_control/reference_frame.hpp"
+#include "yeet_control/second_order_filter.hpp"
+#include "yeet_control/srf_pll.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
 
@@ -19,9 +20,7 @@ namespace yeet::application::sfc {
 class sfc_grid_side_observer {
 public:
     static constexpr auto default_nominal_frequency = frequency_t{50.0};
-    static constexpr real_t default_pll_kp = 0.2;
-    static constexpr duration_t default_pll_ti = duration_t{ms(50.0)};
-    static constexpr auto default_commutation_threshold = voltage_pu_t{0.1};
+    static constexpr frequency_t default_frequency_filter_cutoff{frequency_t{10.0}};
 
     /**
      * @brief Constructs the grid-side observer.
@@ -32,9 +31,18 @@ public:
 
     /**
      * @brief Configures the gains for the internal Phase-Locked Loop.
-     * @param gains The proportional and time constant for the PLL.
+     * @param kp The proportional gain for the PLL.
+     * @param ti The integral time constant for the PLL.
+     * @param nominal_frequency The nominal frequency.
      */
     void configure_pll(real_t kp, duration_t ti, frequency_t nominal_frequency);
+
+    /**
+     * @brief Configures the voltage filter.
+     * @param cutoff_frequency The cutoff frequency for the filter.
+     * @param damping_ratio The damping ratio for the filter.
+     */
+    void configure_voltage_filter(frequency_t cutoff_frequency, real_t damping_ratio = 0.707);
 
     /**
      * @brief Executes one update cycle of the grid observer.
@@ -48,6 +56,7 @@ public:
      * @brief Resets all internal states of the observer.
      *
      * This will reset the PLL and the commutation monitor to their initial states.
+     * @param initial_frequency The initial frequency to reset the observer.
      */
     void reset(frequency_pu_t initial_frequency = frequency_pu_t{1.0});
 
@@ -81,10 +90,9 @@ public:
      */
     alphabeta<voltage_pu_t> get_filtered_voltage_alphabeta() const;
 
-    bool is_locked() const { return _pll.is_locked(); }
-
 private:
-    control::dual_sogi_srf_pll _pll;
+    control::srf_pll _pll;
+    control::second_order_low_pass_filter<real_t> _filtered_voltage_filter;
 
     // Configuration
     frequency_t _nominal_frequency{};
