@@ -54,6 +54,10 @@ public:
 
         /// Initial machine frequency for startup
         yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{1.0};
+
+        /// Frequency estimation filter cutoff frequency
+        /// Range: [1.0, 50.0] Hz
+        yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
     };
 
 private:

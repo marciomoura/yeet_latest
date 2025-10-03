@@ -66,6 +66,10 @@ public:
         /// Range: [0.0, 1.0] pu
         yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{0.01};
 
+        /// Frequency estimation filter cutoff frequency
+        /// Range: [1.0, 50.0] Hz
+        yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
+
         /// Voltage threshold for commutation detection
         /// Range: [0.05, 0.3] pu
         yeet::parameter<double> commutation_detection_threshold = 0.15;
