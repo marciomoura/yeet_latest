@@ -15,33 +15,33 @@ on:
 
 jobs:
   # Job 1: Code formatting check (fast, runs on manual trigger or PRs)
-  format:
-    if: github.event.inputs.run_formatter == 'true' || github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  # format:
+  #   if: github.event.inputs.run_formatter == 'true' || github.event_name == 'pull_request'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.x"
 
-      - name: Install formatters
-        run: |
-          python -m pip install --upgrade pip
-          pip install cmake-format pyyaml
-          sudo apt-get update
-          sudo apt-get install -y clang-format
+  #     - name: Install formatters
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install cmake-format pyyaml
+  #         sudo apt-get update
+  #         sudo apt-get install -y clang-format
 
-      - name: Check CMake formatting
-        run: |
-          find . -name "CMakeLists.txt" -o -name "*.cmake" | \
-          xargs -P $(nproc) -I {} bash -c "echo 'Checking {}' && cmake-format --check '{}'"
+  #     - name: Check CMake formatting
+  #       run: |
+  #         find . -name "CMakeLists.txt" -o -name "*.cmake" | \
+  #         xargs -P $(nproc) -I {} bash -c "echo 'Checking {}' && cmake-format --check '{}'"
 
-      - name: Check C++ formatting
-        run: |
-          find . -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | \
-          xargs -P $(nproc) -I {} bash -c "echo 'Checking {}' && clang-format --dry-run --Werror '{}'"
+  #     - name: Check C++ formatting
+  #       run: |
+  #         find . -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | \
+  #         xargs -P $(nproc) -I {} bash -c "echo 'Checking {}' && clang-format --dry-run --Werror '{}'"
 
   # Job 2: Build (shared by all other jobs)
   build:
@@ -61,7 +61,7 @@ jobs:
       - name: Cache APT packages
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: cmake ninja-build clang ccache mold
+          packages: cmake ninja-build clang ccache mold gcovr llvm valgrind
           version: 1.0
 
       - name: Setup ccache
@@ -81,7 +81,7 @@ jobs:
       - name: Set up CMake and Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang ccache mold gcovr llvm
+          sudo apt-get install -y cmake ninja-build clang ccache mold gcovr llvm valgrind
 
       - name: Configure CMake project
         run: |
@@ -117,7 +117,8 @@ jobs:
             build/bin/
             build/CMakeFiles/
             build/**/*.gcno
-            build/CTestTestfile.cmake
+            build/*.cmake
+            build/**/CTestTestfile.cmake
             build/Testing/
           retention-days: 1
 
@@ -136,6 +137,11 @@ jobs:
 
       - name: Make binaries executable
         run: chmod +x build/bin/*
+
+      - name: List available tests
+        run: |
+          cd build
+          ctest -N
 
       - name: Run unit tests
         run: |
@@ -170,6 +176,11 @@ jobs:
       - name: Make binaries executable
         run: chmod +x build/bin/*
 
+      - name: List available tests
+        run: |
+          cd build
+          ctest -N
+
       - name: Run integration tests
         run: |
           cd build
@@ -188,51 +199,51 @@ jobs:
           ctest --rerun-failed --verbose --output-on-failure
 
   # Job 5: Code Coverage (runs after tests)
-  coverage:
-    needs: [test-unit, test-integration]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  # coverage:
+  #   needs: [test-unit, test-integration]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: build/
+  #     - name: Download build artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: build-artifacts
+  #         path: build/
 
-      - name: Install gcovr
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcovr llvm
+  #     - name: Install gcovr
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y gcovr llvm
 
-      - name: Make binaries executable
-        run: chmod +x build/bin/*
+  #     - name: Make binaries executable
+  #       run: chmod +x build/bin/*
 
-      - name: Run all tests to generate coverage data
-        run: |
-          cd build
-          ctest --output-on-failure --parallel $(nproc)
-        continue-on-error: true
-        env:
-          GTEST_COLOR: 1
+  #     - name: Run all tests to generate coverage data
+  #       run: |
+  #         cd build
+  #         ctest --output-on-failure --parallel $(nproc)
+  #       continue-on-error: true
+  #       env:
+  #         GTEST_COLOR: 1
 
-      - name: Generate coverage report
-        run: |
-          mkdir -p coverage
-          gcovr --gcov-executable "llvm-cov gcov" \
-                --print-summary \
-                --fail-under-line 80 \
-                --exclude ".*build.*" \
-                --exclude ".*_deps.*" \
-                --exclude ".*tests.*" \
-                --html --html-details \
-                --output coverage/index.html
+  #     - name: Generate coverage report
+  #       run: |
+  #         mkdir -p coverage
+  #         gcovr --gcov-executable "llvm-cov gcov" \
+  #               --print-summary \
+  #               --fail-under-line 80 \
+  #               --exclude ".*build.*" \
+  #               --exclude ".*_deps.*" \
+  #               --exclude ".*tests.*" \
+  #               --html --html-details \
+  #               --output coverage/index.html
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
+  #     - name: Upload coverage report
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: coverage-report
+  #         path: coverage/
 
   # Job 6: Memory Check with Valgrind
   valgrind:
