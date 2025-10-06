@@ -81,7 +81,7 @@ jobs:
       - name: Set up CMake and Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang ccache mold
+          sudo apt-get install -y cmake ninja-build clang ccache mold gcovr llvm
 
       - name: Configure CMake project
         run: |
