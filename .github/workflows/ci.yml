@@ -3,7 +3,6 @@ name: CI
 
 # Define when this workflow will run
 on:
-  push:
   pull_request:
   workflow_dispatch:
     inputs:
