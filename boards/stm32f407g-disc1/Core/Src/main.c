@@ -21,6 +21,7 @@
 
 #include "usb_host.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -115,13 +116,21 @@ int main(void)
 
     /* USER CODE END 1 */
 
+    /* MCU Configuration--------------------------------------------------------*/
+
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
     HAL_Init();
 
     /* USER CODE BEGIN Init */
     yeet_embedded_init();
     /* USER CODE END Init */
 
+    /* Configure the system clock */
     SystemClock_Config();
+
+    /* USER CODE BEGIN SysInit */
+
+    /* USER CODE END SysInit */
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
@@ -253,7 +262,7 @@ static void MX_ADC1_Init(void)
     hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
     hadc1.Init.NbrOfConversion = 1;
     hadc1.Init.DMAContinuousRequests = ENABLE;
-    hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+    hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
     if (HAL_ADC_Init(&hadc1) != HAL_OK) {
         Error_Handler();
     }
@@ -691,7 +700,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     // - Inner current control loop
     // - Firing angle calculation for thyristors
     // - Gate pulse generation timing
-    // yeet_task_1();
+    yeet_task_1();
 
     // Suppress unused variable warning until conversion is implemented
     (void)adc_raw_value;
@@ -723,7 +732,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
         // - Speed/torque control loop
         // - Flux control calculations
         // - Protection monitoring (overcurrent, overvoltage)
-        // yeet_task_2();
+        yeet_task_2();
     }
     else if (htim->Instance == TIM5) {
         // Increment diagnostic counter
@@ -743,7 +752,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
         // - Communication protocol handling
         // - Diagnostics and logging
         // - Non-critical supervisory functions
-        // yeet_task_3();
+        yeet_task_3();
     }
 }
 
