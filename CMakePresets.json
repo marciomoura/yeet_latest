@@ -2,118 +2,83 @@
     "version": 3,
     "configurePresets": [
         {
-            "name": "host-debug-gcc",
-            "displayName": "Host Debug Build (GCC)",
-            "description": "Development build for host machine using GCC",
-            "binaryDir": "${sourceDir}/build",
+            "name": "host-gcc",
+            "displayName": "Host Build (GCC)",
+            "description": "Host machine build using GCC - select Debug/Release at build time",
+            "binaryDir": "${sourceDir}/build-host",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
                 "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
                 "YEET_BUILD_EMBEDDED": "OFF",
                 "YEET_BUILD_TESTING": "ON",
                 "YEET_BUILD_EXAMPLES": "ON"
             },
-            "generator": "Ninja"
+            "generator": "Ninja Multi-Config"
         },
         {
-            "name": "host-debug-clang",
-            "displayName": "Host Debug Build (Clang)",
-            "description": "Development build for host machine using Clang",
-            "binaryDir": "${sourceDir}/build",
+            "name": "host-clang",
+            "displayName": "Host Build (Clang)",
+            "description": "Host machine build using Clang - select Debug/Release at build time",
+            "binaryDir": "${sourceDir}/build-host",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/clang.exe",
                 "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/clang++.exe",
                 "YEET_BUILD_EMBEDDED": "OFF",
                 "YEET_BUILD_TESTING": "ON",
                 "YEET_BUILD_EXAMPLES": "ON"
             },
-            "generator": "Ninja"
+            "generator": "Ninja Multi-Config"
         },
         {
-            "name": "host-release-gcc",
-            "displayName": "Host Release Build (GCC)",
-            "description": "Optimized build for host machine using GCC",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
-                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
-                "YEET_BUILD_EMBEDDED": "OFF",
-                "YEET_BUILD_TESTING": "ON",
-                "YEET_BUILD_EXAMPLES": "ON"
-            },
-            "generator": "Ninja"
-        },
-        {
-            "name": "host-release-clang",
-            "displayName": "Host Release Build (Clang)",
-            "description": "Optimized build for host machine using Clang",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/clang.exe",
-                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/clang++.exe",
-                "YEET_BUILD_EMBEDDED": "OFF",
-                "YEET_BUILD_TESTING": "ON",
-                "YEET_BUILD_EXAMPLES": "ON"
-            },
-            "generator": "Ninja"
-        },
-        {
-            "name": "embedded-debug",
-            "displayName": "STM32F407G-DISC1 Debug",
-            "description": "ARM Cortex-M4 embedded target with debug symbols",
+            "name": "embedded-gcc",
+            "displayName": "STM32F407G-DISC1 (GCC)",
+            "description": "ARM Cortex-M4 embedded target - select Debug/Release at build time",
             "binaryDir": "${sourceDir}/build-embedded",
-            "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
+            "toolchainFile": "${sourceDir}/cmake/toolchains/stm32-gcc-toolchain.cmake",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
                 "YEET_BUILD_EMBEDDED": "ON",
                 "YEET_BUILD_TESTING": "OFF",
                 "YEET_BUILD_EXAMPLES": "OFF"
             },
-            "generator": "Ninja"
-        },
-        {
-            "name": "embedded-release",
-            "displayName": "STM32F407G-DISC1 Release",
-            "description": "ARM Cortex-M4 embedded target (O3 optimized with LTO)",
-            "binaryDir": "${sourceDir}/build-embedded-release",
-            "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "YEET_BUILD_EMBEDDED": "ON",
-                "YEET_BUILD_TESTING": "OFF",
-                "YEET_BUILD_EXAMPLES": "OFF"
-            },
-            "generator": "Ninja"
+            "generator": "Ninja Multi-Config"
         }
     ],
     "buildPresets": [
         {
-            "name": "host-debug-gcc",
-            "configurePreset": "host-debug-gcc"
+            "name": "host-gcc-debug",
+            "displayName": "Host GCC - Debug",
+            "configurePreset": "host-gcc",
+            "configuration": "Debug"
         },
         {
-            "name": "host-debug-clang",
-            "configurePreset": "host-debug-clang"
+            "name": "host-gcc-release",
+            "displayName": "Host GCC - Release",
+            "configurePreset": "host-gcc",
+            "configuration": "Release"
         },
         {
-            "name": "host-release-gcc",
-            "configurePreset": "host-release-gcc"
+            "name": "host-clang-debug",
+            "displayName": "Host Clang - Debug",
+            "configurePreset": "host-clang",
+            "configuration": "Debug"
         },
         {
-            "name": "host-release-clang",
-            "configurePreset": "host-release-clang"
+            "name": "host-clang-release",
+            "displayName": "Host Clang - Release",
+            "configurePreset": "host-clang",
+            "configuration": "Release"
         },
         {
-            "name": "embedded-debug",
-            "configurePreset": "embedded-debug"
+            "name": "embedded-gcc-debug",
+            "displayName": "STM32 GCC - Debug",
+            "configurePreset": "embedded-gcc",
+            "configuration": "Debug"
         },
         {
-            "name": "embedded-release",
-            "configurePreset": "embedded-release"
+            "name": "embedded-gcc-release",
+            "displayName": "STM32 GCC - Release",
+            "configurePreset": "embedded-gcc",
+            "configuration": "Release"
         }
     ]
 }

@@ -4,137 +4,246 @@
 
 ## Overview
 
-YEET is a specialized software platform designed for power electronics engineers working on advanced control systems, particularly Load-Commutated Inverters (LCI), thyristor bridges, and gas turbine soft-starters. The platform provides:
+YEET is a software platform for power electronics engineers working on advanced control systems, particularly Load-Commutated Inverters (LCI), thyristor bridges, and gas turbine soft-starters.
 
-- **Advanced Data Modeling**: Comprehensive modeling capabilities for power electronics systems
-- **Real-Time Control Libraries**: High-performance control algorithms optimized for real-time execution
-- **Closed-Loop Testing Framework**: Integrated validation and testing tools for control system verification
-- **Hardware-in-the-Loop Support**: Integration with microcontrollers and RTOS platforms
-- **Simulink Integration**: Seamless code generation and plant model integration
-
-## Key Features
-
-### Power Electronics Focus
-- **LCI Drive Systems**: Complete support for Load-Commutated Inverter applications
-- **Thyristor Control**: 6-pulse and 12-pulse bridge configurations
-- **Gas Turbine Integration**: Specialized soft-starter and helper motor applications
-- **Real-Time Performance**: Deterministic execution for high-frequency control loops
-
-### Software Architecture
-- **C++ Core Guidelines Compliance**: Modern, maintainable C++ codebase
-- **Real-Time Constraints**: Memory-safe, predictable execution paths
-- **Modular Design**: Reusable components for control systems and signal processing
-- **Cross-Platform Support**: Windows, Linux, and embedded targets
-
-## Getting Started
-
-### Prerequisites
-
-#### Development Environment
-1. **Visual Studio Code** with the following extensions:
-   - [Clangd Extension](https://github.com/clangd/vscode-clangd)
-   - Configure Clangd with: `--query-driver=C:\msys64\mingw64\**\*`
-
-2. **Code Quality Tools**:
-   - [Clang-tidy](https://clang.llvm.org/extra/clang-tidy/) for static analysis
-   - [CppCheck](https://cppcheck.sourceforge.io/) for additional code validation
-
-#### Windows Development Setup (MSYS2)
-
-Install the required development packages:
-
-```bash
-# Core development tools
-pacman -S mingw-w64-x86_64-clang
-pacman -S mingw-w64-x86_64-gdb
-pacman -S mingw-w64-x86_64-cmake
-pacman -S mingw-w64-x86_64-ccache
-pacman -S mingw-w64-x86_64-gcc
-pacman -S mingw-w64-x86_64-lcov
-pacman -S mingw-w64-x86_64-perl
-```
-
-Add to your system PATH:
-```
-C:\msys64\usr\bin
-C:\msys64\mingw64\bin
-```
-
-#### Python Environment
-
-1. Install Python 3.8 or higher
-2. For Windows PowerShell, enable script execution:
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-   ```
-3. Initialize Python environment in VSCode: `Ctrl + Shift + P` → `Python: Create Environment`
-
-### Building the Project
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd yeet
-
-# Configure build
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-
-# Build
-cmake --build build --parallel
-
-# Run tests
-ctest --test-dir build
-```
+**Key capabilities:**
+- Advanced data modeling for power electronics systems
+- Real-time control libraries optimized for deterministic execution
+- Closed-loop testing framework for control system verification
+- Hardware-in-the-loop support with microcontrollers and RTOS
+- Simulink integration for code generation and plant models
 
 ## Project Structure
 
 ```
 yeet/
 ├── software/
-│   ├── yeet_application/
-│   │   └── sfc/              # SFC (Static Frequency Converter) applications
-│   │       ├── simulink/     # Simulink model integration
-│   │       ├── control/      # Control algorithms
-│   │       └── docs/         # Technical documentation
-│   └── yeet_control/         # Reusable control components
-│       ├── filters/          # Digital filters
-│       ├── transforms/       # Reference frame transformations
-│       └── controllers/      # PID, PI controllers
-├── tests/                    # Unit and integration tests
-└── docs/                     # Project documentation
+│   ├── yeet/                     # Core library (data structures, utilities)
+│   ├── yeet_control/             # Control algorithms (filters, transforms, controllers)
+│   ├── yeet_testing/             # Testing utilities and fixtures
+│   └── yeet_application/
+│       ├── sfc/                  # Static Frequency Converter application
+│       ├── sfc_integration/      # Integration tests
+│       └── sfc_embedded/         # Embedded ARM target
+├── boards/
+│   └── stm32f407g-disc1/         # STM32F407 Discovery board support
+├── cmake/
+│   ├── toolchains/               # Cross-compilation toolchains
+│   └── dependencies/             # External dependencies (FetchContent)
+└── tests/                        # Unit and integration tests
 ```
 
-## Key Applications
+## Build System
+
+### CMake Targets
+
+The build system creates the following main targets:
+
+**Core Libraries:**
+- `yeet::yeet` - Core data structures and utilities
+- `yeet::yeet_control` - Control algorithms (PI/PID controllers, filters, transforms)
+- `yeet::yeet_testing` - Testing utilities and mock objects
+
+**Applications:**
+- `yeet::yeet_sfc` - Static Frequency Converter simulation
+- `yeet::yeet_sfc_integration` - Integration test suite
+- `yeet::yeet_sfc_embedded` - Embedded application logic
+- `yeet_embedded_app` - Complete embedded firmware (only when `YEET_BUILD_EMBEDDED=ON`)
+
+**Board Support:**
+- `stm32f407g-disc1` - STM32F407 Discovery board library
+- `STM32_HAL_Drivers` - STM32 HAL (fetched from ST repositories)
+- `USB_Host_Library` - USB Host middleware (fetched from ST repositories)
+
+### CMake Options
+
+```cmake
+YEET_BUILD_EMBEDDED      # Build ARM embedded targets (default: OFF)
+YEET_BUILD_TESTING       # Build test suite (default: ON)
+YEET_BUILD_EXAMPLES      # Build example applications (default: ON)
+YEET_CODE_COVERAGE       # Enable coverage reports with gcovr (default: OFF)
+YEET_MEMCHECK           # Enable Valgrind memory checks (default: OFF)
+YEET_ENABLE_CCACHE      # Use ccache for faster rebuilds (default: ON)
+YEET_PRECISION_DOUBLE   # Use double precision floats (default: ON)
+YEET_ENABLE_DATA_LOGGING # Enable JSON simulation logging (default: ON)
+```
+
+### CMake Presets
+
+Configure and build using presets defined in `CMakePresets.json`:
+
+**Host Builds (native x86_64):**
+```bash
+# GCC toolchain
+cmake --preset host-gcc
+cmake --build --preset host-gcc-debug
+cmake --build --preset host-gcc-release
+
+# Clang toolchain
+cmake --preset host-clang
+cmake --build --preset host-clang-debug
+cmake --build --preset host-clang-release
+```
+
+**Embedded Builds (ARM Cortex-M4):**
+```bash
+# GCC ARM toolchain
+cmake --preset embedded-gcc
+cmake --build --preset embedded-gcc-debug
+cmake --build --preset embedded-gcc-release
+```
+
+Build artifacts are placed in:
+- `build-host/bin/` or `build-host/bin/` for host builds
+- `build-embedded/bin/` for embedded builds
+
+### Running Tests
+
+```bash
+# Configure with testing enabled (default for host builds)
+cmake --preset host-gcc
+
+# Build and run all tests
+cmake --build --preset host-gcc-debug
+ctest --test-dir build-host-gcc -C Debug
+
+# Run specific test suites
+./build-host-gcc/bin/yeet_test
+./build-host-gcc/bin/yeet_control_tests
+./build-host-gcc/bin/yeet_application_sfc_tests
+```
+
+### Code Coverage
+
+```bash
+# Configure with coverage enabled
+cmake --preset host-gcc -DYEET_CODE_COVERAGE=ON
+
+# Build and run tests
+cmake --build --preset host-gcc-debug
+ctest --test-dir build-host-gcc -C Debug
+
+# Generate HTML coverage report
+cmake --build build-host-gcc --target coverage
+
+# Open report: build-host-gcc/coverage/index.html
+```
+
+## Prerequisites
+
+### Windows Development (MSYS2)
+
+Install required packages:
+```bash
+pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-gcc
+pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+pacman -S mingw-w64-x86_64-gdb mingw-w64-x86_64-ccache
+pacman -S mingw-w64-x86_64-lcov mingw-w64-x86_64-perl
+```
+
+Add to PATH:
+```
+C:\msys64\usr\bin
+C:\msys64\mingw64\bin
+```
+
+### ARM Embedded Development
+
+Install [GNU Arm Embedded Toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm):
+```bash
+# Add to PATH (Windows)
+C:\Program Files (x86)\Arm GNU Toolchain arm-none-eabi\<version>\bin
+```
+
+Verify installation:
+```bash
+arm-none-eabi-gcc --version
+```
+
+### Visual Studio Code
+
+Recommended extensions:
+- **clangd** - C/C++ language server (configure with `--query-driver=C:\msys64\mingw64\**\*`)
+- **CMake Tools** - CMake integration
+- **Clang-Format** - Code formatting
+
+## Embedded Development
+
+### Building Firmware
+
+```bash
+# Configure for STM32F407 Discovery board
+cmake --preset embedded-gcc
+
+# Build Debug firmware
+cmake --build --preset embedded-gcc-debug
+
+# Build Release firmware (optimized)
+cmake --build --preset embedded-gcc-release
+```
+
+The firmware binary is located at:
+- Debug: `build-embedded-gcc/bin/Debug/yeet_embedded_app.elf`
+- Release: `build-embedded-gcc/bin/Release/yeet_embedded_app.elf`
+
+### Flashing Firmware
+
+Using STM32CubeProgrammer CLI:
+```bash
+# Flash Debug build
+STM32_Programmer_CLI.exe -c port=SWD \
+  -w build-embedded-gcc/bin/Debug/yeet_embedded_app.elf \
+  -v -rst
+
+# Flash Release build
+STM32_Programmer_CLI.exe -c port=SWD \
+  -w build-embedded-gcc/bin/Release/yeet_embedded_app.elf \
+  -v -rst
+```
+
+### Memory Optimization
+
+The Release build uses aggressive optimization:
+- `-O3` - Maximum optimization
+- `-flto=auto` - Link-Time Optimization with parallel jobs
+- `-ffunction-sections -fdata-sections` - Dead code elimination
+- `-Wl,--gc-sections` - Linker garbage collection
+- `-ffast-math -funroll-loops` - Performance tuning
+
+Check memory usage (displayed automatically during linking):
+```
+Memory region         Used Size  Region Size  %age Used
+             RAM:       10240 B       128 KB      7.81%
+           FLASH:       45678 B      1024 KB      4.36%
+```
+
+## Applications
 
 ### LCI Gas Turbine Starter
-- **6-pulse thyristor bridges** for grid and machine side converters
-- **Real-time control algorithms** for torque and speed regulation
-- **Protection systems** for safe turbine startup sequences
-- **Simulink integration** for plant model validation
+- 6-pulse thyristor bridges for grid and machine converters
+- Real-time torque and speed regulation
+- Protection systems for safe turbine startup
+- Simulink integration for plant model validation
 
-### Power Electronics Control
-- **Digital signal processing** components for real-time applications
-- **Reference frame transformations** (ABC ↔ αβ ↔ dq)
-- **Advanced filtering** for harmonic mitigation
-- **Closed-loop controllers** optimized for power electronics
+### Control Library Components
+- Digital filters (low-pass, high-pass, notch)
+- Reference frame transformations (ABC ↔ αβ ↔ dq)
+- PI/PID controllers optimized for real-time execution
+- Phase-Locked Loop (PLL) for grid synchronization
 
 ## Documentation
 
-- **[SFC System Documentation](software/yeet_application/sfc/docs/index.md)** - Complete technical reference for Static Frequency Converter applications, LCI drive systems, and gas turbine starter implementations
-- **[Control Library Reference](software/yeet_control/docs/index.md)** - Comprehensive guide to reusable control components, signal processing algorithms, and real-time utilities
-- [API Documentation](docs/api/index.md)
-- [Development Guidelines](docs/development.md)
+- **[SFC System Documentation](software/yeet_application/sfc/docs/index.md)** - Static Frequency Converter technical reference
+- **[Control Library Reference](software/yeet_control/docs/index.md)** - Control components and algorithms
+- **[Development Guidelines](docs/development.md)** - Coding standards and contribution guide
 
-## Contributing
+## Development Standards
 
-This project follows strict coding standards for real-time systems:
-
-1. **C++ Core Guidelines** compliance
-2. **Real-time constraints** - no dynamic memory allocation in critical paths
-3. **Comprehensive testing** for all new features
-4. **Domain expertise** in power electronics and control systems
-
-Please review the [Development Guidelines](docs/development.md) before contributing.
+- **C++17** with Core Guidelines compliance
+- **Real-time constraints** - no dynamic allocation in control loops
+- **Comprehensive testing** - unit tests for all components
+- **Static analysis** - clang-tidy and cppcheck integration
+- **Code coverage** - minimum 90% line coverage
 
 ## License
 
@@ -142,49 +251,10 @@ Please review the [Development Guidelines](docs/development.md) before contribut
 
 ## Status
 
-**Active Development** - Core LCI functionality is stable, with ongoing development of:
+**Active Development** - Core LCI functionality is stable. Ongoing work:
 - Extended microcontroller support
-- Enhanced RTOS integration
+- RTOS integration improvements
 - Additional power electronics applications
 - Advanced control algorithms
 
-For issues, feature requests, or technical discussions, please use the GitHub issue tracker.
-
-## Embedded Target
-
-To configure and compile the embedded target, run:
-
-```bash
-cmake -B build-embedded -S . -DCMAKE_BUILD_TYPE=Debug -DYEET_BUILD_EMBEDDED=ON "-DCMAKE_TOOLCHAIN_FILE=boards/stm32f407g-disc1/cmake/gcc-arm-none-eabi.cmake" -G Ninja
-cmake --build build-embedded --parallel
-```
-
-# Build release version
-cmake --preset embedded-release
-cmake --build --preset embedded-release
-
-# Flash using STM32CubeProgrammer CLI
-```bash
-C:\ST\STM32CubeCLT_1.19.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe -c port=SWD -w build-embedded-release/bin/yeet_embedded_app.elf -v -rst
-```
-
-```
-# Clean previous builds
-rm -rf build-embedded build-embedded-release
-
-# Configure with the new toolchain (Release mode with -O3 optimization)
-cmake --preset embedded-release
-
-# Verify flags are applied (look for -O3, -flto, -ffast-math)
-cmake --build build-embedded-release --verbose 2>&1 | grep "g++" | head -3
-
-# Expected output should contain:
-# -O3 -flto -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti 
-# -ffast-math -funroll-loops -finline-functions
-
-# Build the target
-cmake --build build-embedded-release
-
-# Check memory usage (printed automatically due to -Wl,--print-memory-usage)
-# Output will show Flash and RAM consumption
-```
+For issues or questions, use the GitHub issue tracker.
