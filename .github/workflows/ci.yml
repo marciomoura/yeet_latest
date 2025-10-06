@@ -3,32 +3,29 @@ name: CI
 
 # Define when this workflow will run
 on:
-  push: # Keep existing triggers if needed
-  pull_request: # Keep existing triggers if needed
-  workflow_dispatch: # Add manual trigger
+  push:
+  pull_request:
+  workflow_dispatch:
     inputs:
       run_formatter:
         description: "Run the code formatting job?"
         required: false
         type: boolean
-        default: false # Default is to run the formatter
+        default: false
 
 jobs:
+  # Job 1: Code formatting check (fast, runs on manual trigger or PRs)
   format:
-    # Run formatter job if enabled
-    if: github.event.inputs.run_formatter == 'true'
+    if: github.event.inputs.run_formatter == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      # Check out the repository code
       - uses: actions/checkout@v2
 
-      # Set up Python environment needed for cmake-format
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
-      # Install required Python packages and clang-format
       - name: Install formatters
         run: |
           python -m pip install --upgrade pip
@@ -36,19 +33,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-format
 
-      # Run cmake-format on all CMake files in parallel
       - name: Check CMake formatting
         run: |
           find . -name "CMakeLists.txt" -o -name "*.cmake" | \
           xargs -P $(nproc) -I {} bash -c "echo 'Checking {}' && cmake-format --check '{}'"
 
-      # Run clang-format on all C++ files in parallel
       - name: Check C++ formatting
         run: |
           find . -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | \
           xargs -P $(nproc) -I {} bash -c "echo 'Checking {}' && clang-format --dry-run --Werror '{}'"
 
-  # Second job: Build and test the project
+  # Job 2: Build (shared by all other jobs)
   build:
     runs-on: ubuntu-latest
     steps:
@@ -63,21 +58,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Cache APT packages to speed up dependency installation
       - name: Cache APT packages
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: cmake ninja-build clang valgrind llvm gcovr ccache mold
+          packages: cmake ninja-build clang ccache mold
           version: 1.0
 
-      # Setup ccache for faster C/C++ compilation
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ runner.os }}-${{ github.ref }}-ccache
           max-size: 500M
 
-      # Cache CMake FetchContent dependencies
       - name: Cache CMake dependencies
         uses: actions/cache@v3
         with:
@@ -89,7 +81,7 @@ jobs:
       - name: Set up CMake and Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang valgrind llvm gcovr ccache mold
+          sudo apt-get install -y cmake ninja-build clang ccache mold
 
       - name: Configure CMake project
         run: |
@@ -104,9 +96,8 @@ jobs:
                 -DYEET_MEMCHECK=ON \
                 -DYEET_ENABLE_DATA_LOGGING=OFF
           echo "=== CMake Configuration Complete ==="
-          echo "Data logging should be: OFF"
 
-      - name: Build targets
+      - name: Build all test targets
         run: |
           cmake --build build --parallel $(nproc) --target \
             yeet_test \
@@ -117,11 +108,73 @@ jobs:
 
       - name: Show ccache statistics
         run: ccache -s
-            
-      - name: Run tests in parallel
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            build/bin/
+            build/CMakeFiles/
+            build/**/*.gcno
+            build/CTestTestfile.cmake
+            build/Testing/
+          retention-days: 1
+
+  # Job 3: Unit Tests (fast tests)
+  test-unit:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
+
+      - name: Make binaries executable
+        run: chmod +x build/bin/*
+
+      - name: Run unit tests
         run: |
           cd build
-          ctest --output-on-failure \
+          ctest -R "yeet_test|yeet_testing_tests|yeet_control_tests" \
+                --output-on-failure \
+                --parallel $(nproc) \
+                --timeout 60 \
+                --progress
+        env:
+          GTEST_COLOR: 1
+
+      - name: Re-run failed tests verbosely
+        if: failure()
+        run: |
+          cd build
+          ctest --rerun-failed --verbose --output-on-failure
+
+  # Job 4: Integration Tests (slower tests)
+  test-integration:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
+
+      - name: Make binaries executable
+        run: chmod +x build/bin/*
+
+      - name: Run integration tests
+        run: |
+          cd build
+          ctest -R "integration" \
+                --output-on-failure \
                 --parallel $(nproc) \
                 --timeout 300 \
                 --progress
@@ -134,7 +187,36 @@ jobs:
           cd build
           ctest --rerun-failed --verbose --output-on-failure
 
-      - name: Generate and check coverage
+  # Job 5: Code Coverage (runs after tests)
+  coverage:
+    needs: [test-unit, test-integration]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
+
+      - name: Install gcovr
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcovr llvm
+
+      - name: Make binaries executable
+        run: chmod +x build/bin/*
+
+      - name: Run all tests to generate coverage data
+        run: |
+          cd build
+          ctest --output-on-failure --parallel $(nproc)
+        continue-on-error: true
+        env:
+          GTEST_COLOR: 1
+
+      - name: Generate coverage report
         run: |
           mkdir -p coverage
           gcovr --gcov-executable "llvm-cov gcov" \
@@ -152,7 +234,28 @@ jobs:
           name: coverage-report
           path: coverage/
 
-      - name: Run Valgrind Memory Check
+  # Job 6: Memory Check with Valgrind
+  valgrind:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
+
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+
+      - name: Make binaries executable
+        run: chmod +x build/bin/*
+
+      - name: Run Valgrind on core tests
         run: |
           valgrind --tool=memcheck \
                    --leak-check=full \
@@ -161,19 +264,32 @@ jobs:
                    --error-exitcode=1 \
                    --show-leak-kinds=all \
                    --verbose \
-                   ./build/bin/yeet_test 2> valgrind.log
+                   ./build/bin/yeet_test 2>&1 | tee valgrind-core.log
+        continue-on-error: true
+
+      - name: Run Valgrind on control tests
+        run: |
+          valgrind --tool=memcheck \
+                   --leak-check=full \
+                   --show-reachable=yes \
+                   --track-origins=yes \
+                   --error-exitcode=1 \
+                   --show-leak-kinds=all \
+                   --verbose \
+                   ./build/bin/yeet_control_tests 2>&1 | tee valgrind-control.log
         continue-on-error: true
 
       - name: Upload Valgrind logs
         uses: actions/upload-artifact@v4
         with:
           name: valgrind-logs
-          path: valgrind.log
-        if: always() # Upload even if tests fail
+          path: |
+            valgrind-*.log
+        if: always()
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true  # Cancel old runs when new commits are pushed
+  cancel-in-progress: true
 
 env:
   GTEST_COLOR: 1
