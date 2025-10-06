@@ -89,7 +89,7 @@
             "request": "launch",
             "servertype": "stlink",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build-embedded/bin/yeet_embedded_app.elf",
+            "executable": "${workspaceFolder}/build-embedded/bin/Debug/yeet_embedded_app.elf",
             "device": "STM32F407VG",
             "interface": "swd",
             "serialNumber": "",

@@ -339,7 +339,7 @@
                 "-c",
                 "port=SWD",
                 "-w",
-                "${workspaceFolder}/build-embedded/bin/yeet_embedded_app.elf",
+                "${workspaceFolder}/build-embedded/bin/Debug/yeet_embedded_app.elf",
                 "-v",
                 "-rst"
             ],
@@ -361,7 +361,7 @@
                 "-c",
                 "port=SWD",
                 "-w",
-                "${workspaceFolder}/build-embedded-release/bin/yeet_embedded_app.elf",
+                "${workspaceFolder}/build-embedded/bin/Release/yeet_embedded_app.elf",
                 "-v",
                 "-rst"
             ],
