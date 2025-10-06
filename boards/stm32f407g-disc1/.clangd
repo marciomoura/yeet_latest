@@ -1,0 +1,85 @@
+# clangd configuration for STM32F407G-DISC1 embedded target
+# This file augments the root .clangd configuration
+
+CompileFlags:
+    CompilationDatabase: ../../build-embedded
+    
+    # Add ARM-specific flags that might be missing from compile_commands.json
+    Add:
+        # MCU definitions
+        - -DSTM32F407xx
+        - -DUSE_HAL_DRIVER
+        - -DARM_MATH_CM4
+        - -D__FPU_PRESENT=1
+        
+        # ARM Cortex-M4 CPU flags
+        - --target=arm-none-eabi
+        - -mcpu=cortex-m4
+        - -mthumb
+        - -mfpu=fpv4-sp-d16
+        - -mfloat-abi=hard
+        
+        # Optimization for better analysis (match Debug build)
+        - -Og
+        - -g3
+        
+        # C++ features disabled for embedded
+        - -fno-exceptions
+        - -fno-rtti
+        
+        # System includes from fetched libraries (adjust paths as needed)
+        - -isystem
+        - ../../build-embedded/_deps/stm32f4xx_hal_driver-src/Inc
+        - -isystem
+        - ../../build-embedded/_deps/cmsis_device_f4-src/Include
+        - -isystem
+        - ../../build-embedded/_deps/cmsis_core-src/CMSIS/Core/Include
+        - -isystem
+        - ../../build-embedded/_deps/stm32_mw_usb_host-src/Core/Inc
+
+    # Remove flags that might confuse clangd
+    Remove:
+        # Remove LTO flags (not useful for IDE analysis)
+        - -flto*
+        - -fwhole-program
+        
+        # Remove specs that IDE doesn't need
+        - --specs=*
+
+Index:
+    Background: Build
+    StandardLibrary: No  # Don't index standard library for embedded
+
+Hover:
+    ShowAKA: Yes
+
+Diagnostics:
+    UnusedIncludes: None
+    MissingIncludes: Strict
+    
+    # Suppress common embedded/cross-compilation warnings
+    Suppress:
+        - implicit-function-declaration
+        - unknown-attributes
+        - ignored-attributes
+        
+    ClangTidy:
+        Add:
+            # Enable embedded-friendly checks
+            - readability-*
+            - modernize-*
+            - performance-*
+            - bugprone-*
+        Remove:
+            # Disable checks not suitable for embedded
+            - modernize-use-trailing-return-type
+            - readability-magic-numbers
+            - readability-uppercase-literal-suffix
+            - cppcoreguidelines-avoid-magic-numbers
+            - cppcoreguidelines-pro-bounds-pointer-arithmetic
+
+InlayHints:
+    Enabled: Yes
+    ParameterNames: Yes
+    DeducedTypes: Yes
+    Designators: Yes

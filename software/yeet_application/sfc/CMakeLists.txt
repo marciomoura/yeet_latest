@@ -3,69 +3,101 @@ project(yeet_application_sfc CXX)
 add_library(${PROJECT_NAME} STATIC)
 add_library(yeet::yeet_application_sfc ALIAS ${PROJECT_NAME})
 
-# Add generated libraries as subdirectories
-add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
+# Add generated Simulink libraries only when building tests (plant models need
+# them)
+if(YEET_BUILD_TESTING)
+    add_subdirectory(simulink/sfc_6p_6p_topology/sfc_6p_6p_topology_ert_rtw)
+endif()
 
+# Core SFC headers (always needed)
+set(SFC_CORE_HEADERS
+    include/sfc/grid_side_hardware_mock.hpp
+    include/sfc/machine_side_hardware_mock.hpp
+    include/sfc/sfc_commutation_mask.hpp
+    include/sfc/sfc_current_controller.hpp
+    include/sfc/sfc_machine_side_filtering.hpp
+    include/sfc/sfc_grid_side_filtering.hpp
+    include/sfc/sfc_dc_link_filtering.hpp
+    include/sfc/sfc_discontinuous_conduction_detector.hpp
+    include/sfc/sfc_grid_side_observer.hpp
+    include/sfc/sfc_machine_side_observer.hpp
+    include/sfc/sfc_grid_side_measurements.hpp
+    include/sfc/sfc_grid_side_modulator.hpp
+    include/sfc/sfc_machine_side_modulator.hpp
+    include/sfc/sfc_machine_side_measurements.hpp
+    include/sfc/sfc_dc_link_measurements.hpp
+    include/sfc/sfc_commutation_monitor.hpp
+    include/sfc/sfc_machine_side_lookup_table.hpp
+    include/sfc/sfc_mode_detector.hpp
+    include/sfc/sfc_per_unit_system.hpp
+    include/sfc/sfc_speed_controller.hpp
+    include/sfc/sfc_types.hpp
+    include/sfc/sfc_state_machine.hpp)
+
+# Core SFC sources (always needed)
+set(SFC_CORE_SOURCES
+    src/grid_side_hardware_mock.cpp
+    src/machine_side_hardware_mock.cpp
+    src/sfc_commutation_mask.cpp
+    src/sfc_current_controller.cpp
+    src/sfc_machine_side_filtering.cpp
+    src/sfc_machine_side_lookup_table.cpp
+    src/sfc_grid_side_filtering.cpp
+    src/sfc_dc_link_filtering.cpp
+    src/sfc_discontinuous_conduction_detector.cpp
+    src/sfc_grid_side_observer.cpp
+    src/sfc_machine_side_observer.cpp
+    src/sfc_grid_side_measurements.cpp
+    src/sfc_grid_side_modulator.cpp
+    src/sfc_machine_side_measurements.cpp
+    src/sfc_machine_side_modulator.cpp
+    src/sfc_dc_link_measurements.cpp
+    src/sfc_commutation_monitor.cpp
+    src/sfc_mode_detector.cpp
+    src/sfc_per_unit_system.cpp
+    src/sfc_speed_controller.cpp
+    src/sfc_state_machine.cpp)
+
+# Plant model files (only needed for testing/simulation)
+set(SFC_PLANT_MODEL_HEADERS
+    include/sfc/sfc_plant_model_augmented_6p_6p.hpp
+    include/sfc/sfc_plant_model_6p_6p.hpp
+    include/sfc/sfc_plant_model_parameters.hpp)
+
+set(SFC_PLANT_MODEL_SOURCES src/sfc_plant_model_augmented_6p_6p.cpp
+                            src/sfc_plant_model_6p_6p.cpp)
+
+# Add core sources (always included)
 target_sources(
     ${PROJECT_NAME}
-    PUBLIC include/sfc/grid_side_hardware_mock.hpp
-           include/sfc/machine_side_hardware_mock.hpp
-           include/sfc/sfc_commutation_mask.hpp
-           include/sfc/sfc_current_controller.hpp
-           include/sfc/sfc_machine_side_filtering.hpp
-           include/sfc/sfc_grid_side_filtering.hpp
-           include/sfc/sfc_dc_link_filtering.hpp
-           include/sfc/sfc_discontinuous_conduction_detector.hpp
-           include/sfc/sfc_grid_side_observer.hpp
-           include/sfc/sfc_machine_side_observer.hpp
-           include/sfc/sfc_grid_side_measurements.hpp
-           include/sfc/sfc_grid_side_modulator.hpp
-           include/sfc/sfc_machine_side_modulator.hpp
-           include/sfc/sfc_machine_side_measurements.hpp
-           include/sfc/sfc_dc_link_measurements.hpp
-           include/sfc/sfc_commutation_monitor.hpp
-           include/sfc/sfc_machine_side_lookup_table.hpp
-           include/sfc/sfc_mode_detector.hpp
-           include/sfc/sfc_per_unit_system.hpp
-           include/sfc/sfc_speed_controller.hpp
-           include/sfc/sfc_types.hpp
-           include/sfc/sfc_state_machine.hpp
-           include/sfc/sfc_plant_model_augmented_6p_6p.hpp
-           include/sfc/sfc_plant_model_6p_6p.hpp
-           include/sfc/sfc_plant_model_parameters.hpp
-    PRIVATE src/grid_side_hardware_mock.cpp
-            src/machine_side_hardware_mock.cpp
-            src/sfc_commutation_mask.cpp
-            src/sfc_current_controller.cpp
-            src/sfc_machine_side_filtering.cpp
-            src/sfc_machine_side_lookup_table.cpp
-            src/sfc_grid_side_filtering.cpp
-            src/sfc_dc_link_filtering.cpp
-            src/sfc_discontinuous_conduction_detector.cpp
-            src/sfc_grid_side_observer.cpp
-            src/sfc_machine_side_observer.cpp
-            src/sfc_grid_side_measurements.cpp
-            src/sfc_grid_side_modulator.cpp
-            src/sfc_machine_side_measurements.cpp
-            src/sfc_machine_side_modulator.cpp
-            src/sfc_dc_link_measurements.cpp
-            src/sfc_commutation_monitor.cpp
-            src/sfc_mode_detector.cpp
-            src/sfc_per_unit_system.cpp
-            src/sfc_speed_controller.cpp
-            src/sfc_state_machine.cpp
-            src/sfc_plant_model_augmented_6p_6p.cpp
-            src/sfc_plant_model_6p_6p.cpp)
+    PUBLIC ${SFC_CORE_HEADERS}
+    PRIVATE ${SFC_CORE_SOURCES})
+
+# Only include plant models when building tests
+if(YEET_BUILD_TESTING)
+    message(STATUS "Including SFC plant models for testing/simulation")
+    target_sources(
+        ${PROJECT_NAME}
+        PUBLIC ${SFC_PLANT_MODEL_HEADERS}
+        PRIVATE ${SFC_PLANT_MODEL_SOURCES})
+    target_compile_definitions(${PROJECT_NAME} PUBLIC YEET_INCLUDE_PLANT_MODELS)
+else()
+    message(STATUS "Excluding SFC plant models (not building tests)")
+endif()
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(
-    ${PROJECT_NAME}
-    PUBLIC yeet::yeet_control
-    PRIVATE yeet::yeet_generated_sfc_6p_6p_topology # This is auto-generated by
-                                                    # Matlab
-)
+target_link_libraries(${PROJECT_NAME} PUBLIC yeet::yeet_control)
+
+# Only link generated Simulink code when building tests
+if(YEET_BUILD_TESTING)
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PRIVATE yeet::yeet_generated_sfc_6p_6p_topology # Auto-generated by
+                                                        # Matlab
+    )
+endif()
 
 if(YEET_ENABLE_CODE_ANALYSIS)
     get_target_property(TARGET_SOURCES ${PROJECT_NAME} SOURCES)

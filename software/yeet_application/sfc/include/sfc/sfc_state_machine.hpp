@@ -130,7 +130,7 @@ class breakers_off_state : public sfc_state_type {
 public:
     explicit breakers_off_state(
         idle_state* idle, breakers_on_state* breakers_on, auxiliaries_on_state* auxiliaries_on) noexcept
-        : _idle(idle), _breakers_on_state(breakers_on), _auxiliaries_on_state(auxiliaries_on)
+        : _idle_state(idle), _breakers_on_state(breakers_on), _auxiliaries_on_state(auxiliaries_on)
     {
     }
 
@@ -139,7 +139,7 @@ public:
     sfc_state_id get_id() const noexcept override { return sfc_state_id::BREAKERS_OFF; }
 
 private:
-    idle_state* _idle{nullptr};
+    idle_state* _idle_state{nullptr};
     breakers_on_state* _breakers_on_state{nullptr};
     auxiliaries_on_state* _auxiliaries_on_state{nullptr};
 };
@@ -261,13 +261,9 @@ public:
     bool has_transitioned() const noexcept;
 
 private:
-    // Generic state machine instance
-    sfc_state_machine_type _state_machine;
-
     // Initialize state transition graph
     void initialize_transitions() noexcept;
 
-    // SFC States
     idle_state _idle_state;
     auxiliaries_on_state _auxiliaries_on_state;
     breakers_off_state _breakers_off_state;
@@ -275,6 +271,8 @@ private:
     operation_off_state _operation_off_state;
     operation_on_state _operation_on_state;
     shutdown_requested_state _shutdown_requested_state;
+
+    sfc_state_machine_type _state_machine;
 };
 
 }  // namespace yeet::application::sfc

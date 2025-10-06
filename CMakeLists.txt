@@ -19,9 +19,11 @@ project(
     VERSION 1.0.0.0
     DESCRIPTION "No 🧢 Yeet Platform fr fr"
     HOMEPAGE_URL "https://github.com/marciomoura/yeet/"
-    LANGUAGES C CXX)
+    LANGUAGES C CXX ASM)
 
 # Define all options upfront with proper descriptions - keeping it 💯
+option(YEET_BUILD_EMBEDDED "Build embedded targets for ARM microcontrollers"
+       OFF)
 option(YEET_CODE_COVERAGE
        "Enable code coverage (because we test our code like bosses)" OFF)
 option(YEET_SANITIZE "Enable clang-sanitizer builds (catch those bugs bestie)"
@@ -154,17 +156,53 @@ message(
 )
 
 include(json)
-
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
-add_subdirectory(software/yeet_testing)
 add_subdirectory(software/yeet_control)
 
 # Build the SFC application
 add_subdirectory(software/yeet_application/sfc)
 add_subdirectory(software/yeet_application/sfc_integration)
 
+# Add SFC embedded application (only for embedded builds)
+if(YEET_BUILD_EMBEDDED)
+    include(stm32_hal)
+    add_subdirectory(software/yeet_application/sfc_embedded)
+endif()
+
+# Only include embedded board if explicitly requested
+if(YEET_BUILD_EMBEDDED)
+    message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
+
+    # Add the board as a subdirectory - this builds the stm32cubemx library
+    add_subdirectory(boards/stm32f407g-disc1)
+
+    # Create the embedded application executable
+    add_executable(
+        yeet_embedded_app
+        # Use the STM32CubeMX generated main.c
+        boards/stm32f407g-disc1/Core/Src/main.c)
+
+    # Link against the board library and yeet control libraries
+    target_link_libraries(
+        yeet_embedded_app
+        PRIVATE -Wl,--whole-archive
+                yeet::yeet_sfc_embedded # ← Your C++ application logic
+                stm32f407g-disc1 # ← STM32 HAL/BSP (also needs whole-archive for
+                                 # _sbrk)
+                -Wl,--no-whole-archive
+                m) # Math library
+
+    # Add any embedded-specific compile definitions Embedded compile definitions
+    target_compile_definitions(
+        yeet_embedded_app PRIVATE USE_HAL_DRIVER STM32F407xx
+                                  YEET_EMBEDDED_TARGET)
+    # Skip host-only targets when building for embedded
+    return()
+endif()
+
 if(YEET_BUILD_TESTING)
+    add_subdirectory(software/yeet_testing)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
     add_subdirectory(software/yeet_testing/tests)
