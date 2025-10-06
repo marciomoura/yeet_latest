@@ -121,7 +121,18 @@ jobs:
       - name: Run tests in parallel
         run: |
           cd build
-          ctest --output-on-failure --parallel $(nproc)
+          ctest --output-on-failure \
+                --parallel $(nproc) \
+                --timeout 300 \
+                --progress
+        env:
+          GTEST_COLOR: 1
+
+      - name: Re-run failed tests verbosely
+        if: failure()
+        run: |
+          cd build
+          ctest --rerun-failed --verbose --output-on-failure
 
       - name: Generate and check coverage
         run: |
