@@ -22,7 +22,25 @@ build*
 flash
 __pycache__
 .ccache*
-vendor
+
+# Ignore vendor directory (FetchContent downloads here)
+vendor/
+
+# Ignore STM32CubeMX-generated CMake files (we have our own main CMakeLists.txt)
+boards/*/cmake/
+
+# Ignore STM32CubeMX-generated Drivers (fetched via CMake)
+boards/*/Drivers/
+
+# Ignore STM32CubeMX-generated Middlewares (fetched via CMake)
+boards/*/Middlewares/ST/
+
+# Keep only essential board files committed:
+# - Core/ (board-specific source/headers)
+# - *.ioc (STM32CubeMX project file)
+# - *.ld (linker scripts)
+# - CMakeLists.txt (our main board CMakeLists)
+# - USB_HOST/ (board-specific USB configuration)
 
 #=====================================================================#
 # File extensions to be ignored anywhere in the tree.

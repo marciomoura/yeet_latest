@@ -166,6 +166,7 @@ add_subdirectory(software/yeet_application/sfc_integration)
 
 # Add SFC embedded application (only for embedded builds)
 if(YEET_BUILD_EMBEDDED)
+    include(stm32_hal)
     add_subdirectory(software/yeet_application/sfc_embedded)
 endif()
 
