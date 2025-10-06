@@ -113,13 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: |
-            build/bin/
-            build/CMakeFiles/
-            build/**/*.gcno
-            build/*.cmake
-            build/**/CTestTestfile.cmake
-            build/Testing/
+          path: build/
           retention-days: 1
 
   # Job 3: Unit Tests (fast tests)
@@ -138,27 +132,20 @@ jobs:
       - name: Make binaries executable
         run: chmod +x build/bin/*
 
-      - name: List available tests
-        run: |
-          cd build
-          ctest -N
-
-      - name: Run unit tests
-        run: |
-          cd build
-          ctest -R "yeet_test|yeet_testing_tests|yeet_control_tests" \
-                --output-on-failure \
-                --parallel $(nproc) \
-                --timeout 60 \
-                --progress
+      - name: Run yeet_test
+        run: ./build/bin/yeet_test
         env:
           GTEST_COLOR: 1
 
-      - name: Re-run failed tests verbosely
-        if: failure()
-        run: |
-          cd build
-          ctest --rerun-failed --verbose --output-on-failure
+      - name: Run yeet_testing_tests
+        run: ./build/bin/yeet_testing_tests
+        env:
+          GTEST_COLOR: 1
+
+      - name: Run yeet_control_tests
+        run: ./build/bin/yeet_control_tests
+        env:
+          GTEST_COLOR: 1
 
   # Job 4: Integration Tests (slower tests)
   test-integration:
@@ -176,27 +163,15 @@ jobs:
       - name: Make binaries executable
         run: chmod +x build/bin/*
 
-      - name: List available tests
-        run: |
-          cd build
-          ctest -N
-
-      - name: Run integration tests
-        run: |
-          cd build
-          ctest -R "integration" \
-                --output-on-failure \
-                --parallel $(nproc) \
-                --timeout 300 \
-                --progress
+      - name: Run yeet_application_sfc_tests
+        run: ./build/bin/yeet_application_sfc_tests
         env:
           GTEST_COLOR: 1
 
-      - name: Re-run failed tests verbosely
-        if: failure()
-        run: |
-          cd build
-          ctest --rerun-failed --verbose --output-on-failure
+      - name: Run yeet_application_sfc_integration_tests
+        run: ./build/bin/yeet_application_sfc_integration_tests
+        env:
+          GTEST_COLOR: 1
 
   # Job 5: Code Coverage (runs after tests)
   # coverage:
