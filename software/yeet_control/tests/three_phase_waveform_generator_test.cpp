@@ -317,7 +317,9 @@ TEST_F(ThreePhaseWaveformGeneratorTest, FundamentalRateOfChangeAmplitude)
 
     three_phase_waveform_generator& waveform_generator = get_waveform_generator();
     waveform_generator.set_amplitude_rate_of_change(
-        {amplitude_step, amplitude_step, amplitude_step}, time_start, time_start + time_delta);
+        abc<real_t>{static_cast<real_t>(amplitude_step), static_cast<real_t>(amplitude_step),
+            static_cast<real_t>(amplitude_step)},
+        time_start, time_start + time_delta);
 
     angle_wrapped last_angle = generate_abc_signal_reference(1, angle_wrapped{}, time_start,
         {initial_amplitude, initial_amplitude, initial_amplitude}, get_default_phase_shift(), 50.0f);
