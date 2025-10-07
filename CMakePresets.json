@@ -2,45 +2,70 @@
     "version": 3,
     "configurePresets": [
         {
+            "name": "host-base",
+            "hidden": true,
+            "description": "Base configuration for host builds",
+            "binaryDir": "${sourceDir}/build-host",
+            "cacheVariables": {
+                "YEET_BUILD_EMBEDDED": "OFF",
+                "YEET_BUILD_TESTING": "ON",
+                "YEET_BUILD_EXAMPLES": "ON",
+                "YEET_ENABLE_CCACHE": "ON"
+            },
+            "generator": "Ninja Multi-Config"
+        },
+        {
             "name": "host-gcc",
             "displayName": "Host Build (GCC)",
             "description": "Host machine build using GCC - select Debug/Release at build time",
-            "binaryDir": "${sourceDir}/build-host",
+            "inherits": "host-base",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
-                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
-                "YEET_BUILD_EMBEDDED": "OFF",
-                "YEET_BUILD_TESTING": "ON",
-                "YEET_BUILD_EXAMPLES": "ON"
-            },
-            "generator": "Ninja Multi-Config"
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
+            }
         },
         {
             "name": "host-clang",
             "displayName": "Host Build (Clang)",
             "description": "Host machine build using Clang - select Debug/Release at build time",
-            "binaryDir": "${sourceDir}/build-host",
+            "inherits": "host-base",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/clang.exe",
-                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/clang++.exe",
-                "YEET_BUILD_EMBEDDED": "OFF",
-                "YEET_BUILD_TESTING": "ON",
-                "YEET_BUILD_EXAMPLES": "ON"
-            },
-            "generator": "Ninja Multi-Config"
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/clang++.exe"
+            }
         },
         {
-            "name": "embedded-gcc",
-            "displayName": "STM32F407G-DISC1 (GCC)",
-            "description": "ARM Cortex-M4 embedded target - select Debug/Release at build time",
-            "binaryDir": "${sourceDir}/build-embedded",
+            "name": "embedded-base",
+            "hidden": true,
+            "description": "Base configuration for embedded builds",
             "toolchainFile": "${sourceDir}/cmake/toolchains/stm32-gcc-toolchain.cmake",
             "cacheVariables": {
                 "YEET_BUILD_EMBEDDED": "ON",
                 "YEET_BUILD_TESTING": "OFF",
-                "YEET_BUILD_EXAMPLES": "OFF"
+                "YEET_BUILD_EXAMPLES": "OFF",
+                "YEET_ENABLE_CCACHE": "ON"
             },
             "generator": "Ninja Multi-Config"
+        },
+        {
+            "name": "embedded-grid",
+            "displayName": "STM32 Grid-Side",
+            "description": "ARM Cortex-M4 embedded target (Grid-Side Controller)",
+            "inherits": "embedded-base",
+            "binaryDir": "${sourceDir}/build-embedded-grid",
+            "cacheVariables": {
+                "YEET_SFC_EMBEDDED_SIDE": "GRID"
+            }
+        },
+        {
+            "name": "embedded-machine",
+            "displayName": "STM32 Machine-Side",
+            "description": "ARM Cortex-M4 embedded target (Machine-Side Controller)",
+            "inherits": "embedded-base",
+            "binaryDir": "${sourceDir}/build-embedded-machine",
+            "cacheVariables": {
+                "YEET_SFC_EMBEDDED_SIDE": "MACHINE"
+            }
         }
     ],
     "buildPresets": [
@@ -69,16 +94,56 @@
             "configuration": "Release"
         },
         {
-            "name": "embedded-gcc-debug",
-            "displayName": "STM32 GCC - Debug",
-            "configurePreset": "embedded-gcc",
+            "name": "embedded-grid-debug",
+            "displayName": "STM32 Grid-Side - Debug",
+            "configurePreset": "embedded-grid",
             "configuration": "Debug"
         },
         {
-            "name": "embedded-gcc-release",
-            "displayName": "STM32 GCC - Release",
-            "configurePreset": "embedded-gcc",
+            "name": "embedded-grid-release",
+            "displayName": "STM32 Grid-Side - Release",
+            "configurePreset": "embedded-grid",
             "configuration": "Release"
+        },
+        {
+            "name": "embedded-machine-debug",
+            "displayName": "STM32 Machine-Side - Debug",
+            "configurePreset": "embedded-machine",
+            "configuration": "Debug"
+        },
+        {
+            "name": "embedded-machine-release",
+            "displayName": "STM32 Machine-Side - Release",
+            "configurePreset": "embedded-machine",
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "host-gcc-test",
+            "displayName": "Test - Host GCC Debug",
+            "configurePreset": "host-gcc",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
+            }
+        },
+        {
+            "name": "host-clang-test",
+            "displayName": "Test - Host Clang Debug",
+            "configurePreset": "host-clang",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
+            }
         }
     ]
 }

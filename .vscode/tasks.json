@@ -332,36 +332,120 @@
             "detail": "Runs the Python script after the executable"
         },
         {
-            "label": "Flash Embedded Target (Debug)",
+            "label": "Configure Embedded Grid-Side",
             "type": "shell",
-            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "command": "cmake",
             "args": [
-                "-c",
-                "port=SWD",
-                "-w",
-                "${workspaceFolder}/build-embedded/bin/yeet_embedded_app.elf",
-                "-v",
-                "-rst"
+                "--preset=embedded-grid"
             ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
             "problemMatcher": [],
-            "detail": "Flash the debug build to STM32F407G-DISC1 via ST-Link"
+            "detail": "Configure CMake for Grid-Side embedded target"
         },
         {
-            "label": "Flash Embedded Target (Release)",
+            "label": "Configure Embedded Machine-Side",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--preset=embedded-machine"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Configure CMake for Machine-Side embedded target"
+        },
+        {
+            "label": "Build Embedded Grid-Side (Debug)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "--preset=embedded-grid-debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Build Grid-Side embedded target in Debug configuration"
+        },
+        {
+            "label": "Build Embedded Grid-Side (Release)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "--preset=embedded-grid-release"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Build Grid-Side embedded target in Release configuration"
+        },
+        {
+            "label": "Build Embedded Machine-Side (Debug)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "--preset=embedded-machine-debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Build Machine-Side embedded target in Debug configuration"
+        },
+        {
+            "label": "Build Embedded Machine-Side (Release)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "--preset=embedded-machine-release"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Build Machine-Side embedded target in Release configuration"
+        },
+        {
+            "label": "Flash Grid-Side (Debug)",
             "type": "shell",
             "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
             "args": [
                 "-c",
                 "port=SWD",
                 "-w",
-                "${workspaceFolder}/build-embedded-release/bin/yeet_embedded_app.elf",
+                "${workspaceFolder}/build-embedded-grid/bin/Debug/yeet_embedded_app_grid.elf",
                 "-v",
                 "-rst"
             ],
@@ -373,7 +457,133 @@
                 "isDefault": false
             },
             "problemMatcher": [],
-            "detail": "Flash the release build to STM32F407G-DISC1 via ST-Link"
+            "detail": "Flash Grid-Side debug build to STM32F407G-DISC1 via ST-Link"
+        },
+        {
+            "label": "Flash Grid-Side (Release)",
+            "type": "shell",
+            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "-w",
+                "${workspaceFolder}/build-embedded-grid/bin/Release/yeet_embedded_app_grid.elf",
+                "-v",
+                "-rst"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Flash Grid-Side release build to STM32F407G-DISC1 via ST-Link"
+        },
+        {
+            "label": "Flash Machine-Side (Debug)",
+            "type": "shell",
+            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "-w",
+                "${workspaceFolder}/build-embedded-machine/bin/Debug/yeet_embedded_app_machine.elf",
+                "-v",
+                "-rst"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Flash Machine-Side debug build to STM32F407G-DISC1 via ST-Link"
+        },
+        {
+            "label": "Flash Machine-Side (Release)",
+            "type": "shell",
+            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "-w",
+                "${workspaceFolder}/build-embedded-machine/bin/Release/yeet_embedded_app_machine.elf",
+                "-v",
+                "-rst"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Flash Machine-Side release build to STM32F407G-DISC1 via ST-Link"
+        },
+        {
+            "label": "Build & Flash Grid-Side (Debug)",
+            "dependsOn": [
+                "Configure Embedded Grid-Side",
+                "Build Embedded Grid-Side (Debug)",
+                "Flash Grid-Side (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Complete workflow: Configure, build, and flash Grid-Side debug"
+        },
+        {
+            "label": "Build & Flash Grid-Side (Release)",
+            "dependsOn": [
+                "Configure Embedded Grid-Side",
+                "Build Embedded Grid-Side (Release)",
+                "Flash Grid-Side (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Complete workflow: Configure, build, and flash Grid-Side release"
+        },
+        {
+            "label": "Build & Flash Machine-Side (Debug)",
+            "dependsOn": [
+                "Configure Embedded Machine-Side",
+                "Build Embedded Machine-Side (Debug)",
+                "Flash Machine-Side (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Complete workflow: Configure, build, and flash Machine-Side debug"
+        },
+        {
+            "label": "Build & Flash Machine-Side (Release)",
+            "dependsOn": [
+                "Configure Embedded Machine-Side",
+                "Build Embedded Machine-Side (Release)",
+                "Flash Machine-Side (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Complete workflow: Configure, build, and flash Machine-Side release"
         }
     ]
 }

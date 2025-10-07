@@ -1,10 +1,10 @@
-#include "sfc_embedded/embedded_tasks.hpp"
-
 #include <cstdint>
 #include <memory>
 
 #include "sfc/sfc_types.hpp"
+#include "sfc_embedded/grid_side_tasks.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
+
 
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
