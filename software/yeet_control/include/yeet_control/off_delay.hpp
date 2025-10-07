@@ -24,7 +24,7 @@ public:
      * @param delay_s The time in seconds the input must remain false before the output switches off.
      * @param sampling_time The execution interval (sampling time) in seconds.
      */
-    off_delay(real_t delay_s, real_t sampling_time);
+    off_delay(real_t delay_s, double sampling_time);
 
     /**
      * @brief Updates the timer logic with the current input value.
@@ -60,7 +60,7 @@ public:
     void configure(real_t delay_s);
 
 private:
-    real_t _sampling_time;      ///< System sampling time in seconds.
+    double _sampling_time;      ///< System sampling time in seconds.
     int _samples_required;      ///< The number of consecutive samples required to meet the delay.
     int _sample_counter{0};     ///< The current count of consecutive false input samples.
     bool _output_state{false};  ///< The current boolean output of the timer.

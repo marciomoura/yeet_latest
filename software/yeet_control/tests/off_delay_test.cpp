@@ -10,10 +10,11 @@ using namespace yeet::control;
 // Test fixture for common setup
 class OffDelayTest : public ::testing::Test {
 protected:
-    const real_t sampling_time = 0.01f;  // 10 ms sampling time
+    const double sampling_time = 0.01f;  // 10 ms sampling time
 };
 
-TEST_F(OffDelayTest, InitialStateIsFalse) {
+TEST_F(OffDelayTest, InitialStateIsFalse)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     off_delay timer(delay, sampling_time);
 
@@ -21,7 +22,8 @@ TEST_F(OffDelayTest, InitialStateIsFalse) {
     EXPECT_FALSE(timer.get_output());
 }
 
-TEST_F(OffDelayTest, TurnsOnImmediately) {
+TEST_F(OffDelayTest, TurnsOnImmediately)
+{
     const real_t delay = 0.1f;
     off_delay timer(delay, sampling_time);
 
@@ -29,7 +31,8 @@ TEST_F(OffDelayTest, TurnsOnImmediately) {
     EXPECT_TRUE(timer.get_output());
 }
 
-TEST_F(OffDelayTest, TurnsOffExactlyWhenDelayIsMet) {
+TEST_F(OffDelayTest, TurnsOffExactlyWhenDelayIsMet)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     off_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -53,7 +56,8 @@ TEST_F(OffDelayTest, TurnsOffExactlyWhenDelayIsMet) {
     EXPECT_FALSE(timer.get_output()) << "Timer turned back on after being off";
 }
 
-TEST_F(OffDelayTest, TimerResetsWhenInputGoesTrue) {
+TEST_F(OffDelayTest, TimerResetsWhenInputGoesTrue)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     off_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -79,7 +83,8 @@ TEST_F(OffDelayTest, TimerResetsWhenInputGoesTrue) {
     EXPECT_FALSE(timer.get_output()) << "Timer did not turn off after reset and full delay";
 }
 
-TEST_F(OffDelayTest, ResetMethodWorksWhenActive) {
+TEST_F(OffDelayTest, ResetMethodWorksWhenActive)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     off_delay timer(delay, sampling_time);
 
@@ -92,7 +97,8 @@ TEST_F(OffDelayTest, ResetMethodWorksWhenActive) {
     EXPECT_FALSE(timer.get_output());
 }
 
-TEST_F(OffDelayTest, ZeroDelayTurnsOffImmediately) {
+TEST_F(OffDelayTest, ZeroDelayTurnsOffImmediately)
+{
     const real_t delay = 0.0f;
     off_delay timer(delay, sampling_time);
 

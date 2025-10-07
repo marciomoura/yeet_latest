@@ -18,7 +18,7 @@ sfc_current_controller::sfc_current_controller(duration_t sampling_time)
     configure_firing_angle_limits_radians(angle_t(deg_to_rad(0.0)), angle_t(deg_to_rad(90.0)));
 }
 
-void sfc_current_controller::configure_pi_gains(double proportional_gain, duration_t integral_time)
+void sfc_current_controller::configure_pi_gains(real_t proportional_gain, duration_t integral_time)
 {
     _pi_controller.configure_with_ti(proportional_gain, integral_time.value());
 }
@@ -29,7 +29,7 @@ void sfc_current_controller::configure_current_limits_pu(current_pu_t min_curren
     _dc_link_current_max_pu = max_current_pu;
 }
 
-void sfc_current_controller::configure_current_reference_slew_rate(double slew_rate_pu_per_second)
+void sfc_current_controller::configure_current_reference_slew_rate(real_t slew_rate_pu_per_second)
 {
     _rate_of_change_limiter.configure(slew_rate_pu_per_second);
 }
@@ -120,7 +120,7 @@ angle_t sfc_current_controller::get_firing_angle_reference_radians() const { ret
 
 current_pu_t sfc_current_controller::get_current_reference_limited_pu() const { return _current_reference_limited_pu; }
 
-double sfc_current_controller::get_cos_alpha_clamped() const { return _cos_alpha_clamped; }
+real_t sfc_current_controller::get_cos_alpha_clamped() const { return _cos_alpha_clamped; }
 
 current_pu_t sfc_current_controller::get_current_error_pu() const { return _current_error_pu; }
 
@@ -130,7 +130,7 @@ bool sfc_current_controller::is_saturated() const
 {
     // The controller is saturated if the clamped value differs from the unclamped command
     // This provides accurate saturation detection by comparing the actual values
-    constexpr double tolerance = 1e-10;
+    constexpr real_t tolerance = 1e-10;
     return std::abs(_cos_alpha_clamped - _cos_alpha_unclamped) > tolerance;
 }
 

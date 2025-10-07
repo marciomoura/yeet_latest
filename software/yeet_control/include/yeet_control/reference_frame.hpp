@@ -7,6 +7,8 @@
 
 #include "angle_wrapped.hpp"
 #include "constants.hpp"
+#include "type_traits.hpp"
+#include "types.hpp"
 #include "units.hpp"
 
 namespace yeet {
@@ -27,6 +29,7 @@ class dq;
 template <typename T = real_t>
 class abc {
 public:
+    using fundamental_type = fundamental_type_t<T>;
     using value_type = T;
     using iterator = typename std::array<T, 3>::iterator;
     using const_iterator = typename std::array<T, 3>::const_iterator;
@@ -38,6 +41,13 @@ public:
     constexpr abc(T a, T b, T c) : _values{a, b, c} {}
     constexpr abc(const abc<T>& other) : _values(other._values) {}
     constexpr abc(abc<T>&& other) : _values(std::move(other._values)) {}
+
+    // Converting constructor from different underlying type (e.g., double to float)
+    template <typename U>
+    constexpr abc(const abc<U>& other)
+        : _values{static_cast<T>(other.a()), static_cast<T>(other.b()), static_cast<T>(other.c())}
+    {
+    }
 
     constexpr abc<T>& operator=(const abc<T>& other)
     {
@@ -66,7 +76,7 @@ public:
      */
     constexpr auto to_raw_frame() const
     {
-        if constexpr (std::is_floating_point_v<T>) {
+        if constexpr (std::is_floating_point_v<fundamental_type>) {
             return _values;
         }
         else {
@@ -125,16 +135,32 @@ public:
         return *this;
     }
 
-    // Scalar multiplication
+    // Scalar multiplication (same type)
     constexpr abc<T> operator*(T scalar) const
     {
         return abc<T>{_values[0] * scalar, _values[1] * scalar, _values[2] * scalar};
     }
 
-    // Scalar division
+    // Scalar division (same type)
     constexpr abc<T> operator/(T scalar) const
     {
         return abc<T>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
+    }
+
+    // Mixed-type scalar multiplication (e.g., abc<float> * double -> abc<double>)
+    template <typename Scalar, typename = std::enable_if_t<!std::is_same_v<Scalar, T>>>
+    constexpr auto operator*(Scalar scalar) const -> abc<decltype(std::declval<T>() * std::declval<Scalar>())>
+    {
+        using result_type = decltype(std::declval<T>() * std::declval<Scalar>());
+        return abc<result_type>{_values[0] * scalar, _values[1] * scalar, _values[2] * scalar};
+    }
+
+    // Mixed-type scalar division (e.g., abc<float> / double -> abc<double>)
+    template <typename Scalar, typename = std::enable_if_t<!std::is_same_v<Scalar, T>>>
+    constexpr auto operator/(Scalar scalar) const -> abc<decltype(std::declval<T>() / std::declval<Scalar>())>
+    {
+        using result_type = decltype(std::declval<T>() / std::declval<Scalar>());
+        return abc<result_type>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
     }
 
     // Compound scalar multiplication
@@ -153,13 +179,6 @@ public:
         _values[1] /= scalar;
         _values[2] /= scalar;
         return *this;
-    }
-
-    template <typename Scalar>
-    constexpr auto operator/(Scalar scalar) const
-    {
-        using result_type = decltype(_values[0] / scalar);
-        return abc<result_type>{_values[0] / scalar, _values[1] / scalar, _values[2] / scalar};
     }
 
     // Negation operator
@@ -200,6 +219,7 @@ constexpr auto operator*(Scalar scalar, const abc<T>& coords) -> abc<decltype(sc
 template <typename T = real_t>
 class alphabeta {
 public:
+    using fundamental_type = fundamental_type_t<T>;
     using value_type = T;
     using iterator = typename std::array<T, 3>::iterator;
     using const_iterator = typename std::array<T, 3>::const_iterator;
@@ -211,6 +231,13 @@ public:
 
     constexpr alphabeta(const alphabeta<T>& other) : _values(other._values) {}
     constexpr alphabeta(alphabeta<T>&& other) : _values(std::move(other._values)) {}
+
+    // Converting constructor from different underlying type (e.g., double to float)
+    template <typename U>
+    constexpr alphabeta(const alphabeta<U>& other)
+        : _values{static_cast<T>(other.alpha()), static_cast<T>(other.beta())}
+    {
+    }
 
     constexpr alphabeta<T>& operator=(const alphabeta<T>& other)
     {
@@ -254,15 +281,23 @@ public:
     }
 
     // Phase calculation
-    angle_wrapped phase() const { return angle_wrapped{std::atan2(_values[1], _values[0])}; }
+    angle_wrapped phase() const
+    {
+        if constexpr (std::is_same_v<fundamental_type, float>) {
+            return angle_wrapped{std::atan2(static_cast<float>(_values[1]), static_cast<float>(_values[0]))};
+        }
+        else {
+            return angle_wrapped{std::atan2(_values[1], _values[0])};
+        }
+    }
 
     // Counter-clockwise rotation:
     //    [cos θ  -sin θ] [α] = [α cos θ - β sin θ]
     //    [sin θ   cos θ] [β]   [α sin θ + β cos θ]
     constexpr alphabeta<T> rotate_counter_clockwise(const angle_wrapped& theta) const
     {
-        const double cos_angle = std::cos(theta.get_radians());
-        const double sin_angle = std::sin(theta.get_radians());
+        const real_t cos_angle = std::cos(theta.get_radians());
+        const real_t sin_angle = std::sin(theta.get_radians());
         return alphabeta<T>{
             _values[0] * cos_angle - _values[1] * sin_angle, _values[0] * sin_angle + _values[1] * cos_angle};
     }
@@ -300,11 +335,27 @@ public:
         return *this;
     }
 
-    // Scalar multiplication
+    // Scalar multiplication (same type)
     constexpr alphabeta<T> operator*(T scalar) const { return alphabeta<T>{_values[0] * scalar, _values[1] * scalar}; }
 
-    // Scalar division
+    // Scalar division (same type)
     constexpr alphabeta<T> operator/(T scalar) const { return alphabeta<T>{_values[0] / scalar, _values[1] / scalar}; }
+
+    // Mixed-type scalar multiplication (e.g., alphabeta<float> * double -> alphabeta<double>)
+    template <typename Scalar, typename = std::enable_if_t<!std::is_same_v<Scalar, T>>>
+    constexpr auto operator*(Scalar scalar) const -> alphabeta<decltype(std::declval<T>() * std::declval<Scalar>())>
+    {
+        using result_type = decltype(std::declval<T>() * std::declval<Scalar>());
+        return alphabeta<result_type>{_values[0] * scalar, _values[1] * scalar};
+    }
+
+    // Mixed-type scalar division (e.g., alphabeta<float> / double -> alphabeta<double>)
+    template <typename Scalar, typename = std::enable_if_t<!std::is_same_v<Scalar, T>>>
+    constexpr auto operator/(Scalar scalar) const -> alphabeta<decltype(std::declval<T>() / std::declval<Scalar>())>
+    {
+        using result_type = decltype(std::declval<T>() / std::declval<Scalar>());
+        return alphabeta<result_type>{_values[0] / scalar, _values[1] / scalar};
+    }
 
     // Compound scalar multiplication
     constexpr alphabeta<T>& operator*=(T scalar)
@@ -360,6 +411,7 @@ constexpr auto operator*(Scalar scalar, const alphabeta<T>& coords) -> alphabeta
 template <typename T = real_t>
 class dq {
 public:
+    using fundamental_type = fundamental_type_t<T>;
     using value_type = T;
     using iterator = typename std::array<T, 3>::iterator;
     using const_iterator = typename std::array<T, 3>::const_iterator;
@@ -371,6 +423,12 @@ public:
 
     constexpr dq(const dq<T>& other) : _values(other._values) {}
     constexpr dq(dq<T>&& other) : _values(std::move(other._values)) {}
+
+    // Converting constructor from different underlying type (e.g., double to float)
+    template <typename U>
+    constexpr dq(const dq<U>& other) : _values{static_cast<T>(other.d()), static_cast<T>(other.q())}
+    {
+    }
 
     constexpr dq<T>& operator=(const dq<T>& other)
     {
@@ -415,7 +473,12 @@ public:
 
     angle_wrapped phase(const angle_wrapped& frame) const
     {
-        return frame + angle_wrapped(std::atan2(_values[1], _values[0]));
+        if constexpr (std::is_same_v<fundamental_type, float>) {
+            return frame + angle_wrapped(std::atan2(static_cast<float>(_values[1]), static_cast<float>(_values[0])));
+        }
+        else {
+            return frame + angle_wrapped(std::atan2(_values[1], _values[0]));
+        }
     }
 
     // Counter-clockwise rotation:
@@ -423,8 +486,8 @@ public:
     //    [sin θ   cos θ] [β]   [α sin θ + β cos θ]
     constexpr dq<T> rotate_counter_clockwise(const angle_wrapped& theta) const
     {
-        const double cos_angle = std::cos(theta.get_radians());
-        const double sin_angle = std::sin(theta.get_radians());
+        const real_t cos_angle = std::cos(theta.get_radians());
+        const real_t sin_angle = std::sin(theta.get_radians());
         return dq<T>{_values[0] * cos_angle - _values[1] * sin_angle, _values[0] * sin_angle + _values[1] * cos_angle};
     }
 
@@ -461,11 +524,27 @@ public:
         return *this;
     }
 
-    // Scalar multiplication
+    // Scalar multiplication (same type)
     constexpr dq<T> operator*(T scalar) const { return dq<T>{_values[0] * scalar, _values[1] * scalar}; }
 
-    // Scalar division
+    // Scalar division (same type)
     constexpr dq<T> operator/(T scalar) const { return dq<T>{_values[0] / scalar, _values[1] / scalar}; }
+
+    // Mixed-type scalar multiplication (e.g., dq<float> * double -> dq<double>)
+    template <typename Scalar, typename = std::enable_if_t<!std::is_same_v<Scalar, T>>>
+    constexpr auto operator*(Scalar scalar) const -> dq<decltype(std::declval<T>() * std::declval<Scalar>())>
+    {
+        using result_type = decltype(std::declval<T>() * std::declval<Scalar>());
+        return dq<result_type>{_values[0] * scalar, _values[1] * scalar};
+    }
+
+    // Mixed-type scalar division (e.g., dq<float> / double -> dq<double>)
+    template <typename Scalar, typename = std::enable_if_t<!std::is_same_v<Scalar, T>>>
+    constexpr auto operator/(Scalar scalar) const -> dq<decltype(std::declval<T>() / std::declval<Scalar>())>
+    {
+        using result_type = decltype(std::declval<T>() / std::declval<Scalar>());
+        return dq<result_type>{_values[0] / scalar, _values[1] / scalar};
+    }
 
     // Compound scalar multiplication
     constexpr dq<T>& operator*=(T scalar)
@@ -505,6 +584,14 @@ constexpr dq<T> operator*(T scalar, const dq<T>& coords)
     return coords * scalar;
 }
 
+// Non-member mixed-type scalar multiplication (e.g., double * dq<float> -> dq<double>)
+template <typename Scalar, typename T>
+constexpr auto operator*(Scalar scalar, const dq<T>& coords) -> dq<decltype(scalar * coords.d())>
+{
+    using result_type = decltype(scalar * coords.d());
+    return dq<result_type>{scalar * coords.d(), scalar * coords.q()};
+}
+
 // Implementation of conversion functions
 
 template <typename T>
@@ -524,8 +611,8 @@ constexpr dq<T> abc<T>::to_dq(const angle_wrapped& theta) const
 template <typename T>
 constexpr abc<T> alphabeta<T>::to_abc() const
 {
-    return abc<T>{
-        _values[0], -0.5 * _values[0] + sqrt_3 / 2.0 * _values[1], -0.5 * _values[0] - sqrt_3 / 2.0 * _values[1]};
+    return abc<T>{_values[0], static_cast<real_t>(-0.5) * _values[0] + static_cast<real_t>(sqrt_3 / 2.0) * _values[1],
+        static_cast<real_t>(-0.5) * _values[0] - static_cast<real_t>(sqrt_3 / 2.0) * _values[1]};
 }
 
 template <typename T>

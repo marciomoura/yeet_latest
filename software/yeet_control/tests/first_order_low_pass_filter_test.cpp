@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -21,7 +22,7 @@ protected:
     static constexpr double sampling_period = 1.0 / sampling_freq;
     static constexpr double cutoff_freq = 10.0;   // 10Hz cutoff
     static constexpr double test_duration = 1.0;  // 1 second
-    static constexpr size_t num_samples = static_cast<size_t>(test_duration * sampling_freq);
+    static constexpr std::size_t num_samples = static_cast<std::size_t>(test_duration * sampling_freq);
 
     first_order_low_pass_filter<double> filter{sampling_period};
 
@@ -41,7 +42,7 @@ TEST_F(FirstOrderLowPassFilterTest, MagnitudeResponseAtVariousFrequencies)
     const std::vector<double> test_freqs = {0.1, 1.0, cutoff_freq, 100.0};
     const std::vector<double> expected_db = {0.0, -0.1, -3.0, -20.0};
 
-    for (size_t i = 0; i < test_freqs.size(); ++i) {
+    for (std::size_t i = 0; i < test_freqs.size(); ++i) {
         const double magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
         EXPECT_NEAR(magnitude_db, expected_db[i], 0.5) << "Failed at frequency " << test_freqs[i] << " Hz";
     }
@@ -67,7 +68,7 @@ TEST_F(FirstOrderLowPassFilterTest, SinusoidalResponseMagnitude)
     const double omega = 2.0 * pi * test_freq;
 
     // Skip first second to avoid transient response
-    for (size_t i = 0; i < 2 * num_samples; ++i) {
+    for (std::size_t i = 0; i < 2 * num_samples; ++i) {
         const double t = i * sampling_period;
         const double input = input_amplitude * std::sin(omega * t);
         const double output = filter.update(input);
@@ -93,7 +94,7 @@ TEST_F(FirstOrderLowPassFilterTest, SinusoidalResponsePhase)
     std::vector<double> output_signal;
 
     // Generate signals
-    for (size_t i = 0; i < 2 * num_samples; ++i) {
+    for (std::size_t i = 0; i < 2 * num_samples; ++i) {
         const double t = i * sampling_period;
         const double input = input_amplitude * std::sin(omega * t);
         const double output = filter.update(input);
@@ -105,29 +106,38 @@ TEST_F(FirstOrderLowPassFilterTest, SinusoidalResponsePhase)
     }
 
     // Find zero crossings to measure phase difference
-    size_t input_crossing = 0;
-    size_t output_crossing = 0;
+    std::int64_t input_crossing = 0;
+    std::int64_t output_crossing = 0;
 
-    for (size_t i = 1; i < input_signal.size(); ++i) {
+    for (std::size_t i = 1; i < input_signal.size(); ++i) {
         if (input_signal[i - 1] < 0 && input_signal[i] >= 0) {
-            input_crossing = i;
+            input_crossing = static_cast<std::int64_t>(i);
             break;
         }
     }
 
-    for (size_t i = 1; i < output_signal.size(); ++i) {
+    for (std::size_t i = 1; i < output_signal.size(); ++i) {
         if (output_signal[i - 1] < 0 && output_signal[i] >= 0) {
-            output_crossing = i;
+            output_crossing = static_cast<std::int64_t>(i);
             break;
         }
     }
 
     // Calculate measured phase difference
     const double samples_per_period = sampling_freq / test_freq;
-    const double measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
+    double measured_phase_deg = -360.0 * static_cast<double>(output_crossing - input_crossing) / samples_per_period;
+
+    // Normalize phase to [-180, 180] range
+    while (measured_phase_deg > 180.0) {
+        measured_phase_deg -= 360.0;
+    }
+    while (measured_phase_deg < -180.0) {
+        measured_phase_deg += 360.0;
+    }
+
     const double theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
 
-    EXPECT_NEAR(measured_phase_deg, theoretical_phase_deg, 0.01);
+    EXPECT_NEAR(measured_phase_deg, theoretical_phase_deg, 0.02);
 }
 
 TEST_F(FirstOrderLowPassFilterTest, StepResponse)

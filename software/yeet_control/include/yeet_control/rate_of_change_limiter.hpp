@@ -20,7 +20,7 @@ public:
      *
      * @param sampling_time The execution interval (sampling time) in seconds.
      */
-    rate_of_change_limiter(real_t sampling_time);
+    rate_of_change_limiter(double sampling_time);
 
     /**
      * @brief Constructs the rate of change limiter.
@@ -29,7 +29,7 @@ public:
      * @param sampling_time The execution interval (sampling time) in seconds.
      * @param initial_value The initial value of the output signal.
      */
-    rate_of_change_limiter(real_t rate_limit_per_second, real_t sampling_time, real_t initial_value = 0.0f);
+    rate_of_change_limiter(real_t rate_limit_per_second, double sampling_time, real_t initial_value = 0.0f);
 
     /**
      * @brief Updates the limiter with a new input (target) value.
@@ -83,7 +83,7 @@ public:
     bool is_enabled() const;
 
 private:
-    real_t _sampling_time;               ///< System sampling time in seconds.
+    double _sampling_time;               ///< System sampling time in seconds.
     real_t _max_change_per_sample{1e6};  ///< The maximum allowed change in one sample.
     real_t _current_output{};            ///< The current output value of the limiter.
     bool _enabled{};                     ///< Enable/disable flag for rate limiting.

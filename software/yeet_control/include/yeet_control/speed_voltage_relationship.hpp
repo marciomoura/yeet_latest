@@ -23,7 +23,7 @@ public:
      *
      * @param sampling_time The sampling time for discrete-time integration [s].
      */
-    explicit speed_voltage_relationship(real_t sampling_time);
+    explicit speed_voltage_relationship(double sampling_time);
 
     /**
      * @brief Configures the voltage-speed coefficient.

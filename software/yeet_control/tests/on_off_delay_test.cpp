@@ -10,7 +10,7 @@ using namespace yeet::control;
 // Test fixture for common setup
 class OnOffDelayTest : public ::testing::Test {
 protected:
-    const real_t sampling_time = 0.01f;  // 10 ms sampling time
+    const double sampling_time = 0.01f;  // 10 ms sampling time
 
     void simulate_steps(on_off_delay& timer, int steps, bool input)
     {

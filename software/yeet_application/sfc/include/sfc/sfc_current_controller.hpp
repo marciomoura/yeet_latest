@@ -2,6 +2,7 @@
 
 #include "yeet_control/pi_controller.hpp"
 #include "yeet_control/rate_of_change_limiter.hpp"
+#include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -26,7 +27,7 @@ public:
      * @param proportional_gain The proportional gain (dimensionless).
      * @param integral_time The integral time constant [s].
      */
-    void configure_pi_gains(double proportional_gain, duration_t integral_time);
+    void configure_pi_gains(real_t proportional_gain, duration_t integral_time);
 
     /**
      * @brief Sets the operational limits for the DC link current reference.
@@ -39,7 +40,7 @@ public:
      * @brief Sets the slew rate for the DC link current reference.
      * @param slew_rate_pu_per_second The maximum rate of change for the current reference [pu/s].
      */
-    void configure_current_reference_slew_rate(double slew_rate_pu_per_second);
+    void configure_current_reference_slew_rate(real_t slew_rate_pu_per_second);
 
     /**
      * @brief Enables or disables the slew rate limiter for the current reference.
@@ -117,7 +118,7 @@ public:
      * @brief Gets the clamped cosine of the firing angle.
      * @return The clamped cosine value.
      */
-    double get_cos_alpha_clamped() const;
+    real_t get_cos_alpha_clamped() const;
 
     /**
      * @brief Gets the current error in per-unit.
@@ -140,7 +141,7 @@ public:
 private:
     void recompute_internal_limits();
 
-    yeet::control::pi_controller<double> _pi_controller;
+    yeet::control::pi_controller<real_t> _pi_controller;
     yeet::control::rate_of_change_limiter _rate_of_change_limiter;
 
     // Configuration
@@ -150,12 +151,12 @@ private:
     angle_t _grid_firing_angle_max_radians{};
 
     // Internal state for limits
-    double _cos_alpha_min{};
-    double _cos_alpha_max{};
+    real_t _cos_alpha_min{};
+    real_t _cos_alpha_max{};
 
     // Outputs
-    double _cos_alpha_clamped{};
-    double _cos_alpha_unclamped{};
+    real_t _cos_alpha_clamped{};
+    real_t _cos_alpha_unclamped{};
     angle_t _firing_angle_reference_radians{};
     current_pu_t _current_reference_limited_pu{};
     current_pu_t _current_error_pu{};

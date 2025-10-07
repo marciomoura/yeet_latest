@@ -38,7 +38,7 @@ option(YEET_ENABLE_CCACHE "Enable ccache (speed goes brrr 🏃‍♂️💨)" ON
 option(
     YEET_PRECISION_DOUBLE
     "Use double precision for floating-point types (because we like it precise 💎)"
-    ON)
+    OFF)
 # Option to disable data logging for faster CI execution
 option(YEET_ENABLE_DATA_LOGGING "Enable JSON data logging for simulations" ON)
 

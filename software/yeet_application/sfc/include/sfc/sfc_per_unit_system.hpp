@@ -111,7 +111,7 @@ public:
     voltage_pu_t reflect_machine_to_grid_voltage_pu(voltage_pu_t machine_side_voltage_pu) const
     {
         // V_grid_pu = V_machine_pu * (V_base_machine / V_base_grid)
-        const double voltage_reflection_ratio = _machine_voltage_ll_rms.value() / _grid_voltage_ll_rms.value();
+        const real_t voltage_reflection_ratio = _machine_voltage_ll_rms.value() / _grid_voltage_ll_rms.value();
         return voltage_pu_t{machine_side_voltage_pu.value() * voltage_reflection_ratio};
     }
 

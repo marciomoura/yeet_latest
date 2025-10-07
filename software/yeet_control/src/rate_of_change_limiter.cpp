@@ -5,7 +5,7 @@
 
 namespace yeet::control {
 
-rate_of_change_limiter::rate_of_change_limiter(real_t sampling_time)
+rate_of_change_limiter::rate_of_change_limiter(double sampling_time)
 {
     assert(sampling_time > 0.0f && "Sampling time must be positive.");
     _sampling_time = sampling_time;
@@ -13,7 +13,7 @@ rate_of_change_limiter::rate_of_change_limiter(real_t sampling_time)
     _enabled = false;
 }
 
-rate_of_change_limiter::rate_of_change_limiter(real_t rate_limit_per_second, real_t sampling_time, real_t initial_value)
+rate_of_change_limiter::rate_of_change_limiter(real_t rate_limit_per_second, double sampling_time, real_t initial_value)
     : _sampling_time(sampling_time), _current_output(initial_value), _enabled(true)
 {
     assert(sampling_time > 0.0f && "Sampling time must be positive.");

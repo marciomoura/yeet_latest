@@ -11,20 +11,22 @@ using namespace yeet;
 // Core Functionality & Type System
 //==============================================================================
 
-TEST(UnitsTest, QuantityCreationAndValueAccess) {
+TEST(UnitsTest, QuantityCreationAndValueAccess)
+{
     // Quantity Type, Underlying Value Type
     length_t distance(10.5);
     mass_t weight(2.5f);
 
     // Check value access
-    ASSERT_DOUBLE_EQ(distance.value(), 10.5);
-    ASSERT_DOUBLE_EQ(weight.value(), 2.5f);
+    EXPECT_FLOAT_EQ(distance.value(), 10.5);
+    EXPECT_FLOAT_EQ(weight.value(), 2.5f);
 
     // Dimensional Representation is implicitly tested by the type system
     static_assert(!std::is_same_v<decltype(distance)::dimension, decltype(weight)::dimension>);
 }
 
-TEST(UnitsTest, CompileTimeDimensionMismatch) {
+TEST(UnitsTest, CompileTimeDimensionMismatch)
+{
     // This test "passes" if the commented-out code fails to compile.
     // This is a standard way to "unit test" compile-time constraints.
 
@@ -35,7 +37,8 @@ TEST(UnitsTest, CompileTimeDimensionMismatch) {
     SUCCEED() << "Verified: Incompatible dimension assignment is a compile-time error.";
 }
 
-TEST(UnitsTest, CompileTimeSystemMismatch) {
+TEST(UnitsTest, CompileTimeSystemMismatch)
+{
     // This test "passes" if the commented-out code fails to compile.
 
     // voltage_t si_v(240.0);
@@ -51,7 +54,8 @@ TEST(UnitsTest, CompileTimeSystemMismatch) {
 // Unit System Support
 //==============================================================================
 
-TEST(UnitsTest, SystemDifferentiation) {
+TEST(UnitsTest, SystemDifferentiation)
+{
     voltage_t si_voltage(120.0);
     voltage_pu_t pu_voltage(1.0);
 
@@ -60,19 +64,20 @@ TEST(UnitsTest, SystemDifferentiation) {
     static_assert(!std::is_same_v<decltype(si_voltage)::system, decltype(pu_voltage)::system>);
 }
 
-TEST(UnitsTest, ExplicitConversion) {
+TEST(UnitsTest, ExplicitConversion)
+{
     voltage_t base_voltage(240.0);
     voltage_t measured_voltage(228.0);
 
     // Test conversion to Per-Unit
     auto pu_v = to_pu(measured_voltage, base_voltage);
     static_assert(std::is_same_v<decltype(pu_v)::system, per_unit>);
-    ASSERT_DOUBLE_EQ(pu_v.value(), 228.0 / 240.0);
+    EXPECT_FLOAT_EQ(pu_v.value(), 228.0 / 240.0);
 
     // Test conversion back to SI
     auto si_v = to_si(pu_v, base_voltage);
     static_assert(std::is_same_v<decltype(si_v)::system, si>);
-    ASSERT_DOUBLE_EQ(si_v.value(), measured_voltage.value());
+    EXPECT_FLOAT_EQ(si_v.value(), measured_voltage.value());
 
     // Test compile-time check for mismatched dimensions in conversion
     // current_t<> base_current(10.0);
@@ -84,7 +89,8 @@ TEST(UnitsTest, ExplicitConversion) {
 // Arithmetic Operations
 //==============================================================================
 
-TEST(UnitsTest, AdditionAndSubtraction) {
+TEST(UnitsTest, AdditionAndSubtraction)
+{
     auto dist1 = length_t(10.5);
     auto dist2 = length_t(20.0);
 
@@ -98,7 +104,8 @@ TEST(UnitsTest, AdditionAndSubtraction) {
     ASSERT_NEAR(diff.value(), 9.5, 1e-9);
 }
 
-TEST(UnitsTest, MultiplicationAndDivision) {
+TEST(UnitsTest, MultiplicationAndDivision)
+{
     auto dist = length_t(100.0);
     auto duration = duration_t(10.0);
     auto speed = dist / duration;
@@ -113,7 +120,8 @@ TEST(UnitsTest, MultiplicationAndDivision) {
     ASSERT_NEAR(force_val.value(), 5.0 * (10.0 / 10.0), 1e-9);
 }
 
-TEST(UnitsTest, ScalarOperations) {
+TEST(UnitsTest, ScalarOperations)
+{
     auto power_val = power_t(100.0);
 
     auto double_power = power_val * 2.0;
@@ -130,7 +138,8 @@ TEST(UnitsTest, ScalarOperations) {
 // Electrical and Mechanical Units - Enhanced Engineering Equations
 //==============================================================================
 
-TEST(UnitsTest, ElectricalUnitsOhmLaw) {
+TEST(UnitsTest, ElectricalUnitsOhmLaw)
+{
     // Ohm's Law: V = I * R
     auto v = voltage_t(120.0);
     auto r = resistance_t(60.0);
@@ -146,7 +155,8 @@ TEST(UnitsTest, ElectricalUnitsOhmLaw) {
     ASSERT_NEAR(calculated_r.value(), 60.0, 1e-9);
 }
 
-TEST(UnitsTest, ElectricalPowerLaws) {
+TEST(UnitsTest, ElectricalPowerLaws)
+{
     // Power equations: P = V * I, P = V² / R, P = I² * R
     auto v = voltage_t(240.0);
     auto i = current_t(10.0);
@@ -172,7 +182,8 @@ TEST(UnitsTest, ElectricalPowerLaws) {
     ASSERT_NEAR(power_vi.value(), power_i2r.value(), 1e-9);
 }
 
-TEST(UnitsTest, ReactiveComponentLaws) {
+TEST(UnitsTest, ReactiveComponentLaws)
+{
     // Capacitive and inductive reactance
     auto freq = frequency_t(50.0);   // 50 Hz
     auto c = capacitance_t(100e-6);  // 100 µF
@@ -193,7 +204,8 @@ TEST(UnitsTest, ReactiveComponentLaws) {
     ASSERT_NEAR(xl_value, 31.42, 0.01);  // ~31.42 Ω at 50 Hz
 }
 
-TEST(UnitsTest, ThreePhaseSystemEquations) {
+TEST(UnitsTest, ThreePhaseSystemEquations)
+{
     // Three-phase power calculations
     auto v_line = voltage_t(400.0);  // 400V line voltage
     auto i_line = current_t(10.0);   // 10A line current
@@ -212,7 +224,8 @@ TEST(UnitsTest, ThreePhaseSystemEquations) {
     ASSERT_NEAR(real_power_value, 6928.2, 0.1);
 }
 
-TEST(UnitsTest, TransformerEquations) {
+TEST(UnitsTest, TransformerEquations)
+{
     // Transformer relationships
     auto v_primary = voltage_t(400.0);
     auto v_secondary = voltage_t(24.0);
@@ -232,7 +245,8 @@ TEST(UnitsTest, TransformerEquations) {
     ASSERT_NEAR(p_primary_value, p_secondary_value, 0.1);
 }
 
-TEST(UnitsTest, MechanicalUnitsNewtonsLaw) {
+TEST(UnitsTest, MechanicalUnitsNewtonsLaw)
+{
     // R4.2 - Newton's second law: F = m * a
     auto m = mass_t(10.0);
     auto a = length_t(9.8) / (duration_t(1.0) * duration_t(1.0));
@@ -243,7 +257,8 @@ TEST(UnitsTest, MechanicalUnitsNewtonsLaw) {
     ASSERT_TRUE((std::is_same_v<decltype(f), force_t>));
 }
 
-TEST(UnitsTest, RotationalMechanicsEquations) {
+TEST(UnitsTest, RotationalMechanicsEquations)
+{
     // Rotational mechanics for motor applications
     auto j = moment_of_inertia_t(2.5);  // 2.5 kg⋅m²
     auto omega = frequency_t(50.0);     // 50 rad/s (treating as angular velocity)
@@ -262,7 +277,8 @@ TEST(UnitsTest, RotationalMechanicsEquations) {
     ASSERT_NEAR(kinetic_energy_value, 3125.0, 1e-9);  // 3125 J
 }
 
-TEST(UnitsTest, ElectricalEnergyAndEfficiency) {
+TEST(UnitsTest, ElectricalEnergyAndEfficiency)
+{
     // Energy calculations for electrical systems
     auto p = power_t(2000.0);     // 2 kW
     auto t = duration_t(3600.0);  // 1 hour in seconds
@@ -283,7 +299,8 @@ TEST(UnitsTest, ElectricalEnergyAndEfficiency) {
     ASSERT_NEAR(p_loss_value, 200.0, 1e-9);  // 200 W losses
 }
 
-TEST(UnitsTest, MotorEquations) {
+TEST(UnitsTest, MotorEquations)
+{
     // Motor equations for power electronics applications
     auto v_dc = voltage_t(600.0);  // DC link voltage
     auto i_dc = current_t(100.0);  // DC current

@@ -2,7 +2,7 @@
 
 CompileFlags:
     # Use host build by default
-    CompilationDatabase: build
+    CompilationDatabase: build-host
 
 Index:
     Background: Build

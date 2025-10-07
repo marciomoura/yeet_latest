@@ -29,7 +29,7 @@ public:
      * @brief Constructs the mechanical load model.
      * @param sampling_time The simulation sampling time [s].
      */
-    explicit mechanical_load(real_t sampling_time);
+    explicit mechanical_load(double sampling_time);
 
     /**
      * @brief Configures the per-unit mechanical parameters of the load.

@@ -109,7 +109,7 @@ void three_phase_pll::update(const alphabeta<voltage_pu_t>& voltage_alphabeta)
     _estimated_frequency = frequency_t{_nominal_frequency.value() + frequency_deviation_hz};
 
     // Integrate angular frequency to get the new phase angle for the next cycle
-    _frequency_integrator.update(real_t{2} * pi * _estimated_frequency.value());
+    _frequency_integrator.update(two_pi * _estimated_frequency.value());
 
     // Update the final output filter for a smooth frequency reading
     _filter_frequency_estimation.update(_estimated_frequency.value());

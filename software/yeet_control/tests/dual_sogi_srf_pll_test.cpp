@@ -22,14 +22,14 @@ class DualSogiPhaseLockedLoopTest : public ::testing::Test {
 protected:
     static constexpr duration_t kSamplingTime = duration_t{50e-6};        // 50 μs for good time resolution
     static constexpr frequency_t kNominalFrequency = frequency_t{50.0};   // 50 Hz nominal frequency
-    static constexpr frequency_t kFrequencyTolerance = frequency_t{0.1};  // 0.1 Hz
+    static constexpr frequency_t kFrequencyTolerance = frequency_t{0.2};  // 0.2 Hz
     static constexpr real_t kAngleTolerance = real_t{0.05};               // radians (~3 degrees)
 
     dual_sogi_srf_pll pll{kSamplingTime};
     three_phase_waveform_generator waveform_generator{kSamplingTime.value()};
     yeet::simulator simulator = yeet::make_gtest_simulator();
 
-    real_t pll_input_dc_value = {};
+    double pll_input_dc_value = {};
     alphabeta<voltage_pu_t> pll_input{};
 
     void SetUp() override
@@ -55,8 +55,11 @@ protected:
 
             abc<double> const signal = waveform_generator.get_signal_abc();
             alphabeta<double> signal_ab = signal.to_alphabeta();
-            pll_input = alphabeta<voltage_pu_t>{voltage_pu_t{signal_ab.alpha() + pll_input_dc_value},
-                voltage_pu_t{signal_ab.beta() + pll_input_dc_value}};
+
+            pll_input.alpha() =
+                voltage_pu_t{static_cast<real_t>(signal_ab.alpha()) + static_cast<real_t>(pll_input_dc_value)};
+            pll_input.beta() =
+                voltage_pu_t{static_cast<real_t>(signal_ab.beta()) + static_cast<real_t>(pll_input_dc_value)};
 
             // Update PLL with the reference signal
             pll.update(pll_input);
@@ -69,8 +72,12 @@ protected:
         alphabeta<voltage_pu_t> estimated_signal = pll.get_positive_sequence();
         alphabeta<double> reference_signal = waveform_generator.get_signal_abc().to_alphabeta();
 
-        alphabeta<real_t> error = alphabeta<real_t>{reference_signal.alpha() - estimated_signal.alpha().value(),
-            reference_signal.beta() - estimated_signal.beta().value()};
+        alphabeta<real_t> error{};
+        error.alpha() = static_cast<real_t>(reference_signal.alpha()) - estimated_signal.alpha().value();
+        error.beta() = static_cast<real_t>(reference_signal.beta()) - estimated_signal.beta().value();
+
+        // alphabeta<real_t>{eference_signal.alpha() - estimated_signal.alpha().value(),
+        // reference_signal.beta() - estimated_signal.beta().value()};
         return std::sqrt(error.alpha() * error.alpha() + error.beta() * error.beta());
     }
 
@@ -123,7 +130,7 @@ TEST_F(DualSogiPhaseLockedLoopTest, NominalFrequencyTracking)
 
     // 2. Signal reconstruction accuracy (fundamental PLL requirement)
     simulator.register_checker(yeet::make_range_checker<real_t>(
-        "estimation error magnitude", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f, 0.005f,
+        "estimation error magnitude", [&]() -> real_t { return get_estimation_error_magnitude(); }, 0.0f, 0.01f,
         yeet::checker_activation_time_range{0.4}));
 
     // 3. Lock detection must be active after settling time

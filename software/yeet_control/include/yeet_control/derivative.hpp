@@ -26,13 +26,13 @@ public:
      * @param sampling_time The sampling time (Ts) in seconds. Must be positive.
      * @param initial_value The initial value to assume for the previous input (u[k-1]).
      */
-    explicit derivative(yeet::real_t sampling_time, yeet::real_t initial_value = 0.0F);
+    explicit derivative(double sampling_time, yeet::real_t initial_value = 0.0F);
 
     /**
      * @brief Configures the sampling time.
      * @param sampling_time The new sampling time in seconds. Must be positive.
      */
-    void configure_sampling_time(yeet::real_t sampling_time);
+    void configure_sampling_time(double sampling_time);
 
     /**
      * @brief Updates the calculator with a new input value and computes the derivative.
@@ -53,7 +53,7 @@ public:
     yeet::real_t get_output() const noexcept;
 
 private:
-    yeet::real_t _sampling_time;
+    double _sampling_time;
     yeet::real_t _previous_input;
     yeet::real_t _output{0.0F};
 };

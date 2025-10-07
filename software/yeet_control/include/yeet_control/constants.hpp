@@ -6,9 +6,11 @@
 
 namespace yeet {
 
-static constexpr real_t pi = real_t(3.1415926535897932385);
+static constexpr double pi_double = double(3.1415926535897932385);
 
-static constexpr real_t two_pi = real_t(2.0) * pi;
+static constexpr real_t pi = real_t(pi_double);
+
+static constexpr real_t two_pi = real_t(2.0 * pi_double);
 
 constexpr angle_t deg_to_rad(real_t degrees) { return angle_t{degrees * pi / real_t(180.0)}; }
 

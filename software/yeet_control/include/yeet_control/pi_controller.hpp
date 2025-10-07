@@ -36,7 +36,7 @@ public:
     static_assert(std::is_floating_point_v<value_type>, "Value type must be a floating point type");
 
     pi_controller() = default;
-    pi_controller(value_type ts) : _integrator(ts) {}
+    pi_controller(double sampling_time) : _integrator(sampling_time) {}
 
     /**
      * @brief Configure the controller using Kp and continuous-time Ki.

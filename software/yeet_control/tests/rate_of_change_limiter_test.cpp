@@ -10,10 +10,11 @@ using namespace yeet::control;
 // Test fixture for common setup
 class RateOfChangeLimiterTest : public ::testing::Test {
 protected:
-    const real_t sampling_time = 0.1f;  // 100 ms sampling time for easy calculations
+    const double sampling_time = 0.1f;  // 100 ms sampling time for easy calculations
 };
 
-TEST_F(RateOfChangeLimiterTest, InitialStateIsCorrect) {
+TEST_F(RateOfChangeLimiterTest, InitialStateIsCorrect)
+{
     const real_t initial_value = 5.0f;
     rate_of_change_limiter limiter(10.0f, sampling_time, initial_value);
     EXPECT_FLOAT_EQ(limiter.get_output(), initial_value);
@@ -24,7 +25,8 @@ TEST_F(RateOfChangeLimiterTest, InitialStateIsCorrect) {
     EXPECT_TRUE(limiter_default_init.is_enabled());
 }
 
-TEST_F(RateOfChangeLimiterTest, RampsUpAtCorrectRate) {
+TEST_F(RateOfChangeLimiterTest, RampsUpAtCorrectRate)
+{
     const real_t rate_limit = 10.0f;  // 10 units / sec
     // With 0.1s sampling, max change per sample is 1.0 unit
     rate_of_change_limiter limiter(rate_limit, sampling_time);
@@ -40,7 +42,8 @@ TEST_F(RateOfChangeLimiterTest, RampsUpAtCorrectRate) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 3.0f);
 }
 
-TEST_F(RateOfChangeLimiterTest, RampsDownAtCorrectRate) {
+TEST_F(RateOfChangeLimiterTest, RampsDownAtCorrectRate)
+{
     const real_t rate_limit = 10.0f;  // 10 units / sec
     // With 0.1s sampling, max change per sample is 1.0 unit
     rate_of_change_limiter limiter(rate_limit, sampling_time, 50.0f);
@@ -56,7 +59,8 @@ TEST_F(RateOfChangeLimiterTest, RampsDownAtCorrectRate) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 47.0f);
 }
 
-TEST_F(RateOfChangeLimiterTest, ReachesTargetWithoutOvershoot) {
+TEST_F(RateOfChangeLimiterTest, ReachesTargetWithoutOvershoot)
+{
     const real_t rate_limit = 10.0f;  // max change per sample = 1.0
     rate_of_change_limiter limiter(rate_limit, sampling_time);
 
@@ -69,7 +73,8 @@ TEST_F(RateOfChangeLimiterTest, ReachesTargetWithoutOvershoot) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 0.5f);
 }
 
-TEST_F(RateOfChangeLimiterTest, ReachesFinalValueExactly) {
+TEST_F(RateOfChangeLimiterTest, ReachesFinalValueExactly)
+{
     const real_t rate_limit = 10.0f;  // max change per sample = 1.0
     rate_of_change_limiter limiter(rate_limit, sampling_time);
     const real_t target = 3.5f;
@@ -87,7 +92,8 @@ TEST_F(RateOfChangeLimiterTest, ReachesFinalValueExactly) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 3.5f);
 }
 
-TEST_F(RateOfChangeLimiterTest, ResetMethodWorks) {
+TEST_F(RateOfChangeLimiterTest, ResetMethodWorks)
+{
     rate_of_change_limiter limiter(10.0f, sampling_time, 50.0f);
     EXPECT_FLOAT_EQ(limiter.get_output(), 50.0f);
 
@@ -99,7 +105,8 @@ TEST_F(RateOfChangeLimiterTest, ResetMethodWorks) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 0.0f);
 }
 
-TEST_F(RateOfChangeLimiterTest, ConfigureChangesRate) {
+TEST_F(RateOfChangeLimiterTest, ConfigureChangesRate)
+{
     rate_of_change_limiter limiter(10.0f, sampling_time);  // max change = 1.0
 
     limiter.update(100.0f);
@@ -113,7 +120,8 @@ TEST_F(RateOfChangeLimiterTest, ConfigureChangesRate) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 6.0f);
 }
 
-TEST_F(RateOfChangeLimiterTest, DisableEnablesPassThroughMode) {
+TEST_F(RateOfChangeLimiterTest, DisableEnablesPassThroughMode)
+{
     const real_t rate_limit = 10.0f;  // max change per sample = 1.0
     rate_of_change_limiter limiter(rate_limit, sampling_time);
 
@@ -136,7 +144,8 @@ TEST_F(RateOfChangeLimiterTest, DisableEnablesPassThroughMode) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 100.0f);
 }
 
-TEST_F(RateOfChangeLimiterTest, ReEnableRestoresRateLimiting) {
+TEST_F(RateOfChangeLimiterTest, ReEnableRestoresRateLimiting)
+{
     const real_t rate_limit = 10.0f;  // max change per sample = 1.0
     rate_of_change_limiter limiter(rate_limit, sampling_time);
 
@@ -157,7 +166,8 @@ TEST_F(RateOfChangeLimiterTest, ReEnableRestoresRateLimiting) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 52.0f);  // 51.0 + 1.0 (max change)
 }
 
-TEST_F(RateOfChangeLimiterTest, DisabledModeIgnoresRateLimit) {
+TEST_F(RateOfChangeLimiterTest, DisabledModeIgnoresRateLimit)
+{
     const real_t rate_limit = 1.0f;  // Very slow rate limit
     rate_of_change_limiter limiter(rate_limit, sampling_time);
 
@@ -175,7 +185,8 @@ TEST_F(RateOfChangeLimiterTest, DisabledModeIgnoresRateLimit) {
     EXPECT_FLOAT_EQ(limiter.get_output(), 0.0f);
 }
 
-TEST_F(RateOfChangeLimiterTest, EnableStatePreservedAfterConfigure) {
+TEST_F(RateOfChangeLimiterTest, EnableStatePreservedAfterConfigure)
+{
     rate_of_change_limiter limiter(10.0f, sampling_time);
 
     // Disable the limiter

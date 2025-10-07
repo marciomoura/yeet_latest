@@ -93,11 +93,11 @@ TEST_F(SfcMachineSideFiringAngleLUTTest, GetFiringAngleInRadians)
     controller.update(current_pu_t{1.0});
 
     // Retrieve the angle in both degrees and radians
-    real_t angle_deg = controller.get_firing_angle_deg();
-    real_t angle_rad = controller.get_firing_angle_rad();
+    const real_t angle_deg = controller.get_firing_angle_deg();
+    const real_t angle_rad = controller.get_firing_angle_rad();
 
     // Verify the conversion is correct
-    EXPECT_NEAR(angle_rad, angle_deg * pi / 180.0, 1e-9);
+    EXPECT_NEAR(angle_rad, angle_deg * pi / 180.0, 1e-6);
 }
 
 }  // namespace yeet::application::sfc

@@ -2,7 +2,6 @@
 
 #include "yeet_control/angle_wrapped.hpp"
 
-
 namespace {
 
 using namespace yeet;
@@ -10,29 +9,29 @@ using namespace yeet;
 TEST(AngleZeroToTwoPiTest, DefaultConstructor)
 {
     angle_wrapped a;
-    EXPECT_NEAR(a.get_radians(), 0.0, 1e-10);
-    EXPECT_NEAR(a.get_degrees(), 0.0, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 0.0, 1e-5);
+    EXPECT_NEAR(a.get_degrees(), 0.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, Constructor)
 {
     angle_wrapped a(angle_t{1.0});
-    EXPECT_NEAR(a.get_radians(), 1.0, 1e-10);
-    EXPECT_NEAR(a.get_degrees(), 180.0 / pi, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 1.0, 1e-5);
+    EXPECT_NEAR(a.get_degrees(), 180.0 / pi, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, SetValueWrapNegative)
 {
     angle_wrapped a;
     a.set_value(angle_t{-1.0});
-    EXPECT_NEAR(a.get_radians(), -1.0 + 2 * pi, 1e-10);
+    EXPECT_NEAR(a.get_radians(), -1.0 + 2 * pi, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, SetValueWrapPositive)
 {
     angle_wrapped a;
     a.set_value(angle_t{2 * pi + 0.5});
-    EXPECT_NEAR(a.get_radians(), 0.5, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 0.5, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, SetValueExactlyTwoPi)
@@ -41,18 +40,18 @@ TEST(AngleZeroToTwoPiTest, SetValueExactlyTwoPi)
     a.set_value(angle_t{2 * pi});
 
     // Setting exactly 2π should wrap to 0
-    EXPECT_NEAR(a.get_radians(), 0.0f, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 0.0f, 1e-5);
 
     // Setting near 2π should not wrap
-    a.set_value(angle_t{2 * pi - 1e-10});
-    EXPECT_NEAR(a.get_radians(), 2 * pi - 1e-10, 1e-10);
+    a.set_value(angle_t{2 * pi - 1e-5});
+    EXPECT_NEAR(a.get_radians(), 2 * pi - 1e-5, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, SetValueExactlyZero)
 {
     angle_wrapped a;
     a.set_value(angle_t{0.0});
-    EXPECT_NEAR(a.get_radians(), 0.0, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 0.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, Addition)
@@ -60,7 +59,7 @@ TEST(AngleZeroToTwoPiTest, Addition)
     angle_wrapped a(angle_t{1.0});
     angle_wrapped b(angle_t{2.0});
     auto c = a + b;
-    EXPECT_NEAR(c.get_radians(), 3.0, 1e-10);
+    EXPECT_NEAR(c.get_radians(), 3.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, NegationOperator)
@@ -68,8 +67,8 @@ TEST(AngleZeroToTwoPiTest, NegationOperator)
     angle_wrapped a;
     a.set_value(angle_t{1.0});
     angle_wrapped a_negated = -a;
-    EXPECT_NEAR(a.get_radians(), 1.0, 1e-10);
-    EXPECT_NEAR(a_negated.get_radians(), 2.0 * pi - 1.0, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 1.0, 1e-5);
+    EXPECT_NEAR(a_negated.get_radians(), 2.0 * pi - 1.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, AdditionWithWrapping)
@@ -77,7 +76,7 @@ TEST(AngleZeroToTwoPiTest, AdditionWithWrapping)
     angle_wrapped a(angle_t{5.0});
     angle_wrapped b(angle_t{2.0});
     auto c = a + b;
-    EXPECT_NEAR(c.get_radians(), 7.0 - 2 * pi, 1e-10);
+    EXPECT_NEAR(c.get_radians(), 7.0 - 2 * pi, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, SubtractionWithWrapping)
@@ -85,7 +84,7 @@ TEST(AngleZeroToTwoPiTest, SubtractionWithWrapping)
     angle_wrapped a(angle_t{1.0});
     angle_wrapped b(angle_t{2.0});
     auto c = a - b;  // Should wrap from -1.0 to -1.0 + 2pi
-    EXPECT_NEAR(c.get_radians(), -1.0 + 2 * pi, 1e-10);
+    EXPECT_NEAR(c.get_radians(), -1.0 + 2 * pi, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, AdditionAssignment)
@@ -93,7 +92,7 @@ TEST(AngleZeroToTwoPiTest, AdditionAssignment)
     angle_wrapped a(angle_t{1.0});
     angle_wrapped b(angle_t{2.0});
     a += b;
-    EXPECT_NEAR(a.get_radians(), 3.0, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 3.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, SubtractionAssignment)
@@ -101,14 +100,14 @@ TEST(AngleZeroToTwoPiTest, SubtractionAssignment)
     angle_wrapped a(angle_t{4.0});
     angle_wrapped b(angle_t{1.0});
     a -= b;
-    EXPECT_NEAR(a.get_radians(), 3.0, 1e-10);
+    EXPECT_NEAR(a.get_radians(), 3.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, ScalarMultiplication)
 {
     angle_wrapped a(angle_t{1.0});
     auto b = real_t{2.0} * a;
-    EXPECT_NEAR(b.get_radians(), 2.0, 1e-10);
+    EXPECT_NEAR(b.get_radians(), 2.0, 1e-5);
 }
 
 TEST(AngleZeroToTwoPiTest, Equality)

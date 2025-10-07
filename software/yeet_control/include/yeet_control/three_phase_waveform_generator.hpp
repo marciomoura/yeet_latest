@@ -9,6 +9,7 @@
 #include "angle_wrapped.hpp"
 #include "constants.hpp"
 #include "reference_frame.hpp"
+#include "types.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 
 namespace yeet::control {
@@ -16,13 +17,13 @@ namespace yeet::control {
 template <typename T>
 class white_noise_generator {
 public:
-    explicit white_noise_generator(double stddev = 0.0, double mean = 0.0)
+    explicit white_noise_generator(real_t stddev = 0.0, real_t mean = 0.0)
         : m_rng(std::random_device{}()), m_mean(mean), m_stddev(stddev)
     {
         update_distribution();
     }
 
-    void set_parameters(double stddev, double mean = 0.0)
+    void set_parameters(real_t stddev, real_t mean = 0.0)
     {
         m_mean = mean;
         m_stddev = stddev;
@@ -41,32 +42,32 @@ public:
 
     // Specialization for abc<T>
     template <typename U = T>
-    std::enable_if_t<std::is_same_v<U, abc<double>>, T> generate()
+    std::enable_if_t<std::is_same_v<U, abc<real_t>>, T> generate()
     {
         if (m_stddev <= 0.0) {
-            return yeet::abc<double>{m_mean, m_mean, m_mean};  // Return mean when no noise
+            return yeet::abc<real_t>{m_mean, m_mean, m_mean};  // Return mean when no noise
         }
-        return yeet::abc<double>{m_distribution(m_rng), m_distribution(m_rng), m_distribution(m_rng)};
+        return yeet::abc<real_t>{m_distribution(m_rng), m_distribution(m_rng), m_distribution(m_rng)};
     }
 
     // Specialization for alphabeta<T>
     template <typename U = T>
-    std::enable_if_t<std::is_same_v<U, alphabeta<double>>, T> generate()
+    std::enable_if_t<std::is_same_v<U, alphabeta<real_t>>, T> generate()
     {
         if (m_stddev <= 0.0) {
-            return alphabeta<double>{m_mean, m_mean};  // Return mean when no noise
+            return alphabeta<real_t>{m_mean, m_mean};  // Return mean when no noise
         }
-        return alphabeta<double>{m_distribution(m_rng), m_distribution(m_rng)};
+        return alphabeta<real_t>{m_distribution(m_rng), m_distribution(m_rng)};
     }
 
     // Specialization for dq<T>
     template <typename U = T>
-    std::enable_if_t<std::is_same_v<U, dq<double>>, T> generate()
+    std::enable_if_t<std::is_same_v<U, dq<real_t>>, T> generate()
     {
         if (m_stddev <= 0.0) {
-            return dq<double>{m_mean, m_mean};  // Return mean when no noise
+            return dq<real_t>{m_mean, m_mean};  // Return mean when no noise
         }
-        return dq<double>{m_distribution(m_rng), m_distribution(m_rng)};
+        return dq<real_t>{m_distribution(m_rng), m_distribution(m_rng)};
     }
 
 private:
@@ -74,32 +75,32 @@ private:
     {
         // Only create distribution if stddev > 0 to avoid assertion failure
         if (m_stddev > 0.0) {
-            m_distribution = std::normal_distribution<double>(m_mean, m_stddev);
+            m_distribution = std::normal_distribution<real_t>(m_mean, m_stddev);
         }
         // If stddev <= 0, we'll return the mean value directly in generate() methods
     }
 
     std::mt19937 m_rng;
-    std::normal_distribution<double> m_distribution;
-    double m_mean{0.0};
-    double m_stddev{0.0};
+    std::normal_distribution<real_t> m_distribution;
+    real_t m_mean{0.0};
+    real_t m_stddev{0.0};
 };
 
 template <typename T>
 struct generator_step {
-    double time{};
+    real_t time{};
     T value{};
 };
 
 template <typename T>
 struct generator_step_rate_of_change {
-    double time_start{};
-    double time_end{};
+    real_t time_start{};
+    real_t time_end{};
     T value_delta{};
 
     T get_incremental_delta(double sampling_time) const
     {
-        double const delta_time = time_end - time_start;
+        real_t const delta_time = time_end - time_start;
 
         assert(delta_time > 0.0f && "Time delta must be greater than 0");
 
@@ -122,12 +123,12 @@ class three_phase_waveform_generator {
 private:
     struct signal_harmonics_configuration {
         std::size_t harmonic_order{};
-        double magnitude{};
+        real_t magnitude{};
     };
 
     struct signal_harmonics_data {
         abc<angle_wrapped> signal_angle{};
-        abc<double> signal{};
+        abc<real_t> signal{};
     };
 
     struct Signal_Harmonics {
@@ -173,11 +174,11 @@ public:
     /**
      * @brief Retrieves the fundamental signal, which is the sum of the positive and negative sequence signals.
      *
-     * @return abc<double> fundamental signal
+     * @return abc<real_t> fundamental signal
      */
-    abc<double> get_fundamental_signal_abc() const
+    abc<real_t> get_fundamental_signal_abc() const
     {
-        abc<double> const full_fundamental_signal =
+        abc<real_t> const full_fundamental_signal =
             m_fundamental_positive_sequence_signal_abc + m_fundamental_negative_sequence_signal_abc;
 
         return full_fundamental_signal;
@@ -193,10 +194,10 @@ public:
     /**
      * @brief Retrieves the fundamental positive sequence signal.
      *
-     * @return abc<double> fundamental positive sequence signal
+     * @return abc<real_t> fundamental positive sequence signal
      */
 
-    abc<double> get_fundamental_positive_sequence_signal_abc() const
+    abc<real_t> get_fundamental_positive_sequence_signal_abc() const
     {
         return m_fundamental_positive_sequence_signal_abc;
     }
@@ -204,9 +205,9 @@ public:
     /**
      * @brief Retrieves the fundamental negative sequence signal.
      *
-     * @return abc<double> fundamental negative sequence signal
+     * @return abc<real_t> fundamental negative sequence signal
      */
-    abc<double> get_fundamental_negative_sequence_signal_abc() const
+    abc<real_t> get_fundamental_negative_sequence_signal_abc() const
     {
         return m_fundamental_negative_sequence_signal_abc;
     }
@@ -215,9 +216,9 @@ public:
      * @brief Retrieves the harmonic signal per harmonic.
      *
      * @param harmonic harmonic order
-     * @return abc<double> harmonic signal if the harmonic exists, otherwise an empty signal
+     * @return abc<real_t> harmonic signal if the harmonic exists, otherwise an empty signal
      */
-    abc<double> get_harmonic_signal_abc(std::size_t harmonic) const
+    abc<real_t> get_harmonic_signal_abc(std::size_t harmonic) const
     {
         if (harmonic == 1) {
             return get_fundamental_signal_abc();
@@ -236,11 +237,11 @@ public:
     /**
      * @brief Retrieves the full signal, including the fundamental, harmonic signals and noise.
      *
-     * @return abc<double> full signal
+     * @return abc<real_t> full signal
      */
-    abc<double> get_signal_abc() const
+    abc<real_t> get_signal_abc() const
     {
-        abc<double> full_signal = get_fundamental_signal_abc();
+        abc<real_t> full_signal = get_fundamental_signal_abc();
 
         for (Signal_Harmonics const& n : m_harmonics) {
             full_signal += n.data.signal;
@@ -249,18 +250,18 @@ public:
         return full_signal + m_signal_noise_abc;
     }
 
-    abc<double> get_signal_noise_abc() const { return m_signal_noise_abc; }
+    abc<real_t> get_signal_noise_abc() const { return m_signal_noise_abc; }
 
-    double get_signal_frequency() const { return m_signal_frequency; }
+    real_t get_signal_frequency() const { return m_signal_frequency; }
 
-    void enable_noise(double noise_standard_deviation = 0.1f)
+    void enable_noise(real_t noise_standard_deviation = 0.1f)
     {
         set_noise_standard_deviation(noise_standard_deviation);
     }
 
     void disable_noise() { set_noise_standard_deviation(0.0f); }
 
-    void set_noise_standard_deviation(double noise_standard_deviation)
+    void set_noise_standard_deviation(real_t noise_standard_deviation)
     {
         m_noise_generator.set_parameters(noise_standard_deviation, 0.0);
     }
@@ -319,7 +320,7 @@ public:
      *
      * @param symmetric_amplitude symmetric amplitude for the fundamental signal
      */
-    void set_fundamental_positive_sequence_signal_amplitude(double symmetric_positive_sequence_amplitude)
+    void set_fundamental_positive_sequence_signal_amplitude(real_t symmetric_positive_sequence_amplitude)
     {
         set_fundamental_positive_sequence_signal_amplitude({symmetric_positive_sequence_amplitude,
             symmetric_positive_sequence_amplitude, symmetric_positive_sequence_amplitude});
@@ -330,7 +331,7 @@ public:
      *
      * @param positive_sequence_amplitude three-phase amplitude for the positive sequence component
      */
-    void set_fundamental_positive_sequence_signal_amplitude(abc<double> positive_sequence_amplitude)
+    void set_fundamental_positive_sequence_signal_amplitude(abc<real_t> positive_sequence_amplitude)
     {
         m_fundamental_positive_sequence_signal_amplitude = positive_sequence_amplitude;
     }
@@ -340,7 +341,7 @@ public:
      *
      * @param symmetric_amplitude symmetric amplitude for the negative sequence component
      */
-    void set_fundamental_negative_sequence_signal_amplitude(double symmetric_negative_sequence_amplitude)
+    void set_fundamental_negative_sequence_signal_amplitude(real_t symmetric_negative_sequence_amplitude)
     {
         set_fundamental_negative_sequence_signal_amplitude({symmetric_negative_sequence_amplitude,
             symmetric_negative_sequence_amplitude, symmetric_negative_sequence_amplitude});
@@ -351,7 +352,7 @@ public:
      *
      * @param negative_sequence_amplitude three-phase amplitude for the negative sequence component
      */
-    void set_fundamental_negative_sequence_signal_amplitude(abc<double> negative_sequence_amplitude)
+    void set_fundamental_negative_sequence_signal_amplitude(abc<real_t> negative_sequence_amplitude)
     {
         m_fundamental_negative_sequence_signal_amplitude = negative_sequence_amplitude;
     }
@@ -361,7 +362,7 @@ public:
      *
      * @param frequency fundamental signal frequency
      */
-    void set_signal_frequency(double frequency)
+    void set_signal_frequency(real_t frequency)
     {
         assert(frequency > 0.0f && "Frequency must be greater than 0");
 
@@ -375,7 +376,7 @@ public:
      * @param harmonic_order harmonic order, greater than 1
      * @param harmonic_magnitude harmonic magnitude
      */
-    void add_signal_harmonics(std::size_t harmonic_order, double harmonic_magnitude)
+    void add_signal_harmonics(std::size_t harmonic_order, real_t harmonic_magnitude)
     {
         assert(harmonic_order > 1 && "Harmonic order must be greater than 1");
 
@@ -399,9 +400,9 @@ public:
      * @param amplitude three-phase step magnitude
      * @param time simulation time when the step will occur
      */
-    void set_amplitude_step(abc<double> amplitude, double time)
+    void set_amplitude_step(abc<real_t> amplitude, real_t time)
     {
-        generator_step<abc<double>> const step{time, amplitude};
+        generator_step<abc<real_t>> const step{time, amplitude};
 
         m_step_amplitude = step;
     }
@@ -412,7 +413,7 @@ public:
      * @param amplitude step magnitude
      * @param time simulation time when the step will occur
      */
-    void set_amplitude_step(double amplitude, double time)
+    void set_amplitude_step(real_t amplitude, real_t time)
     {
         set_amplitude_step({amplitude, amplitude, amplitude}, time);
     }
@@ -423,9 +424,9 @@ public:
      * @param frequency step magnitude
      * @param time simulation time when the step will occur
      */
-    void set_frequency_step(double frequency, double time)
+    void set_frequency_step(real_t frequency, real_t time)
     {
-        generator_step<double> const step{time, frequency};
+        generator_step<real_t> const step{time, frequency};
 
         m_frequency_step = step;
     }
@@ -436,7 +437,7 @@ public:
      * @param angle step magnitude
      * @param time simulation time when the step will occur
      */
-    void set_angle_step(abc<angle_wrapped> angle_step, double time)
+    void set_angle_step(abc<angle_wrapped> angle_step, real_t time)
     {
         generator_step<abc<angle_wrapped>> const step{time, angle_step};
 
@@ -449,7 +450,7 @@ public:
      * @param angle step magnitude
      * @param time simulation time when the step will occur
      */
-    void set_angle_step(angle_wrapped angle_step, double time)
+    void set_angle_step(angle_wrapped angle_step, real_t time)
     {
         generator_step<abc<angle_wrapped>> const step{time, {angle_step, angle_step, angle_step}};
 
@@ -463,9 +464,9 @@ public:
      * @param time_start simulation time when the rate of change will start
      * @param time_end simulation time when the rate of change will end
      */
-    void set_amplitude_rate_of_change(abc<double> value_delta, double time_start, double time_end)
+    void set_amplitude_rate_of_change(abc<real_t> value_delta, real_t time_start, real_t time_end)
     {
-        generator_step_rate_of_change<abc<double>> const rate_of_change_step{time_start, time_end, value_delta};
+        generator_step_rate_of_change<abc<real_t>> const rate_of_change_step{time_start, time_end, value_delta};
 
         m_rate_of_change_amplitude = rate_of_change_step;
     }
@@ -477,36 +478,36 @@ public:
      * @param time_start simulation time when the rate of change will start
      * @param time_end simulation time when the rate of change will end
      */
-    void set_frequency_rate_of_change(double value_delta, double time_start, double time_end)
+    void set_frequency_rate_of_change(real_t value_delta, real_t time_start, real_t time_end)
     {
-        generator_step_rate_of_change<double> const rate_of_change_step{time_start, time_end, value_delta};
+        generator_step_rate_of_change<real_t> const rate_of_change_step{time_start, time_end, value_delta};
 
         m_rate_of_change_frequency = rate_of_change_step;
     }
 
 private:
-    static abc<double> generate_abc_signal(std::size_t harmonic_index,
-        abc<double> const& harmonic_amplitude,
+    static abc<real_t> generate_abc_signal(std::size_t harmonic_index,
+        abc<real_t> const& harmonic_amplitude,
         abc<angle_wrapped> const& signal_angle,
         abc<angle_wrapped> const& phase_shift)
     {
-        // signal_angle + static_cast<double>(harmonic_index) * phase_shift;
+        // signal_angle + static_cast<real_t>(harmonic_index) * phase_shift;
 
-        return abc<double>{
+        return abc<real_t>{
             harmonic_amplitude[0] * std::sin(angle_wrapped{signal_angle[0].get_radians() +
-                                                           static_cast<double>(harmonic_index) * phase_shift[0]}
+                                                           static_cast<real_t>(harmonic_index) * phase_shift[0]}
                                             .get_radians()),
             harmonic_amplitude[1] * std::sin(angle_wrapped{signal_angle[1].get_radians() +
-                                                           static_cast<double>(harmonic_index) * phase_shift[1]}
+                                                           static_cast<real_t>(harmonic_index) * phase_shift[1]}
                                             .get_radians()),
             harmonic_amplitude[2] * std::sin(angle_wrapped{signal_angle[2].get_radians() +
-                                                           static_cast<double>(harmonic_index) * phase_shift[2]}
+                                                           static_cast<real_t>(harmonic_index) * phase_shift[2]}
                                             .get_radians())};
     }
 
-    angle_wrapped get_signal_angle_increment(std::size_t harmonic_order, double signal_frequency) const
+    angle_wrapped get_signal_angle_increment(std::size_t harmonic_order, real_t signal_frequency) const
     {
-        return angle_wrapped(static_cast<double>(harmonic_order) * 2.0 * pi * signal_frequency * m_sampling_time);
+        return angle_wrapped(static_cast<real_t>(harmonic_order) * 2.0 * pi * signal_frequency * m_sampling_time);
     }
 
     abc<angle_wrapped> increment_fundamental_angle(abc<angle_wrapped> fundamental_angle) const
@@ -530,19 +531,19 @@ private:
         return harmonics_angle;
     }
 
-    abc<double> generate_positive_sequence_signal_abc(abc<angle_wrapped> const& fundamental_signal_angle) const
+    abc<real_t> generate_positive_sequence_signal_abc(abc<angle_wrapped> const& fundamental_signal_angle) const
     {
         return generate_abc_signal(
             1, m_fundamental_positive_sequence_signal_amplitude, fundamental_signal_angle, m_phase_shift);
     }
 
-    abc<double> generate_negative_sequence_signal_abc(abc<angle_wrapped> fundamental_signal_angle) const
+    abc<real_t> generate_negative_sequence_signal_abc(abc<angle_wrapped> fundamental_signal_angle) const
     {
         return generate_abc_signal(
             1, m_fundamental_negative_sequence_signal_amplitude, fundamental_signal_angle, -m_phase_shift);
     }
 
-    bool is_at_step_time(const double& step_time) const
+    bool is_at_step_time(const real_t& step_time) const
     {
         return ((m_simulation_time <= step_time + m_sampling_time / 2.0f) &&
                 (m_simulation_time >= step_time - m_sampling_time / 2.0f));
@@ -564,7 +565,7 @@ private:
             for (Signal_Harmonics& n : m_harmonics) {
                 for (std::size_t phase = 0; phase < 3; ++phase) {
                     n.data.signal_angle[phase] +=
-                        (static_cast<double>(n.configuration.harmonic_order) * m_angle_step->value[phase]);
+                        (static_cast<real_t>(n.configuration.harmonic_order) * m_angle_step->value[phase]);
                 }
             }
         }
@@ -586,16 +587,16 @@ private:
         }
     }
 
-    abc<double> generate_signal_noise() { return m_noise_generator.generate(); }
+    abc<real_t> generate_signal_noise() { return m_noise_generator.generate(); }
 
-    abc<double> update_harmonics_signals(Signal_Harmonics const& harmonic)
+    abc<real_t> update_harmonics_signals(Signal_Harmonics const& harmonic)
     {
         return generate_abc_signal(harmonic.configuration.harmonic_order,
             {harmonic.configuration.magnitude, harmonic.configuration.magnitude, harmonic.configuration.magnitude},
             harmonic.data.signal_angle, m_phase_shift);
     }
 
-    double increment_simulation_time(double simulation_time) const
+    real_t increment_simulation_time(real_t simulation_time) const
     {
         simulation_time += m_sampling_time;
 
@@ -605,29 +606,29 @@ private:
     abc<angle_wrapped> m_phase_shift{
         angle_wrapped{0.0f}, angle_wrapped{-2.0 * pi / 3.0f}, angle_wrapped{2.0 * pi / 3.0f}};
 
-    double m_sampling_time{0.0f};
+    real_t m_sampling_time{0.0f};
 
-    double m_simulation_time{0.0f};
+    real_t m_simulation_time{0.0f};
 
-    double m_signal_frequency{50.0f};
+    real_t m_signal_frequency{50.0f};
 
     abc<angle_wrapped> m_fundamental_signal_angle = {};
 
-    abc<double> m_signal_noise_abc{};
-    abc<double> m_fundamental_positive_sequence_signal_abc{};
-    abc<double> m_fundamental_negative_sequence_signal_abc{};
-    abc<double> m_fundamental_positive_sequence_signal_amplitude{1.0f, 1.0f, 1.0f};
-    abc<double> m_fundamental_negative_sequence_signal_amplitude{0.0f, 0.0f, 0.0f};
+    abc<real_t> m_signal_noise_abc{};
+    abc<real_t> m_fundamental_positive_sequence_signal_abc{};
+    abc<real_t> m_fundamental_negative_sequence_signal_abc{};
+    abc<real_t> m_fundamental_positive_sequence_signal_amplitude{1.0f, 1.0f, 1.0f};
+    abc<real_t> m_fundamental_negative_sequence_signal_amplitude{0.0f, 0.0f, 0.0f};
 
     std::vector<Signal_Harmonics> m_harmonics{};
 
-    std::optional<generator_step<abc<double>>> m_step_amplitude{};
-    std::optional<generator_step<double>> m_frequency_step{};
+    std::optional<generator_step<abc<real_t>>> m_step_amplitude{};
+    std::optional<generator_step<real_t>> m_frequency_step{};
     std::optional<generator_step<abc<angle_wrapped>>> m_angle_step{};
-    std::optional<generator_step_rate_of_change<double>> m_rate_of_change_frequency{};
-    std::optional<generator_step_rate_of_change<abc<double>>> m_rate_of_change_amplitude{};
+    std::optional<generator_step_rate_of_change<real_t>> m_rate_of_change_frequency{};
+    std::optional<generator_step_rate_of_change<abc<real_t>>> m_rate_of_change_amplitude{};
 
-    white_noise_generator<abc<double>> m_noise_generator;
+    white_noise_generator<abc<real_t>> m_noise_generator;
 };
 
 }  // namespace yeet::control

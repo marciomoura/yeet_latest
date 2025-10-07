@@ -23,7 +23,7 @@ public:
      * @param sampling_time The sampling time in seconds. This must match
      *                     the execution period of the calling control task.
      */
-    explicit interval_timer(real_t sampling_time);
+    explicit interval_timer(double sampling_time);
 
     /**
      * @brief Starts the timer, resetting the elapsed time to zero.
@@ -75,10 +75,10 @@ public:
      *
      * @param sampling_time The new sampling time in seconds.
      */
-    void configure(real_t sampling_time);
+    void configure(double sampling_time);
 
 private:
-    real_t _sampling_time;         ///< System sampling time in seconds.
+    double _sampling_time;         ///< System sampling time in seconds.
     real_t _elapsed_time_us{0.0};  ///< Current elapsed time in microseconds.
     bool _is_running{false};       ///< Flag indicating if the timer is running.
 };

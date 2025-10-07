@@ -4,23 +4,27 @@
 
 namespace yeet::control {
 
-derivative::derivative(yeet::real_t sampling_time, yeet::real_t initial_value)
-    : _sampling_time(sampling_time), _previous_input(initial_value) {
+derivative::derivative(double sampling_time, yeet::real_t initial_value)
+    : _sampling_time(sampling_time), _previous_input(initial_value)
+{
     assert(sampling_time > 0.0F && "Sampling time must be positive.");
 }
 
-void derivative::configure_sampling_time(yeet::real_t sampling_time) {
+void derivative::configure_sampling_time(double sampling_time)
+{
     assert(sampling_time > 0.0F && "Sampling time must be positive.");
     _sampling_time = sampling_time;
 }
 
-void derivative::update(yeet::real_t input) noexcept {
+void derivative::update(yeet::real_t input) noexcept
+{
     assert(_sampling_time > 0.0F);
     _output = (input - _previous_input) / _sampling_time;
     _previous_input = input;
 }
 
-void derivative::reset(yeet::real_t reset_value) {
+void derivative::reset(yeet::real_t reset_value)
+{
     _previous_input = reset_value;
     _output = 0.0F;
 }

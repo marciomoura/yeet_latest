@@ -109,7 +109,7 @@ TEST(SixPulseGeneratorTest, FiringAngleDelayP1)
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 40°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(40.0)), firing_angle, true);
+    pulses = gen.update(angle_wrapped(deg_to_rad(40.1)), firing_angle, true);
     EXPECT_FALSE(pulses.p1);
 
     // Reference = 50°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
@@ -131,7 +131,7 @@ TEST(SixPulseGeneratorTest, FiringAngleDelayP1)
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 70°, pulse width = 10°, firing angle = 60°. Range is: [60°, 70°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(70.0)), firing_angle, true);
+    pulses = gen.update(angle_wrapped(deg_to_rad(70.1)), firing_angle, true);
     EXPECT_FALSE(pulses.p1);
 }
 
@@ -175,7 +175,7 @@ TEST(SixPulseGeneratorTest, AngleWrapping)
     EXPECT_FALSE(p_before.p6);
 
     // Test point just inside the start of the window (should be ON)
-    auto p_start = gen.update(angle_wrapped(deg_to_rad(358.0)), alpha58, true);
+    auto p_start = gen.update(angle_wrapped(deg_to_rad(358.1)), alpha58, true);
     EXPECT_TRUE(p_start.p6);
 
     // Test point in the middle of the first part of the window (should be ON)

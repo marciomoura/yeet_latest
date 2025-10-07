@@ -6,13 +6,15 @@
 
 using namespace yeet::control;
 
-TEST(DerivativeTest, InitialStateIsZero) {
+TEST(DerivativeTest, InitialStateIsZero)
+{
     derivative deriv(0.01F);
     EXPECT_FLOAT_EQ(deriv.get_output(), 0.0F);
 }
 
-TEST(DerivativeTest, CalculatesCorrectDerivative) {
-    constexpr yeet::real_t sampling_time = 0.1F;
+TEST(DerivativeTest, CalculatesCorrectDerivative)
+{
+    constexpr double sampling_time = 0.1F;
     derivative deriv(sampling_time);
 
     // First update, previous value is 0
@@ -28,7 +30,8 @@ TEST(DerivativeTest, CalculatesCorrectDerivative) {
     EXPECT_NEAR(deriv.get_output(), (1.2F - 1.5F) / sampling_time, 1e-6);  // -3.0
 }
 
-TEST(DerivativeTest, ResetWorksCorrectly) {
+TEST(DerivativeTest, ResetWorksCorrectly)
+{
     derivative deriv(0.1F);
     deriv.update(5.0F);
     ASSERT_NE(deriv.get_output(), 0.0F);
@@ -41,7 +44,8 @@ TEST(DerivativeTest, ResetWorksCorrectly) {
     EXPECT_FLOAT_EQ(deriv.get_output(), (12.0F - 10.0F) / 0.1F);  // 20.0
 }
 
-TEST(DerivativeTest, ConfigureSamplingTime) {
+TEST(DerivativeTest, ConfigureSamplingTime)
+{
     derivative deriv(0.1F);
     deriv.update(1.0F);
     EXPECT_FLOAT_EQ(deriv.get_output(), 10.0F);
@@ -51,7 +55,8 @@ TEST(DerivativeTest, ConfigureSamplingTime) {
     EXPECT_FLOAT_EQ(deriv.get_output(), (1.5F - 1.0F) / 0.05F);  // 10.0
 }
 
-TEST(DerivativeTest, InitialValueWorksCorrectly) {
+TEST(DerivativeTest, InitialValueWorksCorrectly)
+{
     derivative deriv(0.1F, 5.0F);  // Initial value of 5.0
     deriv.update(6.0F);
     EXPECT_FLOAT_EQ(deriv.get_output(), (6.0F - 5.0F) / 0.1F);  // 10.0

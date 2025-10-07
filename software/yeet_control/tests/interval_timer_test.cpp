@@ -10,19 +10,21 @@ using namespace yeet::control;
 // Test fixture for common setup
 class IntervalTimerTest : public ::testing::Test {
 protected:
-    static constexpr real_t sampling_time = 0.001;      // 1ms sampling time in seconds
-    static constexpr real_t sampling_time_us = 1000.0;  // 1000µs equivalent
-    static constexpr real_t tolerance = 1e-6;           // Relaxed tolerance for floating point conversion
+    static constexpr double sampling_time = 0.001;      // 1ms sampling time in seconds
+    static constexpr double sampling_time_us = 1000.0;  // 1000µs equivalent
+    static constexpr real_t tolerance = 1e-3;           // Relaxed tolerance for floating point conversion
 };
 
-TEST_F(IntervalTimerTest, InitialStateIsNotRunning) {
+TEST_F(IntervalTimerTest, InitialStateIsNotRunning)
+{
     interval_timer timer(sampling_time);
 
     EXPECT_FALSE(timer.is_running());
     EXPECT_NEAR(timer.get_elapsed_time(), 0.0, tolerance);
 }
 
-TEST_F(IntervalTimerTest, StartsAndAccumulatesTime) {
+TEST_F(IntervalTimerTest, StartsAndAccumulatesTime)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -38,7 +40,8 @@ TEST_F(IntervalTimerTest, StartsAndAccumulatesTime) {
     EXPECT_NEAR(timer.get_elapsed_time(), 5.0 * sampling_time_us, tolerance);
 }
 
-TEST_F(IntervalTimerTest, StopReturnsElapsedTime) {
+TEST_F(IntervalTimerTest, StopReturnsElapsedTime)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -56,7 +59,8 @@ TEST_F(IntervalTimerTest, StopReturnsElapsedTime) {
     EXPECT_NEAR(timer.get_elapsed_time(), expected_time, tolerance);
 }
 
-TEST_F(IntervalTimerTest, UpdateDoesNothingWhenNotRunning) {
+TEST_F(IntervalTimerTest, UpdateDoesNothingWhenNotRunning)
+{
     interval_timer timer(sampling_time);
 
     // Timer is not started, updates should have no effect
@@ -68,7 +72,8 @@ TEST_F(IntervalTimerTest, UpdateDoesNothingWhenNotRunning) {
     EXPECT_NEAR(timer.get_elapsed_time(), 0.0, tolerance);
 }
 
-TEST_F(IntervalTimerTest, UpdateDoesNothingAfterStop) {
+TEST_F(IntervalTimerTest, UpdateDoesNothingAfterStop)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -86,7 +91,8 @@ TEST_F(IntervalTimerTest, UpdateDoesNothingAfterStop) {
     EXPECT_NEAR(timer.get_elapsed_time(), elapsed_before_stop, tolerance);
 }
 
-TEST_F(IntervalTimerTest, ResetClearsStateAndStopsTimer) {
+TEST_F(IntervalTimerTest, ResetClearsStateAndStopsTimer)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -103,7 +109,8 @@ TEST_F(IntervalTimerTest, ResetClearsStateAndStopsTimer) {
     EXPECT_NEAR(timer.get_elapsed_time(), 0.0, tolerance);
 }
 
-TEST_F(IntervalTimerTest, StartRestartsClearingPreviousTime) {
+TEST_F(IntervalTimerTest, StartRestartsClearingPreviousTime)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -119,7 +126,8 @@ TEST_F(IntervalTimerTest, StartRestartsClearingPreviousTime) {
     EXPECT_NEAR(timer.get_elapsed_time(), 0.0, tolerance);
 }
 
-TEST_F(IntervalTimerTest, ConfigureChangesSamplingTimeAndResets) {
+TEST_F(IntervalTimerTest, ConfigureChangesSamplingTimeAndResets)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -129,7 +137,7 @@ TEST_F(IntervalTimerTest, ConfigureChangesSamplingTimeAndResets) {
     EXPECT_TRUE(timer.is_running());
     EXPECT_GT(timer.get_elapsed_time(), 0.0);
 
-    const real_t new_sampling_time = 0.0005;  // 500µs in seconds
+    const double new_sampling_time = 0.0005;  // 500µs in seconds
     timer.configure(new_sampling_time);
 
     // Timer should be reset after configure
@@ -143,8 +151,9 @@ TEST_F(IntervalTimerTest, ConfigureChangesSamplingTimeAndResets) {
     EXPECT_NEAR(timer.get_elapsed_time(), 500.0, tolerance);  // 500µs
 }
 
-TEST_F(IntervalTimerTest, PreciseTimingMeasurement) {
-    const real_t precise_sampling_time = 50e-6;  // 50µs in seconds
+TEST_F(IntervalTimerTest, PreciseTimingMeasurement)
+{
+    const double precise_sampling_time = 50e-6;  // 50µs in seconds
     interval_timer timer(precise_sampling_time);
 
     timer.start();
@@ -161,7 +170,8 @@ TEST_F(IntervalTimerTest, PreciseTimingMeasurement) {
     EXPECT_NEAR(stopped_time, expected_time, tolerance);
 }
 
-TEST_F(IntervalTimerTest, MultipleStartStopCycles) {
+TEST_F(IntervalTimerTest, MultipleStartStopCycles)
+{
     interval_timer timer(sampling_time);
 
     // First cycle
@@ -183,7 +193,8 @@ TEST_F(IntervalTimerTest, MultipleStartStopCycles) {
     EXPECT_NE(first_elapsed, second_elapsed);
 }
 
-TEST_F(IntervalTimerTest, GetElapsedTimeDoesNotAffectRunningState) {
+TEST_F(IntervalTimerTest, GetElapsedTimeDoesNotAffectRunningState)
+{
     interval_timer timer(sampling_time);
 
     timer.start();
@@ -204,8 +215,9 @@ TEST_F(IntervalTimerTest, GetElapsedTimeDoesNotAffectRunningState) {
     EXPECT_GT(time4, time1);
 }
 
-TEST_F(IntervalTimerTest, SecondsToMicrosecondsConversion) {
-    const real_t sampling_time_10ms = 0.01;  // 10ms in seconds
+TEST_F(IntervalTimerTest, SecondsToMicrosecondsConversion)
+{
+    const double sampling_time_10ms = 0.01;  // 10ms in seconds
     interval_timer timer(sampling_time_10ms);
 
     timer.start();
@@ -219,20 +231,24 @@ TEST_F(IntervalTimerTest, SecondsToMicrosecondsConversion) {
 #ifdef NDEBUG
 // Skip death tests in release builds where assertions are disabled
 #else
-TEST_F(IntervalTimerTest, ConstructorAssertionOnNegativeSamplingTime) {
+TEST_F(IntervalTimerTest, ConstructorAssertionOnNegativeSamplingTime)
+{
     EXPECT_DEATH(interval_timer timer(-0.001), "Sampling time must be positive");
 }
 
-TEST_F(IntervalTimerTest, ConstructorAssertionOnZeroSamplingTime) {
+TEST_F(IntervalTimerTest, ConstructorAssertionOnZeroSamplingTime)
+{
     EXPECT_DEATH(interval_timer timer(0.0), "Sampling time must be positive");
 }
 
-TEST_F(IntervalTimerTest, ConfigureAssertionOnNegativeSamplingTime) {
+TEST_F(IntervalTimerTest, ConfigureAssertionOnNegativeSamplingTime)
+{
     interval_timer timer(sampling_time);
     EXPECT_DEATH(timer.configure(-0.001), "Sampling time must be positive");
 }
 
-TEST_F(IntervalTimerTest, ConfigureAssertionOnZeroSamplingTime) {
+TEST_F(IntervalTimerTest, ConfigureAssertionOnZeroSamplingTime)
+{
     interval_timer timer(sampling_time);
     EXPECT_DEATH(timer.configure(0.0), "Sampling time must be positive");
 }

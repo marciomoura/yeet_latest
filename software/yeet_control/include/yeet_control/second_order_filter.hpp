@@ -29,7 +29,7 @@ namespace yeet::control {
 template <typename T>
 class second_order_filter {
 public:
-    using type = fundamental_type_t<T>;
+    using type = double;  // fundamental_type_t<T>;
 
     // static_assert(std::is_floating_point_v<type>, "Fundamental type must be floating point");
 
@@ -44,7 +44,8 @@ protected:
     static constexpr type compute_omega(type freq) { return type(2.0) * pi * freq; }
 
     // Get pre-warped frequency using bilinear transform
-    type compute_warped_omega(type freq) const {
+    type compute_warped_omega(type freq) const
+    {
         const type omega = compute_omega(freq);
         return type(2.0) / _ts * std::tan(omega * _ts * type(0.5));
     }
@@ -55,7 +56,8 @@ public:
      * @param input Current input sample x[n]
      * @return Filtered output sample y[n]
      */
-    T update(T input) {
+    T update(T input)
+    {
         // Implement difference equation using coefficient type conversion
         _output = -_a1 * _y1 - _a2 * _y2 + _b0 * input + _b1 * _x1 + _b2 * _x2;
 
@@ -79,7 +81,8 @@ public:
      * @param freq Frequency in Hz
      * @return Magnitude response (gain factor)
      */
-    type get_magnitude_response(type freq) const {
+    type get_magnitude_response(type freq) const
+    {
         const type omega = compute_omega(freq);
         const type omega_t = omega * _ts;
         const type cos_omega_t = std::cos(omega_t);
@@ -107,7 +110,8 @@ public:
      * @param freq Frequency in Hz
      * @return Phase shift in radians
      */
-    type get_phase_response(type freq) const {
+    type get_phase_response(type freq) const
+    {
         const type omega = compute_omega(freq);
         const type omega_t = omega * _ts;
         const type sin_omega_t = std::sin(omega_t);
@@ -182,7 +186,7 @@ protected:
 template <typename T>
 class second_order_low_pass_filter : public second_order_filter<T> {
 public:
-    using type = fundamental_type_t<T>;
+    using type = double;
 
     second_order_low_pass_filter(type sampling_period) : second_order_filter<T>(sampling_period) {}
 
@@ -193,7 +197,8 @@ public:
      * @param cutoff_freq Cutoff frequency in Hz (-3dB point)
      * @param damping_ratio Damping ratio (zeta, controls Q = 1/(2*zeta))
      */
-    void configure(type cutoff_freq, type damping_ratio) {
+    void configure(type cutoff_freq, type damping_ratio)
+    {
         const type fs = type(1.0) / this->get_sampling_time();
         // Compute normalized angular frequency (radians/sample)
         const type omega = type(2.0) * pi * cutoff_freq / fs;
@@ -234,7 +239,7 @@ public:
 template <typename T>
 class second_order_band_reject_filter : public second_order_filter<T> {
 public:
-    using type = fundamental_type_t<T>;
+    using type = double;  // fundamental_type_t<T>;
 
     second_order_band_reject_filter(type sampling_period) : second_order_filter<T>(sampling_period) {}
 
@@ -243,7 +248,8 @@ public:
      * @param center_freq Center frequency to reject (Hz)
      * @param bandwidth Bandwidth parameter (smaller means narrower notch)
      */
-    void configure(type center_freq, type bandwidth) {
+    void configure(type center_freq, type bandwidth)
+    {
         // Sampling frequency and normalized omega:
         const type fs = type(1.0) / this->get_sampling_time();
         const type omega = type(2.0) * pi * center_freq / fs;  // normalized angular frequency [rad/sample]
@@ -282,7 +288,8 @@ public:
 template <typename T>
 class second_order_high_pass_filter : public second_order_filter<T> {
 public:
-    using type = fundamental_type_t<T>;
+    using type = double;
+    // fundamental_type_t<T>;
 
     second_order_high_pass_filter(type sampling_period) : second_order_filter<T>(sampling_period) {}
 
@@ -293,7 +300,8 @@ public:
      * @param cutoff_freq Cutoff frequency in Hz (-3dB point)
      * @param damping_ratio Damping ratio (zeta, controls Q = 1/(2*zeta))
      */
-    void configure(type cutoff_freq, type damping_ratio) {
+    void configure(type cutoff_freq, type damping_ratio)
+    {
         const type fs = type(1.0) / this->get_sampling_time();
         // Compute normalized angular frequency (radians/sample)
         const type omega = type(2.0) * pi * cutoff_freq / fs;
