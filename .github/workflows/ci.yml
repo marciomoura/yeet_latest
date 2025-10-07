@@ -1,6 +1,8 @@
 # Name of the workflow that appears in GitHub Actions
 name: CI
 
+# Workflow version: 2.0 - Optimized with v4 actions (2025-10-07)
+
 # Define when this workflow will run
 on:
   pull_request:
