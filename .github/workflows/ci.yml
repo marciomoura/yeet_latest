@@ -4,10 +4,17 @@ name: CI
 # Define when this workflow will run
 on:
   pull_request:
+  push:
+    branches: [main, master, develop]
   workflow_dispatch:
     inputs:
       run_formatter:
         description: "Run the code formatting job?"
+        required: false
+        type: boolean
+        default: false
+      run_valgrind:
+        description: "Run Valgrind memory checks?"
         required: false
         type: boolean
         default: false
@@ -45,6 +52,9 @@ jobs:
   # Job 2: Build (shared by all other jobs)
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [clang, gcc]
     steps:
       - name: Print Runner Information
         run: |
@@ -53,124 +63,175 @@ jobs:
           echo "Available CPUs: $(nproc)"
           echo "Workflow: $GITHUB_WORKFLOW"
           echo "Branch: $GITHUB_REF"
+          echo "Compiler: ${{ matrix.compiler }}"
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Cache APT packages
-        uses: awalsh128/cache-apt-pkgs-action@latest
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
         with:
-          packages: cmake ninja-build clang ccache mold gcovr llvm valgrind
+          packages: cmake ninja-build clang gcc g++ ccache mold gcovr llvm
           version: 1.0
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ runner.os }}-${{ github.ref }}-ccache
+          key: ${{ runner.os }}-${{ matrix.compiler }}-ccache
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.compiler }}-
+            ${{ runner.os }}-
           max-size: 500M
+          verbose: 2
 
       - name: Cache CMake dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: build/_deps
-          key: ${{ runner.os }}-cmake-deps-${{ hashFiles('cmake/dependencies/*.cmake') }}
+          path: |
+            build/_deps
+            build/CMakeCache.txt
+            build/CMakeFiles
+          key: ${{ runner.os }}-${{ matrix.compiler }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'cmake/**/*.cmake') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-deps-
+            ${{ runner.os }}-${{ matrix.compiler }}-cmake-
+            ${{ runner.os }}-cmake-
 
-      - name: Set up CMake and Ninja
+      - name: Set compiler variables
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang ccache mold gcovr llvm valgrind
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          else
+            echo "CC=gcc" >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          fi
 
       - name: Configure CMake project
         run: |
           cmake -G Ninja -B build \
-                -DCMAKE_C_COMPILER=clang \
-                -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_C_COMPILER=$CC \
+                -DCMAKE_CXX_COMPILER=$CXX \
                 -DCMAKE_LINKER_TYPE=MOLD \
-                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
                 -DYEET_BUILD_TESTING=ON \
                 -DYEET_CODE_COVERAGE=ON \
                 -DYEET_MEMCHECK=ON \
-                -DYEET_ENABLE_DATA_LOGGING=OFF
+                -DYEET_ENABLE_DATA_LOGGING=OFF \
+                -DYEET_ENABLE_CCACHE=ON
           echo "=== CMake Configuration Complete ==="
 
       - name: Build all test targets
         run: |
-          cmake --build build --parallel $(nproc) --target \
+          echo "=== Starting Build at $(date) ==="
+          time cmake --build build --parallel $(nproc) --target \
             yeet_test \
             yeet_testing_tests \
             yeet_control_tests \
             yeet_application_sfc_tests \
             yeet_application_sfc_integration_tests
+          echo "=== Build Complete at $(date) ==="
 
       - name: Show ccache statistics
-        run: ccache -s
+        run: |
+          echo "=== CCCache Statistics ==="
+          ccache -s
+          echo "=== CCCache Configuration ==="
+          ccache -p
 
-      - name: Upload build artifacts
+      - name: Upload test binaries
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
-          path: build/
-          retention-days: 1
+          name: test-binaries-${{ matrix.compiler }}
+          path: |
+            build/bin/yeet_test
+            build/bin/yeet_testing_tests
+            build/bin/yeet_control_tests
+            build/bin/yeet_application_sfc_tests
+            build/bin/yeet_application_sfc_integration_tests
+          retention-days: 3
+          compression-level: 9
 
   # Job 3: Unit Tests (fast tests)
   test-unit:
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [clang, gcc]
+      fail-fast: false
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Download build artifacts
+      - name: Download test binaries
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
-          path: build/
+          name: test-binaries-${{ matrix.compiler }}
+          path: build/bin/
 
       - name: Make binaries executable
         run: chmod +x build/bin/*
 
-      - name: Run yeet_test
-        run: ./build/bin/yeet_test
-        env:
-          GTEST_COLOR: 1
-
-      - name: Run yeet_testing_tests
-        run: ./build/bin/yeet_testing_tests
-        env:
-          GTEST_COLOR: 1
-
-      - name: Run yeet_control_tests
-        run: ./build/bin/yeet_control_tests
-        env:
-          GTEST_COLOR: 1
+      - name: Run unit tests in parallel
+        run: |
+          echo "=== Running Unit Tests with ${{ matrix.compiler }} ==="
+          ./build/bin/yeet_test --gtest_color=yes &
+          PID1=$!
+          ./build/bin/yeet_testing_tests --gtest_color=yes &
+          PID2=$!
+          ./build/bin/yeet_control_tests --gtest_color=yes &
+          PID3=$!
+          
+          # Wait for all tests and capture exit codes
+          wait $PID1
+          EXIT1=$?
+          wait $PID2
+          EXIT2=$?
+          wait $PID3
+          EXIT3=$?
+          
+          # Exit with failure if any test failed
+          if [ $EXIT1 -ne 0 ] || [ $EXIT2 -ne 0 ] || [ $EXIT3 -ne 0 ]; then
+            echo "One or more tests failed!"
+            exit 1
+          fi
+          echo "All unit tests passed! ✅"
 
   # Job 4: Integration Tests (slower tests)
   test-integration:
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [clang, gcc]
+      fail-fast: false
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Download build artifacts
+      - name: Download test binaries
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
-          path: build/
+          name: test-binaries-${{ matrix.compiler }}
+          path: build/bin/
 
       - name: Make binaries executable
         run: chmod +x build/bin/*
 
-      - name: Run yeet_application_sfc_tests
-        run: ./build/bin/yeet_application_sfc_tests
-        env:
-          GTEST_COLOR: 1
-
-      - name: Run yeet_application_sfc_integration_tests
-        run: ./build/bin/yeet_application_sfc_integration_tests
-        env:
-          GTEST_COLOR: 1
+      - name: Run integration tests in parallel
+        run: |
+          echo "=== Running Integration Tests with ${{ matrix.compiler }} ==="
+          ./build/bin/yeet_application_sfc_tests --gtest_color=yes &
+          PID1=$!
+          ./build/bin/yeet_application_sfc_integration_tests --gtest_color=yes &
+          PID2=$!
+          
+          # Wait for all tests and capture exit codes
+          wait $PID1
+          EXIT1=$?
+          wait $PID2
+          EXIT2=$?
+          
+          # Exit with failure if any test failed
+          if [ $EXIT1 -ne 0 ] || [ $EXIT2 -ne 0 ]; then
+            echo "One or more tests failed!"
+            exit 1
+          fi
+          echo "All integration tests passed! ✅"
 
   # Job 5: Code Coverage (runs after tests)
   # coverage:
@@ -219,23 +280,23 @@ jobs:
   #         name: coverage-report
   #         path: coverage/
 
-  # Job 6: Memory Check with Valgrind
+  # Job 6: Memory Check with Valgrind (optional, slow)
   valgrind:
+    if: github.event.inputs.run_valgrind == 'true' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Download build artifacts
+      - name: Download test binaries (Clang only)
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
-          path: build/
+          name: test-binaries-clang
+          path: build/bin/
 
-      - name: Install Valgrind
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y valgrind
+      - name: Cache APT packages
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
+        with:
+          packages: valgrind
+          version: 1.0
 
       - name: Make binaries executable
         run: chmod +x build/bin/*
@@ -248,7 +309,7 @@ jobs:
                    --track-origins=yes \
                    --error-exitcode=1 \
                    --show-leak-kinds=all \
-                   --verbose \
+                   --suppressions=.valgrind-suppressions \
                    ./build/bin/yeet_test 2>&1 | tee valgrind-core.log
         continue-on-error: true
 
@@ -260,7 +321,7 @@ jobs:
                    --track-origins=yes \
                    --error-exitcode=1 \
                    --show-leak-kinds=all \
-                   --verbose \
+                   --suppressions=.valgrind-suppressions \
                    ./build/bin/yeet_control_tests 2>&1 | tee valgrind-control.log
         continue-on-error: true
 
@@ -270,6 +331,7 @@ jobs:
           name: valgrind-logs
           path: |
             valgrind-*.log
+          retention-days: 7
         if: always()
 
 concurrency:
@@ -278,4 +340,3 @@ concurrency:
 
 env:
   GTEST_COLOR: 1
-  CCACHE_DIR: /home/runner/.ccache
