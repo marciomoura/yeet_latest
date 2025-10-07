@@ -284,7 +284,7 @@ public:
     angle_wrapped phase() const
     {
         if constexpr (std::is_same_v<fundamental_type, float>) {
-            return angle_wrapped{std::atan2f(_values[1], _values[0])};
+            return angle_wrapped{std::atan2(static_cast<float>(_values[1]), static_cast<float>(_values[0]))};
         }
         else {
             return angle_wrapped{std::atan2(_values[1], _values[0])};
@@ -474,7 +474,7 @@ public:
     angle_wrapped phase(const angle_wrapped& frame) const
     {
         if constexpr (std::is_same_v<fundamental_type, float>) {
-            return frame + angle_wrapped(std::atan2f(_values[1], _values[0]));
+            return frame + angle_wrapped(std::atan2(static_cast<float>(_values[1]), static_cast<float>(_values[0])));
         }
         else {
             return frame + angle_wrapped(std::atan2(_values[1], _values[0]));
