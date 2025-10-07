@@ -164,44 +164,19 @@ add_subdirectory(software/yeet_control)
 add_subdirectory(software/yeet_application/sfc)
 add_subdirectory(software/yeet_application/sfc_integration)
 
-# Add SFC embedded application (only for embedded builds)
+# Add SFC embedded application (only for embedded builds) Only include embedded
+# board if explicitly requested
 if(YEET_BUILD_EMBEDDED)
+    message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
+    # The sfc_embedded CMakeLists.txt will handle board inclusion and executable
+    # creation No host-only targets after this point
+    set(YEET_SKIP_HOST_TARGETS ON)
+
     include(stm32_hal)
     add_subdirectory(software/yeet_application/sfc_embedded)
 endif()
 
-# Only include embedded board if explicitly requested
-if(YEET_BUILD_EMBEDDED)
-    message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
-
-    # Add the board as a subdirectory - this builds the stm32cubemx library
-    add_subdirectory(boards/stm32f407g-disc1)
-
-    # Create the embedded application executable
-    add_executable(
-        yeet_embedded_app
-        # Use the STM32CubeMX generated main.c
-        boards/stm32f407g-disc1/Core/Src/main.c)
-
-    # Link against the board library and yeet control libraries
-    target_link_libraries(
-        yeet_embedded_app
-        PRIVATE -Wl,--whole-archive
-                yeet::yeet_sfc_embedded # ← Your C++ application logic
-                stm32f407g-disc1 # ← STM32 HAL/BSP (also needs whole-archive for
-                                 # _sbrk)
-                -Wl,--no-whole-archive
-                m) # Math library
-
-    # Add any embedded-specific compile definitions Embedded compile definitions
-    target_compile_definitions(
-        yeet_embedded_app PRIVATE USE_HAL_DRIVER STM32F407xx
-                                  YEET_EMBEDDED_TARGET)
-    # Skip host-only targets when building for embedded
-    return()
-endif()
-
-if(YEET_BUILD_TESTING)
+if(YEET_BUILD_TESTING AND NOT YEET_SKIP_HOST_TARGETS)
     add_subdirectory(software/yeet_testing)
     add_subdirectory(software/yeet/tests)
     add_subdirectory(software/yeet_control/tests)
@@ -210,7 +185,7 @@ if(YEET_BUILD_TESTING)
     add_subdirectory(software/yeet_application/sfc_integration/tests)
 endif()
 
-if(YEET_CODE_COVERAGE)
+if(YEET_CODE_COVERAGE AND NOT YEET_SKIP_HOST_TARGETS)
     message(
         STATUS
             "yeet build-config: Add coverage target for generating code-coverage report"

@@ -21,7 +21,6 @@
 
 #include "usb_host.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -666,6 +665,52 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /**
+ * @brief Optimized version using direct register access for minimal latency
+ * @param pulses The pulse structure containing p1-p6 states
+ * @note Uses BSRR register for atomic pin set/reset
+ */
+inline void apply_gate_pulses_fast()
+{
+    // if (!gates_enabled) {
+    //     // All gates off
+    //     GPIOE->BSRR = 0x003F0000;  // Reset PE0-PE5 (bits 16-21)
+    //     return;
+    // }
+
+    // // Build BSRR value: lower 16 bits = SET, upper 16 bits = RESET
+    // unsigned int set_mask = 0;
+    // unsigned int reset_mask = 0;
+
+    // if (pulses.p1)
+    //     set_mask |= GPIO_PIN_0;
+    // else
+    //     reset_mask |= GPIO_PIN_0;
+    // if (pulses.p2)
+    //     set_mask |= GPIO_PIN_1;
+    // else
+    //     reset_mask |= GPIO_PIN_1;
+    // if (pulses.p3)
+    //     set_mask |= GPIO_PIN_2;
+    // else
+    //     reset_mask |= GPIO_PIN_2;
+    // if (pulses.p4)
+    //     set_mask |= GPIO_PIN_3;
+    // else
+    //     reset_mask |= GPIO_PIN_3;
+    // if (pulses.p5)
+    //     set_mask |= GPIO_PIN_4;
+    // else
+    //     reset_mask |= GPIO_PIN_4;
+    // if (pulses.p6)
+    //     set_mask |= GPIO_PIN_5;
+    // else
+    //     reset_mask |= GPIO_PIN_5;
+
+    // // Atomic write to BSRR: set and reset in one operation
+    // GPIOE->BSRR = set_mask | (reset_mask << 16);
+}
+
+/**
  * @brief ADC conversion complete callback - High-frequency control task (Task 1)
  * @note Called by HAL_DMA_IRQHandler when ADC sequence completes
  * @note Execution frequency: 5 kHz (200 µs period, triggered by TIM3 TRGO)
@@ -674,6 +719,10 @@ static void MX_GPIO_Init(void)
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
+    // ADC data is guaranteed valid at this point
+    // Raw ADC value available in adc_dma_buffer[0]
+    // uint16_t adc_raw_value = adc_dma_buffer[0];
+
     // Increment diagnostic counter
     g_adc_callback_count++;
 
@@ -684,10 +733,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
         HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
         task1_counter = 0;
     }
-
-    // ADC data is guaranteed valid at this point
-    // Raw ADC value available in adc_dma_buffer[0]
-    uint16_t adc_raw_value = adc_dma_buffer[0];
 
     // TODO: Convert to engineering units following yeet_control conventions
     // Example:
@@ -702,8 +747,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     // - Gate pulse generation timing
     yeet_task_1();
 
-    // Suppress unused variable warning until conversion is implemented
-    (void)adc_raw_value;
+    apply_gate_pulses_fast();
 }
 
 /**
