@@ -69,7 +69,7 @@ public:
 
 protected:
     plant_current_control_with_modulators_simulation_builder system;
-    simulator simulator = yeet::make_gtest_simulator();
+    yeet::simulator simulator = yeet::make_gtest_simulator();
 };
 
 // ---------- Parameterized Test: Three hardcoded current steps (0.2 -> 0.5 -> 1.0 pu) ----------
