@@ -4,7 +4,7 @@
 
 namespace yeet::control {
 
-off_delay::off_delay(real_t delay_s, real_t sampling_time) : _sampling_time(sampling_time)
+off_delay::off_delay(real_t delay_s, double sampling_time) : _sampling_time(sampling_time)
 {
     assert(sampling_time > 0.0f && "Sampling time must be positive.");
     configure(delay_s);

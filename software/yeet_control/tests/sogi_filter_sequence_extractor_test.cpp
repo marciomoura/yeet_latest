@@ -26,7 +26,7 @@ public:
     static constexpr voltage_pu_t dc_rejection_tolerance = voltage_pu_t{1e-3};  // DC rejection tolerance
     static constexpr real_t phase_error_tolerance = real_t{0.05};               // Phase error tolerance (~3 degrees)
 
-    sogi_filter_sequence_extractor sogi_filter{sampling_time};
+    sogi_filter_sequence_extractor sogi_extractor{sampling_time};  // ✅ Changed from sogi_filter to sogi_extractor
     three_phase_waveform_generator waveform_generator{sampling_time};
     yeet::simulator simulator = yeet::make_gtest_simulator();
 
@@ -53,7 +53,7 @@ public:
             angular_frequency_t const sogi_omega = two_pi * sogi_input_frequency;
 
             // Update sequence extractor with the reference signal
-            sogi_filter.update(sogi_signal_input, sogi_omega);
+            sogi_extractor.update(sogi_signal_input, sogi_omega);  // ✅ Changed
         });
     }
 
@@ -62,7 +62,8 @@ public:
         // Calculate the magnitude of error between reference positive sequence and extracted sequence
         alphabeta<real_t> const reference_positive_sequence =
             waveform_generator.get_fundamental_positive_sequence_signal_abc().to_alphabeta();
-        alphabeta<voltage_pu_t> const extracted_positive_sequence = sogi_filter.get_positive_sequence();
+        alphabeta<voltage_pu_t> const extracted_positive_sequence =
+            sogi_extractor.get_positive_sequence();  // ✅ Changed
 
         alphabeta<voltage_pu_t> const error = alphabeta<voltage_pu_t>{voltage_pu_t{reference_positive_sequence.alpha()},
                                                   voltage_pu_t{reference_positive_sequence.beta()}} -
@@ -84,11 +85,12 @@ private:
         // Log extracted positive sequence
         simulator.register_sampler_entry(
             yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("sogi filter positive sequence",
-                [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_positive_sequence(); }));
+                [&]() -> alphabeta<voltage_pu_t> { return sogi_extractor.get_positive_sequence(); }));  // ✅ Changed
 
         // Log DC offset estimates
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
-            "sogi filter dc offset", [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_dc_offset(); }));
+        simulator.register_sampler_entry(
+            yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("sogi filter dc offset",
+                [&]() -> alphabeta<voltage_pu_t> { return sogi_extractor.get_dc_offset(); }));  // ✅ Changed
 
         // Log extraction errors
         simulator.register_sampler_entry(
@@ -96,11 +98,11 @@ private:
                 [&]() -> voltage_pu_t { return get_positive_sequence_extraction_error_magnitude(); }));
 
         // Log individual SOGI outputs for diagnostics
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
-            "alpha sogi output", [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_alpha_sogi_output(); }));
+        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("alpha sogi output",
+            [&]() -> alphabeta<voltage_pu_t> { return sogi_extractor.get_alpha_sogi_output(); }));  // ✅ Changed
 
-        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(
-            "beta sogi output", [&]() -> alphabeta<voltage_pu_t> { return sogi_filter.get_beta_sogi_output(); }));
+        simulator.register_sampler_entry(yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>("beta sogi output",
+            [&]() -> alphabeta<voltage_pu_t> { return sogi_extractor.get_beta_sogi_output(); }));  // ✅ Changed
     }
 };
 
@@ -114,11 +116,12 @@ TEST_F(SogiFilterSequenceExtractorTest, NominalPositiveSequenceExtraction)
 
     // 2. DC offset should remain near zero for pure AC signal
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "alpha dc offset", [&]() -> voltage_pu_t { return abs(sogi_filter.get_dc_offset().alpha()); },
+        "alpha dc offset", [&]() -> voltage_pu_t { return abs(sogi_extractor.get_dc_offset().alpha()); },  // ✅ Changed
         voltage_pu_t{0.0f}, dc_rejection_tolerance, yeet::checker_activation_time_range{0.1}));
 
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "beta dc offset", [&]() -> voltage_pu_t { return abs(sogi_filter.get_dc_offset().beta()); }, voltage_pu_t{0.0f},
+        "beta dc offset", [&]() -> voltage_pu_t { return abs(sogi_extractor.get_dc_offset().beta()); },
+        voltage_pu_t{0.0f},  // ✅ Changed
         dc_rejection_tolerance, yeet::checker_activation_time_range{0.1}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0));
@@ -139,14 +142,16 @@ TEST_F(SogiFilterSequenceExtractorTest, NegativeSequenceRejection)
     // 2. Extracted amplitude should track the positive sequence amplitude (1.0 pu)
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "positive sequence amplitude with negative sequence",
-        [&]() -> voltage_pu_t { return sogi_filter.get_positive_sequence().magnitude(); }, voltage_pu_t{0.95f},
+        [&]() -> voltage_pu_t { return sogi_extractor.get_positive_sequence().magnitude(); },
+        voltage_pu_t{0.95f},  // ✅ Changed
         voltage_pu_t{1.05f},  // Should extract ~1.0 pu positive sequence
         yeet::checker_activation_time_range{0.5}));
 
     // 3. DC offsets should remain bounded
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "alpha dc stability with negative sequence",
-        [&]() -> voltage_pu_t { return abs(sogi_filter.get_dc_offset().alpha()); }, voltage_pu_t{0.0f},
+        [&]() -> voltage_pu_t { return abs(sogi_extractor.get_dc_offset().alpha()); },
+        voltage_pu_t{0.0f},  // ✅ Changed
         dc_rejection_tolerance* real_t{3}, yeet::checker_activation_time_range{0.3}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0));
@@ -158,12 +163,14 @@ TEST_F(SogiFilterSequenceExtractorTest, AmplitudeStepResponse)
 
     // 1. Before amplitude step, should track nominal amplitude
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "amplitude before step", [&]() -> voltage_pu_t { return sogi_filter.get_positive_sequence().magnitude(); },
+        "amplitude before step",
+        [&]() -> voltage_pu_t { return sogi_extractor.get_positive_sequence().magnitude(); },  // ✅ Changed
         voltage_pu_t{0.95f}, voltage_pu_t{1.05f}, yeet::checker_activation_time_range{0.3, 0.45}));
 
     // 2. After amplitude step, should track new amplitude
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "amplitude after step", [&]() -> voltage_pu_t { return sogi_filter.get_positive_sequence().magnitude(); },
+        "amplitude after step",
+        [&]() -> voltage_pu_t { return sogi_extractor.get_positive_sequence().magnitude(); },  // ✅ Changed
         voltage_pu_t{1.18f}, voltage_pu_t{1.22f},  // Should track the new 0.2 amplitude
         yeet::checker_activation_time_range{0.6}));
 
@@ -177,7 +184,8 @@ TEST_F(SogiFilterSequenceExtractorTest, AmplitudeStepResponse)
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "dc stability during amplitude step",
         [&]() -> voltage_pu_t {
-            return max(abs(sogi_filter.get_dc_offset().alpha()), abs(sogi_filter.get_dc_offset().beta()));
+            return max(
+                abs(sogi_extractor.get_dc_offset().alpha()), abs(sogi_extractor.get_dc_offset().beta()));  // ✅ Changed
         },
         voltage_pu_t{0.0f}, dc_rejection_tolerance* real_t{5}, yeet::checker_activation_time_range{0.6}));
 
@@ -211,14 +219,16 @@ TEST_F(SogiFilterSequenceExtractorTest, FrequencyStepResponse)
     // 3. Amplitude should remain stable despite frequency change
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "amplitude stability during frequency step",
-        [&]() -> voltage_pu_t { return sogi_filter.get_positive_sequence().magnitude(); }, voltage_pu_t{0.9f},
+        [&]() -> voltage_pu_t { return sogi_extractor.get_positive_sequence().magnitude(); },
+        voltage_pu_t{0.9f},  // ✅ Changed
         voltage_pu_t{1.1f}, yeet::checker_activation_time_range{0.2}));
 
     // 4. DC offset should remain stable
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "dc stability during frequency step",
         [&]() -> voltage_pu_t {
-            return max(abs(sogi_filter.get_dc_offset().alpha()), abs(sogi_filter.get_dc_offset().beta()));
+            return max(
+                abs(sogi_extractor.get_dc_offset().alpha()), abs(sogi_extractor.get_dc_offset().beta()));  // ✅ Changed
         },
         voltage_pu_t{0.0f}, dc_rejection_tolerance* real_t{5}, yeet::checker_activation_time_range{0.2}));
 
@@ -240,7 +250,8 @@ TEST_F(SogiFilterSequenceExtractorTest, FrequencyMismatchBehavior)
     // 2. Output magnitude should still be reasonable
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "output magnitude with frequency mismatch",
-        [&]() -> voltage_pu_t { return sogi_filter.get_positive_sequence().magnitude(); }, voltage_pu_t{0.5f},
+        [&]() -> voltage_pu_t { return sogi_extractor.get_positive_sequence().magnitude(); },
+        voltage_pu_t{0.5f},  // ✅ Changed
         voltage_pu_t{1.5f},  // Wider bounds due to frequency mismatch effects
         yeet::checker_activation_time_range{0.5}));
 
@@ -248,7 +259,8 @@ TEST_F(SogiFilterSequenceExtractorTest, FrequencyMismatchBehavior)
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
         "dc offset with frequency mismatch",
         [&]() -> voltage_pu_t {
-            return max(abs(sogi_filter.get_dc_offset().alpha()), abs(sogi_filter.get_dc_offset().beta()));
+            return max(
+                abs(sogi_extractor.get_dc_offset().alpha()), abs(sogi_extractor.get_dc_offset().beta()));  // ✅ Changed
         },
         voltage_pu_t{0.0f}, dc_rejection_tolerance* real_t{10}, yeet::checker_activation_time_range{0.5}));
 
@@ -261,11 +273,13 @@ TEST_F(SogiFilterSequenceExtractorTest, DCOffsetRejection)
 
     // 1. Initially, DC offsets should be near zero
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "initial alpha dc offset", [&]() -> voltage_pu_t { return abs(sogi_filter.get_dc_offset().alpha()); },
+        "initial alpha dc offset",
+        [&]() -> voltage_pu_t { return abs(sogi_extractor.get_dc_offset().alpha()); },  // ✅ Changed
         voltage_pu_t{0.0f}, dc_rejection_tolerance, yeet::checker_activation_time_range{0.1, 0.15}));
 
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "initial beta dc offset", [&]() -> voltage_pu_t { return abs(sogi_filter.get_dc_offset().beta()); },
+        "initial beta dc offset",
+        [&]() -> voltage_pu_t { return abs(sogi_extractor.get_dc_offset().beta()); },  // ✅ Changed
         voltage_pu_t{0.0f}, dc_rejection_tolerance, yeet::checker_activation_time_range{0.1, 0.15}));
 
     EXPECT_TRUE(simulator.simulate_for(0.2));
@@ -275,12 +289,14 @@ TEST_F(SogiFilterSequenceExtractorTest, DCOffsetRejection)
 
     // 2. After DC injection, the DC estimators should converge to the injected value
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "alpha dc offset estimation", [&]() -> voltage_pu_t { return sogi_filter.get_dc_offset().alpha(); },
+        "alpha dc offset estimation",
+        [&]() -> voltage_pu_t { return sogi_extractor.get_dc_offset().alpha(); },  // ✅ Changed
         voltage_pu_t{0.08f}, voltage_pu_t{0.12f},  // Should estimate the 0.1 DC offset within ±20%
         yeet::checker_activation_time_range{0.6}));
 
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "beta dc offset estimation", [&]() -> voltage_pu_t { return sogi_filter.get_dc_offset().beta(); },
+        "beta dc offset estimation",
+        [&]() -> voltage_pu_t { return sogi_extractor.get_dc_offset().beta(); },  // ✅ Changed
         voltage_pu_t{0.08f}, voltage_pu_t{0.12f},  // Should estimate the 0.1 DC offset within ±20%
         yeet::checker_activation_time_range{0.6}));
 
@@ -293,7 +309,8 @@ TEST_F(SogiFilterSequenceExtractorTest, DCOffsetRejection)
 
     // 4. Output amplitude should remain close to unity despite DC offset
     simulator.register_checker(yeet::make_range_checker<voltage_pu_t>(
-        "amplitude with dc offset", [&]() -> voltage_pu_t { return sogi_filter.get_positive_sequence().magnitude(); },
+        "amplitude with dc offset",
+        [&]() -> voltage_pu_t { return sogi_extractor.get_positive_sequence().magnitude(); },  // ✅ Changed
         voltage_pu_t{0.9f}, voltage_pu_t{1.1f}, yeet::checker_activation_time_range{0.8}));
 
     EXPECT_TRUE(simulator.simulate_for(1.0));

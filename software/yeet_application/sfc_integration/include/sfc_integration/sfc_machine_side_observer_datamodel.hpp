@@ -72,7 +72,7 @@ public:
 
         /// Voltage threshold for commutation detection
         /// Range: [0.05, 0.3] pu
-        yeet::parameter<double> commutation_detection_threshold = 0.15;
+        yeet::parameter<real_t> commutation_detection_threshold = 0.15;
     };
 
 private:

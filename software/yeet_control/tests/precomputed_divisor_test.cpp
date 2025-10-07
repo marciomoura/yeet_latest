@@ -9,7 +9,8 @@ using namespace yeet;
 // Test fixture for precomputed_divisor with scalar types
 class PrecomputedDivisorScalarTest : public ::testing::Test {};
 
-TEST_F(PrecomputedDivisorScalarTest, ConstructionAndAccessors) {
+TEST_F(PrecomputedDivisorScalarTest, ConstructionAndAccessors)
+{
     constexpr double val = 4.0;
     precomputed_divisor<double> d(val);
 
@@ -17,7 +18,8 @@ TEST_F(PrecomputedDivisorScalarTest, ConstructionAndAccessors) {
     EXPECT_DOUBLE_EQ(d.reciprocal(), 1.0 / val);
 }
 
-TEST_F(PrecomputedDivisorScalarTest, DivisionOperator) {
+TEST_F(PrecomputedDivisorScalarTest, DivisionOperator)
+{
     constexpr double numerator = 20.0;
     constexpr double denominator = 5.0;
     precomputed_divisor<double> d(denominator);
@@ -29,7 +31,8 @@ TEST_F(PrecomputedDivisorScalarTest, DivisionOperator) {
 // Test fixture for precomputed_divisor with dimensioned quantities
 class PrecomputedDivisorUnitsTest : public ::testing::Test {};
 
-TEST_F(PrecomputedDivisorUnitsTest, ConstructionAndAccessors) {
+TEST_F(PrecomputedDivisorUnitsTest, ConstructionAndAccessors)
+{
     voltage_t v(10.0);
 
     // First, test that our scalar/quantity division works
@@ -44,10 +47,11 @@ TEST_F(PrecomputedDivisorUnitsTest, ConstructionAndAccessors) {
     EXPECT_EQ(d.value(), v);
 
     auto reciprocal = d.reciprocal();
-    EXPECT_DOUBLE_EQ(reciprocal.value(), 0.1);
+    EXPECT_FLOAT_EQ(reciprocal.value(), 0.1);
 }
 
-TEST_F(PrecomputedDivisorUnitsTest, DivisionWithUnits) {
+TEST_F(PrecomputedDivisorUnitsTest, DivisionWithUnits)
+{
     power_t power(1000.0);     // W
     voltage_t voltage(100.0);  // V
 
@@ -67,7 +71,8 @@ TEST_F(PrecomputedDivisorUnitsTest, DivisionWithUnits) {
     // If this fails, it means the dimension calculation is wrong
     static_assert(std::is_same_v<decltype(result), current_t>, "Result should be current_t");
 }
-TEST_F(PrecomputedDivisorUnitsTest, OptimizedPerUnitConversion) {
+TEST_F(PrecomputedDivisorUnitsTest, OptimizedPerUnitConversion)
+{
     // Define SI values and a base quantity for conversion
     voltage_t si_voltage(150.0);
     voltage_t base_voltage(200.0);
@@ -88,7 +93,8 @@ TEST_F(PrecomputedDivisorUnitsTest, OptimizedPerUnitConversion) {
     EXPECT_DOUBLE_EQ(converted_si_voltage.value(), si_voltage.value());
 }
 
-TEST_F(PrecomputedDivisorUnitsTest, OptimizedPerUnitTorqueConversion) {
+TEST_F(PrecomputedDivisorUnitsTest, OptimizedPerUnitTorqueConversion)
+{
     // Define a more complex conversion: torque
     torque_t si_torque(75.0);
     power_t base_power(3000.0);
@@ -109,7 +115,8 @@ TEST_F(PrecomputedDivisorUnitsTest, OptimizedPerUnitTorqueConversion) {
     EXPECT_NEAR(pu_torque_ratio, 7.8539, 1e-4);
 }
 
-TEST_F(PrecomputedDivisorUnitsTest, ToPuToSiFunctionIntegration) {
+TEST_F(PrecomputedDivisorUnitsTest, ToPuToSiFunctionIntegration)
+{
     // Test voltage conversion using to_pu/to_si functions
     voltage_t base_voltage(1000.0);
     voltage_t test_voltage(500.0);

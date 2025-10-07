@@ -10,7 +10,7 @@ class SfcCommutationMaskTest : public ::testing::Test {
 protected:
     // Test parameters
     const frequency_t test_frequency = frequency_t(60.0);
-    const real_t sampling_time = 1.0 / 20000.0;  // 20 kHz sample rate
+    const double sampling_time = 1.0 / 20000.0;  // 20 kHz sample rate
     const voltage_pu_t test_magnitude{1.0F};
 
     sfc_commutation_mask mask{sampling_time};

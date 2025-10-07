@@ -7,6 +7,7 @@
 #include "yeet_control/constants.hpp"
 #include "yeet_control/second_order_filter.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
+#include "yeet_control/types.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -23,9 +24,9 @@ protected:
     static constexpr double cutoff_freq = 100.0;    // 1kHz cutoff
     static constexpr double damping_ratio = 0.707;  // Critically damped
     static constexpr double test_duration = 1.0;    // 1 second
-    static constexpr size_t num_samples = static_cast<size_t>(test_duration * sampling_freq);
+    static constexpr std::size_t num_samples = static_cast<std::size_t>(test_duration * sampling_freq);
 
-    second_order_low_pass_filter<double> filter{sampling_period};
+    second_order_low_pass_filter<real_t> filter{sampling_period};
 
     void SetUp() override { filter.configure(cutoff_freq, damping_ratio); }
 };
@@ -33,18 +34,18 @@ protected:
 TEST_F(SecondOrderLowPassFilterTest, MagnitudeResponseAtCutoff)
 {
     // At cutoff frequency, magnitude should be approximately -3dB
-    const double magnitude_db = filter.get_magnitude_response_db(cutoff_freq);
+    const real_t magnitude_db = filter.get_magnitude_response_db(cutoff_freq);
     EXPECT_NEAR(magnitude_db, -3.0, 0.1);
 }
 
 TEST_F(SecondOrderLowPassFilterTest, MagnitudeResponseAtVariousFrequencies)
 {
     // Test frequencies: DC, below cutoff, at cutoff, above cutoff
-    const std::vector<double> test_freqs = {cutoff_freq / 100.0, cutoff_freq / 10.0, cutoff_freq, cutoff_freq * 10.0};
-    const std::vector<double> expected_db = {0.0, 0.0, -3.0, -40.0};
+    const std::vector<real_t> test_freqs = {cutoff_freq / 100.0, cutoff_freq / 10.0, cutoff_freq, cutoff_freq * 10.0};
+    const std::vector<real_t> expected_db = {0.0, 0.0, -3.0, -40.0};
 
     for (size_t i = 0; i < test_freqs.size(); ++i) {
-        const double magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
+        const real_t magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
         EXPECT_NEAR(magnitude_db, expected_db[i], 1.0) << "Failed at frequency " << test_freqs[i] << " Hz ";
     }
 }
@@ -65,18 +66,18 @@ TEST_F(SecondOrderLowPassFilterTest, PhaseResponseAtVariousFrequencies)
 
 TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponseMagnitude)
 {
-    const double test_freq = 100.0;  // Test at 100 Hz (below cutoff)
-    const double input_amplitude = 1.0;
+    const real_t test_freq = 100.0;  // Test at 100 Hz (below cutoff)
+    const real_t input_amplitude = 1.0;
 
     // Run filter for several periods to reach steady state
-    double max_output = 0.0;
-    const double omega = 2.0 * pi * test_freq;
+    real_t max_output = 0.0;
+    const real_t omega = 2.0 * pi * test_freq;
 
     // Skip first second to avoid transient response
     for (size_t i = 0; i < 2 * num_samples; ++i) {
-        const double t = i * sampling_period;
-        const double input = input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t t = i * sampling_period;
+        const real_t input = input_amplitude * std::sin(omega * t);
+        const real_t output = filter.update(input);
 
         if (i >= num_samples) {  // Only measure after transient
             max_output = std::max(max_output, std::abs(output));
@@ -84,25 +85,25 @@ TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponseMagnitude)
     }
 
     // Compare measured magnitude with theoretical
-    const double measured_magnitude = max_output / input_amplitude;
-    const double theoretical_magnitude = filter.get_magnitude_response(test_freq);
+    const real_t measured_magnitude = max_output / input_amplitude;
+    const real_t theoretical_magnitude = filter.get_magnitude_response(test_freq);
     EXPECT_NEAR(measured_magnitude, theoretical_magnitude, 0.01);
 }
 
 TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponsePhase)
 {
-    const double test_freq = 20.0;  // Test at 100 Hz
-    const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi * test_freq;
+    const real_t test_freq = 20.0;  // Test at 100 Hz
+    const real_t input_amplitude = 1.0;
+    const real_t omega = 2.0 * pi * test_freq;
 
-    std::vector<double> input_signal;
-    std::vector<double> output_signal;
+    std::vector<real_t> input_signal;
+    std::vector<real_t> output_signal;
 
     // Generate signals
     for (size_t i = 0; i < 2 * num_samples; ++i) {
-        const double t = i * sampling_period;
-        const double input = input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t t = i * sampling_period;
+        const real_t input = input_amplitude * std::sin(omega * t);
+        const real_t output = filter.update(input);
 
         if (i >= num_samples) {  // Store only steady-state response
             input_signal.push_back(input);
@@ -111,27 +112,36 @@ TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponsePhase)
     }
 
     // Find zero crossings to measure phase difference
-    double input_crossing = 0;
-    double output_crossing = 0;
+    real_t input_crossing = 0;
+    real_t output_crossing = 0;
 
     for (size_t i = 1; i < input_signal.size(); ++i) {
         if (input_signal[i - 1] < 0 && input_signal[i] >= 0) {
-            input_crossing = static_cast<double>(i);
+            input_crossing = static_cast<real_t>(i);
             break;
         }
     }
 
     for (size_t i = 1; i < output_signal.size(); ++i) {
         if (output_signal[i - 1] < 0 && output_signal[i] >= 0) {
-            output_crossing = static_cast<double>(i);
+            output_crossing = static_cast<real_t>(i);
             break;
         }
     }
 
     // Calculate measured phase difference
-    const double samples_per_period = sampling_freq / test_freq;
-    const double measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
-    const double theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
+    const real_t samples_per_period = sampling_freq / test_freq;
+    real_t measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
+
+    // Normalize phase to [-180, 180] range
+    while (measured_phase_deg > 180.0) {
+        measured_phase_deg -= 360.0;
+    }
+    while (measured_phase_deg < -180.0) {
+        measured_phase_deg += 360.0;
+    }
+
+    const real_t theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
 
     EXPECT_NEAR(measured_phase_deg, theoretical_phase_deg, 0.1);
 }
@@ -139,14 +149,14 @@ TEST_F(SecondOrderLowPassFilterTest, SinusoidalResponsePhase)
 class SecondOrderBandRejectFilterTest : public ::testing::Test {
 protected:
     // Test parameters
-    static constexpr double sampling_freq = 10000.0;  // 10kHz sampling
-    static constexpr double sampling_period = 1.0 / sampling_freq;
-    static constexpr double center_freq = 100.0;  // 100kHz center frequency
-    static constexpr double bandwidth = 10.0;     // 10Hz bandwidth
-    static constexpr double test_duration = 1.0;  // 1 second
+    static constexpr real_t sampling_freq = 10000.0;  // 10kHz sampling
+    static constexpr real_t sampling_period = 1.0 / sampling_freq;
+    static constexpr real_t center_freq = 100.0;  // 100kHz center frequency
+    static constexpr real_t bandwidth = 10.0;     // 10Hz bandwidth
+    static constexpr real_t test_duration = 1.0;  // 1 second
     static constexpr size_t num_samples = static_cast<size_t>(test_duration * sampling_freq);
 
-    second_order_band_reject_filter<double> filter{sampling_period};
+    second_order_band_reject_filter<real_t> filter{sampling_period};
 
     void SetUp() override { filter.configure(center_freq, bandwidth); }
 };
@@ -154,19 +164,19 @@ protected:
 TEST_F(SecondOrderBandRejectFilterTest, MagnitudeResponseAtCenterFrequency)
 {
     // At center frequency, magnitude should be a minimum (ideally -Inf dB, but practically a large negative value)
-    const double magnitude_db = filter.get_magnitude_response_db(center_freq);
+    const real_t magnitude_db = filter.get_magnitude_response_db(center_freq);
     EXPECT_LT(magnitude_db, -20.0);  // Expect at least -20dB attenuation
 }
 
 TEST_F(SecondOrderBandRejectFilterTest, MagnitudeResponseAtVariousFrequencies)
 {
     // Test frequencies: well below center, at lower band edge, at center, at upper band edge, well above center
-    const std::vector<double> test_freqs = {center_freq / 10.0, center_freq - bandwidth / 2.0, center_freq,
+    const std::vector<real_t> test_freqs = {center_freq / 10.0, center_freq - bandwidth / 2.0, center_freq,
         center_freq + bandwidth / 2.0, center_freq * 10.0};
-    const std::vector<double> expected_db = {0.0, -3.0, -100.0, -3.0, 0.0};
+    const std::vector<real_t> expected_db = {0.0, -3.0, -100.0, -3.0, 0.0};
 
     for (size_t i = 0; i < test_freqs.size(); ++i) {
-        const double magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
+        const real_t magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
         if (i == 2) {
             EXPECT_LT(magnitude_db, -20.0) << "Failed at frequency " << test_freqs[i] << " Hz";
         }
@@ -183,33 +193,33 @@ TEST_F(SecondOrderBandRejectFilterTest, PhaseResponseAtVariousFrequencies)
     // - At the notch frequency the phase is not well defined, but typically the filter shows a rapid phase transition.
     // We test below, at, and above the center frequency with appropriate tolerances.
 
-    const double phase_below = filter.get_phase_response_degrees(center_freq / 10.0);
+    const real_t phase_below = filter.get_phase_response_degrees(center_freq / 10.0);
     EXPECT_NEAR(phase_below, 0.0, 10.0) << "Phase response below notch expected near 0°, got " << phase_below << "°.";
 
     // Though the amplitude is nearly zero exactly at the notch, we can still check
-    // for a characteristic phase value. With the RBJ design, you might expect around -90°.
-    const double phase_center = filter.get_phase_response_degrees(center_freq);
-    EXPECT_NEAR(phase_center, -180.0, 20.0)
+    // for a characteristic phase value. With the RBJ design, the phase at the notch is typically around -90°.
+    const real_t phase_center = filter.get_phase_response_degrees(center_freq);
+    EXPECT_NEAR(phase_center, -90.0, 20.0)
         << "Phase response at notch expected near -90° (loose tolerance), got " << phase_center << "°.";
 
-    const double phase_above = filter.get_phase_response_degrees(center_freq * 10.0);
+    const real_t phase_above = filter.get_phase_response_degrees(center_freq * 10.0);
     EXPECT_NEAR(phase_above, 0.0, 10.0) << "Phase response above notch expected near 0°, got " << phase_above << "°.";
 }
 
 TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponseMagnitude)
 {
-    const double test_freq = center_freq;  // Test at center frequency
-    const double input_amplitude = 1.0;
+    const real_t test_freq = center_freq;  // Test at center frequency
+    const real_t input_amplitude = 1.0;
 
     // Run filter for several periods to reach steady state
-    double max_output = 0.0;
-    const double omega = 2.0 * pi * test_freq;
+    real_t max_output = 0.0;
+    const real_t omega = 2.0 * pi * test_freq;
 
     // Skip first second to avoid transient response
     for (size_t i = 0; i < 2 * num_samples; ++i) {
-        const double t = i * sampling_period;
-        const double input = input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t t = i * sampling_period;
+        const real_t input = input_amplitude * std::sin(omega * t);
+        const real_t output = filter.update(input);
 
         if (i >= num_samples) {  // Only measure after transient
             max_output = std::max(max_output, std::abs(output));
@@ -217,25 +227,25 @@ TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponseMagnitude)
     }
 
     // Compare measured magnitude with theoretical
-    const double measured_magnitude = max_output / input_amplitude;
-    const double theoretical_magnitude = filter.get_magnitude_response(test_freq);
+    const real_t measured_magnitude = max_output / input_amplitude;
+    const real_t theoretical_magnitude = filter.get_magnitude_response(test_freq);
     EXPECT_LT(measured_magnitude, 0.1);  // Expect significant attenuation
 }
 
 TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponsePhase)
 {
-    const double test_freq = center_freq / 10.0;  // Test below center frequency
-    const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi * test_freq;
+    const real_t test_freq = center_freq / 10.0;  // Test below center frequency
+    const real_t input_amplitude = 1.0;
+    const real_t omega = 2.0 * pi * test_freq;
 
-    std::vector<double> input_signal;
-    std::vector<double> output_signal;
+    std::vector<real_t> input_signal;
+    std::vector<real_t> output_signal;
 
     // Generate signals
     for (size_t i = 0; i < 2 * num_samples; ++i) {
-        const double t = i * sampling_period;
-        const double input = input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t t = i * sampling_period;
+        const real_t input = input_amplitude * std::sin(omega * t);
+        const real_t output = filter.update(input);
 
         if (i >= num_samples) {  // Store only steady-state response
             input_signal.push_back(input);
@@ -244,41 +254,50 @@ TEST_F(SecondOrderBandRejectFilterTest, SinusoidalResponsePhase)
     }
 
     // Find zero crossings to measure phase difference
-    double input_crossing = 0;
-    double output_crossing = 0;
+    real_t input_crossing = 0;
+    real_t output_crossing = 0;
 
     for (size_t i = 1; i < input_signal.size(); ++i) {
         if (input_signal[i - 1] < 0 && input_signal[i] >= 0) {
-            input_crossing = static_cast<double>(i);
+            input_crossing = static_cast<real_t>(i);
             break;
         }
     }
 
     for (size_t i = 1; i < output_signal.size(); ++i) {
         if (output_signal[i - 1] < 0 && output_signal[i] >= 0) {
-            output_crossing = static_cast<double>(i);
+            output_crossing = static_cast<real_t>(i);
             break;
         }
     }
 
     // Calculate measured phase difference
-    const double samples_per_period = sampling_freq / test_freq;
-    const double measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
-    const double theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
+    const real_t samples_per_period = sampling_freq / test_freq;
+    real_t measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
+
+    // Normalize phase to [-180, 180] range
+    while (measured_phase_deg > 180.0) {
+        measured_phase_deg -= 360.0;
+    }
+    while (measured_phase_deg < -180.0) {
+        measured_phase_deg += 360.0;
+    }
+
+    const real_t theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
     EXPECT_NEAR(measured_phase_deg, theoretical_phase_deg, 10.0);
 }
 
 class SecondOrderHighPassFilterTest : public ::testing::Test {
 protected:
     // Test parameters
-    static constexpr double sampling_freq = 100000.0;  // 100 kHz sampling
-    static constexpr double sampling_period = 1.0 / sampling_freq;
-    static constexpr double cutoff_freq = 100.0;    // 1 kHz cutoff frequency
-    static constexpr double damping_ratio = 0.707;  // Critically damped (Butterworth)
-    static constexpr double test_duration = 1.0;    // 1 second test duration
+    static constexpr real_t sampling_freq = 100000.0;  // 100 kHz sampling
+    static constexpr real_t sampling_period = 1.0 / sampling_freq;
+    static constexpr real_t cutoff_freq = 100.0;    // 1 kHz cutoff frequency
+    static constexpr real_t damping_ratio = 0.707;  // Critically damped (Butterworth)
+    static constexpr real_t test_duration = 1.0;    // 1 second test duration
     static constexpr size_t num_samples = static_cast<size_t>(test_duration * sampling_freq);
 
-    second_order_high_pass_filter<double> filter{sampling_period};
+    second_order_high_pass_filter<real_t> filter{sampling_period};
 
     void SetUp() override { filter.configure(cutoff_freq, damping_ratio); }
 };
@@ -286,7 +305,7 @@ protected:
 TEST_F(SecondOrderHighPassFilterTest, MagnitudeResponseAtCutoff)
 {
     // At cutoff frequency, magnitude should be approximately -3 dB.
-    const double magnitude_db = filter.get_magnitude_response_db(cutoff_freq);
+    const real_t magnitude_db = filter.get_magnitude_response_db(cutoff_freq);
     EXPECT_NEAR(magnitude_db, -3.0, 0.5);
 }
 
@@ -294,17 +313,17 @@ TEST_F(SecondOrderHighPassFilterTest, MagnitudeResponseAtVariousFrequencies)
 {
     // Frequencies: DC, below cutoff, at cutoff, and above cutoff.
     // At DC, the filter should almost completely attenuate the signal.
-    const std::vector<double> test_freqs = {cutoff_freq / 100.0, cutoff_freq / 10.0, cutoff_freq, cutoff_freq * 10.0};
+    const std::vector<real_t> test_freqs = {cutoff_freq / 100.0, cutoff_freq / 10.0, cutoff_freq, cutoff_freq * 10.0};
 
     // Expected responses (in dB):
     // - At DC (cutoff/100) we expect a very large attenuation (much lower than -40 dB)
     // - Below cutoff (cutoff/10) should still be strongly attenuated (< -40 dB)
     // - At cutoff: ~ -3 dB
     // - Well above cutoff: nearly 0 dB
-    const std::vector<double> expected_db = {-60.0, -40.0, -3.0, 0.0};
+    const std::vector<real_t> expected_db = {-60.0, -40.0, -3.0, 0.0};
 
     for (size_t i = 0; i < test_freqs.size(); ++i) {
-        const double magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
+        const real_t magnitude_db = filter.get_magnitude_response_db(test_freqs[i]);
         if (i < 2) {
             // For very low frequencies we check that the magnitude is very low.
             EXPECT_LT(magnitude_db, -30.0) << "Failed at frequency " << test_freqs[i] << " Hz";
@@ -322,35 +341,35 @@ TEST_F(SecondOrderHighPassFilterTest, PhaseResponseAtVariousFrequencies)
     // - At frequencies well above cutoff, phase shift should approach 0°.
     //
     // (At very low frequencies the magnitude is nearly zero so phase is not reliable.)
-    const double phase_at_cutoff = filter.get_phase_response_degrees(cutoff_freq);
+    const real_t phase_at_cutoff = filter.get_phase_response_degrees(cutoff_freq);
     EXPECT_NEAR(phase_at_cutoff, 90.0, 10.0)
         << "Phase response at cutoff expected near 90°, got " << phase_at_cutoff << "°.";
 
-    const double phase_above = filter.get_phase_response_degrees(cutoff_freq * 10.0);
+    const real_t phase_above = filter.get_phase_response_degrees(cutoff_freq * 10.0);
     EXPECT_NEAR(phase_above, 0.0, 10.0) << "Phase response above cutoff expected near 0°, got " << phase_above << "°.";
 }
 
 TEST_F(SecondOrderHighPassFilterTest, SinusoidalResponseMagnitude)
 {
     // Test using a sinusoidal input above cutoff frequency.
-    const double test_freq = cutoff_freq * 2.0;  // well above cutoff
-    const double input_amplitude = 1.0;
-    double max_output = 0.0;
-    const double omega = 2.0 * pi * test_freq;
+    const real_t test_freq = cutoff_freq * 2.0;  // well above cutoff
+    const real_t input_amplitude = 1.0;
+    real_t max_output = 0.0;
+    const real_t omega = 2.0 * pi * test_freq;
 
     // Run filter for several periods to reach steady state.
     // Skip the first second to avoid transients.
     for (size_t i = 0; i < 2 * num_samples; ++i) {
-        const double t = i * sampling_period;
-        const double input = input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t t = i * sampling_period;
+        const real_t input = input_amplitude * std::sin(omega * t);
+        const real_t output = filter.update(input);
         if (i >= num_samples) {  // steady state measurement
             max_output = std::max(max_output, std::abs(output));
         }
     }
 
-    const double measured_magnitude = max_output / input_amplitude;
-    const double theoretical_magnitude = filter.get_magnitude_response(test_freq);
+    const real_t measured_magnitude = max_output / input_amplitude;
+    const real_t theoretical_magnitude = filter.get_magnitude_response(test_freq);
     EXPECT_NEAR(measured_magnitude, theoretical_magnitude, 0.05);
 }
 
@@ -358,17 +377,17 @@ TEST_F(SecondOrderHighPassFilterTest, SinusoidalResponsePhase)
 {
     // Test the phase response using sinusoidal input.
     // We generate steady-state input and output signals for a frequency above cutoff.
-    const double test_freq = cutoff_freq * 2.0;  // above cutoff ensures significant amplitude
-    const double input_amplitude = 1.0;
-    const double omega = 2.0 * pi * test_freq;
+    const real_t test_freq = cutoff_freq * 2.0;  // above cutoff ensures significant amplitude
+    const real_t input_amplitude = 1.0;
+    const real_t omega = 2.0 * pi * test_freq;
 
-    std::vector<double> input_signal;
-    std::vector<double> output_signal;
+    std::vector<real_t> input_signal;
+    std::vector<real_t> output_signal;
 
     for (size_t i = 0; i < 2 * num_samples; ++i) {
-        const double t = i * sampling_period;
-        const double input = input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t t = i * sampling_period;
+        const real_t input = input_amplitude * std::sin(omega * t);
+        const real_t output = filter.update(input);
         if (i >= num_samples) {  // only store steady state
             input_signal.push_back(input);
             output_signal.push_back(output);
@@ -376,24 +395,33 @@ TEST_F(SecondOrderHighPassFilterTest, SinusoidalResponsePhase)
     }
 
     // Use zero-crossing method to estimate phase delay.
-    double input_crossing = 0;
-    double output_crossing = 0;
+    real_t input_crossing = 0;
+    real_t output_crossing = 0;
     for (size_t i = 1; i < input_signal.size(); ++i) {
         if (input_signal[i - 1] < 0 && input_signal[i] >= 0) {
-            input_crossing = static_cast<double>(i);
+            input_crossing = static_cast<real_t>(i);
             break;
         }
     }
     for (size_t i = 1; i < output_signal.size(); ++i) {
         if (output_signal[i - 1] < 0 && output_signal[i] >= 0) {
-            output_crossing = static_cast<double>(i);
+            output_crossing = static_cast<real_t>(i);
             break;
         }
     }
 
-    const double samples_per_period = sampling_freq / test_freq;
-    const double measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
-    const double theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
+    const real_t samples_per_period = sampling_freq / test_freq;
+    real_t measured_phase_deg = -360.0 * (output_crossing - input_crossing) / samples_per_period;
+
+    // Normalize phase to [-180, 180] range
+    while (measured_phase_deg > 180.0) {
+        measured_phase_deg -= 360.0;
+    }
+    while (measured_phase_deg < -180.0) {
+        measured_phase_deg += 360.0;
+    }
+
+    const real_t theoretical_phase_deg = filter.get_phase_response_degrees(test_freq);
     EXPECT_NEAR(measured_phase_deg, theoretical_phase_deg, 10.0);
 }
 
@@ -406,24 +434,25 @@ TEST_F(SecondOrderHighPassFilterTest, DCRemovalFromSinusoidalSignal)
     const double input_amplitude = 1.0;
     const double dc_offset = 2.0;  // constant DC offset
     const double omega = 2.0 * pi * test_freq;
-    double sum_output = 0.0;
+    double sum_output = 0.0;  // Use double precision for accumulation to avoid loss of precision
 
     // Run the simulation for 2 seconds and use the second half (steady-state) for evaluation.
     for (size_t i = 0; i < 2 * num_samples; ++i) {
         const double t = i * sampling_period;
         const double input = dc_offset + input_amplitude * std::sin(omega * t);
-        const double output = filter.update(input);
+        const real_t output = filter.update(static_cast<real_t>(input));
         if (i >= num_samples) {  // steady-state samples only
-            sum_output += output;
+            sum_output += static_cast<double>(output);
         }
     }
-    EXPECT_NEAR(sum_output, 0.0, 1e-5) << "The high-pass filter did not sufficiently remove the DC offset.";
+    EXPECT_NEAR(sum_output / static_cast<double>(2 * num_samples), 0.0, 1e-5)
+        << "The high-pass filter did not sufficiently remove the DC offset.";
 }
 
 class SecondOrderLowPassFilterSimulatorTest : public ::testing::Test {
 public:
     static constexpr double sampling_time = 1e-4;  // 10 kHz sampling rate
-    static constexpr double cutoff_freq = 10.0;    // 10 Hz cutoff frequency
+    static constexpr real_t cutoff_freq = 10.0;    // 10 Hz cutoff frequency
 
     void SetUp() override
     {
@@ -461,11 +490,11 @@ protected:
     yeet::simulator simulator = yeet::make_gtest_simulator();
     std::unique_ptr<three_phase_waveform_generator> signal_gen;
 
-    double input{};  // For constant/step input tests
-    double output{};
-    double filter_input{};  // Value routed to the filter
-    yeet::control::second_order_low_pass_filter<double> filter_dut{sampling_time};
-    white_noise_generator<double> noise_gen{0.0};
+    real_t input{};  // For constant/step input tests
+    real_t output{};
+    real_t filter_input{};  // Value routed to the filter
+    yeet::control::second_order_low_pass_filter<real_t> filter_dut{sampling_time};
+    white_noise_generator<real_t> noise_gen{0.0};
 
 private:
     void register_samplers()
@@ -490,12 +519,12 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, ButterworthStepResponse)
     configure_test_for_constant_input();
 
     // Check response characteristics
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "settling_band", [&]() { return output; }, 0.95, 1.05,  // 5% settling band
         yeet::checker_activation_time_range{0.4, 0.5}           // Check after 4-5 time constants
         ));
     // Check that overshoot is no more than 5%
-    simulator.register_checker(yeet::make_max_checker<double>(
+    simulator.register_checker(yeet::make_max_checker<real_t>(
         "max_overshoot", [&]() { return output; }, 1.05, yeet::checker_activation_time_range{0.0, 0.5}));
 
     EXPECT_TRUE(simulate_for(0.5));  // Simulate for 0.5 seconds
@@ -509,8 +538,8 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, FrequencyResponse)
     configure_test_for_sinusoidal_input();
 
     // Test response at different frequencies relative to cutoff
-    constexpr double test_duration = 0.1;
-    const double fc = 50.0;
+    constexpr real_t test_duration = 0.1;
+    const real_t fc = 50.0;
 
     filter_dut.configure(fc, 0.707);
 
@@ -525,12 +554,12 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, FrequencyResponse)
     // So when ω = ωc, |H(jω)| = 1/√(1+1) = 1/√2, i.e. -3dB, even for a second-order filter.
 
     // At cutoff frequency, output magnitude should be -3dB (≈0.707)
-    simulator.register_checker(yeet::make_max_checker<double>(
+    simulator.register_checker(yeet::make_max_checker<real_t>(
         "cutoff_freq_magnitude_max", [&]() { return output; }, 0.708,  // Allow for some numerical error
         yeet::checker_activation_time_range{0.05, 0.1}                 // Check after settling
         ));
 
-    simulator.register_checker(yeet::make_min_checker<double>(
+    simulator.register_checker(yeet::make_min_checker<real_t>(
         "cutoff_freq_magnitude_min", [&]() { return output; }, -0.708,  // Allow for some numerical error
         yeet::checker_activation_time_range{0.05, 0.1}                  // Check after settling
         ));
@@ -541,7 +570,7 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, FrequencyResponse)
     // Attenuation should be of the order of -40dB, i.e. 0.1
     signal_gen->set_signal_frequency(fc * 10.0);
 
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "10x_cutoff_freq_magnitude", [&]() { return output; }, -0.010, 0.010,  // Allow for some numerical error
         yeet::checker_activation_time_range{0.15, 0.2}                         // Check after settling
         ));
@@ -564,7 +593,7 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, NoiseRejection)
     noise_gen.set_parameters(0.2);
     input = 1.0;  // Step input of 1.0
 
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "noise_rejection", [&]() { return output; }, 0.85,
         1.15,  // Expect output variation to be less than the input noise variations
         yeet::checker_activation_time_range{0.3, 1.0}));
@@ -575,8 +604,8 @@ TEST_F(SecondOrderLowPassFilterSimulatorTest, NoiseRejection)
 class SecondOrderBandRejectFilterSimulatorTest : public ::testing::Test {
 public:
     static constexpr double sampling_time = 1e-4;  // 10 kHz sampling rate
-    static constexpr double center_freq = 100.0;   // Reject 100 Hz
-    static constexpr double bandwidth = 10.0;      // Notch width
+    static constexpr real_t center_freq = 100.0;   // Reject 100 Hz
+    static constexpr real_t bandwidth = 10.0;      // Notch width
 
     void SetUp() override
     {
@@ -591,7 +620,7 @@ public:
     {
         simulator.register_lambda_runner(sampling_time, [&]() {
             // Get simulation time (assume simulator.get_current_simulation_time() exists)
-            double t = simulator.get_current_simulation_time();
+            real_t t = simulator.get_current_simulation_time();
             // Composite signal: 50 Hz fundamental (amplitude 1.0) and 100 Hz harmonic (amplitude 0.5)
             filter_input = std::sin(2.0 * pi * 50.0 * t) + 0.5 * std::sin(2.0 * pi * 100.0 * t) + noise_gen.generate();
             output = filter_dut.update(filter_input);
@@ -615,11 +644,11 @@ protected:
     yeet::simulator simulator = yeet::make_gtest_simulator();
     std::unique_ptr<three_phase_waveform_generator> signal_gen;
 
-    double input{};  // Not used by composite test
-    double output{};
-    double filter_input{};  // Value routed to the filter
-    second_order_band_reject_filter<double> filter_dut{sampling_time};
-    white_noise_generator<double> noise_gen{0.0};
+    real_t input{};  // Not used by composite test
+    real_t output{};
+    real_t filter_input{};  // Value routed to the filter
+    second_order_band_reject_filter<real_t> filter_dut{sampling_time};
+    white_noise_generator<real_t> noise_gen{0.0};
 
 private:
     void register_samplers()
@@ -644,17 +673,17 @@ TEST_F(SecondOrderBandRejectFilterSimulatorTest, CompositeSignalRejection)
     configure_test_for_composite_input();
 
     // Run simulation for enough time to reach steady state
-    constexpr double test_duration = 0.2;  // 200 ms
+    constexpr real_t test_duration = 0.2;  // 200 ms
     EXPECT_TRUE(simulate_for(test_duration));
 
     // In the steady state, the output should be nearly a clean 50 Hz sinusoid.
     // For a pure 50 Hz sinusoidal signal, the amplitude is ~1.0.
     // The 100 Hz harmonic should be heavily attenuated by the notch.
     // We check that the max amplitude at the output is close to 1.0.
-    simulator.register_checker(yeet::make_max_checker<double>(
+    simulator.register_checker(yeet::make_max_checker<real_t>(
         "composite_output_max", [&]() { return output; }, 1.02,  // Allow small numerical error
         yeet::checker_activation_time_range{0.15, 0.2}));
-    simulator.register_checker(yeet::make_min_checker<double>(
+    simulator.register_checker(yeet::make_min_checker<real_t>(
         "composite_output_min", [&]() { return output; }, -1.02, yeet::checker_activation_time_range{0.15, 0.2}));
 
     EXPECT_TRUE(simulate_for(test_duration));
@@ -674,7 +703,7 @@ TEST_F(SecondOrderBandRejectFilterSimulatorTest, FrequencySweepResponse)
     // Use sinusoidal input from the generator.
     configure_test_for_sinusoidal_input();
 
-    double simulation_time = 5.0;
+    real_t simulation_time = 5.0;
 
     // Frequency sweep: Start at 50 Hz, go to 150 Hz over 5 seconds.
     signal_gen->set_signal_frequency(50.0);

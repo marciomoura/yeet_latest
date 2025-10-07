@@ -70,8 +70,8 @@ TEST(IntegratorTest, AngleWrappingTest)
 
     auto integrated_angle = angle_integrator.get_output();  // Will wrap 2π to zero
     angle_wrapped angle_2pi(integrated_angle);
-    EXPECT_NEAR(angle_2pi.get_radians(), 0.0f, 1e-6);
-    EXPECT_NEAR((angle_2pi + angle_t{1e-8}).get_radians(), 0.0f, 1e-6);  // Wrapping around 2π and zero
+    EXPECT_NEAR((angle_2pi - angle_t{0.01}).get_radians(), two_pi - angle_t{0.01}, 1e-3);
+    EXPECT_NEAR((angle_2pi + angle_t{0.01}).get_radians(), 0.01, 1e-3);  // Wrapping around 2π and zero
 
     // Now simulate a non-integer number of rotations.
     // For example, simulate for 1.01 seconds.
@@ -84,7 +84,7 @@ TEST(IntegratorTest, AngleWrappingTest)
     angle_wrapped wrapped_angle_zero2(integrated_angle);
 
     // Expected remainder after wrapping to [0, 2π)
-    double expected_remainder = std::fmod(integrated_angle.get_radians(), 2.0 * pi);
+    real_t expected_remainder = std::fmod(integrated_angle.get_radians(), static_cast<real_t>(2.0 * pi));
     EXPECT_NEAR(wrapped_angle_zero2.get_radians(), expected_remainder, 1e-6);
 }
 

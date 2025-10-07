@@ -9,11 +9,12 @@ using namespace yeet::control;
 
 class SpeedVoltageRelationshipTest : public ::testing::Test {
 protected:
-    const real_t sampling_time = 1e-3f;  // 1ms sampling time
+    const double sampling_time = 1e-3f;  // 1ms sampling time
     const real_t tolerance = 1e-6f;
 };
 
-TEST_F(SpeedVoltageRelationshipTest, InitialStateIsCorrect) {
+TEST_F(SpeedVoltageRelationshipTest, InitialStateIsCorrect)
+{
     speed_voltage_relationship model(sampling_time);
 
     EXPECT_FLOAT_EQ(model.get_voltage_magnitude_pu(), 0.0f);
@@ -21,7 +22,8 @@ TEST_F(SpeedVoltageRelationshipTest, InitialStateIsCorrect) {
     EXPECT_FALSE(model.is_dynamic_mode());
 }
 
-TEST_F(SpeedVoltageRelationshipTest, DefaultConfigurationWorks) {
+TEST_F(SpeedVoltageRelationshipTest, DefaultConfigurationWorks)
+{
     speed_voltage_relationship model(sampling_time);
 
     // Default: coefficient = 1.0, offset = 0.0, no dynamics
@@ -32,7 +34,8 @@ TEST_F(SpeedVoltageRelationshipTest, DefaultConfigurationWorks) {
     EXPECT_NEAR(model.get_voltage_magnitude_pu(), 1.0f, tolerance);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, LinearRelationshipWithCoefficient) {
+TEST_F(SpeedVoltageRelationshipTest, LinearRelationshipWithCoefficient)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(0.8f);
@@ -48,7 +51,8 @@ TEST_F(SpeedVoltageRelationshipTest, LinearRelationshipWithCoefficient) {
     EXPECT_NEAR(model.get_voltage_magnitude_pu(), 1.0f, tolerance);  // 0.8 * 1.25
 }
 
-TEST_F(SpeedVoltageRelationshipTest, LinearRelationshipWithOffset) {
+TEST_F(SpeedVoltageRelationshipTest, LinearRelationshipWithOffset)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(1.0f);
@@ -64,7 +68,8 @@ TEST_F(SpeedVoltageRelationshipTest, LinearRelationshipWithOffset) {
     EXPECT_NEAR(model.get_voltage_magnitude_pu(), 1.1f, tolerance);  // 1.0 * 1.0 + 0.1
 }
 
-TEST_F(SpeedVoltageRelationshipTest, CombinedCoefficientAndOffset) {
+TEST_F(SpeedVoltageRelationshipTest, CombinedCoefficientAndOffset)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(0.9f);
@@ -80,7 +85,8 @@ TEST_F(SpeedVoltageRelationshipTest, CombinedCoefficientAndOffset) {
     EXPECT_NEAR(model.get_voltage_magnitude_pu(), 1.049f, tolerance);  // 0.9 * 1.11 + 0.05
 }
 
-TEST_F(SpeedVoltageRelationshipTest, VoltageLimitsAreEnforced) {
+TEST_F(SpeedVoltageRelationshipTest, VoltageLimitsAreEnforced)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(1.0f);
@@ -100,7 +106,8 @@ TEST_F(SpeedVoltageRelationshipTest, VoltageLimitsAreEnforced) {
     EXPECT_NEAR(model.get_voltage_magnitude_pu(), 0.5f, tolerance);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, SteadyStateVoltageMatchesAlgebraicResult) {
+TEST_F(SpeedVoltageRelationshipTest, SteadyStateVoltageMatchesAlgebraicResult)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(0.85f);
@@ -116,7 +123,8 @@ TEST_F(SpeedVoltageRelationshipTest, SteadyStateVoltageMatchesAlgebraicResult) {
     EXPECT_NEAR(model.get_steady_state_voltage_pu(), expected, tolerance);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, DynamicModeFirstOrderResponse) {
+TEST_F(SpeedVoltageRelationshipTest, DynamicModeFirstOrderResponse)
+{
     speed_voltage_relationship model(sampling_time);
 
     const real_t time_constant = 10e-3f;  // 10ms
@@ -147,7 +155,8 @@ TEST_F(SpeedVoltageRelationshipTest, DynamicModeFirstOrderResponse) {
     EXPECT_GT(model.get_voltage_magnitude_pu(), 0.99f);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, DynamicVsAlgebraicModeComparison) {
+TEST_F(SpeedVoltageRelationshipTest, DynamicVsAlgebraicModeComparison)
+{
     speed_voltage_relationship algebraic_model(sampling_time);
     speed_voltage_relationship dynamic_model(sampling_time);
 
@@ -187,7 +196,8 @@ TEST_F(SpeedVoltageRelationshipTest, DynamicVsAlgebraicModeComparison) {
     EXPECT_NEAR(dynamic_model.get_voltage_magnitude_pu(), expected_steady_state, 1e-4f);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, ResetMethodWorks) {
+TEST_F(SpeedVoltageRelationshipTest, ResetMethodWorks)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(1.0f);
@@ -209,7 +219,8 @@ TEST_F(SpeedVoltageRelationshipTest, ResetMethodWorks) {
     EXPECT_FLOAT_EQ(model.get_voltage_magnitude_pu(), 0.0f);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, ResetRespectsVoltageLimits) {
+TEST_F(SpeedVoltageRelationshipTest, ResetRespectsVoltageLimits)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_limits_pu(0.2f, 1.0f);
@@ -225,7 +236,8 @@ TEST_F(SpeedVoltageRelationshipTest, ResetRespectsVoltageLimits) {
     EXPECT_FLOAT_EQ(model.get_voltage_magnitude_pu(), 0.5f);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, ZeroSpeedHandling) {
+TEST_F(SpeedVoltageRelationshipTest, ZeroSpeedHandling)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(1.0f);
@@ -242,7 +254,8 @@ TEST_F(SpeedVoltageRelationshipTest, ZeroSpeedHandling) {
     EXPECT_NEAR(model.get_voltage_magnitude_pu(), 0.0f, tolerance);
 }
 
-TEST_F(SpeedVoltageRelationshipTest, HighSpeedOperation) {
+TEST_F(SpeedVoltageRelationshipTest, HighSpeedOperation)
+{
     speed_voltage_relationship model(sampling_time);
 
     model.configure_voltage_speed_coefficient(1.0f);

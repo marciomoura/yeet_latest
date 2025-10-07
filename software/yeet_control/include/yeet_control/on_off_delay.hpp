@@ -22,7 +22,7 @@ public:
      *
      * @param timestep The execution interval (sampling time) in seconds.
      */
-    on_off_delay(real_t sampling_time);
+    on_off_delay(double sampling_time);
 
     /**
      * @brief Configures the on and off delay durations.
@@ -53,7 +53,7 @@ public:
     [[nodiscard]] bool get_output() const;
 
 private:
-    real_t _sampling_time;
+    double _sampling_time;
     on_delay _on_timer;
     off_delay _off_timer;
 };

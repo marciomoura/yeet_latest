@@ -2,13 +2,15 @@
 
 #include <type_traits>
 
+#include "types.hpp"
+
 namespace yeet {
 
-// Type trait to get the fundamental type
-template <typename T>
-struct fundamental_type {
-    using type = T;
-};
+// Forward declarations for yeet types
+
+// Forward declare quantity
+template <typename Dimension, typename UnitSystem>
+class quantity;
 
 // Forward declare abc
 template <typename T>
@@ -22,20 +24,32 @@ class dq;
 template <typename T>
 class alphabeta;
 
-// Defined specialized fundamental types
+// Type trait to get the fundamental type
+template <typename T>
+struct fundamental_type {
+    using type = T;
+};
+
+// Specialization for quantity types - extract real_t as the fundamental type
+template <typename Dimension, typename UnitSystem>
+struct fundamental_type<quantity<Dimension, UnitSystem>> {
+    using type = real_t;
+};
+
+// Defined specialized fundamental types for coordinate frames
 template <typename T>
 struct fundamental_type<abc<T>> {
-    using type = T;
+    using type = typename fundamental_type<T>::type;
 };
 
 template <typename T>
 struct fundamental_type<dq<T>> {
-    using type = T;
+    using type = typename fundamental_type<T>::type;
 };
 
 template <typename T>
 struct fundamental_type<alphabeta<T>> {
-    using type = T;
+    using type = typename fundamental_type<T>::type;
 };
 
 // Helper alias

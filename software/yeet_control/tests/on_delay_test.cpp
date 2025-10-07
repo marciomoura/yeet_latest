@@ -10,10 +10,11 @@ using namespace yeet::control;
 // Test fixture for common setup
 class OnDelayTest : public ::testing::Test {
 protected:
-    const real_t sampling_time = 0.01f;  // 10 ms sampling time
+    const double sampling_time = 0.01f;  // 10 ms sampling time
 };
 
-TEST_F(OnDelayTest, InitialStateIsFalse) {
+TEST_F(OnDelayTest, InitialStateIsFalse)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     on_delay timer(delay, sampling_time);
 
@@ -21,7 +22,8 @@ TEST_F(OnDelayTest, InitialStateIsFalse) {
     EXPECT_FALSE(timer.get_output());
 }
 
-TEST_F(OnDelayTest, TurnsOnExactlyWhenDelayIsMet) {
+TEST_F(OnDelayTest, TurnsOnExactlyWhenDelayIsMet)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     on_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -41,7 +43,8 @@ TEST_F(OnDelayTest, TurnsOnExactlyWhenDelayIsMet) {
     EXPECT_TRUE(timer.get_output()) << "Timer turned off after being active";
 }
 
-TEST_F(OnDelayTest, TimerResetsWhenInputGoesFalse) {
+TEST_F(OnDelayTest, TimerResetsWhenInputGoesFalse)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     on_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -66,7 +69,8 @@ TEST_F(OnDelayTest, TimerResetsWhenInputGoesFalse) {
     EXPECT_TRUE(timer.get_output()) << "Timer did not turn on after reset and full delay";
 }
 
-TEST_F(OnDelayTest, OutputGoesFalseImmediately) {
+TEST_F(OnDelayTest, OutputGoesFalseImmediately)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     on_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -84,7 +88,8 @@ TEST_F(OnDelayTest, OutputGoesFalseImmediately) {
     EXPECT_FALSE(timer.get_output());
 }
 
-TEST_F(OnDelayTest, ResetMethodWorksWhenActive) {
+TEST_F(OnDelayTest, ResetMethodWorksWhenActive)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     on_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -100,7 +105,8 @@ TEST_F(OnDelayTest, ResetMethodWorksWhenActive) {
     EXPECT_FALSE(timer.get_output());
 }
 
-TEST_F(OnDelayTest, ConfigureResetsTheTimer) {
+TEST_F(OnDelayTest, ConfigureResetsTheTimer)
+{
     const real_t delay = 0.1f;  // 100 ms delay
     on_delay timer(delay, sampling_time);
     const int required_samples = static_cast<int>(delay / sampling_time);  // 10 samples
@@ -118,7 +124,8 @@ TEST_F(OnDelayTest, ConfigureResetsTheTimer) {
     EXPECT_FALSE(timer.get_output());
 }
 
-TEST_F(OnDelayTest, ZeroDelayTurnsOnImmediately) {
+TEST_F(OnDelayTest, ZeroDelayTurnsOnImmediately)
+{
     const real_t delay = 0.0f;
     on_delay timer(delay, sampling_time);
 

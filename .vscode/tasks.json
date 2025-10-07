@@ -28,7 +28,7 @@
                 "isDefault": true
             },
             "options": {
-                "cwd": "${workspaceFolder}/build/bin/"
+                "cwd": "${workspaceFolder}/build-host/bin/Release/"
             },
             "problemMatcher": [],
             "detail": "Runs the executable"
@@ -42,7 +42,7 @@
                 "isDefault": false
             },
             "options": {
-                "cwd": "${workspaceFolder}/build/bin/"
+                "cwd": "${workspaceFolder}/build-host/bin/Release/"
             },
             "problemMatcher": [],
             "detail": "Runs the yeet_control unit tests"
@@ -56,7 +56,7 @@
                 "isDefault": false
             },
             "options": {
-                "cwd": "${workspaceFolder}/build/bin/"
+                "cwd": "${workspaceFolder}/build-host/bin/Release/"
             },
             "problemMatcher": [],
             "detail": "Runs the yeet_application_sfc unit tests"
@@ -70,7 +70,7 @@
                 "isDefault": false
             },
             "options": {
-                "cwd": "${workspaceFolder}/build/bin/"
+                "cwd": "${workspaceFolder}/build-host/bin/Release/"
             },
             "problemMatcher": [],
             "detail": "Runs the yeet_application_mpc integration tests"
@@ -84,7 +84,7 @@
                 "isDefault": false
             },
             "options": {
-                "cwd": "${workspaceFolder}/build/bin/"
+                "cwd": "${workspaceFolder}/build-host/bin/Release/"
             },
             "problemMatcher": [],
             "detail": "Runs the yeet_application_sfc_integration unit tests"
@@ -98,7 +98,7 @@
                 "isDefault": false
             },
             "options": {
-                "cwd": "${workspaceFolder}/build/bin/"
+                "cwd": "${workspaceFolder}/build-host/bin/Release/"
             },
             "problemMatcher": [],
             "detail": "Runs the yeet_testing unit tests"
@@ -109,7 +109,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "yeet_test",
                 "yeet_control_tests",
                 "yeet_application_sfc_tests",
@@ -132,7 +132,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "yeet_application_sfc"
             ],
             "group": {
@@ -151,7 +151,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "yeet_application_sfc_integration"
             ],
             "group": {
@@ -170,7 +170,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "yeet_control"
             ],
             "group": {
@@ -189,7 +189,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "yeet"
             ],
             "group": {
@@ -208,7 +208,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "yeet",
                 "yeet_control",
                 "yeet_application_sfc",
@@ -231,7 +231,7 @@
             "command": "ctest",
             "args": [
                 "--test-dir",
-                "build",
+                "build-host",
                 "--output-on-failure",
                 "--verbose"
             ],
@@ -251,7 +251,7 @@
             "command": "ctest",
             "args": [
                 "--test-dir",
-                "build",
+                "build-host",
                 "--output-on-failure",
                 "-R",
                 "sfc"
@@ -272,7 +272,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build",
+                "build-host",
                 "clean"
             ],
             "group": {
@@ -291,7 +291,7 @@
             "command": "ninja",
             "args": [
                 "-C",
-                "build"
+                "build-host"
             ],
             "group": {
                 "kind": "build",
@@ -309,9 +309,9 @@
             "command": "python.exe",
             "args": [
                 "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
-                "${workspaceFolder}/build/bin/",
-                "${workspaceFolder}/build/bin/",
-                "--move=${workspaceFolder}/build/bin/testing_outputs/",
+                "${workspaceFolder}/build-host/bin/Release/",
+                "${workspaceFolder}/build-host/bin/Release/",
+                "--move=${workspaceFolder}/build-host/bin/Release/testing_outputs/",
                 "--decimate=10"
             ],
             "problemMatcher": [],
@@ -323,9 +323,9 @@
             "command": "python.exe",
             "args": [
                 "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
-                "${workspaceFolder}/build/bin/",
-                "${workspaceFolder}/build/bin/",
-                "--move=${workspaceFolder}/build/bin/testing_outputs/",
+                "${workspaceFolder}/build-host/bin/Release/",
+                "${workspaceFolder}/build-host/bin/Release/",
+                "--move=${workspaceFolder}/build-host/bin/Release/testing_outputs/",
                 "--decimate=1"
             ],
             "problemMatcher": [],

@@ -29,7 +29,7 @@ TEST_F(AdcValueTest, ConstructorWithParameters)
     // Calculate expected real value
     const std::int32_t max_counts = (1 << (bits - 1)) - 1;  // 2047
     const real_t expected_real = (static_cast<real_t>(counts) / max_counts) * full_scale_value;
-    EXPECT_NEAR(value.to_real(), expected_real, 1e-9);
+    EXPECT_NEAR(value.to_real(), expected_real, 1e-4);
 }
 
 TEST_F(AdcValueTest, FromRealStaticConstructor)

@@ -17,7 +17,7 @@ namespace yeet {
  */
 class sfc_commutation_mask {
 public:
-    sfc_commutation_mask(real_t sampling_time) : _sampling_time(sampling_time) {}
+    sfc_commutation_mask(double sampling_time) : _sampling_time(sampling_time) {}
     /**
      * @brief Updates the commutation mask logic and returns the processed waveform.
      *
@@ -36,7 +36,7 @@ public:
     bool is_masking() const { return _is_masking; }
 
 private:
-    real_t _sampling_time{0.0};  ///< The sampling time in seconds
+    double _sampling_time{0.0};  ///< The sampling time in seconds
 
     /// @brief Stores the magnitude of the voltage vector (d-component) just before commutation.
     voltage_pu_t _last_good_magnitude{0.0};

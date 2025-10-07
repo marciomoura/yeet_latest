@@ -10,13 +10,14 @@ namespace yeet::control {
 template <typename T>
 class integrator {
 public:
-    using value_type = fundamental_type_t<T>;
-
     integrator() = default;
-    explicit integrator(value_type ts) : _ts(ts) { assert(ts > value_type(0) && "Sampling time must be positive"); }
+    explicit integrator(double sampling_time) : _sampling_time(sampling_time)
+    {
+        assert(sampling_time > double(0) && "Sampling time must be positive");
+    }
 
     // Configure sampling time
-    void configure(value_type ts) { _ts = ts; }
+    void configure(double sampling_time) { _sampling_time = sampling_time; }
 
     // Reset integrator state
     void reset(T value = T{}) { _value = value; }
@@ -30,24 +31,25 @@ public:
     // x[k] is the current input
     // Ts is the sampling time
     template <typename InputT = T>
-    T update(InputT input) {
-        assert(_ts > value_type(0) && "Sampling time must be positive");
+    T update(InputT input)
+    {
+        assert(_sampling_time > double(0) && "Sampling time must be positive");
 
         // Update integrator using rectangular integration
-        _value += T{input * _ts};
+        _value += _sampling_time * input;
 
         return _value;
     }
 
     // Getter methods
-    value_type get_sampling_time() const { return _ts; }
+    double get_sampling_time() const { return _sampling_time; }
     T get_output() const { return _value; }
 
     operator T() const { return _value; }
 
 private:
-    value_type _ts{};  // Sampling time
-    T _value{};        // Current integrator value
+    double _sampling_time{};  // Sampling time
+    T _value{};               // Current integrator value
 };
 
 }  // namespace yeet::control

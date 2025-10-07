@@ -4,7 +4,10 @@
 
 namespace yeet::control {
 
-on_off_delay::on_off_delay(real_t timestep) : _on_timer(real_t{0.0}, timestep), _off_timer(real_t{0.0}, timestep) {}
+on_off_delay::on_off_delay(double sampling_time)
+    : _on_timer(real_t{0.0}, sampling_time), _off_timer(real_t{0.0}, sampling_time)
+{
+}
 
 void on_off_delay::configure(real_t on_delay_s, real_t off_delay_s)
 {

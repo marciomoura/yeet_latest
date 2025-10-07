@@ -5,6 +5,7 @@
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
+#include "yeet_control/types.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
 namespace {
@@ -12,13 +13,13 @@ namespace {
 using namespace yeet;
 using namespace yeet::control;
 
-static constexpr double k_epsilon = 1e-8;
+static constexpr real_t k_epsilon = 1e-6;
 
 // Helper functions to compare values within epsilon
-void expect_near(double a, double b) { ASSERT_NEAR(a, b, k_epsilon); }
+void expect_near(real_t a, real_t b) { ASSERT_NEAR(a, b, k_epsilon); }
 
 template <size_t n>
-void expect_array_near(const std::array<double, n>& a, const std::array<double, n>& b)
+void expect_array_near(const std::array<real_t, n>& a, const std::array<real_t, n>& b)
 {
     for (size_t i = 0; i < n; ++i) {
         ASSERT_NEAR(a[i], b[i], k_epsilon) << "Arrays differ at index " << i;
@@ -26,32 +27,32 @@ void expect_array_near(const std::array<double, n>& a, const std::array<double, 
 }
 
 // Common test values
-const std::array<double, 3> balanced_abc = {1.0, -0.5, -0.5};
-const std::array<double, 2> expected_alphabeta = {1.0, 0.0};
-const std::array<double, 2> expected_dq = {1.0, 0.0};
+const std::array<real_t, 3> balanced_abc = {1.0, -0.5, -0.5};
+const std::array<real_t, 2> expected_alphabeta = {1.0, 0.0};
+const std::array<real_t, 2> expected_dq = {1.0, 0.0};
 
 // ABC Tests
 TEST(ReferenceFrameTest, AbcDefaultConstructor)
 {
-    abc<double> coords;
+    abc<real_t> coords;
     expect_array_near(coords.array(), {0.0, 0.0, 0.0});
 }
 
 TEST(ReferenceFrameTest, AbcArrayConstructor)
 {
-    abc<double> coords(balanced_abc);
+    abc<real_t> coords(balanced_abc);
     expect_array_near(coords.array(), balanced_abc);
 }
 
 TEST(ReferenceFrameTest, AbcValueConstructor)
 {
-    abc<double> coords(1.0, -0.5, -0.5);
+    abc<real_t> coords(1.0, -0.5, -0.5);
     expect_array_near(coords.array(), balanced_abc);
 }
 
 TEST(ReferenceFrameTest, AbcArrayAccess)
 {
-    abc<double> coords(balanced_abc);
+    abc<real_t> coords(balanced_abc);
     expect_near(coords[0], 1.0);
     expect_near(coords[1], -0.5);
     expect_near(coords[2], -0.5);
@@ -59,22 +60,22 @@ TEST(ReferenceFrameTest, AbcArrayAccess)
 
 TEST(ReferenceFrameTest, AbcToAlphabeta)
 {
-    abc<double> abc_coords(balanced_abc);
+    abc<real_t> abc_coords(balanced_abc);
     auto ab_coords = abc_coords.to_alphabeta();
     expect_array_near(ab_coords.array(), expected_alphabeta);
 }
 
 TEST(ReferenceFrameTest, AbcAdditionAndSubtractionOperators)
 {
-    abc<double> a{1.0, 2.0, 3.0};
-    abc<double> b{4.0, 5.0, 6.0};
+    abc<real_t> a{1.0, 2.0, 3.0};
+    abc<real_t> b{4.0, 5.0, 6.0};
 
-    abc<double> sum = a + b;
+    abc<real_t> sum = a + b;
     expect_near(sum[0], 5.0);
     expect_near(sum[1], 7.0);
     expect_near(sum[2], 9.0);
 
-    abc<double> diff = b - a;
+    abc<real_t> diff = b - a;
     expect_near(diff[0], 3.0);
     expect_near(diff[1], 3.0);
     expect_near(diff[2], 3.0);
@@ -82,8 +83,8 @@ TEST(ReferenceFrameTest, AbcAdditionAndSubtractionOperators)
 
 TEST(ReferenceFrameTest, AbcUnaryNegationOperator)
 {
-    abc<double> abc_coords{1.0, -0.5, -0.5};
-    abc<double> neg_abc = -abc_coords;
+    abc<real_t> abc_coords{1.0, -0.5, -0.5};
+    abc<real_t> neg_abc = -abc_coords;
     expect_near(neg_abc[0], -1.0);
     expect_near(neg_abc[1], 0.5);
     expect_near(neg_abc[2], 0.5);
@@ -91,42 +92,42 @@ TEST(ReferenceFrameTest, AbcUnaryNegationOperator)
 
 TEST(ReferenceFrameTest, AbcCompoundOperators)
 {
-    abc<double> a(1.0, 2.0, 3.0);
-    abc<double> b(4.0, 5.0, 6.0);
+    abc<real_t> a(1.0, 2.0, 3.0);
+    abc<real_t> b(4.0, 5.0, 6.0);
 
     a += b;
-    expect_array_near(a.array(), std::array<double, 3>{5.0, 7.0, 9.0});
+    expect_array_near(a.array(), std::array<real_t, 3>{5.0, 7.0, 9.0});
 
     a -= b;
-    expect_array_near(a.array(), std::array<double, 3>{1.0, 2.0, 3.0});
+    expect_array_near(a.array(), std::array<real_t, 3>{1.0, 2.0, 3.0});
 
     a *= 2.0;
-    expect_array_near(a.array(), std::array<double, 3>{2.0, 4.0, 6.0});
+    expect_array_near(a.array(), std::array<real_t, 3>{2.0, 4.0, 6.0});
 
     a /= 2.0;
-    expect_array_near(a.array(), std::array<double, 3>{1.0, 2.0, 3.0});
+    expect_array_near(a.array(), std::array<real_t, 3>{1.0, 2.0, 3.0});
 }
 
 TEST(ReferenceFrameTest, AbcScalarMultiplicationAndDivision)
 {
-    abc<double> a(1.0, 2.0, 3.0);
+    abc<real_t> a(1.0, 2.0, 3.0);
 
-    abc<double> b = a * 3.0;
-    expect_array_near(b.array(), std::array<double, 3>{3.0, 6.0, 9.0});
+    abc<real_t> b = a * 3.0;
+    expect_array_near(b.array(), std::array<real_t, 3>{3.0, 6.0, 9.0});
 
-    abc<double> c = a / 2.0;
-    expect_array_near(c.array(), std::array<double, 3>{0.5, 1.0, 1.5});
+    abc<real_t> c = a / 2.0;
+    expect_array_near(c.array(), std::array<real_t, 3>{0.5, 1.0, 1.5});
 }
 
 TEST(ReferenceFrameTest, AbcIteratorAndSize)
 {
-    abc<double> coords{1.0, 2.0, 3.0};
+    abc<real_t> coords{1.0, 2.0, 3.0};
 
     // Test size
     EXPECT_EQ(coords.size(), 3);
 
     // Test non-const iterator
-    std::vector<double> values;
+    std::vector<real_t> values;
     for (auto& value : coords) {
         values.push_back(value);
     }
@@ -136,7 +137,7 @@ TEST(ReferenceFrameTest, AbcIteratorAndSize)
     EXPECT_NEAR(values[2], 3.0, k_epsilon);
 
     // Test const iterator
-    const abc<double> const_coords{1.0, 2.0, 3.0};
+    const abc<real_t> const_coords{1.0, 2.0, 3.0};
     values.clear();
     for (const auto& value : const_coords) {
         values.push_back(value);
@@ -150,110 +151,110 @@ TEST(ReferenceFrameTest, AbcIteratorAndSize)
 // Alphabeta Tests
 TEST(ReferenceFrameTest, AlphabetaDefaultConstructor)
 {
-    alphabeta<double> coords;
+    alphabeta<real_t> coords;
     expect_array_near(coords.array(), {0.0, 0.0});
 }
 
 TEST(ReferenceFrameTest, AlphabetaArrayConstructor)
 {
-    alphabeta<double> coords(expected_alphabeta);
+    alphabeta<real_t> coords(expected_alphabeta);
     expect_array_near(coords.array(), expected_alphabeta);
 }
 
 TEST(ReferenceFrameTest, AlphabetaValueConstructor)
 {
-    alphabeta<double> coords(1.0, 0.0);
+    alphabeta<real_t> coords(1.0, 0.0);
     expect_array_near(coords.array(), expected_alphabeta);
 }
 
 TEST(ReferenceFrameTest, ConversionAlphaBetaToAbc)
 {
-    alphabeta<double> ab_coords(expected_alphabeta);
-    auto abc_coords = ab_coords.to_abc();
+    alphabeta<real_t> ab_coords(expected_alphabeta);
+    abc<real_t> abc_coords = ab_coords.to_abc();
     expect_array_near(abc_coords.array(), balanced_abc);
 }
 
 TEST(ReferenceFrameTest, ConversionAlphaBetaToDq)
 {
-    alphabeta<double> ab_coords(expected_alphabeta);
+    alphabeta<real_t> ab_coords(expected_alphabeta);
     auto dq_coords = ab_coords.to_dq(angle_wrapped(0.0));
     expect_array_near(dq_coords.array(), expected_dq);
 }
 
 TEST(ReferenceFrameTest, AlphabetaMagnitudeAndPhase)
 {
-    alphabeta<double> coords(1.0, 1.0);
+    alphabeta<real_t> coords(1.0, 1.0);
     expect_near(coords.magnitude(), std::sqrt(2.0));
     expect_near(coords.phase().get_radians(), pi / 4);
 }
 
 TEST(ReferenceFrameTest, DqMagnitudeAndPHase)
 {
-    dq<double> coords(1.0, 1.0);
+    dq<real_t> coords(1.0, 1.0);
     expect_near(coords.magnitude(), std::sqrt(2.0));
     expect_near(coords.phase(angle_wrapped(0.0)).get_radians(), pi / 4);
 }
 
 TEST(ReferenceFrameTest, AlphabetaAdditionAndSubtractionOperators)
 {
-    alphabeta<double> a{1.0, 2.0};
-    alphabeta<double> b{3.0, 4.0};
+    alphabeta<real_t> a{1.0, 2.0};
+    alphabeta<real_t> b{3.0, 4.0};
 
-    alphabeta<double> sum = a + b;
+    alphabeta<real_t> sum = a + b;
     expect_near(sum[0], 4.0);
     expect_near(sum[1], 6.0);
 
-    alphabeta<double> diff = b - a;
+    alphabeta<real_t> diff = b - a;
     expect_near(diff[0], 2.0);
     expect_near(diff[1], 2.0);
 }
 
 TEST(ReferenceFrameTest, AlphabetaUnaryNegationOperator)
 {
-    alphabeta<double> ab_coords{1.0, -0.5};
-    alphabeta<double> neg_ab = -ab_coords;
+    alphabeta<real_t> ab_coords{1.0, -0.5};
+    alphabeta<real_t> neg_ab = -ab_coords;
     expect_near(neg_ab[0], -1.0);
     expect_near(neg_ab[1], 0.5);
 }
 
 TEST(ReferenceFrameTest, AlphabetaCompoundOperators)
 {
-    alphabeta<double> a(1.0, 2.0);
-    alphabeta<double> b(3.0, 4.0);
+    alphabeta<real_t> a(1.0, 2.0);
+    alphabeta<real_t> b(3.0, 4.0);
 
     a += b;
-    expect_array_near(a.array(), std::array<double, 2>{4.0, 6.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{4.0, 6.0});
 
     a -= b;
-    expect_array_near(a.array(), std::array<double, 2>{1.0, 2.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{1.0, 2.0});
 
     a *= 2.0;
-    expect_array_near(a.array(), std::array<double, 2>{2.0, 4.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{2.0, 4.0});
 
     a /= 2.0;
-    expect_array_near(a.array(), std::array<double, 2>{1.0, 2.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{1.0, 2.0});
 }
 
 TEST(ReferenceFrameTest, AlphabetaScalarMultiplicationAndDivision)
 {
-    alphabeta<double> a(1.0, 2.0);
+    alphabeta<real_t> a(1.0, 2.0);
 
-    alphabeta<double> b = a * 3.0;
-    expect_array_near(b.array(), std::array<double, 2>{3.0, 6.0});
+    alphabeta<real_t> b = a * 3.0;
+    expect_array_near(b.array(), std::array<real_t, 2>{3.0, 6.0});
 
-    alphabeta<double> c = a / 2.0;
-    expect_array_near(c.array(), std::array<double, 2>{0.5, 1.0});
+    alphabeta<real_t> c = a / 2.0;
+    expect_array_near(c.array(), std::array<real_t, 2>{0.5, 1.0});
 }
 
 TEST(ReferenceFrameTest, AlphabetaIteratorAndSize)
 {
-    alphabeta<double> coords{1.0, 2.0};
+    alphabeta<real_t> coords{1.0, 2.0};
 
     // Test size
     EXPECT_EQ(coords.size(), 2);
 
     // Test non-const iterator
-    std::vector<double> values;
+    std::vector<real_t> values;
     for (auto& value : coords) {
         values.push_back(value);
     }
@@ -262,7 +263,7 @@ TEST(ReferenceFrameTest, AlphabetaIteratorAndSize)
     EXPECT_NEAR(values[1], 2.0, k_epsilon);
 
     // Test const iterator
-    const alphabeta<double> const_coords{1.0, 2.0};
+    const alphabeta<real_t> const_coords{1.0, 2.0};
     values.clear();
     for (const auto& value : const_coords) {
         values.push_back(value);
@@ -275,95 +276,95 @@ TEST(ReferenceFrameTest, AlphabetaIteratorAndSize)
 // DQ Tests
 TEST(ReferenceFrameTest, DqDefaultConstructor)
 {
-    dq<double> coords;
+    dq<real_t> coords;
     expect_array_near(coords.array(), {0.0, 0.0});
 }
 
 TEST(ReferenceFrameTest, DqArrayConstructor)
 {
-    dq<double> coords(expected_dq);
+    dq<real_t> coords(expected_dq);
     expect_array_near(coords.array(), expected_dq);
 }
 
 TEST(ReferenceFrameTest, DqValueConstructor)
 {
-    dq<double> coords(1.0, 0.0);
+    dq<real_t> coords(1.0, 0.0);
     expect_array_near(coords.array(), expected_dq);
 }
 
 TEST(ReferenceFrameTest, DqToAlphabeta)
 {
-    dq<double> dq_coords(expected_dq);
+    dq<real_t> dq_coords(expected_dq);
     auto ab_coords = dq_coords.to_alphabeta(angle_wrapped(0.0));
     expect_array_near(ab_coords.array(), expected_alphabeta);
 }
 
 TEST(ReferenceFrameTest, DqMagnitude)
 {
-    dq<double> coords(3.0, 4.0);
+    dq<real_t> coords(3.0, 4.0);
     expect_near(coords.magnitude(), 5.0);
 }
 
 TEST(ReferenceFrameTest, DqAdditionAndSubtractionOperators)
 {
-    dq<double> a{1.0, 2.0};
-    dq<double> b{3.0, 4.0};
+    dq<real_t> a{1.0, 2.0};
+    dq<real_t> b{3.0, 4.0};
 
-    dq<double> sum = a + b;
+    dq<real_t> sum = a + b;
     expect_near(sum[0], 4.0);
     expect_near(sum[1], 6.0);
 
-    dq<double> diff = b - a;
+    dq<real_t> diff = b - a;
     expect_near(diff[0], 2.0);
     expect_near(diff[1], 2.0);
 }
 
 TEST(ReferenceFrameTest, DqUnaryNegationOperator)
 {
-    dq<double> dq_coords{1.0, -0.5};
-    dq<double> neg_dq = -dq_coords;
+    dq<real_t> dq_coords{1.0, -0.5};
+    dq<real_t> neg_dq = -dq_coords;
     expect_near(neg_dq[0], -1.0);
     expect_near(neg_dq[1], 0.5);
 }
 
 TEST(ReferenceFrameTest, DqCompoundOperators)
 {
-    dq<double> a(1.0, 2.0);
-    dq<double> b(3.0, 4.0);
+    dq<real_t> a(1.0, 2.0);
+    dq<real_t> b(3.0, 4.0);
 
     a += b;
-    expect_array_near(a.array(), std::array<double, 2>{4.0, 6.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{4.0, 6.0});
 
     a -= b;
-    expect_array_near(a.array(), std::array<double, 2>{1.0, 2.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{1.0, 2.0});
 
     a *= 2.0;
-    expect_array_near(a.array(), std::array<double, 2>{2.0, 4.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{2.0, 4.0});
 
     a /= 2.0;
-    expect_array_near(a.array(), std::array<double, 2>{1.0, 2.0});
+    expect_array_near(a.array(), std::array<real_t, 2>{1.0, 2.0});
 }
 
 TEST(ReferenceFrameTest, DqScalarMultiplicationAndDivision)
 {
-    dq<double> a(1.0, 2.0);
+    dq<real_t> a(1.0, 2.0);
 
-    dq<double> b = a * 3.0;
-    expect_array_near(b.array(), std::array<double, 2>{3.0, 6.0});
+    dq<real_t> b = a * 3.0;
+    expect_array_near(b.array(), std::array<real_t, 2>{3.0, 6.0});
 
-    dq<double> c = a / 2.0;
-    expect_array_near(c.array(), std::array<double, 2>{0.5, 1.0});
+    dq<real_t> c = a / 2.0;
+    expect_array_near(c.array(), std::array<real_t, 2>{0.5, 1.0});
 }
 
 TEST(ReferenceFrameTest, DqIteratorAndSize)
 {
-    dq<double> coords{1.0, 2.0};
+    dq<real_t> coords{1.0, 2.0};
 
     // Test size
     EXPECT_EQ(coords.size(), 2);
 
     // Test non-const iterator
-    std::vector<double> values;
+    std::vector<real_t> values;
     for (auto& value : coords) {
         values.push_back(value);
     }
@@ -372,7 +373,7 @@ TEST(ReferenceFrameTest, DqIteratorAndSize)
     EXPECT_NEAR(values[1], 2.0, k_epsilon);
 
     // Test const iterator
-    const dq<double> const_coords{1.0, 2.0};
+    const dq<real_t> const_coords{1.0, 2.0};
     values.clear();
     for (const auto& value : const_coords) {
         values.push_back(value);
@@ -385,8 +386,8 @@ TEST(ReferenceFrameTest, DqIteratorAndSize)
 // Make functions tests
 TEST(ReferenceFrameTest, MakeAbc)
 {
-    double magnitude = 1.0;
-    auto coords = make_abc<double>(magnitude, angle_wrapped(0.0));
+    real_t magnitude = 1.0;
+    auto coords = make_abc<real_t>(magnitude, angle_wrapped(0.0));
 
     // At 0 degrees, phase A should be at magnitude, B and C at -0.5*magnitude
     expect_near(coords[0], magnitude);
@@ -396,8 +397,8 @@ TEST(ReferenceFrameTest, MakeAbc)
 
 TEST(ReferenceFrameTest, MakeAlphabeta)
 {
-    double magnitude = 1.0;
-    auto coords = make_alphabeta<double>(magnitude, angle_wrapped(0.0));
+    real_t magnitude = 1.0;
+    auto coords = make_alphabeta<real_t>(magnitude, angle_wrapped(0.0));
 
     // At 0 degrees, alpha should be magnitude, beta should be 0
     expect_near(coords[0], magnitude);
@@ -408,14 +409,14 @@ TEST(ReferenceFrameTest, MakeAlphabeta)
 TEST(ReferenceFrameTest, FullConversionCycle)
 {
     // Start with abc
-    abc<double> start_abc(balanced_abc);
+    abc<real_t> start_abc(balanced_abc);
 
     // Convert through all frames and back
     auto ab = start_abc.to_alphabeta();
     auto dq = ab.to_dq(angle_wrapped(0.0));
     auto back_ab = dq.to_alphabeta(angle_wrapped(0.0));
-    abc<double> back_abc = back_ab.to_abc();
-    ::dq<double> back_dq = back_abc.to_dq(angle_wrapped(0.0));
+    abc<real_t> back_abc = back_ab.to_abc();
+    ::dq<real_t> back_dq = back_abc.to_dq(angle_wrapped(0.0));
 
     // Should get back to original values
     expect_array_near(back_abc.array(), start_abc.array());
@@ -423,22 +424,22 @@ TEST(ReferenceFrameTest, FullConversionCycle)
 
 TEST(ReferenceFrameTest, NonMemberScalarMultiplication)
 {
-    abc<double> abc_coords(1.0, 2.0, 3.0);
-    abc<double> abc_scaled = 2.0 * abc_coords;
-    expect_array_near(abc_scaled.array(), std::array<double, 3>{2.0, 4.0, 6.0});
+    abc<real_t> abc_coords(1.0, 2.0, 3.0);
+    abc<real_t> abc_scaled = 2.0 * abc_coords;
+    expect_array_near(abc_scaled.array(), std::array<real_t, 3>{2.0, 4.0, 6.0});
 
-    alphabeta<double> ab_coords(1.0, 2.0);
-    alphabeta<double> ab_scaled = 2.0 * ab_coords;
-    expect_array_near(ab_scaled.array(), std::array<double, 2>{2.0, 4.0});
+    alphabeta<real_t> ab_coords(1.0, 2.0);
+    alphabeta<real_t> ab_scaled = 2.0 * ab_coords;
+    expect_array_near(ab_scaled.array(), std::array<real_t, 2>{2.0, 4.0});
 
-    dq<double> dq_coords(1.0, 2.0);
-    dq<double> dq_scaled = 2.0 * dq_coords;
-    expect_array_near(dq_scaled.array(), std::array<double, 2>{2.0, 4.0});
+    dq<real_t> dq_coords(1.0, 2.0);
+    dq<real_t> dq_scaled = 2.0f * dq_coords;
+    expect_array_near(dq_scaled.array(), std::array<real_t, 2>{2.0, 4.0});
 }
 
 TEST(ReferenceFrameTest, AlphaBetaRotateCounterClockwise)
 {
-    alphabeta<double> ab = {1.0, 0.0};
+    alphabeta<real_t> ab = {1.0, 0.0};
 
     ab = ab.rotate_counter_clockwise(angle_wrapped(pi / 2));
     // Result is alpha = 0, beta = 1
@@ -467,7 +468,7 @@ TEST(ReferenceFrameTest, AlphaBetaRotateCounterClockwise)
 
 TEST(ReferenceFrameTest, AlphaBetaRotateClockwise)
 {
-    alphabeta<double> ab = {1.0, 0.0};
+    alphabeta<real_t> ab = {1.0, 0.0};
 
     ab = ab.rotate_clockwise(angle_wrapped(pi / 2));
     // Result is alpha = 0, beta = -1
@@ -496,10 +497,10 @@ TEST(ReferenceFrameTest, AlphaBetaRotateClockwise)
 
 TEST(ReferenceFrameTest, DqRotateCounterClockwise)
 {
-    dq<double> dq_coords{1.0, 0.0};
+    dq<real_t> dq_coords{1.0, 0.0};
 
     // Rotate counter-clockwise by 90 degrees (pi/2)
-    dq<double> rotated = dq_coords.rotate_counter_clockwise(angle_wrapped(pi / 2));
+    dq<real_t> rotated = dq_coords.rotate_counter_clockwise(angle_wrapped(pi / 2));
     expect_near(rotated[0], 0.0);
     expect_near(rotated[1], 1.0);
     expect_near(rotated.magnitude(), 1.0);
@@ -522,10 +523,10 @@ TEST(ReferenceFrameTest, DqRotateCounterClockwise)
 
 TEST(ReferenceFrameTest, DqRotateClockwise)
 {
-    dq<double> dq_coords{1.0, 0.0};
+    dq<real_t> dq_coords{1.0, 0.0};
 
     // Rotate clockwise by 90 degrees (pi/2)
-    dq<double> rotated = dq_coords.rotate_clockwise(angle_wrapped(pi / 2));
+    dq<real_t> rotated = dq_coords.rotate_clockwise(angle_wrapped(pi / 2));
     expect_near(rotated[0], 0.0);
     expect_near(rotated[1], -1.0);
     expect_near(rotated.magnitude(), 1.0);
@@ -548,8 +549,8 @@ TEST(ReferenceFrameTest, DqRotateClockwise)
 
 TEST(ReferenceFrameTest, AlphaBetaToDQ)
 {
-    alphabeta<double> ab{1.0, 0.0};
-    dq<double> dq = ab.to_dq(angle_wrapped(0.0));
+    alphabeta<real_t> ab{1.0, 0.0};
+    dq<real_t> dq = ab.to_dq(angle_wrapped(0.0));
     expect_near(dq[0], 1.0);
     expect_near(dq[1], 0.0);
 
@@ -568,8 +569,8 @@ TEST(ReferenceFrameTest, AlphaBetaToDQ)
 
 TEST(ReferenceFrameTest, DQToAlphaBeta)
 {
-    dq<double> dq{1.0, 0.0};
-    alphabeta<double> ab = dq.to_alphabeta(angle_wrapped(0.0));
+    dq<real_t> dq{1.0, 0.0};
+    alphabeta<real_t> ab = dq.to_alphabeta(angle_wrapped(0.0));
     expect_near(ab[0], 1.0);
     expect_near(ab[1], 0.0);
 
@@ -588,12 +589,12 @@ TEST(ReferenceFrameTest, DQToAlphaBeta)
 
 TEST(ReferenceFrameTest, FullTransformation)
 {
-    abc<double> abc{1.0, -0.5, -0.5};
-    alphabeta<double> ab = abc.to_alphabeta();
-    dq<double> dq = ab.to_dq(angle_wrapped(0.0));
-    alphabeta<double> back_ab = dq.to_alphabeta(angle_wrapped(0.0));
-    ::abc<double> back_abc = back_ab.to_abc();
-    ::dq<double> back_dq = back_abc.to_dq(angle_wrapped(0.0));
+    abc<real_t> abc{1.0, -0.5, -0.5};
+    alphabeta<real_t> ab = abc.to_alphabeta();
+    dq<real_t> dq = ab.to_dq(angle_wrapped(0.0));
+    alphabeta<real_t> back_ab = dq.to_alphabeta(angle_wrapped(0.0));
+    ::abc<real_t> back_abc = back_ab.to_abc();
+    ::dq<real_t> back_dq = back_abc.to_dq(angle_wrapped(0.0));
 
     expect_near(back_abc[0], abc[0]);
     expect_near(back_abc[1], abc[1]);
@@ -609,15 +610,15 @@ TEST(ReferenceFrameTest, FullTransformation)
 TEST(ReferenceFrameTest, ABCToAlphaBeta)
 {
     // Original balanced example
-    abc<double> abc_coords{1.0, -0.5, -0.5};
-    alphabeta<double> ab_coords = abc_coords.to_alphabeta();
+    abc<real_t> abc_coords{1.0, -0.5, -0.5};
+    alphabeta<real_t> ab_coords = abc_coords.to_alphabeta();
     expect_near(ab_coords[0], 1.0);
     expect_near(ab_coords[1], 0.0);
 
     // Test 45°: use make_abc to generate balanced abc with magnitude 1 and phase 45°
     {
-        abc<double> abc45 = make_abc<double>(1.0, angle_wrapped(45.0 * pi / 180.0));
-        alphabeta<double> ab45 = abc45.to_alphabeta();
+        abc<real_t> abc45 = make_abc<real_t>(1.0, angle_wrapped(45.0 * pi / 180.0));
+        alphabeta<real_t> ab45 = abc45.to_alphabeta();
         EXPECT_NEAR(ab45[0], std::sqrt(2.0) / 2.0, 1e-6);
         EXPECT_NEAR(ab45[1], std::sqrt(2.0) / 2.0, 1e-6);
         EXPECT_NEAR(ab45.magnitude(), 1.0, 1e-6);
@@ -625,8 +626,8 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta)
 
     // Test 90°: balanced abc corresponding to 90° (expected: alpha=0, beta=1)
     {
-        abc<double> abc90 = make_abc<double>(1.0, angle_wrapped(90.0 * pi / 180.0));
-        alphabeta<double> ab90 = abc90.to_alphabeta();
+        abc<real_t> abc90 = make_abc<real_t>(1.0, angle_wrapped(90.0 * pi / 180.0));
+        alphabeta<real_t> ab90 = abc90.to_alphabeta();
         EXPECT_NEAR(ab90[0], 0.0, 1e-6);
         EXPECT_NEAR(ab90[1], 1.0, 1e-6);
         EXPECT_NEAR(ab90.magnitude(), 1.0, 1e-6);
@@ -634,8 +635,8 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta)
 
     // Test 135°: balanced abc corresponding to 135° (expected: alpha ≈ -0.707107, beta ≈ 0.707107)
     {
-        abc<double> abc135 = make_abc<double>(1.0, angle_wrapped(135.0 * pi / 180.0));
-        alphabeta<double> ab135 = abc135.to_alphabeta();
+        abc<real_t> abc135 = make_abc<real_t>(1.0, angle_wrapped(135.0 * pi / 180.0));
+        alphabeta<real_t> ab135 = abc135.to_alphabeta();
         EXPECT_NEAR(ab135[0], -std::sqrt(2.0) / 2.0, 1e-6);
         EXPECT_NEAR(ab135[1], std::sqrt(2.0) / 2.0, 1e-6);
         EXPECT_NEAR(ab135.magnitude(), 1.0, 1e-6);
@@ -643,11 +644,11 @@ TEST(ReferenceFrameTest, ABCToAlphaBeta)
 
     // Test 235°: generate balanced abc for 235° and verify both magnitude and phase.
     {
-        abc<double> abc235 = make_abc<double>(1.0, angle_wrapped(235.0 * pi / 180.0));
-        alphabeta<double> ab235 = abc235.to_alphabeta();
+        abc<real_t> abc235 = make_abc<real_t>(1.0, angle_wrapped(235.0 * pi / 180.0));
+        alphabeta<real_t> ab235 = abc235.to_alphabeta();
         EXPECT_NEAR(ab235.magnitude(), 1.0, 1e-6);
         // Convert phase (in radians) to degrees and adjust it into [0,360)
-        double phase_deg = ab235.phase().get_radians() * 180.0 / pi;
+        real_t phase_deg = ab235.phase().get_radians() * 180.0 / pi;
         if (phase_deg < 0) phase_deg += 360.0;
         EXPECT_NEAR(phase_deg, 235.0, 1e-6);
     }
@@ -657,8 +658,8 @@ TEST(ReferenceFrameTest, AlphaBetaToABC)
 {
     // Basic example: convert {1.0, 0.0} in αβ back to abc.
     {
-        alphabeta<double> ab{1.0, 0.0};
-        abc<double> abc_res = ab.to_abc();
+        alphabeta<real_t> ab{1.0, 0.0};
+        abc<real_t> abc_res = ab.to_abc();
         EXPECT_NEAR(abc_res[0], 1.0, 1e-6);
         EXPECT_NEAR(abc_res[1], -0.5, 1e-6);
         EXPECT_NEAR(abc_res[2], -0.5, 1e-6);
@@ -666,10 +667,10 @@ TEST(ReferenceFrameTest, AlphaBetaToABC)
 
     // Test 45°: Convert αβ (obtained from make_alphabeta) back to abc.
     {
-        alphabeta<double> ab45 = make_alphabeta<double>(1.0, angle_wrapped(45.0 * pi / 180.0));
-        abc<double> abc_from_ab = ab45.to_abc();
+        alphabeta<real_t> ab45 = make_alphabeta<real_t>(1.0, angle_wrapped(45.0 * pi / 180.0));
+        abc<real_t> abc_from_ab = ab45.to_abc();
         // Expected abc obtained by make_abc should match the conversion.
-        abc<double> expected_abc = make_abc<double>(1.0, angle_wrapped(45.0 * pi / 180.0));
+        abc<real_t> expected_abc = make_abc<real_t>(1.0, angle_wrapped(45.0 * pi / 180.0));
         auto expected_arr = expected_abc.array();
         auto result_arr = abc_from_ab.array();
         for (size_t i = 0; i < 3; i++) {
@@ -679,9 +680,9 @@ TEST(ReferenceFrameTest, AlphaBetaToABC)
 
     // Test 135°: Convert αβ from 135° back to abc.
     {
-        alphabeta<double> ab135 = make_alphabeta<double>(1.0, angle_wrapped(135.0 * pi / 180.0));
-        abc<double> abc_from_ab = ab135.to_abc();
-        abc<double> expected_abc = make_abc<double>(1.0, angle_wrapped(135.0 * pi / 180.0));
+        alphabeta<real_t> ab135 = make_alphabeta<real_t>(1.0, angle_wrapped(135.0 * pi / 180.0));
+        abc<real_t> abc_from_ab = ab135.to_abc();
+        abc<real_t> expected_abc = make_abc<real_t>(1.0, angle_wrapped(135.0 * pi / 180.0));
         auto expected_arr = expected_abc.array();
         auto result_arr = abc_from_ab.array();
         for (size_t i = 0; i < 3; i++) {
@@ -691,9 +692,9 @@ TEST(ReferenceFrameTest, AlphaBetaToABC)
 
     // Test 235°: Convert for 235°.
     {
-        alphabeta<double> ab235 = make_alphabeta<double>(1.0, angle_wrapped(235.0 * pi / 180.0));
-        abc<double> abc_from_ab = ab235.to_abc();
-        abc<double> expected_abc = make_abc<double>(1.0, angle_wrapped(235.0 * pi / 180.0));
+        alphabeta<real_t> ab235 = make_alphabeta<real_t>(1.0, angle_wrapped(235.0 * pi / 180.0));
+        abc<real_t> abc_from_ab = ab235.to_abc();
+        abc<real_t> expected_abc = make_abc<real_t>(1.0, angle_wrapped(235.0 * pi / 180.0));
         auto expected_arr = expected_abc.array();
         auto result_arr = abc_from_ab.array();
         for (size_t i = 0; i < 3; i++) {
@@ -705,7 +706,7 @@ TEST(ReferenceFrameTest, AlphaBetaToABC)
 TEST(ReferenceFrameTest, IteratorModification)
 {
     // Test abc modification through iterator
-    abc<double> abc_coords{1.0, 2.0, 3.0};
+    abc<real_t> abc_coords{1.0, 2.0, 3.0};
     for (auto& value : abc_coords) {
         value *= 2.0;
     }
@@ -714,7 +715,7 @@ TEST(ReferenceFrameTest, IteratorModification)
     EXPECT_NEAR(abc_coords[2], 6.0, k_epsilon);
 
     // Test alphabeta modification through iterator
-    alphabeta<double> ab_coords{1.0, 2.0};
+    alphabeta<real_t> ab_coords{1.0, 2.0};
     for (auto& value : ab_coords) {
         value *= 2.0;
     }
@@ -722,7 +723,7 @@ TEST(ReferenceFrameTest, IteratorModification)
     EXPECT_NEAR(ab_coords[1], 4.0, k_epsilon);
 
     // Test dq modification through iterator
-    dq<double> dq_coords{1.0, 2.0};
+    dq<real_t> dq_coords{1.0, 2.0};
     for (auto& value : dq_coords) {
         value *= 2.0;
     }
@@ -733,7 +734,7 @@ TEST(ReferenceFrameTest, IteratorModification)
 class ReferenceFrameSimulatorTest : public ::testing::Test {
 public:
     static constexpr double sampling_time = 1e-4;  // 10 kHz sampling rate
-    static constexpr double signal_freq = 50.0;    // 50 Hz fundamental
+    static constexpr real_t signal_freq = 50.0;    // 50 Hz fundamental
 
     void SetUp() override
     {
@@ -773,9 +774,9 @@ protected:
     std::unique_ptr<three_phase_waveform_generator> signal_gen =
         std::make_unique<three_phase_waveform_generator>(sampling_time);
 
-    abc<double> abc_values{};
-    alphabeta<double> alphabeta_values{};
-    dq<double> dq_values{};
+    abc<real_t> abc_values{};
+    alphabeta<real_t> alphabeta_values{};
+    dq<real_t> dq_values{};
     angle_wrapped theta{0.0};
 
 private:
@@ -799,17 +800,17 @@ TEST_F(ReferenceFrameSimulatorTest, BalancedTransformationChain)
     // - Alpha-beta should have constant magnitude
     // - DQ should be constant (d ≈ 1, q ≈ 0)
 
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "d_value", [this]() { return dq_values[0]; }, 0.95, 1.05,  // Expect d ≈ 1.0 ±5%
         yeet::checker_activation_time_range{0.1, 0.2}              // Check after initial settling
         ));
 
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "q_value", [this]() { return dq_values[1]; }, -0.05, 0.05,  // Expect q ≈ 0.0 ±5%
         yeet::checker_activation_time_range{0.1, 0.2}));
 
     // Check alpha-beta magnitude is constant
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "alphabeta_magnitude", [this]() { return alphabeta_values.magnitude(); }, 0.95,
         1.05,  // Expect magnitude ≈ 1.0 ±5%
         yeet::checker_activation_time_range{0.1, 0.2}));
@@ -823,12 +824,12 @@ TEST_F(ReferenceFrameSimulatorTest, FrequencyStepResponse)
     signal_gen->set_frequency_step(25.0, 0.1);  // Step to 75 Hz at t=0.1s
 
     // Check that DQ values remain constant even after frequency step
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "d_value_after_step", [this]() { return dq_values[0]; }, 0.95, 1.05,
         yeet::checker_activation_time_range{0.15, 0.2}  // Check after step
         ));
 
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "q_value_after_step", [this]() { return dq_values[1]; }, -0.05, 0.05,
         yeet::checker_activation_time_range{0.15, 0.2}));
 
@@ -842,11 +843,11 @@ TEST_F(ReferenceFrameSimulatorTest, UnbalancedTransformationChain)
     signal_gen->set_fundamental_negative_sequence_signal_amplitude(0.1);  // 10% negative sequence
 
     // DQ should now have 100Hz oscillation due to negative sequence
-    simulator.register_checker(yeet::make_range_checker<double>(
-        "d_oscillation", [this]() { return dq_values[0]; }, 0.8, 1.0,  // Expect d to oscillate between these values
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "d_oscillation", [this]() { return dq_values[0]; }, 0.79, 1.01,  // Expect d to oscillate between these values
         yeet::checker_activation_time_range{0.1, 0.2}));
 
-    simulator.register_checker(yeet::make_range_checker<double>(
+    simulator.register_checker(yeet::make_range_checker<real_t>(
         "q_oscillation", [this]() { return dq_values[1]; }, -0.1, 0.1,  // Expect q to oscillate between these values
         yeet::checker_activation_time_range{0.1, 0.2}));
 

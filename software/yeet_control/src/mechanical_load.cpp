@@ -4,19 +4,21 @@
 
 namespace yeet::control {
 
-mechanical_load::mechanical_load(real_t sampling_time) : _speed_integrator(sampling_time) {
+mechanical_load::mechanical_load(double sampling_time) : _speed_integrator(sampling_time)
+{
     assert(sampling_time > 0.0f && "Sampling time must be positive.");
 }
 
-void mechanical_load::configure(inertia_constant_t inertia_constant_seconds,
-                                damping_coefficient_pu_t damping_factor_pu) {
+void mechanical_load::configure(inertia_constant_t inertia_constant_seconds, damping_coefficient_pu_t damping_factor_pu)
+{
     assert(inertia_constant_seconds.value() > 0.0f && "Inertia constant H must be positive.");
     assert(damping_factor_pu.value() >= 0.0f && "Damping factor D must be non-negative.");
     _inertia_constant_seconds = inertia_constant_seconds;
     _damping_factor_pu = damping_factor_pu;
 }
 
-speed_pu_t mechanical_load::update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque_pu) {
+speed_pu_t mechanical_load::update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque_pu)
+{
     const real_t current_speed_pu = _speed_integrator.get_output();
 
     // Calculate damping torque: T_d_pu = D * omega_pu

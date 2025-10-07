@@ -159,25 +159,29 @@ voltage_t sfc_plant_model_6p_6p::get_rms_machine_voltage() const noexcept
 abc<voltage_t> sfc_plant_model_6p_6p::get_grid_side_voltages_abc() const noexcept
 {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si;
-    return to_dimension_abc<voltage_t>(abc<real_t>{voltages});
+    return to_dimension_abc<voltage_t>(abc<real_t>{
+        static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])});
 }
 
 abc<current_t> sfc_plant_model_6p_6p::get_grid_side_currents_abc() const noexcept
 {
     const auto& currents = _model->sfc_6p_6p_topology_Y.grid_side_converter_current_si;
-    return to_dimension_abc<current_t>(abc<real_t>{currents});
+    return to_dimension_abc<current_t>(abc<real_t>{
+        static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])});
 }
 
 abc<voltage_t> sfc_plant_model_6p_6p::get_machine_side_voltages_abc() const noexcept
 {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si;
-    return to_dimension_abc<voltage_t>(abc<real_t>{voltages});
+    return to_dimension_abc<voltage_t>(abc<real_t>{
+        static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])});
 }
 
 abc<current_t> sfc_plant_model_6p_6p::get_machine_side_currents_abc() const noexcept
 {
     const auto& currents = _model->sfc_6p_6p_topology_Y.machine_side_converter_current_si;
-    return to_dimension_abc<current_t>(abc<real_t>{currents});
+    return to_dimension_abc<current_t>(abc<real_t>{
+        static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])});
 }
 
 angle_wrapped sfc_plant_model_6p_6p::get_grid_voltage_source_angle() const noexcept
