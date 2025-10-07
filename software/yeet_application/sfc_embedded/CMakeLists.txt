@@ -54,6 +54,9 @@ if(YEET_SFC_EMBEDDED_SIDE STREQUAL "GRID" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
         target_compile_options(
             yeet_sfc_embedded_grid
             PRIVATE -mthumb
+                    -mcpu=cortex-m4
+                    -mfpu=fpv4-sp-d16
+                    -mfloat-abi=hard
                     -fno-exceptions
                     -fno-rtti
                     -ffunction-sections
@@ -89,6 +92,9 @@ if(YEET_SFC_EMBEDDED_SIDE STREQUAL "MACHINE" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
         target_compile_options(
             yeet_sfc_embedded_machine
             PRIVATE -mthumb
+                    -mcpu=cortex-m4
+                    -mfpu=fpv4-sp-d16
+                    -mfloat-abi=hard
                     -fno-exceptions
                     -fno-rtti
                     -ffunction-sections
