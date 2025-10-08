@@ -1,5 +1,47 @@
 {
     "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "embeddedBoard",
+            "type": "pickString",
+            "description": "Select target board",
+            "options": [
+                "disc1",
+                "cn"
+            ],
+            "default": "zg"
+        },
+        {
+            "id": "embeddedSide",
+            "type": "pickString",
+            "description": "Select controller side",
+            "options": [
+                "grid",
+                "machine"
+            ],
+            "default": "grid"
+        },
+        {
+            "id": "buildConfiguration",
+            "type": "pickString",
+            "description": "Select build configuration",
+            "options": [
+                "debug",
+                "release"
+            ],
+            "default": "release"
+        },
+        {
+            "id": "buildConfigurationCapitalized",
+            "type": "pickString",
+            "description": "Select build configuration (for path)",
+            "options": [
+                "Debug",
+                "Release"
+            ],
+            "default": "Release"
+        }
+    ],
     "tasks": [
         {
             "label": "Initialize Python venv",
@@ -18,212 +60,6 @@
                 "showReuseMessage": true,
                 "clear": false
             }
-        },
-        {
-            "label": "Yeet unit-tests",
-            "type": "shell",
-            "command": "./yeet_test.exe",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "options": {
-                "cwd": "${workspaceFolder}/build-host/bin/Release/"
-            },
-            "problemMatcher": [],
-            "detail": "Runs the executable"
-        },
-        {
-            "label": "yeet_control_tests",
-            "type": "shell",
-            "command": "./yeet_control_tests.exe",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}/build-host/bin/Release/"
-            },
-            "problemMatcher": [],
-            "detail": "Runs the yeet_control unit tests"
-        },
-        {
-            "label": "yeet_application_sfc_tests",
-            "type": "shell",
-            "command": "./yeet_application_sfc_tests.exe",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}/build-host/bin/Release/"
-            },
-            "problemMatcher": [],
-            "detail": "Runs the yeet_application_sfc unit tests"
-        },
-        {
-            "label": "yeet_application_mpc_integration_tests",
-            "type": "shell",
-            "command": "./yeet_application_mpc_integration_tests.exe",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}/build-host/bin/Release/"
-            },
-            "problemMatcher": [],
-            "detail": "Runs the yeet_application_mpc integration tests"
-        },
-        {
-            "label": "yeet_application_sfc_integration_tests",
-            "type": "shell",
-            "command": "./yeet_application_sfc_integration_tests.exe",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}/build-host/bin/Release/"
-            },
-            "problemMatcher": [],
-            "detail": "Runs the yeet_application_sfc_integration unit tests"
-        },
-        {
-            "label": "yeet_testing_tests",
-            "type": "shell",
-            "command": "./yeet_testing_tests.exe",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}/build-host/bin/Release/"
-            },
-            "problemMatcher": [],
-            "detail": "Runs the yeet_testing unit tests"
-        },
-        {
-            "label": "Build All Tests",
-            "type": "shell",
-            "command": "ninja",
-            "args": [
-                "-C",
-                "build-host",
-                "yeet_test",
-                "yeet_control_tests",
-                "yeet_application_sfc_tests",
-                "yeet_application_sfc_integration_tests",
-                "yeet_testing_tests"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Builds all test executables"
-        },
-        {
-            "label": "Build SFC Library",
-            "type": "shell",
-            "command": "ninja",
-            "args": [
-                "-C",
-                "build-host",
-                "yeet_application_sfc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Builds the yeet_application_sfc library"
-        },
-        {
-            "label": "Build SFC Integration Library",
-            "type": "shell",
-            "command": "ninja",
-            "args": [
-                "-C",
-                "build-host",
-                "yeet_application_sfc_integration"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Builds the yeet_application_sfc_integration library"
-        },
-        {
-            "label": "Build Yeet Control Library",
-            "type": "shell",
-            "command": "ninja",
-            "args": [
-                "-C",
-                "build-host",
-                "yeet_control"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Builds the yeet_control library"
-        },
-        {
-            "label": "Build Core Yeet Library",
-            "type": "shell",
-            "command": "ninja",
-            "args": [
-                "-C",
-                "build-host",
-                "yeet"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Builds the core yeet library"
-        },
-        {
-            "label": "Build All Libraries",
-            "type": "shell",
-            "command": "ninja",
-            "args": [
-                "-C",
-                "build-host",
-                "yeet",
-                "yeet_control",
-                "yeet_application_sfc",
-                "yeet_application_sfc_integration",
-                "yeet_testing"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Builds all core libraries"
         },
         {
             "label": "Run All Tests",
@@ -332,11 +168,11 @@
             "detail": "Runs the Python script after the executable"
         },
         {
-            "label": "Configure Embedded Grid-Side",
+            "label": "Configure Embedded Target",
             "type": "shell",
             "command": "cmake",
             "args": [
-                "--preset=embedded-grid"
+                "--preset=embedded-${input:embeddedBoard}-${input:embeddedSide}"
             ],
             "group": {
                 "kind": "build",
@@ -346,32 +182,15 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "detail": "Configure CMake for Grid-Side embedded target"
+            "detail": "Configure CMake for selected embedded target (board + side)"
         },
         {
-            "label": "Configure Embedded Machine-Side",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--preset=embedded-machine"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Configure CMake for Machine-Side embedded target"
-        },
-        {
-            "label": "Build Embedded Grid-Side (Debug)",
+            "label": "Build Embedded Target",
             "type": "shell",
             "command": "cmake",
             "args": [
                 "--build",
-                "--preset=embedded-grid-debug"
+                "--preset=embedded-${input:embeddedBoard}-${input:embeddedSide}-${input:buildConfiguration}"
             ],
             "group": {
                 "kind": "build",
@@ -381,71 +200,17 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "detail": "Build Grid-Side embedded target in Debug configuration"
+            "detail": "Build selected embedded target with chosen configuration"
         },
         {
-            "label": "Build Embedded Grid-Side (Release)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset=embedded-grid-release"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Build Grid-Side embedded target in Release configuration"
-        },
-        {
-            "label": "Build Embedded Machine-Side (Debug)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset=embedded-machine-debug"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Build Machine-Side embedded target in Debug configuration"
-        },
-        {
-            "label": "Build Embedded Machine-Side (Release)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "--preset=embedded-machine-release"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "detail": "Build Machine-Side embedded target in Release configuration"
-        },
-        {
-            "label": "Flash Grid-Side (Debug)",
+            "label": "Flash Embedded Target",
             "type": "shell",
             "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
             "args": [
                 "-c",
                 "port=SWD",
                 "-w",
-                "${workspaceFolder}/build-embedded-grid/bin/Debug/yeet_embedded_app_grid.elf",
+                "${workspaceFolder}/build-embedded-${input:embeddedBoard}-${input:embeddedSide}/bin/${input:buildConfigurationCapitalized}/yeet_embedded_app_${input:embeddedSide}.elf",
                 "-v",
                 "-rst"
             ],
@@ -457,80 +222,14 @@
                 "isDefault": false
             },
             "problemMatcher": [],
-            "detail": "Flash Grid-Side debug build to STM32F407G-DISC1 via ST-Link"
+            "detail": "Flash selected embedded target to STM32 via ST-Link"
         },
         {
-            "label": "Flash Grid-Side (Release)",
-            "type": "shell",
-            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
-            "args": [
-                "-c",
-                "port=SWD",
-                "-w",
-                "${workspaceFolder}/build-embedded-grid/bin/Release/yeet_embedded_app_grid.elf",
-                "-v",
-                "-rst"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Flash Grid-Side release build to STM32F407G-DISC1 via ST-Link"
-        },
-        {
-            "label": "Flash Machine-Side (Debug)",
-            "type": "shell",
-            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
-            "args": [
-                "-c",
-                "port=SWD",
-                "-w",
-                "${workspaceFolder}/build-embedded-machine/bin/Debug/yeet_embedded_app_machine.elf",
-                "-v",
-                "-rst"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Flash Machine-Side debug build to STM32F407G-DISC1 via ST-Link"
-        },
-        {
-            "label": "Flash Machine-Side (Release)",
-            "type": "shell",
-            "command": "C:/ST/STM32CubeCLT_1.19.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
-            "args": [
-                "-c",
-                "port=SWD",
-                "-w",
-                "${workspaceFolder}/build-embedded-machine/bin/Release/yeet_embedded_app_machine.elf",
-                "-v",
-                "-rst"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Flash Machine-Side release build to STM32F407G-DISC1 via ST-Link"
-        },
-        {
-            "label": "Build & Flash Grid-Side (Debug)",
+            "label": "Build & Flash Embedded Target",
             "dependsOn": [
-                "Configure Embedded Grid-Side",
-                "Build Embedded Grid-Side (Debug)",
-                "Flash Grid-Side (Debug)"
+                "Configure Embedded Target",
+                "Build Embedded Target",
+                "Flash Embedded Target"
             ],
             "dependsOrder": "sequence",
             "group": {
@@ -538,52 +237,7 @@
                 "isDefault": false
             },
             "problemMatcher": [],
-            "detail": "Complete workflow: Configure, build, and flash Grid-Side debug"
-        },
-        {
-            "label": "Build & Flash Grid-Side (Release)",
-            "dependsOn": [
-                "Configure Embedded Grid-Side",
-                "Build Embedded Grid-Side (Release)",
-                "Flash Grid-Side (Release)"
-            ],
-            "dependsOrder": "sequence",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Complete workflow: Configure, build, and flash Grid-Side release"
-        },
-        {
-            "label": "Build & Flash Machine-Side (Debug)",
-            "dependsOn": [
-                "Configure Embedded Machine-Side",
-                "Build Embedded Machine-Side (Debug)",
-                "Flash Machine-Side (Debug)"
-            ],
-            "dependsOrder": "sequence",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Complete workflow: Configure, build, and flash Machine-Side debug"
-        },
-        {
-            "label": "Build & Flash Machine-Side (Release)",
-            "dependsOn": [
-                "Configure Embedded Machine-Side",
-                "Build Embedded Machine-Side (Release)",
-                "Flash Machine-Side (Release)"
-            ],
-            "dependsOrder": "sequence",
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Complete workflow: Configure, build, and flash Machine-Side release"
+            "detail": "Complete workflow: Configure, build, and flash selected embedded target"
         }
     ]
 }
