@@ -124,12 +124,13 @@ message(STATUS "yeet sfc_embedded: Configuring embedded executable 🎯")
 # Include STM32 HAL support
 include(stm32_hal)
 
-# Add the board directory - builds the stm32cubemx library
-set(BOARD_DIR "${CMAKE_SOURCE_DIR}/boards/stm32f407g-disc1")
+# Add the board directory based on selection - builds the stm32cubemx library
+set(BOARD_DIR "${CMAKE_SOURCE_DIR}/boards/${YEET_SFC_EMBEDDED_BOARD}")
 if(NOT EXISTS ${BOARD_DIR})
     message(FATAL_ERROR "Board directory not found: ${BOARD_DIR}")
 endif()
-add_subdirectory(${BOARD_DIR} ${CMAKE_BINARY_DIR}/boards/stm32f407g-disc1)
+add_subdirectory(${BOARD_DIR}
+                 ${CMAKE_BINARY_DIR}/boards/${YEET_SFC_EMBEDDED_BOARD})
 
 # Determine which library to link based on configuration
 if(YEET_SFC_EMBEDDED_SIDE STREQUAL "BOTH")
@@ -156,7 +157,7 @@ target_link_libraries(
     ${EMBEDDED_APP_NAME}
     PRIVATE -Wl,--whole-archive
             ${EMBEDDED_LIBRARY}
-            stm32f407g-disc1
+            ${YEET_SFC_EMBEDDED_BOARD}
             -Wl,--no-whole-archive
             m) # Math library
 

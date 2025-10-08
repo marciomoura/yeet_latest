@@ -48,22 +48,46 @@
             "generator": "Ninja Multi-Config"
         },
         {
-            "name": "embedded-grid",
-            "displayName": "STM32 Grid-Side",
-            "description": "ARM Cortex-M4 embedded target (Grid-Side Controller)",
+            "name": "embedded-disc1-grid",
+            "displayName": "STM32F407G-DISC1 Grid-Side",
+            "description": "STM32F407G Discovery Board - Grid-Side Controller",
             "inherits": "embedded-base",
-            "binaryDir": "${sourceDir}/build-embedded-grid",
+            "binaryDir": "${sourceDir}/build-embedded-disc1-grid",
             "cacheVariables": {
+                "YEET_SFC_EMBEDDED_BOARD": "stm32f407g-disc1",
                 "YEET_SFC_EMBEDDED_SIDE": "GRID"
             }
         },
         {
-            "name": "embedded-machine",
-            "displayName": "STM32 Machine-Side",
-            "description": "ARM Cortex-M4 embedded target (Machine-Side Controller)",
+            "name": "embedded-disc1-machine",
+            "displayName": "STM32F407G-DISC1 Machine-Side",
+            "description": "STM32F407G Discovery Board - Machine-Side Controller",
             "inherits": "embedded-base",
-            "binaryDir": "${sourceDir}/build-embedded-machine",
+            "binaryDir": "${sourceDir}/build-embedded-disc1-machine",
             "cacheVariables": {
+                "YEET_SFC_EMBEDDED_BOARD": "stm32f407g-disc1",
+                "YEET_SFC_EMBEDDED_SIDE": "MACHINE"
+            }
+        },
+        {
+            "name": "embedded-cn-grid",
+            "displayName": "stm32f407zg-cn Grid-Side",
+            "description": "stm32f407zg-cn Board - Grid-Side Controller",
+            "inherits": "embedded-base",
+            "binaryDir": "${sourceDir}/build-embedded-cn-grid",
+            "cacheVariables": {
+                "YEET_SFC_EMBEDDED_BOARD": "stm32f407zg-cn",
+                "YEET_SFC_EMBEDDED_SIDE": "GRID"
+            }
+        },
+        {
+            "name": "embedded-cn-machine",
+            "displayName": "stm32f407zg-cn Machine-Side",
+            "description": "stm32f407zg-cn Board - Machine-Side Controller",
+            "inherits": "embedded-base",
+            "binaryDir": "${sourceDir}/build-embedded-cn-machine",
+            "cacheVariables": {
+                "YEET_SFC_EMBEDDED_BOARD": "stm32f407zg-cn",
                 "YEET_SFC_EMBEDDED_SIDE": "MACHINE"
             }
         }
@@ -94,27 +118,51 @@
             "configuration": "Release"
         },
         {
-            "name": "embedded-grid-debug",
-            "displayName": "STM32 Grid-Side - Debug",
-            "configurePreset": "embedded-grid",
+            "name": "embedded-disc1-grid-debug",
+            "displayName": "DISC1 Grid - Debug",
+            "configurePreset": "embedded-disc1-grid",
             "configuration": "Debug"
         },
         {
-            "name": "embedded-grid-release",
-            "displayName": "STM32 Grid-Side - Release",
-            "configurePreset": "embedded-grid",
+            "name": "embedded-disc1-grid-release",
+            "displayName": "DISC1 Grid - Release",
+            "configurePreset": "embedded-disc1-grid",
             "configuration": "Release"
         },
         {
-            "name": "embedded-machine-debug",
-            "displayName": "STM32 Machine-Side - Debug",
-            "configurePreset": "embedded-machine",
+            "name": "embedded-disc1-machine-debug",
+            "displayName": "DISC1 Machine - Debug",
+            "configurePreset": "embedded-disc1-machine",
             "configuration": "Debug"
         },
         {
-            "name": "embedded-machine-release",
-            "displayName": "STM32 Machine-Side - Release",
-            "configurePreset": "embedded-machine",
+            "name": "embedded-disc1-machine-release",
+            "displayName": "DISC1 Machine - Release",
+            "configurePreset": "embedded-disc1-machine",
+            "configuration": "Release"
+        },
+        {
+            "name": "embedded-cn-grid-debug",
+            "displayName": "CN Grid - Debug",
+            "configurePreset": "embedded-cn-grid",
+            "configuration": "Debug"
+        },
+        {
+            "name": "embedded-cn-grid-release",
+            "displayName": "CN Grid - Release",
+            "configurePreset": "embedded-cn-grid",
+            "configuration": "Release"
+        },
+        {
+            "name": "embedded-cn-machine-debug",
+            "displayName": "CN Machine - Debug",
+            "configurePreset": "embedded-cn-machine",
+            "configuration": "Debug"
+        },
+        {
+            "name": "embedded-cn-machine-release",
+            "displayName": "CN Machine - Release",
+            "configurePreset": "embedded-cn-machine",
             "configuration": "Release"
         }
     ],
