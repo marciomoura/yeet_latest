@@ -19,12 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-#include <stdbool.h>
-
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ad7606_driver.h"
+#include "fpga_io_driver.h"
+#include "sfc_embedded/task_io.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +54,9 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
+SRAM_HandleTypeDef hsram2;
+SRAM_HandleTypeDef hsram4;
+
 /* USER CODE BEGIN PV */
 // Task execution counters for LED visual feedback
 static int task1_counter = 0;
@@ -63,6 +65,16 @@ static int task3_counter = 0;
 
 // ADC DMA buffer - must be static/global for DMA access
 static volatile uint16_t adc_dma_buffer[4] = {0};
+
+// AD7606 external ADC data (8 channels @ 16-bit)
+static ad7606_data_t ad7606_data = {0};
+
+// FPGA digital I/O data (48 inputs + 48 outputs)
+static fpga_io_t fpga_io = {0};
+
+// Task 1 I/O structures (static global to avoid stack allocation in 5 kHz loop)
+static task1_inputs_t task1_inputs = {0};
+static task1_outputs_t task1_outputs = {0};
 
 // Diagnostic counters for debugging
 volatile uint32_t g_adc_callback_count = 0;
@@ -79,6 +91,7 @@ static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_FSMC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -88,7 +101,7 @@ static void MX_TIM4_Init(void);
 
 // Forward declarations for task functions (defined in yeet application layer)
 extern void yeet_embedded_init(void);
-extern void yeet_task_1(void);
+extern void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs);
 extern void yeet_task_2(void);
 extern void yeet_task_3(void);
 
@@ -128,7 +141,18 @@ int main(void)
     MX_TIM2_Init();
     MX_TIM3_Init();
     MX_TIM4_Init();
+    MX_FSMC_Init();
     /* USER CODE BEGIN 2 */
+
+    // Initialize AD7606 external ADC (must be after FSMC init)
+    AD7606_Init();
+
+    // Initialize FPGA digital I/O (must be after FSMC init)
+    FPGA_IO_Init();
+    FPGA_IO_Reset(&fpga_io);
+
+    // Start first AD7606 conversion
+    AD7606_StartConversion();
 
     // Start ADC with DMA (4 channels: IN10, IN11, IN12, IN13)
     if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buffer, 4) != HAL_OK) {
@@ -424,8 +448,15 @@ static void MX_GPIO_Init(void)
 
     /* GPIO Ports Clock Enable */
     __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
     __HAL_RCC_GPIOH_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+
+    /*Configure GPIO pin Output Level */
+    HAL_GPIO_WritePin(GPIOF, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_9 | GPIO_PIN_10, GPIO_PIN_RESET);
 
     /*Configure GPIO pin Output Level */
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_PIN_RESET);
@@ -433,12 +464,25 @@ static void MX_GPIO_Init(void)
     /*Configure GPIO pin Output Level */
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_RESET);
 
+    /*Configure GPIO pins : PF6 PF7 PF9 PF10 */
+    GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_9 | GPIO_PIN_10;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
     /*Configure GPIO pins : PB0 PB1 */
     GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /*Configure GPIO pin : PD13 */
+    GPIO_InitStruct.Pin = GPIO_PIN_13;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
     /*Configure GPIO pins : PC6 PC7 PC8 PC9 */
     GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
@@ -452,34 +496,118 @@ static void MX_GPIO_Init(void)
     /* USER CODE END MX_GPIO_Init_2 */
 }
 
+/* FSMC initialization function */
+static void MX_FSMC_Init(void)
+{
+    /* USER CODE BEGIN FSMC_Init 0 */
+
+    /* USER CODE END FSMC_Init 0 */
+
+    FSMC_NORSRAM_TimingTypeDef Timing = {0};
+
+    /* USER CODE BEGIN FSMC_Init 1 */
+
+    /* USER CODE END FSMC_Init 1 */
+
+    /** Perform the SRAM2 memory initialization sequence
+     */
+    hsram2.Instance = FSMC_NORSRAM_DEVICE;
+    hsram2.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
+    /* hsram2.Init */
+    hsram2.Init.NSBank = FSMC_NORSRAM_BANK2;
+    hsram2.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
+    hsram2.Init.MemoryType = FSMC_MEMORY_TYPE_PSRAM;
+    hsram2.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
+    hsram2.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+    hsram2.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
+    hsram2.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
+    hsram2.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
+    hsram2.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
+    hsram2.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+    hsram2.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
+    hsram2.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
+    hsram2.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+    hsram2.Init.PageSize = FSMC_PAGE_SIZE_NONE;
+    /* Timing */
+    Timing.AddressSetupTime = 2;
+    Timing.AddressHoldTime = 15;
+    Timing.DataSetupTime = 11;
+    Timing.BusTurnAroundDuration = 1;
+    Timing.CLKDivision = 16;
+    Timing.DataLatency = 17;
+    Timing.AccessMode = FSMC_ACCESS_MODE_A;
+    /* ExtTiming */
+
+    if (HAL_SRAM_Init(&hsram2, &Timing, NULL) != HAL_OK) {
+        Error_Handler();
+    }
+
+    /** Perform the SRAM4 memory initialization sequence
+     */
+    hsram4.Instance = FSMC_NORSRAM_DEVICE;
+    hsram4.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
+    /* hsram4.Init */
+    hsram4.Init.NSBank = FSMC_NORSRAM_BANK4;
+    hsram4.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
+    hsram4.Init.MemoryType = FSMC_MEMORY_TYPE_PSRAM;
+    hsram4.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
+    hsram4.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+    hsram4.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
+    hsram4.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
+    hsram4.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
+    hsram4.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
+    hsram4.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+    hsram4.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
+    hsram4.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
+    hsram4.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+    hsram4.Init.PageSize = FSMC_PAGE_SIZE_NONE;
+    /* Timing */
+    Timing.AddressSetupTime = 6;
+    Timing.AddressHoldTime = 15;
+    Timing.DataSetupTime = 21;
+    Timing.BusTurnAroundDuration = 1;
+    Timing.CLKDivision = 16;
+    Timing.DataLatency = 17;
+    Timing.AccessMode = FSMC_ACCESS_MODE_A;
+    /* ExtTiming */
+
+    if (HAL_SRAM_Init(&hsram4, &Timing, NULL) != HAL_OK) {
+        Error_Handler();
+    }
+
+    /* USER CODE BEGIN FSMC_Init 2 */
+
+    /* USER CODE END FSMC_Init 2 */
+}
+
 /* USER CODE BEGIN 4 */
 
 /**
- * @brief Apply gate pulses atomically using BSRR for simultaneous pin updates
- * @param p1-p6 Boolean states for each gate pulse output
+ * @brief Set thyristor firing pulses atomically using BSRR for simultaneous pin updates
+ * @param outputs Pointer to task1 outputs structure containing pulse states
  * @note Executes in ~10 CPU cycles for deterministic real-time performance
  *
  * Pin mapping:
- *   P1 -> PC6, P2 -> PC7, P3 -> PC8, P4 -> PC9
- *   P5 -> PB0, P6 -> PB1
+ *   pulse_1 -> PC6, pulse_2 -> PC7, pulse_3 -> PC8, pulse_4 -> PC9
+ *   pulse_5 -> PB0, pulse_6 -> PB1
  */
-inline void apply_gate_pulses_fast(bool p1, bool p2, bool p3, bool p4, bool p5, bool p6)
+inline void set_thyristor_firing_pulses(const task1_outputs_t* outputs)
 {
     // GPIOC: PC6-PC9 (4 pins)
     uint32_t gpioc_set = 0, gpioc_reset = 0;
-    if (p1)
+    if (outputs->pulse_1)
         gpioc_set |= GPIO_PIN_6;
     else
         gpioc_reset |= GPIO_PIN_6;
-    if (p2)
+    if (outputs->pulse_2)
         gpioc_set |= GPIO_PIN_7;
     else
         gpioc_reset |= GPIO_PIN_7;
-    if (p3)
+    if (outputs->pulse_3)
         gpioc_set |= GPIO_PIN_8;
     else
         gpioc_reset |= GPIO_PIN_8;
-    if (p4)
+    if (outputs->pulse_4)
         gpioc_set |= GPIO_PIN_9;
     else
         gpioc_reset |= GPIO_PIN_9;
@@ -487,11 +615,11 @@ inline void apply_gate_pulses_fast(bool p1, bool p2, bool p3, bool p4, bool p5, 
 
     // GPIOB: PB0-PB1 (2 pins)
     uint32_t gpiob_set = 0, gpiob_reset = 0;
-    if (p5)
+    if (outputs->pulse_5)
         gpiob_set |= GPIO_PIN_0;
     else
         gpiob_reset |= GPIO_PIN_0;
-    if (p6)
+    if (outputs->pulse_6)
         gpiob_set |= GPIO_PIN_1;
     else
         gpiob_reset |= GPIO_PIN_1;
@@ -504,17 +632,54 @@ inline void apply_gate_pulses_fast(bool p1, bool p2, bool p3, bool p4, bool p5, 
  * @note Triggered by TIM2 TRGO after 4-channel DMA transfer completes
  *
  * This is the highest priority task in the system, responsible for:
- * - Reading 4 ADC channels (IN10-IN13) from DMA buffer
+ * - Reading 4 internal ADC channels (IN10-IN13) from DMA buffer
+ * - Reading 8 external AD7606 channels via FSMC
  * - Executing inner current control loop
- * - Updating gate pulse patterns via apply_gate_pulses_fast()
+ * - Updating thyristor firing pulses via set_thyristor_firing_pulses()
+ * - Triggering next AD7606 conversion (pipeline mode)
+ *
+ * @note FPGA digital I/O is handled in Task 2 (1 kHz) for lower update rate
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
     if (hadc->Instance == ADC1) {
         g_adc_callback_count++;
 
-        // Call high-frequency control task
-        yeet_task_1();
+        // Read AD7606 data from previous conversion and start next one
+        AD7606_ReadAndStart(&ad7606_data);
+
+        // Populate ADC channels 1-9 from AD7606 (external 16-bit ADC)
+        // Channels 1-8 map to AD7606 channels 0-7, channel 9 reserved/unused
+        task1_inputs.adc_channels[1] = ad7606_data.raw[0];  // Va (Phase A Voltage)
+        task1_inputs.adc_channels[2] = ad7606_data.raw[1];  // Vb (Phase B Voltage)
+        task1_inputs.adc_channels[3] = ad7606_data.raw[2];  // Vc (Phase C Voltage)
+        task1_inputs.adc_channels[4] = ad7606_data.raw[3];  // Vfd (Field Voltage)
+        task1_inputs.adc_channels[5] = ad7606_data.raw[4];  // Ia (Phase A Current)
+        task1_inputs.adc_channels[6] = ad7606_data.raw[5];  // Ib (Phase B Current)
+        task1_inputs.adc_channels[7] = ad7606_data.raw[6];  // Ic (Phase C Current)
+        task1_inputs.adc_channels[8] = ad7606_data.raw[7];  // Ifd (Field Current)
+        task1_inputs.adc_channels[9] = 0;                   // Reserved (unused)
+
+        // Populate ADC channels 10-13 from STM32 internal ADC (12-bit)
+        task1_inputs.adc_channels[10] = adc_dma_buffer[0];  // ADC1_IN10 (PC0)
+        task1_inputs.adc_channels[11] = adc_dma_buffer[1];  // ADC1_IN11 (PC1)
+        task1_inputs.adc_channels[12] = adc_dma_buffer[2];  // ADC1_IN12 (PC2)
+        task1_inputs.adc_channels[13] = adc_dma_buffer[3];  // ADC1_IN13 (PC3)
+
+        // Clear outputs from previous cycle
+        task1_outputs.pulse_1 = false;
+        task1_outputs.pulse_2 = false;
+        task1_outputs.pulse_3 = false;
+        task1_outputs.pulse_4 = false;
+        task1_outputs.pulse_5 = false;
+        task1_outputs.pulse_6 = false;
+        task1_outputs.fpga_outputs.update_outputs = false;
+
+        // Call high-frequency control task with structured I/O (no data copy)
+        yeet_task_1(&task1_inputs, &task1_outputs);
+
+        // Apply thyristor firing pulses atomically using BSRR
+        set_thyristor_firing_pulses(&task1_outputs);
 
         // Visual feedback: Toggle PC6 at 1 Hz (2500 * 200µs = 500ms)
         if (++task1_counter >= TASK1_TOGGLE_COUNT) {
@@ -532,6 +697,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
  * - Speed/torque regulation
  * - Flux control
  * - Protection monitoring
+ * - FPGA digital I/O (48 inputs + 48 outputs)
  *
  * Task 3 (100 Hz): Low-frequency control
  * - State machine
@@ -543,7 +709,32 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
     if (htim->Instance == TIM3) {
         // Task 2: 1 kHz (1 ms period)
         g_tim3_callback_count++;
+
+        // Read FPGA digital inputs (raw read + debounce update)
+        FPGA_IO_ReadInputs(&fpga_io);
+        FPGA_IO_UpdateDebounce(&fpga_io);
+
+        // Mark FPGA inputs as valid
+        task1_inputs.fpga_inputs.data_valid = true;
+
+        // Copy FPGA debounced inputs to task inputs (48 channels)
+        for (int i = 0; i < 48; i++) {
+            task1_inputs.fpga_inputs.inputs[i] = fpga_io.inputs.debounced[i];
+        }
+
+        // Execute Task 2 control logic
         yeet_task_2();
+
+        // Write FPGA digital outputs if update requested
+        if (task1_outputs.fpga_outputs.update_outputs) {
+            // Copy task outputs to FPGA output structure (48 channels)
+            for (int i = 0; i < 48; i++) {
+                fpga_io.outputs.state[i] = task1_outputs.fpga_outputs.outputs[i];
+            }
+            FPGA_IO_WriteOutputs(&fpga_io);
+            // Clear flag after writing
+            task1_outputs.fpga_outputs.update_outputs = false;
+        }
 
         // Visual feedback: Toggle PC7 at 1 Hz
         if (++task2_counter >= TASK2_TOGGLE_COUNT) {
@@ -567,15 +758,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 /**
  * @brief ADC error callback - Safety shutdown
  * @param hadc Pointer to ADC handle
- * @note All gate pulses are forced LOW and timers are stopped
+ * @note All thyristor firing pulses are forced LOW and timers are stopped
  */
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef* hadc)
 {
     if (hadc->Instance == ADC1) {
         g_adc_error_count++;
 
-        // Safety: All gate pulses OFF
-        apply_gate_pulses_fast(false, false, false, false, false, false);
+        // Safety: All thyristor firing pulses OFF
+        task1_outputs.pulse_1 = false;
+        task1_outputs.pulse_2 = false;
+        task1_outputs.pulse_3 = false;
+        task1_outputs.pulse_4 = false;
+        task1_outputs.pulse_5 = false;
+        task1_outputs.pulse_6 = false;
+        set_thyristor_firing_pulses(&task1_outputs);
 
         // Stop ADC and timers
         HAL_ADC_Stop_DMA(&hadc1);

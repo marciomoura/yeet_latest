@@ -6,7 +6,6 @@
 #include "sfc/sfc_types.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
 
-
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
 #define ARM_FUNCTION __attribute__((target("thumb")))
@@ -163,7 +162,7 @@ void yeet_embedded_init(void)
 }
 
 ARM_FUNCTION
-void yeet_task_1(void)
+void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     // HIGH-FREQUENCY CONTROL TASK
     // Configured rate: 200 µs (5 kHz)
@@ -172,7 +171,29 @@ void yeet_task_1(void)
     // Priority: Highest (measurements, observer, modulator, pulse generator)
 
     counter_task1++;
+
+    // Update mock ADC inputs with real hardware measurements
+    // In embedded operation, these would come from actual ADC DMA buffers
+    if (inputs != nullptr) {
+        // TODO: Map ADC channels to machine-side measurements when configuration is finalized
+        // For now, keep existing mock behavior
+    }
+
+    // Execute the 5 kHz control update
     get_machine_side_control().update_200us();
+
+    // Extract gate pulse outputs from the modulator
+    // In production, these would be applied to thyristor gate driver hardware
+    if (outputs != nullptr) {
+        // For now, initialize all pulses to false (safe default)
+        // TODO: Read actual pulse commands from machine_side_modulator output when available
+        outputs->pulse_1 = false;
+        outputs->pulse_2 = false;
+        outputs->pulse_3 = false;
+        outputs->pulse_4 = false;
+        outputs->pulse_5 = false;
+        outputs->pulse_6 = false;
+    }
 }
 
 ARM_FUNCTION

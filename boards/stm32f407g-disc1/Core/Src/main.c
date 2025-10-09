@@ -98,8 +98,11 @@ void MX_USB_HOST_Process(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+// Include task I/O structures
+#include "sfc_embedded/task_io.h"
+
 // Forward declarations for task functions (defined in yeet application layer)
-extern void yeet_task_1(void);
+extern void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs);
 extern void yeet_task_2(void);
 extern void yeet_task_3(void);
 
@@ -666,11 +669,15 @@ static void MX_GPIO_Init(void)
 
 /**
  * @brief Optimized version using direct register access for minimal latency
- * @param pulses The pulse structure containing p1-p6 states
+ * @param p1-p6 Boolean states for each gate pulse output
  * @note Uses BSRR register for atomic pin set/reset
+ * @note For DISC1, gate pulses would typically map to PE0-PE5 or other GPIO pins
  */
-inline void apply_gate_pulses_fast()
+inline void apply_gate_pulses_fast(bool p1, bool p2, bool p3, bool p4, bool p5, bool p6)
 {
+    // Placeholder implementation for DISC1
+    // In production, uncomment and map to actual gate driver pins
+
     // if (!gates_enabled) {
     //     // All gates off
     //     GPIOE->BSRR = 0x003F0000;  // Reset PE0-PE5 (bits 16-21)
@@ -681,27 +688,27 @@ inline void apply_gate_pulses_fast()
     // unsigned int set_mask = 0;
     // unsigned int reset_mask = 0;
 
-    // if (pulses.p1)
+    // if (p1)
     //     set_mask |= GPIO_PIN_0;
     // else
     //     reset_mask |= GPIO_PIN_0;
-    // if (pulses.p2)
+    // if (p2)
     //     set_mask |= GPIO_PIN_1;
     // else
     //     reset_mask |= GPIO_PIN_1;
-    // if (pulses.p3)
+    // if (p3)
     //     set_mask |= GPIO_PIN_2;
     // else
     //     reset_mask |= GPIO_PIN_2;
-    // if (pulses.p4)
+    // if (p4)
     //     set_mask |= GPIO_PIN_3;
     // else
     //     reset_mask |= GPIO_PIN_3;
-    // if (pulses.p5)
+    // if (p5)
     //     set_mask |= GPIO_PIN_4;
     // else
     //     reset_mask |= GPIO_PIN_4;
-    // if (pulses.p6)
+    // if (p6)
     //     set_mask |= GPIO_PIN_5;
     // else
     //     reset_mask |= GPIO_PIN_5;
@@ -719,10 +726,6 @@ inline void apply_gate_pulses_fast()
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    // ADC data is guaranteed valid at this point
-    // Raw ADC value available in adc_dma_buffer[0]
-    // uint16_t adc_raw_value = adc_dma_buffer[0];
-
     // Increment diagnostic counter
     g_adc_callback_count++;
 
@@ -734,20 +737,25 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
         task1_counter = 0;
     }
 
-    // TODO: Convert to engineering units following yeet_control conventions
-    // Example:
-    // const float adc_scale = 3.3f / 4096.0f;  // Volts per LSB (12-bit ADC)
-    // current_pu_t dc_link_current = adc_to_current_pu(adc_raw_value);
+    // Prepare structured inputs from ADC DMA buffer
+    // DISC1 has only 1 ADC channel, so populate only channel 10 (1-indexed array)
+    task1_inputs_t inputs = {0};
+    inputs.adc_channels[10] = adc_dma_buffer[0];  // Single ADC channel mapped to index 10
 
-    // Execute high-frequency control task
+    // Prepare output structure for gate pulses
+    task1_outputs_t outputs = {0};
+
+    // Execute high-frequency control task with structured I/O
     // This should contain:
     // - DC link current measurement processing
     // - Inner current control loop
     // - Firing angle calculation for thyristors
     // - Gate pulse generation timing
-    yeet_task_1();
+    yeet_task_1(&inputs, &outputs);
 
-    apply_gate_pulses_fast();
+    // Apply gate pulses atomically using BSRR
+    apply_gate_pulses_fast(
+        outputs.pulse_1, outputs.pulse_2, outputs.pulse_3, outputs.pulse_4, outputs.pulse_5, outputs.pulse_6);
 }
 
 /**

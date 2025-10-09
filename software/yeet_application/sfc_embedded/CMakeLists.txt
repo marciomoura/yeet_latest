@@ -37,77 +37,90 @@ message(
 # ==================== Grid-Side Target ====================
 if(YEET_SFC_EMBEDDED_SIDE STREQUAL "GRID" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
                                              "BOTH")
-    add_library(yeet_sfc_embedded_grid STATIC)
+    add_library(yeet_sfc_embedded_grid INTERFACE)
 
-    target_sources(yeet_sfc_embedded_grid PRIVATE src/grid_side_tasks.cpp)
+    target_sources(
+        yeet_sfc_embedded_grid
+        INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/grid_side_tasks.cpp>
+    )
 
     target_include_directories(
         yeet_sfc_embedded_grid
-        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-               $<INSTALL_INTERFACE:include>)
+        INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                  $<INSTALL_INTERFACE:include>)
 
     target_link_libraries(
-        yeet_sfc_embedded_grid PUBLIC yeet::yeet_control
-                                      yeet::yeet_application_sfc_integration)
+        yeet_sfc_embedded_grid INTERFACE yeet::yeet_control
+                                         yeet::yeet_application_sfc_integration)
 
+    # Compile options and definitions are forwarded via INTERFACE They will be
+    # applied to any target that links against this library
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
         target_compile_options(
             yeet_sfc_embedded_grid
-            PRIVATE -mthumb
-                    -mcpu=cortex-m4
-                    -mfpu=fpv4-sp-d16
-                    -mfloat-abi=hard
-                    -fno-exceptions
-                    -fno-rtti
-                    -ffunction-sections
-                    -fdata-sections)
+            INTERFACE -mthumb
+                      -mcpu=cortex-m4
+                      -mfpu=fpv4-sp-d16
+                      -mfloat-abi=hard
+                      -fno-exceptions
+                      -fno-rtti
+                      -ffunction-sections
+                      -fdata-sections)
     endif()
 
     target_compile_definitions(
-        yeet_sfc_embedded_grid PRIVATE YEET_EMBEDDED_TARGET
-                                       YEET_EMBEDDED_GRID_SIDE)
+        yeet_sfc_embedded_grid INTERFACE YEET_EMBEDDED_TARGET
+                                         YEET_EMBEDDED_GRID_SIDE)
 
     add_library(yeet::yeet_sfc_embedded_grid ALIAS yeet_sfc_embedded_grid)
 
-    message(STATUS "  - Grid-side target: yeet_sfc_embedded_grid ✅")
+    message(STATUS "  - Grid-side target: yeet_sfc_embedded_grid (INTERFACE) ✅")
 endif()
 
 # ==================== Machine-Side Target ====================
 if(YEET_SFC_EMBEDDED_SIDE STREQUAL "MACHINE" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
                                                 "BOTH")
-    add_library(yeet_sfc_embedded_machine STATIC)
+    add_library(yeet_sfc_embedded_machine INTERFACE)
 
-    target_sources(yeet_sfc_embedded_machine PRIVATE src/machine_side_tasks.cpp)
+    target_sources(
+        yeet_sfc_embedded_machine
+        INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/machine_side_tasks.cpp>
+    )
 
     target_include_directories(
         yeet_sfc_embedded_machine
-        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-               $<INSTALL_INTERFACE:include>)
+        INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                  $<INSTALL_INTERFACE:include>)
 
     target_link_libraries(
-        yeet_sfc_embedded_machine PUBLIC yeet::yeet_control
-                                         yeet::yeet_application_sfc_integration)
+        yeet_sfc_embedded_machine
+        INTERFACE yeet::yeet_control yeet::yeet_application_sfc_integration)
 
+    # Compile options and definitions are forwarded via INTERFACE
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
         target_compile_options(
             yeet_sfc_embedded_machine
-            PRIVATE -mthumb
-                    -mcpu=cortex-m4
-                    -mfpu=fpv4-sp-d16
-                    -mfloat-abi=hard
-                    -fno-exceptions
-                    -fno-rtti
-                    -ffunction-sections
-                    -fdata-sections)
+            INTERFACE -mthumb
+                      -mcpu=cortex-m4
+                      -mfpu=fpv4-sp-d16
+                      -mfloat-abi=hard
+                      -fno-exceptions
+                      -fno-rtti
+                      -ffunction-sections
+                      -fdata-sections)
     endif()
 
     target_compile_definitions(
-        yeet_sfc_embedded_machine PRIVATE YEET_EMBEDDED_TARGET
-                                          YEET_EMBEDDED_MACHINE_SIDE)
+        yeet_sfc_embedded_machine INTERFACE YEET_EMBEDDED_TARGET
+                                            YEET_EMBEDDED_MACHINE_SIDE)
 
     add_library(yeet::yeet_sfc_embedded_machine ALIAS yeet_sfc_embedded_machine)
 
-    message(STATUS "  - Machine-side target: yeet_sfc_embedded_machine ✅")
+    message(
+        STATUS
+            "  - Machine-side target: yeet_sfc_embedded_machine (INTERFACE) ✅")
 endif()
 
 # ==================== Legacy Compatibility Alias ====================
@@ -117,14 +130,14 @@ elseif(YEET_SFC_EMBEDDED_SIDE STREQUAL "MACHINE")
     add_library(yeet::yeet_sfc_embedded ALIAS yeet_sfc_embedded_machine)
 endif()
 
-# ==================== Embedded Board and Executable Configuration
-# ====================
-message(STATUS "yeet sfc_embedded: Configuring embedded executable 🎯")
-
-# Include STM32 HAL support
+# ==================== Board Support Configuration ====================
+# Include STM32 HAL support for embedded builds
+message(
+    STATUS "yeet sfc_embedded: Including STM32 HAL support for embedded builds")
 include(stm32_hal)
 
-# Add the board directory based on selection - builds the stm32cubemx library
+# Add the board directory based on selection The board CMakeLists.txt will
+# create the final executables
 set(BOARD_DIR "${CMAKE_SOURCE_DIR}/boards/${YEET_SFC_EMBEDDED_BOARD}")
 if(NOT EXISTS ${BOARD_DIR})
     message(FATAL_ERROR "Board directory not found: ${BOARD_DIR}")
@@ -132,42 +145,7 @@ endif()
 add_subdirectory(${BOARD_DIR}
                  ${CMAKE_BINARY_DIR}/boards/${YEET_SFC_EMBEDDED_BOARD})
 
-# Determine which library to link based on configuration
-if(YEET_SFC_EMBEDDED_SIDE STREQUAL "BOTH")
-    message(
-        FATAL_ERROR
-            "Cannot build single executable with BOTH sides. Build separate executables for GRID and MACHINE."
-    )
-elseif(YEET_SFC_EMBEDDED_SIDE STREQUAL "MACHINE")
-    set(EMBEDDED_LIBRARY yeet::yeet_sfc_embedded_machine)
-    set(EMBEDDED_APP_NAME yeet_embedded_app_machine)
-    set(EMBEDDED_SIDE_DEF YEET_EMBEDDED_MACHINE_SIDE)
-else()
-    # Default to GRID
-    set(EMBEDDED_LIBRARY yeet::yeet_sfc_embedded_grid)
-    set(EMBEDDED_APP_NAME yeet_embedded_app_grid)
-    set(EMBEDDED_SIDE_DEF YEET_EMBEDDED_GRID_SIDE)
-endif()
-
-# Create the embedded application executable
-add_executable(${EMBEDDED_APP_NAME} ${BOARD_DIR}/Core/Src/main.c)
-
-# Link against the board library and selected side
-target_link_libraries(
-    ${EMBEDDED_APP_NAME}
-    PRIVATE -Wl,--whole-archive
-            ${EMBEDDED_LIBRARY}
-            ${YEET_SFC_EMBEDDED_BOARD}
-            -Wl,--no-whole-archive
-            m) # Math library
-
-# Embedded-specific compile definitions
-target_compile_definitions(
-    ${EMBEDDED_APP_NAME}
-    PRIVATE USE_HAL_DRIVER
-            STM32F407xx
-            YEET_EMBEDDED_TARGET
-            ${EMBEDDED_SIDE_DEF})
-
-message(STATUS "yeet sfc_embedded: Created executable ${EMBEDDED_APP_NAME} 🚀")
-message(STATUS "yeet sfc_embedded: Linked with ${EMBEDDED_LIBRARY}")
+message(
+    STATUS
+        "yeet sfc_embedded: Configuration complete. Executables will be created by board target."
+)

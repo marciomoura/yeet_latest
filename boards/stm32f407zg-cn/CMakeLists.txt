@@ -30,45 +30,115 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
-# Create a STATIC LIBRARY instead of executable This allows the application
-# layer to link against it
-add_library(${CMAKE_PROJECT_NAME} STATIC)
+# ==================== Create Board HAL Library ====================
+# This library contains all board-specific hardware drivers and HAL
+add_library(${CMAKE_PROJECT_NAME}_hal STATIC)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
 # Link directories setup
 target_link_directories(
-    ${CMAKE_PROJECT_NAME} PRIVATE # Add user defined library search paths
+    ${CMAKE_PROJECT_NAME}_hal PRIVATE # Add user defined library search paths
 )
 
-# Add board sources to library
+# Add board HAL sources to library
 target_sources(
-    ${CMAKE_PROJECT_NAME}
-    PRIVATE Core/Src/stm32f4xx_it.c
+    ${CMAKE_PROJECT_NAME}_hal
+    PRIVATE # Source files (.c)
+            Core/Src/stm32f4xx_it.c
             Core/Src/stm32f4xx_hal_msp.c
             Core/Src/syscalls.c
             Core/Src/sysmem.c
-            # Note: main.c is NOT included here - it will be added by the
-            # application executable
+            Core/Src/ad7606_driver.c
+            Core/Src/fpga_io_driver.c
+            # Header files (.h) - for IDE visibility
+            Core/Inc/main.h
+            Core/Inc/stm32f4xx_it.h
+            Core/Inc/stm32f4xx_hal_conf.h
+            Core/Inc/ad7606_driver.h
+            Core/Inc/fpga_io_driver.h
+            # Note: main.c is NOT included - it's part of the application
+            # executable
 )
 
 # Add include paths
 target_include_directories(
-    ${CMAKE_PROJECT_NAME} PUBLIC Core/Inc
-                                 # Add user defined include paths
+    ${CMAKE_PROJECT_NAME}_hal
+    PUBLIC
+        Core/Inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../software/yeet_application/sfc_embedded/include
+        # Add user defined include paths
 )
 
 # Add project symbols (macros)
 target_compile_definitions(
-    ${CMAKE_PROJECT_NAME} PUBLIC USE_HAL_DRIVER STM32F407xx
-                                 # Add user defined symbols
+    ${CMAKE_PROJECT_NAME}_hal PUBLIC USE_HAL_DRIVER STM32F407xx
+                                     # Add user defined symbols
 )
 
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
-# Add linked libraries
-target_link_libraries(
-    ${CMAKE_PROJECT_NAME} stm32cubemx # Add user defined libraries
+# Note: Libraries are linked by stm32cubemx CMakeLists
+
+# Create alias for easier linking
+add_library(${CMAKE_PROJECT_NAME}::hal ALIAS ${CMAKE_PROJECT_NAME}_hal)
+
+# ==================== Legacy Compatibility Alias ====================
+# Keep the old target name as an alias for backward compatibility
+add_library(${CMAKE_PROJECT_NAME} ALIAS ${CMAKE_PROJECT_NAME}_hal)
+
+# ==================== Create Application Executables ====================
+# Create executables for each side of the SFC control (grid and machine) The
+# YEET_SFC_EMBEDDED_SIDE variable determines which executables are created
+
+message(
+    STATUS
+        "${CMAKE_PROJECT_NAME}: Creating application executables based on YEET_SFC_EMBEDDED_SIDE=${YEET_SFC_EMBEDDED_SIDE}"
 )
+
+# Grid-Side Executable
+if(YEET_SFC_EMBEDDED_SIDE STREQUAL "GRID" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
+                                             "BOTH")
+    set(GRID_APP_NAME yeet_embedded_app_grid)
+
+    add_executable(${GRID_APP_NAME} Core/Src/main.c)
+
+    target_link_libraries(
+        ${GRID_APP_NAME} PRIVATE ${CMAKE_PROJECT_NAME}_hal
+                                 yeet::yeet_sfc_embedded_grid m) # Math library
+
+    # Embedded-specific compile definitions
+    target_compile_definitions(
+        ${GRID_APP_NAME}
+        PRIVATE USE_HAL_DRIVER
+                STM32F407xx
+                YEET_EMBEDDED_TARGET
+                YEET_EMBEDDED_GRID_SIDE)
+
+    message(STATUS "  - Created executable: ${GRID_APP_NAME} 🚀")
+endif()
+
+# Machine-Side Executable
+if(YEET_SFC_EMBEDDED_SIDE STREQUAL "MACHINE" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
+                                                "BOTH")
+    set(MACHINE_APP_NAME yeet_embedded_app_machine)
+
+    add_executable(${MACHINE_APP_NAME} Core/Src/main.c)
+
+    target_link_libraries(
+        ${MACHINE_APP_NAME} PRIVATE ${CMAKE_PROJECT_NAME}_hal
+                                    yeet::yeet_sfc_embedded_machine m) # Math
+                                                                       # library
+
+    # Embedded-specific compile definitions
+    target_compile_definitions(
+        ${MACHINE_APP_NAME}
+        PRIVATE USE_HAL_DRIVER
+                STM32F407xx
+                YEET_EMBEDDED_TARGET
+                YEET_EMBEDDED_MACHINE_SIDE)
+
+    message(STATUS "  - Created executable: ${MACHINE_APP_NAME} 🚀")
+endif()
