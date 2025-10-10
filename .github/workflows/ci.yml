@@ -1,7 +1,7 @@
 # Name of the workflow that appears in GitHub Actions
 name: CI
 
-# Workflow version: 2.0 - Optimized with v4 actions (2025-10-07)
+# Workflow version: 2.1 - Added embedded target builds (2025-10-10)
 
 # Define when this workflow will run
 on:
@@ -20,6 +20,11 @@ on:
         required: false
         type: boolean
         default: false
+      build_embedded:
+        description: "Build embedded targets?"
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   # Job 1: Code formatting check (fast, runs on manual trigger or PRs)
@@ -153,7 +158,117 @@ jobs:
           retention-days: 3
           compression-level: 9
 
-  # Job 3: Unit Tests (fast tests)
+  # Job 3: Build Embedded Targets (ARM Cortex-M4)
+  build-embedded:
+    if: github.event.inputs.build_embedded != 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        board: [stm32f407zg-cn, stm32f407g-disc1]
+        side: [GRID, MACHINE]
+        build_type: [Release, Debug]
+    steps:
+      - name: Print Build Configuration
+        run: |
+          echo "Building embedded target:"
+          echo "  Board: ${{ matrix.board }}"
+          echo "  Side: ${{ matrix.side }}"
+          echo "  Build Type: ${{ matrix.build_type }}"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache APT packages (ARM toolchain)
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
+        with:
+          packages: cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib ccache
+          version: 1.0
+
+      - name: Setup ccache for embedded
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-${{ matrix.build_type }}-ccache
+          restore-keys: |
+            ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-
+            ${{ runner.os }}-arm-${{ matrix.board }}-
+            ${{ runner.os }}-arm-
+          max-size: 300M
+          verbose: 2
+
+      - name: Cache CMake dependencies (embedded)
+        uses: actions/cache@v4
+        with:
+          path: |
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/_deps
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/CMakeCache.txt
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/CMakeFiles
+          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'cmake/**/*.cmake', 'boards/**/*.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-cmake-
+            ${{ runner.os }}-arm-cmake-
+
+      - name: Verify ARM toolchain installation
+        run: |
+          echo "=== ARM GCC Toolchain Information ==="
+          arm-none-eabi-gcc --version
+          arm-none-eabi-g++ --version
+          which arm-none-eabi-gcc
+          which arm-none-eabi-g++
+
+      - name: Configure embedded CMake project
+        run: |
+          cmake -G Ninja \
+                -B build-embedded-${{ matrix.board }}-${{ matrix.side }} \
+                -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/arm-none-eabi-gcc.cmake \
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                -DYEET_BUILD_EMBEDDED=ON \
+                -DYEET_BUILD_TESTING=OFF \
+                -DYEET_SFC_EMBEDDED_BOARD=${{ matrix.board }} \
+                -DYEET_SFC_EMBEDDED_SIDE=${{ matrix.side }} \
+                -DYEET_ENABLE_CCACHE=ON
+          echo "=== Embedded CMake Configuration Complete ==="
+
+      - name: Build embedded target
+        run: |
+          echo "=== Starting Embedded Build at $(date) ==="
+          time cmake --build build-embedded-${{ matrix.board }}-${{ matrix.side }} \
+                     --config ${{ matrix.build_type }} \
+                     --parallel $(nproc)
+          echo "=== Embedded Build Complete at $(date) ==="
+
+      - name: Show build artifacts
+        run: |
+          echo "=== Build Artifacts ==="
+          ls -lh build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.elf || true
+          ls -lh build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.bin || true
+          ls -lh build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.hex || true
+          
+          echo ""
+          echo "=== Flash Memory Usage ==="
+          if [ -f "build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/yeet_embedded_app_${{ matrix.side }}.elf" ]; then
+            arm-none-eabi-size build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/yeet_embedded_app_*.elf
+          fi
+
+      - name: Show ccache statistics
+        run: |
+          echo "=== CCCache Statistics (Embedded) ==="
+          ccache -s
+
+      - name: Upload embedded binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-${{ matrix.board }}-${{ matrix.side }}-${{ matrix.build_type }}
+          path: |
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.elf
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.bin
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.hex
+            build-embedded-${{ matrix.board }}-${{ matrix.side }}/bin/${{ matrix.build_type }}/*.map
+          retention-days: 7
+          compression-level: 6
+
+  # Job 4: Unit Tests (fast tests)
   test-unit:
     needs: build
     runs-on: ubuntu-latest
@@ -196,7 +311,7 @@ jobs:
           fi
           echo "All unit tests passed! ✅"
 
-  # Job 4: Integration Tests (slower tests)
+  # Job 5: Integration Tests (slower tests)
   test-integration:
     needs: build
     runs-on: ubuntu-latest
@@ -235,7 +350,7 @@ jobs:
           fi
           echo "All integration tests passed! ✅"
 
-  # Job 5: Code Coverage (runs after tests)
+  # Job 6: Code Coverage (runs after tests)
   # coverage:
   #   needs: [test-unit, test-integration]
   #   runs-on: ubuntu-latest
@@ -282,7 +397,7 @@ jobs:
   #         name: coverage-report
   #         path: coverage/
 
-  # Job 6: Memory Check with Valgrind (optional, slow)
+  # Job 7: Memory Check with Valgrind (optional, slow)
   valgrind:
     if: github.event.inputs.run_valgrind == 'true' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: build
