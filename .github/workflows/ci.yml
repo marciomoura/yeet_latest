@@ -166,7 +166,7 @@ jobs:
       matrix:
         board: [stm32f407zg-cn, stm32f407g-disc1]
         side: [GRID, MACHINE]
-        build_type: [Release, Debug]
+        build_type: [Release]
     steps:
       - name: Print Build Configuration
         run: |
