@@ -159,6 +159,13 @@ jobs:
           compression-level: 9
 
   # Job 3: Build Embedded Targets (ARM Cortex-M4)
+  # Builds firmware for STM32F407 targets (CN board and Discovery board)
+  # Both GRID and MACHINE side controllers are built in Debug and Release modes
+  # 
+  # Requirements:
+  # - gcc-arm-none-eabi toolchain with LTO support (gcc-ar, gcc-ranlib)
+  # - If LTO tools are missing, builds will fall back to standard ar/ranlib
+  # - LTO (Link Time Optimization) is enabled for smaller binaries
   build-embedded:
     if: github.event.inputs.build_embedded != 'false'
     runs-on: ubuntu-latest
@@ -214,15 +221,49 @@ jobs:
           echo "=== ARM GCC Toolchain Information ==="
           arm-none-eabi-gcc --version
           arm-none-eabi-g++ --version
-          which arm-none-eabi-gcc
-          which arm-none-eabi-g++
+          TOOLCHAIN_PATH=$(which arm-none-eabi-gcc)
+          echo "Toolchain found at: $TOOLCHAIN_PATH"
+          
+          # Set GCC_TOOLCHAIN_ROOT environment variable
+          TOOLCHAIN_ROOT=$(dirname $(dirname $TOOLCHAIN_PATH))
+          echo "GCC_TOOLCHAIN_ROOT=$TOOLCHAIN_ROOT" >> $GITHUB_ENV
+          echo "Setting GCC_TOOLCHAIN_ROOT to: $TOOLCHAIN_ROOT"
+          
+          # Verify LTO-aware tools are available
+          echo ""
+          echo "=== Verifying LTO-aware tools ==="
+          if command -v arm-none-eabi-gcc-ar >/dev/null 2>&1; then
+            echo "✅ arm-none-eabi-gcc-ar found at: $(which arm-none-eabi-gcc-ar)"
+          else
+            echo "⚠️  arm-none-eabi-gcc-ar not found"
+          fi
+          
+          if command -v arm-none-eabi-gcc-ranlib >/dev/null 2>&1; then
+            echo "✅ arm-none-eabi-gcc-ranlib found at: $(which arm-none-eabi-gcc-ranlib)"
+          else
+            echo "⚠️  arm-none-eabi-gcc-ranlib not found"
+          fi
+          
+          if command -v arm-none-eabi-gcc-nm >/dev/null 2>&1; then
+            echo "✅ arm-none-eabi-gcc-nm found at: $(which arm-none-eabi-gcc-nm)"
+          else
+            echo "⚠️  arm-none-eabi-gcc-nm not found"
+          fi
 
       - name: Configure embedded CMake project
         run: |
           PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')"
           echo "Using CMake preset: $PRESET_NAME"
+          echo ""
           cmake --preset=$PRESET_NAME
+          echo ""
           echo "=== Embedded CMake Configuration Complete ==="
+          
+          # Check for LTO tool warnings
+          if grep -q "LTO-aware tools" build-embedded-*/CMakeFiles/CMakeOutput.log 2>/dev/null || \
+             grep -q "LTO-aware" build-embedded-*/CMakeFiles/CMakeError.log 2>/dev/null; then
+            echo "⚠️  Note: Check CMake logs for LTO tool availability"
+          fi
 
       - name: Build embedded target
         run: |
