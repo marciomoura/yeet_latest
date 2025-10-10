@@ -84,6 +84,44 @@ typedef struct {
     } fpga_outputs;
 } task1_outputs_t;
 
+/**
+ * @brief Optical fiber frame data structure
+ *
+ * Represents one received or transmitted optical fiber frame with payload.
+ * Maximum payload size is 120 bytes per frame.
+ */
+typedef struct {
+    uint8_t payload[120];   /**< Frame payload data (0-120 bytes) */
+    uint8_t payload_length; /**< Actual payload length in bytes */
+    uint8_t source_node;    /**< Source node ID (0-5) */
+    bool valid;             /**< True if frame data is valid */
+} optical_frame_data_t;
+
+/**
+ * @brief Input structure for yeet_task_2 (1 kHz communication task)
+ *
+ * Contains received optical fiber frames from all active channels.
+ * Updated by OpticalFiber_Poll() in Task 2 ISR.
+ */
+typedef struct {
+    optical_frame_data_t channel[7]; /**< Received frames from channels 1-7 (0-indexed) */
+    uint32_t frames_received[7];     /**< Total frames received per channel */
+    uint32_t crc_errors[7];          /**< CRC errors detected per channel */
+} task2_inputs_t;
+
+/**
+ * @brief Output structure for yeet_task_2 (1 kHz communication task)
+ *
+ * Contains data to be transmitted on optical fiber channels.
+ * Processed after yeet_task_2() executes.
+ */
+typedef struct {
+    optical_frame_data_t channel[7]; /**< Frames to transmit on channels 1-7 (0-indexed) */
+    bool transmit_request[7];        /**< True = transmit frame on this channel */
+    bool transmit_broadcast;         /**< True = transmit broadcast frame (channel 0) */
+    optical_frame_data_t broadcast;  /**< Broadcast frame data */
+} task2_outputs_t;
+
 #ifdef __cplusplus
 }
 #endif

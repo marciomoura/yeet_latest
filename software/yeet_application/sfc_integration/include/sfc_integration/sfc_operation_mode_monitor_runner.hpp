@@ -23,7 +23,7 @@ public:
     using datamodel = sfc_operation_mode_monitor_datamodel;
 
     /// @brief The execution interval for the monitoring logic.
-    static constexpr duration_t sampling_time = us(200);
+    static constexpr duration_t sampling_time = ms(1);
 
     /**
      * @brief Constructs the runner and its underlying detector components.

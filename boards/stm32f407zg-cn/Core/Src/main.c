@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "ad7606_driver.h"
 #include "fpga_io_driver.h"
+#include "optical_fiber_driver.h"
 #include "sfc_embedded/task_io.h"
 /* USER CODE END Includes */
 
@@ -72,9 +73,18 @@ static ad7606_data_t ad7606_data = {0};
 // FPGA digital I/O data (48 inputs + 48 outputs)
 static fpga_io_t fpga_io = {0};
 
+#ifdef ENABLE_OPTICAL_FIBER
+// Optical fiber communication (7 bidirectional channels)
+static optical_fiber_t optical_fiber = {0};
+#endif
+
 // Task 1 I/O structures (static global to avoid stack allocation in 5 kHz loop)
 static task1_inputs_t task1_inputs = {0};
 static task1_outputs_t task1_outputs = {0};
+
+// Task 2 I/O structures (for optical fiber communication)
+static task2_inputs_t task2_inputs = {0};
+static task2_outputs_t task2_outputs = {0};
 
 // Diagnostic counters for debugging
 volatile uint32_t g_adc_callback_count = 0;
@@ -98,6 +108,9 @@ static void MX_FSMC_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// Enable optical fiber communication feature
+// #define ENABLE_OPTICAL_FIBER
 
 // Forward declarations for task functions (defined in yeet application layer)
 extern void yeet_embedded_init(void);
@@ -150,6 +163,12 @@ int main(void)
     // Initialize FPGA digital I/O (must be after FSMC init)
     FPGA_IO_Init();
     FPGA_IO_Reset(&fpga_io);
+
+#ifdef ENABLE_OPTICAL_FIBER
+    // Initialize Optical Fiber Communication (must be after FSMC init)
+    // Node ID: 0 (line-side controller), Baud rate: 230400 bps
+    OpticalFiber_Init(&optical_fiber, 230400, 0);
+#endif
 
     // Start first AD7606 conversion
     AD7606_StartConversion();
@@ -710,6 +729,41 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
         // Task 2: 1 kHz (1 ms period)
         g_tim3_callback_count++;
 
+#ifdef ENABLE_OPTICAL_FIBER
+        // Poll optical fiber channels for received data
+        OpticalFiber_Poll(&optical_fiber);
+
+        // Process received optical fiber frames
+        for (int ch = 1; ch <= 7; ch++) {
+            int ch_idx = ch - 1;  // Convert to 0-indexed array
+
+            // Check if frame is ready on this channel
+            if (OpticalFiber_IsFrameReady(&optical_fiber, ch)) {
+                uint8_t frame[128];
+                if (OpticalFiber_GetFrame(&optical_fiber, ch, frame) > 0) {
+                    // Extract payload and source node
+                    uint8_t source_node = 0;
+                    uint16_t payload_len = OpticalFiber_ExtractPayload(frame, task2_inputs.channel[ch_idx].payload,
+                        sizeof(task2_inputs.channel[ch_idx].payload), &source_node);
+
+                    if (payload_len > 0) {
+                        // Valid frame received
+                        task2_inputs.channel[ch_idx].payload_length = (uint8_t)payload_len;
+                        task2_inputs.channel[ch_idx].source_node = source_node;
+                        task2_inputs.channel[ch_idx].valid = true;
+                    }
+                }
+            }
+
+            // Update statistics
+            const optical_channel_status_t* status = OpticalFiber_GetChannelStatus(&optical_fiber, ch);
+            if (status != NULL) {
+                task2_inputs.frames_received[ch_idx] = status->frames_received;
+                task2_inputs.crc_errors[ch_idx] = status->crc_errors;
+            }
+        }
+#endif  // ENABLE_OPTICAL_FIBER
+
         // Read FPGA digital inputs (raw read + debounce update)
         FPGA_IO_ReadInputs(&fpga_io);
         FPGA_IO_UpdateDebounce(&fpga_io);
@@ -724,6 +778,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 
         // Execute Task 2 control logic
         yeet_task_2();
+
+#ifdef ENABLE_OPTICAL_FIBER
+        // Process optical fiber transmit requests
+        if (task2_outputs.transmit_broadcast) {
+            // Transmit broadcast frame
+            if (task2_outputs.broadcast.valid) {
+                OpticalFiber_TransmitFrame(
+                    &optical_fiber, 0, task2_outputs.broadcast.payload, task2_outputs.broadcast.payload_length);
+            }
+            task2_outputs.transmit_broadcast = false;
+        }
+
+        // Transmit frames on specific channels
+        for (int ch = 1; ch <= 7; ch++) {
+            int ch_idx = ch - 1;
+            if (task2_outputs.transmit_request[ch_idx]) {
+                if (task2_outputs.channel[ch_idx].valid) {
+                    OpticalFiber_TransmitFrame(&optical_fiber, ch, task2_outputs.channel[ch_idx].payload,
+                        task2_outputs.channel[ch_idx].payload_length);
+                }
+                task2_outputs.transmit_request[ch_idx] = false;
+            }
+        }
+#endif  // ENABLE_OPTICAL_FIBER
 
         // Write FPGA digital outputs if update requested
         if (task1_outputs.fpga_outputs.update_outputs) {
