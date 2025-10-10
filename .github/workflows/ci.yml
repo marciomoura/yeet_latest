@@ -158,39 +158,19 @@ jobs:
           retention-days: 3
           compression-level: 9
 
-  # Job 3: Build Embedded Targets (ARM Cortex-M4)
-  # Builds firmware for STM32F407 targets (CN board and Discovery board)
-  # Both GRID and MACHINE side controllers are built in Debug and Release modes
-  # 
-  # Requirements:
-  # - gcc-arm-none-eabi toolchain with LTO support (gcc-ar, gcc-ranlib)
-  # - If LTO tools are missing, builds will fall back to standard ar/ranlib
-  # - LTO (Link Time Optimization) is enabled for smaller binaries
-  build-embedded:
+  # Job 3: Prepare ARM Toolchain (one-time setup)
+  # Downloads and caches the ARM GCC toolchain used by all embedded builds
+  # This avoids re-downloading the 200MB+ toolchain for each matrix job
+  prepare-arm-toolchain:
     if: github.event.inputs.build_embedded != 'false'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        board: [stm32f407zg-cn, stm32f407g-disc1]
-        side: [GRID, MACHINE]
-        build_type: [Release, Debug]
+    outputs:
+      toolchain-cached: ${{ steps.cache-arm-toolchain.outputs.cache-hit }}
     steps:
-      - name: Print Build Configuration
-        run: |
-          echo "Building embedded target:"
-          echo "  Board: ${{ matrix.board }}"
-          echo "  Side: ${{ matrix.side }}"
-          echo "  Build Type: ${{ matrix.build_type }}"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
       - name: Cache APT packages (base tools)
         uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
-          packages: cmake ninja-build ccache wget xz-utils
+          packages: wget xz-utils
           version: 1.0
 
       - name: Cache ARM GCC Toolchain
@@ -217,10 +197,8 @@ jobs:
           
           echo "=== ARM Toolchain Installation Complete ==="
 
-      - name: Add ARM Toolchain to PATH and verify
+      - name: Verify ARM Toolchain
         run: |
-          # Add to PATH for current and future steps
-          echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
           export PATH="/opt/arm-toolchain/bin:$PATH"
           
           echo "=== ARM GCC Toolchain Information ==="
@@ -229,10 +207,7 @@ jobs:
           TOOLCHAIN_PATH=$(which arm-none-eabi-gcc)
           echo "Toolchain found at: $TOOLCHAIN_PATH"
           
-          # Set GCC_TOOLCHAIN_ROOT environment variable
           TOOLCHAIN_ROOT=$(dirname $(dirname $TOOLCHAIN_PATH))
-          echo "GCC_TOOLCHAIN_ROOT=$TOOLCHAIN_ROOT" >> $GITHUB_ENV
-          echo "Setting GCC_TOOLCHAIN_ROOT to: $TOOLCHAIN_ROOT"
           
           # Verify nano.specs exists
           echo ""
@@ -266,10 +241,77 @@ jobs:
             echo "⚠️  arm-none-eabi-gcc-nm not found"
           fi
 
+  # Job 4: Build Embedded Targets (ARM Cortex-M4)
+  # Builds firmware for STM32F407 targets (CN board and Discovery board)
+  # Both GRID and MACHINE side controllers are built in Release mode only
+  # 
+  # Requirements:
+  # - gcc-arm-none-eabi toolchain with LTO support (gcc-ar, gcc-ranlib)
+  # - If LTO tools are missing, builds will fall back to standard ar/ranlib
+  # - LTO (Link Time Optimization) is enabled for smaller binaries
+  build-embedded:
+    needs: prepare-arm-toolchain
+    if: github.event.inputs.build_embedded != 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        board: [stm32f407zg-cn, stm32f407g-disc1]
+        side: [GRID, MACHINE]
+      fail-fast: false
+    steps:
+      - name: Print Build Configuration
+        run: |
+          echo "Building embedded target:"
+          echo "  Board: ${{ matrix.board }}"
+          echo "  Side: ${{ matrix.side }}"
+          echo "  Build Type: Release"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache APT packages (base tools)
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
+        with:
+          packages: cmake ninja-build ccache
+          version: 1.0
+
+      - name: Restore ARM GCC Toolchain from cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/arm-toolchain
+          key: arm-toolchain-13.3.rel1
+
+      - name: Add ARM Toolchain to PATH and configure environment
+        run: |
+          # Export PATH immediately for this step and all subsequent steps
+          echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
+          export PATH="/opt/arm-toolchain/bin:$PATH"
+          
+          # Set GCC_TOOLCHAIN_ROOT environment variable
+          TOOLCHAIN_ROOT="/opt/arm-toolchain"
+          echo "GCC_TOOLCHAIN_ROOT=$TOOLCHAIN_ROOT" >> $GITHUB_ENV
+          
+          # Set compiler environment variables for CMake
+          echo "CC=/opt/arm-toolchain/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
+          echo "CXX=/opt/arm-toolchain/bin/arm-none-eabi-g++" >> $GITHUB_ENV
+          echo "ASM=/opt/arm-toolchain/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
+          
+          echo "Setting GCC_TOOLCHAIN_ROOT to: $TOOLCHAIN_ROOT"
+          echo "Setting CC to: /opt/arm-toolchain/bin/arm-none-eabi-gcc"
+          echo "Setting CXX to: /opt/arm-toolchain/bin/arm-none-eabi-g++"
+          
+          # Quick verification
+          echo ""
+          echo "=== Toolchain Verification ==="
+          arm-none-eabi-gcc --version | head -1
+          ls -l /opt/arm-toolchain/bin/arm-none-eabi-gcc
+
       - name: Setup ccache for embedded
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-${{ matrix.build_type }}-ccache
+          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-release-ccache
           restore-keys: |
             ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-
             ${{ runner.os }}-arm-${{ matrix.board }}-
@@ -304,29 +346,29 @@ jobs:
             echo "⚠️  Note: Check CMake logs for LTO tool availability"
           fi
 
-      - name: Build embedded target
+      - name: Build embedded target (Release)
         run: |
           echo "=== Starting Embedded Build at $(date) ==="
-          PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')-$(echo ${{ matrix.build_type }} | tr '[:upper:]' '[:lower:]')"
+          PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')-release"
           echo "Using build preset: $PRESET_NAME"
           time cmake --build --preset=$PRESET_NAME --parallel $(nproc)
           echo "=== Embedded Build Complete at $(date) ==="
 
-      - name: Show build artifacts
+      - name: Show build artifacts and memory usage
         run: |
           BOARD_SHORT=$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')
           SIDE_LOWER=$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')
           BUILD_DIR="build-embedded-${BOARD_SHORT}-${SIDE_LOWER}"
           
           echo "=== Build Artifacts ==="
-          ls -lh ${BUILD_DIR}/bin/${{ matrix.build_type }}/*.elf || true
-          ls -lh ${BUILD_DIR}/bin/${{ matrix.build_type }}/*.bin || true
-          ls -lh ${BUILD_DIR}/bin/${{ matrix.build_type }}/*.hex || true
+          ls -lh ${BUILD_DIR}/bin/Release/*.elf || true
+          ls -lh ${BUILD_DIR}/bin/Release/*.bin || true
+          ls -lh ${BUILD_DIR}/bin/Release/*.hex || true
           
           echo ""
           echo "=== Flash Memory Usage ==="
-          if [ -f "${BUILD_DIR}/bin/${{ matrix.build_type }}/yeet_embedded_app_${SIDE_LOWER}.elf" ]; then
-            arm-none-eabi-size ${BUILD_DIR}/bin/${{ matrix.build_type }}/yeet_embedded_app_*.elf
+          if [ -f "${BUILD_DIR}/bin/Release/yeet_embedded_app_${SIDE_LOWER}.elf" ]; then
+            arm-none-eabi-size ${BUILD_DIR}/bin/Release/yeet_embedded_app_*.elf
           fi
 
       - name: Show ccache statistics
@@ -337,16 +379,16 @@ jobs:
       - name: Upload embedded binaries
         uses: actions/upload-artifact@v4
         with:
-          name: embedded-${{ matrix.board }}-${{ matrix.side }}-${{ matrix.build_type }}
+          name: embedded-${{ matrix.board }}-${{ matrix.side }}-release
           path: |
-            build-embedded-*/bin/${{ matrix.build_type }}/*.elf
-            build-embedded-*/bin/${{ matrix.build_type }}/*.bin
-            build-embedded-*/bin/${{ matrix.build_type }}/*.hex
-            build-embedded-*/bin/${{ matrix.build_type }}/*.map
+            build-embedded-*/bin/Release/*.elf
+            build-embedded-*/bin/Release/*.bin
+            build-embedded-*/bin/Release/*.hex
+            build-embedded-*/bin/Release/*.map
           retention-days: 7
           compression-level: 6
 
-  # Job 4: Unit Tests (fast tests)
+  # Job 5: Unit Tests (fast tests)
   test-unit:
     needs: build
     runs-on: ubuntu-latest
