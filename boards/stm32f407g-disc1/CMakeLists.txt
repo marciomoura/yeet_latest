@@ -35,6 +35,11 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
+# Setup STM32 drivers symlinks/copy (must happen before stm32cubemx
+# subdirectory)
+include(${CMAKE_SOURCE_DIR}/cmake/setup_stm32_drivers.cmake)
+setup_stm32_drivers(${CMAKE_CURRENT_SOURCE_DIR})
+
 # ==================== Create Board HAL Library ====================
 # This library contains all board-specific hardware drivers and HAL
 add_library(${CMAKE_PROJECT_NAME}_hal STATIC)
