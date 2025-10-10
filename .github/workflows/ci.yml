@@ -158,19 +158,40 @@ jobs:
           retention-days: 3
           compression-level: 9
 
-  # Job 3: Prepare ARM Toolchain (one-time setup)
-  # Downloads and caches the ARM GCC toolchain used by all embedded builds
-  # This avoids re-downloading the 200MB+ toolchain for each matrix job
-  prepare-arm-toolchain:
+  # Job 3: Build Embedded Targets (ARM Cortex-M4)
+  # Builds firmware for STM32F407 targets (CN board and Discovery board)
+  # Both GRID and MACHINE side controllers are built in Release mode only
+  # ARM toolchain is cached globally and only downloaded once per cache period
+  # 
+  # Requirements:
+  # - gcc-arm-none-eabi toolchain with LTO support (gcc-ar, gcc-ranlib)
+  # - If LTO tools are missing, builds will fall back to standard ar/ranlib
+  # - LTO (Link Time Optimization) is enabled for smaller binaries
+  build-embedded:
     if: github.event.inputs.build_embedded != 'false'
     runs-on: ubuntu-latest
-    outputs:
-      toolchain-cached: ${{ steps.cache-arm-toolchain.outputs.cache-hit }}
+    strategy:
+      matrix:
+        board: [stm32f407zg-cn, stm32f407g-disc1]
+        side: [GRID, MACHINE]
+      fail-fast: false
     steps:
+      - name: Print Build Configuration
+        run: |
+          echo "Building embedded target:"
+          echo "  Board: ${{ matrix.board }}"
+          echo "  Side: ${{ matrix.side }}"
+          echo "  Build Type: Release"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       - name: Cache APT packages (base tools)
         uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
-          packages: wget xz-utils
+          packages: cmake ninja-build ccache wget xz-utils
           version: 1.0
 
       - name: Cache ARM GCC Toolchain
@@ -197,17 +218,25 @@ jobs:
           
           echo "=== ARM Toolchain Installation Complete ==="
 
-      - name: Verify ARM Toolchain
+      - name: Add ARM Toolchain to PATH and configure environment
         run: |
+          # Export PATH immediately for this step and all subsequent steps
+          echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
           export PATH="/opt/arm-toolchain/bin:$PATH"
           
+          # Set GCC_TOOLCHAIN_ROOT environment variable
+          TOOLCHAIN_ROOT="/opt/arm-toolchain"
+          echo "GCC_TOOLCHAIN_ROOT=$TOOLCHAIN_ROOT" >> $GITHUB_ENV
+          
+          echo "Setting GCC_TOOLCHAIN_ROOT to: $TOOLCHAIN_ROOT"
+          
+          # Verify installation
+          echo ""
           echo "=== ARM GCC Toolchain Information ==="
           arm-none-eabi-gcc --version
-          arm-none-eabi-g++ --version
           TOOLCHAIN_PATH=$(which arm-none-eabi-gcc)
           echo "Toolchain found at: $TOOLCHAIN_PATH"
-          
-          TOOLCHAIN_ROOT=$(dirname $(dirname $TOOLCHAIN_PATH))
+          ls -l $TOOLCHAIN_PATH
           
           # Verify nano.specs exists
           echo ""
@@ -224,89 +253,10 @@ jobs:
           echo ""
           echo "=== Verifying LTO-aware tools ==="
           if command -v arm-none-eabi-gcc-ar >/dev/null 2>&1; then
-            echo "✅ arm-none-eabi-gcc-ar found at: $(which arm-none-eabi-gcc-ar)"
+            echo "✅ arm-none-eabi-gcc-ar found"
           else
             echo "⚠️  arm-none-eabi-gcc-ar not found"
           fi
-          
-          if command -v arm-none-eabi-gcc-ranlib >/dev/null 2>&1; then
-            echo "✅ arm-none-eabi-gcc-ranlib found at: $(which arm-none-eabi-gcc-ranlib)"
-          else
-            echo "⚠️  arm-none-eabi-gcc-ranlib not found"
-          fi
-          
-          if command -v arm-none-eabi-gcc-nm >/dev/null 2>&1; then
-            echo "✅ arm-none-eabi-gcc-nm found at: $(which arm-none-eabi-gcc-nm)"
-          else
-            echo "⚠️  arm-none-eabi-gcc-nm not found"
-          fi
-
-  # Job 4: Build Embedded Targets (ARM Cortex-M4)
-  # Builds firmware for STM32F407 targets (CN board and Discovery board)
-  # Both GRID and MACHINE side controllers are built in Release mode only
-  # 
-  # Requirements:
-  # - gcc-arm-none-eabi toolchain with LTO support (gcc-ar, gcc-ranlib)
-  # - If LTO tools are missing, builds will fall back to standard ar/ranlib
-  # - LTO (Link Time Optimization) is enabled for smaller binaries
-  build-embedded:
-    needs: prepare-arm-toolchain
-    if: github.event.inputs.build_embedded != 'false'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        board: [stm32f407zg-cn, stm32f407g-disc1]
-        side: [GRID, MACHINE]
-      fail-fast: false
-    steps:
-      - name: Print Build Configuration
-        run: |
-          echo "Building embedded target:"
-          echo "  Board: ${{ matrix.board }}"
-          echo "  Side: ${{ matrix.side }}"
-          echo "  Build Type: Release"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Cache APT packages (base tools)
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
-        with:
-          packages: cmake ninja-build ccache
-          version: 1.0
-
-      - name: Restore ARM GCC Toolchain from cache
-        uses: actions/cache@v4
-        with:
-          path: /opt/arm-toolchain
-          key: arm-toolchain-13.3.rel1
-
-      - name: Add ARM Toolchain to PATH and configure environment
-        run: |
-          # Export PATH immediately for this step and all subsequent steps
-          echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
-          export PATH="/opt/arm-toolchain/bin:$PATH"
-          
-          # Set GCC_TOOLCHAIN_ROOT environment variable
-          TOOLCHAIN_ROOT="/opt/arm-toolchain"
-          echo "GCC_TOOLCHAIN_ROOT=$TOOLCHAIN_ROOT" >> $GITHUB_ENV
-          
-          # Set compiler environment variables for CMake
-          echo "CC=/opt/arm-toolchain/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
-          echo "CXX=/opt/arm-toolchain/bin/arm-none-eabi-g++" >> $GITHUB_ENV
-          echo "ASM=/opt/arm-toolchain/bin/arm-none-eabi-gcc" >> $GITHUB_ENV
-          
-          echo "Setting GCC_TOOLCHAIN_ROOT to: $TOOLCHAIN_ROOT"
-          echo "Setting CC to: /opt/arm-toolchain/bin/arm-none-eabi-gcc"
-          echo "Setting CXX to: /opt/arm-toolchain/bin/arm-none-eabi-g++"
-          
-          # Quick verification
-          echo ""
-          echo "=== Toolchain Verification ==="
-          arm-none-eabi-gcc --version | head -1
-          ls -l /opt/arm-toolchain/bin/arm-none-eabi-gcc
 
       - name: Setup ccache for embedded
         uses: hendrikmuhs/ccache-action@v1.2
@@ -388,7 +338,7 @@ jobs:
           retention-days: 7
           compression-level: 6
 
-  # Job 5: Unit Tests (fast tests)
+  # Job 4: Unit Tests (fast tests)
   test-unit:
     needs: build
     runs-on: ubuntu-latest
