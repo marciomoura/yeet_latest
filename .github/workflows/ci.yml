@@ -282,7 +282,15 @@ jobs:
             ${{ runner.os }}-arm-cmake-
 
       - name: Configure embedded CMake project
+        env:
+          PATH: /opt/arm-toolchain/bin:${{ env.PATH }}
         run: |
+          # Verify toolchain is accessible
+          echo "=== Verifying ARM Toolchain ==="
+          which arm-none-eabi-gcc
+          arm-none-eabi-gcc --version | head -1
+          echo ""
+          
           PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')"
           echo "Using CMake preset: $PRESET_NAME"
           echo ""
@@ -297,6 +305,8 @@ jobs:
           fi
 
       - name: Build embedded target (Release)
+        env:
+          PATH: /opt/arm-toolchain/bin:${{ env.PATH }}
         run: |
           echo "=== Starting Embedded Build at $(date) ==="
           PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')-release"
@@ -305,6 +315,8 @@ jobs:
           echo "=== Embedded Build Complete at $(date) ==="
 
       - name: Show build artifacts and memory usage
+        env:
+          PATH: /opt/arm-toolchain/bin:${{ env.PATH }}
         run: |
           BOARD_SHORT=$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')
           SIDE_LOWER=$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')
