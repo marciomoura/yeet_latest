@@ -1,20 +1,76 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR ARM)
 
-# Specify the cross compiler
-set(CMAKE_C_COMPILER arm-none-eabi-gcc)
-set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
-set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
+# Use GCC_TOOLCHAIN_ROOT environment variable if set, otherwise fallback to PATH
+if(DEFINED ENV{GCC_TOOLCHAIN_ROOT})
+    # Normalize path for CMake (converts backslashes to forward slashes)
+    file(TO_CMAKE_PATH "$ENV{GCC_TOOLCHAIN_ROOT}" TOOLCHAIN_ROOT_PATH)
 
-# Set C++ standard defaults for CMake 3.31+ compatibility
+    # Check if GCC_TOOLCHAIN_ROOT points to bin directory or root directory
+    if(TOOLCHAIN_ROOT_PATH MATCHES ".*bin$")
+        # Already points to bin directory, use as-is
+        set(TOOLCHAIN_PREFIX "${TOOLCHAIN_ROOT_PATH}/arm-none-eabi-")
+        message(
+            STATUS
+                "Using ARM toolchain from GCC_TOOLCHAIN_ROOT (bin): ${TOOLCHAIN_ROOT_PATH}"
+        )
+    else()
+        # Points to root directory, append /bin
+        set(TOOLCHAIN_PREFIX "${TOOLCHAIN_ROOT_PATH}/bin/arm-none-eabi-")
+        message(
+            STATUS
+                "Using ARM toolchain from GCC_TOOLCHAIN_ROOT: ${TOOLCHAIN_ROOT_PATH}"
+        )
+    endif()
+
+    # Add .exe extension on Windows
+    if(CMAKE_HOST_WIN32)
+        set(TOOLCHAIN_SUFFIX ".exe")
+    else()
+        set(TOOLCHAIN_SUFFIX "")
+    endif()
+else()
+    set(TOOLCHAIN_PREFIX "arm-none-eabi-")
+    set(TOOLCHAIN_SUFFIX "")
+    message(STATUS "GCC_TOOLCHAIN_ROOT not set, using ARM toolchain from PATH")
+endif()
+
+# Specify the cross compiler
+set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}gcc${TOOLCHAIN_SUFFIX})
+set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}g++${TOOLCHAIN_SUFFIX})
+set(CMAKE_ASM_COMPILER ${TOOLCHAIN_PREFIX}gcc${TOOLCHAIN_SUFFIX}
+)# Set C++ standard defaults for CMake 3.31+ compatibility
 set(CMAKE_CXX_STANDARD_COMPUTED_DEFAULT 17)
 set(CMAKE_CXX_EXTENSIONS_COMPUTED_DEFAULT OFF)
 set(CMAKE_C_STANDARD_COMPUTED_DEFAULT 11)
 set(CMAKE_C_EXTENSIONS_COMPUTED_DEFAULT OFF)
-set(CMAKE_AR arm-none-eabi-ar)
-set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
-set(CMAKE_OBJDUMP arm-none-eabi-objdump)
-set(CMAKE_SIZE arm-none-eabi-size)
+
+# Use gcc-ar and gcc-ranlib wrappers for LTO support in static libraries These
+# wrappers automatically load the LTO plugin First, check if they exist
+find_program(GCC_AR_TOOL ${TOOLCHAIN_PREFIX}gcc-ar${TOOLCHAIN_SUFFIX})
+find_program(GCC_RANLIB_TOOL ${TOOLCHAIN_PREFIX}gcc-ranlib${TOOLCHAIN_SUFFIX})
+find_program(GCC_NM_TOOL ${TOOLCHAIN_PREFIX}gcc-nm${TOOLCHAIN_SUFFIX})
+
+if(GCC_AR_TOOL AND GCC_RANLIB_TOOL)
+    set(CMAKE_AR ${TOOLCHAIN_PREFIX}gcc-ar${TOOLCHAIN_SUFFIX})
+    set(CMAKE_RANLIB ${TOOLCHAIN_PREFIX}gcc-ranlib${TOOLCHAIN_SUFFIX})
+    set(CMAKE_NM ${TOOLCHAIN_PREFIX}gcc-nm${TOOLCHAIN_SUFFIX})
+    message(
+        STATUS "Using LTO-aware archiver tools (gcc-ar, gcc-ranlib, gcc-nm)")
+else()
+    set(CMAKE_AR ${TOOLCHAIN_PREFIX}ar${TOOLCHAIN_SUFFIX})
+    set(CMAKE_RANLIB ${TOOLCHAIN_PREFIX}ranlib${TOOLCHAIN_SUFFIX})
+    set(CMAKE_NM ${TOOLCHAIN_PREFIX}nm${TOOLCHAIN_SUFFIX})
+    message(
+        WARNING
+            "LTO-aware tools (gcc-ar, gcc-ranlib) not found. Using standard ar/ranlib. LTO may not work correctly with static libraries!"
+    )
+endif()
+
+# Set other binutils tools
+set(CMAKE_OBJCOPY ${TOOLCHAIN_PREFIX}objcopy${TOOLCHAIN_SUFFIX})
+set(CMAKE_OBJDUMP ${TOOLCHAIN_PREFIX}objdump${TOOLCHAIN_SUFFIX})
+set(CMAKE_SIZE ${TOOLCHAIN_PREFIX}size${TOOLCHAIN_SUFFIX})
 
 # Set executable suffix to .elf for ARM embedded targets
 set(CMAKE_EXECUTABLE_SUFFIX_ASM ".elf")

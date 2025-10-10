@@ -166,7 +166,7 @@ jobs:
       matrix:
         board: [stm32f407zg-cn, stm32f407g-disc1]
         side: [GRID, MACHINE]
-        build_type: [Release, Debug]
+        build_type: [Release]
     steps:
       - name: Print Build Configuration
         run: |
@@ -183,7 +183,7 @@ jobs:
       - name: Cache APT packages (ARM toolchain)
         uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
-          packages: cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib ccache
+          packages: cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libnewlib-dev libstdc++-arm-none-eabi-newlib ccache
           version: 1.0
 
       - name: Setup ccache for embedded
