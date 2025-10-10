@@ -187,11 +187,39 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache APT packages (ARM toolchain)
+      - name: Cache APT packages (base tools)
         uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
-          packages: cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib ccache
+          packages: cmake ninja-build ccache wget xz-utils
           version: 1.0
+
+      - name: Cache ARM GCC Toolchain
+        id: cache-arm-toolchain
+        uses: actions/cache@v4
+        with:
+          path: /opt/arm-toolchain
+          key: arm-toolchain-13.3.rel1
+
+      - name: Install ARM GCC Toolchain
+        if: steps.cache-arm-toolchain.outputs.cache-hit != 'true'
+        run: |
+          echo "=== Installing ARM GCC Toolchain ==="
+          
+          # Download the official ARM GCC toolchain (same version as STM32CubeCLT)
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz
+          
+          # Extract to /opt
+          sudo mkdir -p /opt/arm-toolchain
+          sudo tar -xf arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz -C /opt/arm-toolchain --strip-components=1
+          
+          # Cleanup download
+          rm arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz
+          
+          echo "=== ARM Toolchain Installation Complete ==="
+
+      - name: Add ARM Toolchain to PATH
+        run: |
+          echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
 
       - name: Setup ccache for embedded
         uses: hendrikmuhs/ccache-action@v1.2
@@ -228,6 +256,17 @@ jobs:
           TOOLCHAIN_ROOT=$(dirname $(dirname $TOOLCHAIN_PATH))
           echo "GCC_TOOLCHAIN_ROOT=$TOOLCHAIN_ROOT" >> $GITHUB_ENV
           echo "Setting GCC_TOOLCHAIN_ROOT to: $TOOLCHAIN_ROOT"
+          
+          # Verify nano.specs exists
+          echo ""
+          echo "=== Verifying nano.specs ==="
+          NANO_SPECS=$(find $TOOLCHAIN_ROOT -name "nano.specs" | head -1)
+          if [ -n "$NANO_SPECS" ]; then
+            echo "✅ nano.specs found at: $NANO_SPECS"
+          else
+            echo "❌ nano.specs NOT FOUND - builds will fail!"
+            exit 1
+          fi
           
           # Verify LTO-aware tools are available
           echo ""
