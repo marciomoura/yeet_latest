@@ -217,35 +217,12 @@ jobs:
           
           echo "=== ARM Toolchain Installation Complete ==="
 
-      - name: Add ARM Toolchain to PATH
+      - name: Add ARM Toolchain to PATH and verify
         run: |
+          # Add to PATH for current and future steps
           echo "/opt/arm-toolchain/bin" >> $GITHUB_PATH
-
-      - name: Setup ccache for embedded
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-${{ matrix.build_type }}-ccache
-          restore-keys: |
-            ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-
-            ${{ runner.os }}-arm-${{ matrix.board }}-
-            ${{ runner.os }}-arm-
-          max-size: 300M
-          verbose: 2
-
-      - name: Cache CMake dependencies (embedded)
-        uses: actions/cache@v4
-        with:
-          path: |
-            build-embedded-*/_deps
-            build-embedded-*/CMakeCache.txt
-            build-embedded-*/CMakeFiles
-          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'cmake/**/*.cmake', 'boards/**/*.cmake') }}
-          restore-keys: |
-            ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-cmake-
-            ${{ runner.os }}-arm-cmake-
-
-      - name: Verify ARM toolchain installation
-        run: |
+          export PATH="/opt/arm-toolchain/bin:$PATH"
+          
           echo "=== ARM GCC Toolchain Information ==="
           arm-none-eabi-gcc --version
           arm-none-eabi-g++ --version
@@ -288,6 +265,29 @@ jobs:
           else
             echo "⚠️  arm-none-eabi-gcc-nm not found"
           fi
+
+      - name: Setup ccache for embedded
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-${{ matrix.build_type }}-ccache
+          restore-keys: |
+            ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-
+            ${{ runner.os }}-arm-${{ matrix.board }}-
+            ${{ runner.os }}-arm-
+          max-size: 300M
+          verbose: 2
+
+      - name: Cache CMake dependencies (embedded)
+        uses: actions/cache@v4
+        with:
+          path: |
+            build-embedded-*/_deps
+            build-embedded-*/CMakeCache.txt
+            build-embedded-*/CMakeFiles
+          key: ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'cmake/**/*.cmake', 'boards/**/*.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-arm-${{ matrix.board }}-${{ matrix.side }}-cmake-
+            ${{ runner.os }}-arm-cmake-
 
       - name: Configure embedded CMake project
         run: |
