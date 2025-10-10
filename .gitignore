@@ -27,7 +27,7 @@ __pycache__
 vendor/
 
 # Ignore STM32CubeMX-generated CMake files (we have our own main CMakeLists.txt)
-boards/*/cmake/
+# boards/*/cmake/
 
 # Ignore STM32CubeMX-generated Drivers (fetched via CMake)
 boards/*/Drivers/
