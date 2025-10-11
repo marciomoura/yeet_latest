@@ -102,6 +102,44 @@
             "serverpath": "C:/ST/STM32CubeCLT_1.19.0/STLink-gdb-server/bin/ST-LINK_gdbserver.exe",
             "stlinkPath": "C:/ST/STM32CubeCLT_1.19.0/STLink-gdb-server/bin",
             "armToolchainPath": "C:/ST/STM32CubeCLT_1.19.0/GNU-tools-for-STM32/bin"
+        },
+        {
+            "name": "(Cortex-Debug) STM32F407ZG-CN Grid-Side - Debug Build",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build-embedded-cn-grid/bin/Debug/yeet_embedded_app_grid.elf",
+            "device": "STM32F407ZG",
+            "interface": "swd",
+            "serialNumber": "",
+            "runToEntryPoint": "main",
+            "svdFile": "C:/DevEnv/STM32CubeCLT_1.19.0/STMicroelectronics_CMSIS_SVD/STM32F407.svd",
+            "preLaunchCommands": [
+                "monitor reset"
+            ],
+            "showDevDebugOutput": "raw",
+            "serverpath": "C:/DevEnv/SEGGER/JLink_V876/JLinkGDBServerCL.exe",
+            "armToolchainPath": "C:/DevEnv/STM32CubeCLT_1.19.0/GNU-tools-for-STM32/bin"
+        },
+        {
+            "name": "(Cortex-Debug) STM32F407ZG-CN Machine-Side - Debug Build",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build-embedded-cn-machine/bin/Debug/yeet_embedded_app_machine.elf",
+            "device": "STM32F407ZG",
+            "interface": "swd",
+            "serialNumber": "",
+            "runToEntryPoint": "main",
+            "svdFile": "C:/DevEnv/STM32CubeCLT_1.19.0/STMicroelectronics_CMSIS_SVD/STM32F407.svd",
+            "preLaunchCommands": [
+                "monitor reset"
+            ],
+            "showDevDebugOutput": "raw",
+            "serverpath": "C:/DevEnv/SEGGER/JLink_V876/JLinkGDBServerCL.exe",
+            "armToolchainPath": "C:/DevEnv/STM32CubeCLT_1.19.0/GNU-tools-for-STM32/bin"
         }
     ]
 }

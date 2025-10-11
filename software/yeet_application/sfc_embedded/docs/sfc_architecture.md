@@ -50,11 +50,11 @@ The Static Frequency Converter (SFC) embedded control system is split into two i
 
 Both controllers operate with a **multi-rate control architecture**:
 
-| Task | Rate | Period | Purpose |
-|------|------|--------|---------|
-| **Task 1** | 5 kHz | 200 µs | High-frequency: Measurements, observers, modulation, pulse generation |
-| **Task 2** | 1 kHz | 1 ms | Medium-frequency: Controllers (current/machine) |
-| **Task 3** | 100 Hz | 10 ms | Low-frequency: Speed control, operation mode monitoring |
+| Task       | Rate   | Period | Purpose                                                               |
+| ---------- | ------ | ------ | --------------------------------------------------------------------- |
+| **Task 1** | 5 kHz  | 200 µs | High-frequency: Measurements, observers, modulation, pulse generation |
+| **Task 2** | 1 kHz  | 1 ms   | Medium-frequency: Controllers (current/machine)                       |
+| **Task 3** | 100 Hz | 10 ms  | Low-frequency: Speed control, operation mode monitoring               |
 
 ---
 
@@ -151,37 +151,37 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 
 ### 2.3 Grid-Side Input Signals
 
-| Signal | Source | Type | Description |
-|--------|--------|------|-------------|
-| `auxiliaries_are_on` | Supervisory | `bool` | Auxiliary systems ready |
-| `breakers_are_on` | Supervisory | `bool` | Main breakers closed |
-| `start_command` | Supervisory | `bool` | Command to start system |
-| `stop_command` | Supervisory | `bool` | Command to stop system |
-| `shutdown_request` | Supervisory | `bool` | Emergency shutdown |
-| `is_current_extinguished` | Hardware | `bool` | Zero-current detection |
-| `v_ab_counts` | ADC | `adc_counts` | Grid voltage AB measurement |
-| `v_bc_counts` | ADC | `adc_counts` | Grid voltage BC measurement |
-| `i_a_counts` | ADC | `adc_counts` | Grid phase A current |
-| `i_c_counts` | ADC | `adc_counts` | Grid phase C current |
-| `grid_side_frequency` | Timer | `frequency_t` | Grid frequency reference |
-| `grid_side_angle` | Timer | `angle_wrapped` | Grid angle reference |
-| `grid_pulses` | Hardware | `six_pulse_generator::pulses` | Thyristor commutation events |
-| `dc_link_current_reference` | Machine-side | `current_pu_t` | Commanded DC current |
-| `machine_side_voltage_magnitude` | Machine-side | `voltage_pu_t` | Machine voltage for feedforward |
-| `request_force_commutation` | Machine-side | `bool` | Force commutation request |
+| Signal                           | Source       | Type                          | Description                     |
+| -------------------------------- | ------------ | ----------------------------- | ------------------------------- |
+| `auxiliaries_are_on`             | Supervisory  | `bool`                        | Auxiliary systems ready         |
+| `breakers_are_on`                | Supervisory  | `bool`                        | Main breakers closed            |
+| `start_command`                  | Supervisory  | `bool`                        | Command to start system         |
+| `stop_command`                   | Supervisory  | `bool`                        | Command to stop system          |
+| `shutdown_request`               | Supervisory  | `bool`                        | Emergency shutdown              |
+| `is_current_extinguished`        | Hardware     | `bool`                        | Zero-current detection          |
+| `v_ab_counts`                    | ADC          | `adc_counts`                  | Grid voltage AB measurement     |
+| `v_bc_counts`                    | ADC          | `adc_counts`                  | Grid voltage BC measurement     |
+| `i_a_counts`                     | ADC          | `adc_counts`                  | Grid phase A current            |
+| `i_c_counts`                     | ADC          | `adc_counts`                  | Grid phase C current            |
+| `grid_side_frequency`            | Timer        | `frequency_t`                 | Grid frequency reference        |
+| `grid_side_angle`                | Timer        | `angle_wrapped`               | Grid angle reference            |
+| `grid_pulses`                    | Hardware     | `six_pulse_generator::pulses` | Thyristor commutation events    |
+| `dc_link_current_reference`      | Machine-side | `current_pu_t`                | Commanded DC current            |
+| `machine_side_voltage_magnitude` | Machine-side | `voltage_pu_t`                | Machine voltage for feedforward |
+| `request_force_commutation`      | Machine-side | `bool`                        | Force commutation request       |
 
 ### 2.4 Grid-Side Output Signals
 
-| Signal | Destination | Type | Description |
-|--------|-------------|------|-------------|
-| `pulse_releases` | Machine-side | `bool` | Enable thyristor firing |
-| `operating_mode` | Machine-side | `sfc_operating_mode_t` | Power flow direction |
-| `dc_link_current_pu` | Machine-side | `current_pu_t` | Measured DC link current |
-| `force_commutation_acknowledged` | Machine-side | `bool` | Commutation ack |
-| `freeze_integrator` | Machine-side | `bool` | Anti-windup signal |
-| `current_controller_is_saturated` | Machine-side | `bool` | Saturation status |
-| `modulator_freeze_integrator` | Machine-side | `bool` | Modulator freeze signal |
-| `gate_pulses[6]` | Gate drivers | `bool[6]` | Thyristor firing signals |
+| Signal                            | Destination  | Type                   | Description              |
+| --------------------------------- | ------------ | ---------------------- | ------------------------ |
+| `pulse_releases`                  | Machine-side | `bool`                 | Enable thyristor firing  |
+| `operating_mode`                  | Machine-side | `sfc_operating_mode_t` | Power flow direction     |
+| `dc_link_current_pu`              | Machine-side | `current_pu_t`         | Measured DC link current |
+| `force_commutation_acknowledged`  | Machine-side | `bool`                 | Commutation ack          |
+| `freeze_integrator`               | Machine-side | `bool`                 | Anti-windup signal       |
+| `current_controller_is_saturated` | Machine-side | `bool`                 | Saturation status        |
+| `modulator_freeze_integrator`     | Machine-side | `bool`                 | Modulator freeze signal  |
+| `gate_pulses[6]`                  | Gate drivers | `bool[6]`              | Thyristor firing signals |
 
 ---
 
@@ -261,53 +261,53 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
 
 ### 3.3 Machine-Side Input Signals
 
-| Signal | Source | Type | Description |
-|--------|--------|------|-------------|
-| `speed_reference_pu` | Supervisory | `speed_pu_t` | Commanded machine speed |
-| `pulse_releases` | Grid-side | `bool` | Enable from state machine |
-| `operating_mode` | Grid-side | `sfc_operating_mode_t` | Rectifier/Inverter mode |
-| `dc_link_current_pu` | Grid-side | `current_pu_t` | Measured DC current |
-| `force_commutation_acknowledged` | Grid-side | `bool` | Commutation ack from grid |
-| `freeze_integrator` | Grid-side | `bool` | Anti-windup for speed controller |
-| `current_controller_is_saturated` | Grid-side | `bool` | Saturation from grid current controller |
-| `modulator_freeze_integrator` | Grid-side | `bool` | Anti-windup from grid modulator |
-| `enable_speed_control` | Grid-side | `bool` | Enable speed control loop |
-| `v_ab_counts` | ADC | `adc_counts` | Machine voltage AB measurement |
-| `v_bc_counts` | ADC | `adc_counts` | Machine voltage BC measurement |
-| `machine_side_frequency` | Timer | `frequency_t` | Machine frequency reference |
-| `machine_side_angle` | Timer | `angle_wrapped` | Machine angle reference |
-| `machine_pulses` | Hardware | `six_pulse_generator::pulses` | Thyristor commutation events |
+| Signal                            | Source      | Type                          | Description                             |
+| --------------------------------- | ----------- | ----------------------------- | --------------------------------------- |
+| `speed_reference_pu`              | Supervisory | `speed_pu_t`                  | Commanded machine speed                 |
+| `pulse_releases`                  | Grid-side   | `bool`                        | Enable from state machine               |
+| `operating_mode`                  | Grid-side   | `sfc_operating_mode_t`        | Rectifier/Inverter mode                 |
+| `dc_link_current_pu`              | Grid-side   | `current_pu_t`                | Measured DC current                     |
+| `force_commutation_acknowledged`  | Grid-side   | `bool`                        | Commutation ack from grid               |
+| `freeze_integrator`               | Grid-side   | `bool`                        | Anti-windup for speed controller        |
+| `current_controller_is_saturated` | Grid-side   | `bool`                        | Saturation from grid current controller |
+| `modulator_freeze_integrator`     | Grid-side   | `bool`                        | Anti-windup from grid modulator         |
+| `enable_speed_control`            | Grid-side   | `bool`                        | Enable speed control loop               |
+| `v_ab_counts`                     | ADC         | `adc_counts`                  | Machine voltage AB measurement          |
+| `v_bc_counts`                     | ADC         | `adc_counts`                  | Machine voltage BC measurement          |
+| `machine_side_frequency`          | Timer       | `frequency_t`                 | Machine frequency reference             |
+| `machine_side_angle`              | Timer       | `angle_wrapped`               | Machine angle reference                 |
+| `machine_pulses`                  | Hardware    | `six_pulse_generator::pulses` | Thyristor commutation events            |
 
 ### 3.4 Machine-Side Output Signals
 
-| Signal | Destination | Type | Description |
-|--------|-------------|------|-------------|
-| `dc_link_current_reference` | Grid-side | `current_pu_t` | Commanded DC current |
-| `machine_side_voltage_magnitude` | Grid-side | `voltage_pu_t` | Machine voltage magnitude |
-| `request_force_commutation` | Grid-side | `bool` | Force commutation request |
-| `measured_speed_pu` | Grid-side | `speed_pu_t` | Estimated machine speed |
-| `current_controller_is_saturated` | Internal | `bool` | Saturation flag |
-| `gate_pulses[6]` | Gate drivers | `bool[6]` | Thyristor firing signals |
+| Signal                            | Destination  | Type           | Description               |
+| --------------------------------- | ------------ | -------------- | ------------------------- |
+| `dc_link_current_reference`       | Grid-side    | `current_pu_t` | Commanded DC current      |
+| `machine_side_voltage_magnitude`  | Grid-side    | `voltage_pu_t` | Machine voltage magnitude |
+| `request_force_commutation`       | Grid-side    | `bool`         | Force commutation request |
+| `measured_speed_pu`               | Grid-side    | `speed_pu_t`   | Estimated machine speed   |
+| `current_controller_is_saturated` | Internal     | `bool`         | Saturation flag           |
+| `gate_pulses[6]`                  | Gate drivers | `bool[6]`      | Thyristor firing signals  |
 
 ---
 
 ## 4. Key Differences: Grid-Side vs Machine-Side
 
-| Aspect | Grid-Side | Machine-Side |
-|--------|-----------|--------------|
-| **Role** | Master (coordinator) | Slave (follows grid-side) |
-| **Primary Control Objective** | DC link current regulation | Machine speed regulation |
-| **State Machine** | ✅ Yes - Controls system sequencing | ❌ No - Receives enable signals |
-| **Sensors** | 2x Voltage + 2x Current (4 ADCs) | 2x Voltage only (2 ADCs) |
-| **Current Measurement** | Direct DC link current sensor | Receives from grid-side |
-| **Speed Measurement** | Receives from machine-side | Sensorless observer |
-| **External Commands** | 6 state machine inputs | 1 speed reference |
-| **Inter-Controller Inputs** | 4 signals from machine-side | 8 signals from grid-side |
-| **Control Hierarchy** | Outer loop (power flow) | Inner loop (speed/torque) |
-| **Operating Mode Determination** | ✅ Yes - Monitors and decides | ❌ No - Receives from grid-side |
-| **Pulse Release Authority** | ✅ Yes - Controls both sides | ❌ No - Receives from grid-side |
-| **Anti-Windup Coordination** | Sends freeze signals | Receives freeze signals |
-| **Force Commutation** | Acknowledges requests | Initiates requests |
+| Aspect                           | Grid-Side                          | Machine-Side                   |
+| -------------------------------- | ---------------------------------- | ------------------------------ |
+| **Role**                         | Master (coordinator)               | Slave (follows grid-side)      |
+| **Primary Control Objective**    | DC link current regulation         | Machine speed regulation       |
+| **State Machine**                | ✅ Yes - Controls system sequencing | ❌ No - Receives enable signals |
+| **Sensors**                      | 2x Voltage + 2x Current (4 ADCs)   | 2x Voltage only (2 ADCs)       |
+| **Current Measurement**          | Direct DC link current sensor      | Receives from grid-side        |
+| **Speed Measurement**            | Receives from machine-side         | Sensorless observer            |
+| **External Commands**            | 6 state machine inputs             | 1 speed reference              |
+| **Inter-Controller Inputs**      | 4 signals from machine-side        | 8 signals from grid-side       |
+| **Control Hierarchy**            | Outer loop (power flow)            | Inner loop (speed/torque)      |
+| **Operating Mode Determination** | ✅ Yes - Monitors and decides       | ❌ No - Receives from grid-side |
+| **Pulse Release Authority**      | ✅ Yes - Controls both sides        | ❌ No - Receives from grid-side |
+| **Anti-Windup Coordination**     | Sends freeze signals               | Receives freeze signals        |
+| **Force Commutation**            | Acknowledges requests              | Initiates requests             |
 
 ---
 
@@ -468,9 +468,9 @@ Both controllers implement three interrupt-driven tasks:
 ```cpp
 extern "C" {
     void yeet_embedded_init(void);  // Called once at startup
-    void yeet_task_1(void);         // 5 kHz - High priority
-    void yeet_task_2(void);         // 1 kHz - Medium priority
-    void yeet_task_3(void);         // 100 Hz - Low priority
+    void yeet_task_200us(void);         // 5 kHz - High priority
+    void yeet_task_1000us(void);         // 1 kHz - Medium priority
+    void yeet_task_10000us(void);         // 100 Hz - Low priority
 }
 ```
 

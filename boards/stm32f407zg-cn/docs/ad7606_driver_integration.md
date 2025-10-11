@@ -107,10 +107,10 @@ typedef struct {
 
 ### **Accessing Data in Your Control Code**
 
-In `yeet_task_1()`, you receive `task1_inputs_t` with AD7606 data:
+In `yeet_task_200us()`, you receive `task1_inputs_t` with AD7606 data:
 
 ```cpp
-void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     // Check if AD7606 data is valid
     if (inputs->ad7606.data_valid) {
@@ -271,7 +271,7 @@ g_adc_callback_count          // Task 1 execution count
 ## 🔍 **Example: Simple Voltage Monitoring**
 
 ```cpp
-void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     if (inputs->ad7606.data_valid) {
         // Calculate 3-phase RMS voltage
