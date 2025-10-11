@@ -44,6 +44,11 @@ void sfc_plant_model_runner::run()
     _plant.set_machine_side_pulses(_inputs.machine_side_firing_pulses.read().to_array());
     _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
 
+    // Set excitation voltage setpoint if in external control mode
+    if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::external_control) {
+        _plant.set_excitation_voltage_setpoint_pu(_inputs.excitation_voltage_setpoint_pu.read());
+    }
+
     // Execute one simulation step
     _plant.update();
 
@@ -72,6 +77,17 @@ void sfc_plant_model_runner::set_parameters()
         _plant.set_operation_mode(sfc::plant_model_machine_operation_mode::fixed_speed);
     }
 
+    // Set voltage control mode
+    if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::fixed_voltage) {
+        _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::fixed_voltage);
+    }
+    else if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::speed_dependent) {
+        _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::speed_dependent);
+    }
+    else if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::external_control) {
+        _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::external_control);
+    }
+
     _plant.configure_mechanical_load(
         _parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read());
 }
@@ -79,6 +95,7 @@ void sfc_plant_model_runner::set_parameters()
 void sfc_plant_model_runner::set_parameter_callback()
 {
     _parameters.operation_mode.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_control_mode.register_callback([&]() { set_parameters(); });
     _parameters.motor_inertia_constant.register_callback([&]() { set_parameters(); });
     _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
 }

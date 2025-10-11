@@ -4,6 +4,7 @@
 
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
+#include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_grid_side_hardware_mock_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
@@ -96,6 +97,40 @@ static inline void register_complete_speed_controller_logger(
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_saturated", [&]() { return speed_controller.get_outputs().is_saturated.read(); }));
     // 'is_active' already registered by minimal logger (avoid duplicate)
+}
+
+static inline void register_minimal_excitation_controller_logger(
+    yeet::simulator& simulator, sfc_excitation_controller_runner& excitation_controller)
+{
+    const std::string group{"excitation_controller:"};
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "input machine_rotor_speed_pu",
+        [&]() { return excitation_controller.get_inputs().machine_rotor_speed_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input exciter_ready", [&]() { return excitation_controller.get_inputs().exciter_ready.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input start_command", [&]() { return excitation_controller.get_inputs().start_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input stop_command", [&]() { return excitation_controller.get_inputs().stop_command.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "output excitation_voltage_setpoint_pu",
+            [&]() { return excitation_controller.get_outputs().excitation_voltage_setpoint_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output enable_excitation",
+        [&]() { return excitation_controller.get_outputs().enable_excitation.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_field_established",
+        [&]() { return excitation_controller.get_outputs().is_field_established.read(); }));
+}
+
+static inline void register_complete_excitation_controller_logger(
+    yeet::simulator& simulator, sfc_excitation_controller_runner& excitation_controller)
+{
+    const std::string group{"excitation_controller:"};
+
+    register_minimal_excitation_controller_logger(simulator, excitation_controller);
+
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_running", [&]() { return excitation_controller.get_outputs().is_running.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "output prefluxing_elapsed_time",
+        [&]() { return excitation_controller.get_outputs().prefluxing_elapsed_time.read(); }));
 }
 
 static inline void register_minimal_dc_link_measurements_logger(
@@ -687,6 +722,16 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_speed
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_speed_controller_runner& runner)
 {
     register_complete_speed_controller_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_excitation_controller_runner& runner)
+{
+    register_minimal_excitation_controller_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_excitation_controller_runner& runner)
+{
+    register_complete_excitation_controller_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_dc_link_measurements_runner& runner)
