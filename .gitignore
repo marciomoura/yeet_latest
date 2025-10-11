@@ -60,3 +60,4 @@ build*
 /CPPLINT.cfg
 .vscode/c_cpp_properties.json
 .mxproject
+boards/to_compare/

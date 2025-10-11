@@ -25,6 +25,9 @@
 #include "fpga_io_driver.h"
 #include "fpga_led_driver.h"
 #include "sfc_embedded/task_io.h"
+#include "tlv_protocol.h"
+#include "w5200_driver.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -79,6 +82,13 @@ static fpga_io_t fpga_io = {0};
 // Task 1 I/O structures (static global to avoid stack allocation in 5 kHz loop)
 static task1_inputs_t task1_inputs = {0};
 static task1_outputs_t task1_outputs = {0};
+
+// W5200 Ethernet handles
+static W5200_Handle_t w5200_spi2 = {0};  // W5200 on SPI2 (192.168.2.x)
+static W5200_Handle_t w5200_spi3 = {0};  // W5200 on SPI3 (192.168.10.x)
+
+// TLV protocol buffer for UDP telemetry
+static uint8_t tlv_packet_buffer[512] = {0};
 
 // Diagnostic counters for debugging
 volatile uint32_t g_adc_callback_count = 0;
@@ -184,6 +194,30 @@ int main(void)
     if (HAL_TIM_Base_Start_IT(&htim4) != HAL_OK) {
         Error_Handler();
     }
+
+    // Initialize W5200 Ethernet controllers
+    // W5200 #1 on SPI2: 192.168.2.100, TCP Server (no DMA)
+    if (W5200_Init(&w5200_spi2, &hspi2, W5200_CHIP_SPI2, 0, false, 0) != HAL_OK) {
+        Error_Handler();
+    }
+
+    // W5200 #2 on SPI3: 192.168.10.31, UDP telemetry (8K DMA)
+    if (W5200_Init(&w5200_spi3, &hspi3, W5200_CHIP_SPI3, 0, true, W5200_DMA_SIZE_8K) != HAL_OK) {
+        Error_Handler();
+    }
+
+    // Configure W5200 SPI3 Socket 0 for UDP telemetry
+    W5200_SocketConfig_t udp_config = {0};
+    udp_config.enabled = true;
+    udp_config.mode = W5200_MODE_CLIENT;
+    udp_config.protocol = W5200_PROTO_UDP;
+    udp_config.local_port = 7000;
+    udp_config.dest_ip[0] = 192;
+    udp_config.dest_ip[1] = 168;
+    udp_config.dest_ip[2] = 10;
+    udp_config.dest_ip[3] = 100;  // Change to your PC's IP
+    udp_config.dest_port = 7000;
+    W5200_ConfigureSocket(&w5200_spi3, 0, &udp_config);
 
     /* USER CODE END 2 */
 
@@ -777,6 +811,10 @@ inline void isr_task_1000us()
     // Execute Task 2 control logic
     yeet_task_1000us();
 
+    // Process W5200 network events (interrupts, keep-alive, socket management)
+    W5200_Cycle(&w5200_spi2);
+    W5200_Cycle(&w5200_spi3);
+
     // Write FPGA digital outputs if update requested
     if (task1_outputs.fpga_outputs.update_outputs) {
         // Copy task outputs to FPGA output structure (48 channels)
@@ -800,6 +838,23 @@ inline void isr_task_10000us()
     // Task 3: 100 Hz (10 ms period)
     g_tim4_callback_count++;
     yeet_task_10000us();
+
+    // Send UDP telemetry packet with test value 0xDEADBEEF
+    if (W5200_SocketIsReady(&w5200_spi3, 0)) {
+        // Initialize TLV builder
+        TLV_Builder_t builder;
+        if (TLV_BuilderInit(&builder, tlv_packet_buffer, sizeof(tlv_packet_buffer))) {
+            // Add system time
+            TLV_AddUInt32(&builder, TLV_TAG_SYSTEM_TIME, HAL_GetTick());
+
+            // Add test signal with constant value 0xDEADBEEF
+            TLV_AddUInt32(&builder, TLV_TAG_MEASUREMENT_0, 0xDEADBEEF);
+
+            // Get packet size and send via UDP
+            uint16_t packet_size = TLV_GetPacketSize(&builder);
+            W5200_SocketSend(&w5200_spi3, 0, tlv_packet_buffer, packet_size);
+        }
+    }
 
     // Visual feedback: Toggle FPGA LED 2 at 1 Hz
     if (++task3_counter >= TASK3_TOGGLE_COUNT) {
