@@ -4,6 +4,7 @@ namespace yeet::application::sfc::integration {
 
 void sfc_machine_side_control::initialize()
 {
+    excitation_controller.initialize();
     speed_controller.initialize();
     machine_side_controller.initialize();
     machine_side_observer.initialize();
@@ -14,13 +15,14 @@ void sfc_machine_side_control::initialize()
 
 void sfc_machine_side_control::update_10ms()
 {
-    // 10ms sampling: Pulse generators
+    // 10ms sampling: Speed controller
     speed_controller.run();
 }
 
 void sfc_machine_side_control::update_1ms()
 {
-    // 1ms sampling: Machine-side controller
+    // 1ms sampling: Excitation controller, machine-side controller
+    excitation_controller.run();
     machine_side_controller.run();
 }
 
@@ -35,6 +37,21 @@ void sfc_machine_side_control::update_200us()
 
 void sfc_machine_side_control::connect_internal_signals()
 {
+    // ==================== Excitation Controller Connections ====================
+
+    // Excitation controller inputs from external signals
+    signals_connector::connect_output_to_input(exciter_ready, excitation_controller.get_inputs().exciter_ready);
+    signals_connector::connect_output_to_input(
+        excitation_start_command, excitation_controller.get_inputs().start_command);
+    signals_connector::connect_output_to_input(
+        excitation_stop_command, excitation_controller.get_inputs().stop_command);
+
+    // Excitation controller feedback: machine speed from observer
+    signals_connector::connect_output_to_input(
+        machine_side_observer.get_outputs().estimated_speed, excitation_controller.get_inputs().machine_rotor_speed_pu);
+
+    // ==================== Speed Controller Connections ====================
+
     // Speed controller inputs
     signals_connector::connect_output_to_input(speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
     //    signals_connector::connect_output_to_input(
