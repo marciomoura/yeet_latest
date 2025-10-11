@@ -146,7 +146,7 @@ void yeet_embedded_init(void)
 }
 
 ARM_FUNCTION
-void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     // HIGH-FREQUENCY CONTROL TASK
     // Configured rate: 200 µs (5 kHz)
@@ -183,7 +183,7 @@ void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 }
 
 ARM_FUNCTION
-void yeet_task_2(void)
+void yeet_task_1000us(void)
 {
     // MEDIUM-FREQUENCY CONTROL TASK
     // Configured rate: 1 ms (1 kHz)
@@ -196,7 +196,7 @@ void yeet_task_2(void)
 }
 
 ARM_FUNCTION
-void yeet_task_3(void)
+void yeet_task_10000us(void)
 {
     // LOW-FREQUENCY MONITORING TASK
     // Configured rate: 10 ms (100 Hz)

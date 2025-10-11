@@ -60,9 +60,9 @@ void TIM5_IRQHandler(void);
 void DMA2_Stream0_IRQHandler(void);
 void OTG_FS_IRQHandler(void);
 /* USER CODE BEGIN EFP */
-extern void yeet_task_1(void);
-extern void yeet_task_2(void);
-extern void yeet_task_3(void);
+extern void yeet_task_200us(void);
+extern void yeet_task_1000us(void);
+extern void yeet_task_10000us(void);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus

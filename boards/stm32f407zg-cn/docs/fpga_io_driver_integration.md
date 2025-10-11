@@ -238,7 +238,7 @@ The FPGA I/O driver is integrated into the Task 1 control loop, which runs at 5 
 3. **Read FPGA Inputs** → `FPGA_IO_ReadInputs()`
 4. **Update Debounce** → `FPGA_IO_UpdateDebounce()`
 5. **Populate task1_inputs_t** → Copy debounced inputs to task input structure
-6. **Execute yeet_task_1()** → Control algorithm
+6. **Execute yeet_task_200us()** → Control algorithm
 7. **Write FPGA Outputs** → If `update_outputs` flag is set
 8. **Apply Gate Pulses** → PWM outputs for power electronics
 
@@ -280,7 +280,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
         task1_outputs_t outputs = {0};
 
         // Execute control task
-        yeet_task_1(&inputs, &outputs);
+        yeet_task_200us(&inputs, &outputs);
 
         // Apply gate pulses
         apply_gate_pulses_fast(outputs.pulse_1, ... outputs.pulse_6);
@@ -320,8 +320,8 @@ This is well within the 200µs Task 1 period budget.
 ### Example 1: Reading Digital Inputs
 
 ```c
-// In Task 1 control algorithm (yeet_task_1)
-void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+// In Task 1 control algorithm (yeet_task_200us)
+void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     // Check if FPGA input data is valid
     if (inputs->fpga_inputs.data_valid) {
@@ -346,8 +346,8 @@ void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 ### Example 2: Writing Digital Outputs
 
 ```c
-// In Task 1 control algorithm (yeet_task_1)
-void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+// In Task 1 control algorithm (yeet_task_200us)
+void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     // Set relay outputs (channels 0-7)
     outputs->fpga_outputs.outputs[0] = true;  // Main contactor
@@ -368,7 +368,7 @@ void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 
 ```c
 // In Task 2 or Task 3 (lower frequency)
-void yeet_task_2(void)
+void yeet_task_1000us(void)
 {
     // Update LED status based on system state
     fpga_io.leds.run = (system_state == STATE_RUNNING);
@@ -384,7 +384,7 @@ void yeet_task_2(void)
 
 ```c
 // Toggle output based on input state
-void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 {
     // Read push button input (channel 10)
     static bool button_prev = false;

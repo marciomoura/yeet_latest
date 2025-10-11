@@ -99,6 +99,11 @@ target_sources(
             # Board-specific drivers
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ad7606_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/fpga_io_driver.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/fpga_led_driver.c
+            # W5200 Ethernet driver
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/w5200_driver.c
+            # TLV protocol for network communication
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tlv_protocol.c
             # Startup file (assembly)
             ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s)
 

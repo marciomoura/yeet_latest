@@ -102,9 +102,9 @@ void MX_USB_HOST_Process(void);
 #include "sfc_embedded/task_io.h"
 
 // Forward declarations for task functions (defined in yeet application layer)
-extern void yeet_task_1(const task1_inputs_t* inputs, task1_outputs_t* outputs);
-extern void yeet_task_2(void);
-extern void yeet_task_3(void);
+extern void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs);
+extern void yeet_task_1000us(void);
+extern void yeet_task_10000us(void);
 
 /* USER CODE END 0 */
 
@@ -751,7 +751,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     // - Inner current control loop
     // - Firing angle calculation for thyristors
     // - Gate pulse generation timing
-    yeet_task_1(&inputs, &outputs);
+    yeet_task_200us(&inputs, &outputs);
 
     // Apply gate pulses atomically using BSRR
     apply_gate_pulses_fast(
@@ -784,7 +784,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
         // - Speed/torque control loop
         // - Flux control calculations
         // - Protection monitoring (overcurrent, overvoltage)
-        yeet_task_2();
+        yeet_task_1000us();
     }
     else if (htim->Instance == TIM5) {
         // Increment diagnostic counter
@@ -804,7 +804,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
         // - Communication protocol handling
         // - Diagnostics and logging
         // - Non-critical supervisory functions
-        yeet_task_3();
+        yeet_task_10000us();
     }
 }
 

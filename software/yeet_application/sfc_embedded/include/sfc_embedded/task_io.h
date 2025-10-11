@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Input structure for yeet_task_1 (5 kHz control task)
+ * @brief Input structure for yeet_task_200us (5 kHz control task)
  *
  * Contains ADC measurement data from the current control loop.
  * - AD7606: 8 channels of high-speed 16-bit ADC via FSMC (channels 1-8, but only 1-9 used)
@@ -55,7 +55,7 @@ typedef struct {
 } task1_inputs_t;
 
 /**
- * @brief Output structure for yeet_task_1 (5 kHz control task)
+ * @brief Output structure for yeet_task_200us (5 kHz control task)
  *
  * Contains thyristor gate pulse commands and FPGA digital outputs.
  * - STM32F407ZG-CN: GPIO pins PC6-PC9, PB0-PB1 for gate pulses

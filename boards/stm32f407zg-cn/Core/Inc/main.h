@@ -57,6 +57,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define W5200_CS1_Pin GPIO_PIN_11
+#define W5200_CS1_GPIO_Port GPIOA
+#define W5200_RST1_Pin GPIO_PIN_12
+#define W5200_RST1_GPIO_Port GPIOA
+#define W5200_CS2_Pin GPIO_PIN_3
+#define W5200_CS2_GPIO_Port GPIOB
+#define W5200_RST2_Pin GPIO_PIN_4
+#define W5200_RST2_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
