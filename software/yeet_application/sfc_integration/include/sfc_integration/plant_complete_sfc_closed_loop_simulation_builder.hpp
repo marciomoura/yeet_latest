@@ -187,7 +187,8 @@ private:
     void configure_plant_for_external_excitation_control()
     {
         // Configure plant model to use external excitation voltage control mode
-        plant.get_parameters().voltage_control_mode = sfc_plant_model_datamodel::voltage_control_mode::external_control;
+        plant.get_parameters().voltage_control_mode =
+            sfc_plant_model_datamodel::machine_voltage_control_mode::external_control;
     }
 
     void connect_all_components()

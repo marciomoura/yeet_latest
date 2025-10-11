@@ -45,7 +45,7 @@ void sfc_plant_model_runner::run()
     _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
 
     // Set excitation voltage setpoint if in external control mode
-    if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::external_control) {
+    if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::external_control) {
         _plant.set_excitation_voltage_setpoint_pu(_inputs.excitation_voltage_setpoint_pu.read());
     }
 
@@ -78,13 +78,13 @@ void sfc_plant_model_runner::set_parameters()
     }
 
     // Set voltage control mode
-    if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::fixed_voltage) {
+    if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::fixed_voltage) {
         _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::fixed_voltage);
     }
-    else if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::speed_dependent) {
+    else if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::speed_dependent) {
         _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::speed_dependent);
     }
-    else if (_parameters.voltage_control_mode.read() == datamodel::voltage_control_mode::external_control) {
+    else if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::external_control) {
         _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::external_control);
     }
 

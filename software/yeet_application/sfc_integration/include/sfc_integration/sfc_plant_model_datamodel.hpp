@@ -28,7 +28,7 @@ public:
     /**
      * @brief Defines the voltage control mode for the machine side excitation.
      */
-    enum class voltage_control_mode {
+    enum class machine_voltage_control_mode {
         fixed_voltage,    ///< Machine voltage is fixed (no V/Hz control).
         speed_dependent,  ///< Machine voltage follows internal speed-voltage relationship.
         external_control  ///< Machine voltage is controlled by external excitation controller.
@@ -49,7 +49,7 @@ public:
         signal_input<torque_pu_t> load_torque_pu;
 
         /// Excitation voltage setpoint from external controller [pu]
-        /// Only used when voltage_control_mode is set to external_control
+        /// Only used when machine_voltage_control_mode is set to external_control
         signal_input<voltage_pu_t> excitation_voltage_setpoint_pu;
     };
 
@@ -105,7 +105,7 @@ public:
         parameter<machine_operation_mode> operation_mode = machine_operation_mode::fixed_speed;
 
         /// Defines the voltage control mode for machine-side excitation
-        parameter<voltage_control_mode> voltage_control_mode = voltage_control_mode::fixed_voltage;
+        parameter<machine_voltage_control_mode> voltage_control_mode = machine_voltage_control_mode::fixed_voltage;
 
         /// Motor inertia constant (H).
         /// Default: 2.5 s
