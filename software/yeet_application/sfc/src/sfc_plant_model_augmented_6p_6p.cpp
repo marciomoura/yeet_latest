@@ -217,6 +217,11 @@ void sfc_plant_model_augmented_6p_6p::set_voltage_control_mode(plant_model_volta
     _voltage_mode = mode;
 }
 
+void sfc_plant_model_augmented_6p_6p::set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint_pu)
+{
+    _external_excitation_voltage_setpoint_pu = excitation_voltage_setpoint_pu;
+}
+
 void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
 {
     _mechanical_load.reset(initial_speed_pu);
@@ -423,6 +428,11 @@ voltage_t sfc_plant_model_augmented_6p_6p::resolve_machine_voltage() const noexc
         const real_t vm_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
         return voltage_t(vm_pu * _nominal_machine_voltage_rms.value());
     }
+    else if (_voltage_mode == plant_model_voltage_control_mode::external_control) {
+        // Use external excitation controller setpoint
+        return voltage_t(_external_excitation_voltage_setpoint_pu.value() * _nominal_machine_voltage_rms.value());
+    }
+    // Default: fixed_voltage mode
     return voltage_t(_machine_voltage_pu.value() * _nominal_machine_voltage_rms.value());
 }
 

@@ -29,7 +29,7 @@
     },
     // C/C++ settings
     // Disable intellisense engine
-    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.intelliSenseEngine": "default",
     // Keep code analysis enabled
     "C_Cpp.codeAnalysis.clangTidy.enabled": true,
     "C_Cpp.codeAnalysis.runAutomatically": true,
@@ -38,7 +38,7 @@
     "C_Cpp.codeAnalysis.exclude": {
         "**/build/**": true
     },
-    "clangd.onConfigChanged": "restart",
-    "clangd.onConfigChanged.forceEnable": true,
+    // "clangd.onConfigChanged": "restart",
+    // "clangd.onConfigChanged.forceEnable": true,
     "C_Cpp.default.enableConfigurationSquiggles": true
 }

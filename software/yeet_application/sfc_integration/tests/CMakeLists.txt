@@ -21,7 +21,9 @@ target_sources(
             # Speed control tests
             speed_control_test.cpp
             # State machine tests
-            sfc_state_machine_runner_test.cpp)
+            sfc_state_machine_runner_test.cpp
+            # Excitation controller tests
+            sfc_excitation_controller_runner_test.cpp)
 
 target_link_libraries(
     ${PROJECT_NAME}

@@ -202,6 +202,18 @@ public:
     void set_voltage_control_mode(plant_model_voltage_control_mode mode);
 
     /**
+     * @brief Sets the excitation voltage setpoint for external control mode.
+     *
+     * This method allows direct control of the machine-side voltage magnitude from an external
+     * excitation controller. The setpoint is only used when voltage_control_mode is set to
+     * external_control. This simulates a "perfect exciter" with instantaneous tracking.
+     *
+     * @param excitation_voltage_setpoint_pu The excitation voltage setpoint in per-unit [pu].
+     *        This value is multiplied by the nominal machine voltage to produce the actual voltage.
+     */
+    void set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint_pu);
+
+    /**
      * @brief Sets the initial mechanical speed for the load.
      * @param initial_speed_pu The initial mechanical speed in per-unit.
      */
@@ -308,6 +320,8 @@ private:
     voltage_pu_t _machine_voltage_pu{voltage_pu_t{1.0f}};
     frequency_pu_t _grid_frequency_pu{frequency_pu_t{1.0f}};
     frequency_pu_t _machine_frequency_pu{frequency_pu_t{1.0f}};  // used only when not variable_speed
+
+    voltage_pu_t _external_excitation_voltage_setpoint_pu{voltage_pu_t{1.0f}};  // Used in external_control mode
 
     torque_pu_t _load_torque_pu = torque_pu_t{0.0};  // Current load torque in per-unit
 
