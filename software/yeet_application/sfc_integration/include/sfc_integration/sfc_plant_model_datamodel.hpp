@@ -26,6 +26,15 @@ public:
     };
 
     /**
+     * @brief Defines the voltage control mode for the machine side excitation.
+     */
+    enum class machine_voltage_control_mode {
+        fixed_voltage,    ///< Machine voltage is fixed (no V/Hz control).
+        speed_dependent,  ///< Machine voltage follows internal speed-voltage relationship.
+        external_control  ///< Machine voltage is controlled by external excitation controller.
+    };
+
+    /**
      * @brief Input signals for the SFC plant model component
      */
     struct inputs {
@@ -38,6 +47,10 @@ public:
         /// Mechanical load torque on motor shaft
         /// Range: [-2.0, 2.0] pu
         signal_input<torque_pu_t> load_torque_pu;
+
+        /// Excitation voltage setpoint from external controller [pu]
+        /// Only used when machine_voltage_control_mode is set to external_control
+        signal_input<voltage_pu_t> excitation_voltage_setpoint_pu;
     };
 
     /**
@@ -90,6 +103,9 @@ public:
 
         /// Defines if the machine runs at a fixed speed or if speed is determined by the load model.
         parameter<machine_operation_mode> operation_mode = machine_operation_mode::fixed_speed;
+
+        /// Defines the voltage control mode for machine-side excitation
+        parameter<machine_voltage_control_mode> voltage_control_mode = machine_voltage_control_mode::fixed_voltage;
 
         /// Motor inertia constant (H).
         /// Default: 2.5 s

@@ -14,6 +14,7 @@ target_sources(
             sfc_combined_modulators_test.cpp
             sfc_commutation_mask_test.cpp
             sfc_discontinuous_conduction_detector_test.cpp
+            sfc_excitation_controller_test.cpp
             sfc_grid_side_measurements_test.cpp
             sfc_grid_side_modulator_test.cpp
             sfc_machine_side_lookup_table_test.cpp

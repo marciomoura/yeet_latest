@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
@@ -16,6 +17,7 @@ namespace yeet::application::sfc::integration {
  * @brief Machine-side control system for Static Frequency Converter
  *
  * This class encapsulates all machine-side control components including:
+ * - Excitation controller for machine excitation voltage regulation
  * - Speed controller for machine speed regulation
  * - Machine-side controller for firing angle determination
  * - Machine-side observer for speed/position estimation
@@ -30,6 +32,7 @@ public:
      */
     explicit sfc_machine_side_control(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
         : _per_unit_system(per_unit_system),
+          excitation_controller(),
           speed_controller(),
           machine_side_controller(),
           machine_side_observer(),
@@ -65,6 +68,9 @@ public:
 
     // ==================== Component Access ====================
 
+    sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }
+    const sfc_excitation_controller_runner& get_excitation_controller() const { return excitation_controller; }
+
     sfc_speed_controller_runner& get_speed_controller() { return speed_controller; }
     const sfc_speed_controller_runner& get_speed_controller() const { return speed_controller; }
 
@@ -90,6 +96,11 @@ public:
 
     // Speed control inputs
     signal_output<speed_pu_t> speed_reference_pu;
+
+    // Excitation control inputs
+    signal_output<bool> exciter_ready;
+    signal_output<bool> excitation_start_command;
+    signal_output<bool> excitation_stop_command;
     // signal_output<bool> enable_speed_control;
 
     // Cascaded control signals from grid side
@@ -110,6 +121,32 @@ public:
     // signal_output<voltage_pu_t> machine_side_voltage_magnitude;
 
     // ==================== External Output Signals ====================
+
+    /**
+     * @brief Get excitation voltage setpoint from excitation controller
+     */
+    const signal_output<voltage_pu_t>& get_excitation_voltage_setpoint() const
+    {
+        return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
+            .get_outputs()
+            .excitation_voltage_setpoint_pu;
+    }
+
+    /**
+     * @brief Get excitation enable command from excitation controller
+     */
+    const signal_output<bool>& get_enable_excitation() const
+    {
+        return const_cast<sfc_excitation_controller_runner&>(excitation_controller).get_outputs().enable_excitation;
+    }
+
+    /**
+     * @brief Get field established status from excitation controller
+     */
+    const signal_output<bool>& get_is_field_established() const
+    {
+        return const_cast<sfc_excitation_controller_runner&>(excitation_controller).get_outputs().is_field_established;
+    }
 
     /**
      * @brief Get machine-side firing pulses for plant model
@@ -170,6 +207,7 @@ public:
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
     // Machine-side control components (made public for intermediate integration)
+    sfc_excitation_controller_runner excitation_controller;
     sfc_speed_controller_runner speed_controller;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;

@@ -61,6 +61,10 @@ public:
             grid_side_control.grid_measurements, *_per_unit_system);
         plant_hardware::stage_transformer_ratios_for_machine_side_measurements(
             machine_side_control.machine_measurements, *_per_unit_system);
+
+        // Configure plant model to use external excitation voltage control
+        configure_plant_for_external_excitation_control();
+
         // Connect all signal flows between control classes and plant
         connect_all_components();
         mock_inputs();
@@ -79,6 +83,11 @@ public:
         // Mock references - REMOVED dc_link_current_reference as it now comes from speed controller
         machine_side_control.speed_reference_pu.write(speed_pu_t{0.0});
         // machine_side_control.enable_speed_control.write(true);
+
+        // Mock excitation control inputs
+        machine_side_control.exciter_ready.write(true);  // Exciter is ready (perfect exciter)
+        machine_side_control.excitation_start_command.write(true);
+        machine_side_control.excitation_stop_command.write(false);
 
         // Remove these as they're now connected directly:
         // - measured_speed_pu (connected from machine-side observer)
@@ -173,6 +182,13 @@ private:
             frequency_t(50.0),                                                // Machine base frequency (Hz)
             2                                                                 // Number of pole pairs
         );
+    }
+
+    void configure_plant_for_external_excitation_control()
+    {
+        // Configure plant model to use external excitation voltage control mode
+        plant.get_parameters().voltage_control_mode =
+            sfc_plant_model_datamodel::machine_voltage_control_mode::external_control;
     }
 
     void connect_all_components()
@@ -320,6 +336,12 @@ private:
         // ==================== Additional Plant Inputs ====================
         // Connect load torque to plant
         signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+
+        // ==================== Excitation Control to Plant ====================
+        // Connect excitation voltage setpoint to plant model (external excitation control)
+        signals_connector::connect_output_to_input(
+            machine_side_control.excitation_controller.get_outputs().excitation_voltage_setpoint_pu,
+            plant.get_inputs().excitation_voltage_setpoint_pu);
     }
 };
 

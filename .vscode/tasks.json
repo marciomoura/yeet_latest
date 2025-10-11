@@ -140,14 +140,32 @@
             "detail": "Builds all targets in the project"
         },
         {
+            "label": "Yeet clean plots",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Remove-Item -Path '${workspaceFolder}/build-host/bin/${input:buildConfiguration}/*.json' -Force"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Cleans the plots of the build directory"
+        },
+        {
             "label": "Yeet plotting (dec=10)",
             "type": "shell",
             "command": "python.exe",
             "args": [
                 "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
-                "${workspaceFolder}/build-host/bin/Release/",
-                "${workspaceFolder}/build-host/bin/Release/",
-                "--move=${workspaceFolder}/build-host/bin/Release/testing_outputs/",
+                "${workspaceFolder}/build-host/bin/${input:buildConfiguration}/",
+                "${workspaceFolder}/build-host/bin/${input:buildConfiguration}/",
+                "--move=${workspaceFolder}/build-host/bin/${input:buildConfiguration}/testing_outputs/",
                 "--decimate=10"
             ],
             "problemMatcher": [],
@@ -159,9 +177,9 @@
             "command": "python.exe",
             "args": [
                 "${workspaceFolder}/software/yeet/tools/plot_sampler_data.py",
-                "${workspaceFolder}/build-host/bin/Release/",
-                "${workspaceFolder}/build-host/bin/Release/",
-                "--move=${workspaceFolder}/build-host/bin/Release/testing_outputs/",
+                "${workspaceFolder}/build-host/bin/${input:buildConfiguration}/",
+                "${workspaceFolder}/build-host/bin/${input:buildConfiguration}/",
+                "--move=${workspaceFolder}/build-host/bin/${input:buildConfiguration}/testing_outputs/",
                 "--decimate=1"
             ],
             "problemMatcher": [],

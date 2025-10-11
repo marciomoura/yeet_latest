@@ -217,6 +217,11 @@ void sfc_plant_model_augmented_6p_6p::set_voltage_control_mode(plant_model_volta
     _voltage_mode = mode;
 }
 
+void sfc_plant_model_augmented_6p_6p::set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint_pu)
+{
+    _external_excitation_voltage_setpoint_pu = excitation_voltage_setpoint_pu;
+}
+
 void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
 {
     _mechanical_load.reset(initial_speed_pu);
@@ -393,12 +398,20 @@ void sfc_plant_model_augmented_6p_6p::step_mechanical_dynamics()
 
 void sfc_plant_model_augmented_6p_6p::step_voltage_control()
 {
-    if (_voltage_mode != plant_model_voltage_control_mode::speed_dependent) {
-        return;
+    if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent) {
+        // V/Hz control: voltage proportional to mechanical speed
+        const speed_pu_t speed_input_pu = _mechanical_load.get_speed_pu();
+        _speed_voltage_relationship.update(speed_input_pu);
     }
-
-    const speed_pu_t speed_input_pu = _mechanical_load.get_speed_pu();
-    _speed_voltage_relationship.update(speed_input_pu);
+    else if (_voltage_mode == plant_model_voltage_control_mode::external_control) {
+        // External excitation control: filter external setpoint through first-order dynamics
+        // This represents realistic field winding L/R time constant (τ_exc)
+        // If time constant = 0, this becomes perfect tracking (backward compatible)
+        // If time constant > 0, this adds realistic exciter dynamics (e.g., 2.5s for LCI)
+        const speed_pu_t external_voltage_as_speed =
+            per_unit_cast<speed_pu_t>(_external_excitation_voltage_setpoint_pu);
+        _speed_voltage_relationship.update(external_voltage_as_speed);
+    }
 }
 
 void sfc_plant_model_augmented_6p_6p::update_plant_parameters()
@@ -419,10 +432,15 @@ frequency_t sfc_plant_model_augmented_6p_6p::resolve_machine_frequency() const n
 
 voltage_t sfc_plant_model_augmented_6p_6p::resolve_machine_voltage() const noexcept
 {
-    if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent) {
-        const real_t vm_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
-        return voltage_t(vm_pu * _nominal_machine_voltage_rms.value());
+    if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent ||
+        _voltage_mode == plant_model_voltage_control_mode::external_control) {
+        // Both modes use the speed_voltage_relationship output
+        // speed_dependent: voltage follows mechanical speed with V/Hz control
+        // external_control: voltage follows external setpoint with exciter dynamics
+        const voltage_pu_t vm_pu = voltage_pu_t{_speed_voltage_relationship.get_voltage_magnitude_pu()};
+        return to_si(vm_pu, _nominal_machine_voltage_rms);
     }
+    // Default: fixed_voltage mode
     return voltage_t(_machine_voltage_pu.value() * _nominal_machine_voltage_rms.value());
 }
 
