@@ -142,7 +142,8 @@ sfc_state_type* operation_off_state::update(const sfc_state_inputs& inputs) noex
         return this;
     }
 
-    if (inputs.start_command.is_true()) {
+    // Only transition to OPERATION_ON if both start_command AND excitation_is_ready are true
+    if (inputs.start_command.is_true() && inputs.excitation_is_ready.is_true()) {
         return _operation_on_state;
     }
 
@@ -155,6 +156,7 @@ sfc_state_outputs operation_off_state::get_outputs() const noexcept
 
     outputs.pulse_releases = false;
     outputs.freeze_integrator = true;
+    outputs.enable_excitation = true;  // Enable excitation in OPERATION_OFF state
 
     return outputs;
 }
@@ -192,6 +194,7 @@ sfc_state_outputs operation_on_state::get_outputs() const noexcept
 
     outputs.pulse_releases = true;  // Enable pulse generation in OPERATION_ON
     outputs.freeze_integrator = false;
+    outputs.enable_excitation = true;  // Keep excitation enabled during operation
 
     return outputs;
 }
@@ -213,6 +216,7 @@ sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
 
     outputs.pulse_releases = true;      // Keep pulses active for controlled shutdown
     outputs.freeze_integrator = false;  // Do not freeze integrator during shutdown
+    outputs.enable_excitation = false;  // Disable excitation during shutdown
 
     return outputs;
 }

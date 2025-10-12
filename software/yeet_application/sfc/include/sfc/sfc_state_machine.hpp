@@ -64,6 +64,9 @@ struct sfc_state_inputs {
     sfc_state_event stop_command;
     sfc_state_event shutdown_request;
     sfc_state_event is_current_estinguished;
+
+    // Excitation control status
+    sfc_state_event excitation_is_ready;
 };
 
 /**
@@ -72,6 +75,9 @@ struct sfc_state_inputs {
 struct sfc_state_outputs {
     bool pulse_releases{false};
     bool freeze_integrator{false};
+
+    // Excitation control command
+    bool enable_excitation{false};
 };
 
 // Type aliases for convenience
@@ -83,8 +89,6 @@ class idle_state;
 class auxiliaries_on_state;
 class breakers_off_state;
 class breakers_on_state;
-// class excitation_off_state;
-// class excitation_on_state
 class operation_off_state;
 class operation_on_state;
 class shutdown_requested_state;
