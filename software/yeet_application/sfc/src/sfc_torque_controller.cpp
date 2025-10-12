@@ -1,0 +1,167 @@
+#include "sfc/sfc_torque_controller.hpp"
+
+#include <algorithm>
+#include <cassert>
+
+namespace yeet::application::sfc {
+
+sfc_torque_controller::sfc_torque_controller(duration_t sampling_time)
+    : _torque_rate_limiter(sampling_time.value()), _breakaway_boost_timer(sampling_time), _sampling_time(sampling_time)
+{
+    // Initialize with safe defaults
+    configure_absolute_torque_limits(torque_pu_t{-1.2}, torque_pu_t{1.2});
+    configure_torque_to_current_factor(1.0);
+    configure_torque_rate_limit(10.0);  // 10 pu/s default
+    enable_torque_rate_limiting(true);
+    configure_breakaway_boost(torque_pu_t{0.0}, duration_t{0.0});
+    set_control_mode(control_mode::SPEED_CONTROL);
+}
+
+// ========== Configuration Methods ==========
+
+void sfc_torque_controller::configure_absolute_torque_limits(torque_pu_t min_torque_pu, torque_pu_t max_torque_pu)
+{
+    assert(min_torque_pu.value() < max_torque_pu.value() && "Minimum torque must be less than maximum torque");
+    _absolute_min_torque = min_torque_pu;
+    _absolute_max_torque = max_torque_pu;
+}
+
+void sfc_torque_controller::configure_torque_to_current_factor(real_t torque_to_current_factor)
+{
+    assert(torque_to_current_factor > 0.0 && "Torque-to-current factor must be positive");
+    _torque_to_current_factor = torque_to_current_factor;
+}
+
+void sfc_torque_controller::configure_torque_rate_limit(real_t rate_limit_pu_per_second)
+{
+    assert(rate_limit_pu_per_second > 0.0 && "Torque rate limit must be positive");
+    _torque_rate_limiter.configure(rate_limit_pu_per_second);
+}
+
+void sfc_torque_controller::enable_torque_rate_limiting(bool enable) { _torque_rate_limiter.configure_enable(enable); }
+
+void sfc_torque_controller::set_control_mode(control_mode mode) { _control_mode = mode; }
+
+void sfc_torque_controller::set_manual_torque_reference(torque_pu_t torque_pu) { _manual_torque_reference = torque_pu; }
+
+void sfc_torque_controller::configure_breakaway_boost(torque_pu_t boost_torque_pu, duration_t boost_duration)
+{
+    _breakaway_boost_torque = boost_torque_pu;
+    _breakaway_boost_duration = boost_duration;
+}
+
+// ========== Real-Time Execution ==========
+
+void sfc_torque_controller::reset()
+{
+    _torque_rate_limiter.reset();
+    _breakaway_boost_timer.reset();
+    _base_torque_reference = torque_pu_t{0.0};
+    _total_torque_reference = torque_pu_t{0.0};
+    _limited_torque_reference = torque_pu_t{0.0};
+    _current_reference = current_pu_t{0.0};
+    _is_breakaway_boost_active = false;
+    _is_saturated = false;
+}
+
+void sfc_torque_controller::update(torque_pu_t torque_reference_from_speed_controller,
+    torque_pu_t dynamic_max_torque_limit,
+    torque_pu_t dynamic_min_torque_limit,
+    bool enable_breakaway_boost,
+    bool current_controller_saturated)
+{
+    // Step 1: Update dynamic limits
+    _dynamic_max_torque_limit = dynamic_max_torque_limit;
+    _dynamic_min_torque_limit = dynamic_min_torque_limit;
+
+    // Step 2: Arbitrate torque reference source
+    if (_control_mode == control_mode::MANUAL_TORQUE) {
+        _base_torque_reference = _manual_torque_reference;
+    }
+    else {
+        _base_torque_reference = torque_reference_from_speed_controller;
+    }
+
+    // Step 3: Handle breakaway boost
+    if (enable_breakaway_boost) {
+        // Activate boost if not already active
+        if (!_is_breakaway_boost_active) {
+            _is_breakaway_boost_active = true;
+            _breakaway_boost_timer.reset();
+        }
+
+        // Update boost timer
+        _breakaway_boost_timer.update(true);
+
+        // Check if boost duration has expired
+        if (_breakaway_boost_timer.has_elapsed(_breakaway_boost_duration)) {
+            _is_breakaway_boost_active = false;
+        }
+    }
+    else {
+        // Boost not requested, deactivate if active
+        _is_breakaway_boost_active = false;
+        _breakaway_boost_timer.reset();
+    }
+
+    // Step 4: Add breakaway boost to base reference
+    if (_is_breakaway_boost_active) {
+        _total_torque_reference = _base_torque_reference + _breakaway_boost_torque;
+    }
+    else {
+        _total_torque_reference = _base_torque_reference;
+    }
+
+    // Step 5: Apply torque limits (both absolute and dynamic)
+    const torque_pu_t limited_torque = apply_torque_limits(_total_torque_reference);
+
+    // Step 6: Apply rate limiting to prevent mechanical shock
+    _torque_rate_limiter.update(limited_torque.value());
+    torque_pu_t rate_limited_torque = torque_pu_t{_torque_rate_limiter.get_output()};
+
+    // Apply limits again to rate-limited output to ensure dynamic limit changes are immediate
+    _limited_torque_reference = apply_torque_limits(rate_limited_torque);
+
+    // Step 7: Detect saturation for anti-windup feedback
+    // Saturation occurs if the requested torque differs from the final limited torque
+    const real_t saturation_threshold = 0.001;  // 0.1% tolerance
+    _is_saturated =
+        std::abs(_total_torque_reference.value() - _limited_torque_reference.value()) > saturation_threshold;
+
+    // Also propagate saturation from current controller
+    _is_saturated = _is_saturated || current_controller_saturated;
+
+    // Step 8: Convert torque to current reference
+    _current_reference = current_pu_t{_limited_torque_reference.value() * _torque_to_current_factor};
+}
+
+// ========== Output Accessors ==========
+
+current_pu_t sfc_torque_controller::get_current_reference() const { return _current_reference; }
+
+torque_pu_t sfc_torque_controller::get_base_torque_reference() const { return _base_torque_reference; }
+
+torque_pu_t sfc_torque_controller::get_total_torque_reference() const { return _total_torque_reference; }
+
+torque_pu_t sfc_torque_controller::get_limited_torque_reference() const { return _limited_torque_reference; }
+
+sfc_torque_controller::control_mode sfc_torque_controller::get_control_mode() const { return _control_mode; }
+
+bool sfc_torque_controller::is_breakaway_boost_active() const { return _is_breakaway_boost_active; }
+
+bool sfc_torque_controller::is_saturated() const { return _is_saturated; }
+
+// ========== Internal Helper Methods ==========
+
+torque_pu_t sfc_torque_controller::apply_torque_limits(torque_pu_t torque_pu) const
+{
+    // Combine absolute and dynamic limits
+    // The effective limit is the most restrictive (smallest range)
+    const real_t effective_min = std::max(_absolute_min_torque.value(), _dynamic_min_torque_limit.value());
+    const real_t effective_max = std::min(_absolute_max_torque.value(), _dynamic_max_torque_limit.value());
+
+    // Apply combined limits
+    return torque_pu_t{std::clamp(torque_pu.value(), effective_min, effective_max)};
+}
+
+}  // namespace yeet::application::sfc
