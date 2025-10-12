@@ -27,7 +27,7 @@ class sfc_soft_starter_speed_generator_runner
 public:
     using datamodel = sfc_soft_starter_speed_generator_datamodel;
 
-    static constexpr duration_t sampling_time = ms(1.0);
+    static constexpr duration_t sampling_time = ms(10.0);  // Synchronized with speed controller (10ms)
 
     sfc_soft_starter_speed_generator_runner() : base_application(sampling_time), _speed_generator(sampling_time) {}
 

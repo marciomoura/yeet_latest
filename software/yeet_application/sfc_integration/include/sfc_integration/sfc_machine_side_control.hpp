@@ -6,6 +6,7 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/signal.hpp"
@@ -34,6 +35,7 @@ public:
     explicit sfc_machine_side_control(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
         : _per_unit_system(per_unit_system),
           excitation_controller(),
+          speed_generator(),
           speed_controller(),
           torque_controller(),
           machine_side_controller(),
@@ -73,6 +75,9 @@ public:
     sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }
     const sfc_excitation_controller_runner& get_excitation_controller() const { return excitation_controller; }
 
+    sfc_soft_starter_speed_generator_runner& get_speed_generator() { return speed_generator; }
+    const sfc_soft_starter_speed_generator_runner& get_speed_generator() const { return speed_generator; }
+
     sfc_speed_controller_runner& get_speed_controller() { return speed_controller; }
     const sfc_speed_controller_runner& get_speed_controller() const { return speed_controller; }
 
@@ -99,19 +104,20 @@ public:
 
     // ==================== External Input Signals ====================
 
-    // Speed control inputs
-    signal_output<speed_pu_t> speed_reference_pu;
+    // Speed generator profile commands (semantic names for turbine starting sequence)
+    signal_output<bool> run_creep_speed;     // Execute Profile 1: Creep speed for maintenance (~5% rated)
+    signal_output<bool> run_purge_accel;     // Execute Profile 2: Purge acceleration (~20% rated)
+    signal_output<bool> run_ignition_accel;  // Execute Profile 3: Ignition acceleration (~55% rated)
+    signal_output<bool> run_assist_accel;    // Execute Profile 4: Assist to self-sustaining (~95% rated)
+    signal_output<bool> hold_speed;          // Hold current speed setpoint
+    signal_output<bool> decelerate;          // Controlled deceleration to zero
+    signal_output<bool> idle;                // Idle mode (zero torque/speed outputs)
 
     // Excitation control inputs
     signal_output<bool> exciter_ready;
     signal_output<bool> excitation_start_command;
     signal_output<bool> excitation_stop_command;
     // signal_output<bool> enable_speed_control;
-
-    // Torque controller inputs (will be connected from speed generator in the future)
-    signal_output<torque_pu_t> dynamic_max_torque_limit;
-    signal_output<torque_pu_t> dynamic_min_torque_limit;
-    signal_output<bool> enable_breakaway_boost;
 
     // Cascaded control signals from grid side
     // signal_output<bool> freeze_integrator;
@@ -218,6 +224,7 @@ public:
 
     // Machine-side control components (made public for intermediate integration)
     sfc_excitation_controller_runner excitation_controller;
+    sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
     sfc_machine_side_controller_runner machine_side_controller;

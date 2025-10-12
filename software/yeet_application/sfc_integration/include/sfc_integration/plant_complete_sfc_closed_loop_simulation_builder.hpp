@@ -80,19 +80,22 @@ public:
         grid_side_control.shutdown_request.write(false);
         grid_side_control.is_current_extinguished.write(false);
 
-        // Mock references - REMOVED dc_link_current_reference as it now comes from speed controller
-        machine_side_control.speed_reference_pu.write(speed_pu_t{0.0});
-        // machine_side_control.enable_speed_control.write(true);
-
         // Mock excitation control inputs
         machine_side_control.exciter_ready.write(true);  // Exciter is ready (perfect exciter)
         machine_side_control.excitation_start_command.write(true);
         machine_side_control.excitation_stop_command.write(false);
 
-        // Mock torque controller inputs (will be connected from speed generator in the future)
-        machine_side_control.dynamic_max_torque_limit.write(torque_pu_t{1.2});
-        machine_side_control.dynamic_min_torque_limit.write(torque_pu_t{-1.2});
-        machine_side_control.enable_breakaway_boost.write(false);
+        // Speed generator profile commands (all false by default, set manually in tests)
+        machine_side_control.run_creep_speed.write(false);
+        machine_side_control.run_purge_accel.write(false);
+        machine_side_control.run_ignition_accel.write(false);
+        machine_side_control.run_assist_accel.write(false);
+        machine_side_control.hold_speed.write(false);
+        machine_side_control.decelerate.write(false);
+        machine_side_control.idle.write(true);  // Start in idle mode by default
+
+        // Note: Torque controller dynamic limits now managed by speed generator
+        // Old mock values removed - speed generator provides these outputs based on active profile
 
         // Remove these as they're now connected directly:
         // - measured_speed_pu (connected from machine-side observer)
@@ -263,10 +266,6 @@ private:
         signals_connector::connect_output_to_input(
             is_current_extinguished, grid_side_control.state_machine.get_inputs().is_current_extinguished);
 
-        // Speed command to machine side speed controller
-        signals_connector::connect_output_to_input(machine_side_control.speed_reference_pu,
-            machine_side_control.speed_controller.get_inputs().speed_reference_pu);
-
         // Enable speed control
         // machine_side_control.enable_speed_control.write(true);
 
@@ -316,6 +315,10 @@ private:
         // 8. Freeze integrator cascading from grid-side to machine-side
         signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().freeze_integrator,
             machine_side_control.speed_controller.get_inputs().freeze_integrator);
+
+        // 8b. Current state ID from grid-side state machine to machine-side speed generator
+        signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().current_state_id,
+            machine_side_control.speed_generator.get_inputs().current_state_id);
 
         // 9. Current controller saturation to torque controller for composite saturation handling
         signals_connector::connect_output_to_input(

@@ -88,23 +88,21 @@ public:
     bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false)
     {
         const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();
-        const std::size_t num_simulation_ticks = static_cast<std::size_t>(time / simulation_sampling_rate);
+        const std::size_t num_simulation_ticks = static_cast<std::size_t>(std::ceil(time / simulation_sampling_rate));
 
 #ifdef YEET_ENABLE_DATA_LOGGING
         const double sampler_sampling_rate = _use_custom_sampler_rate ? _custom_sampler_rate : simulation_sampling_rate;
-        const double num_sampler_ticks_float = time / sampler_sampling_rate;
-        std::size_t num_sampler_ticks = static_cast<std::size_t>(num_sampler_ticks_float);
-        // Add one to account for the fractional part, ensuring enough space is allocated.
-        // This also accounts for the first sample at t=0.
-        if (num_sampler_ticks_float > static_cast<double>(num_sampler_ticks)) {
-            num_sampler_ticks++;
-        }
 
         // Calculate the sampling ratio (how many simulation ticks per sample)
         const std::size_t sampling_ratio =
             _use_custom_sampler_rate
-                ? std::max(static_cast<std::size_t>(sampler_sampling_rate / simulation_sampling_rate), std::size_t{1})
+                ? std::max(static_cast<std::size_t>(std::ceil(sampler_sampling_rate / simulation_sampling_rate)),
+                      std::size_t{1})
                 : std::size_t{1};
+
+        // Calculate exact number of samples that will actually be taken
+        // This matches the loop condition: tick % sampling_ratio == 0
+        const std::size_t num_sampler_ticks = (num_simulation_ticks + sampling_ratio - 1) / sampling_ratio;
 
         _sampler.allocate(num_sampler_ticks);
 #endif
@@ -121,6 +119,12 @@ public:
 
             _runner.run(tick);
             _checker.run_checks(_current_simulation_time);
+
+            // Short circuit if requested and failures detected
+            if (short_circuit_upon_reaching_max_failures && _checker.has_failure()) {
+                _current_tick += tick + 1;
+                return false;
+            }
         }
 
         _current_tick += num_simulation_ticks;

@@ -49,7 +49,8 @@ public:
         for (const auto& entry : _entries) {
             auto& data = _data[entry.get()];
             if (_sample_position >= data.size()) {
-                std::cout << "Sample position exceeds data size" << std::endl;
+                std::cout << "Sample position exceeds data size. Sample position: " << _sample_position
+                          << ", data size: " << data.size() << std::endl;
                 continue;
             }
             data[_sample_position] = entry->sample();

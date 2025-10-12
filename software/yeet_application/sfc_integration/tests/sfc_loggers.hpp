@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "sfc/sfc_soft_starter_speed_generator.hpp"  // For speed_command_t and acceleration_profile_t
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
@@ -18,8 +19,10 @@
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
+#include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "sfc_integration/sfc_state_machine_runner.hpp"
+#include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator.hpp"
@@ -129,6 +132,111 @@ static inline void register_complete_excitation_controller_logger(
         group + "output is_running", [&]() { return excitation_controller.get_outputs().is_running.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "output prefluxing_elapsed_time",
         [&]() { return excitation_controller.get_outputs().prefluxing_elapsed_time.read(); }));
+}
+
+// --- Soft-starter speed generator runner loggers ---
+static inline void register_minimal_sfc_soft_starter_speed_generator_logger(
+    yeet::simulator& simulator, sfc_soft_starter_speed_generator_runner& speed_generator)
+{
+    const std::string group{"speed_generator:"};
+
+    // Key outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "output speed_reference_pu",
+        [&]() { return speed_generator.get_outputs().speed_reference_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "output torque_limit_max_pu",
+        [&]() { return speed_generator.get_outputs().torque_limit_max_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "output torque_limit_min_pu",
+        [&]() { return speed_generator.get_outputs().torque_limit_min_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_breakaway_boost_active",
+        [&]() { return speed_generator.get_outputs().is_breakaway_boost_active.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_profile_complete",
+        [&]() { return speed_generator.get_outputs().is_profile_complete.read(); }));
+}
+
+static inline void register_complete_sfc_soft_starter_speed_generator_logger(
+    yeet::simulator& simulator, sfc_soft_starter_speed_generator_runner& speed_generator)
+{
+    const std::string group{"speed_generator:"};
+
+    register_minimal_sfc_soft_starter_speed_generator_logger(simulator, speed_generator);
+
+    // All inputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<sfc_state_id>(
+        group + "input current_state_id", [&]() { return speed_generator.get_inputs().current_state_id.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
+        group + "input measured_speed_pu", [&]() { return speed_generator.get_inputs().measured_speed_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input run_profile_1", [&]() { return speed_generator.get_inputs().run_profile_1.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input run_profile_2", [&]() { return speed_generator.get_inputs().run_profile_2.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input run_profile_3", [&]() { return speed_generator.get_inputs().run_profile_3.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input run_profile_4", [&]() { return speed_generator.get_inputs().run_profile_4.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input hold_speed", [&]() { return speed_generator.get_inputs().hold_speed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input decelerate", [&]() { return speed_generator.get_inputs().decelerate.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input idle", [&]() { return speed_generator.get_inputs().idle.read(); }));
+
+    // Additional outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_command_t>(
+        group + "output active_command", [&]() { return speed_generator.get_outputs().active_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<acceleration_profile_t>(
+        group + "output selected_profile", [&]() { return speed_generator.get_outputs().selected_profile.read(); }));
+}
+
+// --- Torque controller runner loggers ---
+static inline void register_minimal_sfc_torque_controller_logger(
+    yeet::simulator& simulator, sfc_torque_controller_runner& torque_controller)
+{
+    const std::string group{"torque_controller:"};
+
+    // Key inputs
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<torque_pu_t>(group + "input torque_reference_from_speed_controller",
+            [&]() { return torque_controller.get_inputs().torque_reference_from_speed_controller.read(); }));
+
+    // Key outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "output current_reference",
+        [&]() { return torque_controller.get_outputs().current_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "output base_torque_reference",
+        [&]() { return torque_controller.get_outputs().base_torque_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "output total_torque_reference",
+        [&]() { return torque_controller.get_outputs().total_torque_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "output limited_torque_reference",
+        [&]() { return torque_controller.get_outputs().limited_torque_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_breakaway_boost_active",
+        [&]() { return torque_controller.get_outputs().is_breakaway_boost_active.read(); }));
+}
+
+static inline void register_complete_sfc_torque_controller_logger(
+    yeet::simulator& simulator, sfc_torque_controller_runner& torque_controller)
+{
+    const std::string group{"torque_controller:"};
+
+    register_minimal_sfc_torque_controller_logger(simulator, torque_controller);
+
+    // All inputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "input dynamic_max_torque_limit",
+        [&]() { return torque_controller.get_inputs().dynamic_max_torque_limit.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "input dynamic_min_torque_limit",
+        [&]() { return torque_controller.get_inputs().dynamic_min_torque_limit.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input enable_breakaway_boost",
+        [&]() { return torque_controller.get_inputs().enable_breakaway_boost.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input current_controller_is_saturated",
+        [&]() { return torque_controller.get_inputs().current_controller_is_saturated.read(); }));
+
+    // Additional outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_saturated", [&]() { return torque_controller.get_outputs().is_saturated.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output downstream_saturation",
+        [&]() { return torque_controller.get_outputs().downstream_saturation.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output composite_saturation",
+        [&]() { return torque_controller.get_outputs().composite_saturation.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_active", [&]() { return torque_controller.get_outputs().is_active.read(); }));
 }
 
 static inline void register_minimal_dc_link_measurements_logger(
@@ -730,6 +838,26 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_excit
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_excitation_controller_runner& runner)
 {
     register_complete_excitation_controller_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_soft_starter_speed_generator_runner& runner)
+{
+    register_minimal_sfc_soft_starter_speed_generator_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_soft_starter_speed_generator_runner& runner)
+{
+    register_complete_sfc_soft_starter_speed_generator_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_torque_controller_runner& runner)
+{
+    register_minimal_sfc_torque_controller_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_torque_controller_runner& runner)
+{
+    register_complete_sfc_torque_controller_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_dc_link_measurements_runner& runner)
