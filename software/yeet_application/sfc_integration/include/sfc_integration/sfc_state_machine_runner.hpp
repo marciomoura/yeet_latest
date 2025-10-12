@@ -24,7 +24,8 @@ public:
               sfc::sfc_state_event("stop_command", [this]() { return _inputs.stop_command.read(); }),
               sfc::sfc_state_event("shutdown_request", [this]() { return _inputs.shutdown_request.read(); }),
               sfc::sfc_state_event(
-                  "is_current_extinguished", [this]() { return _inputs.is_current_extinguished.read(); })}
+                  "is_current_extinguished", [this]() { return _inputs.is_current_extinguished.read(); }),
+              sfc::sfc_state_event("is_excitation_ready", [this]() { return true; })}
     {
     }
 

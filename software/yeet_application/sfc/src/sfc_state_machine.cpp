@@ -143,7 +143,7 @@ sfc_state_type* operation_off_state::update(const sfc_state_inputs& inputs) noex
     }
 
     // Only transition to OPERATION_ON if both start_command AND excitation_is_ready are true
-    if (inputs.start_command.is_true() && inputs.excitation_is_ready.is_true()) {
+    if (inputs.start_command.is_true() && inputs.is_excitation_ready.is_true()) {
         return _operation_on_state;
     }
 

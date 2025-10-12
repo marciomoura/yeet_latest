@@ -31,7 +31,8 @@ protected:
             .start_command = mock_event("start", start),
             .stop_command = mock_event("stop", stop),
             .shutdown_request = mock_event("shutdown_request", shutdown_request_false),
-            .is_current_estinguished = mock_event("current_extinguished", current_extinguished)};
+            .is_current_estinguished = mock_event("is_current_estinguished", current_extinguished),
+            .is_excitation_ready = mock_event("is_excitation_ready", excitation_ready)};
         return inputs;
     }
 
@@ -41,6 +42,7 @@ protected:
     bool start;
     bool stop;
     bool current_extinguished;
+    bool excitation_ready;
 };
 
 // Test initial state

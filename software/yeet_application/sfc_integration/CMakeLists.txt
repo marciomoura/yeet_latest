@@ -53,6 +53,9 @@ set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_operation_mode_monitor_runner.hpp
     include/sfc_integration/sfc_plant_model_datamodel.hpp
     include/sfc_integration/sfc_plant_model_runner.hpp
+    include/sfc_integration/sfc_slow_io_datamodel.hpp
+    include/sfc_integration/sfc_slow_io_interface.hpp
+    include/sfc_integration/sfc_slow_io_runner.hpp
     include/sfc_integration/sfc_speed_controller_datamodel.hpp
     include/sfc_integration/sfc_speed_controller_runner.hpp
     include/sfc_integration/sfc_state_machine_datamodel.hpp
@@ -78,6 +81,7 @@ set(SFC_CORE_SOURCES
     src/sfc_machine_side_pulse_generator_runner.cpp
     src/sfc_operation_mode_monitor_runner.cpp
     src/sfc_plant_model_runner.cpp
+    src/sfc_slow_io_runner.cpp
     src/sfc_speed_controller_runner.cpp
     src/sfc_state_machine_runner.cpp)
 

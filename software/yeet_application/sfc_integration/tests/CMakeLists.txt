@@ -23,7 +23,9 @@ target_sources(
             # State machine tests
             sfc_state_machine_runner_test.cpp
             # Excitation controller tests
-            sfc_excitation_controller_runner_test.cpp)
+            sfc_excitation_controller_runner_test.cpp
+            # IO abstraction layer tests
+            sfc_slow_io_interface_test.cpp)
 
 target_link_libraries(
     ${PROJECT_NAME}

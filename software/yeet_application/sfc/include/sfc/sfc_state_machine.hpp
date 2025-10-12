@@ -66,7 +66,7 @@ struct sfc_state_inputs {
     sfc_state_event is_current_estinguished;
 
     // Excitation control status
-    sfc_state_event excitation_is_ready;
+    sfc_state_event is_excitation_ready;
 };
 
 /**
