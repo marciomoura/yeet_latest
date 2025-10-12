@@ -89,6 +89,11 @@ public:
         machine_side_control.excitation_start_command.write(true);
         machine_side_control.excitation_stop_command.write(false);
 
+        // Mock torque controller inputs (will be connected from speed generator in the future)
+        machine_side_control.dynamic_max_torque_limit.write(torque_pu_t{1.2});
+        machine_side_control.dynamic_min_torque_limit.write(torque_pu_t{-1.2});
+        machine_side_control.enable_breakaway_boost.write(false);
+
         // Remove these as they're now connected directly:
         // - measured_speed_pu (connected from machine-side observer)
         // - pulse_releases (connected from grid-side state machine)
@@ -268,9 +273,10 @@ private:
         // ==================== Cross-Coupling Between Control Classes ====================
         // Connect outputs from one control class to inputs of the other
 
-        // 1. Speed Controller → Current Controller (CRITICAL CASCADE CONNECTION)
+        // 1. Torque Controller → Current Controller (CRITICAL CASCADE CONNECTION)
+        // Speed controller produces torque ref, torque controller converts to current ref
         signals_connector::connect_output_to_input(
-            machine_side_control.speed_controller.get_outputs().current_reference,
+            machine_side_control.torque_controller.get_outputs().current_reference,
             grid_side_control.current_controller.get_inputs().dc_link_current_reference);
 
         // 2. Connect pulse releases from grid-side state machine to machine-side modulator enable
@@ -311,9 +317,15 @@ private:
         signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().freeze_integrator,
             machine_side_control.speed_controller.get_inputs().freeze_integrator);
 
-        // 9. Current controller saturation to speed controller for anti-windup
+        // 9. Current controller saturation to torque controller for composite saturation handling
         signals_connector::connect_output_to_input(
             grid_side_control.current_controller.get_outputs().current_controller_is_saturated,
+            machine_side_control.torque_controller.get_inputs().current_controller_is_saturated);
+
+        // 10. Torque controller composite saturation to speed controller for anti-windup
+        // This combines torque controller's own saturation with current controller saturation
+        signals_connector::connect_output_to_input(
+            machine_side_control.torque_controller.get_outputs().composite_saturation,
             machine_side_control.speed_controller.get_inputs().current_controller_is_saturated);
 
         signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().pulse_releases,

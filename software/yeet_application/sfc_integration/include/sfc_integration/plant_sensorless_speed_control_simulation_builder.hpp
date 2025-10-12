@@ -91,7 +91,15 @@ public:
         simulator.register_runner(dc_link_measurements);
         simulator.register_runner(grid_side_observer);
         simulator.register_runner(machine_side_observer);
-        simulator.register_runner(speed_controller);
+
+        // Register speed controller with torque-to-current conversion
+        simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() {
+            speed_controller.run();
+            // Convert torque to current (1:1 assumption for simplified test without torque controller)
+            current_reference_from_speed_ctrl.write(
+                current_pu_t{speed_controller.get_outputs().torque_reference.read().value()});
+        });
+
         simulator.register_runner(current_controller);
         simulator.register_runner(machine_side_controller);
         simulator.register_runner(grid_side_pulse_generator);
@@ -127,6 +135,9 @@ public:
     signal_output<speed_pu_t> speed_reference_pu;
     signal_output<bool> enable_speed_control;
     signal_output<current_pu_t> external_current_reference_pu;
+
+    // Internal signal for torque-to-current conversion (simplified tests without torque controller)
+    signal_output<current_pu_t> current_reference_from_speed_ctrl;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -214,9 +225,11 @@ private:
         // ==================== Speed Controller → Current Controller ====================
         // Connect speed controller output to current controller reference (cascade control)
 
-        // Current reference from speed controller to current controller
-        signals_connector::connect_output_to_input(speed_ctrl_model.get_outputs().current_reference,
-            current_ctrl_model.get_inputs().dc_link_current_reference);
+        // Current reference from speed controller to current controller (1:1 torque-to-current assumption)
+        // NOTE: In full SFC system, torque controller sits between speed and current controllers
+        // Using intermediate signal for type conversion (torque_pu_t → current_pu_t)
+        signals_connector::connect_output_to_input(
+            current_reference_from_speed_ctrl, current_ctrl_model.get_inputs().dc_link_current_reference);
 
         // ==================== DC Link Measurements → Current Controller ====================
         // Connect DC link current feedback to current controller
@@ -237,11 +250,11 @@ private:
         // ==================== Observers → Machine Side Controller ====================
         // Connect observer-estimated values to machine side controller for lookup table
 
-        // DC link current for lookup table input (direct measurement)
+        // DC link current for lookup table input (use torque reference, 1:1 assumption)
         // signals_connector::connect_output_to_input(
         // dc_link_model.get_outputs().dc_current_filtered_pu, machine_ctrl_model.get_inputs().dc_link_current);
         signals_connector::connect_output_to_input(
-            speed_ctrl_model.get_outputs().current_reference, machine_ctrl_model.get_inputs().dc_link_current);
+            current_reference_from_speed_ctrl, machine_ctrl_model.get_inputs().dc_link_current);
 
         // Machine speed from observer instead of direct measurement
         signals_connector::connect_output_to_input(

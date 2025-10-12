@@ -6,6 +6,7 @@ void sfc_machine_side_control::initialize()
 {
     excitation_controller.initialize();
     speed_controller.initialize();
+    torque_controller.initialize();
     machine_side_controller.initialize();
     machine_side_observer.initialize();
     machine_side_modulator.initialize();
@@ -15,8 +16,9 @@ void sfc_machine_side_control::initialize()
 
 void sfc_machine_side_control::update_10ms()
 {
-    // 10ms sampling: Speed controller
+    // 10ms sampling: Speed controller, torque controller
     speed_controller.run();
+    torque_controller.run();
 }
 
 void sfc_machine_side_control::update_1ms()
@@ -63,6 +65,24 @@ void sfc_machine_side_control::connect_internal_signals()
     // Observer feedback to speed controller
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
+
+    // ==================== Torque Controller Connections ====================
+
+    // Speed Controller → Torque Controller (cascade)
+    signals_connector::connect_output_to_input(speed_controller.get_outputs().torque_reference,
+        torque_controller.get_inputs().torque_reference_from_speed_controller);
+
+    // External mock inputs → Torque Controller (will be connected from speed generator in the future)
+    signals_connector::connect_output_to_input(
+        dynamic_max_torque_limit, torque_controller.get_inputs().dynamic_max_torque_limit);
+    signals_connector::connect_output_to_input(
+        dynamic_min_torque_limit, torque_controller.get_inputs().dynamic_min_torque_limit);
+    signals_connector::connect_output_to_input(
+        enable_breakaway_boost, torque_controller.get_inputs().enable_breakaway_boost);
+
+    // Note: Current controller saturation feedback is connected externally (cross-controller)
+
+    // ==================== Machine-Side Controller Connections ====================
 
     // Machine-side controller inputs
     // signals_connector::connect_output_to_input(

@@ -37,12 +37,8 @@ public:
      * @brief Output signals from the speed controller component
      */
     struct outputs {
-        /// Current reference output to inner current loop
-        /// Range: [-1.2, 1.2] pu (limited to protect current loop)
-        signal_output<current_pu_t> current_reference;
-
-        /// Estimated torque output (proportional to current reference)
-        /// Range: [-1.2, 1.2] pu
+        /// Torque reference output to torque controller
+        /// Range: [-1.2, 1.2] pu (limited to protect downstream control)
         signal_output<torque_pu_t> torque_reference;
 
         /// Speed reference after rate limiting
@@ -75,10 +71,6 @@ public:
         /// PI controller integral time constant
         /// Range: (0.0, 10.0] seconds
         parameter<duration_t> ti = duration_t{ms(2200.0)};
-
-        /// Torque-to-current conversion factor
-        /// Maps torque reference [pu] to current reference [pu]
-        parameter<real_t> torque_to_current_factor = real_t(1.0);
 
         /// Torque reference magnitude limit [pu]
         /// Applied symmetrically: [-limit, +limit]

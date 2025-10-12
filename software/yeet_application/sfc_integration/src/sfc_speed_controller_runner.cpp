@@ -27,7 +27,6 @@ void sfc_speed_controller_runner::run()
     }
 
     _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
-    _outputs.current_reference = current_pu_t{_parameters.torque_to_current_factor * _outputs.torque_reference.read()};
     _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
     _outputs.speed_error = _outputs.speed_reference_limited.read() - _inputs.measured_speed_pu.read();
     _outputs.pi_output = _sfc_speed_controller.get_pi_output();
@@ -53,7 +52,6 @@ void sfc_speed_controller_runner::set_parameter_callback()
 {
     _parameters.kp.register_callback([&]() { set_parameters(); });
     _parameters.ti.register_callback([&]() { set_parameters(); });
-    _parameters.torque_to_current_factor.register_callback([&]() { set_parameters(); });
     _parameters.torque_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
     _parameters.feedforward_inertia.register_callback([&]() { set_parameters(); });
 }

@@ -7,6 +7,7 @@
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -34,6 +35,7 @@ public:
         : _per_unit_system(per_unit_system),
           excitation_controller(),
           speed_controller(),
+          torque_controller(),
           machine_side_controller(),
           machine_side_observer(),
           machine_side_modulator(),
@@ -74,6 +76,9 @@ public:
     sfc_speed_controller_runner& get_speed_controller() { return speed_controller; }
     const sfc_speed_controller_runner& get_speed_controller() const { return speed_controller; }
 
+    sfc_torque_controller_runner& get_torque_controller() { return torque_controller; }
+    const sfc_torque_controller_runner& get_torque_controller() const { return torque_controller; }
+
     sfc_machine_side_controller_runner& get_machine_side_controller() { return machine_side_controller; }
     const sfc_machine_side_controller_runner& get_machine_side_controller() const { return machine_side_controller; }
 
@@ -102,6 +107,11 @@ public:
     signal_output<bool> excitation_start_command;
     signal_output<bool> excitation_stop_command;
     // signal_output<bool> enable_speed_control;
+
+    // Torque controller inputs (will be connected from speed generator in the future)
+    signal_output<torque_pu_t> dynamic_max_torque_limit;
+    signal_output<torque_pu_t> dynamic_min_torque_limit;
+    signal_output<bool> enable_breakaway_boost;
 
     // Cascaded control signals from grid side
     // signal_output<bool> freeze_integrator;
@@ -185,11 +195,11 @@ public:
     }
 
     /**
-     * @brief Get current reference from speed controller
+     * @brief Get current reference from torque controller
      */
     const signal_output<current_pu_t>& get_current_reference() const
     {
-        return const_cast<sfc_speed_controller_runner&>(speed_controller).get_outputs().current_reference;
+        return const_cast<sfc_torque_controller_runner&>(torque_controller).get_outputs().current_reference;
     }
 
     /**
@@ -209,6 +219,7 @@ public:
     // Machine-side control components (made public for intermediate integration)
     sfc_excitation_controller_runner excitation_controller;
     sfc_speed_controller_runner speed_controller;
+    sfc_torque_controller_runner torque_controller;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;
     sfc_machine_side_modulator_runner machine_side_modulator;
