@@ -118,17 +118,29 @@ public:
     /**
      * @brief Executes one update cycle of the torque controller
      *
+     * Call order: speed.update() → torque.update() → current.update()
+     *             → torque.set_downstream_saturation(current.is_saturated())
+     *
      * @param torque_reference_from_speed_controller Torque command from outer loop [pu]
      * @param dynamic_max_torque_limit Upper limit from soft-starter or other sources [pu]
      * @param dynamic_min_torque_limit Lower limit from soft-starter or other sources [pu]
      * @param enable_breakaway_boost True to activate breakaway boost, false to disable
-     * @param current_controller_saturated True if inner current loop is saturated
      */
     void update(torque_pu_t torque_reference_from_speed_controller,
         torque_pu_t dynamic_max_torque_limit,
         torque_pu_t dynamic_min_torque_limit,
-        bool enable_breakaway_boost,
-        bool current_controller_saturated);
+        bool enable_breakaway_boost);
+
+    /**
+     * @brief Sets the downstream saturation status from the current controller
+     *
+     * This must be called after the current controller update in the same cycle
+     * to provide anti-windup feedback. The saturation status influences the
+     * composite saturation flag returned by is_saturated().
+     *
+     * @param saturated True if the current controller is saturated
+     */
+    void set_downstream_saturation(bool saturated) noexcept;
 
     // ========== Output Accessors ==========
 
@@ -189,6 +201,27 @@ public:
      */
     bool is_saturated() const;
 
+    /**
+     * @brief Gets the downstream saturation status
+     *
+     * Returns the saturation status from the current controller that was
+     * set via set_downstream_saturation().
+     *
+     * @return True if downstream controller is saturated
+     */
+    bool get_downstream_saturation() const noexcept;
+
+    /**
+     * @brief Gets the composite saturation status
+     *
+     * Returns true if either this torque controller is saturated OR
+     * the downstream current controller is saturated. This provides
+     * a unified saturation signal for anti-windup coordination.
+     *
+     * @return True if any controller in the chain is saturated
+     */
+    bool get_composite_saturation() const noexcept;
+
 private:
     // ========== Internal Helper Methods ==========
 
@@ -222,6 +255,7 @@ private:
     current_pu_t _current_reference{0.0};
     bool _is_breakaway_boost_active{false};
     bool _is_saturated{false};
+    bool _downstream_saturation{false};
 
     // Dynamic limits (updated each cycle)
     torque_pu_t _dynamic_max_torque_limit{1.2};

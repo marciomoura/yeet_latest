@@ -68,33 +68,27 @@ public:
      * @brief Configuration parameters for the speed controller
      */
     struct parameters {
-        // /// PI controller proportional gain
-        // /// Range: [1.0, 100.0]
-        // parameter<real_t> kp = real_t(6.0);
+        /// PI controller proportional gain
+        /// Range: [1.0, 100.0]
         parameter<real_t> kp = real_t(6.32);
 
-        /// PI controller integral gain
-        // parameter<duration_t> ti = duration_t{ms(550.0)};
+        /// PI controller integral time constant
+        /// Range: (0.0, 10.0] seconds
         parameter<duration_t> ti = duration_t{ms(2200.0)};
 
-        /// Speed reference rate limit (acceleration/deceleration)
-        /// Range: (0.0, 100.0] pu/s
-        parameter<real_t> speed_reference_rate_limit = real_t(10.0);
-
-        /// Speed reference magnitude limit
-        parameter<speed_pu_t> speed_reference_magnitude_limit = speed_pu_t(2.0);
-
         /// Torque-to-current conversion factor
+        /// Maps torque reference [pu] to current reference [pu]
         parameter<real_t> torque_to_current_factor = real_t(1.0);
 
-        /// Torque reference limits
+        /// Torque reference magnitude limit [pu]
+        /// Applied symmetrically: [-limit, +limit]
         parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{2.0};
 
-        /// Initial speed reference
+        /// Initial speed for controller reset [pu]
         parameter<speed_pu_t> initial_speed{speed_pu_t{0.0}};
 
-        /// Speed-control feedforward inertia factor
-        /// This factor is used to adjust the feedforward term in the speed controller.
+        /// Feedforward inertia constant [pu]
+        /// Set to 0.0 to disable feedforward
         parameter<inertia_constant_pu_t> feedforward_inertia = inertia_constant_pu_t(0.0);
     };
 

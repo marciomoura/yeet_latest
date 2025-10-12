@@ -7,13 +7,10 @@ namespace yeet::application::sfc {
 sfc_speed_controller::sfc_speed_controller(duration_t sampling_time)
     : _sampling_time(sampling_time),
       _pi_controller(sampling_time.value()),
-      _speed_ref_rate_limiter(1.0, sampling_time.value()),
       _speed_ref_derivative(sampling_time.value(), 0.0f)
 {
     _pi_controller.enable_integrator_clamping(true);
     _pi_controller.configure_with_ti(3.0, 1.0);
-
-    _braking_torque_limiter.configure(kDefaultBrakingSpeedAxisPu, kDefaultSoftStarterBrakingTorqueLimitsPu);
 }
 
 void sfc_speed_controller::configure_pi_gains(real_t kp, duration_t ti)
@@ -42,29 +39,6 @@ void sfc_speed_controller::configure_torque_limits_pu(torque_pu_t min_pu, torque
     _pi_controller.enable_output_limits(true);
 }
 
-void sfc_speed_controller::configure_speed_reference_limits_pu(speed_pu_t min_pu, speed_pu_t max_pu)
-{
-    assert(min_pu.value() < max_pu.value() && "Minimum speed reference must be less than maximum.");
-    assert(min_pu.value() >= 0.0 && "Minimum speed reference must be non-negative.");
-
-    if (min_pu.value() < 0.0 || max_pu.value() <= min_pu.value()) {
-        return;
-    }
-
-    _min_speed_ref_pu = min_pu;
-    _max_speed_ref_pu = max_pu;
-}
-
-void sfc_speed_controller::configure_speed_reference_rate_limit(real_t rate_limit_pu_per_second)
-{
-    assert(rate_limit_pu_per_second > 0.0 && "Rate limit must be positive.");
-    if (rate_limit_pu_per_second <= 0.0) {
-        return;
-    }
-
-    _speed_ref_rate_limiter.configure(rate_limit_pu_per_second);
-}
-
 void sfc_speed_controller::configure_feedforward_pu(inertia_constant_pu_t inertia_pu)
 {
     assert(inertia_pu >= 0.0 && "Inertia must be non-negative.");
@@ -73,30 +47,12 @@ void sfc_speed_controller::configure_feedforward_pu(inertia_constant_pu_t inerti
     }
 }
 
-void sfc_speed_controller::configure_braking_torque_limit_curve(
-    const std::array<real_t, 5>& speed_axis_pu, const std::array<real_t, 5>& torque_limit_axis_pu)
-{
-    assert(std::is_sorted(speed_axis_pu.begin(), speed_axis_pu.end()) && "Speed axis must be sorted.");
-
-    // Verify that all torque limits are non-positive (negative or zero)
-    for (const auto& limit : torque_limit_axis_pu) {
-        assert(limit <= 0.0 && "Braking torque limits must be non-positive (negative or zero).");
-    }
-
-    _braking_torque_limiter.configure(speed_axis_pu, torque_limit_axis_pu);
-}
-
 void sfc_speed_controller::update(speed_pu_t speed_ref_pu, speed_pu_t speed_measured_pu)
 {
-    // Step 1: Clamp the raw speed reference
-    const real_t clamped_speed_ref =
-        std::clamp(speed_ref_pu.value(), _min_speed_ref_pu.value(), _max_speed_ref_pu.value());
+    // Step 1: Store the speed reference directly (no rate limiting - upstream generator handles this)
+    _processed_speed_ref_pu = speed_ref_pu;
 
-    // Step 2: Apply rate limiting to the clamped reference
-    _speed_ref_rate_limiter.update(clamped_speed_ref);
-    _processed_speed_ref_pu = speed_pu_t{_speed_ref_rate_limiter.get_output()};
-
-    // Step 2.5: Update derivative calculator with the processed speed reference
+    // Step 2: Update derivative calculator with the speed reference
     _speed_ref_derivative.update(_processed_speed_ref_pu.value());
 
     // Step 3: Calculate speed error
@@ -113,14 +69,8 @@ void sfc_speed_controller::update(speed_pu_t speed_ref_pu, speed_pu_t speed_meas
     const real_t total_torque_ref = _pi_output + speed_derivative_speed_feedforward;
     _torque_ref_unclamped = torque_pu_t{total_torque_ref};
 
-    // Step 7: Determine the dynamic braking torque limit based on measured speed
-    const real_t dynamic_min_torque_limit = _braking_torque_limiter.get_value(speed_measured_pu.value());
-
-    // Step 8: Apply final clamping with the dynamic braking limit
-    // Ensure the dynamic limit does not exceed the globally configured min limit
-    const real_t final_min_limit = std::max(_torque_min_limit, dynamic_min_torque_limit);
-
-    _torque_ref_pu = torque_pu_t{std::clamp(total_torque_ref, final_min_limit, _torque_max_limit)};
+    // Step 7: Apply final clamping with configured limits
+    _torque_ref_pu = torque_pu_t{std::clamp(total_torque_ref, _torque_min_limit, _torque_max_limit)};
 }
 
 torque_pu_t sfc_speed_controller::get_torque_ref_pu() const { return _torque_ref_pu; }
@@ -138,7 +88,6 @@ bool sfc_speed_controller::is_saturated() const
 void sfc_speed_controller::reset(speed_pu_t initial_speed_pu)
 {
     _pi_controller.reset();
-    _speed_ref_rate_limiter.reset(initial_speed_pu.value());
     _speed_ref_derivative.reset(initial_speed_pu.value());
     _processed_speed_ref_pu = initial_speed_pu;
     _torque_ref_pu = torque_pu_t{0.0};

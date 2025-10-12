@@ -1,7 +1,6 @@
 #pragma once
 
 #include "yeet_control/pi_controller.hpp"
-#include "yeet_control/rate_of_change_limiter.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
 
@@ -35,18 +34,6 @@ public:
      * @param max_current_pu The maximum allowed current reference [pu].
      */
     void configure_current_limits_pu(current_pu_t min_current_pu, current_pu_t max_current_pu);
-
-    /**
-     * @brief Sets the slew rate for the DC link current reference.
-     * @param slew_rate_pu_per_second The maximum rate of change for the current reference [pu/s].
-     */
-    void configure_current_reference_slew_rate(real_t slew_rate_pu_per_second);
-
-    /**
-     * @brief Enables or disables the slew rate limiter for the current reference.
-     * @param enable True to enable the slew rate limiter, false to disable it.
-     */
-    void enable_current_reference_slew_rate(bool enable);
 
     /**
      * @brief Sets the operational limits for the grid-side converter firing angle.
@@ -142,7 +129,6 @@ private:
     void recompute_internal_limits();
 
     yeet::control::pi_controller<real_t> _pi_controller;
-    yeet::control::rate_of_change_limiter _rate_of_change_limiter;
 
     // Configuration
     current_pu_t _dc_link_current_min_pu{};

@@ -225,20 +225,34 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedRegulationRampingUpTest)
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     // ==================== Test Execution ====================
-    // Simulate until system can stabilize
-    yeet::mock_signal_input::write(
-        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, speed_pu_t(1.0));
+    // Generate explicit ramp from initial speed (0.01 pu) to 1.0 pu over 50 seconds
     const real_t ramp_time = 50.0;  // seconds
-    system.machine_side_control.speed_controller.get_parameters().speed_reference_rate_limit.write(
-        real_t{1.0} / ramp_time);  // pu/s
+    const real_t initial_ref = 0.01f;
+    const real_t final_ref = 1.0f;
+    const real_t ramp_rate = (final_ref - initial_ref) / ramp_time;  // ~0.0198 pu/s
+    const real_t step_time = 0.5;                                    // Update reference every 0.5 seconds
+    const int num_steps = static_cast<int>(ramp_time / step_time);
+
     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.2f));
 
     // Simulate a little bit to get rid of possible initial oscillations
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, speed_pu_t(initial_ref));
     bool success = simulator.simulate_for(5.0);
 
-    // Because the ramp is very slow, we can allow the checker to be on at all times
+    // Generate ramp by stepping the reference incrementally
     speed_regulation_checker->activate();
-    success &= simulator.simulate_for(50.0);
+    for (int i = 1; i <= num_steps; ++i) {
+        const real_t elapsed_time = i * step_time;
+        const speed_pu_t reference = speed_pu_t{initial_ref + ramp_rate * elapsed_time};
+        yeet::mock_signal_input::write(
+            system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, reference);
+
+        success &= simulator.simulate_for(step_time);
+        if (!success) {
+            break;
+        }
+    }
     speed_regulation_checker->deactivate();
 
     EXPECT_TRUE(success) << "Simulation did not complete successfully with speed regulation and state machine.";
@@ -328,25 +342,41 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PulseModeLowSpeedRampUpTest)
     // Apply load torque representative of starting conditions
     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.15f));
 
-    // Configure ramp: final reference 0.20 pu, rate limit 0.01 pu/s (1/100)
+    // Generate explicit ramp from initial speed (0.001 pu) to 0.20 pu
+    const speed_pu_t initial_ref{0.001f};
     const speed_pu_t final_ref{0.20f};
-    const real_t ramp_rate = real_t{1.0} / real_t{100.0};  // 0.01 pu/s
-    system.machine_side_control.speed_controller.get_parameters().speed_reference_rate_limit.write(ramp_rate);
+    const real_t total_ramp_time = (final_ref.value() - initial_ref.value()) / 0.01f;  // 0.01 pu/s rate
+    const real_t step_time = 0.5;  // Update reference every 0.5 seconds
+    const int num_steps = static_cast<int>(total_ramp_time / step_time);
+    const real_t ramp_rate = (final_ref.value() - initial_ref.value()) / total_ramp_time;
 
-    // Command final reference (internal rate limiter will generate ramp)
+    // Start with initial reference
     yeet::mock_signal_input::write(
-        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, final_ref);
+        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, initial_ref);
 
     execute_startup_sequence();
 
     // Small initial settling before monitoring
     bool success = simulator.simulate_for(1.0);
 
-    // Activate checker for remainder of ramp
+    // Generate ramp by stepping the reference incrementally
     speed_error_checker->activate();
+    for (int i = 1; i <= num_steps; ++i) {
+        const real_t elapsed_time = i * step_time;
+        const speed_pu_t reference = speed_pu_t{initial_ref.value() + ramp_rate * elapsed_time};
+        yeet::mock_signal_input::write(
+            system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, reference);
+
+        success &= simulator.simulate_for(step_time);
+        if (!success) {
+            break;
+        }
+    }
 
     // Final hold at target speed (additional verification window)
-    success &= simulator.simulate_for(20.0);
+    yeet::mock_signal_input::write(
+        system.machine_side_control.speed_controller.get_inputs().speed_reference_pu, final_ref);
+    success &= simulator.simulate_for(1.0);
 
     speed_error_checker->deactivate();
 

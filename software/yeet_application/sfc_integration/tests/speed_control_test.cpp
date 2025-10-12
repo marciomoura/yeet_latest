@@ -69,15 +69,6 @@ public:
         std::visit(overloaded{[&](auto* sys) { sys->enable_speed_control = en; }}, speed_system_variant_t{&system});
     }
 
-    // Added: configure speed reference rate limiter (pu/s)
-    void set_speed_reference_rate_limit(real_t rate_limit) noexcept
-    {
-        std::visit(overloaded{[&](auto* sys) {
-            sys->speed_controller.get_parameters().speed_reference_rate_limit.write(rate_limit);
-        }},
-            speed_system_variant_t{&system});
-    }
-
     speed_pu_t read_speed_error() const noexcept
     {
         return std::visit(
@@ -114,12 +105,10 @@ protected:
     {
         std::visit(overloaded{[&](plant_speed_control_simulation_builder* /*sys*/) {},
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
-                           sys->speed_controller.get_parameters().speed_reference_rate_limit.write(2.0);
                            sys->plant.get_plant_model().set_voltage_control_mode(
                                yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
                        },
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
-                           sys->speed_controller.get_parameters().speed_reference_rate_limit.write(2.0);
                            sys->plant.get_plant_model().set_voltage_control_mode(
                                yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
                        }},
@@ -253,30 +242,42 @@ TYPED_TEST(SpeedControlTypedTest, SpeedReferenceRampTracking)
 }
 
 // ============================================================================
-// Test 4: Full speed ramp-up from very low speed using rate limiter
+// Test 4: Full speed ramp-up from very low speed with explicit ramp generation
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedRampUpFromLowSpeedNaturalCommutation)
 {
     auto checker = this->create_speed_error_checker();
 
-    // Phase 1: Initialize at 0.2 speed reference and settle with nominal load torque
+    // Phase 1: Initialize at 0.25 speed reference and settle with nominal load torque
     checker->deactivate();
     this->set_speed_reference(speed_pu_t{0.25f});
     this->set_load_torque(torque_pu_t{0.2f});
     EXPECT_TRUE(this->sim.simulate_for(2.0));  // low-speed settling
 
-    // Phase 2: Configure a 50 s linear ramp to 1.0 pu via rate limiter
+    // Phase 2: Generate a 50 s linear ramp from 0.25 to 1.0 pu by stepping the reference
+    // Since speed generator now handles rate limiting, we manually generate the ramp
     const real_t ramp_time_s = 50.0;
-    this->set_speed_reference_rate_limit(real_t{1.0} / ramp_time_s);  // ~0.02 pu/s
-    this->set_speed_reference(speed_pu_t{1.0f});
+    const real_t ramp_rate = (1.0f - 0.25f) / ramp_time_s;  // 0.015 pu/s
+    const real_t step_time = 0.5;                           // Update reference every 0.5 seconds
+    const int num_steps = static_cast<int>(ramp_time_s / step_time);
 
-    // Monitor entire ramp (slow ramp keeps error within ±0.05 pu band)
     checker->activate();
-    bool success = this->sim.simulate_for(ramp_time_s);
+    for (int i = 1; i <= num_steps; ++i) {
+        const real_t elapsed_time = i * step_time;
+        const speed_pu_t reference = speed_pu_t{0.25f + ramp_rate * elapsed_time};
+        this->set_speed_reference(reference);
+
+        bool success = this->sim.simulate_for(step_time);
+        if (!success) {
+            checker->deactivate();
+            EXPECT_TRUE(success) << "Simulation failed at ramp step " << i;
+            return;
+        }
+    }
     checker->deactivate();
-    EXPECT_TRUE(success);
 
     // Phase 3: Final steady-state hold at 1.0 pu
+    this->set_speed_reference(speed_pu_t{1.0f});  // Ensure we end exactly at 1.0
     checker->activate();
     EXPECT_TRUE(this->sim.simulate_for(3.0));
 }

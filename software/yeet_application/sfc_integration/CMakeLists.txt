@@ -58,7 +58,9 @@ set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_speed_controller_datamodel.hpp
     include/sfc_integration/sfc_speed_controller_runner.hpp
     include/sfc_integration/sfc_state_machine_datamodel.hpp
-    include/sfc_integration/sfc_state_machine_runner.hpp)
+    include/sfc_integration/sfc_state_machine_runner.hpp
+    include/sfc_integration/sfc_torque_controller_datamodel.hpp
+    include/sfc_integration/sfc_torque_controller_runner.hpp)
 
 # Core implementation sources (always needed)
 set(SFC_CORE_SOURCES
@@ -82,7 +84,8 @@ set(SFC_CORE_SOURCES
     src/sfc_plant_model_runner.cpp
     src/sfc_soft_starter_speed_generator_runner.cpp
     src/sfc_speed_controller_runner.cpp
-    src/sfc_state_machine_runner.cpp)
+    src/sfc_state_machine_runner.cpp
+    src/sfc_torque_controller_runner.cpp)
 
 # Add core sources (always included) Note: Sources must be PRIVATE to avoid
 # double-compilation when linking executables

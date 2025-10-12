@@ -62,13 +62,13 @@ void sfc_torque_controller::reset()
     _current_reference = current_pu_t{0.0};
     _is_breakaway_boost_active = false;
     _is_saturated = false;
+    _downstream_saturation = false;
 }
 
 void sfc_torque_controller::update(torque_pu_t torque_reference_from_speed_controller,
     torque_pu_t dynamic_max_torque_limit,
     torque_pu_t dynamic_min_torque_limit,
-    bool enable_breakaway_boost,
-    bool current_controller_saturated)
+    bool enable_breakaway_boost)
 {
     // Step 1: Update dynamic limits
     _dynamic_max_torque_limit = dynamic_max_torque_limit;
@@ -128,12 +128,11 @@ void sfc_torque_controller::update(torque_pu_t torque_reference_from_speed_contr
     _is_saturated =
         std::abs(_total_torque_reference.value() - _limited_torque_reference.value()) > saturation_threshold;
 
-    // Also propagate saturation from current controller
-    _is_saturated = _is_saturated || current_controller_saturated;
-
     // Step 8: Convert torque to current reference
     _current_reference = current_pu_t{_limited_torque_reference.value() * _torque_to_current_factor};
 }
+
+void sfc_torque_controller::set_downstream_saturation(bool saturated) noexcept { _downstream_saturation = saturated; }
 
 // ========== Output Accessors ==========
 
@@ -150,6 +149,13 @@ sfc_torque_controller::control_mode sfc_torque_controller::get_control_mode() co
 bool sfc_torque_controller::is_breakaway_boost_active() const { return _is_breakaway_boost_active; }
 
 bool sfc_torque_controller::is_saturated() const { return _is_saturated; }
+
+bool sfc_torque_controller::get_downstream_saturation() const noexcept { return _downstream_saturation; }
+
+bool sfc_torque_controller::get_composite_saturation() const noexcept
+{
+    return _is_saturated || _downstream_saturation;
+}
 
 // ========== Internal Helper Methods ==========
 

@@ -41,33 +41,20 @@ void sfc_speed_controller_runner::set_parameters()
     // Configure PI controller gains
     _sfc_speed_controller.configure_pi_gains(_parameters.kp, _parameters.ti);
 
-    // Configure speed reference rate limiting for smooth acceleration/deceleration
-    _sfc_speed_controller.configure_speed_reference_rate_limit(_parameters.speed_reference_rate_limit);
-
     // Configure feedforward control based on inertia constant
     _sfc_speed_controller.configure_feedforward_pu(_parameters.feedforward_inertia);
 
     // Configure torque limits
     _sfc_speed_controller.configure_torque_limits_pu(
         -_parameters.torque_reference_magnitude_limit.read(), _parameters.torque_reference_magnitude_limit.read());
-
-    // Configure speed reference limits
-    _sfc_speed_controller.configure_speed_reference_limits_pu(
-        speed_pu_t(0.0f), _parameters.speed_reference_magnitude_limit);
-
-    // Configure speed reference rate limit
-    _sfc_speed_controller.configure_speed_reference_rate_limit(_parameters.speed_reference_rate_limit);
 }
 
 void sfc_speed_controller_runner::set_parameter_callback()
 {
     _parameters.kp.register_callback([&]() { set_parameters(); });
     _parameters.ti.register_callback([&]() { set_parameters(); });
-    _parameters.speed_reference_rate_limit.register_callback([&]() { set_parameters(); });
-    _parameters.speed_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
     _parameters.torque_to_current_factor.register_callback([&]() { set_parameters(); });
     _parameters.torque_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
-    // _parameters.initial_speed.register_callback([&]() { set_parameters(); });
     _parameters.feedforward_inertia.register_callback([&]() { set_parameters(); });
 }
 
