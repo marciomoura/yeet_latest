@@ -80,14 +80,22 @@ public:
         grid_side_control.shutdown_request.write(false);
         grid_side_control.is_current_extinguished.write(false);
 
-        // Mock references - REMOVED dc_link_current_reference as it now comes from speed controller
-        machine_side_control.speed_reference_pu.write(speed_pu_t{0.0});
-        // machine_side_control.enable_speed_control.write(true);
-
         // Mock excitation control inputs
         machine_side_control.exciter_ready.write(true);  // Exciter is ready (perfect exciter)
         machine_side_control.excitation_start_command.write(true);
         machine_side_control.excitation_stop_command.write(false);
+
+        // Speed generator profile commands (all false by default, set manually in tests)
+        machine_side_control.run_creep_speed.write(false);
+        machine_side_control.run_purge_accel.write(false);
+        machine_side_control.run_ignition_accel.write(false);
+        machine_side_control.run_assist_accel.write(false);
+        machine_side_control.hold_speed.write(false);
+        machine_side_control.decelerate.write(false);
+        machine_side_control.idle.write(true);  // Start in idle mode by default
+
+        // Note: Torque controller dynamic limits now managed by speed generator
+        // Old mock values removed - speed generator provides these outputs based on active profile
 
         // Remove these as they're now connected directly:
         // - measured_speed_pu (connected from machine-side observer)
@@ -258,19 +266,16 @@ private:
         signals_connector::connect_output_to_input(
             is_current_extinguished, grid_side_control.state_machine.get_inputs().is_current_extinguished);
 
-        // Speed command to machine side speed controller
-        signals_connector::connect_output_to_input(machine_side_control.speed_reference_pu,
-            machine_side_control.speed_controller.get_inputs().speed_reference_pu);
-
         // Enable speed control
         // machine_side_control.enable_speed_control.write(true);
 
         // ==================== Cross-Coupling Between Control Classes ====================
         // Connect outputs from one control class to inputs of the other
 
-        // 1. Speed Controller → Current Controller (CRITICAL CASCADE CONNECTION)
+        // 1. Torque Controller → Current Controller (CRITICAL CASCADE CONNECTION)
+        // Speed controller produces torque ref, torque controller converts to current ref
         signals_connector::connect_output_to_input(
-            machine_side_control.speed_controller.get_outputs().current_reference,
+            machine_side_control.torque_controller.get_outputs().current_reference,
             grid_side_control.current_controller.get_inputs().dc_link_current_reference);
 
         // 2. Connect pulse releases from grid-side state machine to machine-side modulator enable
@@ -311,9 +316,19 @@ private:
         signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().freeze_integrator,
             machine_side_control.speed_controller.get_inputs().freeze_integrator);
 
-        // 9. Current controller saturation to speed controller for anti-windup
+        // 8b. Current state ID from grid-side state machine to machine-side speed generator
+        signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().current_state_id,
+            machine_side_control.speed_generator.get_inputs().current_state_id);
+
+        // 9. Current controller saturation to torque controller for composite saturation handling
         signals_connector::connect_output_to_input(
             grid_side_control.current_controller.get_outputs().current_controller_is_saturated,
+            machine_side_control.torque_controller.get_inputs().current_controller_is_saturated);
+
+        // 10. Torque controller composite saturation to speed controller for anti-windup
+        // This combines torque controller's own saturation with current controller saturation
+        signals_connector::connect_output_to_input(
+            machine_side_control.torque_controller.get_outputs().composite_saturation,
             machine_side_control.speed_controller.get_inputs().current_controller_is_saturated);
 
         signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().pulse_releases,

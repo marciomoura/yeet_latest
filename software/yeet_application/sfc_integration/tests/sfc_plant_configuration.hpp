@@ -33,9 +33,6 @@ struct variable_speed_config {
 
     /// Load torque in per-unit
     torque_pu_t load_torque{0.3f};
-
-    /// Speed reference rate limit
-    real_t speed_reference_rate_limit{2.0f};
 };
 
 /**

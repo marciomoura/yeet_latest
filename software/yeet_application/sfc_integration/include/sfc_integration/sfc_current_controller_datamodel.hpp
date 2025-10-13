@@ -61,20 +61,14 @@ public:
         /// PI controller integral time [seconds]
         parameter<duration_t> ti{ms(101.64)};
 
-        /// Anti-windup gain for integral term protection
-        /// Range: [0.05, 0.5]
-        // parameter<real_t> anti_windup_gain = real_t(0.1);
-
-        /// Minimum firing angle limit
+        /// Minimum firing angle limit [radians]
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
-        /// Maximum firing angle limit
+        /// Maximum firing angle limit [radians]
         parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);  // π/2
 
-        /// Current reference rate limit
-        parameter<real_t> current_reference_rate_limit = real_t(10.0);
-
-        /// Current reference magnitude limit
+        /// Current reference magnitude limit [pu]
+        /// Applied symmetrically: [-limit, +limit]
         parameter<current_pu_t> current_reference_magnitude_limit = current_pu_t(2.0);
     };
 

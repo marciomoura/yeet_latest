@@ -22,7 +22,9 @@ target_sources(
             sfc_machine_side_modulator_test.cpp
             sfc_mode_detector_test.cpp
             sfc_per_unit_system_test.cpp
-            sfc_state_machine_test.cpp)
+            sfc_soft_starter_speed_generator_test.cpp
+            sfc_state_machine_test.cpp
+            sfc_torque_controller_test.cpp)
 
 # Link dependencies
 target_link_libraries(
