@@ -6,7 +6,9 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -33,7 +35,9 @@ public:
     explicit sfc_machine_side_control(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
         : _per_unit_system(per_unit_system),
           excitation_controller(),
+          speed_generator(),
           speed_controller(),
+          torque_controller(),
           machine_side_controller(),
           machine_side_observer(),
           machine_side_modulator(),
@@ -71,8 +75,14 @@ public:
     sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }
     const sfc_excitation_controller_runner& get_excitation_controller() const { return excitation_controller; }
 
+    sfc_soft_starter_speed_generator_runner& get_speed_generator() { return speed_generator; }
+    const sfc_soft_starter_speed_generator_runner& get_speed_generator() const { return speed_generator; }
+
     sfc_speed_controller_runner& get_speed_controller() { return speed_controller; }
     const sfc_speed_controller_runner& get_speed_controller() const { return speed_controller; }
+
+    sfc_torque_controller_runner& get_torque_controller() { return torque_controller; }
+    const sfc_torque_controller_runner& get_torque_controller() const { return torque_controller; }
 
     sfc_machine_side_controller_runner& get_machine_side_controller() { return machine_side_controller; }
     const sfc_machine_side_controller_runner& get_machine_side_controller() const { return machine_side_controller; }
@@ -94,8 +104,14 @@ public:
 
     // ==================== External Input Signals ====================
 
-    // Speed control inputs
-    signal_output<speed_pu_t> speed_reference_pu;
+    // Speed generator profile commands (semantic names for turbine starting sequence)
+    signal_output<bool> run_creep_speed;     // Execute Profile 1: Creep speed for maintenance (~5% rated)
+    signal_output<bool> run_purge_accel;     // Execute Profile 2: Purge acceleration (~20% rated)
+    signal_output<bool> run_ignition_accel;  // Execute Profile 3: Ignition acceleration (~55% rated)
+    signal_output<bool> run_assist_accel;    // Execute Profile 4: Assist to self-sustaining (~95% rated)
+    signal_output<bool> hold_speed;          // Hold current speed setpoint
+    signal_output<bool> decelerate;          // Controlled deceleration to zero
+    signal_output<bool> idle;                // Idle mode (zero torque/speed outputs)
 
     // Excitation control inputs
     signal_output<bool> exciter_ready;
@@ -185,11 +201,11 @@ public:
     }
 
     /**
-     * @brief Get current reference from speed controller
+     * @brief Get current reference from torque controller
      */
     const signal_output<current_pu_t>& get_current_reference() const
     {
-        return const_cast<sfc_speed_controller_runner&>(speed_controller).get_outputs().current_reference;
+        return const_cast<sfc_torque_controller_runner&>(torque_controller).get_outputs().current_reference;
     }
 
     /**
@@ -208,7 +224,9 @@ public:
 
     // Machine-side control components (made public for intermediate integration)
     sfc_excitation_controller_runner excitation_controller;
+    sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
+    sfc_torque_controller_runner torque_controller;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;
     sfc_machine_side_modulator_runner machine_side_modulator;

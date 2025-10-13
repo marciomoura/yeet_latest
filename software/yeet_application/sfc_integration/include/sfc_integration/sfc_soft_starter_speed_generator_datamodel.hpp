@@ -1,0 +1,190 @@
+#pragma once
+
+#include "sfc/sfc_soft_starter_speed_generator.hpp"
+#include "sfc/sfc_state_machine.hpp"
+#include "yeet/model_registry.hpp"
+#include "yeet/parameter.hpp"
+#include "yeet/signal.hpp"
+#include "yeet_control/units.hpp"
+
+/**
+ * @file sfc_soft_starter_speed_generator_datamodel.hpp
+ * @brief Datamodel specification for SFC Soft-Starter Speed Reference Generator component
+ *
+ * This component generates smooth speed reference trajectories during the starting sequence
+ * of a gas turbine or synchronous machine. It manages multiple acceleration profiles
+ * (creep speed, purge, ignition, assist) and handles transitions between them.
+ */
+
+namespace yeet::application::sfc::integration {
+
+class sfc_soft_starter_speed_generator_datamodel {
+public:
+    /**
+     * @brief Input signals for the speed reference generator component
+     */
+    struct inputs {
+        /// Current state ID from the state machine to coordinate sequencing
+        signal_input<sfc::sfc_state_id> current_state_id;
+
+        /// Measured machine rotor speed in per-unit (for proper ramp initialization)
+        signal_input<speed_pu_t> measured_speed_pu;
+
+        /// Command to select and run Profile 1 (typically creep speed)
+        signal_input<bool> run_profile_1;
+
+        /// Command to select and run Profile 2 (typically purge acceleration)
+        signal_input<bool> run_profile_2;
+
+        /// Command to select and run Profile 3 (typically ignition acceleration)
+        signal_input<bool> run_profile_3;
+
+        /// Command to select and run Profile 4 (typically assist acceleration)
+        signal_input<bool> run_profile_4;
+
+        /// Command to hold current speed (freeze reference)
+        signal_input<bool> hold_speed;
+
+        /// Command to decelerate to zero
+        signal_input<bool> decelerate;
+
+        /// Command to go to idle (zero torque and speed)
+        signal_input<bool> idle;
+    };
+
+    /**
+     * @brief Output signals from the speed reference generator component
+     */
+    struct outputs {
+        /// Speed reference output to speed controller [pu]
+        /// This is the rate-limited, smooth speed trajectory
+        signal_output<speed_pu_t> speed_reference_pu;
+
+        /// Maximum torque limit for current/torque controller [pu]
+        /// Varies based on active profile and breakaway boost status
+        signal_output<torque_pu_t> torque_limit_max_pu;
+
+        /// Minimum torque limit for current/torque controller [pu]
+        /// Typically negative for braking capability
+        signal_output<torque_pu_t> torque_limit_min_pu;
+
+        /// Flag indicating the active acceleration profile has completed
+        /// Used by state machine to trigger transitions
+        signal_output<bool> is_profile_complete;
+
+        /// Flag indicating breakaway torque boost is currently active
+        /// Used for diagnostics and interlocking
+        signal_output<bool> is_breakaway_boost_active;
+
+        /// Currently active command (IDLE, HOLD_SPEED, DECELERATE, RUN_PROFILE)
+        signal_output<sfc::speed_command_t> active_command;
+
+        /// Currently selected profile (PROFILE_1 through PROFILE_4)
+        /// Only valid when active_command is RUN_PROFILE
+        signal_output<sfc::acceleration_profile_t> selected_profile;
+    };
+
+    /**
+     * @brief Configuration parameters for the speed reference generator
+     *
+     * All profiles can be field-configured. The names (creep, purge, ignition, assist)
+     * are semantic labels but the actual profile behavior is fully programmable.
+     */
+    struct parameters {
+        // === Profile 1 Configuration (Typically: Creep Speed) ===
+        /// Enable Profile 1
+        parameter<bool> profile_1_enabled = true;
+        /// Target speed for Profile 1 [pu]
+        parameter<speed_pu_t> profile_1_target_speed = speed_pu_t{0.05};
+        /// Acceleration time for Profile 1 [s]
+        parameter<duration_t> profile_1_acceleration_time = duration_t{30.0};
+        /// Maximum torque limit during Profile 1 [pu]
+        parameter<torque_pu_t> profile_1_torque_limit_max = torque_pu_t{0.40};
+        /// Minimum torque limit during Profile 1 [pu]
+        parameter<torque_pu_t> profile_1_torque_limit_min = torque_pu_t{-0.20};
+        /// Initial torque boost for Profile 1 [pu]
+        parameter<torque_pu_t> profile_1_initial_torque_boost = torque_pu_t{0.20};
+        /// Boost duration for Profile 1 [s]
+        parameter<duration_t> profile_1_boost_duration = duration_t{2.0};
+
+        // === Profile 2 Configuration (Typically: Purge Acceleration) ===
+        /// Enable Profile 2
+        parameter<bool> profile_2_enabled = true;
+        /// Target speed for Profile 2 [pu]
+        parameter<speed_pu_t> profile_2_target_speed = speed_pu_t{0.20};
+        /// Acceleration time for Profile 2 [s]
+        parameter<duration_t> profile_2_acceleration_time = duration_t{120.0};
+        /// Maximum torque limit during Profile 2 [pu]
+        parameter<torque_pu_t> profile_2_torque_limit_max = torque_pu_t{0.50};
+        /// Minimum torque limit during Profile 2 [pu]
+        parameter<torque_pu_t> profile_2_torque_limit_min = torque_pu_t{-0.20};
+        /// Initial torque boost for Profile 2 [pu]
+        parameter<torque_pu_t> profile_2_initial_torque_boost = torque_pu_t{0.15};
+        /// Boost duration for Profile 2 [s]
+        parameter<duration_t> profile_2_boost_duration = duration_t{2.0};
+
+        // === Profile 3 Configuration (Typically: Ignition Acceleration) ===
+        /// Enable Profile 3
+        parameter<bool> profile_3_enabled = true;
+        /// Target speed for Profile 3 [pu]
+        parameter<speed_pu_t> profile_3_target_speed = speed_pu_t{0.55};
+        /// Acceleration time for Profile 3 [s]
+        parameter<duration_t> profile_3_acceleration_time = duration_t{180.0};
+        /// Maximum torque limit during Profile 3 [pu]
+        parameter<torque_pu_t> profile_3_torque_limit_max = torque_pu_t{0.65};
+        /// Minimum torque limit during Profile 3 [pu]
+        parameter<torque_pu_t> profile_3_torque_limit_min = torque_pu_t{-0.30};
+        /// Initial torque boost for Profile 3 [pu]
+        parameter<torque_pu_t> profile_3_initial_torque_boost = torque_pu_t{0.10};
+        /// Boost duration for Profile 3 [s]
+        parameter<duration_t> profile_3_boost_duration = duration_t{1.5};
+
+        // === Profile 4 Configuration (Typically: Acceleration Assist) ===
+        /// Enable Profile 4
+        parameter<bool> profile_4_enabled = true;
+        /// Target speed for Profile 4 [pu]
+        parameter<speed_pu_t> profile_4_target_speed = speed_pu_t{0.95};
+        /// Acceleration time for Profile 4 [s]
+        parameter<duration_t> profile_4_acceleration_time = duration_t{300.0};
+        /// Maximum torque limit during Profile 4 [pu]
+        parameter<torque_pu_t> profile_4_torque_limit_max = torque_pu_t{0.80};
+        /// Minimum torque limit during Profile 4 [pu]
+        parameter<torque_pu_t> profile_4_torque_limit_min = torque_pu_t{-0.40};
+        /// Initial torque boost for Profile 4 [pu]
+        parameter<torque_pu_t> profile_4_initial_torque_boost = torque_pu_t{0.05};
+        /// Boost duration for Profile 4 [s]
+        parameter<duration_t> profile_4_boost_duration = duration_t{1.0};
+
+        // === Deceleration Configuration ===
+        /// Deceleration time from any speed to zero [s]
+        parameter<duration_t> deceleration_time = duration_t{60.0};
+
+        // === Absolute Safety Limits ===
+        /// Absolute minimum speed limit [pu]
+        parameter<speed_pu_t> min_speed_limit = speed_pu_t{0.0};
+        /// Absolute maximum speed limit [pu]
+        parameter<speed_pu_t> max_speed_limit = speed_pu_t{1.05};
+        /// Absolute maximum torque limit [pu]
+        parameter<torque_pu_t> max_torque_limit = torque_pu_t{1.2};
+        /// Absolute minimum torque limit [pu]
+        parameter<torque_pu_t> min_torque_limit = torque_pu_t{-1.2};
+    };
+
+private:
+    inputs* _model_inputs;
+    outputs* _model_outputs;
+    parameters* _model_parameters;
+
+public:
+    sfc_soft_starter_speed_generator_datamodel(
+        inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
+    }
+
+    inputs& get_inputs() { return *_model_inputs; }
+    outputs& get_outputs() { return *_model_outputs; }
+    parameters& get_parameters() { return *_model_parameters; }
+};
+
+}  // namespace yeet::application::sfc::integration

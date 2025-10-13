@@ -5,7 +5,9 @@ namespace yeet::application::sfc::integration {
 void sfc_machine_side_control::initialize()
 {
     excitation_controller.initialize();
+    speed_generator.initialize();
     speed_controller.initialize();
+    torque_controller.initialize();
     machine_side_controller.initialize();
     machine_side_observer.initialize();
     machine_side_modulator.initialize();
@@ -15,8 +17,10 @@ void sfc_machine_side_control::initialize()
 
 void sfc_machine_side_control::update_10ms()
 {
-    // 10ms sampling: Speed controller
-    speed_controller.run();
+    // 10ms sampling: Execute in order: generator → controller → limiter
+    speed_generator.run();    // 1. Generate speed reference + dynamic torque limits
+    speed_controller.run();   // 2. Process speed error → torque reference
+    torque_controller.run();  // 3. Apply limits + boost → current reference
 }
 
 void sfc_machine_side_control::update_1ms()
@@ -53,7 +57,9 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== Speed Controller Connections ====================
 
     // Speed controller inputs
-    signals_connector::connect_output_to_input(speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
+    // Note: speed_reference_pu is now sourced exclusively from speed_generator (below)
+    // For manual testing without speed_generator, connect external speed_reference_pu signal here
+    // signals_connector::connect_output_to_input(speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
     //    signals_connector::connect_output_to_input(
     //        enable_speed_control, speed_controller.get_inputs().enable_speed_control);
     //  signals_connector::connect_output_to_input(freeze_integrator, speed_controller.get_inputs().freeze_integrator);
@@ -63,6 +69,44 @@ void sfc_machine_side_control::connect_internal_signals()
     // Observer feedback to speed controller
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
+
+    // ==================== Speed Generator Connections ====================
+
+    // Speed Generator → Speed Controller (speed reference - overrides external signal)
+    signals_connector::connect_output_to_input(
+        speed_generator.get_outputs().speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
+
+    // Speed Generator → Torque Controller (dynamic limits + boost enable via intermediate signals)
+    signals_connector::connect_output_to_input(
+        speed_generator.get_outputs().torque_limit_max_pu, torque_controller.get_inputs().dynamic_max_torque_limit);
+    signals_connector::connect_output_to_input(
+        speed_generator.get_outputs().torque_limit_min_pu, torque_controller.get_inputs().dynamic_min_torque_limit);
+    signals_connector::connect_output_to_input(
+        speed_generator.get_outputs().is_breakaway_boost_active, torque_controller.get_inputs().enable_breakaway_boost);
+
+    // Observer → Speed Generator (speed feedback for trajectory tracking)
+    signals_connector::connect_output_to_input(
+        machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed_pu);
+
+    // External Commands → Speed Generator (profile selection and control)
+    signals_connector::connect_output_to_input(run_creep_speed, speed_generator.get_inputs().run_profile_1);
+    signals_connector::connect_output_to_input(run_purge_accel, speed_generator.get_inputs().run_profile_2);
+    signals_connector::connect_output_to_input(run_ignition_accel, speed_generator.get_inputs().run_profile_3);
+    signals_connector::connect_output_to_input(run_assist_accel, speed_generator.get_inputs().run_profile_4);
+    signals_connector::connect_output_to_input(hold_speed, speed_generator.get_inputs().hold_speed);
+    signals_connector::connect_output_to_input(decelerate, speed_generator.get_inputs().decelerate);
+    signals_connector::connect_output_to_input(idle, speed_generator.get_inputs().idle);
+
+    // ==================== Torque Controller Connections ====================
+
+    // Speed Controller → Torque Controller (cascade)
+    signals_connector::connect_output_to_input(speed_controller.get_outputs().torque_reference,
+        torque_controller.get_inputs().torque_reference_from_speed_controller);
+
+    // Note: Dynamic torque limits and boost enable are connected directly from speed generator above (lines 80-86)
+    // Note: Current controller saturation feedback is connected externally (cross-controller)
+
+    // ==================== Machine-Side Controller Connections ====================
 
     // Machine-side controller inputs
     // signals_connector::connect_output_to_input(

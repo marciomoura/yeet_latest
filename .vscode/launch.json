@@ -5,7 +5,7 @@
             "name": "(gdb) yeet unittests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/yeet_test.exe",
+            "program": "${workspaceFolder}/build-host/bin/Debug/yeet_test.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -24,7 +24,7 @@
             "name": "(gdb) yeet control unittests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/yeet_control_tests.exe",
+            "program": "${workspaceFolder}/build-host/bin/Debug/yeet_control_tests.exe",
             "args": [
                 // "--gtest_filter=**"
             ],
@@ -45,7 +45,7 @@
             "name": "(gdb) yeet application sfc unittests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/eet_application_sfc_tests.exe",
+            "program": "${workspaceFolder}/build-host/bin/Debug/yeet_application_sfc_tests.exe",
             "args": [
                 // "--gtest_filter=**"
             ],
@@ -63,10 +63,31 @@
             ]
         },
         {
-            "name": "(gdb) yeet mpc integration unittests",
+            "name": "(gdb) yeet application sfc integration unittests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/yeet_application_mpc_integration_tests.exe",
+            "program": "${workspaceFolder}/build-host/bin/Debug/yeet_application_sfc_integration_tests.exe",
+            "args": [
+                // "--gtest_filter=**"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) yeet testing unittests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-host/bin/Debug/yeet_testing_tests.exe",
             "args": [
                 // "--gtest_filter=**"
             ],

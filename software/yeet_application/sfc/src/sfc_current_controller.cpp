@@ -8,8 +8,7 @@
 
 namespace yeet::application::sfc {
 
-sfc_current_controller::sfc_current_controller(duration_t sampling_time)
-    : _pi_controller(sampling_time.value()), _rate_of_change_limiter(sampling_time.value())
+sfc_current_controller::sfc_current_controller(duration_t sampling_time) : _pi_controller(sampling_time.value())
 {
     // The PI output is a per-unit voltage. A reasonable limit for the DC voltage is ~1.5 pu.
     freeze_integrator(false);
@@ -29,16 +28,6 @@ void sfc_current_controller::configure_current_limits_pu(current_pu_t min_curren
     _dc_link_current_max_pu = max_current_pu;
 }
 
-void sfc_current_controller::configure_current_reference_slew_rate(real_t slew_rate_pu_per_second)
-{
-    _rate_of_change_limiter.configure(slew_rate_pu_per_second);
-}
-
-void sfc_current_controller::enable_current_reference_slew_rate(bool enable)
-{
-    _rate_of_change_limiter.configure_enable(enable);
-}
-
 void sfc_current_controller::freeze_integrator(bool status) { _pi_controller.enable_integrator(!status); }
 
 void sfc_current_controller::configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle)
@@ -55,7 +44,6 @@ void sfc_current_controller::configure_firing_angle_limits_radians(angle_t min_a
 void sfc_current_controller::reset()
 {
     _pi_controller.reset();
-    _rate_of_change_limiter.reset();
     _cos_alpha_clamped = 0.0;
     _cos_alpha_unclamped = 0.0;
     _firing_angle_reference_radians = angle_t{deg_to_rad(90.0)};  // Reset to 90 degrees
@@ -73,30 +61,27 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
     const auto saturated_current_reference_pu =
         std::clamp(dc_link_current_reference_pu, _dc_link_current_min_pu, _dc_link_current_max_pu);
 
-    // Step 2: Apply a rate-of-change limit to the saturated reference for smooth transitions
-    _rate_of_change_limiter.update(saturated_current_reference_pu.value());
+    _current_reference_limited_pu = saturated_current_reference_pu;
 
-    _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output()};
-
-    // Step 3: Calculate the error signal using the slew-rate-limited reference and store it
+    // Step 2: Calculate the error signal using the limited reference and store it
     _current_error_pu = _current_reference_limited_pu - dc_link_current_measured;
 
-    // Step 4: Update the PI controller to get the corrective control voltage and store it
+    // Step 3: Update the PI controller to get the corrective control voltage and store it
     _pi_output = _pi_controller.update(_current_error_pu.value());
 
-    // Step 5: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
+    // Step 4: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
     const voltage_pu_t compensated_control_voltage = voltage_pu_t{_pi_output} + machine_side_voltage_magnitude;
 
-    // Step 6: Linearize by normalizing with V_do to get cos(alpha) command
+    // Step 5: Linearize by normalizing with V_do to get cos(alpha) command
     // Avoid division by zero or small numbers for stability.
     const voltage_pu_t saturated_grid_side_voltage_magnitude = max(grid_side_voltage_magnitude, voltage_pu_t{0.2});
 
     _cos_alpha_unclamped = compensated_control_voltage / saturated_grid_side_voltage_magnitude;
 
-    // Step 7: Clamp the cosine of the firing angle based on pre-calculated limits
+    // Step 6: Clamp the cosine of the firing angle based on pre-calculated limits
     _cos_alpha_clamped = std::clamp(_cos_alpha_unclamped, _cos_alpha_min, _cos_alpha_max);
 
-    // Step 8: Compute the final angle and store it
+    // Step 7: Compute the final angle and store it
     _firing_angle_reference_radians = angle_t{std::acos(_cos_alpha_clamped)};
 }
 

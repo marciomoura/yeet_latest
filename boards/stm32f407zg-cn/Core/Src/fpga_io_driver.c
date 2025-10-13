@@ -338,10 +338,10 @@ static void FPGA_IO_Write16Outputs(uint32_t reg_addr, const bool* input_array)
 
     // Pack 16 individual bool values into a 16-bit word
     // Process in reverse order to build word MSB-first
-    for (int i = 15; i >= 0; i--) {
-        data <<= 1;
+    for (int i = 0; i < 16; i++) {
+        data >>= 1;
         if (input_array[i]) {
-            data |= 0x0001;
+            data |= 0x8000;
         }
     }
 

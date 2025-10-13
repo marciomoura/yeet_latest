@@ -656,74 +656,75 @@ static void MX_FSMC_Init(void)
     FSMC_NORSRAM_TimingTypeDef Timing = {0};
 
     /* USER CODE BEGIN FSMC_Init 1 */
+    // CRITICAL: Custom FSMC timing for AD7606 (Bank2) and FPGA (Bank4)
+    // DO NOT let CubeMX regenerate with incorrect burst mode or synchronous settings!
+    // These values match working legacy code from boards/to_compare/GPIO.C
 
-    /* USER CODE END FSMC_Init 1 */
-
-    /** Perform the SRAM2 memory initialization sequence
+    /** Perform the SRAM2 memory initialization sequence (AD7606 ADC)
      */
     hsram2.Instance = FSMC_NORSRAM_DEVICE;
     hsram2.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
-    /* hsram2.Init */
     hsram2.Init.NSBank = FSMC_NORSRAM_BANK2;
     hsram2.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
     hsram2.Init.MemoryType = FSMC_MEMORY_TYPE_PSRAM;
     hsram2.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
-    hsram2.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+    hsram2.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;  // CRITICAL: Must be DISABLE
     hsram2.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
     hsram2.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
     hsram2.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
     hsram2.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
-    hsram2.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+    hsram2.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;  // CRITICAL: Must be DISABLE
     hsram2.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
     hsram2.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
-    hsram2.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+    hsram2.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;  // CRITICAL: Must be DISABLE
     hsram2.Init.PageSize = FSMC_PAGE_SIZE_NONE;
-    /* Timing */
+
+    /* Timing for AD7606 (CRITICAL: CLKDivision=1, DataLatency=0 for async mode) */
     Timing.AddressSetupTime = 2;
-    Timing.AddressHoldTime = 15;
+    Timing.AddressHoldTime = 1;
     Timing.DataSetupTime = 11;
     Timing.BusTurnAroundDuration = 1;
-    Timing.CLKDivision = 16;
-    Timing.DataLatency = 17;
+    Timing.CLKDivision = 1;  // CRITICAL: Must be 1 (NOT 16!)
+    Timing.DataLatency = 0;  // CRITICAL: Must be 0 (NOT 17!)
     Timing.AccessMode = FSMC_ACCESS_MODE_A;
-    /* ExtTiming */
 
     if (HAL_SRAM_Init(&hsram2, &Timing, NULL) != HAL_OK) {
         Error_Handler();
     }
 
-    /** Perform the SRAM4 memory initialization sequence
+    /** Perform the SRAM4 memory initialization sequence (FPGA Digital I/O)
      */
     hsram4.Instance = FSMC_NORSRAM_DEVICE;
     hsram4.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
-    /* hsram4.Init */
     hsram4.Init.NSBank = FSMC_NORSRAM_BANK4;
     hsram4.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
     hsram4.Init.MemoryType = FSMC_MEMORY_TYPE_PSRAM;
     hsram4.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
-    hsram4.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+    hsram4.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;  // CRITICAL: Must be DISABLE
     hsram4.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
     hsram4.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
     hsram4.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
     hsram4.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
-    hsram4.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+    hsram4.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;  // CRITICAL: Must be DISABLE
     hsram4.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
     hsram4.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
-    hsram4.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+    hsram4.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;  // CRITICAL: Must be DISABLE
     hsram4.Init.PageSize = FSMC_PAGE_SIZE_NONE;
-    /* Timing */
+
+    /* Timing for FPGA (CRITICAL: CLKDivision=1, DataLatency=0 for async mode) */
     Timing.AddressSetupTime = 6;
     Timing.AddressHoldTime = 15;
     Timing.DataSetupTime = 21;
     Timing.BusTurnAroundDuration = 1;
-    Timing.CLKDivision = 16;
-    Timing.DataLatency = 17;
+    Timing.CLKDivision = 1;  // CRITICAL: Must be 1 (NOT 16!)
+    Timing.DataLatency = 0;  // CRITICAL: Must be 0 (NOT 17!)
     Timing.AccessMode = FSMC_ACCESS_MODE_A;
-    /* ExtTiming */
 
     if (HAL_SRAM_Init(&hsram4, &Timing, NULL) != HAL_OK) {
         Error_Handler();
     }
+
+    /* USER CODE END FSMC_Init 1 */
 
     /* USER CODE BEGIN FSMC_Init 2 */
 
