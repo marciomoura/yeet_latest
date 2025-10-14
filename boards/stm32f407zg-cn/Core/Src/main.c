@@ -46,19 +46,28 @@
 // LED pointer for testing (FPGA LED at Bank4 address)
 volatile uint16_t* led = (volatile uint16_t*)0x6C00000E;
 
-/* USER CODE END PV */
+/**
+ * @brief  200us periodic task - ADC sampling
+ * @note   Called from TIM3 ISR at 5 kHz rate (every 200 microseconds)
+ *         This is your highest priority task - keep it fast!
+ */
+void task_200us(void)
+{
+    /* ADC read/start is already called in AD() by Init_Hardware() */
+    /* Add your 200us task code here */
+}
 
-/* USER CODE END PV */
+/**
+ * @brief  1ms periodic task - Fast control loop
+ * @note   Called from TIM4 ISR at 1 kHz rate (every 1 millisecond)
+ */
+void task_1ms(void) { /* Add your 1ms control code here */ }
 
-/* Private function prototypes -----------------------------------------------*/
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
+/**
+ * @brief  10ms periodic task - Slow monitoring
+ * @note   Called from TIM2 ISR at 100 Hz rate (every 10 milliseconds)
+ */
+void task_10ms(void) { /* Add your 10ms monitoring code here */ }
 
 /**
  * @brief  The application entry point.
@@ -94,10 +103,6 @@ int main(void)
     }
     /* USER CODE END 3 */
 }
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
  * @brief  This function is executed in case of error occurrence.
