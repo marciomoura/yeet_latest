@@ -1,1307 +1,1259 @@
 /**************************************************************************************************
-* @file    w5200.c                                                                                *
-* @author  ÄÜÊÂ´ïµçÆø                                                                             *
-* @version V1.0.0                                                                                 *
-* @date    2016.8.10.                                                                             *
-* @brief   w5200Íø¿ÚÇý¶¯                                                                          *
-**************************************************************************************************/
+ * @file    w5200.c                                                                                *
+ * @author  ï¿½ï¿½ï¿½Â´ï¿½ï¿½ï¿½ï¿½                                                                             *
+ * @version V1.0.0                                                                                 *
+ * @date    2016.8.10.                                                                             *
+ * @brief   w5200ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½                                                                          *
+ **************************************************************************************************/
 #include <stm32f4xx.h>
+
 #include "w5200Reg.h"
 
 extern unsigned char uchNodeNum;
 
-void Network_Init(SPI_TypeDef *SPIx, unsigned char* Self_IP, unsigned char* Socket_Enable, unsigned short int* Self_Port, 
-unsigned char* Socket_mode, unsigned char* Dest_IP, unsigned short int* Dest_Port, int DMA_Size);
+void Network_Init(SPI_TypeDef *SPIx,
+    unsigned char *Self_IP,
+    unsigned char *Socket_Enable,
+    unsigned short int *Self_Port,
+    unsigned char *Socket_mode,
+    unsigned char *Dest_IP,
+    unsigned short int *Dest_Port,
+    int DMA_Size);
 
 /********************************************************************
-*Soft_Delay                                                         *
-*Èí¼þÑÓÊ±¡£                                                         *
-********************************************************************/
+ *Soft_Delay                                                         *
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½                                                         *
+ ********************************************************************/
 void Soft_Delay(unsigned int x)
 {
-	unsigned int i;
-	for(i=0;i<x;i++);
+    unsigned int i;
+    for (i = 0; i < x; i++);
 }
 
 /********************************************************************
-*Net_Para_Init                                                      *
-*³õÊ¼»¯NetÊý¾ÝÇøºÍÏà¹Ø²ÎÊý¡£                                        *
-********************************************************************/
+ *Net_Para_Init                                                      *
+ *ï¿½ï¿½Ê¼ï¿½ï¿½Netï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø²ï¿½ï¿½ï¿½ï¿½ï¿½                                        *
+ ********************************************************************/
 void Net_Para_Init(int Index)
 {
-	unsigned char i;
+    unsigned char i;
 
-	Net_State[Index]=0; 					 							//×´Ì¬±äÁ¿
-	Net_Rx_size[Index]=0;	
-	
-   	for(i= 0; i < 2; i++)
-	{
-		Net_Rx_Addr_Offset[Index][i] = 0;
-		Net_Tx_Addr_Offset[Index][i] = 0;
-		Net_Socket_Rx_Addr[Index][i]=Net_Rx_Addr[i];
-		Net_Socket_Tx_Addr[Index][i]=Net_Tx_Addr[i];
-		Net_Socket_State[Index][i] = 0;									//Íø¿Ú1(Socket0...Socket7)×´Ì¬¼ÇÂ¼³õÊ¼»¯
-		Net_Socket_Data[Index][i] = 0;									//Íø¿Ú1(Socket0...Socket7)½ÓÊÕºÍ·¢ËÍÊý¾ÝµÄ×´Ì¬³õÊ¼»¯
-		Net_Tx_Flag[Index][i]=0;
-		Net_Rx_Flag[Index][i]=0;
-	}
-	Net_Receiving_Socket[Index]=8;//Socket not exist
-	Net_Sending_Socket[Index]=8;
-	Net_Rx_Delay[Index]=0;
-	Net_Tx_Delay[Index]=0;
+    Net_State[Index] = 0;  // ×´Ì¬ï¿½ï¿½ï¿½ï¿½
+    Net_Rx_size[Index] = 0;
+
+    for (i = 0; i < 2; i++) {
+        Net_Rx_Addr_Offset[Index][i] = 0;
+        Net_Tx_Addr_Offset[Index][i] = 0;
+        Net_Socket_Rx_Addr[Index][i] = Net_Rx_Addr[i];
+        Net_Socket_Tx_Addr[Index][i] = Net_Tx_Addr[i];
+        Net_Socket_State[Index][i] = 0;  // ï¿½ï¿½ï¿½ï¿½1(Socket0...Socket7)×´Ì¬ï¿½ï¿½Â¼ï¿½ï¿½Ê¼ï¿½ï¿½
+        Net_Socket_Data[Index][i] = 0;  // ï¿½ï¿½ï¿½ï¿½1(Socket0...Socket7)ï¿½ï¿½ï¿½ÕºÍ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ýµï¿½×´Ì¬ï¿½ï¿½Ê¼ï¿½ï¿½
+        Net_Tx_Flag[Index][i] = 0;
+        Net_Rx_Flag[Index][i] = 0;
+    }
+    Net_Receiving_Socket[Index] = 8;  // Socket not exist
+    Net_Sending_Socket[Index] = 8;
+    Net_Rx_Delay[Index] = 0;
+    Net_Tx_Delay[Index] = 0;
 }
 
 /********************************************************************
-*SPI2_Init                                                          *
-*SPI2Ó²¼þ³õÊ¼»¯                                                     *
-*SCK:PB13,MOSI:PB15,MISO:PB14,NSS:PB12, Reset:PA12, CS:PA11         *
-********************************************************************/
+ *SPI2_Init                                                          *
+ *SPI2Ó²ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½                                                     *
+ *SCK:PB13,MOSI:PB15,MISO:PB14,NSS:PB12, Reset:PA12, CS:PA11         *
+ ********************************************************************/
 void SPI2_Init(void)
 {
-	SPI_InitTypeDef  SPI_InitStructure;
-	GPIO_InitTypeDef GPIO_InitStructure;
-																												
-	// Enable the SPI clock			 
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
+    SPI_InitTypeDef SPI_InitStructure;
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	// Enable GPIO clocks 					
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+    // Enable the SPI clock
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
 
-	// Connect SPI pins to AF5
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource12, GPIO_AF_SPI2);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource13, GPIO_AF_SPI2);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource14, GPIO_AF_SPI2);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource15, GPIO_AF_SPI2);
+    // Enable GPIO clocks
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_DOWN;
+    // Connect SPI pins to AF5
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource12, GPIO_AF_SPI2);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource13, GPIO_AF_SPI2);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource14, GPIO_AF_SPI2);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource15, GPIO_AF_SPI2);
 
-	// SPI SCK pin configuration 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
 
-	// SPI  MISO pin configuration 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    // SPI SCK pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	// SPI  MOSI pin configuration 
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_15;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	
-	//NSS
-	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    // SPI  MISO pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 
- 	//CS
- 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIOA->BSRRH =  GPIO_Pin_11;//CS low
+    // SPI  MOSI pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 
- 	//Reset
- 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIOA->BSRRH =  GPIO_Pin_12;//Reset off
-	
-	// SPI configuration 
-	SPI_I2S_DeInit(SPI2);	 //±ØÐëÏÈ½ûÄÜ,²ÅÄÜ¸Ä±äMODE 
-	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;//Á½ÏßÈ«Ë«¹¤ 
-	SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
-	SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
-	SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
-	SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;//2·ÖÆµ 
-	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
-	SPI_InitStructure.SPI_CRCPolynomial = 7;
+    // NSS
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	// Initializes the SPI communication 
- 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-	SPI_Init(SPI2, &SPI_InitStructure);
+    // CS
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIOA->BSRRH = GPIO_Pin_11;  // CS low
 
-	//The Data transfer is performed in the SPI interrupt routine 
-	SPI_Cmd(SPI2, DISABLE);
-	SPI_SSOutputCmd (SPI2, ENABLE);
+    // Reset
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIOA->BSRRH = GPIO_Pin_12;  // Reset off
+
+    // SPI configuration
+    SPI_I2S_DeInit(SPI2);  // ï¿½ï¿½ï¿½ï¿½ï¿½È½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ü¸Ä±ï¿½MODE
+    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;  // ï¿½ï¿½ï¿½ï¿½È«Ë«ï¿½ï¿½
+    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+    SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
+    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
+    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;  // 2ï¿½ï¿½Æµ
+    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+    SPI_InitStructure.SPI_CRCPolynomial = 7;
+
+    // Initializes the SPI communication
+    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+    SPI_Init(SPI2, &SPI_InitStructure);
+
+    // The Data transfer is performed in the SPI interrupt routine
+    SPI_Cmd(SPI2, DISABLE);
+    SPI_SSOutputCmd(SPI2, ENABLE);
 }
 
 /********************************************************************
-*SPI3_Init                                                          *
-*SPI3Ó²¼þ³õÊ¼»¯                                                     *
-*SCK:PC10,MOSI:PC12,MISO:PC11,NSS:PA15,Reset:PB4, CS:PB3            *	
-********************************************************************/ 
+ *SPI3_Init                                                          *
+ *SPI3Ó²ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½                                                     *
+ *SCK:PC10,MOSI:PC12,MISO:PC11,NSS:PA15,Reset:PB4, CS:PB3            *
+ ********************************************************************/
 void SPI3_Init(void)
 {
-	SPI_InitTypeDef  SPI_InitStructure;
-	GPIO_InitTypeDef GPIO_InitStructure;
+    SPI_InitTypeDef SPI_InitStructure;
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	// Enable the SPI clock			 
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI3, ENABLE);
+    // Enable the SPI clock
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI3, ENABLE);
 
-	// Enable GPIO clocks 
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+    // Enable GPIO clocks
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
-	// Connect SPI pins to AF5  
-	GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_SPI3);
-	GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_SPI3);
-	GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_SPI3);
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource15, GPIO_AF_SPI3);
+    // Connect SPI pins to AF5
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_SPI3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_SPI3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_SPI3);
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource15, GPIO_AF_SPI3);
 
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_DOWN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
 
-	// SPI SCK pin configuration 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    // SPI SCK pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	// SPI  MISO pin configuration 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    // SPI  MISO pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	// SPI  MOSI pin configuration
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_12;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    // SPI  MOSI pin configuration
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	// SPI  NSS pin configuration 
-	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	
-	//CS
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	GPIOB->BSRRH =  GPIO_Pin_3;//CS low
-	
-	//Reset
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	GPIOB->BSRRH =  GPIO_Pin_4;//Reset off
- 
-	// SPI configuration
-	SPI_I2S_DeInit(SPI3);	 											//±ØÐëÏÈ½ûÄÜ,²ÅÄÜ¸Ä±äMODE 
-	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;	//Á½ÏßÈ«Ë«¹¤ 
-	SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
-	SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
-	SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
-	SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;//2·ÖÆµ 
-	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
-	SPI_InitStructure.SPI_CRCPolynomial = 7;
+    // SPI  NSS pin configuration
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	// Initializes the SPI communication
- 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-	SPI_Init(SPI3, &SPI_InitStructure);
+    // CS
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+    GPIOB->BSRRH = GPIO_Pin_3;  // CS low
 
-	SPI_Cmd(SPI3, DISABLE);
-	SPI_SSOutputCmd (SPI3, ENABLE);	   
+    // Reset
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+    GPIOB->BSRRH = GPIO_Pin_4;  // Reset off
+
+    // SPI configuration
+    SPI_I2S_DeInit(SPI3);  // ï¿½ï¿½ï¿½ï¿½ï¿½È½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ü¸Ä±ï¿½MODE
+    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;  // ï¿½ï¿½ï¿½ï¿½È«Ë«ï¿½ï¿½
+    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+    SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
+    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
+    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;  // 2ï¿½ï¿½Æµ
+    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+    SPI_InitStructure.SPI_CRCPolynomial = 7;
+
+    // Initializes the SPI communication
+    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+    SPI_Init(SPI3, &SPI_InitStructure);
+
+    SPI_Cmd(SPI3, DISABLE);
+    SPI_SSOutputCmd(SPI3, ENABLE);
 }
 
 /********************************************************************
-*SPI2_DMA_Config                                                    *
-*SPI2Êý¾ÝÊÕ·¢µÄDMA³õÊ¼»¯                                            *
-********************************************************************/
+ *SPI2_DMA_Config                                                    *
+ *SPI2ï¿½ï¿½ï¿½ï¿½ï¿½Õ·ï¿½ï¿½ï¿½DMAï¿½ï¿½Ê¼ï¿½ï¿½                                            *
+ ********************************************************************/
 void SPI2_DMA_Config(void)
 {
-	DMA_InitTypeDef  DMA_InitStructureTx,DMA_InitStructureRx;
+    DMA_InitTypeDef DMA_InitStructureTx, DMA_InitStructureRx;
 
-	//Æô¶¯DMAÊ±ÖÓ
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);	 
-	
-	//·¢ËÍÍ¨µÀ
-	DMA_DeInit(DMA1_Stream4);
-	DMA_InitStructureTx.DMA_Channel = DMA_Channel_0;   							//Ñ¡ÔñÍ¨µÀ0	
-	DMA_InitStructureTx.DMA_PeripheralBaseAddr =(unsigned int)&SPI2->DR;			//SPI1µÄDR¼Ä´æÆ÷µØÖ·£ºSPI data register
-	DMA_InitStructureTx.DMA_Memory0BaseAddr = (unsigned int)SPI_Tx_Buf[0];			//(unsigned int)SPI_Tx_Buf[0]£º×Ô¶¨ÒåµÄÒ»¸ö±äÁ¿;
-	DMA_InitStructureTx.DMA_DIR = DMA_DIR_MemoryToPeripheral;  					//ÉèÖÃDMAµÄ´«Êä·½Ïò£ºÄÚ´æµ½ÍâÎ§Éè±¸
-	DMA_InitStructureTx.DMA_BufferSize = DMA_Tx_Size[0]+4;									//ÊÇÉèÖÃDMAÔÚ´«ÊäÊ±»º³åÇøµÄ³¤¶È											 
-	DMA_InitStructureTx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;			//ÖÃDMAµÄÍâÉèµÝÔöÄ£Ê½£¬Èç¹ûDMAÑ¡ÓÃµÄÍ¨µÀ£¨CHx£©ÓÐ¶à¸öÍâÉèÁ¬½Ó£¬ÐèÒªÊ¹ÓÃÍâÉèµÝÔöÄ£Ê½£º
-	DMA_InitStructureTx.DMA_MemoryInc = DMA_MemoryInc_Enable;  					//DMAÄÚ´æµØÖ·×Ô¶¯Ôö¼ÓÄ£Ê½£¬£¬DMA·ÃÎÊ¶à¸öÄÚ´æ²ÎÊýÊ±£¬ÐèÒªÊ¹ÓÃDMA_MemoryInc_Enable
-	DMA_InitStructureTx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;	//ÉèÖÃDMAÔÚ·ÃÎÊÊ±Ã¿´Î²Ù×÷µÄÊý¾Ý³¤¶È
-	DMA_InitStructureTx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;		
-	DMA_InitStructureTx.DMA_Mode = DMA_Mode_Normal;    	 						//ÉèÖÃDMAµÄ´«ÊäÄ£Ê½£ºÍ¨ÓÃÄ£Ê½	
-	DMA_InitStructureTx.DMA_Priority = DMA_Priority_Low;						//ÉèÖÃDMAµÄÓÅÏÈ¼¶±ð£º¹²4¸ö¼¶±ð
-	DMA_InitStructureTx.DMA_FIFOMode = DMA_FIFOMode_Disable;					//
-	DMA_InitStructureTx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStructureTx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructureTx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;        
-	DMA_Init(DMA1_Stream4, &DMA_InitStructureTx);
+    // ï¿½ï¿½ï¿½ï¿½DMAÊ±ï¿½ï¿½
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
 
-	//Ê¹ÄÜSPI2µÄDMAÊÕ·¢¹¦ÄÜ
-	SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx, ENABLE);
-	DMA_Cmd(DMA1_Stream4,DISABLE); 	
-			
-	//½ÓÊÕÍ¨µÀ
-	DMA_DeInit(DMA1_Stream3);
-	DMA_StructInit(&DMA_InitStructureRx);						//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStructureRx.DMA_Channel = DMA_Channel_0;
-	DMA_InitStructureRx.DMA_PeripheralBaseAddr =(unsigned int)&SPI2->DR;//SPI2µÄDR¼Ä´æÆ÷µØÖ·
-	DMA_InitStructureRx.DMA_Memory0BaseAddr = (unsigned int)SPI_Rx_Buf[0];
-	DMA_InitStructureRx.DMA_DIR = DMA_DIR_PeripheralToMemory;  
-	DMA_InitStructureRx.DMA_BufferSize = DMA_Tx_Size[0]+4;
-	DMA_InitStructureRx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructureRx.DMA_MemoryInc = DMA_MemoryInc_Enable;  //DMAÄÚ´æµØÖ·×Ô¶¯Ôö¼ÓÄ£Ê½
-	DMA_InitStructureRx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
-	DMA_InitStructureRx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructureRx.DMA_Mode = DMA_Mode_Circular;    
-	DMA_InitStructureRx.DMA_Priority = DMA_Priority_VeryHigh;
-	DMA_InitStructureRx.DMA_FIFOMode = DMA_FIFOMode_Disable;
-	DMA_InitStructureRx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStructureRx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructureRx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;                
-	DMA_Init(DMA1_Stream3, &DMA_InitStructureRx);		 
+    // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½
+    DMA_DeInit(DMA1_Stream4);
+    DMA_InitStructureTx.DMA_Channel = DMA_Channel_0;                       // Ñ¡ï¿½ï¿½Í¨ï¿½ï¿½0
+    DMA_InitStructureTx.DMA_PeripheralBaseAddr = (unsigned int)&SPI2->DR;  // SPI1ï¿½ï¿½DRï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½SPI data register
+    DMA_InitStructureTx.DMA_Memory0BaseAddr =
+        (unsigned int)SPI_Tx_Buf[0];                           //(unsigned int)SPI_Tx_Buf[0]ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½;
+    DMA_InitStructureTx.DMA_DIR = DMA_DIR_MemoryToPeripheral;  // ï¿½ï¿½ï¿½ï¿½DMAï¿½Ä´ï¿½ï¿½ä·½ï¿½ï¿½ï¿½Ú´æµ½ï¿½ï¿½Î§ï¿½è±¸
+    DMA_InitStructureTx.DMA_BufferSize = DMA_Tx_Size[0] + 4;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½DMAï¿½Ú´ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_PeripheralInc =
+        DMA_PeripheralInc_Disable;  // ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½DMAÑ¡ï¿½Ãµï¿½Í¨ï¿½ï¿½ï¿½ï¿½CHxï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó£ï¿½ï¿½ï¿½ÒªÊ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_MemoryInc =
+        DMA_MemoryInc_Enable;  // DMAï¿½Ú´ï¿½ï¿½Ö·ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½Ê¶ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ÒªÊ¹ï¿½ï¿½DMA_MemoryInc_Enable
+    DMA_InitStructureTx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  // ï¿½ï¿½ï¿½ï¿½DMAï¿½Ú·ï¿½ï¿½ï¿½Ê±Ã¿ï¿½Î²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStructureTx.DMA_Mode = DMA_Mode_Normal;       // ï¿½ï¿½ï¿½ï¿½DMAï¿½Ä´ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½Í¨ï¿½ï¿½Ä£Ê½
+    DMA_InitStructureTx.DMA_Priority = DMA_Priority_Low;  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ð£º¹ï¿½4ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_FIFOMode = DMA_FIFOMode_Disable;  //
+    DMA_InitStructureTx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStructureTx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStructureTx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+    DMA_Init(DMA1_Stream4, &DMA_InitStructureTx);
 
-	DMA_Cmd(DMA1_Stream3, ENABLE);
+    // Ê¹ï¿½ï¿½SPI2ï¿½ï¿½DMAï¿½Õ·ï¿½ï¿½ï¿½ï¿½ï¿½
+    SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx, ENABLE);
+    DMA_Cmd(DMA1_Stream4, DISABLE);
+
+    // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½
+    DMA_DeInit(DMA1_Stream3);
+    DMA_StructInit(&DMA_InitStructureRx);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStructureRx.DMA_Channel = DMA_Channel_0;
+    DMA_InitStructureRx.DMA_PeripheralBaseAddr = (unsigned int)&SPI2->DR;  // SPI2ï¿½ï¿½DRï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½Ö·
+    DMA_InitStructureRx.DMA_Memory0BaseAddr = (unsigned int)SPI_Rx_Buf[0];
+    DMA_InitStructureRx.DMA_DIR = DMA_DIR_PeripheralToMemory;
+    DMA_InitStructureRx.DMA_BufferSize = DMA_Tx_Size[0] + 4;
+    DMA_InitStructureRx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStructureRx.DMA_MemoryInc = DMA_MemoryInc_Enable;  // DMAï¿½Ú´ï¿½ï¿½Ö·ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½
+    DMA_InitStructureRx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStructureRx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStructureRx.DMA_Mode = DMA_Mode_Circular;
+    DMA_InitStructureRx.DMA_Priority = DMA_Priority_VeryHigh;
+    DMA_InitStructureRx.DMA_FIFOMode = DMA_FIFOMode_Disable;
+    DMA_InitStructureRx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStructureRx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStructureRx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+    DMA_Init(DMA1_Stream3, &DMA_InitStructureRx);
+
+    DMA_Cmd(DMA1_Stream3, ENABLE);
 }
 
 /********************************************************************
-*SPI3_DMA_Config                                                    *
-*SPI3Êý¾ÝÊÕ·¢µÄDMA³õÊ¼»¯                                            *
-********************************************************************/
+ *SPI3_DMA_Config                                                    *
+ *SPI3ï¿½ï¿½ï¿½ï¿½ï¿½Õ·ï¿½ï¿½ï¿½DMAï¿½ï¿½Ê¼ï¿½ï¿½                                            *
+ ********************************************************************/
 void SPI3_DMA_Config(void)
 {
-	DMA_InitTypeDef  DMA_InitStructureTx,DMA_InitStructureRx;
+    DMA_InitTypeDef DMA_InitStructureTx, DMA_InitStructureRx;
 
-	//Æô¶¯DMAÊ±ÖÓ
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);	 
-	
-	//·¢ËÍÍ¨µÀ
-	DMA_DeInit(DMA1_Stream7);
-	DMA_InitStructureTx.DMA_Channel = DMA_Channel_0;   							//Ñ¡ÔñÍ¨µÀ0	
-	DMA_InitStructureTx.DMA_PeripheralBaseAddr =(unsigned int)&SPI3->DR;			//SPI1µÄDR¼Ä´æÆ÷µØÖ·£ºSPI data register
-	DMA_InitStructureTx.DMA_Memory0BaseAddr = (unsigned int)SPI_Tx_Buf[1];			
-	DMA_InitStructureTx.DMA_DIR = DMA_DIR_MemoryToPeripheral;  					//ÉèÖÃDMAµÄ´«Êä·½Ïò£ºÄÚ´æµ½ÍâÎ§Éè±¸
-	DMA_InitStructureTx.DMA_BufferSize = DMA_Tx_Size[1]+4;									//ÊÇÉèÖÃDMAÔÚ´«ÊäÊ±»º³åÇøµÄ³¤¶È											 
-	DMA_InitStructureTx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;			//ÖÃDMAµÄÍâÉèµÝÔöÄ£Ê½£¬Èç¹ûDMAÑ¡ÓÃµÄÍ¨µÀ£¨CHx£©ÓÐ¶à¸öÍâÉèÁ¬½Ó£¬ÐèÒªÊ¹ÓÃÍâÉèµÝÔöÄ£Ê½£º
-	DMA_InitStructureTx.DMA_MemoryInc = DMA_MemoryInc_Enable;  					//DMAÄÚ´æµØÖ·×Ô¶¯Ôö¼ÓÄ£Ê½£¬£¬DMA·ÃÎÊ¶à¸öÄÚ´æ²ÎÊýÊ±£¬ÐèÒªÊ¹ÓÃDMA_MemoryInc_Enable
-	DMA_InitStructureTx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;	//ÉèÖÃDMAÔÚ·ÃÎÊÊ±Ã¿´Î²Ù×÷µÄÊý¾Ý³¤¶È
-	DMA_InitStructureTx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;		
-	DMA_InitStructureTx.DMA_Mode = DMA_Mode_Normal;    	 						//ÉèÖÃDMAµÄ´«ÊäÄ£Ê½£ºÍ¨ÓÃÄ£Ê½	
-	DMA_InitStructureTx.DMA_Priority = DMA_Priority_Low;						//ÉèÖÃDMAµÄÓÅÏÈ¼¶±ð£º¹²4¸ö¼¶±ð
-	DMA_InitStructureTx.DMA_FIFOMode = DMA_FIFOMode_Disable;					//
-	DMA_InitStructureTx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStructureTx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructureTx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;        
-	DMA_Init(DMA1_Stream7, &DMA_InitStructureTx);
+    // ï¿½ï¿½ï¿½ï¿½DMAÊ±ï¿½ï¿½
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
 
-	//Ê¹ÄÜSPI3µÄDMA·¢ËÍ¹¦ÄÜ
-	SPI_I2S_DMACmd(SPI3, SPI_I2S_DMAReq_Tx, ENABLE);
-	DMA_Cmd(DMA1_Stream7,DISABLE); 		
-			
-	//½ÓÊÕÍ¨µÀ
-	DMA_DeInit(DMA1_Stream2);
-	DMA_StructInit(&DMA_InitStructureRx);						//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStructureRx.DMA_Channel = DMA_Channel_0;
-	DMA_InitStructureRx.DMA_PeripheralBaseAddr =(unsigned int)&SPI3->DR;//SPI2µÄDR¼Ä´æÆ÷µØÖ·
-	DMA_InitStructureRx.DMA_Memory0BaseAddr = (unsigned int)SPI_Rx_Buf[1];
-	DMA_InitStructureRx.DMA_DIR = DMA_DIR_PeripheralToMemory;  
-	DMA_InitStructureRx.DMA_BufferSize = DMA_Tx_Size[1]+4;
-	DMA_InitStructureRx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructureRx.DMA_MemoryInc = DMA_MemoryInc_Enable;  //DMAÄÚ´æµØÖ·×Ô¶¯Ôö¼ÓÄ£Ê½
-	DMA_InitStructureRx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
-	DMA_InitStructureRx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructureRx.DMA_Mode = DMA_Mode_Circular;    
-	DMA_InitStructureRx.DMA_Priority = DMA_Priority_VeryHigh;
-	DMA_InitStructureRx.DMA_FIFOMode = DMA_FIFOMode_Disable;
-	DMA_InitStructureRx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStructureRx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructureRx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;                
-	DMA_Init(DMA1_Stream2, &DMA_InitStructureRx);		 
+    // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½
+    DMA_DeInit(DMA1_Stream7);
+    DMA_InitStructureTx.DMA_Channel = DMA_Channel_0;                       // Ñ¡ï¿½ï¿½Í¨ï¿½ï¿½0
+    DMA_InitStructureTx.DMA_PeripheralBaseAddr = (unsigned int)&SPI3->DR;  // SPI1ï¿½ï¿½DRï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½SPI data register
+    DMA_InitStructureTx.DMA_Memory0BaseAddr = (unsigned int)SPI_Tx_Buf[1];
+    DMA_InitStructureTx.DMA_DIR = DMA_DIR_MemoryToPeripheral;  // ï¿½ï¿½ï¿½ï¿½DMAï¿½Ä´ï¿½ï¿½ä·½ï¿½ï¿½ï¿½Ú´æµ½ï¿½ï¿½Î§ï¿½è±¸
+    DMA_InitStructureTx.DMA_BufferSize = DMA_Tx_Size[1] + 4;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½DMAï¿½Ú´ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_PeripheralInc =
+        DMA_PeripheralInc_Disable;  // ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½DMAÑ¡ï¿½Ãµï¿½Í¨ï¿½ï¿½ï¿½ï¿½CHxï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó£ï¿½ï¿½ï¿½ÒªÊ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_MemoryInc =
+        DMA_MemoryInc_Enable;  // DMAï¿½Ú´ï¿½ï¿½Ö·ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½Ê¶ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ÒªÊ¹ï¿½ï¿½DMA_MemoryInc_Enable
+    DMA_InitStructureTx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  // ï¿½ï¿½ï¿½ï¿½DMAï¿½Ú·ï¿½ï¿½ï¿½Ê±Ã¿ï¿½Î²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStructureTx.DMA_Mode = DMA_Mode_Normal;       // ï¿½ï¿½ï¿½ï¿½DMAï¿½Ä´ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½Í¨ï¿½ï¿½Ä£Ê½
+    DMA_InitStructureTx.DMA_Priority = DMA_Priority_Low;  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ð£º¹ï¿½4ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStructureTx.DMA_FIFOMode = DMA_FIFOMode_Disable;  //
+    DMA_InitStructureTx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStructureTx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStructureTx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+    DMA_Init(DMA1_Stream7, &DMA_InitStructureTx);
 
-	DMA_Cmd(DMA1_Stream2, ENABLE);
+    // Ê¹ï¿½ï¿½SPI3ï¿½ï¿½DMAï¿½ï¿½ï¿½Í¹ï¿½ï¿½ï¿½
+    SPI_I2S_DMACmd(SPI3, SPI_I2S_DMAReq_Tx, ENABLE);
+    DMA_Cmd(DMA1_Stream7, DISABLE);
+
+    // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½
+    DMA_DeInit(DMA1_Stream2);
+    DMA_StructInit(&DMA_InitStructureRx);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStructureRx.DMA_Channel = DMA_Channel_0;
+    DMA_InitStructureRx.DMA_PeripheralBaseAddr = (unsigned int)&SPI3->DR;  // SPI2ï¿½ï¿½DRï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½Ö·
+    DMA_InitStructureRx.DMA_Memory0BaseAddr = (unsigned int)SPI_Rx_Buf[1];
+    DMA_InitStructureRx.DMA_DIR = DMA_DIR_PeripheralToMemory;
+    DMA_InitStructureRx.DMA_BufferSize = DMA_Tx_Size[1] + 4;
+    DMA_InitStructureRx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStructureRx.DMA_MemoryInc = DMA_MemoryInc_Enable;  // DMAï¿½Ú´ï¿½ï¿½Ö·ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½
+    DMA_InitStructureRx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStructureRx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStructureRx.DMA_Mode = DMA_Mode_Circular;
+    DMA_InitStructureRx.DMA_Priority = DMA_Priority_VeryHigh;
+    DMA_InitStructureRx.DMA_FIFOMode = DMA_FIFOMode_Disable;
+    DMA_InitStructureRx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStructureRx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStructureRx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+    DMA_Init(DMA1_Stream2, &DMA_InitStructureRx);
+
+    DMA_Cmd(DMA1_Stream2, ENABLE);
 }
 
 /********************************************************************
-*RST_On                                                             *
-*Íø¿Ú¸´Î»Òý½ÅÖÃ¸ß                                                   *
-********************************************************************/
+ *RST_On                                                             *
+ *ï¿½ï¿½ï¿½Ú¸ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½Ã¸ï¿½                                                   *
+ ********************************************************************/
 void RST_On(int Index)
 {
-	if (Index)
-	{
-		GPIOB->BSRRL =  GPIO_Pin_4; 
-	}
-	else
-	{
-		GPIOA->BSRRL =  GPIO_Pin_12;  
-	}
+    if (Index) {
+        GPIOB->BSRRL = GPIO_Pin_4;
+    }
+    else {
+        GPIOA->BSRRL = GPIO_Pin_12;
+    }
 }
 
 /********************************************************************
-*RST_Off                                                            *
-*Íø¿Ú¸´Î»Òý½ÅÖÃµÍ                                                   *
-********************************************************************/
+ *RST_Off                                                            *
+ *ï¿½ï¿½ï¿½Ú¸ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½                                                   *
+ ********************************************************************/
 void RST_Off(int Index)
 {
-   	if (Index)
-	{
-		GPIOB->BSRRH =  GPIO_Pin_4; 
-	}
-	else
-	{
-		GPIOA->BSRRH =  GPIO_Pin_12;  
-	}
+    if (Index) {
+        GPIOB->BSRRH = GPIO_Pin_4;
+    }
+    else {
+        GPIOA->BSRRH = GPIO_Pin_12;
+    }
 }
 
 /********************************************************************
-*Net_Write_Byte                                                     *
-*ÏòÖ¸¶¨µØÖ·Ð´µ¥×Ö½Úµ½W5200¡£                                        *
-********************************************************************/
+ *Net_Write_Byte                                                     *
+ *ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½Ö·Ð´ï¿½ï¿½ï¿½Ö½Úµï¿½W5200ï¿½ï¿½                                        *
+ ********************************************************************/
 void Net_Write_Byte(SPI_TypeDef *SPIx, unsigned short int addr, unsigned char dat)
 {
-	int i=0;
+    int i = 0;
 
-	SPI_Cmd(SPIx, ENABLE);
-	
-	// Send W5200 Register address
-	SPI_I2S_SendData(SPIx, (unsigned char)(addr/256));
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && i++<SPI_Delay);
-	SPI_I2S_SendData(SPIx, (unsigned char)addr);
-	i=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++<SPI_Delay));
+    SPI_Cmd(SPIx, ENABLE);
 
-	// Send WRITE Command 
-	SPI_I2S_SendData(SPIx, 0x80);
-	i=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, 0x01);
-	i=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++<SPI_Delay));
+    // Send W5200 Register address
+    SPI_I2S_SendData(SPIx, (unsigned char)(addr / 256));
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && i++ < SPI_Delay);
+    SPI_I2S_SendData(SPIx, (unsigned char)addr);
+    i = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++ < SPI_Delay));
 
-	// Write data to W5200 register
-	SPI_I2S_SendData(SPIx, dat);
-	i=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++<SPI_Delay));
+    // Send WRITE Command
+    SPI_I2S_SendData(SPIx, 0x80);
+    i = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, 0x01);
+    i = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++ < SPI_Delay));
 
-	SPI_Cmd(SPIx, DISABLE);
-	Soft_Delay(2);
+    // Write data to W5200 register
+    SPI_I2S_SendData(SPIx, dat);
+    i = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++ < SPI_Delay));
+
+    SPI_Cmd(SPIx, DISABLE);
+    Soft_Delay(2);
 }
 
 /********************************************************************
-*Net_Write                                                          *
-*ÏòÖ¸¶¨µØÖ·Ð´ÈëÖ¸¶¨³¤¶ÈµÄ×Ö·û´®µ½W5200                              *
-********************************************************************/
+ *Net_Write                                                          *
+ *ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½Ö·Ð´ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½Èµï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½W5200                              *
+ ********************************************************************/
 void Net_Write(SPI_TypeDef *SPIx, unsigned short int Reg_Addr, unsigned char *Data_ptr, unsigned short int Data_Size)
 {
-	unsigned short i,j=0;
-	// Set W5200 CS Low 
-	SPI_Cmd(SPIx, ENABLE);
-	
-	SPI_I2S_SendData(SPIx, Reg_Addr/256);
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, Reg_Addr);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
+    unsigned short i, j = 0;
+    // Set W5200 CS Low
+    SPI_Cmd(SPIx, ENABLE);
 
-	//Send WRITE Command, send write data size 
-	i = Data_Size | 0x8000;
-	SPI_I2S_SendData(SPIx, i/256);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, i);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
+    SPI_I2S_SendData(SPIx, Reg_Addr / 256);
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, Reg_Addr);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
 
-	// Write data to W5200 register, size=Data_Size 
-	for(i = 0; i < Data_Size; i++)
-	{
-		SPI_I2S_SendData(SPIx, *Data_ptr);
-		j=0;
-		while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-		Data_ptr++;
-	}
+    // Send WRITE Command, send write data size
+    i = Data_Size | 0x8000;
+    SPI_I2S_SendData(SPIx, i / 256);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, i);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
 
-	// Set W5200 CS HIGH 
-	SPI_Cmd(SPIx, DISABLE);
-	Soft_Delay(2);
+    // Write data to W5200 register, size=Data_Size
+    for (i = 0; i < Data_Size; i++) {
+        SPI_I2S_SendData(SPIx, *Data_ptr);
+        j = 0;
+        while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+        Data_ptr++;
+    }
+
+    // Set W5200 CS HIGH
+    SPI_Cmd(SPIx, DISABLE);
+    Soft_Delay(2);
 }
 
 /********************************************************************
-*Net_Read_Byte                                                      *
-*ÏòW5200µÄÖ¸¶¨µØÖ·¶ÁÈ¡µ¥¸ö×Ö·û´®                                    *
-********************************************************************/
+ *Net_Read_Byte                                                      *
+ *ï¿½ï¿½W5200ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½                                    *
+ ********************************************************************/
 unsigned char Net_Read_Byte(SPI_TypeDef *SPIx, unsigned short int Reg_Addr)
 {
-	unsigned char i;
-	int j=0;
-	SPI_Cmd(SPIx, ENABLE);
-	// Send W5200 Register address 
-	SPI_I2S_SendData(SPIx, (unsigned char)(Reg_Addr/256));
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, (unsigned char)Reg_Addr);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	// Send READ Command, send read data size 
-	SPI_I2S_SendData(SPIx, 0x00);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, 0x01);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++<SPI_Delay));
-  
-	i=SPI_I2S_ReceiveData(SPIx);
-	// Read 1 byte from W5200 register
-	SPI_I2S_SendData(SPIx, 0x00);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++<SPI_Delay));
-	i = SPI_I2S_ReceiveData(SPIx);
+    unsigned char i;
+    int j = 0;
+    SPI_Cmd(SPIx, ENABLE);
+    // Send W5200 Register address
+    SPI_I2S_SendData(SPIx, (unsigned char)(Reg_Addr / 256));
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, (unsigned char)Reg_Addr);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    // Send READ Command, send read data size
+    SPI_I2S_SendData(SPIx, 0x00);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, 0x01);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++ < SPI_Delay));
 
-	SPI_Cmd(SPIx, DISABLE);
-	Soft_Delay(2);
-	return i;
+    i = SPI_I2S_ReceiveData(SPIx);
+    // Read 1 byte from W5200 register
+    SPI_I2S_SendData(SPIx, 0x00);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++ < SPI_Delay));
+    i = SPI_I2S_ReceiveData(SPIx);
+
+    SPI_Cmd(SPIx, DISABLE);
+    Soft_Delay(2);
+    return i;
 }
 
 /********************************************************************
-*Net_Read                                                           *
-*ÏòW5200µÄÖ¸¶¨µØÖ·¶ÁÈ¡Ö¸¶¨³¤¶ÈµÄ×Ö·û´®                              *
-********************************************************************/
+ *Net_Read                                                           *
+ *ï¿½ï¿½W5200ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½È¡Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½Èµï¿½ï¿½Ö·ï¿½ï¿½ï¿½                              *
+ ********************************************************************/
 void Net_Read(SPI_TypeDef *SPIx, unsigned short int Reg_Addr, unsigned char *Data_ptr, unsigned short int Data_Size)
 {
-	unsigned short int i=0, j=0;
-	
-	SPI_Cmd(SPIx, ENABLE);
+    unsigned short int i = 0, j = 0;
 
-	// Send W5200 Register address 
-	SPI_I2S_SendData(SPIx, Reg_Addr/256);
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, Reg_Addr);
-	i=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++<SPI_Delay));
+    SPI_Cmd(SPIx, ENABLE);
 
-	// Send READ Command, send read data size 
-	i = Data_Size & 0x7fff;
-	SPI_I2S_SendData(SPIx, i/256);
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	SPI_I2S_SendData(SPIx, i);
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++<SPI_Delay));
-	j=0;
-	while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++<SPI_Delay));
-		
-	i = SPI_I2S_ReceiveData(SPIx);
-	// Read data from W5200 register, size=Data_Size
-	for(i=0;i<Data_Size;i++)
-	{
-		SPI_I2S_SendData(SPIx, 0x00);
-		j=0;
-		while((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++<SPI_Delay));
-		*Data_ptr=SPI_I2S_ReceiveData(SPIx);
-		Data_ptr++;
-	}
-	// Set W5200 CS as HIGH
-	SPI_Cmd(SPIx, DISABLE);
-	Soft_Delay(2);
+    // Send W5200 Register address
+    SPI_I2S_SendData(SPIx, Reg_Addr / 256);
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, Reg_Addr);
+    i = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (i++ < SPI_Delay));
+
+    // Send READ Command, send read data size
+    i = Data_Size & 0x7fff;
+    SPI_I2S_SendData(SPIx, i / 256);
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    SPI_I2S_SendData(SPIx, i);
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) && (j++ < SPI_Delay));
+    j = 0;
+    while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++ < SPI_Delay));
+
+    i = SPI_I2S_ReceiveData(SPIx);
+    // Read data from W5200 register, size=Data_Size
+    for (i = 0; i < Data_Size; i++) {
+        SPI_I2S_SendData(SPIx, 0x00);
+        j = 0;
+        while ((SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_RXNE) == RESET) && (j++ < SPI_Delay));
+        *Data_ptr = SPI_I2S_ReceiveData(SPIx);
+        Data_ptr++;
+    }
+    // Set W5200 CS as HIGH
+    SPI_Cmd(SPIx, DISABLE);
+    Soft_Delay(2);
 }
 
 /********************************************************************
-*º¯ÊýÃû£ºNet_Config                                                 *
-*¹¦ÄÜ£ºÅäÖÃÍø¿ÚµÄW5200£¬ÉèÖÃ·¢ËÍ»º³åÇøºÍ½ÓÊÕ»º³åÇøµÄ´óÐ¡£¬ÉèÖÃÖØÊÔ  *
-*Ê±¼ä£¬ÉèÖÃÖØÊÔ´ÎÊý¡£	                                              *
-********************************************************************/
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Net_Config                                                 *
+ *ï¿½ï¿½ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½W5200ï¿½ï¿½ï¿½ï¿½ï¿½Ã·ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä´ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½  *
+ *Ê±ï¿½ä£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½ï¿½ï¿½ï¿½	                                              *
+ ********************************************************************/
 void Net_Config(SPI_TypeDef *SPIx)
 {
-	unsigned char i;
+    unsigned char i;
 
-	for(i = 0; i < 2; i++)
-	{
-		Net_Write_Byte(SPIx, Sn_RXMEM_SIZE(i),0x08);	//Socket Rx memory size=8k
-		Net_Write_Byte(SPIx, Sn_TXMEM_SIZE(i),0x08);	//Socket Tx memory size=8k
-	}	
-	Net_Write_Byte(SPIx, RTR_W, 0xf);//400ms
-	Net_Write_Byte(SPIx, RTR_W+1, 0xa0);
+    for (i = 0; i < 2; i++) {
+        Net_Write_Byte(SPIx, Sn_RXMEM_SIZE(i), 0x08);  // Socket Rx memory size=8k
+        Net_Write_Byte(SPIx, Sn_TXMEM_SIZE(i), 0x08);  // Socket Tx memory size=8k
+    }
+    Net_Write_Byte(SPIx, RTR_W, 0xf);  // 400ms
+    Net_Write_Byte(SPIx, RTR_W + 1, 0xa0);
 }
 
 /********************************************************************
-*º¯ÊýÃû: Socket_Mode                                                *
-*¹¦ÄÜ£º	×÷Îª·þÎñÆ÷Ê±´ò¿ªÍø¿Ú, ¿ªÊ¼ÕìÌý.                             *
-*       ×÷Îª¿Í»§¶ËÊ±´ò¿ªÍø¿Ú, ¿ªÊ¼Á¬½Ó.                             *
-*²ÎÊý: s : SOCKETºÅ                                                 *
-*·µ»Ø: ³É¹¦Ôò·µ»ØTRUE, ·ñÔò·µ»ØFALSE                                *
-********************************************************************/
-unsigned char Socket_Mode(SPI_TypeDef *SPIx, unsigned char s,unsigned char Mode)
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: Socket_Mode                                                *
+ *ï¿½ï¿½ï¿½Ü£ï¿½	ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½.                             *
+ *       ï¿½ï¿½Îªï¿½Í»ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½.                             *
+ *ï¿½ï¿½ï¿½ï¿½: s : SOCKETï¿½ï¿½                                                 *
+ *ï¿½ï¿½ï¿½ï¿½: ï¿½É¹ï¿½ï¿½ò·µ»ï¿½TRUE, ï¿½ï¿½ï¿½ò·µ»ï¿½FALSE                                *
+ ********************************************************************/
+unsigned char Socket_Mode(SPI_TypeDef *SPIx, unsigned char s, unsigned char Mode)
 {
-	unsigned char r=TRUE;
-	
-	Net_Write_Byte(SPIx, Sn_MR(s), Sn_MR_TCP);			// Set Socket in TCP Mode 
-	Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_OPEN);			// Open Socket 
+    unsigned char r = TRUE;
 
-	if(Net_Read_Byte(SPIx, Sn_SR(s))!=SOCK_INIT)
-	{
-		Net_Write_Byte(SPIx, Sn_CR(s),Sn_CR_CLOSE);		// Failed to open Socket, Close it and retuen false 
-		r=FALSE;
-	}
-	else
-	{
-		if (Mode==Server)
-		{
-			Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_LISTEN);			// Set Socket in TCP Server Mode 
+    Net_Write_Byte(SPIx, Sn_MR(s), Sn_MR_TCP);   // Set Socket in TCP Mode
+    Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_OPEN);  // Open Socket
 
-			if(Net_Read_Byte(SPIx, Sn_SR(s))!=SOCK_LISTEN)
-			{
-				Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_CLOSE);		// Failed to set in TCP Server Mode, Close Socket and return false 
-				r=FALSE;
-			}
-		}
-		else
-		{
-			Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_CONNECT);
-		}
-	}
-	
-	return r;
+    if (Net_Read_Byte(SPIx, Sn_SR(s)) != SOCK_INIT) {
+        Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_CLOSE);  // Failed to open Socket, Close it and retuen false
+        r = FALSE;
+    }
+    else {
+        if (Mode == Server) {
+            Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_LISTEN);  // Set Socket in TCP Server Mode
+
+            if (Net_Read_Byte(SPIx, Sn_SR(s)) != SOCK_LISTEN) {
+                Net_Write_Byte(
+                    SPIx, Sn_CR(s), Sn_CR_CLOSE);  // Failed to set in TCP Server Mode, Close Socket and return false
+                r = FALSE;
+            }
+        }
+        else {
+            Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_CONNECT);
+        }
+    }
+
+    return r;
 }
 
 /********************************************************************
-*Socket_Correct_Addr                                                *
-*µ±Íø¿ÚÊ¹ÓÃDMA·½Ê½½øÐÐÊý¾Ý·¢ËÍÊ±£¬Ðè¶ÔW5200µÄ·¢ËÍ»º³åÇøµØÖ·½øÐÐÐ£¶Ô *
-*£¬ÔòÒýÓÃ¸Ãº¯Êý                                                     *
-********************************************************************/
+ *Socket_Correct_Addr                                                *
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½DMAï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½W5200ï¿½Ä·ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ *
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¸Ãºï¿½ï¿½ï¿½                                                     *
+ ********************************************************************/
 void Socket_Correct_Addr(SPI_TypeDef *SPIx, unsigned char s)
 {
-	unsigned short int i;
-	unsigned short int tx_offset,tx_offset1;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-		
-	//¶ÁÈ¡·¢ËÍ»º³åÇøµÄÆ«ÒÆÁ¿
-	tx_offset = Net_Read_Byte(SPIx, Sn_TX_WR0(s));
-	tx_offset *= 256;
-	tx_offset += Net_Read_Byte(SPIx, Sn_TX_WR0(s)+1);
-	tx_offset1 = tx_offset;
-	
-	i = tx_offset / S_BUF_SIZE;					//¼ÆËãÊµ¼ÊµÄÎïÀíÆ«ÒÆÁ¿£¬S0_TX_SIZEÐèÒªÔÚÇ°Ãæ#defineÖÐ¶¨Òå*/
-												//×¢ÒâS0_TX_SIZEµÄÖµÔÚW5200_Init()º¯ÊýµÄW5200_TMSRÖÐÈ·¶¨*/
-	tx_offset = tx_offset - i * S_BUF_SIZE;
-	i = tx_offset % DMA_Tx_Size[Index]; 
-	i = DMA_Tx_Size[Index] - i;					//Òª²¹³¥µÄÊý¾Ý³¤¶È
-	
-	Net_Write(SPIx, (TX_MEM + s * S_BUF_SIZE + tx_offset),SPI_Tx_Buf[0],i);
-	
-	//¼ÆËãÏÂÒ»´ÎµÄÆ«ÒÆÁ¿
-	tx_offset1 += i;
-	Net_Tx_Addr_Offset[Index][s] = tx_offset1;
-	Net_Write_Byte(SPIx, Sn_TX_WR0(s),(tx_offset1 / 256));
-	Net_Write_Byte(SPIx, (Sn_TX_WR0(s)+1), tx_offset1);
-	Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_SEND);			// Send SEND command, start send process 
-	
-	Net_Socket_Tx_Addr[Index][s] += (tx_offset + i);
-	if(Net_Socket_Tx_Addr[Index][s] >= (0x8000 + s * S_BUF_SIZE + S_BUF_SIZE))
-	{
-		Net_Socket_Tx_Addr[Index][s] = 0x8000 + s * S_BUF_SIZE;
-	}
+    unsigned short int i;
+    unsigned short int tx_offset, tx_offset1;
+    int Index;
+
+    Index = (SPIx == SPI3);
+
+    // ï¿½ï¿½È¡ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½
+    tx_offset = Net_Read_Byte(SPIx, Sn_TX_WR0(s));
+    tx_offset *= 256;
+    tx_offset += Net_Read_Byte(SPIx, Sn_TX_WR0(s) + 1);
+    tx_offset1 = tx_offset;
+
+    i = tx_offset / S_BUF_SIZE;  // ï¿½ï¿½ï¿½ï¿½Êµï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½S0_TX_SIZEï¿½ï¿½Òªï¿½ï¿½Ç°ï¿½ï¿½#defineï¿½Ð¶ï¿½ï¿½ï¿½*/
+                                 // ×¢ï¿½ï¿½S0_TX_SIZEï¿½ï¿½Öµï¿½ï¿½W5200_Init()ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½W5200_TMSRï¿½ï¿½È·ï¿½ï¿½*/
+    tx_offset = tx_offset - i * S_BUF_SIZE;
+    i = tx_offset % DMA_Tx_Size[Index];
+    i = DMA_Tx_Size[Index] - i;  // Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½
+
+    Net_Write(SPIx, (TX_MEM + s * S_BUF_SIZE + tx_offset), SPI_Tx_Buf[0], i);
+
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Îµï¿½Æ«ï¿½ï¿½ï¿½ï¿½
+    tx_offset1 += i;
+    Net_Tx_Addr_Offset[Index][s] = tx_offset1;
+    Net_Write_Byte(SPIx, Sn_TX_WR0(s), (tx_offset1 / 256));
+    Net_Write_Byte(SPIx, (Sn_TX_WR0(s) + 1), tx_offset1);
+    Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_SEND);  // Send SEND command, start send process
+
+    Net_Socket_Tx_Addr[Index][s] += (tx_offset + i);
+    if (Net_Socket_Tx_Addr[Index][s] >= (0x8000 + s * S_BUF_SIZE + S_BUF_SIZE)) {
+        Net_Socket_Tx_Addr[Index][s] = 0x8000 + s * S_BUF_SIZE;
+    }
 }
 
 /********************************************************************************
-*º¯ÊýÃû: Network_Init                                                           *
-*¹¦ÄÜ£º	Íø¿Ú³õÊ¼»¯º¯Êý                                                          *
-*W5200¸÷¸öSocket³õÊ¼»¯²ÎÊý£º×ÔÉíIP¡¢Íø¹Ø¡¢ÊÇ·ñÆôÓÃ¡¢¶Ë¿Ú¡¢C/S¡¢Ä¿±êIP¡¢Ä¿±ê¶Ë¿Ú.*
-********************************************************************************/
-void Network_Init(SPI_TypeDef *SPIx, unsigned char* Self_IP, unsigned char* Socket_Enable, unsigned short int* Self_Port, 
-unsigned char* Socket_mode, unsigned char* Dest_IP, unsigned short int* Dest_Port, int DMA_Size)
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: Network_Init                                                           *
+ *ï¿½ï¿½ï¿½Ü£ï¿½	ï¿½ï¿½ï¿½Ú³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½                                                          *
+ *W5200ï¿½ï¿½ï¿½ï¿½Socketï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IPï¿½ï¿½ï¿½ï¿½ï¿½Ø¡ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Ã¡ï¿½ï¿½Ë¿Ú¡ï¿½C/Sï¿½ï¿½Ä¿ï¿½ï¿½IPï¿½ï¿½Ä¿ï¿½ï¿½Ë¿ï¿½.*
+ ********************************************************************************/
+void Network_Init(SPI_TypeDef *SPIx,
+    unsigned char *Self_IP,
+    unsigned char *Socket_Enable,
+    unsigned short int *Self_Port,
+    unsigned char *Socket_mode,
+    unsigned char *Dest_IP,
+    unsigned short int *Dest_Port,
+    int DMA_Size)
 {
-	unsigned short int i, j;
-	unsigned char ucC[2];
-	unsigned char* ucPt;
-	unsigned char Gate_Way[4];
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	if (Index)
-	{
-		SPI3_Init();//°üº¬SPI³õÊ¼»¯£¬Òý½Å³õÊ¼»¯£¬¸´Î»Òý½Å³õÊ¼»¯¼°¸´Î»Òý½ÅÊä³öµÍµçÆ½
-	}
-	else
-	{
-		SPI2_Init();
-	}
-	
-	Soft_Delay(50000);
-	RST_On(Index);
-	for(i = 0 ;i < 400;i++)						//ÑÓÊ±ÖÁÉÙ150ms
-	{
-		Soft_Delay(60000);		
-	}
-	
-	DMA_Tx_Size[Index]=0;
-	if (DMA_Size==DMA_SIZE_128 || DMA_Size==DMA_SIZE_256 || DMA_Size==DMA_SIZE_512 || 
-		DMA_Size==DMA_SIZE_1K || DMA_Size==DMA_SIZE_2K || DMA_Size==DMA_SIZE_4K || DMA_Size==DMA_SIZE_8K)
-	{
-		DMA_Tx_Size[Index]=DMA_Size;
-		if (Index)
-		{
-			SPI3_DMA_Config();							//DMA³õÊ¼»¯
-		}
-		else
-		{
-			SPI2_DMA_Config();
-		}
-	}
-	Net_Config(SPIx); //ÉèÖÃ¸÷¸öÁ¬½ÓµÄ»º³å´óÐ¡ 
-	
-	if(uchNodeNum)								//BÍø¿Í»§¶Ë
-	{
-		//ÉèÖÃMACµØÖ·
-		Network_Phy_Addr[0] = 0x34;
-		Network_Phy_Addr[1] = 0x24;
-		Network_Phy_Addr[2] = 0xE8;
-		Network_Phy_Addr[3] = 0xB9;
-		Network_Phy_Addr[4] = 0x8B+uchNodeNum;
-		Network_Phy_Addr[5] = 0x31+Index;
-	}
-	else										//AÍø¿Í»§¶Ë								
-	{
-		//ÉèÖÃMACµØÖ·
-		Network_Phy_Addr[0] = 0x34;
-		Network_Phy_Addr[1] = 0x24;
-		Network_Phy_Addr[2] = 0xE8;
-		Network_Phy_Addr[3] = 0xB9+uchNodeNum;
-		Network_Phy_Addr[4] = 0x8B;
-		Network_Phy_Addr[5] = 0x33+Index;
-	}
-	ucPt=Self_IP;
-	Gate_Way[0]=*ucPt++;
-	Gate_Way[1]=*ucPt++;
-	Gate_Way[2]=*ucPt++;
-	Gate_Way[3]=1;
-	Net_Write(SPIx, GAR0, Gate_Way, 4);				//ÉèÖÃÍø¹ØIPµØÖ· 
-	Net_Write(SPIx, SUBR0,Network_Sub_Mask,4);		//ÉèÖÃ×ÓÂëÑÚÂë 
-	Net_Write(SPIx, SHAR0,Network_Phy_Addr,6);		//ÉèÖÃMACµØÖ·
-	Net_Write(SPIx, SIPR0,Self_IP,4);				//ÉèÖÃ±¾µØIPµØÖ·
-	i=4000;
-	ucC[0]=i>>8;
-	ucC[1]=i & 0xff;
-	Net_Write(SPIx, RTR_W,ucC,2);
-	ucC[0]=1;
-	Net_Write(SPIx, RCR,ucC,1);
-	
-	//--Socket0...Socket7	±¾µØ¶Ë¿ÚºÅ¡¢Ä¿µÄµØ¶Ë¿ÚºÅºÍÄ¿µÄµØIPµØÖ·µÄÉèÖÃ
-	for(i = 0 ;i < 2;i++)
-	{
-		Net_Enable[Index][i]=Socket_Enable[i];
-		Net_Mode[Index][i]=Socket_mode[i];//Ä£Ê½: ·þÎñÆ÷/¿Í»§¶Ë 
-		
-		//×ÔÉí¶Ë¿ÚºÅ
-		j=Self_Port[i];
-		ucC[0]=j>>8;
-		ucC[1]=j & 0xff;
-		Net_Write(SPIx, Sn_PORT0(i),ucC,2);				//ÉèÖÃ±¾µØ¶Ë¿ÚºÅ 
-		
-		//Ä¿±êIP
-		Net_Write(SPIx, Sn_DIPR0(i),Dest_IP+i*4,4);
-		//Dest_IP+=4;
-		
-		//Ä¿±ê¶Ë¿ÚºÅ
-		j=Dest_Port[i];
-		ucC[0]=j>>8;
-		ucC[1]=j & 0xff;
-		Net_Write(SPIx, Sn_DPORT0(i),ucC,2);	
-	}
-   
-	Net_Para_Init(Index);										//Êý¾ÝÇø³õÊ¼»¯
-	
-	//¼ÇÂ¼²ÎÊý, ÓÃÓÚÍø¿ÚÖØÆô 
-	for (i=0;i<4;i++)
-	{
-		Para_Self_IP[Index][i]=Self_IP[i];
-		Para_Gateway[Index][i]=Gate_Way[i];
-		Para_Des_IP[Index][i]=Dest_IP[i];
-		Para_Des_IP[Index][i+4]=Dest_IP[i+4];
-	}
-	for(i = 0 ;i < 2;i++)
-	{
-		Para_Socket_Enable[Index][i]=Socket_Enable[i];
-		Para_Self_Port[Index][i]=Self_Port[i];
-		Para_Socket_Mode[Index][i]=Socket_mode[i];
-		Para_Des_Port[Index][i]=Dest_Port[i];		
-	}
-	Para_DMA_Size[Index]=DMA_Size;
-	for (i=0;i<8;i++)
-	{
-		Net_Port[Index][i]=Self_Port[i];
-	}
+    unsigned short int i, j;
+    unsigned char ucC[2];
+    unsigned char *ucPt;
+    unsigned char Gate_Way[4];
+    int Index;
+
+    Index = (SPIx == SPI3);
+    if (Index) {
+        SPI3_Init();  // ï¿½ï¿½ï¿½ï¿½SPIï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½Å³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íµï¿½Æ½
+    }
+    else {
+        SPI2_Init();
+    }
+
+    Soft_Delay(50000);
+    RST_On(Index);
+    for (i = 0; i < 400; i++)  // ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½150ms
+    {
+        Soft_Delay(60000);
+    }
+
+    DMA_Tx_Size[Index] = 0;
+    if (DMA_Size == DMA_SIZE_128 || DMA_Size == DMA_SIZE_256 || DMA_Size == DMA_SIZE_512 || DMA_Size == DMA_SIZE_1K ||
+        DMA_Size == DMA_SIZE_2K || DMA_Size == DMA_SIZE_4K || DMA_Size == DMA_SIZE_8K) {
+        DMA_Tx_Size[Index] = DMA_Size;
+        if (Index) {
+            SPI3_DMA_Config();  // DMAï¿½ï¿½Ê¼ï¿½ï¿½
+        }
+        else {
+            SPI2_DMA_Config();
+        }
+    }
+    Net_Config(SPIx);  // ï¿½ï¿½ï¿½Ã¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÓµÄ»ï¿½ï¿½ï¿½ï¿½Ð¡
+
+    if (uchNodeNum)  // Bï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½
+    {
+        // ï¿½ï¿½ï¿½ï¿½MACï¿½ï¿½Ö·
+        Network_Phy_Addr[0] = 0x34;
+        Network_Phy_Addr[1] = 0x24;
+        Network_Phy_Addr[2] = 0xE8;
+        Network_Phy_Addr[3] = 0xB9;
+        Network_Phy_Addr[4] = 0x8B + uchNodeNum;
+        Network_Phy_Addr[5] = 0x31 + Index;
+    }
+    else  // Aï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½
+    {
+        // ï¿½ï¿½ï¿½ï¿½MACï¿½ï¿½Ö·
+        Network_Phy_Addr[0] = 0x34;
+        Network_Phy_Addr[1] = 0x24;
+        Network_Phy_Addr[2] = 0xE8;
+        Network_Phy_Addr[3] = 0xB9 + uchNodeNum;
+        Network_Phy_Addr[4] = 0x8B;
+        Network_Phy_Addr[5] = 0x33 + Index;
+    }
+    ucPt = Self_IP;
+    Gate_Way[0] = *ucPt++;
+    Gate_Way[1] = *ucPt++;
+    Gate_Way[2] = *ucPt++;
+    Gate_Way[3] = 1;
+    Net_Write(SPIx, GAR0, Gate_Way, 4);           // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IPï¿½ï¿½Ö·
+    Net_Write(SPIx, SUBR0, Network_Sub_Mask, 4);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    Net_Write(SPIx, SHAR0, Network_Phy_Addr, 6);  // ï¿½ï¿½ï¿½ï¿½MACï¿½ï¿½Ö·
+    Net_Write(SPIx, SIPR0, Self_IP, 4);           // ï¿½ï¿½ï¿½Ã±ï¿½ï¿½ï¿½IPï¿½ï¿½Ö·
+    i = 4000;
+    ucC[0] = i >> 8;
+    ucC[1] = i & 0xff;
+    Net_Write(SPIx, RTR_W, ucC, 2);
+    ucC[0] = 1;
+    Net_Write(SPIx, RCR, ucC, 1);
+
+    //--Socket0...Socket7	ï¿½ï¿½ï¿½Ø¶Ë¿ÚºÅ¡ï¿½Ä¿ï¿½ÄµØ¶Ë¿ÚºÅºï¿½Ä¿ï¿½Äµï¿½IPï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    for (i = 0; i < 2; i++) {
+        Net_Enable[Index][i] = Socket_Enable[i];
+        Net_Mode[Index][i] = Socket_mode[i];  // Ä£Ê½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½Í»ï¿½ï¿½ï¿½
+
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ë¿Úºï¿½
+        j = Self_Port[i];
+        ucC[0] = j >> 8;
+        ucC[1] = j & 0xff;
+        Net_Write(SPIx, Sn_PORT0(i), ucC, 2);  // ï¿½ï¿½ï¿½Ã±ï¿½ï¿½Ø¶Ë¿Úºï¿½
+
+        // Ä¿ï¿½ï¿½IP
+        Net_Write(SPIx, Sn_DIPR0(i), Dest_IP + i * 4, 4);
+        // Dest_IP+=4;
+
+        // Ä¿ï¿½ï¿½Ë¿Úºï¿½
+        j = Dest_Port[i];
+        ucC[0] = j >> 8;
+        ucC[1] = j & 0xff;
+        Net_Write(SPIx, Sn_DPORT0(i), ucC, 2);
+    }
+
+    Net_Para_Init(Index);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
+
+    // ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    for (i = 0; i < 4; i++) {
+        Para_Self_IP[Index][i] = Self_IP[i];
+        Para_Gateway[Index][i] = Gate_Way[i];
+        Para_Des_IP[Index][i] = Dest_IP[i];
+        Para_Des_IP[Index][i + 4] = Dest_IP[i + 4];
+    }
+    for (i = 0; i < 2; i++) {
+        Para_Socket_Enable[Index][i] = Socket_Enable[i];
+        Para_Self_Port[Index][i] = Self_Port[i];
+        Para_Socket_Mode[Index][i] = Socket_mode[i];
+        Para_Des_Port[Index][i] = Dest_Port[i];
+    }
+    Para_DMA_Size[Index] = DMA_Size;
+    for (i = 0; i < 8; i++) {
+        Net_Port[Index][i] = Self_Port[i];
+    }
 }
 
 /********************************************************************
-*Net_Interrupt_Process                                              *
-*Íø¿ÚµÄ×´Ì¬¶ÁÈ¡¼°´¦Àí¹ý³Ì                                           *
-********************************************************************/
+ *Net_Interrupt_Process                                              *
+ *ï¿½ï¿½ï¿½Úµï¿½×´Ì¬ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½                                           *
+ ********************************************************************/
 void Net_Interrupt_Process(SPI_TypeDef *SPIx)
 {
-	unsigned char i,j,k=1,n;
-	int Index;
-	unsigned char ucC[2];
-	
-	Index=(SPIx==SPI3);
-	i = Net_Read_Byte(SPIx, IR2);								//¶ÁÈ¡SocketÖÐ¶Ï
-	for (n=0;n<2;n++)
-	{
-		if (i & k) 				
-		{
-			j = Net_Read_Byte(SPIx, Sn_IR(n));
-			Net_Write_Byte(SPIx, Sn_IR(n),j);			   //»ØÐ´ÇåÖÐ¶Ï±êÖ¾
-	
-			if(j & S_IR_CON) // ÔÚTCPÄ£Ê½ÏÂ,Socket³É¹¦Á¬½Ó 
-			{
-				if(Net_Mode[Index][n] == Server)
-				{
-					Net_Socket_State[Index][n] |= S_CONN;
-				}
-				else if(Net_Mode[Index][n] == Client)
-				{
-					Net_Socket_State[Index][n] |= (S_CONN | S_OK);
-				}
-			}
-			if(j & S_IR_DISCON) // ÔÚTCPÄ£Ê½ÏÂSocket¶Ï¿ªÁ¬½Ó´¦Àí 
-			{
-				Net_Write_Byte(SPIx, Sn_CR(n),Sn_CR_DISCON);		// Disconnect socket 
-				Net_Write_Byte(SPIx, Sn_CR(n),Sn_CR_CLOSE);		// Close socket 
-				Net_Socket_Rx_Addr[Index][n] = Net_Rx_Addr[n];
-				Net_Socket_Tx_Addr[Index][n] = Net_Tx_Addr[n];
-				Net_Rx_Addr_Offset[Index][n] = 0;
-	
-				Net_Socket_State[Index][n] = 0;
-			}
-			if(j & S_IR_SENDOK) // SocketÊý¾Ý·¢ËÍÍê³É£¬¿ÉÒÔÔÙ´ÎÆô¶¯S_tx_process()º¯Êý·¢ËÍÊý¾Ý 
-			{
-				Net_Socket_Data[Index][n] |= S_TRANSMITOK;
-			}
-			if(j & S_IR_RECV) //Socket½ÓÊÕµ½Êý¾Ý£¬¿ÉÒÔÆô¶¯S_rx_process()º¯Êý 
-			{
-				Net_Socket_Data[Index][n] |= S_RECEIVE;
-			}
-			if(j & S_IR_TIMEOUT) // SocketÁ¬½Ó»òÊý¾Ý´«Êä³¬Ê±´¦Àí 
-			{
-				if (Net_Socket_State[Index][n]==7)
-				{
-					Net_Write_Byte(SPIx, Sn_CR(n),Sn_CR_CLOSE);		// Close socket 
-					Net_Socket_State[Index][n] = 0;
-					Net_Socket_Rx_Addr[Index][n] = Net_Rx_Addr[n];
-					Net_Socket_Tx_Addr[Index][n] = Net_Tx_Addr[n];
-					Net_Rx_Addr_Offset[Index][n] = 0;
-					ucC[0]=Net_Port[Index][n]>>8;
-					ucC[1]=Net_Port[Index][n] & 0xff;
-					Net_Write(SPIx, Sn_PORT0(i),ucC,2);	
-				}
-			}
-		}
-		k<<=1;
-	}	
+    unsigned char i, j, k = 1, n;
+    int Index;
+    unsigned char ucC[2];
+
+    Index = (SPIx == SPI3);
+    i = Net_Read_Byte(SPIx, IR2);  // ï¿½ï¿½È¡Socketï¿½Ð¶ï¿½
+    for (n = 0; n < 2; n++) {
+        if (i & k) {
+            j = Net_Read_Byte(SPIx, Sn_IR(n));
+            Net_Write_Byte(SPIx, Sn_IR(n), j);  // ï¿½ï¿½Ð´ï¿½ï¿½ï¿½Ð¶Ï±ï¿½Ö¾
+
+            if (j & S_IR_CON)  // ï¿½ï¿½TCPÄ£Ê½ï¿½ï¿½,Socketï¿½É¹ï¿½ï¿½ï¿½ï¿½ï¿½
+            {
+                if (Net_Mode[Index][n] == Server) {
+                    Net_Socket_State[Index][n] |= S_CONN;
+                }
+                else if (Net_Mode[Index][n] == Client) {
+                    Net_Socket_State[Index][n] |= (S_CONN | S_OK);
+                }
+            }
+            if (j & S_IR_DISCON)  // ï¿½ï¿½TCPÄ£Ê½ï¿½ï¿½Socketï¿½Ï¿ï¿½ï¿½ï¿½ï¿½Ó´ï¿½ï¿½ï¿½
+            {
+                Net_Write_Byte(SPIx, Sn_CR(n), Sn_CR_DISCON);  // Disconnect socket
+                Net_Write_Byte(SPIx, Sn_CR(n), Sn_CR_CLOSE);   // Close socket
+                Net_Socket_Rx_Addr[Index][n] = Net_Rx_Addr[n];
+                Net_Socket_Tx_Addr[Index][n] = Net_Tx_Addr[n];
+                Net_Rx_Addr_Offset[Index][n] = 0;
+
+                Net_Socket_State[Index][n] = 0;
+            }
+            if (j & S_IR_SENDOK)  // Socketï¿½ï¿½ï¿½Ý·ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù´ï¿½ï¿½ï¿½ï¿½ï¿½S_tx_process()ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            {
+                Net_Socket_Data[Index][n] |= S_TRANSMITOK;
+            }
+            if (j & S_IR_RECV)  // Socketï¿½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½S_rx_process()ï¿½ï¿½ï¿½ï¿½
+            {
+                Net_Socket_Data[Index][n] |= S_RECEIVE;
+            }
+            if (j & S_IR_TIMEOUT)  // Socketï¿½ï¿½ï¿½Ó»ï¿½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½ä³¬Ê±ï¿½ï¿½ï¿½ï¿½
+            {
+                if (Net_Socket_State[Index][n] == 7) {
+                    Net_Write_Byte(SPIx, Sn_CR(n), Sn_CR_CLOSE);  // Close socket
+                    Net_Socket_State[Index][n] = 0;
+                    Net_Socket_Rx_Addr[Index][n] = Net_Rx_Addr[n];
+                    Net_Socket_Tx_Addr[Index][n] = Net_Tx_Addr[n];
+                    Net_Rx_Addr_Offset[Index][n] = 0;
+                    ucC[0] = Net_Port[Index][n] >> 8;
+                    ucC[1] = Net_Port[Index][n] & 0xff;
+                    Net_Write(SPIx, Sn_PORT0(i), ucC, 2);
+                }
+            }
+        }
+        k <<= 1;
+    }
 }
 
 /********************************************************************
-*Net_DMA_rx_process                                                 *
-*Íø¿Ú²ÉÓÃDMA·½Ê½½øÐÐÊý¾Ý½ÓÊÕµÄ¹ý³Ì£¬Êý¾Ý½ÓÊÕ³¤¶ÈÎª128               *
-********************************************************************/
+ *Net_DMA_rx_process                                                 *
+ *ï¿½ï¿½ï¿½Ú²ï¿½ï¿½ï¿½DMAï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½ÕµÄ¹ï¿½ï¿½Ì£ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½Õ³ï¿½ï¿½ï¿½Îª128               *
+ ********************************************************************/
 unsigned char Net_DMA_rx_process(SPI_TypeDef *SPIx, unsigned char s)
 {
-	unsigned char i = Failure;
-	int j;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	if(Net_State[Index] == S_IDLING) 
-	{
-		Net_State[Index] = S_RECEIVING;									//½øÈë½ÓÊÕ×´Ì¬
-			
-		SPI_Tx_Buf[Index][0] = (unsigned char)(Net_Socket_Rx_Addr[Index][s] >> 8);			//½ÓÊÕ»º³åÇøµØÖ·£ºÃ¿¸ö¶Ë¿ÚµÄµØÖ·ÊÇ²»Ò»ÑùµÄ
-		SPI_Tx_Buf[Index][1] = (unsigned char)Net_Socket_Rx_Addr[Index][s];
-		SPI_Tx_Buf[Index][2] = DMA_Tx_Size[Index]>>8;														//Ä£Ê½£º½ÓÊÕ£¬³¤¶È£º8192
-		SPI_Tx_Buf[Index][3] = DMA_Tx_Size[Index] & 0xff;	
-															//Ä£Ê½£º½ÓÊÕ£¬³¤¶È£º8192
-		// Received Data Size
-		Net_Rx_size[Index] = Net_Read_Byte(SPIx, Sn_RX_RSR0(s));
-		Net_Rx_size[Index] *= 256;
-		Net_Rx_size[Index] +=Net_Read_Byte(SPIx, Sn_RX_RSR0(s)+1);
-	
-		Net_Socket_Rx_Addr[Index][s] += Net_Rx_size[Index];
-		
-		if(Net_Socket_Rx_Addr[Index][s] >= Net_Rx_Addr[s]+S_BUF_SIZE)
-		{
-			Net_Socket_Rx_Addr[Index][s] = Net_Rx_Addr[s];
-		}
+    unsigned char i = Failure;
+    int j;
+    int Index;
 
-		SPI_I2S_DMACmd(SPIx, SPI_I2S_DMAReq_Rx, ENABLE);       					//Æô¶¯DMA¶Á
-		// Set W5200 CS as Low
-		SPI_Cmd(SPIx, ENABLE);
-		if (Index)//Æô¶¯DMA·¢ËÍ
-		{
-			DMA_Cmd(DMA1_Stream7, ENABLE);  
-		}
-		else
-		{
-			DMA_Cmd(DMA1_Stream4, ENABLE);  											
-		}
-		
-		i = Failure;
-	}
-	else if(Net_State[Index] == S_RECEIVING)
-	{
-		if (Index)
-		{
-			j=DMA_GetFlagStatus(DMA1_Stream7,DMA_FLAG_TCIF7);
-		}
-		else
-		{
-			j=DMA_GetFlagStatus(DMA1_Stream4,DMA_FLAG_TCIF4);
-		}
-		if(j == SET)
-		{			
-			if(SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == 0)
-			{
-	
-				if (Index)
-				{
-					DMA_ClearFlag(DMA1_Stream7,DMA_FLAG_TCIF7);								//Çå³ý±êÖ¾
-				}
-				else
-				{
-					DMA_ClearFlag(DMA1_Stream4,DMA_FLAG_TCIF4);			
-				}
-				
-				SPI_Cmd(SPIx, DISABLE);
-				SPI_I2S_DMACmd(SPIx, SPI_I2S_DMAReq_Rx, DISABLE);					   	//¹Ø±ÕDMA¶Á
-				for(j = 0; j < DMA_Tx_Size[Index]; j++)
-				{
-					Net_Rx_Buf[Index][j] = SPI_Rx_Buf[Index][j + 4];
-				}
-				Net_Rx_Addr_Offset[Index][s] += Net_Rx_size[Index];
+    Index = (SPIx == SPI3);
+    if (Net_State[Index] == S_IDLING) {
+        Net_State[Index] = S_RECEIVING;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
 
-				Net_Write_Byte(SPIx, Sn_RX_RD0(s), (Net_Rx_Addr_Offset[Index][s]/256));
-				Net_Write_Byte(SPIx, (Sn_RX_RD0(s) + 1), Net_Rx_Addr_Offset[Index][s]);
-	
-				Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_RECV);			// Send RECV command
-				
-				Net_State[Index] = S_IDLING;
-				Net_Socket_Data[Index][s] &= ~S_RECEIVE;
-				i = Success; 
-			}
-		}
-	 }
-	return i;						
+        SPI_Tx_Buf[Index][0] = (unsigned char)(Net_Socket_Rx_Addr[Index][s] >> 8);  // ï¿½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½Ã¿ï¿½ï¿½ï¿½Ë¿ÚµÄµï¿½Ö·ï¿½Ç²ï¿½Ò»ï¿½ï¿½ï¿½ï¿½
+        SPI_Tx_Buf[Index][1] = (unsigned char)Net_Socket_Rx_Addr[Index][s];
+        SPI_Tx_Buf[Index][2] = DMA_Tx_Size[Index] >> 8;  // Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½Õ£ï¿½ï¿½ï¿½ï¿½È£ï¿½8192
+        SPI_Tx_Buf[Index][3] = DMA_Tx_Size[Index] & 0xff;
+        // Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½Õ£ï¿½ï¿½ï¿½ï¿½È£ï¿½8192
+        // Received Data Size
+        Net_Rx_size[Index] = Net_Read_Byte(SPIx, Sn_RX_RSR0(s));
+        Net_Rx_size[Index] *= 256;
+        Net_Rx_size[Index] += Net_Read_Byte(SPIx, Sn_RX_RSR0(s) + 1);
+
+        Net_Socket_Rx_Addr[Index][s] += Net_Rx_size[Index];
+
+        if (Net_Socket_Rx_Addr[Index][s] >= Net_Rx_Addr[s] + S_BUF_SIZE) {
+            Net_Socket_Rx_Addr[Index][s] = Net_Rx_Addr[s];
+        }
+
+        SPI_I2S_DMACmd(SPIx, SPI_I2S_DMAReq_Rx, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½
+        // Set W5200 CS as Low
+        SPI_Cmd(SPIx, ENABLE);
+        if (Index)  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½
+        {
+            DMA_Cmd(DMA1_Stream7, ENABLE);
+        }
+        else {
+            DMA_Cmd(DMA1_Stream4, ENABLE);
+        }
+
+        i = Failure;
+    }
+    else if (Net_State[Index] == S_RECEIVING) {
+        if (Index) {
+            j = DMA_GetFlagStatus(DMA1_Stream7, DMA_FLAG_TCIF7);
+        }
+        else {
+            j = DMA_GetFlagStatus(DMA1_Stream4, DMA_FLAG_TCIF4);
+        }
+        if (j == SET) {
+            if (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == 0) {
+                if (Index) {
+                    DMA_ClearFlag(DMA1_Stream7, DMA_FLAG_TCIF7);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+                }
+                else {
+                    DMA_ClearFlag(DMA1_Stream4, DMA_FLAG_TCIF4);
+                }
+
+                SPI_Cmd(SPIx, DISABLE);
+                SPI_I2S_DMACmd(SPIx, SPI_I2S_DMAReq_Rx, DISABLE);  // ï¿½Ø±ï¿½DMAï¿½ï¿½
+                for (j = 0; j < DMA_Tx_Size[Index]; j++) {
+                    Net_Rx_Buf[Index][j] = SPI_Rx_Buf[Index][j + 4];
+                }
+                Net_Rx_Addr_Offset[Index][s] += Net_Rx_size[Index];
+
+                Net_Write_Byte(SPIx, Sn_RX_RD0(s), (Net_Rx_Addr_Offset[Index][s] / 256));
+                Net_Write_Byte(SPIx, (Sn_RX_RD0(s) + 1), Net_Rx_Addr_Offset[Index][s]);
+
+                Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_RECV);  // Send RECV command
+
+                Net_State[Index] = S_IDLING;
+                Net_Socket_Data[Index][s] &= ~S_RECEIVE;
+                i = Success;
+            }
+        }
+    }
+    return i;
 }
 
 /********************************************************************************
-*Net_Rx                                                                         *
-*Íø¿Ú½ÓÊÕº¯Êý                                                                   *
-********************************************************************************/
+ *Net_Rx                                                                         *
+ *ï¿½ï¿½ï¿½Ú½ï¿½ï¿½Õºï¿½ï¿½ï¿½                                                                   *
+ ********************************************************************************/
 void Net_Rx(SPI_TypeDef *SPIx)
 {
-	unsigned short int i,j,k;
-	unsigned short int rx_offset;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	
-	for (i=0;i<2;i++)
-	{
-		if (Net_Enable[Index][i] && (Net_Socket_State[Index][i]==(S_INIT|S_CONN|S_OK)) && //ÆôÓÃÁË´ËÍøÂçÌ×½Ó×ÖÇÒÁ¬½Ó³É¹¦ 
-			(Net_Socket_Data[Index][i] & S_RECEIVE))//ÊÕµ½Êý¾Ý
-		{
-			// Received Data Size
-			Net_Rx_size[Index] = Net_Read_Byte(SPIx, Sn_RX_RSR0(i));
-			Net_Rx_size[Index] *= 256;
-			Net_Rx_size[Index] +=Net_Read_Byte(SPIx, Sn_RX_RSR0(i)+1);
-			
-			//rx offset
-			rx_offset = Net_Read_Byte(SPIx, Sn_RX_RD0(i));
-			rx_offset *= 256;
-			rx_offset += Net_Read_Byte(SPIx, Sn_RX_RD0(i)+1);
-			
-			j=rx_offset/S_BUF_SIZE;
-			k=rx_offset-j*S_BUF_SIZE;//Ïà¶ÔÆ«ÒÆÁ¿ 
-			j=k+Net_Rx_size[Index];///Êý¾ÝÎ²²¿ 
-			
-			if (j>S_BUF_SIZE)//³¬³öÎ²²¿ 
-			{
-				j=S_BUF_SIZE-k;
-				Net_Read(SPIx, RX_MEM + i*S_BUF_SIZE + k, Net_Rx_Buf[Index], j);
-				Net_Read(SPIx, RX_MEM + i*S_BUF_SIZE, Net_Rx_Buf[Index]+j, Net_Rx_size[Index]-j);
-			}
-			else
-			{
-				Net_Read(SPIx, RX_MEM + i*S_BUF_SIZE + k,Net_Rx_Buf[Index], Net_Rx_size[Index]);
-			}
-			
-			//ÐÂµÄÆ«ÒÆµØÖ· 
-			rx_offset+=Net_Rx_size[Index];
-			Net_Write_Byte(SPIx, Sn_RX_RD0(i), (rx_offset/256));
-			Net_Write_Byte(SPIx, Sn_RX_RD0(i)+1, rx_offset);
-			Net_Write_Byte(SPIx, Sn_CR(i), Sn_CR_RECV);//Æô¶¯½ÓÊÕ 
-			Net_Socket_Data[Index][i] &=~S_RECEIVE;
-			Net_Rx_Flag[Index][i]=1;
-		}
-	}	
+    unsigned short int i, j, k;
+    unsigned short int rx_offset;
+    int Index;
+
+    Index = (SPIx == SPI3);
+
+    for (i = 0; i < 2; i++) {
+        if (Net_Enable[Index][i] &&
+            (Net_Socket_State[Index][i] ==
+                (S_INIT | S_CONN | S_OK)) &&  // ï¿½ï¿½ï¿½ï¿½ï¿½Ë´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó³É¹ï¿½
+            (Net_Socket_Data[Index][i] & S_RECEIVE))  // ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½
+        {
+            // Received Data Size
+            Net_Rx_size[Index] = Net_Read_Byte(SPIx, Sn_RX_RSR0(i));
+            Net_Rx_size[Index] *= 256;
+            Net_Rx_size[Index] += Net_Read_Byte(SPIx, Sn_RX_RSR0(i) + 1);
+
+            // rx offset
+            rx_offset = Net_Read_Byte(SPIx, Sn_RX_RD0(i));
+            rx_offset *= 256;
+            rx_offset += Net_Read_Byte(SPIx, Sn_RX_RD0(i) + 1);
+
+            j = rx_offset / S_BUF_SIZE;
+            k = rx_offset - j * S_BUF_SIZE;  // ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½
+            j = k + Net_Rx_size[Index];      /// ï¿½ï¿½ï¿½ï¿½Î²ï¿½ï¿½
+
+            if (j > S_BUF_SIZE)  // ï¿½ï¿½ï¿½ï¿½Î²ï¿½ï¿½
+            {
+                j = S_BUF_SIZE - k;
+                Net_Read(SPIx, RX_MEM + i * S_BUF_SIZE + k, Net_Rx_Buf[Index], j);
+                Net_Read(SPIx, RX_MEM + i * S_BUF_SIZE, Net_Rx_Buf[Index] + j, Net_Rx_size[Index] - j);
+            }
+            else {
+                Net_Read(SPIx, RX_MEM + i * S_BUF_SIZE + k, Net_Rx_Buf[Index], Net_Rx_size[Index]);
+            }
+
+            // ï¿½Âµï¿½Æ«ï¿½Æµï¿½Ö·
+            rx_offset += Net_Rx_size[Index];
+            Net_Write_Byte(SPIx, Sn_RX_RD0(i), (rx_offset / 256));
+            Net_Write_Byte(SPIx, Sn_RX_RD0(i) + 1, rx_offset);
+            Net_Write_Byte(SPIx, Sn_CR(i), Sn_CR_RECV);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            Net_Socket_Data[Index][i] &= ~S_RECEIVE;
+            Net_Rx_Flag[Index][i] = 1;
+        }
+    }
 }
 
 /********************************************************************************
-*Net_Tx                                                                         *
-*Íø¿Ú·¢ËÍº¯Êý                                                                   *
-********************************************************************************/
-void Net_Tx(SPI_TypeDef *SPIx, unsigned char* TxData)
+ *Net_Tx                                                                         *
+ *ï¿½ï¿½ï¿½Ú·ï¿½ï¿½Íºï¿½ï¿½ï¿½                                                                   *
+ ********************************************************************************/
+void Net_Tx(SPI_TypeDef *SPIx, unsigned char *TxData)
 {
-	unsigned short int i,j,k;
-	unsigned short int tx_offset,tx_offset1;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	
-	for (i=0;i<2;i++)
-	{
-		if (Net_Enable[Index][i] && Net_Tx_Flag[Index][i] //Íâ²¿³ÌÐòÉèÖÃ·¢ËÍ±êÖ¾
-			&& (Net_Socket_State[Index][i]==(S_INIT|S_CONN|S_OK)))//ÆôÓÃÁË´ËÍøÂçÌ×½Ó×ÖÇÒÁ¬½Ó³É¹¦ 			
-		{		
-			Net_Socket_Data[Index][i]&=~S_TRANSMITOK;//Çå³ý·¢ËÍ±êÖ¾		
-			
-			j=Net_Read_Byte(SPIx, Sn_TX_FSR0(i));
-			j*=256;
-			j+=Net_Read_Byte(SPIx, Sn_TX_FSR0(i)+1);
-			
-			if (j>Net_Tx_size[Index][i])//Ê£Óà·¢ËÍ»º³å³¤¶È´óÓÚ·¢ËÍ³¤¶È 
-			{
-			
-				//¶ÁÈ¡·¢ËÍ»º³åÇøµÄÆ«ÒÆÁ¿
-				tx_offset = Net_Read_Byte(SPIx, Sn_TX_WR0(i));
-				tx_offset *= 256;
-				tx_offset += Net_Read_Byte(SPIx, Sn_TX_WR0(i)+1);
-				tx_offset1 = tx_offset;
-				
-				j=tx_offset/S_BUF_SIZE;
-				k=tx_offset-j*S_BUF_SIZE;
-				j=k+Net_Tx_size[Index][i];
-				
-				if (j>S_BUF_SIZE)//³¬³ö·¢ËÍ»º³å, ÐèÒª·ÖÁ½´ÎÐ´Èë 
-				{
-					j=S_BUF_SIZE-k;
-					Net_Write(SPIx, TX_MEM + i * S_BUF_SIZE + k, TxData, j);
-					Net_Write(SPIx, TX_MEM + i * S_BUF_SIZE, &TxData[j], Net_Tx_size[Index][i]-j);
-				}
-				else
-				{
-					Net_Write(SPIx, TX_MEM + i * S_BUF_SIZE + k, TxData, Net_Tx_size[Index][i]);
-				}
+    unsigned short int i, j, k;
+    unsigned short int tx_offset, tx_offset1;
+    int Index;
 
-				//¼ÆËãÏÂÒ»´ÎµÄÆ«ÒÆÁ¿
-				tx_offset1 += Net_Tx_size[Index][i];
-				Net_Tx_Addr_Offset[Index][i] = tx_offset1;
-				Net_Write_Byte(SPIx, Sn_TX_WR0(i),(tx_offset1 / 256));
-				Net_Write_Byte(SPIx, (Sn_TX_WR0(i)+1), tx_offset1);
+    Index = (SPIx == SPI3);
 
-				Net_Write_Byte(SPIx, Sn_CR(i), Sn_CR_SEND);			// Send SEND command, start send process 
-				Net_Tx_Flag[Index][i]=0;
-				
-				//Net_tx_process(SPIx, i, Net_Tx_Buf[Index][i]);
-			}
-		}
-	}
+    for (i = 0; i < 2; i++) {
+        if (Net_Enable[Index][i] && Net_Tx_Flag[Index][i]  // ï¿½â²¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã·ï¿½ï¿½Í±ï¿½Ö¾
+            && (Net_Socket_State[Index][i] ==
+                   (S_INIT | S_CONN | S_OK)))  // ï¿½ï¿½ï¿½ï¿½ï¿½Ë´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó³É¹ï¿½
+        {
+            Net_Socket_Data[Index][i] &= ~S_TRANSMITOK;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í±ï¿½Ö¾
+
+            j = Net_Read_Byte(SPIx, Sn_TX_FSR0(i));
+            j *= 256;
+            j += Net_Read_Byte(SPIx, Sn_TX_FSR0(i) + 1);
+
+            if (j > Net_Tx_size[Index][i])  // Ê£ï¿½à·¢ï¿½Í»ï¿½ï¿½å³¤ï¿½È´ï¿½ï¿½Ú·ï¿½ï¿½Í³ï¿½ï¿½ï¿½
+            {
+                // ï¿½ï¿½È¡ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½
+                tx_offset = Net_Read_Byte(SPIx, Sn_TX_WR0(i));
+                tx_offset *= 256;
+                tx_offset += Net_Read_Byte(SPIx, Sn_TX_WR0(i) + 1);
+                tx_offset1 = tx_offset;
+
+                j = tx_offset / S_BUF_SIZE;
+                k = tx_offset - j * S_BUF_SIZE;
+                j = k + Net_Tx_size[Index][i];
+
+                if (j > S_BUF_SIZE)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½, ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½
+                {
+                    j = S_BUF_SIZE - k;
+                    Net_Write(SPIx, TX_MEM + i * S_BUF_SIZE + k, TxData, j);
+                    Net_Write(SPIx, TX_MEM + i * S_BUF_SIZE, &TxData[j], Net_Tx_size[Index][i] - j);
+                }
+                else {
+                    Net_Write(SPIx, TX_MEM + i * S_BUF_SIZE + k, TxData, Net_Tx_size[Index][i]);
+                }
+
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Îµï¿½Æ«ï¿½ï¿½ï¿½ï¿½
+                tx_offset1 += Net_Tx_size[Index][i];
+                Net_Tx_Addr_Offset[Index][i] = tx_offset1;
+                Net_Write_Byte(SPIx, Sn_TX_WR0(i), (tx_offset1 / 256));
+                Net_Write_Byte(SPIx, (Sn_TX_WR0(i) + 1), tx_offset1);
+
+                Net_Write_Byte(SPIx, Sn_CR(i), Sn_CR_SEND);  // Send SEND command, start send process
+                Net_Tx_Flag[Index][i] = 0;
+
+                // Net_tx_process(SPIx, i, Net_Tx_Buf[Index][i]);
+            }
+        }
+    }
 }
 
 /********************************************************************
-*Net_Mode_Select                                                    *
-*Íø¿Ú¹¤×÷Ä£Ê½µÄÑ¡Ôñ¡¢·þÎñÆ÷½øÐÐÕìÌýºÍ¿Í»§¶Ë½øÐÐÁ¬½ÓµÄº¯Êý           *
-********************************************************************/
+ *Net_Mode_Select                                                    *
+ *ï¿½ï¿½ï¿½Ú¹ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½Ñ¡ï¿½ñ¡¢·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¿Í»ï¿½ï¿½Ë½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÓµÄºï¿½ï¿½ï¿½
+ **
+ ********************************************************************/
 void Net_Mode_Select(SPI_TypeDef *SPIx, unsigned char s)
-{	
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	if(Net_Socket_State[Index][s] == 0)
-	{
-		if(Net_State[Index] == S_IDLING)					//È·¶¨·¢ËÍºÍ½ÓÊÕ¶¼ÒÑ¾­Íê³É
-		{
-			Net_State[Index] = S_CHECKING;				//½øÈë×´Ì¬¼ì²â¹ý³ÌÖÐ
-			if (Socket_Mode(SPIx, s,Net_Mode[Index][s]))//´ò¿ª¶Ë¿Ú, ½¨Á¢Á¬½Ó 
-			{
-				Net_Socket_State[Index][s] = S_INIT;
-			}
-			else
-			{
-				Net_Socket_State[Index][s] = 0;
-			}			
-			Net_State[Index] = S_IDLING;
-		}
-	}
-	else if(Net_Socket_State[Index][s] == (S_INIT | S_CONN))
-	{
-		if(Net_Mode[Index][s] == Server)
-		{
-			if(Net_State[Index] == S_IDLING)
-			{
-				Net_State[Index] = S_CHECKING;
-				if (DMA_Tx_Size[Index]==DMA_SIZE_128 || DMA_Tx_Size[Index]==DMA_SIZE_256|| DMA_Tx_Size[Index]==DMA_SIZE_512
-					|| DMA_Tx_Size[Index]==DMA_SIZE_1K || DMA_Tx_Size[Index]==DMA_SIZE_2K 
-					|| DMA_Tx_Size[Index]==DMA_SIZE_4K || DMA_Tx_Size[Index]==DMA_SIZE_8K)
-				{
-					Socket_Correct_Addr(SPIx, s);	 									//Socket0Ð£Õý
-				}
-				Net_Socket_State[Index][s] = S_INIT | S_CONN | S_OK;	 			//µØÖ·Ð£×¼Íê³É
-				Net_State[Index] = S_IDLING;
-			}
-		}
-	}
+{
+    int Index;
+
+    Index = (SPIx == SPI3);
+    if (Net_Socket_State[Index][s] == 0) {
+        if (Net_State[Index] == S_IDLING)  // È·ï¿½ï¿½ï¿½ï¿½ï¿½ÍºÍ½ï¿½ï¿½Õ¶ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½
+        {
+            Net_State[Index] = S_CHECKING;                 // ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            if (Socket_Mode(SPIx, s, Net_Mode[Index][s]))  // ï¿½ò¿ª¶Ë¿ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            {
+                Net_Socket_State[Index][s] = S_INIT;
+            }
+            else {
+                Net_Socket_State[Index][s] = 0;
+            }
+            Net_State[Index] = S_IDLING;
+        }
+    }
+    else if (Net_Socket_State[Index][s] == (S_INIT | S_CONN)) {
+        if (Net_Mode[Index][s] == Server) {
+            if (Net_State[Index] == S_IDLING) {
+                Net_State[Index] = S_CHECKING;
+                if (DMA_Tx_Size[Index] == DMA_SIZE_128 || DMA_Tx_Size[Index] == DMA_SIZE_256 ||
+                    DMA_Tx_Size[Index] == DMA_SIZE_512 || DMA_Tx_Size[Index] == DMA_SIZE_1K ||
+                    DMA_Tx_Size[Index] == DMA_SIZE_2K || DMA_Tx_Size[Index] == DMA_SIZE_4K ||
+                    DMA_Tx_Size[Index] == DMA_SIZE_8K) {
+                    Socket_Correct_Addr(SPIx, s);  // Socket0Ð£ï¿½ï¿½
+                }
+                Net_Socket_State[Index][s] = S_INIT | S_CONN | S_OK;  // ï¿½ï¿½Ö·Ð£×¼ï¿½ï¿½ï¿½
+                Net_State[Index] = S_IDLING;
+            }
+        }
+    }
 }
 
 /********************************************************************
-*Net_State_Check                                                    *
-*Íø¿Ú¹¤×÷×´Ì¬µÄ¶ÁÈ¡¼°Ïà¹Ø´¦ÀíµÄº¯Êý                                 *
-********************************************************************/
+ *Net_State_Check                                                    *
+ *ï¿½ï¿½ï¿½Ú¹ï¿½ï¿½ï¿½×´Ì¬ï¿½Ä¶ï¿½È¡ï¿½ï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½ï¿½Äºï¿½ï¿½ï¿½                                 *
+ ********************************************************************/
 void Net_State_Check(SPI_TypeDef *SPIx)
 {
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	if(Net_State[Index] == S_IDLING)
-	{
-		Net_State[Index] = S_CHECKING;				//½øÈë×´Ì¬¼ì²â¹ý³ÌÖÐ
-	   	if( (Net_Socket_State[Index][0] & S_INIT) == S_INIT | (Net_Socket_State[Index][1] & S_INIT) == S_INIT )
-		{
-		
-			Net_Interrupt_Process(SPIx);											//ÊÂ¼þ´¦Àí¹ý³Ì
-		}
-		Net_State[Index] = S_IDLING;
-	}
+    int Index;
+
+    Index = (SPIx == SPI3);
+    if (Net_State[Index] == S_IDLING) {
+        Net_State[Index] = S_CHECKING;  // ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        if (((Net_Socket_State[Index][0] & S_INIT) == S_INIT) | ((Net_Socket_State[Index][1] & S_INIT) == S_INIT)) {
+            Net_Interrupt_Process(SPIx);  // ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        }
+        Net_State[Index] = S_IDLING;
+    }
 }
 
 /********************************************************************
-*Net_Cycle                                                          *
-*ÍøÂçÍ¨ÐÅÑ­»·º¯Êý                                                   *
-********************************************************************/
+ *Net_Cycle                                                          *
+ *ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½                                                   *
+ ********************************************************************/
 void Net_Cycle(SPI_TypeDef *SPIx)
 {
-	unsigned char i;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	for (i=0;i<2;i++)
-	{
-		if (Net_Enable[Index][i])
-		{
-			Net_Mode_Select(SPIx, i);
-		}
-	}
-	
-	if((++Net_Check_Delay[Index] > 1200) && (Net_State[Index] == S_IDLING) )   //1.2s
-	{
-		Net_Check_Delay[Index] = 0;
-		if (Net_State[Index] == S_IDLING)
-		{
-			Net_State[Index] = S_CHECKING;	
-			
-			for (i=0;i<2;i++)
-			{
-				if(Net_Enable[Index][i] && (Net_Socket_State[Index][i] & S_INIT))
-				{
-					Net_Write_Byte(SPIx, Sn_CR(i), S_CR_SEND_KEEP);
-				}				
-			}
-			Net_State[Index] = S_IDLING;
-		}
-	}
-	Net_State_Check(SPIx);
+    unsigned char i;
+    int Index;
+
+    Index = (SPIx == SPI3);
+    for (i = 0; i < 2; i++) {
+        if (Net_Enable[Index][i]) {
+            Net_Mode_Select(SPIx, i);
+        }
+    }
+
+    if ((++Net_Check_Delay[Index] > 1200) && (Net_State[Index] == S_IDLING))  // 1.2s
+    {
+        Net_Check_Delay[Index] = 0;
+        if (Net_State[Index] == S_IDLING) {
+            Net_State[Index] = S_CHECKING;
+
+            for (i = 0; i < 2; i++) {
+                if (Net_Enable[Index][i] && (Net_Socket_State[Index][i] & S_INIT)) {
+                    Net_Write_Byte(SPIx, Sn_CR(i), S_CR_SEND_KEEP);
+                }
+            }
+            Net_State[Index] = S_IDLING;
+        }
+    }
+    Net_State_Check(SPIx);
 }
 
 /********************************************************************************
-*Net_DMA_Rx                                                                     *
-*Íø¿Ú½ÓÊÕº¯Êý                                                                   *
-********************************************************************************/
+ *Net_DMA_Rx                                                                     *
+ *ï¿½ï¿½ï¿½Ú½ï¿½ï¿½Õºï¿½ï¿½ï¿½                                                                   *
+ ********************************************************************************/
 void Net_DMA_Rx(SPI_TypeDef *SPIx)
 {
-	unsigned char i;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	
-	if (Net_State[Index]==S_RECEIVING)//ÓÐÁ¬½ÓÔÚ½ÓÊÕÊý¾Ý 
-	{
-		if (Net_DMA_rx_process(SPIx, Net_Receiving_Socket[Index]))//Êý¾Ý´æ´¢ÔÚNet_Rx_Buf[Index][s] 
-		{
-			Net_Rx_Flag[Index][Net_Receiving_Socket[Index]]=1;//Ö»ÖÃÎ»£¬ÔÚÊý¾Ý´¦ÀíÖÐÇå³ý 
-			Net_Receiving_Socket[Index]=8;//Çå³ýµ±Ç°½ÓÊÕÌ×½Ó×ÖÐòºÅ£¬Ö¸Ïò²»´æÔÚµÄÌ×½Ó×Ö 
-			Net_Rx_Delay[Index]=0;
-		}
-		else
-		{
-			if (++Net_Rx_Delay[Index]>=100)//Î´Íê³ÉDMA½ÓÊÕÊý¾Ý
-			{
-				Net_Rx_Delay[Index]=0;
-				Net_Receiving_Socket[Index]=8;
-				Net_State[Index]=S_IDLING;
-				Net_Socket_State[Index][i]=0;//Ì×½Ó×ÖÁ¬½Ó¸´Î»
-			}
-		}
-	}
-	else
-	{
-		for (i=0;i<2;i++)
-		{
-			if (Net_Enable[Index][i] && (Net_Socket_State[Index][i]==(S_INIT|S_CONN|S_OK)) && //ÆôÓÃÁË´ËÍøÂçÌ×½Ó×ÖÇÒÁ¬½Ó³É¹¦ 
-				(Net_Socket_Data[Index][i] & S_RECEIVE))//ÊÕµ½Êý¾Ý
-			{
-				Net_Receiving_Socket[Index]=i;//Ö¸Ïòµ±Ç°Ì×½Ó×Ö
-				Net_DMA_rx_process(SPIx, i);
-				break;
-			}
-		}
-	}
+    unsigned char i;
+    int Index;
+
+    Index = (SPIx == SPI3);
+
+    if (Net_State[Index] == S_RECEIVING)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {
+        if (Net_DMA_rx_process(SPIx, Net_Receiving_Socket[Index]))  // ï¿½ï¿½ï¿½Ý´æ´¢ï¿½ï¿½Net_Rx_Buf[Index][s]
+        {
+            Net_Rx_Flag[Index][Net_Receiving_Socket[Index]] = 1;  // Ö»ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            Net_Receiving_Socket[Index] =
+                8;  // ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½Å£ï¿½Ö¸ï¿½ò²»´ï¿½ï¿½Úµï¿½ï¿½×½ï¿½ï¿½ï¿½
+            Net_Rx_Delay[Index] = 0;
+        }
+        else {
+            if (++Net_Rx_Delay[Index] >= 100)  // Î´ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            {
+                Net_Rx_Delay[Index] = 0;
+                Net_Receiving_Socket[Index] = 8;
+                Net_State[Index] = S_IDLING;
+                Net_Socket_State[Index][i] = 0;  // ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¸ï¿½Î»
+            }
+        }
+    }
+    else {
+        for (i = 0; i < 2; i++) {
+            if (Net_Enable[Index][i] &&
+                (Net_Socket_State[Index][i] ==
+                    (S_INIT | S_CONN |
+                        S_OK)) &&  // ï¿½ï¿½ï¿½ï¿½ï¿½Ë´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó³É¹ï¿½
+                (Net_Socket_Data[Index][i] & S_RECEIVE))  // ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½
+            {
+                Net_Receiving_Socket[Index] = i;  // Ö¸ï¿½ï¿½Ç°ï¿½×½ï¿½ï¿½ï¿½
+                Net_DMA_rx_process(SPIx, i);
+                break;
+            }
+        }
+    }
 }
 
 /********************************************************************
-*Net_DMA_tx_process                                                 *
-*Íø¿Ú²ÉÓÃDMA·½Ê½½øÐÐÊý¾Ý·¢ËÍµÄ¹ý³Ì£¬Êý¾Ý·¢ËÍ³¤¶ÈÎª128               *
-********************************************************************/
-unsigned char Net_DMA_tx_process(SPI_TypeDef *SPIx, unsigned char s,unsigned char* tx_buffer)
+ *Net_DMA_tx_process                                                 *
+ *ï¿½ï¿½ï¿½Ú²ï¿½ï¿½ï¿½DMAï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½ï¿½ÍµÄ¹ï¿½ï¿½Ì£ï¿½ï¿½ï¿½ï¿½Ý·ï¿½ï¿½Í³ï¿½ï¿½ï¿½Îª128               *
+ ********************************************************************/
+unsigned char Net_DMA_tx_process(SPI_TypeDef *SPIx, unsigned char s, unsigned char *tx_buffer)
 {
-	unsigned char i;
-	int j;							  
-   	int Index;
-	unsigned char Write_Command=0x80;
-	
-	Index=(SPIx==SPI3);
-	
-	i = Failure;
-	
-	if(Net_State[Index] == S_IDLING)															//Èç¹û¿ÕÏÐ£¬¾ÍÆô¶¯·¢ËÍ
-	{
-		Net_State[Index] = S_SENDING;															//½øÈë·¢ËÍ×´Ì¬
-			
-		SPI_Tx_Buf[Index][2] = DMA_Tx_Size[Index]>>8;													//³¤¶È 
-		SPI_Tx_Buf[Index][3] = DMA_Tx_Size[Index] & 0xff;																
-		SPI_Tx_Buf[Index][2]|= Write_Command;													//Ä£Ê½£º·¢ËÍ 
-		SPI_Tx_Buf[Index][0] = (unsigned char)(Net_Socket_Tx_Addr[Index][s] >> 8);						//·¢ËÍ»º³åÇøµØÖ·(¸ß8Î»)
-		SPI_Tx_Buf[Index][1] = (unsigned char)(Net_Socket_Tx_Addr[Index][s]);								//·¢ËÍ»º³åÇøµØÖ·(µÍ8Î»)
-		for(j = 0; j < DMA_Tx_Size[Index]; j++)
-		{
-			SPI_Tx_Buf[Index][j + 4] = tx_buffer[j];
-		}
-		Net_Socket_Tx_Addr[Index][s] += DMA_Tx_Size[Index];
-		if(Net_Socket_Tx_Addr[Index][s] >= (0x8000 + s * S_BUF_SIZE + S_BUF_SIZE))
-		{
-			Net_Socket_Tx_Addr[Index][s] = 0x8000 + s * S_BUF_SIZE;
-		}
-		SPI_Cmd(SPIx, ENABLE);
-		if (Index)
-		{
-			DMA_Cmd(DMA1_Stream7,ENABLE); 
-		}
-		else
-		{
-			DMA_Cmd(DMA1_Stream4,ENABLE); 
-		}
-		
-		i =	Failure;
-		
-	}
-	else if(Net_State[Index] == S_SENDING)
-	{
-		if (Index)
-		{
-			j=DMA_GetFlagStatus(DMA1_Stream7,DMA_FLAG_TCIF7);
-		}
-		else
-		{
-			j=DMA_GetFlagStatus(DMA1_Stream4,DMA_FLAG_TCIF4);
-		}
-		if(j == SET)
-		{
-			if(SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == 0)
-			{
-				if (Index)
-				{
-					DMA_ClearFlag(DMA1_Stream7,DMA_FLAG_TCIF7);								//Çå³ý±êÖ¾
-				}
-				else
-				{
-					DMA_ClearFlag(DMA1_Stream4,DMA_FLAG_TCIF4);			
-				}
-				
-				SPI_Cmd(SPIx, DISABLE);
-		
-				Net_Tx_Addr_Offset[Index][s] += DMA_Tx_Size[Index];
-				Net_Write_Byte(SPIx, Sn_TX_WR0(s),(Net_Tx_Addr_Offset[Index][s] / 256));
-				Net_Write_Byte(SPIx, (Sn_TX_WR0(s)+1), Net_Tx_Addr_Offset[Index][s]);
-				Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_SEND);						// Send SEND command, start send process 
+    unsigned char i;
+    int j;
+    int Index;
+    unsigned char Write_Command = 0x80;
 
-				Net_State[Index] = S_IDLING;								//·¢ËÍÍê³É£¬½øÈë¿ÕÏÐ×´Ì¬
-				Net_Tx_Flag[Index][Net_Sending_Socket[Index]]=0;
-				Net_Sending_Socket[Index]=8;
-				i =	Success;
-			}
-		}
-	}
-	return i;
+    Index = (SPIx == SPI3);
+
+    i = Failure;
+
+    if (Net_State[Index] == S_IDLING)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {
+        Net_State[Index] = S_SENDING;  // ï¿½ï¿½ï¿½ë·¢ï¿½ï¿½×´Ì¬
+
+        SPI_Tx_Buf[Index][2] = DMA_Tx_Size[Index] >> 8;  // ï¿½ï¿½ï¿½ï¿½
+        SPI_Tx_Buf[Index][3] = DMA_Tx_Size[Index] & 0xff;
+        SPI_Tx_Buf[Index][2] |= Write_Command;                                      // Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        SPI_Tx_Buf[Index][0] = (unsigned char)(Net_Socket_Tx_Addr[Index][s] >> 8);  // ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·(ï¿½ï¿½8Î»)
+        SPI_Tx_Buf[Index][1] = (unsigned char)(Net_Socket_Tx_Addr[Index][s]);  // ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·(ï¿½ï¿½8Î»)
+        for (j = 0; j < DMA_Tx_Size[Index]; j++) {
+            SPI_Tx_Buf[Index][j + 4] = tx_buffer[j];
+        }
+        Net_Socket_Tx_Addr[Index][s] += DMA_Tx_Size[Index];
+        if (Net_Socket_Tx_Addr[Index][s] >= (0x8000 + s * S_BUF_SIZE + S_BUF_SIZE)) {
+            Net_Socket_Tx_Addr[Index][s] = 0x8000 + s * S_BUF_SIZE;
+        }
+        SPI_Cmd(SPIx, ENABLE);
+        if (Index) {
+            DMA_Cmd(DMA1_Stream7, ENABLE);
+        }
+        else {
+            DMA_Cmd(DMA1_Stream4, ENABLE);
+        }
+
+        i = Failure;
+    }
+    else if (Net_State[Index] == S_SENDING) {
+        if (Index) {
+            j = DMA_GetFlagStatus(DMA1_Stream7, DMA_FLAG_TCIF7);
+        }
+        else {
+            j = DMA_GetFlagStatus(DMA1_Stream4, DMA_FLAG_TCIF4);
+        }
+        if (j == SET) {
+            if (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == 0) {
+                if (Index) {
+                    DMA_ClearFlag(DMA1_Stream7, DMA_FLAG_TCIF7);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+                }
+                else {
+                    DMA_ClearFlag(DMA1_Stream4, DMA_FLAG_TCIF4);
+                }
+
+                SPI_Cmd(SPIx, DISABLE);
+
+                Net_Tx_Addr_Offset[Index][s] += DMA_Tx_Size[Index];
+                Net_Write_Byte(SPIx, Sn_TX_WR0(s), (Net_Tx_Addr_Offset[Index][s] / 256));
+                Net_Write_Byte(SPIx, (Sn_TX_WR0(s) + 1), Net_Tx_Addr_Offset[Index][s]);
+                Net_Write_Byte(SPIx, Sn_CR(s), Sn_CR_SEND);  // Send SEND command, start send process
+
+                Net_State[Index] = S_IDLING;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+                Net_Tx_Flag[Index][Net_Sending_Socket[Index]] = 0;
+                Net_Sending_Socket[Index] = 8;
+                i = Success;
+            }
+        }
+    }
+    return i;
 }
 
 /********************************************************************************
-*Net_DMA_Tx                                                                     *
-*Íø¿Ú·¢ËÍº¯Êý                                                                   *
-********************************************************************************/
-void Net_DMA_Tx(SPI_TypeDef *SPIx, unsigned char* TxData)
+ *Net_DMA_Tx                                                                     *
+ *ï¿½ï¿½ï¿½Ú·ï¿½ï¿½Íºï¿½ï¿½ï¿½                                                                   *
+ ********************************************************************************/
+void Net_DMA_Tx(SPI_TypeDef *SPIx, unsigned char *TxData)
 {
-	unsigned char i;
-	int Index;
-	
-	Index=(SPIx==SPI3);
-	
-	if (Net_State[Index]==S_SENDING)//ÓÐÁ¬½ÓÔÚ·¢ËÍÊý¾Ý 
-	{
-		if (Net_DMA_tx_process(SPIx, Net_Sending_Socket[Index], TxData))//·¢ËÍÍê³É , 1¸öÍø¿Ú½öÊ¹ÓÃÒ»¸ösocket
-		{
-			Net_Tx_Delay[Index]=0;							
-		}
-		else
-		{
-			if (++Net_Tx_Delay[Index]>=100)//DMA·¢ËÍ³¬Ê± 
-			{
-				Net_Tx_Delay[Index]=0;
-				Net_Sending_Socket[Index]=8;
-				Net_Socket_State[Index][Net_Sending_Socket[Index]]=0;//Ì×½Ó×Ö¸´Î» 
-				Net_State[Index]=S_IDLING;
-			}
-		}					
-	}
-	else if(Net_State[Index] == S_IDLING)
-	{
-		for (i=0;i<2;i++)
-		{
-			if (Net_Enable[Index][i] && Net_Tx_Flag[Index][i] //Íâ²¿³ÌÐòÉèÖÃ·¢ËÍ±êÖ¾
-				&& (Net_Socket_State[Index][i]==(S_INIT|S_CONN|S_OK)))//ÆôÓÃÁË´ËÍøÂçÌ×½Ó×ÖÇÒÁ¬½Ó³É¹¦ 			
-			{		
-				Net_Sending_Socket[Index]=i;//Ö¸Ïòµ±Ç°Ì×½Ó×Ö
-				Net_Socket_Data[Index][i]&=~S_TRANSMITOK;//Çå³ý·¢ËÍ±êÖ¾
-				Net_DMA_tx_process(SPIx, Net_Sending_Socket[Index],TxData);//Æô¶¯·¢ËÍ
-				break;//Ò»´Î½öÄÜ´¦ÀíÒ»¸öÌ×½Ó×Ö·¢ËÍ 
-			}
-		}
-	}
+    unsigned char i;
+    int Index;
+
+    Index = (SPIx == SPI3);
+
+    if (Net_State[Index] == S_SENDING)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {
+        if (Net_DMA_tx_process(SPIx, Net_Sending_Socket[Index], TxData))  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ , 1ï¿½ï¿½ï¿½ï¿½ï¿½Ú½ï¿½Ê¹ï¿½ï¿½Ò»ï¿½ï¿½socket
+        {
+            Net_Tx_Delay[Index] = 0;
+        }
+        else {
+            if (++Net_Tx_Delay[Index] >= 100)  // DMAï¿½ï¿½ï¿½Í³ï¿½Ê±
+            {
+                Net_Tx_Delay[Index] = 0;
+                Net_Sending_Socket[Index] = 8;
+                Net_Socket_State[Index][Net_Sending_Socket[Index]] = 0;  // ï¿½×½ï¿½ï¿½Ö¸ï¿½Î»
+                Net_State[Index] = S_IDLING;
+            }
+        }
+    }
+    else if (Net_State[Index] == S_IDLING) {
+        for (i = 0; i < 2; i++) {
+            if (Net_Enable[Index][i] && Net_Tx_Flag[Index][i]  // ï¿½â²¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã·ï¿½ï¿½Í±ï¿½Ö¾
+                &&
+                (Net_Socket_State[Index][i] ==
+                    (S_INIT | S_CONN | S_OK)))  // ï¿½ï¿½ï¿½ï¿½ï¿½Ë´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó³É¹ï¿½
+            {
+                Net_Sending_Socket[Index] = i;                                // Ö¸ï¿½ï¿½Ç°ï¿½×½ï¿½ï¿½ï¿½
+                Net_Socket_Data[Index][i] &= ~S_TRANSMITOK;                   // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í±ï¿½Ö¾
+                Net_DMA_tx_process(SPIx, Net_Sending_Socket[Index], TxData);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+                break;  // Ò»ï¿½Î½ï¿½ï¿½Ü´ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½×½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
+            }
+        }
+    }
 }
 
 /********************************************************************************
-*Net_Comm                                                                       *
-*Íø¿ÚÍ¨ÐÅº¯Êý                                                                   *
-********************************************************************************/
-void Net_Comm(SPI_TypeDef *SPIx, unsigned char* TxData)
+ *Net_Comm                                                                       *
+ *ï¿½ï¿½ï¿½ï¿½Í¨ï¿½Åºï¿½ï¿½ï¿½                                                                   *
+ ********************************************************************************/
+void Net_Comm(SPI_TypeDef *SPIx, unsigned char *TxData)
 {
-	Net_Cycle(SPIx);
-	if (DMA_Tx_Size[SPIx==SPI3])//
-	{
-		Net_DMA_Tx(SPIx, TxData);
-		Net_DMA_Rx(SPIx);
-	}
-	else
-	{
-		Net_Tx(SPIx, TxData);
-		Net_Rx(SPIx);
-	}
+    Net_Cycle(SPIx);
+    if (DMA_Tx_Size[SPIx == SPI3])  //
+    {
+        Net_DMA_Tx(SPIx, TxData);
+        Net_DMA_Rx(SPIx);
+    }
+    else {
+        Net_Tx(SPIx, TxData);
+        Net_Rx(SPIx);
+    }
 }
 //===========================================================================
 // End of file.

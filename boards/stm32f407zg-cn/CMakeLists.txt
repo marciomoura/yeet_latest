@@ -32,54 +32,54 @@ message(STATUS "🎯 Building embedded board library: ${CMAKE_PROJECT_NAME}")
 message(STATUS "🔨 Build type: ${CMAKE_BUILD_TYPE}")
 
 # ==============================================================================#
-# Check that STM32 HAL libraries were fetched by parent CMakeLists
+# Check that CMSIS libraries are available
 # ==============================================================================#
-if(NOT DEFINED STM32_HAL_DIR)
-    message(
-        FATAL_ERROR
-            "❌ STM32_HAL_DIR not defined. Make sure stm32_hal.cmake is included before this file."
-    )
+if(NOT DEFINED CMSIS_DEVICE_DIR)
+    message(WARNING "⚠️ CMSIS_DEVICE_DIR not defined, using local CMSIS")
+    set(CMSIS_DEVICE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device")
 endif()
 
-message(STATUS "✅ Using fetched STM32 HAL from: ${STM32_HAL_DIR}")
-message(STATUS "✅ Using fetched CMSIS Device from: ${CMSIS_DEVICE_DIR}")
-message(STATUS "✅ Using fetched CMSIS Core from: ${CMSIS_CORE_DIR}")
+if(NOT DEFINED CMSIS_CORE_DIR)
+    message(WARNING "⚠️ CMSIS_CORE_DIR not defined, using local CMSIS")
+    set(CMSIS_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include")
+endif()
+
+message(STATUS "✅ Using CMSIS Device from: ${CMSIS_DEVICE_DIR}")
+message(STATUS "✅ Using CMSIS Core from: ${CMSIS_CORE_DIR}")
 
 # ==============================================================================#
-# Create STM32 HAL Drivers Library (from fetched sources)
+# Create STM32F4xx Standard Peripheral Driver Library
 # ==============================================================================#
-add_library(STM32_HAL_Drivers STATIC)
+add_library(STM32F4xx_StdPeriph_Driver STATIC)
 
-# Collect all HAL source files from fetched library
-file(GLOB HAL_SOURCES "${STM32_HAL_DIR}/Src/*.c")
+# Collect all Standard Peripheral Driver source files
+file(GLOB SPL_SOURCES
+     "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_StdPeriph_Driver/src/*.c")
 
-# Filter out template files
-list(
-    FILTER
-    HAL_SOURCES
-    EXCLUDE
-    REGEX
-    ".*_template\\.c$")
+# Add system_stm32f4xx.c from SPL
+target_sources(
+    STM32F4xx_StdPeriph_Driver
+    PRIVATE
+        ${SPL_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_StdPeriph_Driver/src/system_stm32f4xx.c
+)
 
-# Add HAL sources to library
-target_sources(STM32_HAL_Drivers PRIVATE ${HAL_SOURCES})
-
-# Add CMSIS system file from local Core (board-specific)
-target_sources(STM32_HAL_Drivers
-               PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/system_stm32f4xx.c)
-
-# Set include directories for HAL library
+# Set include directories for SPL library
 target_include_directories(
-    STM32_HAL_Drivers
-    PUBLIC ${STM32_HAL_DIR}/Inc
-           ${STM32_HAL_DIR}/Inc/Legacy
+    STM32F4xx_StdPeriph_Driver
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_StdPeriph_Driver/inc
            ${CMSIS_DEVICE_DIR}/Include
            ${CMSIS_CORE_DIR}/Include
            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc)
 
-# Add HAL configuration definitions
-target_compile_definitions(STM32_HAL_Drivers PUBLIC USE_HAL_DRIVER STM32F407xx
-                                                    $<$<CONFIG:Debug>:DEBUG>)
+# Add SPL configuration definitions
+target_compile_definitions(
+    STM32F4xx_StdPeriph_Driver PUBLIC USE_STDPERIPH_DRIVER STM32F407xx
+                                      $<$<CONFIG:Debug>:DEBUG>)
+
+message(STATUS "✅ STM32F4xx Standard Peripheral Driver library configured")
+
+message(STATUS "✅ STM32F4xx Standard Peripheral Driver library configured")
 
 # ==============================================================================#
 # Create main board support package library
@@ -92,35 +92,62 @@ target_sources(
     PRIVATE # Core application (main is excluded, provided by user application)
             # ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/main.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/stm32f4xx_it.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/stm32f4xx_hal_msp.c
             # System support
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sysmem.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/syscalls.c
-            # Board-specific drivers
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ad7606_driver.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/fpga_io_driver.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/fpga_led_driver.c
-            # W5200 Ethernet driver
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/w5200_driver.c
-            # TLV protocol for network communication
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tlv_protocol.c
+            # NSD Driver files - ALL files included for SPL-only build
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AD57x4.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AD7606.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ADC.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AI.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/command.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/DIDO.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/eIfd.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/GPIO.C
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/limit.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/M25P32.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/mode.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nandflash_sram.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/net.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical_fiber.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/para.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/pub.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ref.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/syn.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/temperature.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USART_T.C  # Excluded
+            # - conflicts with USARTx.C
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/WatchDog.c
             # Startup file (assembly)
             ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s)
+
+# Force .C files to be compiled as C language (not C++)
+set_source_files_properties(
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/GPIO.C
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C PROPERTIES LANGUAGE C)
 
 # Add include paths - PUBLIC so consumers inherit them
 target_include_directories(
     ${CMAKE_PROJECT_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_StdPeriph_Driver/inc>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../software/yeet_application/sfc_embedded/include>
         $<INSTALL_INTERFACE:include>)
 
-# Add project symbols (macros) - PUBLIC so consumers inherit them
-target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_HAL_DRIVER
-                                                        STM32F407xx)
+# Add project symbols (macros) - PUBLIC so consumers inherit them (SPL ONLY)
+target_compile_definitions(
+    ${CMAKE_PROJECT_NAME} PUBLIC USE_STDPERIPH_DRIVER STM32F407xx
+                                 $<$<CONFIG:Debug>:DEBUG>)
 
-# Link the HAL library
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC STM32_HAL_Drivers)
+# Link the Standard Peripheral Driver library (SPL ONLY)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC STM32F4xx_StdPeriph_Driver)
 
 # Add the map file to the list of files to be removed with 'clean' target
 set_target_properties(
