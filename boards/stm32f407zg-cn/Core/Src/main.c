@@ -21,8 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "TIM.h"
 #include "para.h"  // NSD_Driver initialization functions
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +46,10 @@
 // LED pointer for testing (FPGA LED at Bank4 address)
 volatile uint16_t* led = (volatile uint16_t*)0x6C00000E;
 
+volatile static uint32_t _counter_200us = 0;
+volatile static uint32_t _counter_1ms = 0;
+volatile static uint32_t _counter_10ms = 0;
+
 /**
  * @brief  200us periodic task - ADC sampling
  * @note   Called from TIM3 ISR at 5 kHz rate (every 200 microseconds)
@@ -53,6 +57,16 @@ volatile uint16_t* led = (volatile uint16_t*)0x6C00000E;
  */
 void task_200us(void)
 {
+    static uint16_t counter = 0;
+    _counter_200us++;
+
+    /* Blink LED0 at 5 Hz (toggle every 100ms = 500 cycles @ 200µs) */
+    counter++;
+    if (counter >= 500) {  // 500 × 200µs = 100ms
+        *led ^= 0x0001;    // Toggle LED0 (bit 0)
+        counter = 0;
+    }
+
     /* ADC read/start is already called in AD() by Init_Hardware() */
     /* Add your 200us task code here */
 }
@@ -61,18 +75,40 @@ void task_200us(void)
  * @brief  1ms periodic task - Fast control loop
  * @note   Called from TIM4 ISR at 1 kHz rate (every 1 millisecond)
  */
-void task_1ms(void) { /* Add your 1ms control code here */ }
+void task_1ms(void)
+{
+    static uint16_t counter = 0;
+    _counter_1ms++;
+
+    /* Blink LED1 at 2 Hz (toggle every 250ms = 250 cycles @ 1ms) */
+    counter++;
+    if (counter >= 250) {  // 250 × 1ms = 250ms
+        *led ^= 0x0002;    // Toggle LED1 (bit 1)
+        counter = 0;
+    }
+
+    /* Add your 1ms control code here */
+}
 
 /**
  * @brief  10ms periodic task - Slow monitoring
  * @note   Called from TIM2 ISR at 100 Hz rate (every 10 milliseconds)
  */
-void task_10ms(void) { /* Add your 10ms monitoring code here */ }
+void task_10ms(void)
+{
+    static uint16_t counter = 0;
+    _counter_10ms++;
 
-/**
- * @brief  The application entry point.
- * @retval int
- */
+    /* Blink LED2 at 1 Hz (toggle every 500ms = 50 cycles @ 10ms) */
+    counter++;
+    if (counter >= 50) {  // 50 × 10ms = 500ms
+        *led ^= 0x0004;   // Toggle LED2 (bit 2)
+        counter = 0;
+    }
+
+    /* Add your 10ms monitoring code here */
+}
+
 int main(void)
 {
     /* USER CODE BEGIN 1 */
@@ -95,11 +131,13 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        // Simple LED test - toggle LED
-        *led = 0x0007;                              // Turn on LED0-2
-        for (volatile int i = 0; i < 100000; i++);  // Simple delay
-        *led = 0x0000;                              // Turn off all LEDs
-        for (volatile int i = 0; i < 100000; i++);  // Simple delay
+        // LEDs are now blinking in the timer tasks
+        // LED0: 5 Hz blink (from task_200us)
+        // LED1: 2 Hz blink (from task_1ms)
+        // LED2: 1 Hz blink (from task_10ms)
+
+        // Main loop can do background tasks here
+        __NOP();
     }
     /* USER CODE END 3 */
 }

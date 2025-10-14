@@ -3,6 +3,7 @@
 // TIM2: 10000us task (100 Hz) - Slow monitoring
 
 #include "AI.h"
+#include "TIM.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_tim.h"
 
@@ -103,6 +104,9 @@ static void TIM3_Config(void)
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
+    /* Enable debug mode - timer continues during debug halt */
+    DBGMCU_Config(DBGMCU_TIM3_STOP, DISABLE);
+
     /* Enable TIM3 */
     TIM_Cmd(TIM3, ENABLE);
 }
@@ -150,8 +154,8 @@ static void TIM4_Config(void)
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
-    /* Enable debug mode - timer continues in debug */
-    DBGMCU_APB1PeriphConfig(DBGMCU_TIM4_STOP, ENABLE);
+    /* Enable debug mode - timer continues during debug halt */
+    DBGMCU_APB1PeriphConfig(DBGMCU_TIM4_STOP, DISABLE);
 
     /* Enable TIM4 */
     TIM_Cmd(TIM4, ENABLE);
@@ -199,6 +203,9 @@ static void TIM2_Config(void)
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
+
+    /* Enable debug mode - timer continues during debug halt */
+    DBGMCU_Config(DBGMCU_TIM2_STOP, DISABLE);
 
     /* Enable TIM2 */
     TIM_Cmd(TIM2, ENABLE);
