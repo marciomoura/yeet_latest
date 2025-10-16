@@ -117,6 +117,7 @@
         "USARTx_1.C": "cpp",
         "USART_T.C": "cpp",
         "GPIO_improved.C": "cpp",
-        "tasks.C": "cpp"
+        "tasks.C": "cpp",
+        "stm32f4xx.h": "c"
     }
 }
