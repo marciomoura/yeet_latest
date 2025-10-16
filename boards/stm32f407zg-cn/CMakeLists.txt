@@ -72,18 +72,16 @@ target_include_directories(
            ${CMSIS_CORE_DIR}/Include
            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc)
 
-# Add SPL configuration definitions
-# Note: STM32F407xx must be defined BEFORE including CMSIS headers
-# The device header (stm32f407xx.h) defines __FPU_PRESENT=1 automatically
+# Add SPL configuration definitions Note: STM32F407xx must be defined BEFORE
+# including CMSIS headers The device header (stm32f407xx.h) defines
+# __FPU_PRESENT=1 automatically
 target_compile_definitions(
-    STM32F4xx_StdPeriph_Driver 
-    PUBLIC 
-        USE_STDPERIPH_DRIVER 
-        STM32F407xx
-        ARM_MATH_CM4          # Enable ARM Cortex-M4 math functions
-        __FPU_PRESENT=1       # Explicitly define FPU present (redundant but safe)
-        $<$<CONFIG:Debug>:DEBUG>
-)
+    STM32F4xx_StdPeriph_Driver
+    PUBLIC USE_STDPERIPH_DRIVER
+           STM32F407xx
+           ARM_MATH_CM4 # Enable ARM Cortex-M4 math functions
+           __FPU_PRESENT=1 # Explicitly define FPU present (redundant but safe)
+           $<$<CONFIG:Debug>:DEBUG>)
 
 message(STATUS "✅ STM32F4xx Standard Peripheral Driver library configured")
 
@@ -103,26 +101,36 @@ target_sources(
             # System support
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sysmem.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/syscalls.c
-            # NSD Driver files - ALL files included for SPL-only build
+            # NSD Driver files - Hardware drivers only (application logic
+            # archived) See Core/NSD_Driver/archive/ for removed application
+            # control files
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AD57x4.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AD7606.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ADC.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AI.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/command.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/command.c  # Archived
+            # - application protocol
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/DIDO.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/eIfd.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/eIfd.c  # Archived -
+            # PID control
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/GPIO.C
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/limit.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/limit.c  # Archived -
+            # app-specific limits
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/M25P32.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/mode.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/mode.c  # Archived -
+            # control modes
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nandflash_sram.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/net.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical_fiber.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/net.c  # Archived -
+            # app protocol
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical_fiber.c  #
+            # Archived ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical.c  #
+            # Archived - fiber protocol
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/para.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/pub.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ref.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/syn.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/pub.c  # Archived -
+            # global app vars ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ref.c
+            # # Archived - reference tracking
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/syn.c  # Archived -
+            # sync/firing control
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/temperature.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
             # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USART_T.C  # Excluded
@@ -151,14 +159,12 @@ target_include_directories(
 
 # Add project symbols (macros) - PUBLIC so consumers inherit them (SPL ONLY)
 target_compile_definitions(
-    ${CMAKE_PROJECT_NAME} 
-    PUBLIC 
-        USE_STDPERIPH_DRIVER 
-        STM32F407xx
-        ARM_MATH_CM4          # Enable ARM Cortex-M4 math functions
-        __FPU_PRESENT=1       # Explicitly define FPU present
-        $<$<CONFIG:Debug>:DEBUG>
-)
+    ${CMAKE_PROJECT_NAME}
+    PUBLIC USE_STDPERIPH_DRIVER
+           STM32F407xx
+           ARM_MATH_CM4 # Enable ARM Cortex-M4 math functions
+           __FPU_PRESENT=1 # Explicitly define FPU present
+           $<$<CONFIG:Debug>:DEBUG>)
 
 # Link the Standard Peripheral Driver library (SPL ONLY)
 target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC STM32F4xx_StdPeriph_Driver)
