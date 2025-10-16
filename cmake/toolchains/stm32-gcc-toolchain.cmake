@@ -81,8 +81,9 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 # CPU and FPU options for STM32F407
-set(CPU_FLAGS
-    "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -flto=auto")
+# Note: LTO flag will be added conditionally based on build type
+set(CPU_FLAGS_BASE
+    "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16")
 
 # Performance-optimized flags for Release builds -O3: Maximum speed optimization
 # (aggressive inlining, loop unrolling, vectorization) -flto: Link-Time
@@ -101,33 +102,68 @@ set(RELEASE_FLAGS_COMMON
 # (required for deterministic RT)
 set(RELEASE_FLAGS_CXX "-fno-exceptions -fno-rtti")
 
-# Debug-optimized flags -Og: Optimize for debugging (enables optimizations that
-# don't interfere with debugging) -g3: Maximum debug information (includes macro
-# definitions)
+# Debug-optimized flags -O0: No optimization (all symbols preserved for debugging)
+# -g3: Maximum debug information (includes macro definitions)
+# -fno-inline: Don't inline functions (easier to step through in debugger)
+# -fno-omit-frame-pointer: Keep frame pointer for better backtraces
 
 # Common debug flags for both C and C++
-set(DEBUG_FLAGS_COMMON "-Og -g3")
+set(DEBUG_FLAGS_COMMON "-O0 -g3 -fno-inline -fno-omit-frame-pointer")
 
-# C++-specific flags for Debug: -fno-exceptions -fno-rtti: Still remove C++
-# overhead even in debug
-set(DEBUG_FLAGS_CXX "-fno-exceptions -fno-rtti")
+# RelWithDebInfo flags -O2: Moderate optimization (good balance of speed and debuggability)
+# -g3: Maximum debug information
+# -fno-omit-frame-pointer: Keep frame pointer for better backtraces
+set(RELWITHDEBINFO_FLAGS_COMMON "-O2 -g3 -fno-omit-frame-pointer")
+set(RELWITHDEBINFO_FLAGS_CXX "-fno-exceptions -fno-rtti")
 
-# Apply flags based on build type
+# For Ninja Multi-Config generator, CMAKE_BUILD_TYPE may not be set during configuration
+# We need to use generator expressions instead
+# Set base flags without LTO (will be added per-configuration)
+set(CPU_FLAGS "${CPU_FLAGS_BASE}")
+
+# Set per-configuration flags using CMAKE_<LANG>_FLAGS_<CONFIG>
+# These will be appended to CMAKE_<LANG>_FLAGS_INIT based on the configuration at build time
+
+# Debug configuration: -O0 -g3 -fno-inline (no optimization, all symbols preserved)
+set(CMAKE_C_FLAGS_DEBUG_INIT "${DEBUG_FLAGS_COMMON}")
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "${DEBUG_FLAGS_COMMON} ${DEBUG_FLAGS_CXX}")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG_INIT "")
+
+# RelWithDebInfo configuration: -O2 -g3 (moderate optimization with debug info)
+set(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "${RELWITHDEBINFO_FLAGS_COMMON}")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "${RELWITHDEBINFO_FLAGS_COMMON} ${RELWITHDEBINFO_FLAGS_CXX}")
+set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT "")
+
+# Release configuration: -O3 -flto (maximum optimization)
+set(CMAKE_C_FLAGS_RELEASE_INIT "${RELEASE_FLAGS_COMMON} -flto=auto")
+set(CMAKE_CXX_FLAGS_RELEASE_INIT "${RELEASE_FLAGS_COMMON} ${RELEASE_FLAGS_CXX} -flto=auto")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT "-flto=auto")
+
+# MinSizeRel configuration: -Os (optimize for size)
+set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Os -g -flto=auto -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Os -g -flto=auto -ffunction-sections -fdata-sections ${RELEASE_FLAGS_CXX}")
+set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL_INIT "-flto=auto")
+
+# Determine build type for status message
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(EMBEDDED_FLAGS_COMMON "${DEBUG_FLAGS_COMMON}")
-    set(EMBEDDED_FLAGS_CXX "${DEBUG_FLAGS_CXX}")
-    message(STATUS "ARM Toolchain: Debug build with -Og -g3 🐛")
+    message(STATUS "ARM Toolchain: Debug build with -O0 -g3 (no optimizations) 🐛")
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    message(STATUS "ARM Toolchain: RelWithDebInfo build with -O2 -g3 (debuggable) 🔧")
+elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    message(STATUS "ARM Toolchain: MinSizeRel build with -Os -flto (small size) 📦")
 else()
-    set(EMBEDDED_FLAGS_COMMON "${RELEASE_FLAGS_COMMON}")
-    set(EMBEDDED_FLAGS_CXX "${RELEASE_FLAGS_CXX}")
     message(STATUS "ARM Toolchain: Release build with -O3 -flto 🚀")
 endif()
 
 # Combine all flags - C gets common flags only, C++ gets common + C++-specific
-# flags
-set(CMAKE_C_FLAGS_INIT "${CPU_FLAGS} ${EMBEDDED_FLAGS_COMMON} -Wall")
+# flags Base flags that apply to all configurations
+set(CMAKE_C_FLAGS_INIT "${CPU_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS_INIT
-    "${CPU_FLAGS} ${EMBEDDED_FLAGS_COMMON} ${EMBEDDED_FLAGS_CXX} -fno-use-cxa-atexit -fno-threadsafe-statics"
+    "${CPU_FLAGS} -fno-exceptions -fno-rtti -fno-use-cxa-atexit -fno-threadsafe-statics -Wall"
 )
 set(CMAKE_ASM_FLAGS_INIT "${CPU_FLAGS} -x assembler-with-cpp -MMD -MP")
 

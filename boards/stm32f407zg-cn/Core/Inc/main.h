@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.h
+ * @brief          : Header for main.c file.
+ *                   This file contains the common defines of the application.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_hal.h"
+#include "stm32f4xx.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -57,13 +57,13 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define W5200_CS1_Pin GPIO_PIN_11
-#define W5200_CS1_GPIO_Port GPIOA
-#define W5200_RST1_Pin GPIO_PIN_12
+#define W5200_CS1_Pin        GPIO_PIN_11
+#define W5200_CS1_GPIO_Port  GPIOA
+#define W5200_RST1_Pin       GPIO_PIN_12
 #define W5200_RST1_GPIO_Port GPIOA
-#define W5200_CS2_Pin GPIO_PIN_3
-#define W5200_CS2_GPIO_Port GPIOB
-#define W5200_RST2_Pin GPIO_PIN_4
+#define W5200_CS2_Pin        GPIO_PIN_3
+#define W5200_CS2_GPIO_Port  GPIOB
+#define W5200_RST2_Pin       GPIO_PIN_4
 #define W5200_RST2_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
