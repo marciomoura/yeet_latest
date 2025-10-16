@@ -44,6 +44,40 @@ uint32_t get_1ms_counter(void);
  */
 uint32_t get_10ms_counter(void);
 
+/**
+ * @brief  Get system clock configuration details
+ * @note   Call in debugger to verify SYSCLK is 168MHz (not 16MHz)
+ *         Set breakpoint inside function to inspect clock frequencies
+ */
+void TIM_Print_Clock_Config(void);
+
+/**
+ * @brief  Get ISR execution timing statistics
+ * @param  timer_num: 3 for TIM3, 4 for TIM4, 2 for TIM2
+ * @param  current_us: Pointer to store current execution time in microseconds
+ * @param  max_us: Pointer to store maximum execution time in microseconds
+ * @note   Use to verify ISR execution stays within period budget:
+ *         - TIM3 (200us period): ISR should be < 200us
+ *         - TIM4 (1ms period): ISR should be < 1000us
+ *         - TIM2 (10ms period): ISR should be < 10000us
+ */
+void TIM_Get_ISR_Timing(uint8_t timer_num, float *current_us, float *max_us);
+
+/**
+ * @brief  Reset ISR timing statistics (max values)
+ */
+void TIM_Reset_ISR_Timing(void);
+
+/**
+ * @brief  Verify timer preemption is working correctly
+ * @retval 1 if preemption verified, 0 if failed
+ * @note   Checks that timer execution ratios match expected frequencies:
+ *         - TIM3:TIM4 should be ~5:1 (5kHz : 1kHz)
+ *         - TIM3:TIM2 should be ~50:1 (5kHz : 100Hz)
+ *         Call after system has been running for a few seconds
+ */
+uint8_t TIM_Verify_Preemption(void);
+
 /* Exported task functions - to be implemented by user -----------------------*/
 
 /**

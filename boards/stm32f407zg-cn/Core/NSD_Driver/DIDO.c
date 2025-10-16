@@ -36,9 +36,10 @@ void Running_Signal(void)
  ************************************************************************/
 void SCR_Check(void)
 {
-    if ((DO_Lock_Flag == 0 && Vabc > 0.1f) &&  // 2018.3.12.
-        //		((Pulse_Enabled_Flag && Low_F_Flag) || Over_Temperature_Flag || Optical_Comm_Err_Flag ||
-        //Online_Comm_Err_Flag) )//2019.1.16., ��ͣ����״̬���
+    if ((DO_Lock_Flag == 0 &&
+            Vabc > 0.1f) &&  // 2018.3.12.
+                             //		((Pulse_Enabled_Flag && Low_F_Flag) || Over_Temperature_Flag ||
+                             //Optical_Comm_Err_Flag || Online_Comm_Err_Flag) )//2019.1.16., ��ͣ����״̬���
         ((Fuse_Flag || (Pulse_Enabled_Flag && Low_F_Flag) || Over_Temperature_Flag || Optical_Comm_Err_Flag ||
              Online_Comm_Err_Flag) ||
             Pulse_Power_Flag))  // 2019.9.3., �������ŵ�Դ���ϱ�־
@@ -86,20 +87,20 @@ void DO_Lock_Check(void)
  ************************************************************************/
 void Low_F_Trigger(void)
 {
-    if (Low_F_Flag) {
-        if (++Low_F_Trig_Delay >= 40) {
-            Low_F_Trig_Delay = 0;
-            if (Pulse_Low_F_Flag) {
-                Optical_Tx_Flag = 1;
-                if (Pulse_Enabled_Flag == 0) {
-                    Set_Alpha_Delay();  // ʹ�õ�ǰ���ƽ�
-                }
-            }
-        }
-    }
-    else {
-        Low_F_Trig_Delay = 0;
-    }
+    // if (Low_F_Flag) {
+    //     if (++Low_F_Trig_Delay >= 40) {
+    //         Low_F_Trig_Delay = 0;
+    //         if (Pulse_Low_F_Flag) {
+    //             Optical_Tx_Flag = 1;
+    //             if (Pulse_Enabled_Flag == 0) {
+    //                 Set_Alpha_Delay();  // ʹ�õ�ǰ���ƽ�
+    //             }
+    //         }
+    //     }
+    // }
+    // else {
+    //     Low_F_Trig_Delay = 0;
+    // }
 }
 
 /************************************************************************

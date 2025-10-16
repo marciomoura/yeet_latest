@@ -73,9 +73,17 @@ target_include_directories(
            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc)
 
 # Add SPL configuration definitions
+# Note: STM32F407xx must be defined BEFORE including CMSIS headers
+# The device header (stm32f407xx.h) defines __FPU_PRESENT=1 automatically
 target_compile_definitions(
-    STM32F4xx_StdPeriph_Driver PUBLIC USE_STDPERIPH_DRIVER STM32F407xx
-                                      $<$<CONFIG:Debug>:DEBUG>)
+    STM32F4xx_StdPeriph_Driver 
+    PUBLIC 
+        USE_STDPERIPH_DRIVER 
+        STM32F407xx
+        ARM_MATH_CM4          # Enable ARM Cortex-M4 math functions
+        __FPU_PRESENT=1       # Explicitly define FPU present (redundant but safe)
+        $<$<CONFIG:Debug>:DEBUG>
+)
 
 message(STATUS "✅ STM32F4xx Standard Peripheral Driver library configured")
 
@@ -143,8 +151,14 @@ target_include_directories(
 
 # Add project symbols (macros) - PUBLIC so consumers inherit them (SPL ONLY)
 target_compile_definitions(
-    ${CMAKE_PROJECT_NAME} PUBLIC USE_STDPERIPH_DRIVER STM32F407xx
-                                 $<$<CONFIG:Debug>:DEBUG>)
+    ${CMAKE_PROJECT_NAME} 
+    PUBLIC 
+        USE_STDPERIPH_DRIVER 
+        STM32F407xx
+        ARM_MATH_CM4          # Enable ARM Cortex-M4 math functions
+        __FPU_PRESENT=1       # Explicitly define FPU present
+        $<$<CONFIG:Debug>:DEBUG>
+)
 
 # Link the Standard Peripheral Driver library (SPL ONLY)
 target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC STM32F4xx_StdPeriph_Driver)

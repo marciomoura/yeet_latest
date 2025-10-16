@@ -21,6 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+
 #include "TIM.h"
 #include "para.h"  // NSD_Driver initialization functions
 /* USER CODE END Includes */
@@ -63,7 +65,7 @@ void task_200us(void)
     /* Blink LED0 at 5 Hz (toggle every 100ms = 500 cycles @ 200µs) */
     counter++;
     if (counter >= 500) {  // 500 × 200µs = 100ms
-        *led ^= 0x0001;    // Toggle LED0 (bit 0)
+        *led ^= 0x0001;    // Toggle only LED0 (bit 0)
         counter = 0;
     }
 
@@ -83,7 +85,7 @@ void task_1ms(void)
     /* Blink LED1 at 2 Hz (toggle every 250ms = 250 cycles @ 1ms) */
     counter++;
     if (counter >= 250) {  // 250 × 1ms = 250ms
-        *led ^= 0x0002;    // Toggle LED1 (bit 1)
+        *led ^= 0x0002;    // Toggle only LED1 (bit 1)
         counter = 0;
     }
 
@@ -102,12 +104,19 @@ void task_10ms(void)
     /* Blink LED2 at 1 Hz (toggle every 500ms = 50 cycles @ 10ms) */
     counter++;
     if (counter >= 50) {  // 50 × 10ms = 500ms
-        *led ^= 0x0004;   // Toggle LED2 (bit 2)
+        *led ^= 0x0004;   // Toggle only LED2 (bit 2)
         counter = 0;
     }
 
     /* Add your 10ms monitoring code here */
 }
+
+static float current_us_3 = 0;
+static float current_us_4 = 0;
+static float current_us_5 = 0;
+static float max_us_3 = 0;
+static float max_us_4 = 0;
+static float max_us_5 = 0;
 
 int main(void)
 {
@@ -119,11 +128,12 @@ int main(void)
     Init_Hardware();
 
     /* Initialize all data structures */
-    Init_Data();
+    // Init_Data();
 
     /* USER CODE BEGIN 2 */
 
     /* USER CODE END 2 */
+    TIM_Print_Clock_Config();
 
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
@@ -136,8 +146,25 @@ int main(void)
         // LED1: 2 Hz blink (from task_1ms)
         // LED2: 1 Hz blink (from task_10ms)
 
-        // Main loop can do background tasks here
-        __NOP();
+        // Task 0 (200us task)
+        TIM_Get_ISR_Timing(3, &current_us_3, &max_us_3);
+
+        // Task 1 (1ms task)
+        TIM_Get_ISR_Timing(4, &current_us_4, &max_us_4);
+
+        // Task 2 (10ms task)
+        TIM_Get_ISR_Timing(2, &current_us_5, &max_us_5);
+
+        printf(
+            "200us Task: Current=%.2f us, Max=%.2f us | 1ms Task: Current=%.2f us, Max=%.2f us | 10ms Task: "
+            "Current=%.2f us, Max=%.2f us\r\n",
+            current_us_3, max_us_3, current_us_4, max_us_4, current_us_5, max_us_5);
+
+        // Sleep for 2 seconds using 1ms counter
+        uint32_t start = _counter_1ms;
+        while ((_counter_1ms - start) < 2000) {
+            __NOP();
+        }
     }
     /* USER CODE END 3 */
 }

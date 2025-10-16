@@ -1,39 +1,42 @@
 #include "main.h"
 /*********************************************************************************************************
-** USART³õÊ¼»¯
+** USARTï¿½ï¿½Ê¼ï¿½ï¿½
 *********************************************************************************************************/
- /*
-  * @brief  
-  * @param  None
-  * @retval None
-  */
+/*
+ * @brief
+ * @param  None
+ * @retval None
+ */
 
-
- /* Private macro -------------------------------------------------------------*/
- /* Private variables ---------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
 
 /************************************************************************************************
-*´®¿ÚÇý¶¯Ê¹ÓÃËµÃ÷																				*
-*																								*
-*³õÊ¼»¯º¯Êý																						*
-*´®¿Ú1£ºInit_RS232_1(²¨ÌØÂÊ£¬·¢ËÍ×Ö½Ú£¬´¥·¢½ÓÊÕ±êÖ¾µÄ×Ö½ÚÊý)									*
-*´®¿Ú2£ºInit_RS232_2(²¨ÌØÂÊ£¬·¢ËÍ×Ö½Ú£¬´¥·¢½ÓÊÕ±êÖ¾µÄ×Ö½ÚÊý)									*
-*´®¿Ú3£ºInit_RS485(²¨ÌØÂÊ£¬·¢ËÍ×Ö½Ú£¬´¥·¢½ÓÊÕ±êÖ¾µÄ×Ö½ÚÊý)										*
-*²¨ÌØÂÊ²»µÃ´óÓÚ7500000£¬·¢ËÍ×Ö½Ú£¼512£¬½ÓÊÕÊý¾Ý<256¡£											*
-*																								*
-*½ÓÊÕº¯Êý																						*
-*´®¿Ú1£ºFlagStatus RS232_Rx_1(uint8_t* RxData)													*
-*´®¿Ú2£ºFlagStatus RS232_Rx_2(uint8_t* RxData)													*
-*´®¿Ú3£ºFlagStatus RS485_Rx(uint8_t* RxData)													*
-*½ÓÊÕ»º³åÖÐÊý¾Ý£¾´¥·¢ÊÂ¼þµÄ×Ö½ÚÔò·µ»Ø1£¬ RxDataÊÇÓÃ»§µÄ½ÓÊÕ»º³å¡£								*
-*																								*
-*´®¿Ú1£ºvoid RS232_1_Tx(void)																	*
-*´®¿Ú2£ºvoid RS232_2_Tx(void)																	*
-*´®¿Ú3£ºvoid RS485_Tx(void)																		*
-*Ö»Ð´È«¾Ö±äÁ¿RS232_1_Tx_Flag/RS232_2_Tx_Flag/RS485_Tx_Flag£¬ÓÃ»§ÖÃÎ»ºóÆô¶¯·¢ËÍ£¬Æô¶¯ºó×Ô¶¯ÇåÁã¡£*
-*Ö»¶ÁÈ«¾Ö±äÁ¿RS232_1_Tx_Enable_Flag/RS232_2_Tx_Enable_Flag/RS485_Tx_Enable_Flag£¬Æô¶¯·¢ËÍºó     *
-*×Ô¶¯ÇåÁã£¬·¢ËÍÍê³ÉºóÖÃÎ»¡£Îª0Ê±½ûÖ¹ÐÞ¸Ä·¢ËÍÊý¾ÝÇø¡£Usart1_Tx_Data/Usart2_Tx_DataÊÇ·¢ËÍÊý¾ÝÇø¡£	*				
-************************************************************************************************/
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½Ëµï¿½ï¿½
+ **
+ *																								*
+ *ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ ** ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½Init_RS232_1(ï¿½ï¿½ï¿½ï¿½ï¿½Ê£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½Ú£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ±ï¿½Ö¾ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½) * ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½Init_RS232_2(ï¿½ï¿½ï¿½ï¿½ï¿½Ê£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½Ú£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ±ï¿½Ö¾ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½)
+ ** ï¿½ï¿½ï¿½ï¿½3ï¿½ï¿½Init_RS485(ï¿½ï¿½ï¿½ï¿½ï¿½Ê£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½Ú£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ±ï¿½Ö¾ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½) * ï¿½ï¿½ï¿½ï¿½ï¿½Ê²ï¿½ï¿½Ã´ï¿½ï¿½ï¿½7500000ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½Ú£ï¿½512ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½<256ï¿½ï¿½
+ **
+ *																								*
+ *ï¿½ï¿½ï¿½Õºï¿½ï¿½ï¿½
+ ** ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½FlagStatus RS232_Rx_1(uint8_t* RxData)
+ ** ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½FlagStatus RS232_Rx_2(uint8_t* RxData)
+ ** ï¿½ï¿½ï¿½ï¿½3ï¿½ï¿½FlagStatus RS485_Rx(uint8_t* RxData)
+ **
+ *ï¿½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ò·µ»ï¿½1ï¿½ï¿½
+ *RxDataï¿½ï¿½ï¿½Ã»ï¿½ï¿½Ä½ï¿½ï¿½Õ»ï¿½ï¿½å¡£
+ **
+ *																								*
+ *ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½void RS232_1_Tx(void)
+ ** ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½void RS232_2_Tx(void)
+ ** ï¿½ï¿½ï¿½ï¿½3ï¿½ï¿½void RS485_Tx(void)
+ ** Ö»Ð´È«ï¿½Ö±ï¿½ï¿½ï¿½RS232_1_Tx_Flag/RS232_2_Tx_Flag/RS485_Tx_Flagï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ã¡£*
+ *Ö»ï¿½ï¿½È«ï¿½Ö±ï¿½ï¿½ï¿½RS232_1_Tx_Enable_Flag/RS232_2_Tx_Enable_Flag/RS485_Tx_Enable_Flagï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íºï¿½     *
+ *ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ã£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Éºï¿½ï¿½ï¿½Î»ï¿½ï¿½Îª0Ê±ï¿½ï¿½Ö¹ï¿½Þ¸Ä·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Usart1_Tx_Data/Usart2_Tx_Dataï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ **
+ ************************************************************************************************/
 #include <stm32f4xx.h>
 
 #define Tx_Buf_Size 512
@@ -45,745 +48,750 @@ uint8_t Usart2_Tx_Data[Rx_Buf_Size];
 uint8_t Usart2_Rx_Data[Rx_Buf_Size];
 uint8_t Usart3_Tx_Data[Rx_Buf_Size];
 uint8_t Usart3_Rx_Data[Rx_Buf_Size];
-uint16_t RS232_1_Rx_Count,RS232_2_Rx_Count;
+uint16_t RS232_1_Rx_Count, RS232_2_Rx_Count;
 uint16_t RS485_Rx_Count;
 uint32_t RS232_1_Tx_Num;
 uint32_t RS232_1_Rx_Threshold;
 uint32_t RS485_Tx_Num;
 uint32_t RS485_Rx_Threshold;
-uint8_t RS232_1_Tx_Flag,RS232_2_Tx_Flag;
-uint8_t RS232_1_Tx_Enable_Flag,RS232_2_Tx_Enable_Flag;
+uint8_t RS232_1_Tx_Flag, RS232_2_Tx_Flag;
+uint8_t RS232_1_Tx_Enable_Flag, RS232_2_Tx_Enable_Flag;
 uint8_t RS485_Tx_Flag;
 uint8_t RS485_Tx_Enable_Flag;
 
-
 /************************************************************************************
-*RS232_1_Init_Para																	*
-*³õÊ¼»¯COM1Êý¾ÝÇøºÍÏà¹Ø²ÎÊý¡£														*
-************************************************************************************/
+ *RS232_1_Init_Para
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½COM1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø²ï¿½ï¿½ï¿½ï¿½ï¿½
+ **
+ ************************************************************************************/
 void RS232_1_Init_Para(void)
 {
-	RS232_1_Rx_Count=0;
-	RS232_1_Tx_Flag=0;
-	RS232_1_Tx_Enable_Flag=1;
+    RS232_1_Rx_Count = 0;
+    RS232_1_Tx_Flag = 0;
+    RS232_1_Tx_Enable_Flag = 1;
 }
 
 /************************************************************************************
-*RS232_2_Init_Para																	*
-*³õÊ¼»¯COM2Êý¾ÝÇøºÍÏà¹Ø²ÎÊý¡£														*
-************************************************************************************/
+ *RS232_2_Init_Para
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½COM2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø²ï¿½ï¿½ï¿½ï¿½ï¿½
+ **
+ ************************************************************************************/
 void RS232_2_Init_Para(void)
 {
-	RS232_2_Rx_Count=0;
-	RS232_2_Tx_Flag=0;
-	RS232_2_Tx_Enable_Flag=1;
-	RS485_Rx_Count=0;
+    RS232_2_Rx_Count = 0;
+    RS232_2_Tx_Flag = 0;
+    RS232_2_Tx_Enable_Flag = 1;
+    RS485_Rx_Count = 0;
 }
 
 /************************************************************************************
-*RS485_Init_Para																	*
-*³õÊ¼»¯COM3Êý¾ÝÇøºÍÏà¹Ø²ÎÊý¡£														*
-************************************************************************************/
+ *RS485_Init_Para
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½COM3ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø²ï¿½ï¿½ï¿½ï¿½ï¿½
+ **
+ ************************************************************************************/
 void RS485_Init_Para(uint32_t Tx_Num, uint32_t Rx_Threshold)
 {
-	uint32_t i;
+    uint32_t i;
 
-	for (i=0;i<Tx_Buf_Size;i++)
-	{
-		Usart3_Tx_Data[i]=(uint8_t)(i & 0xff);
-	}
-	for (i=0;i<Rx_Buf_Size;i++)
-	{
-		Usart3_Rx_Data[i]=0;
-	}
-	RS485_Rx_Count=0;//Êý¾ÝÇøÒÑ´¦ÀíÊý¾ÝµÄÖ¸Õë
-	RS485_Tx_Flag=0;
-	RS485_Tx_Enable_Flag=1;
-	RS485_Tx_Num=Tx_Num;
-	RS485_Rx_Threshold=Rx_Threshold;
+    for (i = 0; i < Tx_Buf_Size; i++) {
+        Usart3_Tx_Data[i] = (uint8_t)(i & 0xff);
+    }
+    for (i = 0; i < Rx_Buf_Size; i++) {
+        Usart3_Rx_Data[i] = 0;
+    }
+    RS485_Rx_Count = 0;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ýµï¿½Ö¸ï¿½ï¿½
+    RS485_Tx_Flag = 0;
+    RS485_Tx_Enable_Flag = 1;
+    RS485_Tx_Num = Tx_Num;
+    RS485_Rx_Threshold = Rx_Threshold;
 }
 
 /************************************************************************************
-*RS232_1_Init_Pin																		*
-*³õÊ¼»¯RS232Ïà¹ØÒý½Å¡£																*
-*USART1, Tx-PA9, Rx-PA10¡£ 															*
-************************************************************************************/
+ *RS232_1_Init_Pin
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½RS232ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¡ï¿½
+ ** USART1, Tx-PA9, Rx-PA10ï¿½ï¿½
+ **
+ ************************************************************************************/
 void RS232_1_Init_Pin()
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);//ÆôÓÃUSART1Ê±ÖÓ
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//ÆôÓÃUSART1µÄRx¡¢TxÒÔ¼°USART2µÄTxÒý½ÅÊ±ÖÓ
-	
-  	//USART1:Tx
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);//PA9Ö¸¶¨¸øUSART1
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-  	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	
-	//USART1:Rx
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1);//PA10Ö¸¶¨¸øUSART1
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-  	GPIO_Init(GPIOA, &GPIO_InitStructure);	
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);  // ï¿½ï¿½ï¿½ï¿½USART1Ê±ï¿½ï¿½
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);   // ï¿½ï¿½ï¿½ï¿½USART1ï¿½ï¿½Rxï¿½ï¿½Txï¿½Ô¼ï¿½USART2ï¿½ï¿½Txï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
+
+    // USART1:Tx
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);  // PA9Ö¸ï¿½ï¿½ï¿½ï¿½USART1
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // USART1:Rx
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1);  // PA10Ö¸ï¿½ï¿½ï¿½ï¿½USART1
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
 }
 
 /************************************************************************************
-*RS232_2_Init_Pin																	*
-*³õÊ¼»¯RS232Ïà¹ØÒý½Å¡£																*
-*USART2, Tx-PB10, Rx-PB11¡£														*
-************************************************************************************/
+ *RS232_2_Init_Pin
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½RS232ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¡ï¿½
+ ** USART2, Tx-PB10, Rx-PB11ï¿½ï¿½
+ **
+ ************************************************************************************/
 void RS232_2_Init_Pin()
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);//ÆôÓÃUSART3Ê±ÖÓ
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);//ÆôÓÃUSART3µÄTx¡¢RxÒý½ÅÊ±ÖÓ
-  	
-  	//USART3:Tx
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource10, GPIO_AF_USART3);//PB10Ö¸¶¨¸øUSART3
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-  	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	//USART3:Rx
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_USART3);//PB11Ö¸¶¨¸øUSART3
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
-  	GPIO_Init(GPIOB, &GPIO_InitStructure);	
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);  // ï¿½ï¿½ï¿½ï¿½USART3Ê±ï¿½ï¿½
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);   // ï¿½ï¿½ï¿½ï¿½USART3ï¿½ï¿½Txï¿½ï¿½Rxï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
+
+    // USART3:Tx
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource10, GPIO_AF_USART3);  // PB10Ö¸ï¿½ï¿½ï¿½ï¿½USART3
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    // USART3:Rx
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_USART3);  // PB11Ö¸ï¿½ï¿½ï¿½ï¿½USART3
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 
 /************************************************************************************
-*RS485_Init_Pin																		*
-*³õÊ¼»¯RS485Ïà¹ØÒý½Å¡£																*
-*USART2, Tx-PD5, Rx-PD6¡£															*
-************************************************************************************/
+ *RS485_Init_Pin
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½RS485ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¡ï¿½
+ ** USART2, Tx-PD5, Rx-PD6ï¿½ï¿½
+ **
+ ************************************************************************************/
 void RS485_Init_Pin(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);//ÆôÓÃUSART2Ê±ÖÓ
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);//ÆôÓÃUSART2µÄTx¡¢RxÒý½ÅÊ±ÖÓ
-  	
-  	//USART2:Tx
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_USART2);//PD5Ö¸¶¨¸øUSART2
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-  	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	//USART2:Rx
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_USART2);//PD6Ö¸¶¨¸øUSART2
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-  	GPIO_Init(GPIOD, &GPIO_InitStructure);	
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);  // ï¿½ï¿½ï¿½ï¿½USART2Ê±ï¿½ï¿½
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);   // ï¿½ï¿½ï¿½ï¿½USART2ï¿½ï¿½Txï¿½ï¿½Rxï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
+
+    // USART2:Tx
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_USART2);  // PD5Ö¸ï¿½ï¿½ï¿½ï¿½USART2
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+    // USART2:Rx
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_USART2);  // PD6Ö¸ï¿½ï¿½ï¿½ï¿½USART2
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
 }
-				
+
 /************************************************************************************
-*RS232_1_Init_Port																	*
-*³õÊ¼»¯COM1£¬ÉèÖÃ²¨ÌØÂÊ¡£															*
-*************************************************************************************
-*BaudRate£º0~7,500,000																*
-*Parity: USART_Parity_No, USART_Parity_Even, USART_Parity_Odd						*
-*WORD_LENGTH: USART_WordLength_8b, USART_WordLength_9b								*
-*StopBits: USART_StopBits_1/USART_StopBits_0_5/USART_StopBits_2/USART_StopBits_1_5	*
-************************************************************************************/
-void RS232_1_Init_Port(uint32_t baudrate,uint16_t parity,uint16_t wordlength,uint16_t stopbits)
+ *RS232_1_Init_Port
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½COM1ï¿½ï¿½ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½ï¿½Ê¡ï¿½
+ **
+ *************************************************************************************
+ *BaudRateï¿½ï¿½0~7,500,000
+ ** Parity: USART_Parity_No, USART_Parity_Even, USART_Parity_Odd						*
+ *WORD_LENGTH: USART_WordLength_8b, USART_WordLength_9b								*
+ *StopBits: USART_StopBits_1/USART_StopBits_0_5/USART_StopBits_2/USART_StopBits_1_5	*
+ ************************************************************************************/
+void RS232_1_Init_Port(uint32_t baudrate, uint16_t parity, uint16_t wordlength, uint16_t stopbits)
 {
-	USART_InitTypeDef USART_InitStructure;
+    USART_InitTypeDef USART_InitStructure;
 
-	USART_InitStructure.USART_BaudRate = baudrate;
-	USART_InitStructure.USART_Parity = parity;
-	USART_InitStructure.USART_WordLength = wordlength;
-	USART_InitStructure.USART_StopBits = stopbits;
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;//½ûÓÃÓ²¼þÁ÷¿ØÖÆ
-	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-	USART_Init(USART1, &USART_InitStructure);
-	USART_Cmd(USART1,ENABLE);  //´ò¿ª´®¿Ú
+    USART_InitStructure.USART_BaudRate = baudrate;
+    USART_InitStructure.USART_Parity = parity;
+    USART_InitStructure.USART_WordLength = wordlength;
+    USART_InitStructure.USART_StopBits = stopbits;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;  // ï¿½ï¿½ï¿½ï¿½Ó²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_Init(USART1, &USART_InitStructure);
+    USART_Cmd(USART1, ENABLE);  // ï¿½ò¿ª´ï¿½ï¿½ï¿½
 }
 /************************************************************************************
-*RS232_2_Init_Port																	*
-*³õÊ¼»¯COM2£¬ÉèÖÃ²¨ÌØÂÊ¡£															*
-*************************************************************************************
-*BaudRate£º0~7,500,000																*
-*Parity: USART_Parity_No, USART_Parity_Even, USART_Parity_Odd						*
-*WORD_LENGTH: USART_WordLength_8b, USART_WordLength_9b								*
-*StopBits: USART_StopBits_1/USART_StopBits_0_5/USART_StopBits_2/USART_StopBits_1_5	*
-************************************************************************************/
-void RS232_2_Init_Port(uint32_t baudrate,uint16_t parity,uint16_t wordlength,uint16_t stopbits)
+ *RS232_2_Init_Port
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½COM2ï¿½ï¿½ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½ï¿½Ê¡ï¿½
+ **
+ *************************************************************************************
+ *BaudRateï¿½ï¿½0~7,500,000
+ ** Parity: USART_Parity_No, USART_Parity_Even, USART_Parity_Odd						*
+ *WORD_LENGTH: USART_WordLength_8b, USART_WordLength_9b								*
+ *StopBits: USART_StopBits_1/USART_StopBits_0_5/USART_StopBits_2/USART_StopBits_1_5	*
+ ************************************************************************************/
+void RS232_2_Init_Port(uint32_t baudrate, uint16_t parity, uint16_t wordlength, uint16_t stopbits)
 {
-	USART_InitTypeDef USART_InitStructure;
+    USART_InitTypeDef USART_InitStructure;
 
-	USART_InitStructure.USART_BaudRate = baudrate;
-	USART_InitStructure.USART_Parity = parity;
-	USART_InitStructure.USART_WordLength = wordlength;
-	USART_InitStructure.USART_StopBits = stopbits;
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;//½ûÓÃÓ²¼þÁ÷¿ØÖÆ
-	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-	USART_Init(USART3, &USART_InitStructure);
-	USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
-	USART_Cmd(USART3,ENABLE);  //´ò¿ª´®¿Ú
+    USART_InitStructure.USART_BaudRate = baudrate;
+    USART_InitStructure.USART_Parity = parity;
+    USART_InitStructure.USART_WordLength = wordlength;
+    USART_InitStructure.USART_StopBits = stopbits;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;  // ï¿½ï¿½ï¿½ï¿½Ó²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_Init(USART3, &USART_InitStructure);
+    USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
+    USART_Cmd(USART3, ENABLE);  // ï¿½ò¿ª´ï¿½ï¿½ï¿½
 }
 /************************************************************************************
-*RS485_Init_Port																	*
-*³õÊ¼»¯COM3£¬ÉèÖÃ²¨ÌØÂÊ¡£															*
-*************************************************************************************
-*BaudRate£º0~7,500,000																*
-*Parity: USART_Parity_No, USART_Parity_Even, USART_Parity_Odd						*
-*WORD_LENGTH: USART_WordLength_8b, USART_WordLength_9b								*
-*StopBits: USART_StopBits_1/USART_StopBits_0_5/USART_StopBits_2/USART_StopBits_1_5	*
-************************************************************************************/
+ *RS485_Init_Port
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½COM3ï¿½ï¿½ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½ï¿½Ê¡ï¿½
+ **
+ *************************************************************************************
+ *BaudRateï¿½ï¿½0~7,500,000
+ ** Parity: USART_Parity_No, USART_Parity_Even, USART_Parity_Odd						*
+ *WORD_LENGTH: USART_WordLength_8b, USART_WordLength_9b								*
+ *StopBits: USART_StopBits_1/USART_StopBits_0_5/USART_StopBits_2/USART_StopBits_1_5	*
+ ************************************************************************************/
 void RS485_Init_Port(uint32_t BaudRate)
 {
-	USART_InitTypeDef USART_InitStructure;
+    USART_InitTypeDef USART_InitStructure;
 
-	USART_InitStructure.USART_BaudRate = BaudRate;
-	USART_InitStructure.USART_Parity = USART_Parity_No;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-	USART_InitStructure.USART_StopBits = USART_StopBits_1;
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;//½ûÓÃÓ²¼þÁ÷¿ØÖÆ
-	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-	USART_Init(USART2, &USART_InitStructure);
-	USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
-	USART_Cmd(USART2,ENABLE);  //´ò¿ª´®¿Ú
+    USART_InitStructure.USART_BaudRate = BaudRate;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;  // ï¿½ï¿½ï¿½ï¿½Ó²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_Init(USART2, &USART_InitStructure);
+    USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
+    USART_Cmd(USART2, ENABLE);  // ï¿½ò¿ª´ï¿½ï¿½ï¿½
 }
 
 /************************************************************************************
-*RS232_1_Init_DMA																		*
-*³õÊ¼»¯´®¿Ú1£¨RS232£©µÄDMA·¢ËÍ¹¦ÄÜ¡£															*
-*USART1_Tx-DMA2_Stream7_Channel4													*
-************************************************************************************/
-void RS232_1_Init_DMA_Tx(void)	
+ *RS232_1_Init_DMA
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½RS232ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½Í¹ï¿½ï¿½Ü¡ï¿½
+ ** USART1_Tx-DMA2_Stream7_Channel4
+ **
+ ************************************************************************************/
+void RS232_1_Init_DMA_Tx(void)
 {
-	DMA_InitTypeDef  DMA_InitStruct;
-	
-	//DMA_DeInit(DMA2_Stream7);		//½ûÓÃÊý¾ÝÁ÷£¬½øÈëÉèÖÃ×´Ì¬
-	DMA_StructInit(&DMA_InitStruct);//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStruct.DMA_Channel=DMA_Channel_4;
-	DMA_InitStruct.DMA_PeripheralBaseAddr=(uint32_t)&USART1->DR;
-	DMA_InitStruct.DMA_Memory0BaseAddr=(uint32_t)Usart1_Tx_Data;
-	DMA_InitStruct.DMA_DIR=DMA_DIR_MemoryToPeripheral;//·¢ËÍÊÇÄÚ´æµ½ÍâÉè
-	DMA_InitStruct.DMA_BufferSize=512;
-	DMA_InitStruct.DMA_PeripheralInc=DMA_PeripheralInc_Disable;
-	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;//ÄÚ´æµØÖ·µÝÔö
-	DMA_InitStruct.DMA_PeripheralDataSize	=DMA_PeripheralDataSize_Byte;
-	DMA_InitStruct.DMA_MemoryDataSize=DMA_MemoryDataSize_Byte;
-	DMA_InitStruct.DMA_Mode=DMA_Mode_Normal;
-	DMA_InitStruct.DMA_Priority=DMA_Priority_High;
-	DMA_InitStruct.DMA_FIFOMode= DMA_FIFOMode_Disable;
-	DMA_InitStruct.DMA_FIFOThreshold= DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
-	
-	DMA_Init(DMA2_Stream7, &DMA_InitStruct);
-	//DMA_Cmd(DMA2_Stream7, ENABLE);	
+    DMA_InitTypeDef DMA_InitStruct;
+
+    // DMA_DeInit(DMA2_Stream7);		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+    DMA_StructInit(&DMA_InitStruct);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&USART1->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)Usart1_Tx_Data;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_MemoryToPeripheral;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´æµ½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_BufferSize = 512;
+    DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // ï¿½Ú´ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_InitStruct.DMA_FIFOMode = DMA_FIFOMode_Disable;
+    DMA_InitStruct.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
+
+    DMA_Init(DMA2_Stream7, &DMA_InitStruct);
+    // DMA_Cmd(DMA2_Stream7, ENABLE);
 }
 
 /************************************************************************************
-*RS232_2_Init_DMA															*
-*³õÊ¼»¯´®¿Ú2£¨RS232£©µÄDMA·¢ËÍ¹¦ÄÜ¡£											*
-*USART3_Tx-DMA1_Stream3_Channel4	                                       *
-************************************************************************************/
-void RS232_2_Init_DMA_Tx(void)	
+ *RS232_2_Init_DMA
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½RS232ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½Í¹ï¿½ï¿½Ü¡ï¿½
+ ** USART3_Tx-DMA1_Stream3_Channel4	                                       *
+ ************************************************************************************/
+void RS232_2_Init_DMA_Tx(void)
 {
-	DMA_InitTypeDef  DMA_InitStruct;
-	
-//	DMA_DeInit(DMA1_Stream3);		//½ûÓÃÊý¾ÝÁ÷£¬½øÈëÉèÖÃ×´Ì¬
-	DMA_StructInit(&DMA_InitStruct);//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStruct.DMA_Channel=DMA_Channel_4;
-	DMA_InitStruct.DMA_PeripheralBaseAddr=(uint32_t)&USART3->DR;
-	DMA_InitStruct.DMA_Memory0BaseAddr=(uint32_t)Usart2_Tx_Data;
-	DMA_InitStruct.DMA_DIR=DMA_DIR_MemoryToPeripheral;//·¢ËÍÊÇÄÚ´æµ½ÍâÉè
-	DMA_InitStruct.DMA_BufferSize=512;
-	DMA_InitStruct.DMA_PeripheralInc=DMA_PeripheralInc_Disable;
-	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;//ÄÚ´æµØÖ·µÝÔö
-	DMA_InitStruct.DMA_PeripheralDataSize	=DMA_PeripheralDataSize_Byte;
-	DMA_InitStruct.DMA_MemoryDataSize=DMA_MemoryDataSize_Byte;
-	DMA_InitStruct.DMA_Mode=DMA_Mode_Normal;
-	DMA_InitStruct.DMA_Priority=DMA_Priority_High;
-	DMA_InitStruct.DMA_FIFOMode= DMA_FIFOMode_Disable;
-	DMA_InitStruct.DMA_FIFOThreshold= DMA_FIFOThreshold_1QuarterFull;
- 	DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
+    DMA_InitTypeDef DMA_InitStruct;
 
-	DMA_Init(DMA1_Stream3, &DMA_InitStruct);
-	//DMA_Cmd(DMA1_Stream3, ENABLE);
+    //	DMA_DeInit(DMA1_Stream3);		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+    DMA_StructInit(&DMA_InitStruct);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&USART3->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)Usart2_Tx_Data;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_MemoryToPeripheral;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´æµ½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_BufferSize = 512;
+    DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // ï¿½Ú´ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_InitStruct.DMA_FIFOMode = DMA_FIFOMode_Disable;
+    DMA_InitStruct.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
+
+    DMA_Init(DMA1_Stream3, &DMA_InitStruct);
+    // DMA_Cmd(DMA1_Stream3, ENABLE);
 }
 
 /************************************************************************************
-*RS232_1_Init_DMA_Rx																	*
-*³õÊ¼»¯´®¿Ú1£¨RS232£©µÄDMA½ÓÊÕ¹¦ÄÜ¡£															*
-*USART1_Rx-DMA2_Stream5_Channel4													*
-************************************************************************************/
-void RS232_1_Init_DMA_Rx(void)	
+ *RS232_1_Init_DMA_Rx
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½RS232ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½Õ¹ï¿½ï¿½Ü¡ï¿½
+ ** USART1_Rx-DMA2_Stream5_Channel4
+ **
+ ************************************************************************************/
+void RS232_1_Init_DMA_Rx(void)
 {
-	DMA_InitTypeDef  DMA_InitStruct;
-	
-	DMA_DeInit(DMA2_Stream5);		//½ûÓÃÊý¾ÝÁ÷£¬½øÈëÉèÖÃ×´Ì¬
-	DMA_StructInit(&DMA_InitStruct);//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStruct.DMA_Channel=DMA_Channel_4;
-	DMA_InitStruct.DMA_PeripheralBaseAddr=(uint32_t)&USART1->DR;
-	DMA_InitStruct.DMA_Memory0BaseAddr=(uint32_t)Usart1_Rx_Data;
-	DMA_InitStruct.DMA_DIR=DMA_DIR_PeripheralToMemory;//½ÓÊÕÊÇÍâÉèµ½ÄÚ´æ	
-	DMA_InitStruct.DMA_BufferSize=Rx_Buf_Size;
-	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;//ÄÚ´æµØÖ·µÝÔö
-	DMA_InitStruct.DMA_Mode=DMA_Mode_Circular;//Ñ­»·Ñ°Ö·
-	DMA_InitStruct.DMA_Priority=DMA_Priority_High;
-	DMA_Init(DMA2_Stream5, &DMA_InitStruct);
-	DMA_Cmd(DMA2_Stream5, ENABLE);//ÆôÓÃDMAÊý¾ÝÁ÷
-	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
+    DMA_InitTypeDef DMA_InitStruct;
+
+    DMA_DeInit(DMA2_Stream5);         // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+    DMA_StructInit(&DMA_InitStruct);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&USART1->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)Usart1_Rx_Data;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralToMemory;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½èµ½ï¿½Ú´ï¿½
+    DMA_InitStruct.DMA_BufferSize = Rx_Buf_Size;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // ï¿½Ú´ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Circular;          // Ñ­ï¿½ï¿½Ñ°Ö·
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_Init(DMA2_Stream5, &DMA_InitStruct);
+    DMA_Cmd(DMA2_Stream5, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
 }
 /************************************************************************************
-*RS232_2_Init_DMA_Rx															*
-*³õÊ¼»¯´®¿Ú2£¨RS232£©µÄDMA½ÓÊÕ¹¦ÄÜ¡£												*
-*USART3_Rx-DMA1_Stream1_Channel4													*
-************************************************************************************/
-void RS232_2_Init_DMA_Rx(void)	
+ *RS232_2_Init_DMA_Rx
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½RS232ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½Õ¹ï¿½ï¿½Ü¡ï¿½ * USART3_Rx-DMA1_Stream1_Channel4
+ **
+ ************************************************************************************/
+void RS232_2_Init_DMA_Rx(void)
 {
-	DMA_InitTypeDef  DMA_InitStruct;
-	
-	DMA_DeInit(DMA1_Stream1);		//½ûÓÃÊý¾ÝÁ÷£¬½øÈëÉèÖÃ×´Ì¬
-	DMA_StructInit(&DMA_InitStruct);//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStruct.DMA_Channel=DMA_Channel_4;
-	DMA_InitStruct.DMA_PeripheralBaseAddr=(uint32_t)&USART3->DR;
-	DMA_InitStruct.DMA_Memory0BaseAddr=(uint32_t)Usart2_Rx_Data;
-	DMA_InitStruct.DMA_DIR=DMA_DIR_PeripheralToMemory;//½ÓÊÕÊÇÍâÉèµ½ÄÚ´æ	
-	DMA_InitStruct.DMA_BufferSize=Rx_Buf_Size;
-	DMA_InitStruct.DMA_Mode=DMA_Mode_Circular;//Ñ­»·Ñ°Ö·
-	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;//ÄÚ´æµØÖ·µÝÔö
-	DMA_InitStruct.DMA_Priority=DMA_Priority_High;
-	DMA_Init(DMA1_Stream1, &DMA_InitStruct);
-	DMA_Cmd(DMA1_Stream1, ENABLE);//ÆôÓÃDMAÊý¾ÝÁ÷
-	USART_DMACmd(USART3, USART_DMAReq_Rx, ENABLE);
+    DMA_InitTypeDef DMA_InitStruct;
+
+    DMA_DeInit(DMA1_Stream1);         // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+    DMA_StructInit(&DMA_InitStruct);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&USART3->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)Usart2_Rx_Data;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralToMemory;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½èµ½ï¿½Ú´ï¿½
+    DMA_InitStruct.DMA_BufferSize = Rx_Buf_Size;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Circular;          // Ñ­ï¿½ï¿½Ñ°Ö·
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // ï¿½Ú´ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_Init(DMA1_Stream1, &DMA_InitStruct);
+    DMA_Cmd(DMA1_Stream1, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    USART_DMACmd(USART3, USART_DMAReq_Rx, ENABLE);
 }
 /************************************************************************************
-*RS485_Init_DMA																		*
-*³õÊ¼»¯RS485µÄDMA·¢ËÍ¹¦ÄÜ¡£															*
-*USART2_Tx-DMA1_Stream6_Channel4													*
-************************************************************************************/
-void RS485_Init_DMA_Tx(void)	
+ *RS485_Init_DMA
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½RS485ï¿½ï¿½DMAï¿½ï¿½ï¿½Í¹ï¿½ï¿½Ü¡ï¿½
+ ** USART2_Tx-DMA1_Stream6_Channel4
+ **
+ ************************************************************************************/
+void RS485_Init_DMA_Tx(void)
 {
-	DMA_InitTypeDef  DMA_InitStruct;
-	
-	DMA_DeInit(DMA1_Stream6);		//½ûÓÃÊý¾ÝÁ÷£¬½øÈëÉèÖÃ×´Ì¬
-	DMA_StructInit(&DMA_InitStruct);//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStruct.DMA_Channel=DMA_Channel_4;
-	DMA_InitStruct.DMA_PeripheralBaseAddr=(uint32_t)&USART2->DR;
-	DMA_InitStruct.DMA_Memory0BaseAddr=(uint32_t)Usart3_Tx_Data;
-	DMA_InitStruct.DMA_DIR=DMA_DIR_MemoryToPeripheral;//·¢ËÍÊÇÄÚ´æµ½ÍâÉè
-	DMA_InitStruct.DMA_BufferSize=RS485_Tx_Num;
-	DMA_InitStruct.DMA_PeripheralInc=DMA_PeripheralInc_Disable;
-	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;//ÄÚ´æµØÖ·µÝÔö
-	DMA_InitStruct.DMA_PeripheralDataSize =DMA_PeripheralDataSize_Byte;
-	DMA_InitStruct.DMA_MemoryDataSize=DMA_MemoryDataSize_Byte;
-	DMA_InitStruct.DMA_Mode=DMA_Mode_Normal;
-	DMA_InitStruct.DMA_Priority=DMA_Priority_High;
-	DMA_InitStruct.DMA_FIFOMode= DMA_FIFOMode_Disable;
-	DMA_InitStruct.DMA_FIFOThreshold= DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
+    DMA_InitTypeDef DMA_InitStruct;
 
-	DMA_Init(DMA1_Stream6, &DMA_InitStruct);
-	DMA_Cmd(DMA1_Stream6, ENABLE);
+    DMA_DeInit(DMA1_Stream6);         // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+    DMA_StructInit(&DMA_InitStruct);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&USART2->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)Usart3_Tx_Data;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_MemoryToPeripheral;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´æµ½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_BufferSize = RS485_Tx_Num;
+    DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // ï¿½Ú´ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_InitStruct.DMA_FIFOMode = DMA_FIFOMode_Disable;
+    DMA_InitStruct.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
+
+    DMA_Init(DMA1_Stream6, &DMA_InitStruct);
+    DMA_Cmd(DMA1_Stream6, ENABLE);
 }
 
 /************************************************************************************
-*RS485_Init_DMA_Rx																	*
-*³õÊ¼»¯RS485µÄDMA½ÓÊÕ¹¦ÄÜ¡£															*
-*USART2_Rx-DMA1_Stream5_Channel4													*
-************************************************************************************/
-void RS485_Init_DMA_Rx(void)	
+ *RS485_Init_DMA_Rx
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½RS485ï¿½ï¿½DMAï¿½ï¿½ï¿½Õ¹ï¿½ï¿½Ü¡ï¿½
+ ** USART2_Rx-DMA1_Stream5_Channel4
+ **
+ ************************************************************************************/
+void RS485_Init_DMA_Rx(void)
 {
-	DMA_InitTypeDef  DMA_InitStruct;
-	
-	DMA_DeInit(DMA1_Stream5);		//½ûÓÃÊý¾ÝÁ÷£¬½øÈëÉèÖÃ×´Ì¬
-	DMA_StructInit(&DMA_InitStruct);//È±Ê¡ÖµÌî³ä³õÊ¼»¯²ÎÊý
-	DMA_InitStruct.DMA_Channel=DMA_Channel_4;
-	DMA_InitStruct.DMA_PeripheralBaseAddr=(uint32_t)&USART2->DR;
-	DMA_InitStruct.DMA_Memory0BaseAddr=(uint32_t)Usart3_Rx_Data;
-	DMA_InitStruct.DMA_DIR=DMA_DIR_PeripheralToMemory;//½ÓÊÕÊÇÍâÉèµ½ÄÚ´æ	
-	DMA_InitStruct.DMA_BufferSize=Rx_Buf_Size;
-	DMA_InitStruct.DMA_Mode=DMA_Mode_Circular;//Ñ­»·Ñ°Ö·
-	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;//ÄÚ´æµØÖ·µÝÔö
-	DMA_InitStruct.DMA_Priority=DMA_Priority_High;
-	DMA_Init(DMA1_Stream5, &DMA_InitStruct);
-	DMA_Cmd(DMA1_Stream5, ENABLE);//ÆôÓÃDMAÊý¾ÝÁ÷
-	USART_DMACmd(USART2, USART_DMAReq_Rx, ENABLE);
+    DMA_InitTypeDef DMA_InitStruct;
+
+    DMA_DeInit(DMA1_Stream5);         // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
+    DMA_StructInit(&DMA_InitStruct);  // È±Ê¡Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&USART2->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)Usart3_Rx_Data;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralToMemory;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½èµ½ï¿½Ú´ï¿½
+    DMA_InitStruct.DMA_BufferSize = Rx_Buf_Size;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Circular;          // Ñ­ï¿½ï¿½Ñ°Ö·
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // ï¿½Ú´ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_Init(DMA1_Stream5, &DMA_InitStruct);
+    DMA_Cmd(DMA1_Stream5, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    USART_DMACmd(USART2, USART_DMAReq_Rx, ENABLE);
 }
 
 /************************************************************************************
-*RS232_1_Init_DMA																		*
-*³õÊ¼»¯´®¿Ú1£¨RS232)µÄDMA¹¦ÄÜ¡£																*
-*USART1_Tx-DMA2_Stream7_Channel4, USART1_Rx-DMA2_Stream5_Channel4					*
-************************************************************************************/
-void RS232_1_Init_DMA(void)	
+ *RS232_1_Init_DMA
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½RS232)ï¿½ï¿½DMAï¿½ï¿½ï¿½Ü¡ï¿½
+ ** USART1_Tx-DMA2_Stream7_Channel4, USART1_Rx-DMA2_Stream5_Channel4					*
+ ************************************************************************************/
+void RS232_1_Init_DMA(void)
 {
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);//ÆôÓÃDMA2Ê±ÖÓ
-	RS232_1_Init_DMA_Tx();
-	RS232_1_Init_DMA_Rx();	
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMA2Ê±ï¿½ï¿½
+    RS232_1_Init_DMA_Tx();
+    RS232_1_Init_DMA_Rx();
 }
 
 /************************************************************************************
-*RS232_2_Init_DMA																	*
-*³õÊ¼»¯´®¿Ú2£¨RS232)µÄDMA¹¦ÄÜ¡£														*
-*USART3_Tx-DMA1_Stream6_Channel4, USART2_Rx-DMA1_Stream5_Channel4				*
-************************************************************************************/
-void RS232_2_Init_DMA(void)	
+ *RS232_2_Init_DMA
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½RS232)ï¿½ï¿½DMAï¿½ï¿½ï¿½Ü¡ï¿½
+ ** USART3_Tx-DMA1_Stream6_Channel4, USART2_Rx-DMA1_Stream5_Channel4				*
+ ************************************************************************************/
+void RS232_2_Init_DMA(void)
 {
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);//ÆôÓÃDMA1Ê±ÖÓ
-	RS232_2_Init_DMA_Tx();
-	RS232_2_Init_DMA_Rx();	
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMA1Ê±ï¿½ï¿½
+    RS232_2_Init_DMA_Tx();
+    RS232_2_Init_DMA_Rx();
 }
 /************************************************************************************
-*RS485_Init_DMA																		*
-*³õÊ¼»¯RS485µÄDMA¹¦ÄÜ¡£																*
-*USART2_Tx-DMA1_Stream6_Channel4, USART2_Rx-DMA1_Stream5_Channel4					*
-************************************************************************************/
-void RS485_Init_DMA(void)	
+ *RS485_Init_DMA
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½RS485ï¿½ï¿½DMAï¿½ï¿½ï¿½Ü¡ï¿½
+ ** USART2_Tx-DMA1_Stream6_Channel4, USART2_Rx-DMA1_Stream5_Channel4					*
+ ************************************************************************************/
+void RS485_Init_DMA(void)
 {
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);//ÆôÓÃDMA1Ê±ÖÓ
-	RS485_Init_DMA_Tx();
-	RS485_Init_DMA_Rx(); 	
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);  // ï¿½ï¿½ï¿½ï¿½DMA1Ê±ï¿½ï¿½
+    RS485_Init_DMA_Tx();
+    RS485_Init_DMA_Rx();
 }
 
 /************************************************************************************
-*RS232_1_Tx																			*
-*´®¿Ú1·¢ËÍÊý¾ÝÇøÄÚÈ«²¿Êý¾Ý¡£														*
-************************************************************************************/
-uint8_t RS232_1_Tx(uint8_t tx_data[], uint16_t len)	
+ *RS232_1_Tx
+ ** ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
+ **
+ ************************************************************************************/
+uint8_t RS232_1_Tx(uint8_t tx_data[], uint16_t len)
 {
-	uint16_t i;
-	uint8_t ret = 0;
-	if (DMA_GetFlagStatus(DMA2_Stream7,DMA_FLAG_TCIF7)==SET)//·¢ËÍÍê³É
-	{
-		DMA_ClearFlag(DMA2_Stream7,DMA_FLAG_TCIF7);	//Çå³ý±êÖ¾
-		RS232_1_Tx_Enable_Flag=1;	  	//Í¨ÖªÍâ²¿º¯Êý¿ÉÒÔÐÞ¸ÄÊý¾ÝÇø²¢Æô¶¯·¢ËÍ
-		ret = 1;
-	}
-	if (RS232_1_Tx_Enable_Flag)
-	{
-		
-		RS232_1_Tx_Enable_Flag=0;//Çå³ý·¢ËÍÔÊÐí±êÖ¾
-		DMA2_Stream7->NDTR = len;
-		for (i = 0; i < len; i++)		//
-		{
-			Usart1_Tx_Data[i] = tx_data[i];
-		}
-		DMA_Cmd(DMA2_Stream7, ENABLE);	//ÖØÆôDMA
-		USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);//Æô¶¯·¢ËÍ
-	}
+    uint16_t i;
+    uint8_t ret = 0;
+    if (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_TCIF7) == SET)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA2_Stream7, DMA_FLAG_TCIF7);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_1_Tx_Enable_Flag =
+            1;  // Í¨Öªï¿½â²¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        ret = 1;
+    }
+    if (RS232_1_Tx_Enable_Flag) {
+        RS232_1_Tx_Enable_Flag = 0;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        DMA2_Stream7->NDTR = len;
+        for (i = 0; i < len; i++)  //
+        {
+            Usart1_Tx_Data[i] = tx_data[i];
+        }
+        DMA_Cmd(DMA2_Stream7, ENABLE);                  // ï¿½ï¿½ï¿½ï¿½DMA
+        USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    }
 
-	//ÈÝ´í´¦Àí
-	if (DMA_GetFlagStatus(DMA2_Stream7,DMA_FLAG_TEIF7)==SET)//·¢ËÍ´íÎó
-	{
-		DMA_ClearFlag(DMA2_Stream7,DMA_FLAG_TEIF7);	//Çå³ý±êÖ¾
-		RS232_1_Init_DMA_Tx(); 		//ÖØÆôDMA
-		RS232_1_Tx_Enable_Flag=1;
-	}
-	if (DMA_GetFlagStatus(DMA2_Stream7,DMA_FLAG_DMEIF7)==SET)//Ö±½ÓÄ£Ê½´íÎó
-	{
-		DMA_ClearFlag(DMA2_Stream7,DMA_FLAG_DMEIF7);	//Çå³ý±êÖ¾
-		RS232_1_Init_DMA_Tx(); 		//ÖØÆôDMA
-		RS232_1_Tx_Enable_Flag=1;
-	}
-	return ret;
+    // ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_TEIF7) == SET)  // ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA2_Stream7, DMA_FLAG_TEIF7);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_1_Init_DMA_Tx();                        // ï¿½ï¿½ï¿½ï¿½DMA
+        RS232_1_Tx_Enable_Flag = 1;
+    }
+    if (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_DMEIF7) == SET)  // Ö±ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA2_Stream7, DMA_FLAG_DMEIF7);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_1_Init_DMA_Tx();                         // ï¿½ï¿½ï¿½ï¿½DMA
+        RS232_1_Tx_Enable_Flag = 1;
+    }
+    return ret;
 }
 
 /************************************************************************************
-*RS232_2_Tx																			*
-*´®¿Ú2·¢ËÍÊý¾ÝÇøÄÚÈ«²¿Êý¾Ý¡£														*
-************************************************************************************/
-uint8_t RS232_2_Tx(uint8_t tx_data[], uint16_t len)	
+ *RS232_2_Tx
+ ** ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
+ **
+ ************************************************************************************/
+uint8_t RS232_2_Tx(uint8_t tx_data[], uint16_t len)
 {
-	uint16_t i;
-	uint8_t ret = 0;
-	if (DMA_GetFlagStatus(DMA1_Stream3,DMA_FLAG_TCIF3)==SET)//·¢ËÍÍê³É
-	{
-		DMA_ClearFlag(DMA1_Stream3,DMA_FLAG_TCIF3);	//Çå³ý±êÖ¾
-		RS232_2_Tx_Enable_Flag=1;	  	//Í¨ÖªÍâ²¿º¯Êý¿ÉÒÔÐÞ¸ÄÊý¾ÝÇø²¢Æô¶¯·¢ËÍ
-		ret = 1;
-	}
+    uint16_t i;
+    uint8_t ret = 0;
+    if (DMA_GetFlagStatus(DMA1_Stream3, DMA_FLAG_TCIF3) == SET)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream3, DMA_FLAG_TCIF3);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_2_Tx_Enable_Flag =
+            1;  // Í¨Öªï¿½â²¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        ret = 1;
+    }
 
-	if (RS232_2_Tx_Enable_Flag)
-	{
-		RS232_2_Tx_Enable_Flag=0;
-		DMA1_Stream3->NDTR = len;
-		for (i = 0; i < len; i++)		//
-		{
-			Usart2_Tx_Data[i] = tx_data[i];
-		}
-		DMA_Cmd(DMA1_Stream3, ENABLE);				//ÖØÆôDMA
-		USART_DMACmd(USART3, USART_DMAReq_Tx, ENABLE);//Æô¶¯·¢ËÍ
-	}
-	//ÈÝ´í´¦Àí
-	if (DMA_GetFlagStatus(DMA1_Stream3,DMA_FLAG_TEIF3)==SET)//·¢ËÍ´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream3,DMA_FLAG_TEIF3);	//Çå³ý±êÖ¾
-		RS232_2_Init_DMA_Tx(); 		//ÖØÆôDMA
-		RS232_2_Tx_Enable_Flag=1;
-	}
-	if (DMA_GetFlagStatus(DMA1_Stream3,DMA_FLAG_DMEIF3)==SET)//Ö±½ÓÄ£Ê½´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream3,DMA_FLAG_DMEIF3);	//Çå³ý±êÖ¾
-		RS232_2_Init_DMA_Tx(); 		//ÖØÆôDMA
-		RS232_2_Tx_Enable_Flag=1;
-	}
-	return ret;
+    if (RS232_2_Tx_Enable_Flag) {
+        RS232_2_Tx_Enable_Flag = 0;
+        DMA1_Stream3->NDTR = len;
+        for (i = 0; i < len; i++)  //
+        {
+            Usart2_Tx_Data[i] = tx_data[i];
+        }
+        DMA_Cmd(DMA1_Stream3, ENABLE);                  // ï¿½ï¿½ï¿½ï¿½DMA
+        USART_DMACmd(USART3, USART_DMAReq_Tx, ENABLE);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    }
+    // ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (DMA_GetFlagStatus(DMA1_Stream3, DMA_FLAG_TEIF3) == SET)  // ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream3, DMA_FLAG_TEIF3);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_2_Init_DMA_Tx();                        // ï¿½ï¿½ï¿½ï¿½DMA
+        RS232_2_Tx_Enable_Flag = 1;
+    }
+    if (DMA_GetFlagStatus(DMA1_Stream3, DMA_FLAG_DMEIF3) == SET)  // Ö±ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream3, DMA_FLAG_DMEIF3);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_2_Init_DMA_Tx();                         // ï¿½ï¿½ï¿½ï¿½DMA
+        RS232_2_Tx_Enable_Flag = 1;
+    }
+    return ret;
 }
 
 /************************************************************************************
-*RS232_1_Rx																			*
-*´®¿Ú1(RS232)½ÓÊÕÊý¾Ý¡£																			*
-************************************************************************************/
-uint16_t RS232_1_Rx(uint8_t* RxData)	
+ *RS232_1_Rx
+ ** ï¿½ï¿½ï¿½ï¿½1(RS232)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
+ **
+ ************************************************************************************/
+uint16_t RS232_1_Rx(uint8_t* RxData)
 {
-	int i;
-	uint16_t RxNum;
-	uint16_t len = 0;
+    int i;
+    uint16_t RxNum;
+    uint16_t len = 0;
 
-	RxNum=Rx_Buf_Size-DMA_GetCurrDataCounter(DMA2_Stream5); //¼ÆËãÒÑ½ÓÊÕµ½µÄÊý¾ÝÊýÁ¿
-	if (RxNum<RS232_1_Rx_Count)
-	{
-		RxNum+=Rx_Buf_Size;
-	}
-	if (RxNum-RS232_1_Rx_Count > 0)//ÃüÁî³¤¶ÈÎª8×Ö½Ú
-	{
-		len = RxNum-RS232_1_Rx_Count;
-		for (i=0;i<len;i++)
-		{
-			*RxData++=Usart1_Rx_Data[RS232_1_Rx_Count++];//¶ÁÈ¡Êý¾Ý£¬µÈ´ýºóÐø´¦Àí
-			if (RS232_1_Rx_Count>=Rx_Buf_Size)
-			{
-				RS232_1_Rx_Count-=Rx_Buf_Size;
-			}
-		}
-	}
-	//ÈÝ´í´¦Àí
-	if (DMA_GetFlagStatus(DMA2_Stream5,DMA_FLAG_TEIF5)==SET)//·¢ËÍ´íÎó
-	{
-		DMA_ClearFlag(DMA2_Stream5,DMA_FLAG_TEIF5);	//Çå³ý±êÖ¾
-		RS232_1_Init_DMA_Rx(); 		//ÖØÆôDMA
-		len = 0;
-	}
-	if (DMA_GetFlagStatus(DMA2_Stream7,DMA_FLAG_DMEIF7)==SET)//Ö±½ÓÄ£Ê½´íÎó
-	{
-		DMA_ClearFlag(DMA2_Stream7,DMA_FLAG_DMEIF7);	//Çå³ý±êÖ¾
-		RS232_1_Init_DMA_Rx(); 		//ÖØÆôDMA
-		len = 0;
-	}
-	return len;
+    RxNum = Rx_Buf_Size - DMA_GetCurrDataCounter(DMA2_Stream5);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ñ½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (RxNum < RS232_1_Rx_Count) {
+        RxNum += Rx_Buf_Size;
+    }
+    if (RxNum - RS232_1_Rx_Count > 0)  // ï¿½ï¿½ï¿½î³¤ï¿½ï¿½Îª8ï¿½Ö½ï¿½
+    {
+        len = RxNum - RS232_1_Rx_Count;
+        for (i = 0; i < len; i++) {
+            *RxData++ = Usart1_Rx_Data[RS232_1_Rx_Count++];  // ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ý£ï¿½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            if (RS232_1_Rx_Count >= Rx_Buf_Size) {
+                RS232_1_Rx_Count -= Rx_Buf_Size;
+            }
+        }
+    }
+    // ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (DMA_GetFlagStatus(DMA2_Stream5, DMA_FLAG_TEIF5) == SET)  // ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA2_Stream5, DMA_FLAG_TEIF5);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_1_Init_DMA_Rx();                        // ï¿½ï¿½ï¿½ï¿½DMA
+        len = 0;
+    }
+    if (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_DMEIF7) == SET)  // Ö±ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA2_Stream7, DMA_FLAG_DMEIF7);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_1_Init_DMA_Rx();                         // ï¿½ï¿½ï¿½ï¿½DMA
+        len = 0;
+    }
+    return len;
 }
 
 /************************************************************************************
-*RS232_2_Rx																			*
-*´®¿Ú2(RS232)½ÓÊÕÊý¾Ý¡£																			*
-************************************************************************************/
-uint16_t RS232_2_Rx(uint8_t* RxData)	
+ *RS232_2_Rx
+ ** ï¿½ï¿½ï¿½ï¿½2(RS232)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
+ **
+ ************************************************************************************/
+uint16_t RS232_2_Rx(uint8_t* RxData)
 {
-	int i;
-	uint16_t RxNum;
-	uint16_t len = 0;
-	
-	RxNum=Rx_Buf_Size-DMA_GetCurrDataCounter(DMA1_Stream1); //¼ÆËãÒÑ½ÓÊÕµ½µÄÊý¾ÝÊýÁ¿
-	
-	if (RxNum<RS232_2_Rx_Count)
-	{
-		RxNum+=Rx_Buf_Size;
-	}
-	if(RxNum-RS232_2_Rx_Count > 0)    						//ÓÐÊý¾Ý½ÓÊÕ
-	{
-		len = RxNum-RS232_2_Rx_Count;
-		for (i=0;i<len;i++)
-		{
-			*RxData++=Usart2_Rx_Data[RS232_2_Rx_Count++];//¶ÁÈ¡Êý¾Ý£¬Êý¾ÝÖ¸ÕëµÝÔö£¬µÈ´ýºóÐø´¦Àí
-			if (RS232_2_Rx_Count>=Rx_Buf_Size)
-			{
-				RS232_2_Rx_Count-=Rx_Buf_Size;
-			}
-		}
-	}	
-// 	if (RxNum-RS232_2_Rx_Count>=RS232_2_Rx_Threshold)//Êý¾Ý³¤¶ÈÎªThreshold
-// 	{
-// 		Rx_Flag=SET;
-// 		for (i=0;i<RS232_2_Rx_Threshold;i++)
-// 		{
-// 			*RxData++=Usart2_Rx_Data[RS232_2_Rx_Count++];//¶ÁÈ¡Êý¾Ý£¬Êý¾ÝÖ¸ÕëµÝÔö£¬µÈ´ýºóÐø´¦Àí
-// 			if (RS232_2_Rx_Count>=Rx_Buf_Size)
-// 			{
-// 				RS232_2_Rx_Count-=Rx_Buf_Size;
-// 			}
-// 		}
-// 	}
-	//ÈÝ´í´¦Àí
-	if (DMA_GetFlagStatus(DMA1_Stream1,DMA_FLAG_TEIF1)==SET)//·¢ËÍ´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream1,DMA_FLAG_TEIF1);	//Çå³ý±êÖ¾
-		RS232_2_Init_DMA_Rx(); 		//ÖØÆôDMA
-		len = 0;
-	}
-	if (DMA_GetFlagStatus(DMA1_Stream1,DMA_FLAG_DMEIF1)==SET)//Ö±½ÓÄ£Ê½´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream1,DMA_FLAG_DMEIF1);	//Çå³ý±êÖ¾
-		RS232_2_Init_DMA_Rx(); 		//ÖØÆôDMA
-		len = 0;
-	}
-	return len;
+    int i;
+    uint16_t RxNum;
+    uint16_t len = 0;
+
+    RxNum = Rx_Buf_Size - DMA_GetCurrDataCounter(DMA1_Stream1);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ñ½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+
+    if (RxNum < RS232_2_Rx_Count) {
+        RxNum += Rx_Buf_Size;
+    }
+    if (RxNum - RS232_2_Rx_Count > 0)  // ï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½ï¿½
+    {
+        len = RxNum - RS232_2_Rx_Count;
+        for (i = 0; i < len; i++) {
+            *RxData++ = Usart2_Rx_Data[RS232_2_Rx_Count++];  // ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            if (RS232_2_Rx_Count >= Rx_Buf_Size) {
+                RS232_2_Rx_Count -= Rx_Buf_Size;
+            }
+        }
+    }
+    // 	if (RxNum-RS232_2_Rx_Count>=RS232_2_Rx_Threshold)//ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½ÎªThreshold
+    // 	{
+    // 		Rx_Flag=SET;
+    // 		for (i=0;i<RS232_2_Rx_Threshold;i++)
+    // 		{
+    // 			*RxData++=Usart2_Rx_Data[RS232_2_Rx_Count++];//ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // 			if (RS232_2_Rx_Count>=Rx_Buf_Size)
+    // 			{
+    // 				RS232_2_Rx_Count-=Rx_Buf_Size;
+    // 			}
+    // 		}
+    // 	}
+    // ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (DMA_GetFlagStatus(DMA1_Stream1, DMA_FLAG_TEIF1) == SET)  // ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream1, DMA_FLAG_TEIF1);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_2_Init_DMA_Rx();                        // ï¿½ï¿½ï¿½ï¿½DMA
+        len = 0;
+    }
+    if (DMA_GetFlagStatus(DMA1_Stream1, DMA_FLAG_DMEIF1) == SET)  // Ö±ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream1, DMA_FLAG_DMEIF1);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS232_2_Init_DMA_Rx();                         // ï¿½ï¿½ï¿½ï¿½DMA
+        len = 0;
+    }
+    return len;
 }
 /************************************************************************************
-*RS485_Tx																			*
-*·¢ËÍÊý¾ÝÇøÄÚÈ«²¿Êý¾Ý¡£																*
-************************************************************************************/
-void RS485_Tx(void)	
-{	
-	if (DMA_GetFlagStatus(DMA1_Stream6,DMA_FLAG_TCIF6)==SET)//·¢ËÍÍê³É
-	{
-		DMA_ClearFlag(DMA1_Stream6,DMA_FLAG_TCIF6);	//Çå³ý±êÖ¾
-		RS485_Tx_Enable_Flag=1;	  	//Í¨ÖªÍâ²¿º¯Êý¿ÉÒÔÐÞ¸ÄÊý¾ÝÇø²¢Æô¶¯·¢ËÍ
-	}
-
-	if (RS485_Tx_Flag && RS485_Tx_Enable_Flag)
-	{
-		RS485_Tx_Flag=0;
-		RS485_Tx_Enable_Flag=0;
-		DMA_Cmd(DMA1_Stream6, ENABLE);				//ÖØÆôDMA
-		USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);//Æô¶¯·¢ËÍ
-	}
-	//ÈÝ´í´¦Àí
-	if (DMA_GetFlagStatus(DMA1_Stream6,DMA_FLAG_TEIF6)==SET)//·¢ËÍ´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream6,DMA_FLAG_TEIF6);	//Çå³ý±êÖ¾
-		RS485_Init_DMA_Tx(); 		//ÖØÆôDMA
-		RS485_Tx_Enable_Flag=1;
-	}
-	if (DMA_GetFlagStatus(DMA1_Stream6,DMA_FLAG_DMEIF6)==SET)//Ö±½ÓÄ£Ê½´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream6,DMA_FLAG_DMEIF6);	//Çå³ý±êÖ¾
-		RS485_Init_DMA_Tx(); 		//ÖØÆôDMA
-		RS485_Tx_Enable_Flag=1;
-	}
-}
-
-/************************************************************************************
-*RS485_Rx																			*
-*½ÓÊÕÊý¾Ý¡£																			*
-************************************************************************************/
-FlagStatus RS485_Rx(uint8_t* RxData)	
+ *RS485_Tx
+ ** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
+ **
+ ************************************************************************************/
+void RS485_Tx(void)
 {
-	int i;
-	uint32_t RxNum;
-	FlagStatus Rx_Flag=RESET;
+    if (DMA_GetFlagStatus(DMA1_Stream6, DMA_FLAG_TCIF6) == SET)  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS485_Tx_Enable_Flag =
+            1;  // Í¨Öªï¿½â²¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    }
 
-	RxNum=Rx_Buf_Size-DMA_GetCurrDataCounter(DMA1_Stream5); //¼ÆËãÒÑ½ÓÊÕµ½µÄÊý¾ÝÊýÁ¿
-	if (RxNum<RS485_Rx_Count)
-	{
-		RxNum+=Rx_Buf_Size;
-	}
-	if (RxNum-RS485_Rx_Count>=RS485_Rx_Threshold)//Êý¾Ý³¤¶ÈÎªThreshold
-	{
-		Rx_Flag=SET;
-		for (i=0;i<RS485_Rx_Threshold;i++)
-		{
-			*RxData++=Usart3_Rx_Data[RS485_Rx_Count++];//¶ÁÈ¡Êý¾Ý£¬Êý¾ÝÖ¸ÕëµÝÔö£¬µÈ´ýºóÐø´¦Àí
-			if (RS485_Rx_Count>=Rx_Buf_Size)
-			{
-				RS485_Rx_Count-=Rx_Buf_Size;
-			}
-		}
-	}
-	//ÈÝ´í´¦Àí
-	if (DMA_GetFlagStatus(DMA1_Stream5,DMA_FLAG_TEIF5)==SET)//·¢ËÍ´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream5,DMA_FLAG_TEIF5);	//Çå³ý±êÖ¾
-		RS485_Init_DMA_Rx(); 		//ÖØÆôDMA
-	}
-	if (DMA_GetFlagStatus(DMA1_Stream5,DMA_FLAG_DMEIF5)==SET)//Ö±½ÓÄ£Ê½´íÎó
-	{
-		DMA_ClearFlag(DMA1_Stream5,DMA_FLAG_DMEIF5);	//Çå³ý±êÖ¾
-		RS485_Init_DMA_Rx(); 		//ÖØÆôDMA
-	}
-	return Rx_Flag;
+    if (RS485_Tx_Flag && RS485_Tx_Enable_Flag) {
+        RS485_Tx_Flag = 0;
+        RS485_Tx_Enable_Flag = 0;
+        DMA_Cmd(DMA1_Stream6, ENABLE);                  // ï¿½ï¿½ï¿½ï¿½DMA
+        USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    }
+    // ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (DMA_GetFlagStatus(DMA1_Stream6, DMA_FLAG_TEIF6) == SET)  // ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TEIF6);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS485_Init_DMA_Tx();                          // ï¿½ï¿½ï¿½ï¿½DMA
+        RS485_Tx_Enable_Flag = 1;
+    }
+    if (DMA_GetFlagStatus(DMA1_Stream6, DMA_FLAG_DMEIF6) == SET)  // Ö±ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_DMEIF6);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS485_Init_DMA_Tx();                           // ï¿½ï¿½ï¿½ï¿½DMA
+        RS485_Tx_Enable_Flag = 1;
+    }
+}
+
+/************************************************************************************
+ *RS485_Rx
+ ** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
+ **
+ ************************************************************************************/
+FlagStatus RS485_Rx(uint8_t* RxData)
+{
+    int i;
+    uint32_t RxNum;
+    FlagStatus Rx_Flag = RESET;
+
+    RxNum = Rx_Buf_Size - DMA_GetCurrDataCounter(DMA1_Stream5);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ñ½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (RxNum < RS485_Rx_Count) {
+        RxNum += Rx_Buf_Size;
+    }
+    if (RxNum - RS485_Rx_Count >= RS485_Rx_Threshold)  // ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½ÎªThreshold
+    {
+        Rx_Flag = SET;
+        for (i = 0; i < RS485_Rx_Threshold; i++) {
+            *RxData++ = Usart3_Rx_Data[RS485_Rx_Count++];  // ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            if (RS485_Rx_Count >= Rx_Buf_Size) {
+                RS485_Rx_Count -= Rx_Buf_Size;
+            }
+        }
+    }
+    // ï¿½Ý´ï¿½ï¿½ï¿½ï¿½ï¿½
+    if (DMA_GetFlagStatus(DMA1_Stream5, DMA_FLAG_TEIF5) == SET)  // ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream5, DMA_FLAG_TEIF5);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS485_Init_DMA_Rx();                          // ï¿½ï¿½ï¿½ï¿½DMA
+    }
+    if (DMA_GetFlagStatus(DMA1_Stream5, DMA_FLAG_DMEIF5) == SET)  // Ö±ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½
+    {
+        DMA_ClearFlag(DMA1_Stream5, DMA_FLAG_DMEIF5);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾
+        RS485_Init_DMA_Rx();                           // ï¿½ï¿½ï¿½ï¿½DMA
+    }
+    return Rx_Flag;
 }
 
 void Init_RS232_2_NVIC_Cofig(void)
 {
-	NVIC_InitTypeDef NVIC_InitStructure;
+    NVIC_InitTypeDef NVIC_InitStructure;
 
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_3); 
-	
-	NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; 
-	NVIC_InitStructure.NVIC_IRQChannelCmd=ENABLE;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0; 
-	NVIC_Init(&NVIC_InitStructure);
-	
-	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE); 
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_3);
 
+    NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
+    NVIC_Init(&NVIC_InitStructure);
+
+    USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
 }
 
 /************************************************************************************
-*Init_RS232_1																			*
-*³õÊ¼»¯´®¿Ú1¡£																		*
-************************************************************************************/
-void Init_RS232_1(uint32_t baudrate,uint16_t parity,uint16_t wordlength,uint16_t stopbits)	
+ *Init_RS232_1
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½
+ **
+ ************************************************************************************/
+void Init_RS232_1(uint32_t baudrate, uint16_t parity, uint16_t wordlength, uint16_t stopbits)
 {
-	RS232_1_Init_Para();	//Êý¾ÝÇø³õÊ¼»¯
-	RS232_1_Init_Pin();	//Òý½Å¼°Ê±ÖÓ³õÊ¼»¯
-	RS232_1_Init_Port(baudrate,parity,wordlength,stopbits);
-	RS232_1_Init_DMA();
+    RS232_1_Init_Para();  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
+    RS232_1_Init_Pin();   // ï¿½ï¿½ï¿½Å¼ï¿½Ê±ï¿½Ó³ï¿½Ê¼ï¿½ï¿½
+    RS232_1_Init_Port(baudrate, parity, wordlength, stopbits);
+    RS232_1_Init_DMA();
 }
 /************************************************************************************
-*Init_RS232_2																			*
-*³õÊ¼»¯´®¿Ú2,DMA·½Ê½																	*
-************************************************************************************/
-void Init_RS232_2(uint32_t baudrate,uint16_t parity,uint16_t wordlength,uint16_t stopbits)	
+ *Init_RS232_2
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2,DMAï¿½ï¿½Ê½
+ **
+ ************************************************************************************/
+void Init_RS232_2(uint32_t baudrate, uint16_t parity, uint16_t wordlength, uint16_t stopbits)
 {
-	RS232_2_Init_Para();	//Êý¾ÝÇø³õÊ¼»¯
-	RS232_2_Init_Pin();	//Òý½Å¼°Ê±ÖÓ³õÊ¼»¯
-	RS232_2_Init_Port(baudrate,parity,wordlength,stopbits);
-	RS232_2_Init_DMA();
-	
+    RS232_2_Init_Para();  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
+    RS232_2_Init_Pin();   // ï¿½ï¿½ï¿½Å¼ï¿½Ê±ï¿½Ó³ï¿½Ê¼ï¿½ï¿½
+    RS232_2_Init_Port(baudrate, parity, wordlength, stopbits);
+    RS232_2_Init_DMA();
 }
 /************************************************************************************
-*Init_RS232_2																			*
-*³õÊ¼»¯´®¿Ú2£¬ÖÐ¶Ï½ÓÊÕ·½Ê½ 																	*
-************************************************************************************/
-void Init_RS232_2_NVIC(uint32_t baudrate,uint16_t parity,uint16_t wordlength,uint16_t stopbits)	
+ *Init_RS232_2
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½ï¿½Ð¶Ï½ï¿½ï¿½Õ·ï¿½Ê½
+ **
+ ************************************************************************************/
+void Init_RS232_2_NVIC(uint32_t baudrate, uint16_t parity, uint16_t wordlength, uint16_t stopbits)
 {
-	RS232_2_Init_Para();	//Êý¾ÝÇø³õÊ¼»¯
-	RS232_2_Init_Pin();	//Òý½Å¼°Ê±ÖÓ³õÊ¼»¯
-	RS232_2_Init_Port(baudrate,parity,wordlength,stopbits);
-	Init_RS232_2_NVIC_Cofig();
-	
+    RS232_2_Init_Para();  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
+    RS232_2_Init_Pin();   // ï¿½ï¿½ï¿½Å¼ï¿½Ê±ï¿½Ó³ï¿½Ê¼ï¿½ï¿½
+    RS232_2_Init_Port(baudrate, parity, wordlength, stopbits);
+    Init_RS232_2_NVIC_Cofig();
 }
 /************************************************************************************
-*Init_RS485																			*
-*³õÊ¼»¯´®¿Ú2¡£																		*
-************************************************************************************/
-void Init_RS485(uint32_t BaudRate, uint32_t Tx_Num, uint32_t Rx_Threshold)	
+ *Init_RS485
+ ** ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½
+ **
+ ************************************************************************************/
+void Init_RS485(uint32_t BaudRate, uint32_t Tx_Num, uint32_t Rx_Threshold)
 {
-	RS485_Init_Para(Tx_Num, Rx_Threshold);	//Êý¾ÝÇø³õÊ¼»¯
-	RS485_Init_Pin();	//Òý½Å¼°Ê±ÖÓ³õÊ¼»¯
-	RS485_Init_Port(BaudRate);//9600, n, 8, 1
-	RS485_Init_DMA();
+    RS485_Init_Para(Tx_Num, Rx_Threshold);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
+    RS485_Init_Pin();                       // ï¿½ï¿½ï¿½Å¼ï¿½Ê±ï¿½Ó³ï¿½Ê¼ï¿½ï¿½
+    RS485_Init_Port(BaudRate);              // 9600, n, 8, 1
+    RS485_Init_DMA();
 }
-
 
 void USART3_IRQHandler(void)
 {
-    if (USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
-    {
+    if (USART_GetITStatus(USART3, USART_IT_RXNE) != RESET) {
         //
         /* Read one byte from the receive data register */
-        //unsigned char ch = USART_ReceiveData(USART6);
-       // ch = USART_ReceiveData(USART6);
-       // Uart_CharRxReady(ch);
-            
-        USART_ClearITPendingBit(USART3,USART_IT_RXNE);
+        // unsigned char ch = USART_ReceiveData(USART6);
+        // ch = USART_ReceiveData(USART6);
+        // Uart_CharRxReady(ch);
+
+        USART_ClearITPendingBit(USART3, USART_IT_RXNE);
     }
 }
 
