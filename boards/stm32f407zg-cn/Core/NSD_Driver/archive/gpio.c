@@ -1,27 +1,28 @@
 /***************************************************************************************
- * GPIO.C - Digital I/O Driver Implementation
+ * GPIO.C - Digital I/O Driver Implementation (Legacy Compatibility Layer)
  ***************************************************************************************
  * Company:     Three Gorges Nengshida Electric Co., Ltd
  * Version:     NSD_STM32F4_Driver_2.0 (Cleaned)
  * Date:        2013-08-22 (Updated 2025-10-16)
- * Description: FSMC-based digital I/O driver with debounce filtering
+ * Description: Legacy wrapper for FSMC GPIO driver - provides backward compatibility
+ *
+ * @deprecated This file provides backward compatibility for legacy code.
+ *             New code should use fsmc_gpio_driver.h directly.
  ***************************************************************************************/
 
 #include "GPIO.H"
-#include "stm32f4xx_fsmc.h"
+
+#include "fsmc_gpio_driver.h"
 
 //=======================================================================================
-// Hardware Configuration
+// Static GPIO Driver Instance
 //=======================================================================================
 
-/** FSMC Bank 4 base address for GPIO expansion hardware */
-#define BANK1_SRAM4_ADDR ((uint32_t)0x6C000000)
-
-/** Debounce filter delay (number of consecutive stable reads required) */
-#define DI_DEBOUNCE_CYCLES 2
+/** @brief Static GPIO driver instance for legacy compatibility */
+static fsmc_gpio_instance_t legacy_gpio_driver = {.initialized = false};
 
 //=======================================================================================
-// Global Variables
+// Global Variables (Legacy Compatibility)
 //=======================================================================================
 
 /** Raw digital input state (real-time) */
@@ -33,23 +34,131 @@ unsigned char DI_Delayed_Flag[8][8];
 /** Digital output state buffer */
 unsigned char DO_Flag[8][8];
 
-/** Debounce delay counters */
-static int DI_Delay[8][8];
-
 /** LED indicator states */
 unsigned char DO_LED_Run = 0;
 unsigned char DO_LED_Fault = 0;
 unsigned char DO_LED_alarm = 0;
 
 //=======================================================================================
-// Private Function Prototypes
+// Initialization Functions
 //=======================================================================================
 
-static void Init_DIDO_Para(void);
-static void GPIO_FSMC_Init(void);
-static void DI16_Input(uint16_t addr, unsigned char* DI_Flag);
-static void DO16_Out(uint16_t addr, unsigned char* DO_Flag);
-static void Delayed_DI(unsigned char DI_current, uint8_t* DI_filtered, int* delay_counter);
+/**
+ * @brief Initialize GPIO driver
+ *
+ * Complete initialization sequence: hardware setup, data structures,
+ * and initial input read to synchronize DI_Flag with DI_Delayed_Flag.
+ */
+void Init_GPIO(void)
+{
+    // Initialize hardware driver
+    FSMC_GPIO_Init(&legacy_gpio_driver);
+
+    // Set default LED states
+    DO_LED_Run = 1;
+    DO_LED_Fault = 0;
+    DO_LED_alarm = 0;
+
+    // Sync LED states to driver
+    FSMC_GPIO_SetLEDs(&legacy_gpio_driver, DO_LED_Run, DO_LED_Fault, DO_LED_alarm);
+
+    // Perform initial read to populate legacy arrays
+    Refresh_DI();
+    Refresh_Delayed_DI();
+    Refresh_Delayed_DI();  // Force DI_Flag == DI_Delayed_Flag at startup
+}
+
+//=======================================================================================
+// Digital Input Functions
+//=======================================================================================
+
+/**
+ * @brief Read all digital inputs from hardware
+ *
+ * Updates DI_Flag array with current hardware state (48 inputs across 3 words).
+ */
+void Refresh_DI(void)
+{
+    // Read inputs using driver
+    FSMC_GPIO_ReadInputs(&legacy_gpio_driver);
+
+    // Copy raw inputs to legacy arrays
+    const uint8_t* raw_inputs = FSMC_GPIO_GetRawInputArray(&legacy_gpio_driver);
+    if (raw_inputs != NULL) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                DI_Flag[i][j] = raw_inputs[i * 8 + j];
+            }
+        }
+    }
+}
+
+/**
+ * @brief Apply debounce filter to all digital inputs
+ *
+ * Updates DI_Delayed_Flag array with filtered input states.
+ * Call after Refresh_DI() in each scan cycle.
+ */
+void Refresh_Delayed_DI(void)
+{
+    // Apply debounce filter using driver
+    FSMC_GPIO_ApplyDebounce(&legacy_gpio_driver);
+
+    // Copy debounced inputs to legacy arrays
+    const uint8_t* debounced_inputs = FSMC_GPIO_GetDebouncedInputArray(&legacy_gpio_driver);
+    if (debounced_inputs != NULL) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                DI_Delayed_Flag[i][j] = debounced_inputs[i * 8 + j];
+            }
+        }
+    }
+}
+
+//=======================================================================================
+// Digital Output Functions
+//=======================================================================================
+
+/**
+ * @brief Write all digital outputs to hardware
+ *
+ * Writes DO_Flag array and LED indicators to hardware GPIO.
+ */
+void DO_Out(void)
+{
+    // Copy legacy arrays to driver
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            FSMC_GPIO_SetOutput(&legacy_gpio_driver, i, j, DO_Flag[i][j]);
+        }
+    }
+
+    // Update LED states
+    FSMC_GPIO_SetLEDs(&legacy_gpio_driver, DO_LED_Run, DO_LED_Fault, DO_LED_alarm);
+
+    // Write outputs using driver
+    FSMC_GPIO_WriteOutputs(&legacy_gpio_driver);
+}
+
+//=======================================================================================
+// Combined I/O Update Function
+//=======================================================================================
+
+/**
+ * @brief Refresh both inputs and outputs
+ *
+ * Convenience function for simple periodic I/O update.
+ */
+void GPIO(void)
+{
+    Refresh_DI();
+    Refresh_Delayed_DI();
+    DO_Out();
+}
+
+//===========================================================================
+// End of file
+//===========================================================================
 
 //=======================================================================================
 // Initialization Functions

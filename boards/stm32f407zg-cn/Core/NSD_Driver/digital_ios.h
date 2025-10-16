@@ -12,6 +12,9 @@
  * - Debounce filtering for reliable input reading
  * - Status flag mapping for external monitoring equipment
  *
+ * This module provides application-specific interpretation of hardware GPIO
+ * signals. It uses the FSMC GPIO driver for low-level hardware access.
+ *
  ******************************************************************************
  */
 
@@ -24,6 +27,8 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "fsmc_gpio_driver.h"
 
 /* ============================================================================
  * Configuration Constants
@@ -94,6 +99,7 @@ typedef struct {
  * @brief Digital I/O driver instance structure
  */
 typedef struct {
+    fsmc_gpio_instance_t* gpio_driver;         /**< Pointer to hardware GPIO driver */
     dio_input_flags_t inputs;                  /**< Input status flags */
     dio_output_flags_t outputs;                /**< Output status flags */
     uint8_t input_data[DIO_NUM_INPUT_BYTES];   /**< Raw input data bytes */
@@ -112,10 +118,11 @@ typedef struct {
 /**
  * @brief Initialize digital I/O driver instance
  * @param dio Pointer to DIO instance structure
+ * @param gpio_driver Pointer to initialized FSMC GPIO driver instance
  * @retval true if initialization successful
  * @retval false if initialization failed
  */
-bool DIO_Init(dio_instance_t* dio);
+bool DIO_Init(dio_instance_t* dio, fsmc_gpio_instance_t* gpio_driver);
 
 /**
  * @brief Reset digital I/O driver state
