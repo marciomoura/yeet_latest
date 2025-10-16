@@ -113,6 +113,8 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "valarray": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "USARTx_1.C": "cpp",
+        "USART_T.C": "cpp"
     }
 }
