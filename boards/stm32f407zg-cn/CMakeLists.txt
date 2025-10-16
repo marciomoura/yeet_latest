@@ -101,56 +101,24 @@ target_sources(
             # System support
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sysmem.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/syscalls.c
-            # NSD Driver files - Hardware drivers only (application logic
-            # archived) See Core/NSD_Driver/archive/ for removed application
-            # control files
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AD57x4.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AD7606.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ADC.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/AI.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/command.c  # Archived
-            # - application protocol
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/DIDO.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/eIfd.c  # Archived -
-            # PID control
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/GPIO.C
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/limit.c  # Archived -
-            # app-specific limits
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/M25P32.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/mode.c  # Archived -
-            # control modes
+            # NSD Driver files - Hardware drivers only
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/adc.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/dac.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/digital_ios.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/driver_init.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/flash.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/gpio.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nandflash_sram.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/net.c  # Archived -
-            # app protocol
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical_fiber.c  #
-            # Archived ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical.c  #
-            # Archived - fiber protocol
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/para.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/pub.c # Minimal hardware
-                                                              # status variables
-                                                              # (restored)
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ref.c  # Archived -
-            # reference tracking
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/syn.c  # Archived -
-            # sync/firing control
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/temperature.c  #
-            # Excluded - needs USARTx.h and optical.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USART_T.C  # Excluded
-            # - conflicts with USARTx.C
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C  # File
-            # missing - excluded
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/WatchDog.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/network.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.C
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/watchdog.c
             # Startup file (assembly)
             ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s)
 
 # Force .C files to be compiled as C language (not C++)
 set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/GPIO.C
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
-    # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C  # File missing
-    PROPERTIES LANGUAGE C)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/gpio.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.C PROPERTIES LANGUAGE C)
 
 # Add include paths - PUBLIC so consumers inherit them
 target_include_directories(

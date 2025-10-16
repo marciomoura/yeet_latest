@@ -2,7 +2,7 @@
  * DIDO.C - Digital I/O Status Monitoring Implementation
  ***************************************************************************************
  * Description: Maps hardware status flags to digital I/O for monitoring and control
- * 
+ *
  * This module provides hardware-level status monitoring including:
  * - SCR (thyristor) fault detection
  * - Fuse status monitoring (6 arms)
@@ -10,13 +10,14 @@
  * - Temperature monitoring
  * - Optical fiber communication status
  * - System running/fault/alarm indication
- * 
+ *
  * The module reads digital inputs and maps internal status flags to digital outputs
  * for external monitoring equipment.
  ***************************************************************************************/
 
 #include <math.h>
 #include <stm32f4xx.h>
+
 #include "GPIO.H"
 #include "pub.h"
 
@@ -58,7 +59,7 @@ extern unsigned char Optical_Tx_Flag;
 
 /**
  * @brief Update running indicator LED
- * 
+ *
  * Toggles running indicator every 100 cycles (typically 1 second @ 10ms rate).
  * Provides visual heartbeat indication that system is operational.
  */
@@ -72,7 +73,7 @@ static void Running_Signal(void)
 
 /**
  * @brief Check thyristor (SCR) status
- * 
+ *
  * Evaluates SCR health based on multiple conditions:
  * - Output lock status
  * - AC voltage presence
@@ -82,20 +83,19 @@ static void Running_Signal(void)
  * - Temperature status
  * - Communication errors
  * - Pulse power supply status
- * 
+ *
  * Sets SCR_Error_Flag if any fault condition is detected.
  */
 static void SCR_Check(void)
 {
     // Check for SCR fault conditions:
     // 1. Output not locked AND
-    // 2. AC voltage present (> 0.1V) AND  
+    // 2. AC voltage present (> 0.1V) AND
     // 3. Any fault condition active
     if ((DO_Lock_Flag == 0 && Vabc > 0.1f) &&
-        ((Fuse_Flag || (Pulse_Enabled_Flag && Low_F_Flag) || 
-          Over_Temperature_Flag || Optical_Comm_Err_Flag ||
-          Online_Comm_Err_Flag) || Pulse_Power_Flag))
-    {
+        ((Fuse_Flag || (Pulse_Enabled_Flag && Low_F_Flag) || Over_Temperature_Flag || Optical_Comm_Err_Flag ||
+             Online_Comm_Err_Flag) ||
+            Pulse_Power_Flag)) {
         SCR_Error_Flag = 1;
     }
     else {
@@ -105,7 +105,7 @@ static void SCR_Check(void)
 
 /**
  * @brief Check circuit breaker status
- * 
+ *
  * Determines breaker state based on apparent power calculation.
  * Uses hysteresis to prevent chattering:
  * - Closes (sets flag) when S > 0.11 (110VA)
@@ -129,7 +129,7 @@ static void Breaker_Check(void)
 
 /**
  * @brief Check digital output lock status
- * 
+ *
  * Manages DO_Lock_Delay countdown timer. When delay expires,
  * clears DO_Lock_Flag to enable normal output operation.
  */
@@ -143,17 +143,17 @@ static void DO_Lock_Check(void)
 
 /**
  * @brief Trigger optical transmission during low frequency
- * 
+ *
  * During low frequency condition, periodically triggers optical
  * fiber transmission and updates firing angle if pulse is not enabled.
- * 
+ *
  * NOTE: Currently commented out in original code - placeholder for future use.
  */
 static void Low_F_Trigger(void)
 {
     // Low frequency trigger logic currently disabled
     // Uncomment and modify as needed for your application:
-    
+
     // if (Low_F_Flag) {
     //     if (++Low_F_Trig_Delay >= 40) {
     //         Low_F_Trig_Delay = 0;
@@ -172,7 +172,7 @@ static void Low_F_Trigger(void)
 
 /**
  * @brief Check for low frequency condition
- * 
+ *
  * Monitors grid frequency via synchronization interrupts.
  * If no sync pulse received for 200 cycles (~2 seconds), declares
  * low frequency condition and reinitializes sync pulse system.
@@ -189,13 +189,13 @@ void Low_F_Check(void)
     else {
         Low_F_Flag = 0;  // Frequency OK
     }
-    
+
     Low_F_Trigger();
 }
 
 /**
  * @brief Refresh all status flags
- * 
+ *
  * Calls all status checking functions to update system health flags.
  * Called before mapping flags to digital outputs.
  */
@@ -213,7 +213,7 @@ static void Refresh_DO_Flag(void)
 
 /**
  * @brief Process digital input byte 1
- * 
+ *
  * Maps debounced input byte 1 (DI_Delayed_Flag[4][x]) to internal flags:
  * - Bit 0: Combined fuse status (OR of all 6 arm fuses)
  * - Bit 1: Over temperature (inverted - 1=OK, 0=Fault)
@@ -221,7 +221,7 @@ static void Refresh_DO_Flag(void)
  * - Bit 5: Reference up command (inverted)
  * - Bit 6: Reference down command (inverted)
  * - Bit 7: Stop command (inverted)
- * 
+ *
  * Packs processed flags into DI_Data[0] for communication.
  */
 static void Get_DI1(void)
@@ -230,8 +230,8 @@ static void Get_DI1(void)
     int i;
 
     // Combine all 6 arm fuse flags
-    Fuse_Flag = Arm_Fuse_Flag[0] | Arm_Fuse_Flag[1] | Arm_Fuse_Flag[2] |
-                Arm_Fuse_Flag[3] | Arm_Fuse_Flag[4] | Arm_Fuse_Flag[5];
+    Fuse_Flag =
+        Arm_Fuse_Flag[0] | Arm_Fuse_Flag[1] | Arm_Fuse_Flag[2] | Arm_Fuse_Flag[3] | Arm_Fuse_Flag[4] | Arm_Fuse_Flag[5];
 
     // Temperature status (inverted logic: 1=OK, 0=Fault)
     if (DI_Delayed_Flag[4][1]) {
@@ -242,10 +242,10 @@ static void Get_DI1(void)
     }
 
     // Direct mapped inputs
-    Fan_Flag      = DI_Delayed_Flag[4][2];
-    Ref_Up_Flag   = 1 - DI_Delayed_Flag[4][5];  // Inverted
+    Fan_Flag = DI_Delayed_Flag[4][2];
+    Ref_Up_Flag = 1 - DI_Delayed_Flag[4][5];    // Inverted
     Ref_Down_Flag = 1 - DI_Delayed_Flag[4][6];  // Inverted
-    Stop_Command  = 1 - DI_Delayed_Flag[4][7];  // Inverted
+    Stop_Command = 1 - DI_Delayed_Flag[4][7];   // Inverted
 
     // Pack into communication byte
     DI_temp = Fuse_Flag;
@@ -259,12 +259,12 @@ static void Get_DI1(void)
 
 /**
  * @brief Process digital input byte 2
- * 
+ *
  * Maps debounced input byte 2 (DI_Delayed_Flag[5][x]) to internal flags:
  * - Bit 0: Pulse enable state
  * - Bit 1: Breaker status (calculated, not direct input)
  * - Bit 2: Pulse power supply fault
- * 
+ *
  * Packs processed flags into DI_Data[1] for communication.
  */
 static void Get_DI2(void)
@@ -290,7 +290,7 @@ static void Get_DI2(void)
 
 /**
  * @brief Read and process all digital inputs
- * 
+ *
  * Complete input processing sequence:
  * 1. Read raw inputs from hardware (Refresh_DI)
  * 2. Apply debounce filter (Refresh_Delayed_DI)
@@ -310,7 +310,7 @@ static void DI(void)
 
 /**
  * @brief Map status flags to output byte 1
- * 
+ *
  * Output byte 1 (DO_Data[0] / DO_Flag[0][x]):
  * - Bit 0: SCR error flag
  * - Bit 1: Fuse fault
@@ -319,7 +319,7 @@ static void DI(void)
  * - Bit 4: Phase B sync secondary fault OR sync error
  * - Bit 5: Phase C sync secondary fault OR sync error
  * - Bits 6-7: Reserved
- * 
+ *
  * Also copies to extended output bank (DO_Flag[4][x]).
  */
 static void DO1(void)
@@ -369,7 +369,7 @@ static void DO1(void)
 
 /**
  * @brief Map status flags to output byte 2
- * 
+ *
  * Output byte 2 (DO_Data[1] / DO_Flag[1][x]):
  * - Bit 0: ROM (Flash memory) status
  * - Bits 1-6: Individual arm fuse flags (arms 5,4,3,2,1,0)
@@ -387,7 +387,7 @@ static void DO2(void)
     if (Arm_Fuse_Flag[2]) DO_temp |= 0x10;  // Bit 4
     if (Arm_Fuse_Flag[1]) DO_temp |= 0x20;  // Bit 5
     if (Arm_Fuse_Flag[0]) DO_temp |= 0x40;  // Bit 6
-    if (Scr_Exit_Flag)    DO_temp |= 0x80;  // Bit 7
+    if (Scr_Exit_Flag) DO_temp |= 0x80;     // Bit 7
 
     DO_Data[1] = DO_temp;
 
@@ -404,7 +404,7 @@ static void DO2(void)
 
 /**
  * @brief Map status flags to output byte 3
- * 
+ *
  * Output byte 3 (DO_Data[2] / DO_Flag[2][x]):
  * - Bits 0-1: Optical channel 1 status (TX/RX timeout)
  * - Bits 2-3: Optical channel 2 status
@@ -420,10 +420,10 @@ static void DO3(void)
     DO_temp = Optical_Comm_Status[0];
     DO_temp |= (Optical_Comm_Status[1] << 2);
 
-    if (Low_F_Flag)      DO_temp |= 0x10;  // Bit 4
-    if (Over_Ex_Flag)    DO_temp |= 0x20;  // Bit 5
-    if (PT_Break_Flag)   DO_temp |= 0x40;  // Bit 6
-    if (Standby_Flag)    DO_temp |= 0x80;  // Bit 7
+    if (Low_F_Flag) DO_temp |= 0x10;     // Bit 4
+    if (Over_Ex_Flag) DO_temp |= 0x20;   // Bit 5
+    if (PT_Break_Flag) DO_temp |= 0x40;  // Bit 6
+    if (Standby_Flag) DO_temp |= 0x80;   // Bit 7
 
     DO_Data[2] = DO_temp;
 
@@ -437,7 +437,7 @@ static void DO3(void)
 
 /**
  * @brief Map status flags to output byte 4
- * 
+ *
  * Output byte 4 (DO_Data[3]):
  * Encodes online communication source selection (1-of-n encoding).
  * Bit position indicates which channel is active.
@@ -471,7 +471,7 @@ static void DO4(void)
 
 /**
  * @brief Map status flags to output byte 5
- * 
+ *
  * Output byte 5 (DO_Data[4]):
  * - Bits 0-1: Optical SCR channel 1 status
  * - Bits 2-3: Optical SCR channel 2 status
@@ -482,7 +482,7 @@ static void DO5(void)
 {
     unsigned char DO_temp = 0;
 
-    DO_temp  = Optical_Comm_Status[2];
+    DO_temp = Optical_Comm_Status[2];
     DO_temp |= (Optical_Comm_Status[3] << 2);
     DO_temp |= (Optical_Comm_Status[4] << 4);
     DO_temp |= (Optical_Comm_Status[5] << 6);
@@ -492,7 +492,7 @@ static void DO5(void)
 
 /**
  * @brief Map status flags to output byte 6
- * 
+ *
  * Output byte 6 (DO_Data[5]):
  * - Bits 0-1: Optical SCR channel 5 status
  * - Bit 2: AVR mode flag
@@ -514,7 +514,7 @@ static void DO6(void)
 
 /**
  * @brief Map status flags to output byte 8
- * 
+ *
  * Output byte 8 (DO_Data[7]):
  * Individual arm fuse status (bits 0-5 for arms 0-5).
  */
@@ -537,7 +537,7 @@ static void DO8(void)
 
 /**
  * @brief Map all status flags to digital outputs and write to hardware
- * 
+ *
  * Complete output processing sequence:
  * 1. Refresh all status flags
  * 2. Map flags to output bytes (DO1-DO8)
@@ -563,13 +563,13 @@ static void DO(void)
 
 /**
  * @brief Complete digital I/O update cycle
- * 
+ *
  * Performs full input/output processing:
  * - Reads digital inputs
  * - Updates internal status flags
  * - Maps flags to outputs
  * - Writes to hardware
- * 
+ *
  * Call this function periodically (e.g., every 10ms) from main loop or timer ISR.
  */
 void DIDO(void)

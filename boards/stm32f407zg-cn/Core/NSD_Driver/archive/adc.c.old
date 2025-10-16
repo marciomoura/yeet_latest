@@ -1,0 +1,669 @@
+/********************************************************************
+ *AI.c - Analog Input Driver (Hardware Layer Only)                  *
+ *                                                                   *
+ *Reads AD7606 ADC data and provides basic utilities                *
+ *Application control logic removed - see archive/ directory         *
+ ********************************************************************/
+#include <math.h>
+
+#include "AD7606.h"
+#include "stm32f4xx_gpio.h"
+
+/********************************************************************************
+ *AD7606                                                                         *
+ *AD7606���Խ���8·�����ѹ��16λ�������ȡ�RANGEΪ�ߵ�ƽ���뷶Χ��10V������Ϊ��5V��*
+ *AD7606����������ģ��ͨ����Ϊ����ͬʱ������CONVSTA/B��������һ�飬��ͬʱ������	*
+ *AD7606��ARM֮��ʹ��16λ�����������ӣ�CS���������������ߴ��ڸ���״̬���½�������*
+ *�������������״̬��BUSY��Ϊ�͵�ƽ���һ��RD�½��ض�ȡV1�����ݣ���һ��RD�½��� *
+ *��ȡV2�������������£�ֱ����ȡV8��                                             *
+ *********************************************************************************
+ *���ŷ���                                                                       *
+ *BUSY: PC13��RST��PF10��RANGE��PF9��CONVSTA��PF6��CONVSTB��PF7��                *
+ ********************************************************************************/
+#define WRITE_READ_ADDR  0x800
+#define Bank1_SRAM2_ADDR ((uint32_t)0x64000000)
+#define ADC_CHANNNEL     0x08
+
+/********************************************************************************
+ *Delay_Nop                                                                      *
+ *��ʱ����                                                                       *
+ ********************************************************************************/
+void Delay_Nop(unsigned int x)
+{
+    unsigned int i;
+    for (i = 0; i < x; i++);
+}
+
+/********************************************************************************
+ *AD7606_Init_Pin                                                                *
+ *��ʼ��AD7606������š�                                                         *
+ *BUSY: PC13��RST��PF10��RANGE��PF9��CONVSTA��PF6��CONVSTB��PF7��                *
+ ********************************************************************************/
+void AD7606_Init_Pin(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+
+    // BUSY
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+    // RST
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+    // RANGE
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+    // CONVSTA
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+    // CONVSTB
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
+}
+
+/********************************************************************************
+ *AD7606_RST_On                                                                  *
+ *AD7606��RST��������ߵ�ƽ��                                                    *
+ ********************************************************************************/
+void AD7606_RST_On(void) { GPIOF->BSRRL = GPIO_Pin_10; }
+
+/********************************************************************************
+ *AD7606_RST_Off                                                                 *
+ *AD7606��RST��������͵�ƽ��                                                    *
+ ********************************************************************************/
+void AD7606_RST_Off(void) { GPIOF->BSRRH = GPIO_Pin_10; }
+
+/********************************************************************************
+ *AD7606_RANGE_On                                                                *
+ *AD7606��RANGE��������ߵ�ƽ��                                                  *
+ ********************************************************************************/
+void AD7606_RANGE_On(void) { GPIOF->BSRRL = GPIO_Pin_9; }
+
+/********************************************************************************
+ *AD7606_RANGE_Off                                                               *
+ *AD7606��RANGE��������͵�ƽ��                                                  *
+ ********************************************************************************/
+void AD7606_RANGE_Off(void) { GPIOF->BSRRH = GPIO_Pin_9; }
+
+/********************************************************************************
+ *AD7606_CONVSTA_On                                                              *
+ *AD7606��CONVSTA��������ߵ�ƽ��                                                *
+ ********************************************************************************/
+void AD7606_CONVSTA_On(void) { GPIOF->BSRRL = GPIO_Pin_6; }
+
+/********************************************************************************
+ *AD7606_CONVSTA_Off                                                             *
+ *AD7606��CONVSTA��������͵�ƽ��                                                *
+ ********************************************************************************/
+void AD7606_CONVSTA_Off(void) { GPIOF->BSRRH = GPIO_Pin_6; }
+
+/********************************************************************************
+ *AD7606_CONVSTB_On                                                              *
+ *AD7606��CONVSTB��������ߵ�ƽ��                                                *
+ ********************************************************************************/
+void AD7606_CONVSTB_On(void) { GPIOF->BSRRL = GPIO_Pin_7; }
+
+/********************************************************************************
+ *AD7606_CONVSTB_Off                                                             *
+ *AD7606��CONVSTB��������͵�ƽ��                                                *
+ ********************************************************************************/
+void AD7606_CONVSTB_Off(void) { GPIOF->BSRRH = GPIO_Pin_7; }
+
+/********************************************************************************
+ *ConfigAD7606                                                                   *
+ *����AD7606��������Χ�޶�Ϊ��10V��                                               *
+ ********************************************************************************/
+void ConfigAD7606(void)
+{
+    // AD7606��λ
+    AD7606_RST_Off();
+    Delay_Nop(10);
+    AD7606_RST_On();
+    Delay_Nop(20);
+    AD7606_RST_Off();
+    AD7606_RANGE_On();  // ��10v
+    //	AD7606_RANGE_Off();  //��5v
+}
+
+/********************************************************************************
+ *PSRAM_Init                                                                     *
+ *FSMC�����ú�GPIO�ӿ�������AD7606��                                             *
+ *����������뱻�������κζ�AD7606֮ǰ��                                         *
+ ********************************************************************************/
+void PSRAM_Init(void)
+{
+    FSMC_NORSRAMInitTypeDef FSMC_NORSRAMInitStructure;
+    FSMC_NORSRAMTimingInitTypeDef p;
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // Enable GPIOs clock
+    RCC_AHB1PeriphClockCmd(
+        RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE | RCC_AHB1Periph_GPIOF | RCC_AHB1Periph_GPIOG, ENABLE);
+
+    // Enable FSMC clock
+    RCC_AHB3PeriphClockCmd(RCC_AHB3Periph_FSMC, ENABLE);
+
+    // GPIOs Configuration
+    /*
+     +-------------------+--------------------+------------------+------------------+
+     +                       PSRAM pins assignment                                  +
+     +-------------------+--------------------+------------------+------------------+
+     | PD0  <-> FSMC_D2  | PE0  <-> FSMC_NBL0 | PF0  <-> FSMC_A0 | PG0 <-> FSMC_A10 |
+     | PD1  <-> FSMC_D3  | PE1  <-> FSMC_NBL1 | PF1  <-> FSMC_A1 | PG1 <-> FSMC_A11 |
+     | PD4  <-> FSMC_NOE | PE7  <-> FSMC_D4   | PF2  <-> FSMC_A2 | PG2 <-> FSMC_A12 |
+     | PD5  <-> FSMC_NWE | PE8  <-> FSMC_D5   | PF3  <-> FSMC_A3 | PG3 <-> FSMC_A13 |
+     | PD8  <-> FSMC_D13 | PE9  <-> FSMC_D6   | PF4  <-> FSMC_A4 | PG4 <-> FSMC_A14 |
+     | PD9  <-> FSMC_D14 | PE10 <-> FSMC_D7   | PF5  <-> FSMC_A5 | PG5 <-> FSMC_A15 |
+     | PD10 <-> FSMC_D15 | PE11 <-> FSMC_D8   | PF12 <-> FSMC_A6 | PG9 <-> FSMC_NE2 |
+     | PD11 <-> FSMC_A16 | PE12 <-> FSMC_D9   | PF13 <-> FSMC_A7 |------------------+
+     | PD12 <-> FSMC_A17 | PE13 <-> FSMC_D10  | PF14 <-> FSMC_A8 |
+     | PD14 <-> FSMC_D0  | PE14 <-> FSMC_D11  | PF15 <-> FSMC_A9 |
+     | PD15 <-> FSMC_D1  | PE15 <-> FSMC_D12  |------------------+
+     +-------------------+--------------------+
+    */
+    // GPIOD configuration
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource4, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource8, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource9, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource10, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource11, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource14, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource15, GPIO_AF_FSMC);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_8 | GPIO_Pin_9 |
+                                  GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_14 | GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+    // GPIOE configuration
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource7, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource8, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource9, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource10, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource11, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource13, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource14, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource15, GPIO_AF_FSMC);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 |
+                                  GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+
+    GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+    // GPIOF configuration
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource2, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource3, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource4, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource5, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource13, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource14, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource15, GPIO_AF_FSMC);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 |
+                                  GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+    // GPIOG configuration
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource2, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource3, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource4, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource5, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource9, GPIO_AF_FSMC);
+
+    GPIO_InitStructure.GPIO_Pin =
+        GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_9;
+
+    GPIO_Init(GPIOG, &GPIO_InitStructure);
+
+    // FSMC Configuration
+    p.FSMC_AddressSetupTime = 0x2;
+    p.FSMC_AddressHoldTime = 0;
+    p.FSMC_DataSetupTime = 0xB;
+    p.FSMC_BusTurnAroundDuration = 1;
+    p.FSMC_CLKDivision = 0;
+    p.FSMC_DataLatency = 0;
+    p.FSMC_AccessMode = FSMC_AccessMode_A;
+
+    FSMC_NORSRAMInitStructure.FSMC_Bank = FSMC_Bank1_NORSRAM2;
+    FSMC_NORSRAMInitStructure.FSMC_DataAddressMux = FSMC_DataAddressMux_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_MemoryType = FSMC_MemoryType_PSRAM;
+    FSMC_NORSRAMInitStructure.FSMC_MemoryDataWidth = FSMC_MemoryDataWidth_16b;
+    FSMC_NORSRAMInitStructure.FSMC_BurstAccessMode = FSMC_BurstAccessMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_AsynchronousWait = FSMC_AsynchronousWait_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignalPolarity = FSMC_WaitSignalPolarity_Low;
+    FSMC_NORSRAMInitStructure.FSMC_WrapMode = FSMC_WrapMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignalActive = FSMC_WaitSignalActive_BeforeWaitState;
+    FSMC_NORSRAMInitStructure.FSMC_WriteOperation = FSMC_WriteOperation_Enable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignal = FSMC_WaitSignal_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_ExtendedMode = FSMC_ExtendedMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WriteBurst = FSMC_WriteBurst_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_ReadWriteTimingStruct = &p;
+    FSMC_NORSRAMInitStructure.FSMC_WriteTimingStruct = &p;
+
+    FSMC_NORSRAMInit(&FSMC_NORSRAMInitStructure);
+
+    //!< Enable FSMC Bank1_SRAM2 Bank
+    FSMC_NORSRAMCmd(FSMC_Bank1_NORSRAM2, ENABLE);
+}
+
+/*********************************************************************************
+ *PSRAM_WriteBuffer                                                               *
+ *�ѳ���ΪNumHalfwordToWrite������д�뵽PSRAM�У�д��ĳ�ʼ��ַΪWriteAddr        *
+ *********************************************************************************/
+void PSRAM_WriteBuffer(uint16_t* pBuffer, uint32_t WriteAddr, uint32_t NumHalfwordToWrite)
+{
+    for (; NumHalfwordToWrite != 0; NumHalfwordToWrite--)  // while there is data to write
+    {
+        // Transfer data to the memory
+        *(uint16_t*)(Bank1_SRAM2_ADDR + WriteAddr) = *pBuffer++;
+
+        // Increment the address
+        WriteAddr += 2;
+    }
+}
+
+/********************************************************************************
+ *PSRAM_ReadBuffer                                                               *
+ *��SRAM�ж�ȡ���ݣ���ȡ�ĳ�ʼ��ַΪReadAddr����ȡ�ĳ���ΪNumHalfwordToRead��    *
+ *��ȡ�����ݷ��뵽pBuffer������                                                  *
+ ********************************************************************************/
+void PSRAM_ReadBuffer(uint16_t* pBuffer, uint32_t ReadAddr, uint32_t NumHalfwordToRead)
+{
+    for (; NumHalfwordToRead != 0; NumHalfwordToRead--) /* while there is data to read */
+    {
+        /* Read a half-word from the memory */
+        *pBuffer++ = *(__IO uint16_t*)(Bank1_SRAM2_ADDR + ReadAddr);
+
+        /* Increment the address*/
+        ReadAddr += 2;
+    }
+}
+
+/********************************************************************************
+ *Init_AD7606                                                                    *
+ *����AD7606��������Χ�޶�Ϊ��10V��                                               *
+ ********************************************************************************/
+void Init_AD7606(void)
+{
+    AD7606_Init_Pin();
+    ConfigAD7606();  // �޶������10V����Ӧ���0~0xffff
+    PSRAM_Init();    // ���ڳ�ʼ��
+}
+
+/********************************************************************************
+ *Start_AD7606                                                                   *
+ *����AD7606��ADת����CONVSTA/B������������ת����                                *
+ ********************************************************************************/
+void Start_AD7606(void)
+{
+    AD7606_CONVSTA_On();
+    AD7606_CONVSTB_On();
+
+    AD7606_CONVSTA_Off();
+    AD7606_CONVSTB_Off();
+    Delay_Nop(20);
+    AD7606_CONVSTA_On();
+    AD7606_CONVSTB_On();
+}
+
+/********************************************************************************
+ *Read_AD7606                                                                    *
+ *��ȡAD7606��ADת�������                                                       *
+ ********************************************************************************/
+void Read_AD7606(unsigned short int* pBuffer)
+{
+    Delay_Nop(500);
+    PSRAM_ReadBuffer(pBuffer, WRITE_READ_ADDR, 8);  // ����8�ζ�ȡ����ADͨ��ֵ
+}
+
+/********************************************************************************
+ *Start_Read_AD7606_Result                                                       *
+ *����ADת������ת����ɺ��ȡת����������ڶ�ʵʱ��Ҫ��ϸߵ�Ӧ�ã�CPUռ���ʸߡ�*
+ ********************************************************************************/
+void Start_Read_AD7606(unsigned short int* pBuffer)
+{
+    Start_AD7606();
+    Read_AD7606(pBuffer);
+}
+
+/********************************************************************************
+ *Read_Start_AD7606                                                              *
+ *��ȡת�������һ�ε�ת�����������AD��������һ�ζ�ȡ����ʱ�̣�CPUռ���ʵ͡�    *
+ ********************************************************************************/
+void Read_Start_AD7606(unsigned short int* pBuffer)
+{
+    PSRAM_ReadBuffer(pBuffer, WRITE_READ_ADDR, 8);  // ����8�ζ�ȡ����ADͨ��ֵ
+    Start_AD7606();
+}
+
+//===========================================================================
+// End of file.
+//===========================================================================
+
+#define AD_Data_Num 300
+
+// Raw ADC data buffers
+int AI_Times;                     // Sample counter
+int ADC_Data[8][AD_Data_Num];     // Raw ADC data [channel][sample]
+int AI_Count;                     // General counter
+unsigned short int nI_Buf[3][2];  // Median filter buffers
+
+/********************************************************************
+ *Init_AD_Data                                                       *
+ *Initialize ADC data buffers                                        *
+ ********************************************************************/
+void Init_AD_Data(void)
+{
+    int i, j;
+
+    // Clear ADC buffers
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < AD_Data_Num; j++) {
+            ADC_Data[i][j] = 0;
+        }
+    }
+
+    AI_Count = 0;
+    AI_Times = 0;
+}
+
+/********************************************************************
+ *Zero_Calibrate                                                     *
+ *DC offset calibration for ADC channels                             *
+ ********************************************************************/
+void Zero_Calibrate(void)
+{
+    int i, j;
+    long int nSum;
+    unsigned short int nBuffer[8];
+
+    for (i = 0; i < 8; i++) {
+        nSum = 0;
+        for (j = 0; j < 100; j++) {
+            Start_Read_AD7606(nBuffer);
+            nSum += (long int)nBuffer[i];
+        }
+        ADC_Data[i][0] = (int)(nSum / 100);  // Store calibration offset
+    }
+}
+
+/********************************************************************
+ *Get_Medium_n                                                       *
+ *Median filter for noise rejection (integer version)                *
+ ********************************************************************/
+int Get_Medium_n(int a, int b, int c)
+{
+    if (a > b) {
+        if (b > c)
+            return b;
+        else if (a > c)
+            return c;
+        else
+            return a;
+    }
+    else  // a <= b
+    {
+        if (a > c)
+            return a;
+        else if (b > c)
+            return c;
+        else
+            return b;
+    }
+}
+
+/********************************************************************
+ *Get_Medium_Value                                                   *
+ *Median filter for noise rejection (float version)                  *
+ ********************************************************************/
+float Get_Medium_Value(float a, float b, float c)
+{
+    if (a > b) {
+        if (b > c)
+            return b;
+        else if (a > c)
+            return c;
+        else
+            return a;
+    }
+    else  // a <= b
+    {
+        if (a > c)
+            return a;
+        else if (b > c)
+            return c;
+        else
+            return b;
+    }
+}
+
+/********************************************************************
+ *AD                                                                 *
+ *Read ADC with median filtering                                     *
+ *This is the main hardware interface - keep this function           *
+ ********************************************************************/
+void AD(void)
+{
+    unsigned short int nBuffer[8];
+    int i;
+
+    // Read all 8 ADC channels
+    Start_Read_AD7606(nBuffer);
+
+    // Apply median filter to reduce noise
+    for (i = 0; i < 8; i++) {
+        nI_Buf[i % 3][0] = nI_Buf[i % 3][1];
+        nI_Buf[i % 3][1] = nBuffer[i];
+
+        // Store median-filtered value
+        ADC_Data[i][AI_Count] = Get_Medium_n(nI_Buf[i % 3][0], nI_Buf[i % 3][1], nBuffer[i]);
+    }
+
+    // Increment circular buffer pointer
+    if (++AI_Count >= AD_Data_Num) {
+        AI_Count = 0;
+    }
+
+    AI_Times++;
+}
+
+/********************************************************************
+ *Cal_AD                                                             *
+ *Placeholder for application-specific ADC processing                *
+ *Users should implement their own processing in their application   *
+ ********************************************************************/
+void Cal_AD(void)
+{
+    // Empty - application control logic removed
+    // User application can process ADC_Data[8][300] buffer directly
+    // Or implement custom calculations here
+}
+
+//===========================================================================
+// End of file.
+//===========================================================================
+
+extern void Delay_Nop(unsigned int x);
+
+uint16_t ADC_Num = 0;
+unsigned int j;
+unsigned short int AD_Result[12] = {0};
+
+/********************************************************************************
+ *Ƭ��AD
+ ** Ƭ��AD�����Բ���4��ģ���źţ�����0~10V�������ӦΪ0~0xfff��					*
+ *ADͨ��ʹ������PC0~PC3����ģ���źţ�Ȼ������ARMоƬ��ADͨ��10~13��				*
+ *********************************************************************************
+ *��ʼ������void Init_OnChip_AD(int AD_Num) * ����AD_Num�����õ�AD����ͨ���������÷�Χ1~4��
+ ** ѭ����������void Get_OnChip_AD_Result(unsigned short int *AD_Result)			*
+ *AD_Result���û��洢AD�������������ַ�������˶���ͨ���ͷ��ض������ݡ�			*
+ ********************************************************************************/
+
+/********************************************************************************
+ *Init_AD_Pin
+ ** ��ʼ��ARMƬ��AD��Ҫʹ�õ�����PC0~PC3 ��										*
+ ********************************************************************************/
+void Init_AD_Pin(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // ����GPIOC��ʱ��
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);  // ����ADC1ʱ��
+
+    // GPIO����PC5��ʼ���������������50MHzˢ��Ƶ��
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+}
+/********************************************************************************
+ *Init_AD_DMA
+ ** ��ʼ��ARMƬ��AD��DMA��ADC1ʹ��DMA2Stream4Channel0								*
+ ********************************************************************************/
+void Init_AD_DMA(int nNum)
+{
+    DMA_InitTypeDef DMA_InitStruct;
+
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);
+
+    DMA_StructInit(&DMA_InitStruct);  // ȱʡֵ����ʼ������
+    DMA_InitStruct.DMA_Channel = DMA_Channel_0;
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&ADC1->DR;
+    DMA_InitStruct.DMA_Memory0BaseAddr = (uint32_t)AD_Result;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralToMemory;  // ���������赽�ڴ�
+    DMA_InitStruct.DMA_BufferSize = nNum;
+    DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;  // �ڴ��ַ����
+    DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+    DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Circular;  // DMA_Mode_Normal;
+    DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+    DMA_InitStruct.DMA_FIFOMode = DMA_FIFOMode_Disable;
+    DMA_InitStruct.DMA_FIFOThreshold = DMA_FIFOThreshold_HalfFull;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+    DMA_InitStruct.DMA_MemoryBurst = DMA_PeripheralBurst_Single;
+
+    DMA_Init(DMA2_Stream4, &DMA_InitStruct);
+    DMA_Cmd(DMA2_Stream4, ENABLE);
+}
+
+/********************************************************************************
+ *Init_AD_Mode
+ ** ��ʼ��ARMƬ��AD�������� ��
+ **
+ ********************************************************************************/
+void Init_AD_Mode(int32_t AD_Num)
+{
+    ADC_InitTypeDef ADC_InitStructure;
+    ADC_CommonInitTypeDef ADC_CommonInitStructure;
+
+    assert_param(AD_Num < 5 && AD_Num > 0);              // ������Χ���
+    ADC_Num = AD_Num;                                    // ������ʼ��ʱ��ADͨ����������AD���ʱʹ��
+    ADC_StructInit(&ADC_InitStructure);                  // 12λ���ݡ�����ת���������������ⲿ�����������Ҷ��롢ת������1
+    ADC_InitStructure.ADC_ScanConvMode = ENABLE;         // ����ɨ��ģʽ
+    ADC_InitStructure.ADC_NbrOfConversion = ADC_Num;     // ����ת�����еĳ��ȣ���ת������
+    ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;  // ������ת��
+    ADC_Init(ADC1, &ADC_InitStructure);                  // ��ʼ��ADC1ת����
+
+    // ����ת�����е����ã�˳��ת��ADC_IN10~ADC_IN13
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_28Cycles);
+    if (AD_Num > 1) {
+        ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 2, ADC_SampleTime_28Cycles);
+    }
+    if (AD_Num > 2) {
+        ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 3, ADC_SampleTime_28Cycles);
+    }
+    if (AD_Num == 4) {
+        ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 4, ADC_SampleTime_28Cycles);
+    }
+
+    ADC_CommonStructInit(&ADC_CommonInitStructure);  // ��������ADCת����ͬ����ʱ��2��Ƶ������DMA��5����ADת�����
+    ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_1;
+    ADC_CommonInit(&ADC_CommonInitStructure);
+    ADC_DMARequestAfterLastTransferCmd(ADC1, ENABLE);
+    ADC_DMACmd(ADC1, ENABLE);
+    // ADC_EOCOnEachRegularChannelCmd(ADC1,ENABLE);	//ÿ��ADͨ��ת����ɶ������EOC������������ɲŲ���EOC
+    ADC_Cmd(ADC1, ENABLE);  // ADC1�ϵ�
+}
+
+/********************************************************************************
+ *Init_OnChip_AD
+ ** ��ʼ��Ƭ��AD ��
+ ** ����AD_Num����Ҫ���õ�ADͨ�������� *
+ ********************************************************************************/
+void Init_OnChip_AD(int AD_Num)
+{
+    Init_AD_Pin();  // ���ų�ʼ��
+    Init_AD_DMA(AD_Num);
+    Init_AD_Mode(AD_Num);  // ADģʽ��ʼ��
+    ADC_SoftwareStartConv(ADC1);
+}
+
+/********************************************************************************
+ *Get_OnChip_AD_Result
+ ** ��ȡ�������е�ת����� ��
+ ** ����AD_Result���洢���ص�AD�������������ַ��									*
+ *�����źŷ�ֵ���Ӧ�Ľ��������0~10V��Ӧ���0~4095								*
+ ********************************************************************************/
+void Get_OnChip_AD_Result(unsigned short int* ADC_Result)
+{
+    int i;
+
+    for (i = 0; i < ADC_Num; i++) {
+        *ADC_Result++ = AD_Result[i];
+    }
+    // ADC_ClearFlag(ADC1, ADC_FLAG_STRT);	//�������λ
+
+    ADC_SoftwareStartConv(ADC1);  // ��������ADת��
+
+    if (ADC_GetFlagStatus(ADC1, ADC_FLAG_OVR))  // �ݴ�������ʱ��������־
+    {
+        ADC_ClearFlag(ADC1, ADC_FLAG_OVR);
+        ADC_DeInit();           // ��λADC
+        Init_AD_DMA(ADC_Num);   // DMA����
+        Init_AD_Mode(ADC_Num);  // ADģʽ��ʼ��
+    }
+}
+
+//===========================================================================
+// End of file.
+//===========================================================================
