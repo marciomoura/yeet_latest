@@ -126,16 +126,20 @@ target_sources(
             # Archived ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/optical.c  #
             # Archived - fiber protocol
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/para.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/pub.c  # Archived -
-            # global app vars ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ref.c
-            # # Archived - reference tracking
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/pub.c # Minimal hardware
+                                                              # status variables
+                                                              # (restored)
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/ref.c  # Archived -
+            # reference tracking
             # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/syn.c  # Archived -
             # sync/firing control
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/temperature.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/temperature.c  #
+            # Excluded - needs USARTx.h and optical.h
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
             # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USART_T.C  # Excluded
             # - conflicts with USARTx.C
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C  # File
+            # missing - excluded
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/WatchDog.c
             # Startup file (assembly)
@@ -145,7 +149,8 @@ target_sources(
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/GPIO.C
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/TIM.C
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C PROPERTIES LANGUAGE C)
+    # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/USARTx.C  # File missing
+    PROPERTIES LANGUAGE C)
 
 # Add include paths - PUBLIC so consumers inherit them
 target_include_directories(

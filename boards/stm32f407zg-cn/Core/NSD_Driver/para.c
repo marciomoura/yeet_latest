@@ -104,12 +104,12 @@ void Init_Hardware(void)
     uchNodeNum = Read_DIP_Switch();
 
     // Hardware peripherals
-    Init_GPIO();         // GPIO configuration
-    SRAM_Init();         // External SRAM initialization
-    Init_AD7606();       // External ADC (AD7606) initialization
-    sFLASH_Init();       // M25P32 Flash memory initialization
-    TIMx_Init();         // Timer initialization
-    Init_T();            // Timer 2 for temperature polling
+    Init_GPIO();    // GPIO configuration
+    SRAM_Init();    // External SRAM initialization
+    Init_AD7606();  // External ADC (AD7606) initialization
+    sFLASH_Init();  // M25P32 Flash memory initialization
+    TIMx_Init();    // Timer initialization
+    // Init_T();            // Timer 2 for temperature polling - EXCLUDED (needs USARTx and optical drivers)
     WatchDog_Init(200);  // Watchdog with 200ms timeout
 
     // NOTE: Init_RTC() was here but depends on removed code
