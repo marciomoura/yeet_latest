@@ -1,253 +1,378 @@
-/***************************************************************************************
- * DIDO.C - Digital I/O Status Monitoring Implementation
- ***************************************************************************************
- * Description: Maps hardware status flags to digital I/O for monitoring and control
- *
- * This module provides hardware-level status monitoring including:
- * - SCR (thyristor) fault detection
- * - Fuse status monitoring (6 arms)
- * - Circuit breaker state detection
- * - Temperature monitoring
- * - Optical fiber communication status
- * - System running/fault/alarm indication
- *
- * The module reads digital inputs and maps internal status flags to digital outputs
- * for external monitoring equipment.
- ***************************************************************************************/
+/**
+ ******************************************************************************
+ * @file    digital_ios.c
+ * @brief   Digital I/O status monitoring driver implementation
+ * @date    2025
+ ******************************************************************************
+ */
 
-#include <math.h>
-#include <stm32f4xx.h>
+#include "digital_ios.h"
 
-#include "GPIO.H"
-#include "pub.h"
+#include <string.h>
 
-//=======================================================================================
-// External Function Declarations
-//=======================================================================================
+/* ============================================================================
+ * External Dependencies (from legacy GPIO module)
+ * ============================================================================ */
 
-/** Set firing angle delay (from synchronization module) */
-extern void Set_Alpha_Delay(void);
+// Hardware GPIO functions (defined in gpio.c)
+extern void Refresh_DI(void);
+extern void Refresh_Delayed_DI(void);
+extern void DO_Out(void);
+extern void Breaker_Check(void);
 
-/** Initialize synchronization pulse generation */
-extern void Syn_Pulse_Init(void);
+// External status variables (from pub.h and other modules)
+extern unsigned char DI_Flag[8][8];
+extern unsigned char DI_Delayed_Flag[8][8];
+extern unsigned char DO_Flag[8][8];
+extern unsigned char DI_Data[8];
+extern unsigned char DO_Data[8];
 
-//=======================================================================================
-// External Status Variables
-//=======================================================================================
+extern unsigned char Arm_Fuse_Flag[6];
+extern unsigned char Fuse_Flag;
+extern unsigned char Over_Temperature_Flag;
+extern unsigned char Fan_Flag;
+extern unsigned char Ref_Up_Flag;
+extern unsigned char Ref_Down_Flag;
+extern unsigned char Stop_Command;
+extern unsigned char Pulse_Enabled_Flag;
+extern unsigned char Breaker_Flag;
+extern unsigned char Pulse_Power_Flag;
 
-/** Optical fiber communication status for each channel */
-extern unsigned short int Optical_Comm_Status[8];  // 0=Disconnected, 1=TX timeout, 3=RX timeout
+extern unsigned char SCR_Error_Flag;
+extern unsigned char Fan_On_Flag;
+extern unsigned char Sec_A_Flag, Sec_B_Flag, Sec_C_Flag;
+extern unsigned char Syn_A_Err_Flag, Syn_B_Err_Flag, Syn_C_Err_Flag;
+extern unsigned char ROM_Flag;
+extern unsigned char Scr_Exit_Flag;
+extern unsigned char Low_F_Flag;
+extern unsigned char Over_Ex_Flag;
+extern unsigned char PT_Break_Flag;
+extern unsigned char Standby_Flag;
+extern unsigned char Online_Flag;
+extern unsigned char Running_Flag;
+extern unsigned short int Running_Count;
 
-/** Optical communication error flag */
-extern unsigned char Optical_Comm_Err_Flag;
+extern short int DO_Lock_Delay;
+extern unsigned char DO_Lock_Flag;
 
-/** Online communication lost flag */
-extern unsigned char Online_Comm_Err_Flag;
-
-/** Online module source flags */
+extern unsigned short int Optical_Comm_Status[8];
 extern unsigned char Online_Source[8];
-
-/** Selected synchronization source */
 extern unsigned char SynSource;
 
-/** Optical transmission flag */
-extern unsigned char Optical_Tx_Flag;
+/* ============================================================================
+ * Private Function Prototypes
+ * ============================================================================ */
 
-//=======================================================================================
-// Hardware Status Monitoring Functions
-//=======================================================================================
+static void DIO_ProcessInputByte1(dio_instance_t* dio);
+static void DIO_ProcessInputByte2(dio_instance_t* dio);
+static void DIO_MapOutputByte1(dio_instance_t* dio);
+static void DIO_MapOutputByte2(dio_instance_t* dio);
+static void DIO_MapOutputByte3(dio_instance_t* dio);
+static void DIO_MapOutputByte4(dio_instance_t* dio);
+static void DIO_MapOutputByte5(dio_instance_t* dio);
+static void DIO_MapOutputByte6(dio_instance_t* dio);
+static void DIO_MapOutputByte8(dio_instance_t* dio);
+static void DIO_UpdateRunningIndicator(dio_instance_t* dio);
+static void DIO_UpdateOutputLock(dio_instance_t* dio);
+static void DIO_SyncToExternalFlags(dio_instance_t* dio);
+static void DIO_SyncFromExternalFlags(dio_instance_t* dio);
+
+/* ============================================================================
+ * Public Function Implementations - Initialization
+ * ============================================================================ */
 
 /**
- * @brief Update running indicator LED
- *
- * Toggles running indicator every 100 cycles (typically 1 second @ 10ms rate).
- * Provides visual heartbeat indication that system is operational.
+ * @brief Initialize digital I/O driver instance
  */
-static void Running_Signal(void)
+bool DIO_Init(dio_instance_t* dio)
 {
-    if (++Running_Count >= 100) {
-        Running_Count = 0;
-        Running_Flag = ~Running_Flag;
+    if (dio == NULL) {
+        return false;
     }
+
+    // Clear instance structure
+    memset(dio, 0, sizeof(dio_instance_t));
+
+    // Initialize hardware (legacy GPIO functions handle pin configuration)
+    // The hardware is initialized externally via GPIO module
+
+    dio->initialized = true;
+    dio->update_count = 0;
+    dio->running_count = 0;
+    dio->do_lock_delay = 0;
+    dio->do_lock_flag = false;
+
+    return true;
 }
 
 /**
- * @brief Check digital output lock status
- *
- * Manages DO_Lock_Delay countdown timer. When delay expires,
- * clears DO_Lock_Flag to enable normal output operation.
+ * @brief Reset digital I/O driver state
  */
-static void DO_Lock_Check(void)
+void DIO_Reset(dio_instance_t* dio)
 {
-    if (--DO_Lock_Delay <= 0) {
-        DO_Lock_Delay = 0;
-        DO_Lock_Flag = 0;
+    if (dio == NULL) {
+        return;
     }
+
+    // Clear all flags
+    memset(&dio->inputs, 0, sizeof(dio_input_flags_t));
+    memset(&dio->outputs, 0, sizeof(dio_output_flags_t));
+    memset(dio->input_data, 0, sizeof(dio->input_data));
+    memset(dio->output_data, 0, sizeof(dio->output_data));
+
+    dio->running_count = 0;
+    dio->do_lock_delay = 0;
+    dio->do_lock_flag = false;
+}
+
+/* ============================================================================
+ * Public Function Implementations - Input Processing
+ * ============================================================================ */
+
+/**
+ * @brief Read and process all digital inputs
+ */
+void DIO_ReadInputs(dio_instance_t* dio)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    // Read raw inputs from hardware
+    Refresh_DI();
+
+    // Apply debounce filter
+    Refresh_Delayed_DI();
+
+    // Process input bytes and update flags
+    DIO_ProcessInputByte1(dio);
+    DIO_ProcessInputByte2(dio);
+
+    // Sync to external flag variables for legacy code compatibility
+    DIO_SyncToExternalFlags(dio);
 }
 
 /**
- * @brief Refresh all status flags
- *
- * Calls all status checking functions to update system health flags.
- * Called before mapping flags to digital outputs.
+ * @brief Get input flags structure
  */
-static void Refresh_DO_Flag(void)
+const dio_input_flags_t* DIO_GetInputFlags(const dio_instance_t* dio)
 {
-    Running_Signal();
-    DO_Lock_Check();
+    if (dio == NULL) {
+        return NULL;
+    }
+    return &dio->inputs;
 }
 
-//=======================================================================================
-// Digital Input Processing Functions
-//=======================================================================================
+/* ============================================================================
+ * Public Function Implementations - Output Processing
+ * ============================================================================ */
+
+/**
+ * @brief Update and write all digital outputs
+ */
+void DIO_WriteOutputs(dio_instance_t* dio)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    // Update status indicators
+    DIO_UpdateRunningIndicator(dio);
+    DIO_UpdateOutputLock(dio);
+
+    // Sync from external flag variables for legacy code compatibility
+    DIO_SyncFromExternalFlags(dio);
+
+    // Map output flags to data bytes
+    DIO_MapOutputByte1(dio);
+    DIO_MapOutputByte2(dio);
+    DIO_MapOutputByte3(dio);
+    DIO_MapOutputByte4(dio);
+    DIO_MapOutputByte5(dio);
+    DIO_MapOutputByte6(dio);
+    dio->output_data[6] = SynSource;  // Direct assignment
+    DIO_MapOutputByte8(dio);
+
+    // Write outputs to hardware
+    DO_Out();
+}
+
+/**
+ * @brief Set output flags structure
+ */
+void DIO_SetOutputFlags(dio_instance_t* dio, const dio_output_flags_t* outputs)
+{
+    if (dio == NULL || outputs == NULL) {
+        return;
+    }
+
+    memcpy(&dio->outputs, outputs, sizeof(dio_output_flags_t));
+}
+
+/* ============================================================================
+ * Public Function Implementations - Combined Operations
+ * ============================================================================ */
+
+/**
+ * @brief Complete digital I/O update cycle
+ */
+void DIO_Update(dio_instance_t* dio)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    DIO_ReadInputs(dio);
+    DIO_WriteOutputs(dio);
+
+    dio->update_count++;
+}
+
+/* ============================================================================
+ * Public Function Implementations - Status and Diagnostics
+ * ============================================================================ */
+
+/**
+ * @brief Get raw input data bytes
+ */
+void DIO_GetInputData(const dio_instance_t* dio, uint8_t* buffer)
+{
+    if (dio == NULL || buffer == NULL) {
+        return;
+    }
+
+    memcpy(buffer, dio->input_data, DIO_NUM_INPUT_BYTES);
+}
+
+/**
+ * @brief Get raw output data bytes
+ */
+void DIO_GetOutputData(const dio_instance_t* dio, uint8_t* buffer)
+{
+    if (dio == NULL || buffer == NULL) {
+        return;
+    }
+
+    memcpy(buffer, dio->output_data, DIO_NUM_OUTPUT_BYTES);
+}
+
+/**
+ * @brief Set output lock
+ */
+void DIO_SetOutputLock(dio_instance_t* dio, int16_t delay_cycles)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    dio->do_lock_delay = delay_cycles;
+    dio->do_lock_flag = (delay_cycles > 0);
+}
+
+/* ============================================================================
+ * Private Function Implementations - Input Processing
+ * ============================================================================ */
 
 /**
  * @brief Process digital input byte 1
- *
- * Maps debounced input byte 1 (DI_Delayed_Flag[4][x]) to internal flags:
- * - Bit 0: Combined fuse status (OR of all 6 arm fuses)
- * - Bit 1: Over temperature (inverted - 1=OK, 0=Fault)
- * - Bit 2: Fan status
- * - Bit 5: Reference up command (inverted)
- * - Bit 6: Reference down command (inverted)
- * - Bit 7: Stop command (inverted)
- *
- * Packs processed flags into DI_Data[0] for communication.
  */
-static void Get_DI1(void)
+static void DIO_ProcessInputByte1(dio_instance_t* dio)
 {
-    unsigned char DI_temp;
-    int i;
+    if (dio == NULL) {
+        return;
+    }
 
     // Combine all 6 arm fuse flags
-    Fuse_Flag =
-        Arm_Fuse_Flag[0] | Arm_Fuse_Flag[1] | Arm_Fuse_Flag[2] | Arm_Fuse_Flag[3] | Arm_Fuse_Flag[4] | Arm_Fuse_Flag[5];
+    dio->inputs.fuse_flag = 
+        Arm_Fuse_Flag[0] | Arm_Fuse_Flag[1] | Arm_Fuse_Flag[2] | 
+        Arm_Fuse_Flag[3] | Arm_Fuse_Flag[4] | Arm_Fuse_Flag[5];
+
+    // Copy individual arm flags
+    for (int i = 0; i < 6; i++) {
+        dio->inputs.arm_fuse_flag[i] = Arm_Fuse_Flag[i];
+    }
 
     // Temperature status (inverted logic: 1=OK, 0=Fault)
-    if (DI_Delayed_Flag[4][1]) {
-        Over_Temperature_Flag = 0;  // Temperature OK
-    }
-    else {
-        Over_Temperature_Flag = 1;  // Over temperature fault
-    }
+    dio->inputs.over_temperature_flag = (DI_Delayed_Flag[4][1] == 0);
 
     // Direct mapped inputs
-    Fan_Flag = DI_Delayed_Flag[4][2];
-    Ref_Up_Flag = 1 - DI_Delayed_Flag[4][5];    // Inverted
-    Ref_Down_Flag = 1 - DI_Delayed_Flag[4][6];  // Inverted
-    Stop_Command = 1 - DI_Delayed_Flag[4][7];   // Inverted
+    dio->inputs.fan_flag = DI_Delayed_Flag[4][2];
+    dio->inputs.ref_up_flag = (1 - DI_Delayed_Flag[4][5]);
+    dio->inputs.ref_down_flag = (1 - DI_Delayed_Flag[4][6]);
+    dio->inputs.stop_command = (1 - DI_Delayed_Flag[4][7]);
 
     // Pack into communication byte
-    DI_temp = Fuse_Flag;
-    for (i = 1; i < 8; i++) {
+    uint8_t di_temp = dio->inputs.fuse_flag;
+    for (int i = 1; i < 8; i++) {
         if (DI_Delayed_Flag[4][i]) {
-            DI_temp |= (1 << i);
+            di_temp |= (1 << i);
         }
     }
-    DI_Data[0] = DI_temp;
+    dio->input_data[0] = di_temp;
+    DI_Data[0] = di_temp;
 }
 
 /**
  * @brief Process digital input byte 2
- *
- * Maps debounced input byte 2 (DI_Delayed_Flag[5][x]) to internal flags:
- * - Bit 0: Pulse enable state
- * - Bit 1: Breaker status (calculated, not direct input)
- * - Bit 2: Pulse power supply fault
- *
- * Packs processed flags into DI_Data[1] for communication.
  */
-static void Get_DI2(void)
+static void DIO_ProcessInputByte2(dio_instance_t* dio)
 {
-    unsigned char DI_temp;
-    int i;
+    if (dio == NULL) {
+        return;
+    }
 
-    // Breaker status determined by power calculation, not direct input
+    // Breaker status determined by power calculation
     Breaker_Check();
+    dio->inputs.breaker_flag = Breaker_Flag;
 
     // Pulse power supply fault
-    Pulse_Power_Flag = DI_Delayed_Flag[5][2];
+    dio->inputs.pulse_power_flag = DI_Delayed_Flag[5][2];
+
+    // Pulse enabled flag
+    dio->inputs.pulse_enabled_flag = Pulse_Enabled_Flag;
 
     // Pack into communication byte
-    DI_temp = Pulse_Enabled_Flag;
-    for (i = 1; i < 8; i++) {
+    uint8_t di_temp = dio->inputs.pulse_enabled_flag;
+    for (int i = 1; i < 8; i++) {
         if (DI_Delayed_Flag[5][i]) {
-            DI_temp |= (1 << i);
+            di_temp |= (1 << i);
         }
     }
-    DI_Data[1] = DI_temp;
+    dio->input_data[1] = di_temp;
+    DI_Data[1] = di_temp;
 }
 
-/**
- * @brief Read and process all digital inputs
- *
- * Complete input processing sequence:
- * 1. Read raw inputs from hardware (Refresh_DI)
- * 2. Apply debounce filter (Refresh_Delayed_DI)
- * 3. Process input bytes and update flags (Get_DI1, Get_DI2)
- */
-static void DI(void)
-{
-    Refresh_DI();
-    Refresh_Delayed_DI();
-    Get_DI1();
-    Get_DI2();
-}
-
-//=======================================================================================
-// Digital Output Mapping Functions
-//=======================================================================================
+/* ============================================================================
+ * Private Function Implementations - Output Mapping
+ * ============================================================================ */
 
 /**
  * @brief Map status flags to output byte 1
- *
- * Output byte 1 (DO_Data[0] / DO_Flag[0][x]):
- * - Bit 0: SCR error flag
- * - Bit 1: Fuse fault
- * - Bit 2: Cooling fan on
- * - Bit 3: Phase A sync secondary fault OR sync error
- * - Bit 4: Phase B sync secondary fault OR sync error
- * - Bit 5: Phase C sync secondary fault OR sync error
- * - Bits 6-7: Reserved
- *
- * Also copies to extended output bank (DO_Flag[4][x]).
  */
-static void DO1(void)
+static void DIO_MapOutputByte1(dio_instance_t* dio)
 {
-    unsigned char DO_temp;
-
-    DO_temp = SCR_Error_Flag;
-
-    if (Fuse_Flag) {
-        DO_temp |= 0x02;  // Bit 1
+    if (dio == NULL) {
+        return;
     }
 
-    Fan_On_Flag = Pulse_Enabled_Flag;
-    if (Fan_On_Flag) {
-        DO_temp |= 0x04;  // Bit 2
-    }
+    uint8_t do_temp = dio->outputs.scr_error_flag;
 
-    if (Sec_A_Flag || Syn_A_Err_Flag) {
-        DO_temp |= 0x08;  // Bit 3
-    }
+    if (dio->outputs.fuse_flag) do_temp |= 0x02;
+    if (dio->outputs.fan_on_flag) do_temp |= 0x04;
+    if (dio->outputs.sec_a_flag || dio->outputs.syn_a_err_flag) do_temp |= 0x08;
+    if (dio->outputs.sec_b_flag || dio->outputs.syn_b_err_flag) do_temp |= 0x10;
+    if (dio->outputs.sec_c_flag || dio->outputs.syn_c_err_flag) do_temp |= 0x20;
 
-    if (Sec_B_Flag || Syn_B_Err_Flag) {
-        DO_temp |= 0x10;  // Bit 4
-    }
-
-    if (Sec_C_Flag || Syn_C_Err_Flag) {
-        DO_temp |= 0x20;  // Bit 5
-    }
-
-    DO_Data[0] = DO_temp;
+    dio->output_data[0] = do_temp;
+    DO_Data[0] = do_temp;
 
     // Map to DO_Flag for hardware output
-    DO_Flag[0][0] = SCR_Error_Flag;
-    DO_Flag[0][1] = Fuse_Flag;
-    DO_Flag[0][2] = Fan_On_Flag;
-    DO_Flag[0][3] = Sec_A_Flag || Syn_A_Err_Flag;
-    DO_Flag[0][4] = Sec_B_Flag || Syn_B_Err_Flag;
-    DO_Flag[0][5] = Sec_C_Flag || Syn_C_Err_Flag;
+    DO_Flag[0][0] = dio->outputs.scr_error_flag;
+    DO_Flag[0][1] = dio->outputs.fuse_flag;
+    DO_Flag[0][2] = dio->outputs.fan_on_flag;
+    DO_Flag[0][3] = dio->outputs.sec_a_flag || dio->outputs.syn_a_err_flag;
+    DO_Flag[0][4] = dio->outputs.sec_b_flag || dio->outputs.syn_b_err_flag;
+    DO_Flag[0][5] = dio->outputs.sec_c_flag || dio->outputs.syn_c_err_flag;
     DO_Flag[0][6] = 0;
     DO_Flag[0][7] = 0;
 
@@ -259,215 +384,266 @@ static void DO1(void)
 
 /**
  * @brief Map status flags to output byte 2
- *
- * Output byte 2 (DO_Data[1] / DO_Flag[1][x]):
- * - Bit 0: ROM (Flash memory) status
- * - Bits 1-6: Individual arm fuse flags (arms 5,4,3,2,1,0)
- * - Bit 7: SCR exit flag
  */
-static void DO2(void)
+static void DIO_MapOutputByte2(dio_instance_t* dio)
 {
-    unsigned char DO_temp;
+    if (dio == NULL) {
+        return;
+    }
 
-    DO_temp = ROM_Flag;
+    uint8_t do_temp = dio->outputs.rom_flag;
 
-    if (Arm_Fuse_Flag[5]) DO_temp |= 0x02;  // Bit 1
-    if (Arm_Fuse_Flag[4]) DO_temp |= 0x04;  // Bit 2
-    if (Arm_Fuse_Flag[3]) DO_temp |= 0x08;  // Bit 3
-    if (Arm_Fuse_Flag[2]) DO_temp |= 0x10;  // Bit 4
-    if (Arm_Fuse_Flag[1]) DO_temp |= 0x20;  // Bit 5
-    if (Arm_Fuse_Flag[0]) DO_temp |= 0x40;  // Bit 6
-    if (Scr_Exit_Flag) DO_temp |= 0x80;     // Bit 7
+    if (Arm_Fuse_Flag[5]) do_temp |= 0x02;
+    if (Arm_Fuse_Flag[4]) do_temp |= 0x04;
+    if (Arm_Fuse_Flag[3]) do_temp |= 0x08;
+    if (Arm_Fuse_Flag[2]) do_temp |= 0x10;
+    if (Arm_Fuse_Flag[1]) do_temp |= 0x20;
+    if (Arm_Fuse_Flag[0]) do_temp |= 0x40;
+    if (dio->outputs.scr_exit_flag) do_temp |= 0x80;
 
-    DO_Data[1] = DO_temp;
+    dio->output_data[1] = do_temp;
+    DO_Data[1] = do_temp;
 
     // Map to DO_Flag
-    DO_Flag[1][0] = ROM_Flag;
+    DO_Flag[1][0] = dio->outputs.rom_flag;
     DO_Flag[1][1] = Arm_Fuse_Flag[5];
     DO_Flag[1][2] = Arm_Fuse_Flag[4];
     DO_Flag[1][3] = Arm_Fuse_Flag[3];
     DO_Flag[1][4] = Arm_Fuse_Flag[2];
     DO_Flag[1][5] = Arm_Fuse_Flag[1];
     DO_Flag[1][6] = Arm_Fuse_Flag[0];
-    DO_Flag[1][7] = Scr_Exit_Flag;
+    DO_Flag[1][7] = dio->outputs.scr_exit_flag;
 }
 
 /**
  * @brief Map status flags to output byte 3
- *
- * Output byte 3 (DO_Data[2] / DO_Flag[2][x]):
- * - Bits 0-1: Optical channel 1 status (TX/RX timeout)
- * - Bits 2-3: Optical channel 2 status
- * - Bit 4: Low frequency flag
- * - Bit 5: Over excitation flag
- * - Bit 6: PT (potential transformer) disconnection
- * - Bit 7: Standby mode flag
  */
-static void DO3(void)
+static void DIO_MapOutputByte3(dio_instance_t* dio)
 {
-    unsigned char DO_temp;
+    if (dio == NULL) {
+        return;
+    }
 
-    DO_temp = Optical_Comm_Status[0];
-    DO_temp |= (Optical_Comm_Status[1] << 2);
+    uint8_t do_temp = Optical_Comm_Status[0];
+    do_temp |= (Optical_Comm_Status[1] << 2);
 
-    if (Low_F_Flag) DO_temp |= 0x10;     // Bit 4
-    if (Over_Ex_Flag) DO_temp |= 0x20;   // Bit 5
-    if (PT_Break_Flag) DO_temp |= 0x40;  // Bit 6
-    if (Standby_Flag) DO_temp |= 0x80;   // Bit 7
+    if (dio->outputs.low_f_flag) do_temp |= 0x10;
+    if (dio->outputs.over_ex_flag) do_temp |= 0x20;
+    if (dio->outputs.pt_break_flag) do_temp |= 0x40;
+    if (dio->outputs.standby_flag) do_temp |= 0x80;
 
-    DO_Data[2] = DO_temp;
+    dio->output_data[2] = do_temp;
+    DO_Data[2] = do_temp;
 
     // Map to DO_Flag
     DO_Flag[2][0] = Optical_Comm_Status[0] & 1;
     DO_Flag[2][1] = Optical_Comm_Status[0] >> 1;
     DO_Flag[2][2] = Optical_Comm_Status[1] & 1;
     DO_Flag[2][3] = Optical_Comm_Status[1] >> 1;
-    DO_Flag[2][4] = Low_F_Flag;
+    DO_Flag[2][4] = dio->outputs.low_f_flag;
+    DO_Flag[2][5] = dio->outputs.over_ex_flag;
+    DO_Flag[2][6] = dio->outputs.pt_break_flag;
+    DO_Flag[2][7] = dio->outputs.standby_flag;
 }
 
 /**
  * @brief Map status flags to output byte 4
- *
- * Output byte 4 (DO_Data[3]):
- * Encodes online communication source selection (1-of-n encoding).
- * Bit position indicates which channel is active.
  */
-static void DO4(void)
+static void DIO_MapOutputByte4(dio_instance_t* dio)
 {
-    unsigned char DO_temp = 0;
-    int i, j;
-
-    j = 1;
-    if (Online_Flag) {
-        // Use configured node number
-        j = 1 << (uchNodeNum + 1);
+    if (dio == NULL) {
+        return;
     }
-    else {
-        // Find first active online source
-        for (i = 0; i < 6; i++) {
+
+    uint8_t do_temp = 0;
+    int j = 1;
+
+    if (Online_Flag) {
+        for (int i = 0; i < 8; i++) {
             if (Online_Source[i]) {
+                do_temp = j;
                 break;
             }
             j <<= 1;
         }
-        if (i == 6) {
-            j = 0;  // No source active
-        }
     }
-    DO_temp = j;
+    else {
+        do_temp = 0;
+    }
 
-    DO_Data[3] = DO_temp;
+    dio->output_data[3] = do_temp;
+    DO_Data[3] = do_temp;
 }
 
 /**
  * @brief Map status flags to output byte 5
- *
- * Output byte 5 (DO_Data[4]):
- * - Bits 0-1: Optical SCR channel 1 status
- * - Bits 2-3: Optical SCR channel 2 status
- * - Bits 4-5: Optical SCR channel 3 status
- * - Bits 6-7: Optical SCR channel 4 status
  */
-static void DO5(void)
+static void DIO_MapOutputByte5(dio_instance_t* dio)
 {
-    unsigned char DO_temp = 0;
+    if (dio == NULL) {
+        return;
+    }
 
-    DO_temp = Optical_Comm_Status[2];
-    DO_temp |= (Optical_Comm_Status[3] << 2);
-    DO_temp |= (Optical_Comm_Status[4] << 4);
-    DO_temp |= (Optical_Comm_Status[5] << 6);
+    uint8_t do_temp = Optical_Comm_Status[2];
+    do_temp |= (Optical_Comm_Status[3] << 2);
+    do_temp |= (Optical_Comm_Status[4] << 4);
+    do_temp |= (Optical_Comm_Status[5] << 6);
 
-    DO_Data[4] = DO_temp;
+    dio->output_data[4] = do_temp;
+    DO_Data[4] = do_temp;
 }
 
 /**
  * @brief Map status flags to output byte 6
- *
- * Output byte 6 (DO_Data[5]):
- * - Bits 0-1: Optical SCR channel 5 status
- * - Bit 2: AVR mode flag
- * - Bit 3: FCR mode flag
- * - Bit 4: AER mode flag
- * - Bits 5-7: Reserved
  */
-static void DO6(void)
+static void DIO_MapOutputByte6(dio_instance_t* dio)
 {
-    unsigned char DO_temp = 0;
+    if (dio == NULL) {
+        return;
+    }
 
-    DO_temp = Optical_Comm_Status[6];
-    if (AVR_Flag) DO_temp |= 0x04;  // Bit 2
-    if (FCR_Flag) DO_temp |= 0x08;  // Bit 3
-    if (AER_Flag) DO_temp |= 0x10;  // Bit 4
+    uint8_t do_temp = Optical_Comm_Status[6];
+    do_temp |= (Optical_Comm_Status[7] << 2);
 
-    DO_Data[5] = DO_temp;
+    dio->output_data[5] = do_temp;
+    DO_Data[5] = do_temp;
 }
 
 /**
  * @brief Map status flags to output byte 8
- *
- * Output byte 8 (DO_Data[7]):
- * Individual arm fuse status (bits 0-5 for arms 0-5).
  */
-static void DO8(void)
+static void DIO_MapOutputByte8(dio_instance_t* dio)
 {
-    unsigned char DO_temp = 0;
-    int i, j;
+    if (dio == NULL) {
+        return;
+    }
 
-    DO_temp = Arm_Fuse_Flag[0];
+    uint8_t do_temp = 0;
+    int j = 1;
 
-    j = 1;
-    for (i = 1; i < 6; i++) {
+    for (int i = 0; i < 6; i++) {
         j <<= 1;
         if (Arm_Fuse_Flag[i]) {
-            DO_temp |= j;
+            do_temp |= j;
         }
     }
-    DO_Data[7] = DO_temp;
+
+    dio->output_data[7] = do_temp;
+    DO_Data[7] = do_temp;
 }
 
+/* ============================================================================
+ * Private Function Implementations - Status Updates
+ * ============================================================================ */
+
 /**
- * @brief Map all status flags to digital outputs and write to hardware
- *
- * Complete output processing sequence:
- * 1. Refresh all status flags
- * 2. Map flags to output bytes (DO1-DO8)
- * 3. Write outputs to hardware
+ * @brief Update running indicator LED
  */
-static void DO(void)
+static void DIO_UpdateRunningIndicator(dio_instance_t* dio)
 {
-    Refresh_DO_Flag();
-    DO1();
-    DO2();
-    DO3();
-    DO4();
-    DO5();
-    DO6();
-    DO8();
-    DO_Data[6] = SynSource;
-    DO_Out();
+    if (dio == NULL) {
+        return;
+    }
+
+    if (++dio->running_count >= DIO_RUNNING_TOGGLE_CYCLES) {
+        dio->running_count = 0;
+        dio->outputs.running_flag = !dio->outputs.running_flag;
+    }
 }
 
-//=======================================================================================
-// Main DIDO Update Function
-//=======================================================================================
+/**
+ * @brief Update digital output lock status
+ */
+static void DIO_UpdateOutputLock(dio_instance_t* dio)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    if (dio->do_lock_delay > 0) {
+        dio->do_lock_delay--;
+        if (dio->do_lock_delay <= 0) {
+            dio->do_lock_delay = 0;
+            dio->do_lock_flag = false;
+        }
+    }
+}
+
+/* ============================================================================
+ * Private Function Implementations - Legacy Compatibility
+ * ============================================================================ */
 
 /**
- * @brief Complete digital I/O update cycle
- *
- * Performs full input/output processing:
- * - Reads digital inputs
- * - Updates internal status flags
- * - Maps flags to outputs
- * - Writes to hardware
- *
- * Call this function periodically (e.g., every 10ms) from main loop or timer ISR.
+ * @brief Sync driver state TO external flag variables
+ */
+static void DIO_SyncToExternalFlags(dio_instance_t* dio)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    // Input flags
+    Fuse_Flag = dio->inputs.fuse_flag;
+    Over_Temperature_Flag = dio->inputs.over_temperature_flag;
+    Fan_Flag = dio->inputs.fan_flag;
+    Ref_Up_Flag = dio->inputs.ref_up_flag;
+    Ref_Down_Flag = dio->inputs.ref_down_flag;
+    Stop_Command = dio->inputs.stop_command;
+    Breaker_Flag = dio->inputs.breaker_flag;
+    Pulse_Power_Flag = dio->inputs.pulse_power_flag;
+}
+
+/**
+ * @brief Sync driver state FROM external flag variables
+ */
+static void DIO_SyncFromExternalFlags(dio_instance_t* dio)
+{
+    if (dio == NULL) {
+        return;
+    }
+
+    // Output flags
+    dio->outputs.scr_error_flag = SCR_Error_Flag;
+    dio->outputs.fuse_flag = Fuse_Flag;
+    dio->outputs.fan_on_flag = Fan_On_Flag;
+    dio->outputs.sec_a_flag = Sec_A_Flag;
+    dio->outputs.sec_b_flag = Sec_B_Flag;
+    dio->outputs.sec_c_flag = Sec_C_Flag;
+    dio->outputs.syn_a_err_flag = Syn_A_Err_Flag;
+    dio->outputs.syn_b_err_flag = Syn_B_Err_Flag;
+    dio->outputs.syn_c_err_flag = Syn_C_Err_Flag;
+    dio->outputs.rom_flag = ROM_Flag;
+    dio->outputs.scr_exit_flag = Scr_Exit_Flag;
+    dio->outputs.low_f_flag = Low_F_Flag;
+    dio->outputs.over_ex_flag = Over_Ex_Flag;
+    dio->outputs.pt_break_flag = PT_Break_Flag;
+    dio->outputs.standby_flag = Standby_Flag;
+    dio->outputs.online_flag = Online_Flag;
+
+    // Status tracking
+    Running_Flag = dio->outputs.running_flag;
+    Running_Count = dio->running_count;
+    DO_Lock_Flag = dio->do_lock_flag;
+    DO_Lock_Delay = dio->do_lock_delay;
+}
+
+/* ============================================================================
+ * Legacy Function Implementations (preserved for backward compatibility)
+ * ============================================================================ */
+
+/**
+ * @brief Legacy DIDO update function
+ * @note Preserved for backward compatibility with existing code
  */
 void DIDO(void)
 {
-    DI();
-    DO();
-}
+    static dio_instance_t legacy_dio = {.initialized = false};
 
-//===========================================================================
-// End of file
-//===========================================================================
+    // Initialize on first call
+    if (!legacy_dio.initialized) {
+        DIO_Init(&legacy_dio);
+    }
+
+    // Perform update cycle
+    DIO_Update(&legacy_dio);
+}
