@@ -72,62 +72,6 @@ static void Running_Signal(void)
 }
 
 /**
- * @brief Check thyristor (SCR) status
- *
- * Evaluates SCR health based on multiple conditions:
- * - Output lock status
- * - AC voltage presence
- * - Fuse status
- * - Pulse enable state
- * - Low frequency condition
- * - Temperature status
- * - Communication errors
- * - Pulse power supply status
- *
- * Sets SCR_Error_Flag if any fault condition is detected.
- */
-static void SCR_Check(void)
-{
-    // Check for SCR fault conditions:
-    // 1. Output not locked AND
-    // 2. AC voltage present (> 0.1V) AND
-    // 3. Any fault condition active
-    if ((DO_Lock_Flag == 0 && Vabc > 0.1f) &&
-        ((Fuse_Flag || (Pulse_Enabled_Flag && Low_F_Flag) || Over_Temperature_Flag || Optical_Comm_Err_Flag ||
-             Online_Comm_Err_Flag) ||
-            Pulse_Power_Flag)) {
-        SCR_Error_Flag = 1;
-    }
-    else {
-        SCR_Error_Flag = 0;
-    }
-}
-
-/**
- * @brief Check circuit breaker status
- *
- * Determines breaker state based on apparent power calculation.
- * Uses hysteresis to prevent chattering:
- * - Closes (sets flag) when S > 0.11 (110VA)
- * - Opens (clears flag) when S < 0.09 (90VA)
- */
-static void Breaker_Check(void)
-{
-    double S;
-
-    // Calculate apparent power: S = sqrt(P^2 + Q^2)
-    S = sqrt(P * P + Q * Q);
-
-    // Hysteresis comparison
-    if (S > 0.11) {
-        Breaker_Flag = 1;  // Breaker closed
-    }
-    if (S < 0.09) {
-        Breaker_Flag = 0;  // Breaker open
-    }
-}
-
-/**
  * @brief Check digital output lock status
  *
  * Manages DO_Lock_Delay countdown timer. When delay expires,
@@ -142,58 +86,6 @@ static void DO_Lock_Check(void)
 }
 
 /**
- * @brief Trigger optical transmission during low frequency
- *
- * During low frequency condition, periodically triggers optical
- * fiber transmission and updates firing angle if pulse is not enabled.
- *
- * NOTE: Currently commented out in original code - placeholder for future use.
- */
-static void Low_F_Trigger(void)
-{
-    // Low frequency trigger logic currently disabled
-    // Uncomment and modify as needed for your application:
-
-    // if (Low_F_Flag) {
-    //     if (++Low_F_Trig_Delay >= 40) {
-    //         Low_F_Trig_Delay = 0;
-    //         if (Pulse_Low_F_Flag) {
-    //             Optical_Tx_Flag = 1;
-    //             if (Pulse_Enabled_Flag == 0) {
-    //                 Set_Alpha_Delay();  // Update firing angle
-    //             }
-    //         }
-    //     }
-    // }
-    // else {
-    //     Low_F_Trig_Delay = 0;
-    // }
-}
-
-/**
- * @brief Check for low frequency condition
- *
- * Monitors grid frequency via synchronization interrupts.
- * If no sync pulse received for 200 cycles (~2 seconds), declares
- * low frequency condition and reinitializes sync pulse system.
- */
-void Low_F_Check(void)
-{
-    if (++Low_F_Count >= 200) {
-        Low_F_Count = 200;  // Saturate counter
-        if (Low_F_Flag == 0) {
-            // First detection of low frequency - reinit sync
-            Syn_Pulse_Init();
-        }
-    }
-    else {
-        Low_F_Flag = 0;  // Frequency OK
-    }
-
-    Low_F_Trigger();
-}
-
-/**
  * @brief Refresh all status flags
  *
  * Calls all status checking functions to update system health flags.
@@ -203,8 +95,6 @@ static void Refresh_DO_Flag(void)
 {
     Running_Signal();
     DO_Lock_Check();
-    SCR_Check();
-    Low_F_Check();
 }
 
 //=======================================================================================
