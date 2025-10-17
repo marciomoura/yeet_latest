@@ -1,49 +1,8 @@
-/* USER CODE BEGIN Header */
-/**
- ******************************************************************************
- * @file           : main.c
- * @brief          : Main program body (SPL-based with NSD_Driver)
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2025 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
- */
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-#include <stdio.h>
-
+//
 #include "TIM.h"
-#include "para.h"  // NSD_Driver initialization functions
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
-/* USER CODE BEGIN PV */
+#include "para.h"
 
 // LED pointer for testing (FPGA LED at Bank4 address)
 volatile uint16_t* led = (volatile uint16_t*)0x6C00000E;
@@ -59,13 +18,13 @@ volatile static uint32_t _counter_10ms = 0;
  */
 void task_200us(void)
 {
-    static uint16_t counter = 0;
     _counter_200us++;
 
     /* Blink LED0 at 5 Hz (toggle every 100ms = 500 cycles @ 200µs) */
+    static uint16_t counter = 0;
     counter++;
-    if (counter >= 500) {  // 500 × 200µs = 100ms
-        *led ^= 0x0001;    // Toggle only LED0 (bit 0)
+    if (counter >= 50000) {  // 500 × 200µs = 100ms
+        *led ^= 0x0001;      // Toggle only LED0 (bit 0)
         counter = 0;
     }
 
@@ -79,12 +38,12 @@ void task_200us(void)
  */
 void task_1ms(void)
 {
-    static uint16_t counter = 0;
     _counter_1ms++;
 
     /* Blink LED1 at 2 Hz (toggle every 250ms = 250 cycles @ 1ms) */
+    static uint16_t counter = 0;
     counter++;
-    if (counter >= 250) {  // 250 × 1ms = 250ms
+    if (counter >= 500) {  // 250 × 1ms = 250ms
         *led ^= 0x0002;    // Toggle only LED1 (bit 1)
         counter = 0;
     }
@@ -98,13 +57,13 @@ void task_1ms(void)
  */
 void task_10ms(void)
 {
-    static uint16_t counter = 0;
     _counter_10ms++;
 
     /* Blink LED2 at 1 Hz (toggle every 500ms = 50 cycles @ 10ms) */
+    static uint16_t counter = 0;
     counter++;
     if (counter >= 50) {  // 50 × 10ms = 500ms
-        *led ^= 0x0004;   // Toggle only LED2 (bit 2)
+        *led ^= 0x7;      // Toggle only LED2 (bit 2)
         counter = 0;
     }
 
@@ -117,54 +76,28 @@ static float current_us_5 = 0;
 static float max_us_3 = 0;
 static float max_us_4 = 0;
 static float max_us_5 = 0;
+static uint8_t preemption_ok = 0;
 
 int main(void)
 {
-    /* USER CODE BEGIN 1 */
-
-    /* USER CODE END 1 */
-
     /* Initialize all hardware using NSD_Driver */
-    Init_Hardware();
-
-    /* Initialize all data structures */
+    Init_Hardware(); /* Initialize all data structures */
     // Init_Data();
 
-    /* USER CODE BEGIN 2 */
-
-    /* USER CODE END 2 */
-    TIM_Print_Clock_Config();
-
-    /* Infinite loop */
-    /* USER CODE BEGIN WHILE */
     while (1) {
-        /* USER CODE END WHILE */
+        // // Simple sequential LED pattern (doesn't depend on timers)
+        // *led = (1 << led_pattern);  // Turn on one LED at a time
 
-        /* USER CODE BEGIN 3 */
-        // LEDs are now blinking in the timer tasks
-        // LED0: 5 Hz blink (from task_200us)
-        // LED1: 2 Hz blink (from task_1ms)
-        // LED2: 1 Hz blink (from task_10ms)
-
-        // Task 0 (200us task)
-        TIM_Get_ISR_Timing(3, &current_us_3, &max_us_3);
-
-        // Task 1 (1ms task)
-        TIM_Get_ISR_Timing(4, &current_us_4, &max_us_4);
-
-        // Task 2 (10ms task)
-        TIM_Get_ISR_Timing(2, &current_us_5, &max_us_5);
-
-        printf(
-            "200us Task: Current=%.2f us, Max=%.2f us | 1ms Task: Current=%.2f us, Max=%.2f us | 10ms Task: "
-            "Current=%.2f us, Max=%.2f us\r\n",
-            current_us_3, max_us_3, current_us_4, max_us_4, current_us_5, max_us_5);
-
-        // Sleep for 2 seconds using 1ms counter
-        uint32_t start = _counter_1ms;
-        while ((_counter_1ms - start) < 2000) {
+        // Use CPU cycles for delay instead of timer counter
+        for (volatile uint32_t i = 0; i < 10000000; i++) {
             __NOP();
         }
+
+        // Task timing measurements
+        TIM_Get_ISR_Timing(3, &current_us_3, &max_us_3);
+        TIM_Get_ISR_Timing(4, &current_us_4, &max_us_4);
+        TIM_Get_ISR_Timing(2, &current_us_5, &max_us_5);
+        preemption_ok = TIM_Verify_Preemption();
     }
     /* USER CODE END 3 */
 }

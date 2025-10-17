@@ -85,8 +85,6 @@ target_compile_definitions(
 
 message(STATUS "✅ STM32F4xx Standard Peripheral Driver library configured")
 
-message(STATUS "✅ STM32F4xx Standard Peripheral Driver library configured")
-
 # ==============================================================================#
 # Create main board support package library
 # ==============================================================================#
@@ -101,24 +99,21 @@ target_sources(
             # System support
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sysmem.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/syscalls.c
-            # NSD Driver files - Hardware drivers only
+            # NSD Driver files - Refactored drivers only (files that actually
+            # exist)
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/adc.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/dac.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/digital_ios.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/driver_init.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/flash.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/gpio.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nandflash_sram.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/network.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.C
-            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/watchdog.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/fpga.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/fsmc_gpio_driver.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nand_driver.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/sram_driver.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200_driver.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/watchdog_simple.c
             # Startup file (assembly)
             ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s)
-
-# Force .C files to be compiled as C language (not C++)
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/gpio.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.C PROPERTIES LANGUAGE C)
 
 # Add include paths - PUBLIC so consumers inherit them
 target_include_directories(
