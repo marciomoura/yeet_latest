@@ -451,4 +451,101 @@ uint8_t TIM_Verify_Preemption(void)
     return ratio_ok;
 }
 
+/******************************************************************************
+ * @brief  Get timing information for 200us task (TIM3)
+ * @param  timing Pointer to structure to store timing information
+ * @retval None
+ ******************************************************************************/
+void TIM_Get_Task200us_Timing(task_timing_t* timing)
+{
+    if (timing == NULL) {
+        return;
+    }
+
+    const uint32_t cpu_freq_mhz = 168;  // STM32F407 @ 168 MHz
+
+    timing->period_us = 200;  // 200 microseconds
+    timing->current_execution_us = (float)tim3_isr_cycles / (float)cpu_freq_mhz;
+    timing->max_execution_us = (float)tim3_isr_max_cycles / (float)cpu_freq_mhz;
+    timing->execution_count = task_200us_counter;
+    timing->overrun = (timing->max_execution_us > (float)timing->period_us);
+}
+
+/******************************************************************************
+ * @brief  Get timing information for 1ms task (TIM4)
+ * @param  timing Pointer to structure to store timing information
+ * @retval None
+ ******************************************************************************/
+void TIM_Get_Task1ms_Timing(task_timing_t* timing)
+{
+    if (timing == NULL) {
+        return;
+    }
+
+    const uint32_t cpu_freq_mhz = 168;  // STM32F407 @ 168 MHz
+
+    timing->period_us = 1000;  // 1000 microseconds (1ms)
+    timing->current_execution_us = (float)tim4_isr_cycles / (float)cpu_freq_mhz;
+    timing->max_execution_us = (float)tim4_isr_max_cycles / (float)cpu_freq_mhz;
+    timing->execution_count = task_1ms_counter;
+    timing->overrun = (timing->max_execution_us > (float)timing->period_us);
+}
+
+/******************************************************************************
+ * @brief  Get timing information for 10ms task (TIM2)
+ * @param  timing Pointer to structure to store timing information
+ * @retval None
+ ******************************************************************************/
+void TIM_Get_Task10ms_Timing(task_timing_t* timing)
+{
+    if (timing == NULL) {
+        return;
+    }
+
+    const uint32_t cpu_freq_mhz = 168;  // STM32F407 @ 168 MHz
+
+    timing->period_us = 10000;  // 10000 microseconds (10ms)
+    timing->current_execution_us = (float)tim2_isr_cycles / (float)cpu_freq_mhz;
+    timing->max_execution_us = (float)tim2_isr_max_cycles / (float)cpu_freq_mhz;
+    timing->execution_count = task_10ms_counter;
+    timing->overrun = (timing->max_execution_us > (float)timing->period_us);
+}
+
+/******************************************************************************
+ * @brief  Check if any task has overrun (execution time exceeds period)
+ * @retval true if any task overrun detected, false otherwise
+ ******************************************************************************/
+bool TIM_Check_Task_Overruns(void)
+{
+    const uint32_t cpu_freq_mhz = 168;  // STM32F407 @ 168 MHz
+
+    // Check TIM3 (200us task)
+    float tim3_max_us = (float)tim3_isr_max_cycles / (float)cpu_freq_mhz;
+    if (tim3_max_us > 200.0f) {
+        return true;
+    }
+
+    // Check TIM4 (1ms task)
+    float tim4_max_us = (float)tim4_isr_max_cycles / (float)cpu_freq_mhz;
+    if (tim4_max_us > 1000.0f) {
+        return true;
+    }
+
+    // Check TIM2 (10ms task)
+    float tim2_max_us = (float)tim2_isr_max_cycles / (float)cpu_freq_mhz;
+    if (tim2_max_us > 10000.0f) {
+        return true;
+    }
+
+    return false;
+}
+
+void delay_ms(uint32_t ms)
+{
+    uint32_t start = get_1ms_counter();
+    while ((get_1ms_counter() - start) < ms) {
+        __NOP();
+    }
+}
+
 /* End of file ---------------------------------------------------------------*/

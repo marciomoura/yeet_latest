@@ -57,42 +57,61 @@ void task_10ms(void)
     /* Add your 10ms monitoring code here */
 }
 
-static float current_us_3 = 0;
-static float current_us_4 = 0;
-static float current_us_5 = 0;
-static float max_us_3 = 0;
-static float max_us_4 = 0;
-static float max_us_5 = 0;
-static uint8_t preemption_ok = 0;
+/* Timing monitoring variables */
+static task_timing_t timing_200us;
+static task_timing_t timing_1ms;
+static task_timing_t timing_10ms;
 
 int main(void)
 {
     int init_status;
+    uint32_t last_check_time = 0;
+    bool overrun_detected = false;
 
     /* Initialize all hardware using NSD_Driver */
     init_status = Init_Hardware();
-
-    /* Initialize all data structures */
-    // Init_Data();
 
     // If initialization failed, FAULT LED is already set by Init_Hardware()
     // The system will continue but with limited functionality
     (void)init_status;  // Acknowledge the status
 
     while (1) {
-        // // Simple sequential LED pattern (doesn't depend on timers)
-        // *led = (1 << led_pattern);  // Turn on one LED at a time
+        // Check task timing every 100ms
+        // Note: This overflow-safe subtraction works due to unsigned arithmetic wrapping
+        uint32_t current_time = get_1ms_counter();
+        uint32_t elapsed_time = current_time - last_check_time;
 
-        // Use CPU cycles for delay instead of timer counter
-        for (volatile uint32_t i = 0; i < 10000000; i++) {
-            __NOP();
+        if (elapsed_time >= 100) {
+            last_check_time = current_time;
+
+            // Get timing information for all tasks
+            TIM_Get_Task200us_Timing(&timing_200us);
+            TIM_Get_Task1ms_Timing(&timing_1ms);
+            TIM_Get_Task10ms_Timing(&timing_10ms);
+
+            // Check for task overruns
+            if (TIM_Check_Task_Overruns()) {
+                if (!overrun_detected) {
+                    // First time detecting overrun - set FAULT LED
+                    overrun_detected = true;
+                    FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
+                    FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+                }
+            }
+
+            // Optional: Clear overrun flag if system recovers
+            // (uncomment if you want auto-recovery)
+            // else {
+            //     if (overrun_detected) {
+            //         overrun_detected = false;
+            //         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
+            //         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+            //     }
+            // }
         }
 
-        // Task timing measurements
-        TIM_Get_ISR_Timing(3, &current_us_3, &max_us_3);
-        TIM_Get_ISR_Timing(4, &current_us_4, &max_us_4);
-        TIM_Get_ISR_Timing(2, &current_us_5, &max_us_5);
-        preemption_ok = TIM_Verify_Preemption();
+        // Small delay to avoid tight polling
+        delay_ms(10);
     }
     /* USER CODE END 3 */
 }

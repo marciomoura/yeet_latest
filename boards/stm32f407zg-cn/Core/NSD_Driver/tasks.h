@@ -17,7 +17,21 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdbool.h>
 #include <stdint.h>
+
+/* Exported types ------------------------------------------------------------*/
+
+/**
+ * @brief Task timing information structure
+ */
+typedef struct {
+    uint32_t period_us;         /**< Task period in microseconds */
+    float current_execution_us; /**< Current execution time in microseconds */
+    float max_execution_us;     /**< Maximum execution time in microseconds */
+    uint32_t execution_count;   /**< Total number of task executions */
+    bool overrun;               /**< True if task execution exceeds period */
+} task_timing_t;
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -25,6 +39,13 @@ extern "C" {
  * @brief  Initialize all timers for periodic tasks
  */
 void TIMx_Init(void);
+
+/**
+ * @brief  Timer-based millisecond delay function
+ * @param  ms: Delay time in milliseconds
+ * @note   Requires TIMx_Init() to be called first to start the 1ms timer
+ */
+void delay_ms(uint32_t ms);
 
 /**
  * @brief  Get 200us task execution counter
@@ -61,7 +82,7 @@ void TIM_Print_Clock_Config(void);
  *         - TIM4 (1ms period): ISR should be < 1000us
  *         - TIM2 (10ms period): ISR should be < 10000us
  */
-void TIM_Get_ISR_Timing(uint8_t timer_num, float *current_us, float *max_us);
+void TIM_Get_ISR_Timing(uint8_t timer_num, float* current_us, float* max_us);
 
 /**
  * @brief  Reset ISR timing statistics (max values)
@@ -77,6 +98,30 @@ void TIM_Reset_ISR_Timing(void);
  *         Call after system has been running for a few seconds
  */
 uint8_t TIM_Verify_Preemption(void);
+
+/**
+ * @brief  Get timing information for 200us task (TIM3)
+ * @param  timing Pointer to structure to store timing information
+ */
+void TIM_Get_Task200us_Timing(task_timing_t* timing);
+
+/**
+ * @brief  Get timing information for 1ms task (TIM4)
+ * @param  timing Pointer to structure to store timing information
+ */
+void TIM_Get_Task1ms_Timing(task_timing_t* timing);
+
+/**
+ * @brief  Get timing information for 10ms task (TIM2)
+ * @param  timing Pointer to structure to store timing information
+ */
+void TIM_Get_Task10ms_Timing(task_timing_t* timing);
+
+/**
+ * @brief  Check if any task has overrun (execution time exceeds period)
+ * @retval true if any task overrun detected, false otherwise
+ */
+bool TIM_Check_Task_Overruns(void);
 
 /* Exported task functions - to be implemented by user -----------------------*/
 

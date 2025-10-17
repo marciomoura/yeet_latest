@@ -51,22 +51,8 @@
 #define FPGA_RETRY_INTERVAL_MS 100  // Retry FPGA reset every 100ms
 
 /* Private function prototypes -----------------------------------------------*/
-static void delay_ms(uint32_t ms);
 
 /* Private functions ---------------------------------------------------------*/
-
-/**
- * @brief  Timer-based millisecond delay function
- * @param  ms: Delay time in milliseconds
- * @note   Requires TIMx_Init() to be called first to start the 1ms timer
- */
-static void delay_ms(uint32_t ms)
-{
-    uint32_t start = get_1ms_counter();
-    while ((get_1ms_counter() - start) < ms) {
-        __NOP();
-    }
-}
 
 /* Exported functions --------------------------------------------------------*/
 
