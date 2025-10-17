@@ -34,6 +34,7 @@ static void W5200_SetReset(w5200_instance_t* w5200, bool state);
 static void W5200_ConfigureCommon(w5200_instance_t* w5200);
 static uint16_t W5200_GetSocketTxBase(uint8_t socket_num);
 static uint16_t W5200_GetSocketRxBase(uint8_t socket_num);
+static bool W5200_WaitCommandComplete(w5200_instance_t* w5200, uint8_t socket_num, uint32_t timeout_cycles);
 
 /* ============================================================================
  * Public Function Implementations - Initialization
@@ -218,34 +219,69 @@ void W5200_WriteByte(w5200_instance_t* w5200, uint16_t addr, uint8_t data)
     }
 
     int timeout = 0;
+    bool timeout_occurred = false;
 
-    SPI_Cmd(w5200->spi, ENABLE);
+    // Assert CS (pull low to select chip)
+    W5200_SetCS(w5200, false);
 
     // Send register address (high byte)
     SPI_I2S_SendData(w5200->spi, (uint8_t)(addr >> 8));
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    timeout = 0;
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: addr high byte TX timeout
+    }
 
     // Send register address (low byte)
     SPI_I2S_SendData(w5200->spi, (uint8_t)addr);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: addr low byte TX timeout
+    }
 
     // Send WRITE command (0x80 | 0x01)
     SPI_I2S_SendData(w5200->spi, 0x80);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: command high byte TX timeout
+    }
 
     SPI_I2S_SendData(w5200->spi, 0x01);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: command low byte TX timeout
+    }
 
     // Write data byte
     SPI_I2S_SendData(w5200->spi, data);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: data byte TX timeout
+    }
 
-    SPI_Cmd(w5200->spi, DISABLE);
+    // De-assert CS (pull high to deselect chip)
+    W5200_SetCS(w5200, true);
     W5200_Delay(2);
+
+    if (timeout_occurred) {
+        // Breakpoint here: SPI timeout occurred during write
+        // Inspect: addr, data, timeout_occurred
+        __NOP();
+    }
 }
 
 /**
@@ -259,40 +295,80 @@ uint8_t W5200_ReadByte(w5200_instance_t* w5200, uint16_t addr)
 
     uint8_t result = 0;
     int timeout = 0;
+    bool timeout_occurred = false;
 
-    SPI_Cmd(w5200->spi, ENABLE);
+    // Assert CS (pull low to select chip)
+    W5200_SetCS(w5200, false);
 
     // Send register address (high byte)
     SPI_I2S_SendData(w5200->spi, (uint8_t)(addr >> 8));
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    timeout = 0;
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: addr high byte TX timeout
+    }
 
     // Send register address (low byte)
     SPI_I2S_SendData(w5200->spi, (uint8_t)addr);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: addr low byte TX timeout
+    }
 
     // Send READ command (0x00 | 0x01)
     SPI_I2S_SendData(w5200->spi, 0x00);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: command high byte TX timeout
+    }
 
     SPI_I2S_SendData(w5200->spi, 0x01);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: command low byte TX timeout
+    }
 
     // Wait for response
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_RXNE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_RXNE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: first RX timeout
+    }
     result = SPI_I2S_ReceiveData(w5200->spi);
 
     // Read data byte
     SPI_I2S_SendData(w5200->spi, 0x00);
     timeout = 0;
-    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_RXNE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_RXNE) == RESET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+    if (timeout >= W5200_SPI_TIMEOUT) {
+        timeout_occurred = true;  // Breakpoint here: data byte RX timeout
+    }
     result = SPI_I2S_ReceiveData(w5200->spi);
 
-    SPI_Cmd(w5200->spi, DISABLE);
+    // De-assert CS (pull high to deselect chip)
+    W5200_SetCS(w5200, true);
     W5200_Delay(2);
+
+    if (timeout_occurred) {
+        // Breakpoint here: SPI timeout occurred during read
+        // Inspect: addr, result, timeout_occurred
+        __NOP();
+    }
 
     return result;
 }
@@ -308,7 +384,8 @@ void W5200_Write(w5200_instance_t* w5200, uint16_t addr, const uint8_t* data, ui
 
     int timeout = 0;
 
-    SPI_Cmd(w5200->spi, ENABLE);
+    // Assert CS (pull low to select chip)
+    W5200_SetCS(w5200, false);
 
     // Send register address (high byte)
     SPI_I2S_SendData(w5200->spi, (uint8_t)(addr >> 8));
@@ -336,7 +413,8 @@ void W5200_Write(w5200_instance_t* w5200, uint16_t addr, const uint8_t* data, ui
         while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
     }
 
-    SPI_Cmd(w5200->spi, DISABLE);
+    // De-assert CS (pull high to deselect chip)
+    W5200_SetCS(w5200, true);
     W5200_Delay(2);
 }
 
@@ -351,7 +429,8 @@ void W5200_Read(w5200_instance_t* w5200, uint16_t addr, uint8_t* data, uint16_t 
 
     int timeout = 0;
 
-    SPI_Cmd(w5200->spi, ENABLE);
+    // Assert CS (pull low to select chip)
+    W5200_SetCS(w5200, false);
 
     // Send register address (high byte)
     SPI_I2S_SendData(w5200->spi, (uint8_t)(addr >> 8));
@@ -386,7 +465,8 @@ void W5200_Read(w5200_instance_t* w5200, uint16_t addr, uint8_t* data, uint16_t 
         data[i] = SPI_I2S_ReceiveData(w5200->spi);
     }
 
-    SPI_Cmd(w5200->spi, DISABLE);
+    // De-assert CS (pull high to deselect chip)
+    W5200_SetCS(w5200, true);
     W5200_Delay(2);
 }
 
@@ -418,12 +498,34 @@ bool W5200_SocketOpen(w5200_instance_t* w5200, uint8_t socket_num)
     // Open socket
     W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_OPEN);
 
-    // Wait for socket to open
-    W5200_Delay(1000);
+    // Wait for command to complete (W5200 clears Sn_CR to 0x00 when done)
+    if (!W5200_WaitCommandComplete(w5200, socket_num, 5000)) {
+        return false;  // Command timeout
+    }
 
-    // Check socket status
-    uint8_t status = W5200_ReadByte(w5200, W5200_Sn_SR(socket_num));
+    // Poll socket status until open or timeout
+    uint8_t status = W5200_SOCK_CLOSED;
+    uint32_t timeout = 10000;  // Increased timeout for reliability
 
+    while (timeout-- > 0) {
+        status = W5200_ReadByte(w5200, W5200_Sn_SR(socket_num));
+
+        // Check if socket opened successfully
+        if (w5200->sockets[socket_num].protocol == W5200_PROTO_TCP) {
+            if (status == W5200_SOCK_INIT) {
+                break;  // TCP socket opened successfully
+            }
+        }
+        else {
+            if (status == W5200_SOCK_UDP) {
+                break;  // UDP socket opened successfully
+            }
+        }
+
+        W5200_Delay(10);  // Small delay between polls
+    }
+
+    // Verify socket opened with correct status
     if (w5200->sockets[socket_num].protocol == W5200_PROTO_TCP) {
         if (status != W5200_SOCK_INIT) {
             return false;
@@ -439,7 +541,7 @@ bool W5200_SocketOpen(w5200_instance_t* w5200, uint8_t socket_num)
         }
     }
     else {
-        // UDP socket should be in UDP state
+        // UDP socket should be in UDP state (0x22)
         if (status != W5200_SOCK_UDP) {
             return false;
         }
@@ -890,9 +992,8 @@ static void W5200_InitGPIO(w5200_instance_t* w5200)
         GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
         GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-        // CS low, Reset off
-        GPIOA->BSRRH = GPIO_Pin_11;
-        GPIOA->BSRRH = GPIO_Pin_12;
+        // Set initial state: CS high (inactive), Reset high (inactive)
+        GPIOA->BSRRL = GPIO_Pin_11 | GPIO_Pin_12;
     }
     else if (w5200->spi == SPI3) {
         // Configure SPI3 pins
@@ -920,9 +1021,8 @@ static void W5200_InitGPIO(w5200_instance_t* w5200)
         GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4;
         GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-        // CS low, Reset off
-        GPIOB->BSRRH = GPIO_Pin_3;
-        GPIOB->BSRRH = GPIO_Pin_4;
+        // Set initial state: CS high (inactive), Reset high (inactive)
+        GPIOB->BSRRL = GPIO_Pin_3 | GPIO_Pin_4;
     }
 }
 
@@ -949,7 +1049,7 @@ static void W5200_InitSPI(w5200_instance_t* w5200)
     SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
     SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
     SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
-    SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;  // Software NSS for manual CS control
     SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
     SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
     SPI_InitStructure.SPI_CRCPolynomial = 7;
@@ -957,8 +1057,8 @@ static void W5200_InitSPI(w5200_instance_t* w5200)
 
     SPI_Init(w5200->spi, &SPI_InitStructure);
 
-    SPI_Cmd(w5200->spi, DISABLE);
-    SPI_SSOutputCmd(w5200->spi, ENABLE);
+    // Enable SPI peripheral once (leave enabled for all transactions)
+    SPI_Cmd(w5200->spi, ENABLE);
 }
 
 /**
@@ -979,16 +1079,16 @@ static void W5200_HardwareReset(w5200_instance_t* w5200)
     // Delay before reset
     W5200_Delay(50000);
 
-    // Assert reset
-    W5200_SetReset(w5200, true);
+    // Assert reset (active LOW - pull pin LOW to reset chip)
+    W5200_SetReset(w5200, false);
 
     // Hold reset for ~150ms
     for (int i = 0; i < 400; i++) {
         W5200_Delay(1000);
     }
 
-    // Release reset
-    W5200_SetReset(w5200, false);
+    // Release reset (pull pin HIGH to run chip)
+    W5200_SetReset(w5200, true);
 
     // Wait for chip to stabilize
     W5200_Delay(50000);
@@ -1018,15 +1118,17 @@ static void W5200_SetCS(w5200_instance_t* w5200, bool state)
 }
 
 /**
- * @brief Set reset pin state
+ * @brief Set reset pin state (W5200 reset is active-LOW)
  */
 static void W5200_SetReset(w5200_instance_t* w5200, bool state)
 {
     if (state) {
-        w5200->reset_port->BSRRL = w5200->reset_pin;  // Set high (reset active)
+        // De-assert reset (run mode) - pull HIGH
+        w5200->reset_port->BSRRL = w5200->reset_pin;
     }
     else {
-        w5200->reset_port->BSRRH = w5200->reset_pin;  // Set low (reset inactive)
+        // Assert reset (hold in reset) - pull LOW
+        w5200->reset_port->BSRRH = w5200->reset_pin;
     }
 }
 
@@ -1036,9 +1138,10 @@ static void W5200_SetReset(w5200_instance_t* w5200, bool state)
 static void W5200_ConfigureCommon(w5200_instance_t* w5200)
 {
     // Configure TX/RX memory size for each socket (8KB each)
+    // Note: 0x08 = 8KB per socket (matching original implementation)
     for (uint8_t i = 0; i < W5200_ACTIVE_SOCKETS; i++) {
-        W5200_WriteByte(w5200, W5200_Sn_RXMEM_SIZE(i), 0x03);  // 8KB
-        W5200_WriteByte(w5200, W5200_Sn_TXMEM_SIZE(i), 0x03);  // 8KB
+        W5200_WriteByte(w5200, W5200_Sn_RXMEM_SIZE(i), 0x08);  // 8KB
+        W5200_WriteByte(w5200, W5200_Sn_TXMEM_SIZE(i), 0x08);  // 8KB
     }
 
     // Set default retry time (400ms = 0x0FA0)
@@ -1060,4 +1163,20 @@ static uint16_t W5200_GetSocketTxBase(uint8_t socket_num)
 static uint16_t W5200_GetSocketRxBase(uint8_t socket_num)
 {
     return W5200_RX_MEM_BASE + (socket_num * W5200_SOCKET_BUF_SIZE);
+}
+
+/**
+ * @brief Wait for W5200 command to complete
+ * @note The command register (Sn_CR) is cleared to 0x00 by W5200 when command completes
+ */
+static bool W5200_WaitCommandComplete(w5200_instance_t* w5200, uint8_t socket_num, uint32_t timeout_cycles)
+{
+    while (timeout_cycles-- > 0) {
+        uint8_t cmd_reg = W5200_ReadByte(w5200, W5200_Sn_CR(socket_num));
+        if (cmd_reg == 0x00) {
+            return true;  // Command completed
+        }
+        W5200_Delay(10);
+    }
+    return false;  // Timeout
 }
