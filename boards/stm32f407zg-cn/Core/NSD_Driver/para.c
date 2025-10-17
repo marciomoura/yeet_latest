@@ -410,7 +410,7 @@ void Init_RTC(void)
     RTC_EnterInitMode();
     RTC_Init_Para.RTC_HourFormat = RTC_HourFormat_24;     // 24Сʱ��
     RTC_Init_Para.RTC_AsynchPrediv = (unsigned int)0x7F;  // 127
-    RTC_Init_Para.RTC_SynchPrediv = (unsigned int)0xFF;  // 255��������Ƶϵ����LSEʱ��Դƥ��
+    RTC_Init_Para.RTC_SynchPrediv = (unsigned int)0xFF;   // 255��������Ƶϵ����LSEʱ��Դƥ��
     RTC_Init(&RTC_Init_Para);
 
     date.RTC_WeekDay = 0;
@@ -435,18 +435,25 @@ void Init_RTC(void)
  ********************************************************************/
 void Init_Hardware(void)
 {
-    Optical_fiber_Init(691200);
     DIP_Switch_Init();
     uchNodeNum = Read_DIP_Switch();
+
+    // Initialize timers FIRST - required for timer-based delays
+    TIMx_Init();  // ��ʱ����ʼ��
+
+    // Initialize FPGA and optical fiber (with timeout protection, uses timer delays)
+    Optical_fiber_Init(691200);
+
+    // Initialize network (depends on FPGA)
     Init_Net();
-    Init_GPIO();    // ��������Ӧ������
-    SRAM_Init();    // �ⲿSRAM��ʼ��
-    Init_AD7606();  // �ⲿAD(AD7606)��ʼ��
-    sFLASH_Init();  // M25P32��ʼ��
-    TIMx_Init();    // ��ʱ����ʼ��
-    Init_T();       // ����2�����¶�Ѳ����
-    // Init_RS232_Comm();//����1���ӹ��ʹ���ʾ��
-    WatchDog_Init(200);  // ���Ź�����ʱ��200ms
+
+    Init_GPIO();        // ��������Ӧ������
+    SRAM_Init();        // �ⲿSRAM��ʼ��
+    Init_AD7606();      // �ⲿAD(AD7606)��ʼ��
+    sFLASH_Init();      // M25P32��ʼ��
+    Init_T();           // ����2�����¶�Ѳ����
+    Init_RS232_Comm();  // ����1���ӹ��ʹ���ʾ��
+    // WatchDog_Init(200);  // ���Ź�����ʱ��200ms
     Init_RTC();
 }
 

@@ -1,371 +1,403 @@
 /************************************************************************************
-*¹âÏËÍ¨ÐÅÇý¶¯                                                                       *
-*                                                                                   *
-*                                                                                   *
-************************************************************************************/
-#include "stm32f4xx_fsmc.h"
+ *ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½                                                                       *
+ *                                                                                   *
+ *                                                                                   *
+ ************************************************************************************/
+#include "TIM.h"  // For timer-based delays
 #include "pub.h"
+#include "stm32f4xx_fsmc.h"
 
-#define Bank1_SRAM4_ADDR  ((uint32_t)0x6C000000)
+#define Bank1_SRAM4_ADDR ((uint32_t)0x6C000000)
 #define KR_KEY_RELOAD    ((unsigned short int)0xAAAA)
 #define KR_KEY_ENABLE    ((unsigned short int)0xCCCC)
 
 /********************************************************************************
-*Optical_fiber_FSMC_Init                                                        *
-*FSMCµÄÅäÖÃÓëFPGA½øÐÐÍ¨ÐÅ                                                       *
-********************************************************************************/
+ *Optical_fiber_FSMC_Init                                                        *
+ *FSMCï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½FPGAï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½                                                       *
+ ********************************************************************************/
 void Optical_fiber_FSMC_Init(void)
 {
-	FSMC_NORSRAMInitTypeDef  FSMC_NORSRAMInitStructure;
-	FSMC_NORSRAMTimingInitTypeDef  p;
-	GPIO_InitTypeDef GPIO_InitStructure; 
-  
-	// Enable GPIOs clock 
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE | RCC_AHB1Periph_GPIOF |
-                         RCC_AHB1Periph_GPIOG, ENABLE);
+    FSMC_NORSRAMInitTypeDef FSMC_NORSRAMInitStructure;
+    FSMC_NORSRAMTimingInitTypeDef p;
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	// Enable FSMC clock 
-	RCC_AHB3PeriphClockCmd(RCC_AHB3Periph_FSMC, ENABLE); 
-  
-	//-- GPIOs Configuration -----------------------------------------------------
-	/*
-	 +-------------------+--------------------+------------------+------------------+
-	 +                       pins assignment                                  +
-	 +-------------------+--------------------+------------------+------------------+
-	 | PD0   <-> FSMC_D2  |(PE0  <-> FSMC_NBL0)| PF0  <-> FSMC_A0 | PG0 <-> FSMC_A10 |
-	 | PD1   <-> FSMC_D3  |(PE1  <-> FSMC_NBL1)| PF1  <-> FSMC_A1 | PG1 <-> FSMC_A11 |
-	 | PD4   <-> FSMC_NOE | PE7  <-> FSMC_D4   | PF2  <-> FSMC_A2 | PG2 <-> FSMC_A12 |
-	 | PD5   <-> FSMC_NWE | PE8  <-> FSMC_D5   | PF3  <-> FSMC_A3 | PG3 <-> FSMC_A13 |
-	 | PG12  <-> FSMC_NE4 | PE9  <-> FSMC_D6   | PF4  <-> FSMC_A4 | PG4 <-> FSMC_A14 |
-	 | PD8   <-> FSMC_D13 | PE10 <-> FSMC_D7   | PF5  <-> FSMC_A5 | PG5 <-> FSMC_A15 |
-	 | PD9   <-> FSMC_D14 | PE11 <-> FSMC_D8   | PF12 <-> FSMC_A6 |------------------+ 
-	 | PD10  <-> FSMC_D15 | PE12 <-> FSMC_D9   | PF13 <-> FSMC_A7 | 
-	 | PD11  <-> FSMC_A16 | PE13 <-> FSMC_D10  | PF14 <-> FSMC_A8 |  
-	 | PD12  <-> FSMC_A17 | PE14 <-> FSMC_D11  | PF15 <-> FSMC_A9 | 
-	 | PD14  <-> FSMC_D0  | PE15 <-> FSMC_D12  |------------------+
-	 | PD15  <-> FSMC_D1  |										|
-	 +-------------------+--------------------+
-	*/
-	// GPIOD configuration 
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource0, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource1, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource4, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_FSMC);
-//	GPIO_PinAFConfig(GPIOD, GPIO_PinSource7, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource8, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource9, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource10, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource11, GPIO_AF_FSMC); 
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource12, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource14, GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOD, GPIO_PinSource15, GPIO_AF_FSMC);
+    // Enable GPIOs clock
+    RCC_AHB1PeriphClockCmd(
+        RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE | RCC_AHB1Periph_GPIOF | RCC_AHB1Periph_GPIOG, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_4 | GPIO_Pin_5 |/* GPIO_Pin_7 |*/
-                                GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 |
-                                GPIO_Pin_12 | GPIO_Pin_14 | GPIO_Pin_15;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+    // Enable FSMC clock
+    RCC_AHB3PeriphClockCmd(RCC_AHB3Periph_FSMC, ENABLE);
 
-	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    //-- GPIOs Configuration -----------------------------------------------------
+    /*
+     +-------------------+--------------------+------------------+------------------+
+     +                       pins assignment                                  +
+     +-------------------+--------------------+------------------+------------------+
+     | PD0   <-> FSMC_D2  |(PE0  <-> FSMC_NBL0)| PF0  <-> FSMC_A0 | PG0 <-> FSMC_A10 |
+     | PD1   <-> FSMC_D3  |(PE1  <-> FSMC_NBL1)| PF1  <-> FSMC_A1 | PG1 <-> FSMC_A11 |
+     | PD4   <-> FSMC_NOE | PE7  <-> FSMC_D4   | PF2  <-> FSMC_A2 | PG2 <-> FSMC_A12 |
+     | PD5   <-> FSMC_NWE | PE8  <-> FSMC_D5   | PF3  <-> FSMC_A3 | PG3 <-> FSMC_A13 |
+     | PG12  <-> FSMC_NE4 | PE9  <-> FSMC_D6   | PF4  <-> FSMC_A4 | PG4 <-> FSMC_A14 |
+     | PD8   <-> FSMC_D13 | PE10 <-> FSMC_D7   | PF5  <-> FSMC_A5 | PG5 <-> FSMC_A15 |
+     | PD9   <-> FSMC_D14 | PE11 <-> FSMC_D8   | PF12 <-> FSMC_A6 |------------------+
+     | PD10  <-> FSMC_D15 | PE12 <-> FSMC_D9   | PF13 <-> FSMC_A7 |
+     | PD11  <-> FSMC_A16 | PE13 <-> FSMC_D10  | PF14 <-> FSMC_A8 |
+     | PD12  <-> FSMC_A17 | PE14 <-> FSMC_D11  | PF15 <-> FSMC_A9 |
+     | PD14  <-> FSMC_D0  | PE15 <-> FSMC_D12  |------------------+
+     | PD15  <-> FSMC_D1  |										|
+     +-------------------+--------------------+
+    */
+    // GPIOD configuration
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource4, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_FSMC);
+    //	GPIO_PinAFConfig(GPIOD, GPIO_PinSource7, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource8, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource9, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource10, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource11, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource14, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource15, GPIO_AF_FSMC);
 
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_4 | GPIO_Pin_5 | /* GPIO_Pin_7 |*/
+                                  GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_14 |
+                                  GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 
-	// GPIOE configuration 
- //	GPIO_PinAFConfig(GPIOE, GPIO_PinSource0 , GPIO_AF_FSMC);
- //	GPIO_PinAFConfig(GPIOE, GPIO_PinSource1 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource7 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource8 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource9 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource10 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource11 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource12 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource13 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource14 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOE, GPIO_PinSource15 , GPIO_AF_FSMC);
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = /*GPIO_Pin_0  | GPIO_Pin_1 |*/ GPIO_Pin_7 |
-                                GPIO_Pin_8  | GPIO_Pin_9  | GPIO_Pin_10 | GPIO_Pin_11|
-                                GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+    // GPIOE configuration
+    //	GPIO_PinAFConfig(GPIOE, GPIO_PinSource0 , GPIO_AF_FSMC);
+    //	GPIO_PinAFConfig(GPIOE, GPIO_PinSource1 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource7, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource8, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource9, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource10, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource11, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource13, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource14, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource15, GPIO_AF_FSMC);
 
-	GPIO_Init(GPIOE, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin = /*GPIO_Pin_0  | GPIO_Pin_1 |*/ GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 |
+                                  GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 
+    GPIO_Init(GPIOE, &GPIO_InitStructure);
 
-	// GPIOF configuration 
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource0 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource1 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource2 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource3 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource4 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource5 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource12 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource13 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource14 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOF, GPIO_PinSource15 , GPIO_AF_FSMC);
+    // GPIOF configuration
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource2, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource3, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource4, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource5, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource13, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource14, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOF, GPIO_PinSource15, GPIO_AF_FSMC);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0  | GPIO_Pin_1  | GPIO_Pin_2  | GPIO_Pin_3 | 
-                                GPIO_Pin_4  | GPIO_Pin_5  | 
-                                GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;      
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 |
+                                  GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 
-	GPIO_Init(GPIOF, &GPIO_InitStructure);
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
 
+    // GPIOG configuration
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource0, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource1, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource2, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource3, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource4, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource5, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource12, GPIO_AF_FSMC);
 
-	// GPIOG configuration 
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource0 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource1 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource2 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource3 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource4 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource5 , GPIO_AF_FSMC);
-	GPIO_PinAFConfig(GPIOG, GPIO_PinSource12 , GPIO_AF_FSMC);
+    GPIO_InitStructure.GPIO_Pin =
+        GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_12;
 
+    GPIO_Init(GPIOG, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0  | GPIO_Pin_1  | GPIO_Pin_2  | GPIO_Pin_3 | 
-                                GPIO_Pin_4  | GPIO_Pin_5  |GPIO_Pin_12;      
+    // FSMC Configuration
+    p.FSMC_AddressSetupTime = 6;
+    p.FSMC_AddressHoldTime = 15;
+    p.FSMC_DataSetupTime = 21;
+    p.FSMC_BusTurnAroundDuration = 1;
+    p.FSMC_CLKDivision = 1;
+    p.FSMC_DataLatency = 0;
+    p.FSMC_AccessMode = FSMC_AccessMode_A;
 
-	GPIO_Init(GPIOG, &GPIO_InitStructure);
+    FSMC_NORSRAMInitStructure.FSMC_Bank = FSMC_Bank1_NORSRAM4;
+    FSMC_NORSRAMInitStructure.FSMC_DataAddressMux = FSMC_DataAddressMux_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_MemoryType = FSMC_MemoryType_PSRAM;
+    FSMC_NORSRAMInitStructure.FSMC_MemoryDataWidth = FSMC_MemoryDataWidth_16b;
+    FSMC_NORSRAMInitStructure.FSMC_BurstAccessMode = FSMC_BurstAccessMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_AsynchronousWait = FSMC_AsynchronousWait_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignalPolarity = FSMC_WaitSignalPolarity_Low;
+    FSMC_NORSRAMInitStructure.FSMC_WrapMode = FSMC_WrapMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignalActive = FSMC_WaitSignalActive_BeforeWaitState;
+    FSMC_NORSRAMInitStructure.FSMC_WriteOperation = FSMC_WriteOperation_Enable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignal = FSMC_WaitSignal_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_ExtendedMode = FSMC_ExtendedMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WriteBurst = FSMC_WriteBurst_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_ReadWriteTimingStruct = &p;
+    FSMC_NORSRAMInitStructure.FSMC_WriteTimingStruct = &p;
 
-	// FSMC Configuration 
-	p.FSMC_AddressSetupTime = 6;
-	p.FSMC_AddressHoldTime = 15;
-	p.FSMC_DataSetupTime = 21;
-	p.FSMC_BusTurnAroundDuration = 1;
-	p.FSMC_CLKDivision = 1;
-	p.FSMC_DataLatency = 0;
-	p.FSMC_AccessMode = FSMC_AccessMode_A;
+    FSMC_NORSRAMInit(&FSMC_NORSRAMInitStructure);
 
-	FSMC_NORSRAMInitStructure.FSMC_Bank = FSMC_Bank1_NORSRAM4;
-	FSMC_NORSRAMInitStructure.FSMC_DataAddressMux = FSMC_DataAddressMux_Disable;
-	FSMC_NORSRAMInitStructure.FSMC_MemoryType = FSMC_MemoryType_PSRAM;
-	FSMC_NORSRAMInitStructure.FSMC_MemoryDataWidth = FSMC_MemoryDataWidth_16b;
-	FSMC_NORSRAMInitStructure.FSMC_BurstAccessMode = FSMC_BurstAccessMode_Disable;
-	FSMC_NORSRAMInitStructure.FSMC_AsynchronousWait = FSMC_AsynchronousWait_Disable;  
-	FSMC_NORSRAMInitStructure.FSMC_WaitSignalPolarity = FSMC_WaitSignalPolarity_Low;
-	FSMC_NORSRAMInitStructure.FSMC_WrapMode = FSMC_WrapMode_Disable;
-	FSMC_NORSRAMInitStructure.FSMC_WaitSignalActive = FSMC_WaitSignalActive_BeforeWaitState;
-	FSMC_NORSRAMInitStructure.FSMC_WriteOperation = FSMC_WriteOperation_Enable;
-	FSMC_NORSRAMInitStructure.FSMC_WaitSignal = FSMC_WaitSignal_Disable;
-	FSMC_NORSRAMInitStructure.FSMC_ExtendedMode = FSMC_ExtendedMode_Disable;
-	FSMC_NORSRAMInitStructure.FSMC_WriteBurst = FSMC_WriteBurst_Disable;
-	FSMC_NORSRAMInitStructure.FSMC_ReadWriteTimingStruct = &p;
-	FSMC_NORSRAMInitStructure.FSMC_WriteTimingStruct = &p;
-
-	FSMC_NORSRAMInit(&FSMC_NORSRAMInitStructure); 
-
-	//!< Enable FSMC Bank1_SRAM4 Bank 
-	FSMC_NORSRAMCmd(FSMC_Bank1_NORSRAM4, ENABLE); 	
+    //!< Enable FSMC Bank1_SRAM4 Bank
+    FSMC_NORSRAMCmd(FSMC_Bank1_NORSRAM4, ENABLE);
 }
 
-
 /********************************************************************************
-*FPGA_RST_Init                                                                  *
-*³õÊ¼»¯FPGAÄÚ²¿³ÌÐò¸´Î»Òý½Å¡£                                                   *
-*¶ÔÓ¦ARMÒý½ÅÎªPG11                                                              *
-********************************************************************************/
+ *FPGA_RST_Init                                                                  *
+ *ï¿½ï¿½Ê¼ï¿½ï¿½FPGAï¿½Ú²ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½Å¡ï¿½                                                   *
+ *ï¿½ï¿½Ó¦ARMï¿½ï¿½ï¿½ï¿½ÎªPG11                                                              *
+ ********************************************************************************/
 void FPGA_RST_Init(void)
 {
-	GPIO_InitTypeDef  GPIO_InitStructure;
-  
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
-	
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;  	 					   
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOG, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOG, &GPIO_InitStructure);
 }
 /********************************************************************************
-*FPGA_RST_Init                                                                  *
-*³õÊ¼»¯FPGAµÄINITBÒý½Å¡£                                                        *
-*¶ÔÓ¦ARMÒý½ÅÎªPE3                                                               *
-********************************************************************************/
+ *FPGA_RST_Init                                                                  *
+ *ï¿½ï¿½Ê¼ï¿½ï¿½FPGAï¿½ï¿½INITBï¿½ï¿½ï¿½Å¡ï¿½                                                        *
+ *ï¿½ï¿½Ó¦ARMï¿½ï¿½ï¿½ï¿½ÎªPE3                                                               *
+ ********************************************************************************/
 void FPGA_INITB_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
-	
- 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-	GPIO_Init(GPIOE, &GPIO_InitStructure);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
+
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+    GPIO_Init(GPIOE, &GPIO_InitStructure);
 }
 
 /********************************************************************************
-*FPGA_RST_Init                                                                  *
-*³õÊ¼»¯FPGAµÄDONEÒý½Å¡£                                                         *
-*¶ÔÓ¦ARMÒý½ÅÎªPE2                                                               *
-********************************************************************************/
+ *FPGA_RST_Init                                                                  *
+ *ï¿½ï¿½Ê¼ï¿½ï¿½FPGAï¿½ï¿½DONEï¿½ï¿½ï¿½Å¡ï¿½                                                         *
+ *ï¿½ï¿½Ó¦ARMï¿½ï¿½ï¿½ï¿½ÎªPE2                                                               *
+ ********************************************************************************/
 
 void FPGA_DONE_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitTypeDef GPIO_InitStructure;
 
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
-	
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
-	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
 }
 
 /********************************************************************************
-*FPGA_RST_Init                                                                  *
-*³õÊ¼»¯FPGAµÄPROGRAMBÒý½Å¡£                                                     *
-*¶ÔÓ¦ARMÒý½ÅÎªPG15                                                              *
-********************************************************************************/
+ *FPGA_RST_Init                                                                  *
+ *ï¿½ï¿½Ê¼ï¿½ï¿½FPGAï¿½ï¿½PROGRAMBï¿½ï¿½ï¿½Å¡ï¿½                                                     *
+ *ï¿½ï¿½Ó¦ARMï¿½ï¿½ï¿½ï¿½ÎªPG15                                                              *
+ ********************************************************************************/
 void FPGA_PROGRAMB_Init(void)
 {
-	GPIO_InitTypeDef  GPIO_InitStructure;
-  
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
-	
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;  	 					   
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOG, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOG, &GPIO_InitStructure);
 }
 
-
 /********************************************************************************
-*º¯ÊýÃû£ºBaudRate_Init                                                          *
-*¹¦ÄÜ£º ³õÊ¼»¯¹âÏËÍ¨ÐÅµÄÍ¨ÐÅ²¨ÌØÂÊ, BaudRate±ØÐëÄÜ±»1382400Õû³ý                 *
-********************************************************************************/ 
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½BaudRate_Init                                                          *
+ *ï¿½ï¿½ï¿½Ü£ï¿½ ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½Åµï¿½Í¨ï¿½Å²ï¿½ï¿½ï¿½ï¿½ï¿½, BaudRateï¿½ï¿½ï¿½ï¿½ï¿½Ü±ï¿½1382400ï¿½ï¿½ï¿½ï¿½                 *
+ ********************************************************************************/
 void BaudRate_Init(uint32_t BaudRate)
 {
-	uint32_t data;
+    uint32_t data;
 
-	data = (1382400 / BaudRate) ;  
-	*(unsigned short int *) (Bank1_SRAM4_ADDR + 0x04) = data;
-
+    data = (1382400 / BaudRate);
+    *(unsigned short int*)(Bank1_SRAM4_ADDR + 0x04) = data;
 }
 
 /********************************************************************************
-*º¯ÊýÃû£ºOptical_fiber_Init                                                     *
-*¹¦  ÄÜ£º¹âÏËÍ¨ÐÅ³õÊ¼»¯º¯Êý                                                     *
-*²Î  Êý£ºBaudRate£º	 ÉèÖÃ´®¿ÚÍ¨ÐÅµÄ²¨ÌØÂÊ£¬	¸ÃÖµ±ØÐëÄÜ±»1382400Õû³ý             *
-********************************************************************************/ 
+ * delay_ms                                                                          *
+ * Timer-based millisecond delay function                                           *
+ * Parameters:                                                                       *
+ *   ms: Delay time in milliseconds                                                 *
+ * Note: Requires TIMx_Init() to be called first to start the 1ms timer            *
+ ********************************************************************************/
+static void delay_ms(uint32_t ms)
+{
+    uint32_t start = get_1ms_counter();
+    while ((get_1ms_counter() - start) < ms) {
+        __NOP();
+    }
+}
+
+/********************************************************************************
+ * FPGA_Configure                                                                *
+ * Configure FPGA and wait for DONE signal with timeout protection              *
+ * Parameters:                                                                   *
+ *   timeout_ms: Maximum time to wait for FPGA configuration (milliseconds)     *
+ * Returns:                                                                      *
+ *   0 = Success (FPGA configured)                                              *
+ *   1 = Timeout/Failure (FPGA not responding)                                  *
+ * Note: Requires TIMx_Init() to be called first for timer-based delays         *
+ ********************************************************************************/
+uint8_t FPGA_Configure(uint32_t timeout_ms)
+{
+    uint32_t start_time = get_1ms_counter();
+    uint32_t elapsed_time;
+
+    // Initial reset of FPGA via PROGRAM_B (pulse low for ~1ms)
+    GPIO_ResetBits(GPIOG, GPIO_Pin_15);
+    delay_ms(1);
+    GPIO_SetBits(GPIOG, GPIO_Pin_15);
+
+    // Wait for FPGA to configure with timeout protection
+    while (GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_2) != 1) {
+        // Check timeout
+        elapsed_time = get_1ms_counter() - start_time;
+        if (elapsed_time >= timeout_ms) {
+            // Timeout - FPGA failed to configure
+            return 1;
+        }
+
+        // Retry FPGA reset every 100ms
+        if ((elapsed_time % 100) == 0) {
+            GPIO_ResetBits(GPIOG, GPIO_Pin_15);
+            delay_ms(1);
+            GPIO_SetBits(GPIOG, GPIO_Pin_15);
+        }
+
+        // Small delay to avoid tight polling
+        delay_ms(10);
+    }
+
+    // FPGA configured successfully
+    return 0;
+}
+
+/********************************************************************************
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Optical_fiber_Init                                                     *
+ *ï¿½ï¿½  ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½Å³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½                                                     *
+ *ï¿½ï¿½  ï¿½ï¿½ï¿½ï¿½BaudRateï¿½ï¿½	 ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½Í¨ï¿½ÅµÄ²ï¿½ï¿½ï¿½ï¿½Ê£ï¿½	ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½Ü±ï¿½1382400ï¿½ï¿½ï¿½ï¿½             *
+ * Note: Must be called AFTER TIMx_Init() for timer-based delays                *
+ ********************************************************************************/
 void Optical_fiber_Init(uint32_t BaudRate)
 {
-	uint32_t i;
-	for(i = 0; i < 200000; i++);
-	Optical_fiber_FSMC_Init();
-	FPGA_RST_Init();				//
-//	FPGA_INITB_Init();	 			//INIT_B ³õÊ¼»¯
-	FPGA_DONE_Init();				//DONE ³õÊ¼»¯
-	FPGA_PROGRAMB_Init();			//PROGRAM_B	³õÊ¼»¯
-   
- 	//²Ù×÷PROGRAM_B£¬¸´Î»FPGA
- 	GPIO_ResetBits(GPIOG,GPIO_Pin_15);
-	for(i = 0; i < 50; i++)
-	{	
-		;
-	}
-	GPIO_SetBits(GPIOG,GPIO_Pin_15)	;
-		 
-	for(i = 0; i < 200000000; i++)		//µÈ´ý5s£¬FPGA¼ÓÔØ³ÌÐò
-	{	
-		//IWDG->KR = KR_KEY_RELOAD;
-	}
-	while(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_2) != 1)	  // µ±DONE == 1Ê±,FPGAÅäÖÃÍê³É
-	{
-		//²Ù×÷PROGRAM_B£¬¸´Î»FPGA
-	 	GPIO_ResetBits(GPIOG,GPIO_Pin_15);
-		for(i = 0; i < 500; i++)
-		{	
-			;
-		}
-		GPIO_SetBits(GPIOG,GPIO_Pin_15)	;
-		for(i = 0; i < 200000000; i++)		//µÈ´ý5s£¬FPGA¼ÓÔØ³ÌÐò
-		{	
-			//IWDG->KR = KR_KEY_RELOAD;//¸´ÖÆÁËIWDG_ReloadCounterº¯Êý;
-		}	
-	}
+    uint8_t fpga_status;
 
+    // Initial delay (allow hardware to stabilize)
+    delay_ms(10);
 
-	//²Ù×÷PE4£¬¸´Î»FPGAÄÚ²¿³ÌÐò
-	GPIO_SetBits(GPIOG,GPIO_Pin_11);
-	for(i = 0; i < 20; i++)
-	{	
-		;
-	}
-	GPIO_ResetBits(GPIOG,GPIO_Pin_11);
- 	for(i = 0; i < 100; i++)
-	{	
-		;
-	}
-	GPIO_SetBits(GPIOG,GPIO_Pin_11);
- 	BaudRate_Init(BaudRate);		 //ÉèÖÃ²¨ÌØÂÊ
-	*(unsigned short int *) (Bank1_SRAM4_ADDR + 16) = (unsigned short int)uchNodeNum;	
+    // Initialize FSMC for FPGA communication
+    Optical_fiber_FSMC_Init();
+
+    // Initialize FPGA control pins
+    FPGA_RST_Init();       // Internal reset (PG11)
+    FPGA_DONE_Init();      // DONE signal (PD2)
+    FPGA_PROGRAMB_Init();  // PROGRAM_B signal (PG15)
+
+    // Configure FPGA with 5 second timeout
+    fpga_status = FPGA_Configure(5000);
+
+    if (fpga_status != 0) {
+        // FPGA configuration failed/timeout
+        // System can continue but optical fiber won't work
+        // Could set an error flag here if needed
+        return;
+    }
+
+    // FPGA configured successfully - perform internal reset sequence
+    GPIO_SetBits(GPIOG, GPIO_Pin_11);
+    delay_ms(1);  // Short delay
+    GPIO_ResetBits(GPIOG, GPIO_Pin_11);
+    delay_ms(1);  // Short delay
+    GPIO_SetBits(GPIOG, GPIO_Pin_11);
+
+    // Configure baud rate
+    BaudRate_Init(BaudRate);
+
+    // Set node number
+    *(unsigned short int*)(Bank1_SRAM4_ADDR + 16) = (unsigned short int)uchNodeNum;
 }
 
 /********************************************************************************
-*º¯ÊýÃû£ºTx_Buffer                                                              *
-*¹¦  ÄÜ£º´®¿Ú×Ö·û´®·¢ËÍº¯Êý                                                     *
-*²Î  Êý£ºport ´®¿ÚÍ¨µÀÑ¡Ôñ                                                      *
-*        - 0  £º´®¿Ú1¡¢2¡¢3¡¢4¡¢5ºÍ6Ê±¹ã²¥·¢ËÍ                                  *
-*        - 1  £º´®¿Ú1                                                           *
-*        - 2  £º´®¿Ú2                                                           *
-*        - 3  £º´®¿Ú3                                                           *
-*        - 4  £º´®¿Ú4                                                           *
-*        - 5  £º´®¿Ú5                                                           *
-*        - 6  £º´®¿Ú6                                                           *
-*        - 100£º´®¿Ú1¡¢2¡¢3ºÍ4¹ã²¥·¢ËÍ                                          *
-*        - 101£º´®¿Ú5ºÍ6¹ã²¥·¢ËÍ                                                *
-*        data[] Êý¾Ý·¢ËÍ»º³åÇø                                                  *
-*        len Êý¾Ý·¢ËÍ³¤¶È                                                       *
-********************************************************************************/ 
-void Tx_Buffer(unsigned short int port,unsigned char data[], unsigned short int len)
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Tx_Buffer                                                              *
+ *ï¿½ï¿½  ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íºï¿½ï¿½ï¿½                                                     *
+ *ï¿½ï¿½  ï¿½ï¿½ï¿½ï¿½port ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Ñ¡ï¿½ï¿½                                                      *
+ *        - 0  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½2ï¿½ï¿½3ï¿½ï¿½4ï¿½ï¿½5ï¿½ï¿½6Ê±ï¿½ã²¥ï¿½ï¿½ï¿½ï¿½                                  *
+ *        - 1  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1                                                           *
+ *        - 2  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2                                                           *
+ *        - 3  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½3                                                           *
+ *        - 4  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½4                                                           *
+ *        - 5  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½5                                                           *
+ *        - 6  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½6                                                           *
+ *        - 100ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½2ï¿½ï¿½3ï¿½ï¿½4ï¿½ã²¥ï¿½ï¿½ï¿½ï¿½                                          *
+ *        - 101ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½5ï¿½ï¿½6ï¿½ã²¥ï¿½ï¿½ï¿½ï¿½                                                *
+ *        data[] ï¿½ï¿½ï¿½Ý·ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½                                                  *
+ *        len ï¿½ï¿½ï¿½Ý·ï¿½ï¿½Í³ï¿½ï¿½ï¿½                                                       *
+ ********************************************************************************/
+void Tx_Buffer(unsigned short int port, unsigned char data[], unsigned short int len)
 {
-	unsigned short int i;
-	for(i = 0; i < len; i++)
-	{
-		*(unsigned short int *) (Bank1_SRAM4_ADDR + (port + 100) * 2) = (unsigned short int)data[i];	
-	}	
+    unsigned short int i;
+    for (i = 0; i < len; i++) {
+        *(unsigned short int*)(Bank1_SRAM4_ADDR + (port + 100) * 2) = (unsigned short int)data[i];
+    }
 }
 
 /********************************************************************************
-*º¯ÊýÃû£ºRead_State                                                             *
-*¹¦  ÄÜ£º¶ÁÈ¡FPGA´®¿Ú½ÓÊÕ×´Ì¬                                                   *
-*²Î  Êý£ºaddr ¶ÁÈ¡µØÖ·                                                          *
-********************************************************************************/ 
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Read_State                                                             *
+ *ï¿½ï¿½  ï¿½Ü£ï¿½ï¿½ï¿½È¡FPGAï¿½ï¿½ï¿½Ú½ï¿½ï¿½ï¿½×´Ì¬                                                   *
+ *ï¿½ï¿½  ï¿½ï¿½ï¿½ï¿½addr ï¿½ï¿½È¡ï¿½ï¿½Ö·                                                          *
+ ********************************************************************************/
 unsigned short int Read_State(unsigned short int addr)
 {
-	unsigned short int ret;
-	ret = *(__IO unsigned short int*) (Bank1_SRAM4_ADDR + addr * 2);
-	return ret;
+    unsigned short int ret;
+    ret = *(__IO unsigned short int*)(Bank1_SRAM4_ADDR + addr * 2);
+    return ret;
 }
-
 
 /********************************************************************************
-*º¯ÊýÃû£ºRx_Buffer                                                              *
-*¹¦  ÄÜ£º´®¿ÚÊý¾Ý½ÓÊÕº¯Êý                                                       *
-*²Î  Êý£ºport ´®¿ÚÍ¨µÀÑ¡Ôñ                                                      *
-*        - 1£º´®¿Ú1                                                             *
-*        - 2£º´®¿Ú2                                                             *
-*        - 3£º´®¿Ú3                                                             *
-*        - 4£º´®¿Ú4                                                             *
-*        - 5£º´®¿Ú5                                                             *
-*        - 6£º´®¿Ú6                                                             *
-*        data[] Êý¾Ý½ÓÊÕ»º³åÇø                                                  *
-*·µ»ØÖµ£ºÊý¾Ý½ÓÊÕ³¤¶È                                                           *
-********************************************************************************/ 
+ *ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Rx_Buffer                                                              *
+ *ï¿½ï¿½  ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½Õºï¿½ï¿½ï¿½                                                       *
+ *ï¿½ï¿½  ï¿½ï¿½ï¿½ï¿½port ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Ñ¡ï¿½ï¿½                                                      *
+ *        - 1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1                                                             *
+ *        - 2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½2                                                             *
+ *        - 3ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½3                                                             *
+ *        - 4ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½4                                                             *
+ *        - 5ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½5                                                             *
+ *        - 6ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½6                                                             *
+ *        data[] ï¿½ï¿½ï¿½Ý½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½                                                  *
+ *ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½Õ³ï¿½ï¿½ï¿½                                                           *
+ ********************************************************************************/
 unsigned short int Rx_Buffer(unsigned short int port, unsigned char data[])
 {
-	unsigned short int len = 0, i = 0;
-	while(((Read_State(port + 100) & 0x0002) == 0) && (i++ < 255)) 
-	{								   
-		data[len] =(unsigned char) Read_State(port);
-		len ++;
-	} 				 
-	return 	len;
+    unsigned short int len = 0, i = 0;
+    while (((Read_State(port + 100) & 0x0002) == 0) && (i++ < 255)) {
+        data[len] = (unsigned char)Read_State(port);
+        len++;
+    }
+    return len;
 }
-
 
 //===========================================================================
 // End of file.
 //===========================================================================
-
