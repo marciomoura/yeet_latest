@@ -2,8 +2,9 @@
 // TIM4: 1000us task (1 kHz) - Fast control loop
 // TIM2: 10000us task (100 Hz) - Slow monitoring
 
-#include "AI.h"
-#include "TIM.h"
+#include "tasks.h"
+
+#include "adc.h"  // For ADC-related functions
 #include "stm32f4xx.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_rcc.h"
@@ -376,7 +377,7 @@ void TIM_Print_Clock_Config(void)
  * @retval None
  * @note   Assumes SYSCLK = 168 MHz for cycle-to-time conversion
  ******************************************************************************/
-void TIM_Get_ISR_Timing(uint8_t timer_num, float *current_us, float *max_us)
+void TIM_Get_ISR_Timing(uint8_t timer_num, float* current_us, float* max_us)
 {
     RCC_ClocksTypeDef RCC_Clocks;
     RCC_GetClocksFreq(&RCC_Clocks);

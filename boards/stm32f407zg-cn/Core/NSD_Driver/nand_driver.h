@@ -146,8 +146,8 @@ typedef struct {
  */
 typedef struct {
     // Hardware configuration
-    FSMC_NAND_TypeDef* fsmc_bank; /**< FSMC NAND bank registers */
-    uint32_t base_address;        /**< Memory-mapped base address */
+    void* fsmc_bank;       /**< FSMC NAND bank registers (actually FSMC_Bank2_3_TypeDef*) */
+    uint32_t base_address; /**< Memory-mapped base address */
 
     // Device information
     nand_id_t device_id; /**< Device identification */

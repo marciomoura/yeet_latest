@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /* ============================================================================
@@ -250,13 +251,56 @@ void FSMC_GPIO_WriteOutputs(fsmc_gpio_instance_t* gpio);
  * ============================================================================ */
 
 /**
- * @brief Set LED indicator states
+ * @brief Set LED indicator states (all at once)
  * @param gpio Pointer to FSMC GPIO instance
  * @param led_run Running LED state (1=Blinking, 0=Off)
  * @param led_fault Fault LED state (1=On, 0=Off)
  * @param led_alarm Alarm LED state (1=On, 0=Off)
  */
 void FSMC_GPIO_SetLEDs(fsmc_gpio_instance_t* gpio, uint8_t led_run, uint8_t led_fault, uint8_t led_alarm);
+
+/**
+ * @brief Set RUN LED state
+ * @param gpio Pointer to FSMC GPIO instance
+ * @param state LED state (1=On, 0=Off)
+ * @note Used as system heartbeat indicator
+ */
+void FSMC_GPIO_SetLED_Run(fsmc_gpio_instance_t* gpio, uint8_t state);
+
+/**
+ * @brief Set FAULT LED state
+ * @param gpio Pointer to FSMC GPIO instance
+ * @param state LED state (1=On, 0=Off)
+ * @note Used to indicate hardware initialization or critical errors
+ */
+void FSMC_GPIO_SetLED_Fault(fsmc_gpio_instance_t* gpio, uint8_t state);
+
+/**
+ * @brief Set ALARM LED state
+ * @param gpio Pointer to FSMC GPIO instance
+ * @param state LED state (1=On, 0=Off)
+ * @note Used to indicate application-level warnings or alarms
+ */
+void FSMC_GPIO_SetLED_Alarm(fsmc_gpio_instance_t* gpio, uint8_t state);
+
+/**
+ * @brief Toggle RUN LED state
+ * @param gpio Pointer to FSMC GPIO instance
+ * @note Convenience function for blinking the RUN LED
+ */
+void FSMC_GPIO_ToggleLED_Run(fsmc_gpio_instance_t* gpio);
+
+/**
+ * @brief Toggle FAULT LED state
+ * @param gpio Pointer to FSMC GPIO instance
+ */
+void FSMC_GPIO_ToggleLED_Fault(fsmc_gpio_instance_t* gpio);
+
+/**
+ * @brief Toggle ALARM LED state
+ * @param gpio Pointer to FSMC GPIO instance
+ */
+void FSMC_GPIO_ToggleLED_Alarm(fsmc_gpio_instance_t* gpio);
 
 /**
  * @brief Get LED indicator states

@@ -227,7 +227,7 @@ void FSMC_GPIO_WriteOutputs(fsmc_gpio_instance_t* gpio)
  * ============================================================================ */
 
 /**
- * @brief Set LED indicator states
+ * @brief Set LED indicator states (all at once)
  */
 void FSMC_GPIO_SetLEDs(fsmc_gpio_instance_t* gpio, uint8_t led_run, uint8_t led_fault, uint8_t led_alarm)
 {
@@ -238,6 +238,72 @@ void FSMC_GPIO_SetLEDs(fsmc_gpio_instance_t* gpio, uint8_t led_run, uint8_t led_
     gpio->led_run = led_run ? 1 : 0;
     gpio->led_fault = led_fault ? 1 : 0;
     gpio->led_alarm = led_alarm ? 1 : 0;
+}
+
+/**
+ * @brief Set RUN LED state
+ */
+void FSMC_GPIO_SetLED_Run(fsmc_gpio_instance_t* gpio, uint8_t state)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_run = state ? 1 : 0;
+}
+
+/**
+ * @brief Set FAULT LED state
+ */
+void FSMC_GPIO_SetLED_Fault(fsmc_gpio_instance_t* gpio, uint8_t state)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_fault = state ? 1 : 0;
+}
+
+/**
+ * @brief Set ALARM LED state
+ */
+void FSMC_GPIO_SetLED_Alarm(fsmc_gpio_instance_t* gpio, uint8_t state)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_alarm = state ? 1 : 0;
+}
+
+/**
+ * @brief Toggle RUN LED state
+ */
+void FSMC_GPIO_ToggleLED_Run(fsmc_gpio_instance_t* gpio)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_run = gpio->led_run ? 0 : 1;
+}
+
+/**
+ * @brief Toggle FAULT LED state
+ */
+void FSMC_GPIO_ToggleLED_Fault(fsmc_gpio_instance_t* gpio)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_fault = gpio->led_fault ? 0 : 1;
+}
+
+/**
+ * @brief Toggle ALARM LED state
+ */
+void FSMC_GPIO_ToggleLED_Alarm(fsmc_gpio_instance_t* gpio)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_alarm = gpio->led_alarm ? 0 : 1;
 }
 
 /**

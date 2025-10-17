@@ -26,6 +26,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "fsmc_gpio_driver.h"

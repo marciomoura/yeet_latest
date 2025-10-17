@@ -29,8 +29,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "fpga.h"
 
-#include "TIM.h"  // For timer-based delays
 #include "stm32f4xx.h"
+#include "tasks.h"  // For timer-based delays
 
 /* Private defines -----------------------------------------------------------*/
 
