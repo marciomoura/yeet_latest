@@ -243,6 +243,110 @@
             "detail": "Flash selected embedded target to STM32 via ST-Link"
         },
         {
+            "label": "Flash CN Grid (JLink) - Debug",
+            "type": "shell",
+            "command": "C:/DevEnv/SEGGER/JLink_V876/JLink.exe",
+            "args": [
+                "-device",
+                "STM32F407ZG",
+                "-if",
+                "SWD",
+                "-speed",
+                "4000",
+                "-autoconnect",
+                "1",
+                "-CommandFile",
+                "${workspaceFolder}/.vscode/jlink_flash_cn_grid_debug.jlink"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Flash CN Grid-Side Debug build via JLink"
+        },
+        {
+            "label": "Flash CN Grid (JLink) - Release",
+            "type": "shell",
+            "command": "C:/DevEnv/SEGGER/JLink_V876/JLink.exe",
+            "args": [
+                "-device",
+                "STM32F407ZG",
+                "-if",
+                "SWD",
+                "-speed",
+                "4000",
+                "-autoconnect",
+                "1",
+                "-CommandFile",
+                "${workspaceFolder}/.vscode/jlink_flash_cn_grid_release.jlink"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Flash CN Grid-Side Release build via JLink"
+        },
+        {
+            "label": "Flash CN Machine (JLink) - Debug",
+            "type": "shell",
+            "command": "C:/DevEnv/SEGGER/JLink_V876/JLink.exe",
+            "args": [
+                "-device",
+                "STM32F407ZG",
+                "-if",
+                "SWD",
+                "-speed",
+                "4000",
+                "-autoconnect",
+                "1",
+                "-CommandFile",
+                "${workspaceFolder}/.vscode/jlink_flash_cn_machine_debug.jlink"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Flash CN Machine-Side Debug build via JLink"
+        },
+        {
+            "label": "Flash CN Machine (JLink) - Release",
+            "type": "shell",
+            "command": "C:/DevEnv/SEGGER/JLink_V876/JLink.exe",
+            "args": [
+                "-device",
+                "STM32F407ZG",
+                "-if",
+                "SWD",
+                "-speed",
+                "4000",
+                "-autoconnect",
+                "1",
+                "-CommandFile",
+                "${workspaceFolder}/.vscode/jlink_flash_cn_machine_release.jlink"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Flash CN Machine-Side Release build via JLink"
+        },
+        {
             "label": "Build & Flash Embedded Target",
             "dependsOn": [
                 "Configure Embedded Target",
