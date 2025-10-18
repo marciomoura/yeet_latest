@@ -2,6 +2,7 @@
 #include "network_config_helper.h"  // Network configuration helpers
 #include "stm32f4xx.h"
 #include "tasks.h"
+#include "thyristor_control.h"
 #include "w5200_driver.h"  // New W5200 driver
 
 /* Network Configuration Flags --------------------------------------------- */
@@ -100,7 +101,12 @@ static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS
  * @note   Called from TIM3 ISR at 5 kHz rate (every 200 microseconds)
  *         This is your highest priority task - keep it fast!
  */
-void task_200us(void) { __NOP(); }
+void task_200us(void)
+{
+    __NOP();
+
+    set_thyristor_pulses(false, false, false, false, false, false);
+}
 
 /**
  * @brief  1ms periodic task - Fast control loop

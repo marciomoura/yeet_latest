@@ -110,6 +110,7 @@ target_sources(
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nand_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/sram_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/thyristor_control.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/network_config_helper.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/watchdog_simple.c
