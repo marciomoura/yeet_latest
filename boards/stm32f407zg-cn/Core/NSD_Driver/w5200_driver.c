@@ -20,6 +20,8 @@
 #include <stm32f4xx.h>
 #include <string.h>
 
+#include "tasks.h"  // For get_1ms_counter()
+
 /* ============================================================================
  * Private Function Prototypes
  * ============================================================================ */
@@ -49,10 +51,10 @@ bool W5200_Init(w5200_instance_t* w5200, SPI_TypeDef* spi, uint8_t* tx_buffer, u
         return false;
     }
 
-    // Validate DMA size
-    if (dma_size != W5200_DMA_SIZE_128 && dma_size != W5200_DMA_SIZE_256 && dma_size != W5200_DMA_SIZE_512 &&
-        dma_size != W5200_DMA_SIZE_1K && dma_size != W5200_DMA_SIZE_2K && dma_size != W5200_DMA_SIZE_4K &&
-        dma_size != W5200_DMA_SIZE_8K) {
+    // Validate DMA size (0 = no DMA, or valid DMA size)
+    if (dma_size != 0 && dma_size != W5200_DMA_SIZE_128 && dma_size != W5200_DMA_SIZE_256 &&
+        dma_size != W5200_DMA_SIZE_512 && dma_size != W5200_DMA_SIZE_1K && dma_size != W5200_DMA_SIZE_2K &&
+        dma_size != W5200_DMA_SIZE_4K && dma_size != W5200_DMA_SIZE_8K) {
         return false;
     }
 
@@ -221,6 +223,9 @@ void W5200_WriteByte(w5200_instance_t* w5200, uint16_t addr, uint8_t data)
     int timeout = 0;
     bool timeout_occurred = false;
 
+    // Enable SPI for this transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, ENABLE);
+
     // Assert CS (pull low to select chip)
     W5200_SetCS(w5200, false);
 
@@ -275,6 +280,9 @@ void W5200_WriteByte(w5200_instance_t* w5200, uint16_t addr, uint8_t data)
 
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
+
+    // Disable SPI after transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, DISABLE);
     W5200_Delay(2);
 
     if (timeout_occurred) {
@@ -296,6 +304,9 @@ uint8_t W5200_ReadByte(w5200_instance_t* w5200, uint16_t addr)
     uint8_t result = 0;
     int timeout = 0;
     bool timeout_occurred = false;
+
+    // Enable SPI for this transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, ENABLE);
 
     // Assert CS (pull low to select chip)
     W5200_SetCS(w5200, false);
@@ -362,6 +373,9 @@ uint8_t W5200_ReadByte(w5200_instance_t* w5200, uint16_t addr)
 
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
+
+    // Disable SPI after transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, DISABLE);
     W5200_Delay(2);
 
     if (timeout_occurred) {
@@ -383,6 +397,9 @@ void W5200_Write(w5200_instance_t* w5200, uint16_t addr, const uint8_t* data, ui
     }
 
     int timeout = 0;
+
+    // Enable SPI for this transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, ENABLE);
 
     // Assert CS (pull low to select chip)
     W5200_SetCS(w5200, false);
@@ -415,6 +432,9 @@ void W5200_Write(w5200_instance_t* w5200, uint16_t addr, const uint8_t* data, ui
 
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
+
+    // Disable SPI after transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, DISABLE);
     W5200_Delay(2);
 }
 
@@ -428,6 +448,9 @@ void W5200_Read(w5200_instance_t* w5200, uint16_t addr, uint8_t* data, uint16_t 
     }
 
     int timeout = 0;
+
+    // Enable SPI for this transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, ENABLE);
 
     // Assert CS (pull low to select chip)
     W5200_SetCS(w5200, false);
@@ -467,6 +490,9 @@ void W5200_Read(w5200_instance_t* w5200, uint16_t addr, uint8_t* data, uint16_t 
 
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
+
+    // Disable SPI after transaction (legacy pattern)
+    SPI_Cmd(w5200->spi, DISABLE);
     W5200_Delay(2);
 }
 
@@ -476,6 +502,7 @@ void W5200_Read(w5200_instance_t* w5200, uint16_t addr, uint8_t* data, uint16_t 
 
 /**
  * @brief Open a socket
+ * @note Matches archive legacy behavior - no polling, immediate status check
  */
 bool W5200_SocketOpen(w5200_instance_t* w5200, uint8_t socket_num)
 {
@@ -491,6 +518,8 @@ bool W5200_SocketOpen(w5200_instance_t* w5200, uint8_t socket_num)
         return false;
     }
 
+    uint8_t status;
+
     // Set socket mode (TCP or UDP)
     uint8_t mode = (w5200->sockets[socket_num].protocol == W5200_PROTO_TCP) ? W5200_Sn_MR_TCP : W5200_Sn_MR_UDP;
     W5200_WriteByte(w5200, W5200_Sn_MR(socket_num), mode);
@@ -498,36 +527,14 @@ bool W5200_SocketOpen(w5200_instance_t* w5200, uint8_t socket_num)
     // Open socket
     W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_OPEN);
 
-    // Wait for command to complete (W5200 clears Sn_CR to 0x00 when done)
-    if (!W5200_WaitCommandComplete(w5200, socket_num, 5000)) {
-        return false;  // Command timeout
-    }
-
-    // Poll socket status until open or timeout
-    uint8_t status = W5200_SOCK_CLOSED;
-    uint32_t timeout = 10000;  // Increased timeout for reliability
-
-    while (timeout-- > 0) {
-        status = W5200_ReadByte(w5200, W5200_Sn_SR(socket_num));
-
-        // Check if socket opened successfully
-        if (w5200->sockets[socket_num].protocol == W5200_PROTO_TCP) {
-            if (status == W5200_SOCK_INIT) {
-                break;  // TCP socket opened successfully
-            }
-        }
-        else {
-            if (status == W5200_SOCK_UDP) {
-                break;  // UDP socket opened successfully
-            }
-        }
-
-        W5200_Delay(10);  // Small delay between polls
-    }
+    // Archive behavior: immediately check status (no waiting/polling)
+    status = W5200_ReadByte(w5200, W5200_Sn_SR(socket_num));
 
     // Verify socket opened with correct status
     if (w5200->sockets[socket_num].protocol == W5200_PROTO_TCP) {
         if (status != W5200_SOCK_INIT) {
+            // Failed to open, close it
+            W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_CLOSE);
             return false;
         }
 
@@ -543,6 +550,7 @@ bool W5200_SocketOpen(w5200_instance_t* w5200, uint8_t socket_num)
     else {
         // UDP socket should be in UDP state (0x22)
         if (status != W5200_SOCK_UDP) {
+            W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_CLOSE);
             return false;
         }
     }
@@ -577,6 +585,7 @@ void W5200_SocketClose(w5200_instance_t* w5200, uint8_t socket_num)
 
 /**
  * @brief Listen on TCP socket (server mode)
+ * @note Matches archive legacy behavior - immediate status check
  */
 bool W5200_SocketListen(w5200_instance_t* w5200, uint8_t socket_num)
 {
@@ -591,14 +600,17 @@ bool W5200_SocketListen(w5200_instance_t* w5200, uint8_t socket_num)
     // Send listen command
     W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_LISTEN);
 
-    // Wait for listen state
-    W5200_Delay(1000);
-
-    // Check status
+    // Archive behavior: immediately check status (no delay)
     uint8_t status = W5200_ReadByte(w5200, W5200_Sn_SR(socket_num));
-    w5200->socket_state[socket_num].status = status;
 
-    return (status == W5200_SOCK_LISTEN);
+    if (status != W5200_SOCK_LISTEN) {
+        // Failed to listen, close socket
+        W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_CLOSE);
+        return false;
+    }
+
+    w5200->socket_state[socket_num].status = status;
+    return true;
 }
 
 /**
@@ -992,8 +1004,16 @@ static void W5200_InitGPIO(w5200_instance_t* w5200)
         GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
         GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-        // Set initial state: CS high (inactive), Reset high (inactive)
-        GPIOA->BSRRL = GPIO_Pin_11 | GPIO_Pin_12;
+        // Set initial state according to legacy option
+        // Reset pin should start HIGH (released). CS legacy behavior may keep it LOW.
+        if (W5200_LEGACY_CS_IDLE_LOW) {
+            // CS LOW (asserted), Reset HIGH
+            GPIOA->BSRRH = GPIO_Pin_11;  // CS low
+            GPIOA->BSRRL = GPIO_Pin_12;  // Reset high
+        }
+        else {
+            GPIOA->BSRRL = GPIO_Pin_11 | GPIO_Pin_12;  // CS high, Reset high
+        }
     }
     else if (w5200->spi == SPI3) {
         // Configure SPI3 pins
@@ -1021,8 +1041,13 @@ static void W5200_InitGPIO(w5200_instance_t* w5200)
         GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4;
         GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-        // Set initial state: CS high (inactive), Reset high (inactive)
-        GPIOB->BSRRL = GPIO_Pin_3 | GPIO_Pin_4;
+        if (W5200_LEGACY_CS_IDLE_LOW) {
+            GPIOB->BSRRH = GPIO_Pin_3;  // CS low
+            GPIOB->BSRRL = GPIO_Pin_4;  // Reset high
+        }
+        else {
+            GPIOB->BSRRL = GPIO_Pin_3 | GPIO_Pin_4;  // CS high, Reset high
+        }
     }
 }
 
@@ -1049,7 +1074,7 @@ static void W5200_InitSPI(w5200_instance_t* w5200)
     SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
     SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
     SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
-    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;  // Software NSS for manual CS control
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Hard;  // Hardware NSS to match legacy behavior
     SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
     SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
     SPI_InitStructure.SPI_CRCPolynomial = 7;
@@ -1057,8 +1082,9 @@ static void W5200_InitSPI(w5200_instance_t* w5200)
 
     SPI_Init(w5200->spi, &SPI_InitStructure);
 
-    // Enable SPI peripheral once (leave enabled for all transactions)
-    SPI_Cmd(w5200->spi, ENABLE);
+    // Legacy pattern: Disable SPI initially, enable SPI_SSOutput, will enable/disable per transaction
+    SPI_Cmd(w5200->spi, DISABLE);
+    SPI_SSOutputCmd(w5200->spi, ENABLE);
 }
 
 /**
@@ -1066,9 +1092,108 @@ static void W5200_InitSPI(w5200_instance_t* w5200)
  */
 static void W5200_InitDMA(w5200_instance_t* w5200)
 {
-    // DMA initialization would go here
-    // This is a placeholder for future DMA implementation
-    // The original code uses DMA1_Stream3/4 for SPI2 and DMA1_Stream2/7 for SPI3
+    DMA_InitTypeDef DMA_InitStructureTx, DMA_InitStructureRx;
+
+    // Skip if DMA not enabled
+    if (w5200->dma_size == 0) {
+        return;
+    }
+
+    // Enable DMA1 clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
+
+    if (w5200->spi == SPI2) {
+        // SPI2 TX: DMA1 Stream 4, Channel 0
+        DMA_DeInit(DMA1_Stream4);
+        DMA_InitStructureTx.DMA_Channel = DMA_Channel_0;
+        DMA_InitStructureTx.DMA_PeripheralBaseAddr = (uint32_t)&SPI2->DR;
+        DMA_InitStructureTx.DMA_Memory0BaseAddr = (uint32_t)w5200->tx_buffer;
+        DMA_InitStructureTx.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+        DMA_InitStructureTx.DMA_BufferSize = w5200->dma_size + 4;
+        DMA_InitStructureTx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+        DMA_InitStructureTx.DMA_MemoryInc = DMA_MemoryInc_Enable;
+        DMA_InitStructureTx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+        DMA_InitStructureTx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+        DMA_InitStructureTx.DMA_Mode = DMA_Mode_Normal;
+        DMA_InitStructureTx.DMA_Priority = DMA_Priority_Low;
+        DMA_InitStructureTx.DMA_FIFOMode = DMA_FIFOMode_Disable;
+        DMA_InitStructureTx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+        DMA_InitStructureTx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+        DMA_InitStructureTx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+        DMA_Init(DMA1_Stream4, &DMA_InitStructureTx);
+
+        // Enable SPI2 DMA TX
+        SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx, ENABLE);
+        DMA_Cmd(DMA1_Stream4, DISABLE);
+
+        // SPI2 RX: DMA1 Stream 3, Channel 0
+        DMA_DeInit(DMA1_Stream3);
+        DMA_StructInit(&DMA_InitStructureRx);
+        DMA_InitStructureRx.DMA_Channel = DMA_Channel_0;
+        DMA_InitStructureRx.DMA_PeripheralBaseAddr = (uint32_t)&SPI2->DR;
+        DMA_InitStructureRx.DMA_Memory0BaseAddr = (uint32_t)w5200->rx_buffer;
+        DMA_InitStructureRx.DMA_DIR = DMA_DIR_PeripheralToMemory;
+        DMA_InitStructureRx.DMA_BufferSize = w5200->dma_size + 4;
+        DMA_InitStructureRx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+        DMA_InitStructureRx.DMA_MemoryInc = DMA_MemoryInc_Enable;
+        DMA_InitStructureRx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+        DMA_InitStructureRx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+        DMA_InitStructureRx.DMA_Mode = DMA_Mode_Circular;
+        DMA_InitStructureRx.DMA_Priority = DMA_Priority_VeryHigh;
+        DMA_InitStructureRx.DMA_FIFOMode = DMA_FIFOMode_Disable;
+        DMA_InitStructureRx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+        DMA_InitStructureRx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+        DMA_InitStructureRx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+        DMA_Init(DMA1_Stream3, &DMA_InitStructureRx);
+
+        DMA_Cmd(DMA1_Stream3, ENABLE);
+    }
+    else if (w5200->spi == SPI3) {
+        // SPI3 TX: DMA1 Stream 7, Channel 0
+        DMA_DeInit(DMA1_Stream7);
+        DMA_InitStructureTx.DMA_Channel = DMA_Channel_0;
+        DMA_InitStructureTx.DMA_PeripheralBaseAddr = (uint32_t)&SPI3->DR;
+        DMA_InitStructureTx.DMA_Memory0BaseAddr = (uint32_t)w5200->tx_buffer;
+        DMA_InitStructureTx.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+        DMA_InitStructureTx.DMA_BufferSize = w5200->dma_size + 4;
+        DMA_InitStructureTx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+        DMA_InitStructureTx.DMA_MemoryInc = DMA_MemoryInc_Enable;
+        DMA_InitStructureTx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+        DMA_InitStructureTx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+        DMA_InitStructureTx.DMA_Mode = DMA_Mode_Normal;
+        DMA_InitStructureTx.DMA_Priority = DMA_Priority_Low;
+        DMA_InitStructureTx.DMA_FIFOMode = DMA_FIFOMode_Disable;
+        DMA_InitStructureTx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+        DMA_InitStructureTx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+        DMA_InitStructureTx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+        DMA_Init(DMA1_Stream7, &DMA_InitStructureTx);
+
+        // Enable SPI3 DMA TX
+        SPI_I2S_DMACmd(SPI3, SPI_I2S_DMAReq_Tx, ENABLE);
+        DMA_Cmd(DMA1_Stream7, DISABLE);
+
+        // SPI3 RX: DMA1 Stream 2, Channel 0
+        DMA_DeInit(DMA1_Stream2);
+        DMA_StructInit(&DMA_InitStructureRx);
+        DMA_InitStructureRx.DMA_Channel = DMA_Channel_0;
+        DMA_InitStructureRx.DMA_PeripheralBaseAddr = (uint32_t)&SPI3->DR;
+        DMA_InitStructureRx.DMA_Memory0BaseAddr = (uint32_t)w5200->rx_buffer;
+        DMA_InitStructureRx.DMA_DIR = DMA_DIR_PeripheralToMemory;
+        DMA_InitStructureRx.DMA_BufferSize = w5200->dma_size + 4;
+        DMA_InitStructureRx.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+        DMA_InitStructureRx.DMA_MemoryInc = DMA_MemoryInc_Enable;
+        DMA_InitStructureRx.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+        DMA_InitStructureRx.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+        DMA_InitStructureRx.DMA_Mode = DMA_Mode_Circular;
+        DMA_InitStructureRx.DMA_Priority = DMA_Priority_VeryHigh;
+        DMA_InitStructureRx.DMA_FIFOMode = DMA_FIFOMode_Disable;
+        DMA_InitStructureRx.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+        DMA_InitStructureRx.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+        DMA_InitStructureRx.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+        DMA_Init(DMA1_Stream2, &DMA_InitStructureRx);
+
+        DMA_Cmd(DMA1_Stream2, ENABLE);
+    }
 }
 
 /**
@@ -1076,30 +1201,38 @@ static void W5200_InitDMA(w5200_instance_t* w5200)
  */
 static void W5200_HardwareReset(w5200_instance_t* w5200)
 {
-    // Delay before reset
-    W5200_Delay(50000);
+    uint32_t start_time;
+
+    // Small delay before reset (ensure previous operations complete)
+    W5200_Delay(100);  // ~100 CPU cycles for settling
 
     // Assert reset (active LOW - pull pin LOW to reset chip)
     W5200_SetReset(w5200, false);
 
-    // Hold reset for ~150ms
-    for (int i = 0; i < 400; i++) {
-        W5200_Delay(1000);
+    // Hold reset for 150ms using timer
+    start_time = get_1ms_counter();
+    while ((get_1ms_counter() - start_time) < 150) {
+        __NOP();
     }
 
     // Release reset (pull pin HIGH to run chip)
     W5200_SetReset(w5200, true);
 
-    // Wait for chip to stabilize
-    W5200_Delay(50000);
+    // Wait for chip to stabilize (at least 50ms per datasheet)
+    start_time = get_1ms_counter();
+    while ((get_1ms_counter() - start_time) < 100) {  // 100ms for safety
+        __NOP();
+    }
 }
 
 /**
- * @brief Software delay
+ * @brief Software delay (very short delays only, uses CPU cycles)
+ * @note For delays > 1ms, use timer-based delays instead
  */
 static void W5200_Delay(uint32_t cycles)
 {
-    for (uint32_t i = 0; i < cycles; i++) {
+    volatile uint32_t i;  // Volatile prevents optimizer from removing loop
+    for (i = 0; i < cycles; i++) {
         __NOP();
     }
 }
@@ -1110,10 +1243,17 @@ static void W5200_Delay(uint32_t cycles)
 static void W5200_SetCS(w5200_instance_t* w5200, bool state)
 {
     if (state) {
-        w5200->cs_port->BSRRL = w5200->cs_pin;  // Set high
+        if (W5200_LEGACY_CS_IDLE_LOW) {
+            // Legacy mode keeps CS asserted low even when 'state' requests de-assert.
+            // Still, provide a short high pulse possibility if needed in future.
+            // For now: do nothing (remain low).
+        }
+        else {
+            w5200->cs_port->BSRRL = w5200->cs_pin;  // Set high (inactive)
+        }
     }
     else {
-        w5200->cs_port->BSRRH = w5200->cs_pin;  // Set low
+        w5200->cs_port->BSRRH = w5200->cs_pin;  // Set low (active)
     }
 }
 

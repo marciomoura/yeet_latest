@@ -56,6 +56,24 @@ extern "C" {
 #define W5200_SPI_TIMEOUT 1200
 
 /* ============================================================================
+ * Legacy Compatibility Options
+ * ============================================================================ */
+/*
+ * Some legacy hardware/PCB wiring for the original implementation kept the W5200
+ * chip select (CS) line LOW when idle (contrary to the typical SPI convention
+ * of idling HIGH). The refactored driver originally migrated to the conventional
+ * idle-high behavior, but certain boards or level-shifting circuits may rely on
+ * the legacy always-low baseline.
+ *
+ * Define W5200_LEGACY_CS_IDLE_LOW to keep CS asserted (LOW) whenever the bus is
+ * idle, mimicking the archive code. If undefined, the driver will de-assert CS
+ * (HIGH) between transactions.
+ */
+#ifndef W5200_LEGACY_CS_IDLE_LOW
+#define W5200_LEGACY_CS_IDLE_LOW 1
+#endif
+
+/* ============================================================================
  * W5200 Register Definitions
  * ============================================================================ */
 

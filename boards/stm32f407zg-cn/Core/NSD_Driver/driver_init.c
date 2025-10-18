@@ -92,26 +92,26 @@ void DIP_Switch_Init(void)
 /**
  * @brief  Read node ID from DIP switches
  * @retval Node ID value (0-15)
- * @note   DIP switches use inverted logic:
- *         - Switch ON (closed) = GPIO reads LOW (0)
- *         - Switch OFF (open) = GPIO reads HIGH (1)
- *         This function inverts the logic so ON = 1 in the returned value
+ * @note   DIP switches use normal logic with pull-ups:
+ *         - Switch OFF (open) = GPIO reads HIGH (1) due to pull-up = bit set in result
+ *         - Switch ON (closed to GND) = GPIO reads LOW (0) = bit clear in result
+ *         Reading switches as binary number directly (HIGH = 1, LOW = 0)
  */
 uint8_t Read_DIP_Switch(void)
 {
     uint8_t node_id = 0;
 
-    // Read 4 bits from PC6-PC9 (inverted logic: LOW = ON = 1)
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_6) == 0) {
+    // Read 4 bits from PC6-PC9 (direct logic: HIGH = 1, LOW = 0)
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_6) == 1) {
         node_id |= 0x01;  // Bit 0
     }
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_7) == 0) {
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_7) == 1) {
         node_id |= 0x02;  // Bit 1
     }
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8) == 0) {
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8) == 1) {
         node_id |= 0x04;  // Bit 2
     }
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_9) == 0) {
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_9) == 1) {
         node_id |= 0x08;  // Bit 3
     }
 

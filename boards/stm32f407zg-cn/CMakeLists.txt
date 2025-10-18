@@ -111,8 +111,13 @@ target_sources(
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/sram_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/tasks.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200_driver.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/network_config_helper.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/watchdog_simple.c
-            # Startup file (assembly)
+            # Legacy network code (commented out - using new driver now)
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy/w5200.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy/net.c
+            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy/pub.c Startup
+            # file (assembly)
             ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s)
 
 # Add include paths - PUBLIC so consumers inherit them
@@ -121,6 +126,7 @@ target_include_directories(
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_StdPeriph_Driver/inc>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../software/yeet_application/sfc_embedded/include>
         $<INSTALL_INTERFACE:include>)
