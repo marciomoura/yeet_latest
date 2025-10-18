@@ -10,8 +10,8 @@
  * implementation's IP addressing scheme based on DIP switch node ID.
  *
  * IP Address Scheme:
- * - SPI2 (W5200 #1): 192.168.2.(100 + uchNodeNum)
- * - SPI3 (W5200 #2): 192.168.10.(31 + uchNodeNum)
+ * - SPI2 (W5200 #1): 192.168.2.(100 + dip_switch_channel_number)
+ * - SPI3 (W5200 #2): 192.168.10.(31 + dip_switch_channel_number)
  *
  ******************************************************************************
  */

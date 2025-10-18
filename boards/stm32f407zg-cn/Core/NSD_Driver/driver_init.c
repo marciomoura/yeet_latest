@@ -30,6 +30,7 @@
 
 #include "adc.h"               // ADC driver (AD7606)
 #include "dac.h"               // DAC driver (AD5724)
+#include "fiber_optic.h"       // Fiber-optic communication driver
 #include "fpga.h"              // FPGA configuration
 #include "fsmc_gpio_driver.h"  // FSMC GPIO driver
 #include "nand_driver.h"       // NAND Flash driver
@@ -43,7 +44,7 @@
 /**
  * @brief Node ID read from DIP switches (0-15)
  */
-uint8_t uchNodeNum = 0;
+uint8_t dip_switch_channel_number = 0;
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -133,7 +134,7 @@ int Init_Hardware(void)
 
     // 1. Read board node ID from DIP switches
     DIP_Switch_Init();
-    uchNodeNum = Read_DIP_Switch();
+    dip_switch_channel_number = Read_DIP_Switch();
 
     // 2. Initialize timers FIRST (required for FPGA delay functions)
     TIMx_Init();
@@ -170,6 +171,16 @@ int Init_Hardware(void)
     // The AD5724 uses SPI1 for 4-channel analog output
     extern ad5724_instance_t ad5724_instance;
     if (!AD5724_Init(&ad5724_instance)) {
+        init_success = false;
+    }
+
+    // 7. Initialize fiber-optic communication (if FPGA configured successfully)
+    // The fiber-optic system uses FPGA and FSMC Bank 4 for 6-channel communication
+    // Configure at 115200 baud (adjust as needed)
+    extern fiber_optic_instance_t fiber_optic_instance;
+    if (!FiberOptic_Init(&fiber_optic_instance, 115200)) {
+        // Fiber-optic init failed - likely FPGA configuration issue
+        // System can continue but fiber communication won't work
         init_success = false;
     }
 

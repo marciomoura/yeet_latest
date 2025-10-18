@@ -1,6 +1,7 @@
 #include "adc.h"  // AD7606 ADC driver
 #include "dac.h"  // AD5724 DAC driver
 #include "driver_init.h"
+#include "fiber_optic.h"            // Fiber-optic communication driver
 #include "network_config_helper.h"  // Network configuration helpers
 #include "stm32f4xx.h"
 #include "tasks.h"
@@ -42,6 +43,22 @@ void task_10ms(void);
 /* Private variables -------------------------------------------------------- */
 
 /**
+ * @brief Subsystem initialization status flags
+ * Used to track which hardware components initialized successfully
+ */
+typedef struct {
+    bool timers_ok;       ///< Timer system initialized
+    bool fpga_ok;         ///< FPGA configured successfully
+    bool fsmc_gpio_ok;    ///< FSMC GPIO driver initialized
+    bool adc_ok;          ///< AD7606 ADC initialized
+    bool dac_ok;          ///< AD5724 DAC initialized
+    bool fiber_optic_ok;  ///< Fiber-optic communication initialized
+    bool network_ok;      ///< W5200 network initialized
+} system_status_t;
+
+static system_status_t system_status = {0};
+
+/**
  * @brief FSMC GPIO driver instance (for LEDs and digital I/O via FSMC Bank 4)
  */
 fsmc_gpio_instance_t fsmc_gpio_instance = {0};
@@ -60,6 +77,11 @@ ad7606_reading_t adc_reading = {0};
  * @brief AD5724 4-channel DAC instance
  */
 ad5724_instance_t ad5724_instance = {0};
+
+/**
+ * @brief Fiber-optic communication instance
+ */
+fiber_optic_instance_t fiber_optic_instance = {0};
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -125,6 +147,11 @@ static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS
  */
 void task_200us(void)
 {
+    // Only execute ADC operations if ADC initialized successfully
+    if (!system_status.adc_ok) {
+        return;  // Skip task if ADC not available
+    }
+
     static bool first_run = true;
 
     // Pipeline operation: Read previous conversion, then start next
@@ -160,25 +187,14 @@ void task_1ms(void)
     // TODO: Implement your control algorithm here
     // Example: Process ADC data and generate control outputs
 
-    // For demonstration: Simple test pattern (can be removed)
-    // static float test_phase = 0.0f;
-    // test_phase += 0.01f;
-    // if (test_phase > 6.28f) test_phase = 0.0f;
-    // dac_outputs[0] = 2.5f * sinf(test_phase);
+    // ===== DAC Output (only if DAC initialized) =====
+    if (system_status.dac_ok) {
+        float dac_outputs[AD5724_NUM_CHANNELS] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-    /**
-     * @brief DAC output values (updated every 1ms)
-     * Channel mapping (example - customize for your application):
-     * - Channel A: Control signal 1
-     * - Channel B: Control signal 2
-     * - Channel C: Control signal 3
-     * - Channel D: Control signal 4
-     */
-    float dac_outputs[AD5724_NUM_CHANNELS] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-    // Write DAC outputs (all channels updated every 1ms)
-    for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
-        AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, dac_outputs[ch]);
+        // Write DAC outputs (all channels updated every 1ms)
+        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
+            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, dac_outputs[ch]);
+        }
     }
 }
 
@@ -189,6 +205,11 @@ void task_1ms(void)
  */
 void task_10ms(void)
 {
+    // Only update LEDs if FSMC GPIO initialized
+    if (!system_status.fsmc_gpio_ok) {
+        return;  // Skip task if GPIO not available
+    }
+
     static uint16_t counter = 0;
     counter++;
     if (counter >= 50) {  // 50 × 10ms = 500ms
@@ -210,6 +231,47 @@ void task_10ms(void)
     }
 
     /* Add your 10ms monitoring code here */
+
+    // ===== Fiber-Optic Test: Send 0xDEADBEEF on Channel 1 =====
+    static uint16_t fiber_test_counter = 0;
+    uint8_t rx_buffer[64] = {0};
+    uint16_t rx_length = 0;
+
+    if (system_status.fiber_optic_ok) {
+        // Send 0xDEADBEEF every 100ms (10 times per second)
+        fiber_test_counter++;
+        if (fiber_test_counter >= 10) {  // 10 × 10ms = 100ms
+            fiber_test_counter = 0;
+
+            // Transmit 0xDEADBEEF on Channel 1
+            // Format: [0xDE][0xAD][0xBE][0xEF]
+            uint8_t deadbeef[4] = {0xDE, 0xAD, 0xBE, 0xEF};
+            FiberOptic_Transmit(&fiber_optic_instance, FIBER_CH1, deadbeef, sizeof(deadbeef));
+        }
+
+        // Check Channel 1 for incoming data (every 10ms)
+        if (FiberOptic_DataAvailable(&fiber_optic_instance, FIBER_CH1)) {
+            rx_length = FiberOptic_Receive(&fiber_optic_instance, FIBER_CH1, rx_buffer, sizeof(rx_buffer));
+            if (rx_length > 0) {
+                // Data received on Channel 1!
+                // Check if it's 0xDEADBEEF from the other board
+                if (rx_length == 4 && rx_buffer[0] == 0xDE && rx_buffer[1] == 0xAD && rx_buffer[2] == 0xBE &&
+                    rx_buffer[3] == 0xEF) {
+                    // Valid 0xDEADBEEF received - toggle ALARM LED
+                    if (system_status.fsmc_gpio_ok) {
+                        static bool alarm_state = false;
+                        alarm_state = !alarm_state;
+                        FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, alarm_state);
+                        FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+                    }
+                }
+                // Note: You can add breakpoint here to inspect rx_buffer contents
+                // or send data over network for debugging
+            }
+        }
+    }
+
+    __NOP();
 }
 
 /* Timing monitoring variables */
@@ -224,7 +286,7 @@ static task_timing_t timing_10ms;
  */
 static bool TCP_Server_SPI2_Init(void)
 {
-    uint8_t node_id = uchNodeNum;
+    uint8_t node_id = dip_switch_channel_number;
 
     // Initialize W5200 hardware driver
     if (!W5200_Init(&w5200_spi2, SPI2, spi2_tx_buffer, spi2_rx_buffer, 0)) {
@@ -443,67 +505,97 @@ int main(void)
     int init_status;
     uint32_t last_check_time = 0;
     bool overrun_detected = false;
-    bool tcp_initialized = false;
 
     /* Initialize all hardware using NSD_Driver */
+    // This returns 0 on success, -1 if any component failed
+    // Individual component status is tracked in system_status structure
     init_status = Init_Hardware();
 
-    // If initialization failed, FAULT LED is already set by Init_Hardware()
-    // The system will continue but with limited functionality
-    (void)init_status;  // Acknowledge the status
+    // Update system status flags based on hardware initialization
+    // Timers are assumed OK if we reached here (required for Init_Hardware to work)
+    system_status.timers_ok = true;
+
+    // Check individual subsystem initialization
+    // FPGA check: If init failed, FPGA-dependent features won't work
+    system_status.fpga_ok = (init_status == 0);  // For now, assume FPGA is critical
+
+    // FSMC GPIO check: Try to verify by checking if instance is initialized
+    system_status.fsmc_gpio_ok = (init_status == 0);
+
+    // ADC check: Instance will have initialized flag
+    system_status.adc_ok = ad7606_instance.initialized;
+
+    // DAC check: Instance will have initialized flag
+    system_status.dac_ok = ad5724_instance.initialized;
+
+    // Fiber-optic check: Instance will have initialized flag
+    system_status.fiber_optic_ok = fiber_optic_instance.initialized;
 
     // Initialize network (W5200 on SPI2 and SPI3)
-    // IP addresses configured based on DIP switch node ID (uchNodeNum)
-    tcp_initialized = TCP_Server_Init();
+    // IP addresses configured based on DIP switch node ID
+    system_status.network_ok = TCP_Server_Init();
 
-    if (!tcp_initialized) {
-        // Network initialization failed - set FAULT LED
+    // Set FAULT LED if critical subsystems failed
+    if (!system_status.fsmc_gpio_ok || !system_status.fpga_ok) {
+        // Can't set FAULT LED if FSMC GPIO failed
+        if (system_status.fsmc_gpio_ok) {
+            FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
+            FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+        }
+    }
+    else if (!system_status.network_ok) {
+        // Network failed but GPIO works - indicate with FAULT LED
         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
 
     while (1) {
         // Network communication task - handles TCP server operations
-        if (tcp_initialized) {
+        // Only run if network initialized successfully
+        if (system_status.network_ok) {
             TCP_Server_Task();
         }
 
         // Check task timing every 100ms
         // Note: This overflow-safe subtraction works due to unsigned arithmetic wrapping
-        uint32_t current_time = get_1ms_counter();
-        uint32_t elapsed_time = current_time - last_check_time;
+        if (system_status.timers_ok) {
+            uint32_t current_time = get_1ms_counter();
+            uint32_t elapsed_time = current_time - last_check_time;
 
-        if (elapsed_time >= 100) {
-            last_check_time = current_time;
+            if (elapsed_time >= 100) {
+                last_check_time = current_time;
 
-            // Get timing information for all tasks
-            TIM_Get_Task200us_Timing(&timing_200us);
-            TIM_Get_Task1ms_Timing(&timing_1ms);
-            TIM_Get_Task10ms_Timing(&timing_10ms);
+                // Get timing information for all tasks
+                TIM_Get_Task200us_Timing(&timing_200us);
+                TIM_Get_Task1ms_Timing(&timing_1ms);
+                TIM_Get_Task10ms_Timing(&timing_10ms);
 
-            // Check for task overruns
-            if (TIM_Check_Task_Overruns()) {
-                if (!overrun_detected) {
-                    // First time detecting overrun - set FAULT LED
-                    overrun_detected = true;
-                    FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
-                    FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+                // Check for task overruns
+                if (TIM_Check_Task_Overruns()) {
+                    if (!overrun_detected && system_status.fsmc_gpio_ok) {
+                        // First time detecting overrun - set FAULT LED
+                        overrun_detected = true;
+                        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
+                        FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+                    }
                 }
-            }
 
-            // Optional: Clear overrun flag if system recovers
-            // (uncomment if you want auto-recovery)
-            // else {
-            //     if (overrun_detected) {
-            //         overrun_detected = false;
-            //         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
-            //         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-            //     }
-            // }
+                // Optional: Clear overrun flag if system recovers
+                // (uncomment if you want auto-recovery)
+                // else {
+                //     if (overrun_detected && system_status.fsmc_gpio_ok) {
+                //         overrun_detected = false;
+                //         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
+                //         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+                //     }
+                // }
+            }
         }
 
-        // Small delay to avoid tight polling
-        // delay_ms(10);
+        // Small delay to avoid tight polling (only if timers work)
+        // if (system_status.timers_ok) {
+        //     delay_ms(10);
+        // }
     }
     /* USER CODE END 3 */
 }

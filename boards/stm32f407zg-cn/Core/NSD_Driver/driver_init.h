@@ -32,7 +32,7 @@ extern "C" {
 /**
  * @brief Node ID read from DIP switches (0-15)
  */
-extern uint8_t uchNodeNum;
+extern uint8_t dip_switch_channel_number;
 
 /**
  * @brief FSMC GPIO driver instance (for LEDs and digital I/O via FSMC Bank 4)

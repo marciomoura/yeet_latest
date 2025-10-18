@@ -30,7 +30,9 @@
 #include "fpga.h"
 
 #include "stm32f4xx.h"
-#include "tasks.h"  // For timer-based delays
+#include "stm32f4xx_gpio.h"  // For GPIO functions
+#include "stm32f4xx_rcc.h"   // For RCC clock control
+#include "tasks.h"           // For timer-based delays
 
 /* Private defines -----------------------------------------------------------*/
 
