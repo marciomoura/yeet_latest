@@ -106,6 +106,7 @@ target_sources(
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/digital_ios.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/driver_init.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/fiber_optic.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/fiber_protocol.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/fpga.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/fsmc_gpio_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/nand_driver.c

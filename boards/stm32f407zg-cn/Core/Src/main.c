@@ -2,6 +2,7 @@
 #include "dac.h"  // AD5724 DAC driver
 #include "driver_init.h"
 #include "fiber_optic.h"            // Fiber-optic communication driver
+#include "fiber_protocol.h"         // Fiber-optic protocol layer
 #include "network_config_helper.h"  // Network configuration helpers
 #include "stm32f4xx.h"
 #include "tasks.h"
@@ -82,6 +83,40 @@ ad5724_instance_t ad5724_instance = {0};
  * @brief Fiber-optic communication instance
  */
 fiber_optic_instance_t fiber_optic_instance = {0};
+
+/**
+ * @brief Fiber-optic protocol instance
+ */
+fiber_proto_instance_t fiber_proto_instance = {0};
+
+/**
+ * @brief Fiber-optic communication buffers (double-buffered for ISR safety)
+ *
+ * Architecture:
+ * - 1ms task: Prepares TX data, reads RX data
+ * - 200us task: Transmits TX data, receives RX data
+ * - Flags coordinate buffer access without disabling interrupts
+ */
+typedef struct {
+    // TX Path: 1ms task -> 200us task
+    uint32_t tx_command;                              ///< Command word to transmit
+    float tx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS];  ///< Payload to transmit
+    uint8_t tx_payload_length;                        ///< Number of words to transmit
+    volatile bool tx_ready;                           ///< 1ms task sets this when data ready
+    volatile bool tx_busy;                            ///< 200us task sets this during transmission
+
+    // RX Path: 200us task -> 1ms task
+    uint32_t rx_command;                                 ///< Received command word
+    uint32_t rx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS];  ///< Received payload
+    uint8_t rx_payload_length;                           ///< Number of words received
+    volatile bool rx_available;                          ///< 200us task sets this when new data received
+
+    // Statistics
+    uint32_t tx_dropped;  ///< Frames dropped (tx_ready overwritten)
+    uint32_t rx_dropped;  ///< Frames dropped (rx_available overwritten)
+} fiber_comm_buffers_t;
+
+static fiber_comm_buffers_t fiber_buffers = {0};
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -175,6 +210,46 @@ void task_200us(void)
 
     // Start conversion for next cycle (takes ~5µs)
     AD7606_StartConversion(&ad7606_instance);
+
+    // ===== Fiber-Optic Communication Handler (200us task) =====
+    // This runs at highest priority without blocking lower priority tasks
+    if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
+        // TX: Check if 1ms task has prepared data for transmission
+        if (fiber_buffers.tx_ready && !fiber_buffers.tx_busy) {
+            fiber_buffers.tx_busy = true;    // Mark as busy
+            fiber_buffers.tx_ready = false;  // Clear ready flag
+
+            // Transmit the frame (non-blocking, ~350us @ 691,200 baud for 4 words)
+            FiberProto_SendFloats(&fiber_proto_instance, fiber_buffers.tx_command, fiber_buffers.tx_payload,
+                fiber_buffers.tx_payload_length);
+
+            fiber_buffers.tx_busy = false;  // Transmission complete
+        }
+
+        // RX: Non-blocking receive check
+        uint32_t rx_command_temp;
+        uint32_t rx_payload_temp[FIBER_PROTO_MAX_PAYLOAD_WORDS];
+        uint8_t rx_length_temp;
+
+        fiber_proto_error_t rx_status =
+            FiberProto_ReceivePacket(&fiber_proto_instance, &rx_command_temp, rx_payload_temp, &rx_length_temp);
+
+        if (rx_status == FIBER_PROTO_OK) {
+            // Check if previous RX data was consumed
+            if (fiber_buffers.rx_available) {
+                fiber_buffers.rx_dropped++;  // 1ms task didn't read previous frame
+            }
+
+            // Store received data
+            fiber_buffers.rx_command = rx_command_temp;
+            fiber_buffers.rx_payload_length = rx_length_temp;
+            for (uint8_t i = 0; i < rx_length_temp; i++) {
+                fiber_buffers.rx_payload[i] = rx_payload_temp[i];
+            }
+
+            fiber_buffers.rx_available = true;  // Signal 1ms task: new data available
+        }
+    }
 }
 
 /**
@@ -194,6 +269,90 @@ void task_1ms(void)
         // Write DAC outputs (all channels updated every 1ms)
         for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
             AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, dac_outputs[ch]);
+        }
+    }
+
+    // ===== Fiber-Optic Communication (Non-Blocking Producer-Consumer) =====
+    // 200us task handles actual TX/RX, 1ms task prepares/consumes data
+    if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
+        // Static variables for heartbeat and state tracking
+        static uint8_t heartbeat_counter = 0;
+        static uint8_t current_state = STATE_IDLE;
+        static uint8_t user_command = USER_CMD_NONE;
+
+        // Update heartbeat (0-3, rolls over)
+        heartbeat_counter = (heartbeat_counter + 1) & 0x03;
+
+        // ===== TX: Prepare data for 200us task to transmit =====
+        // Check if 200us task is ready to accept new data
+        if (!fiber_buffers.tx_ready && !fiber_buffers.tx_busy) {
+            // Build command word
+            uint8_t board_side = BOARD_SIDE_GRID;      // TODO: Replace with actual board side detection
+            uint8_t trip_status = TRIP_STATUS_NORMAL;  // TODO: Read from fault detection system
+
+            fiber_buffers.tx_command = CMD_BUILD(
+                heartbeat_counter, board_side, trip_status, user_command, current_state, PAYLOAD_TYPE_CONTROL_DATA);
+
+            // Prepare payload (4 control values)
+            fiber_buffers.tx_payload[0] = 10.0f;  // Voltage command
+            fiber_buffers.tx_payload[1] = 20.0f;  // Current command
+            fiber_buffers.tx_payload[2] = 30.0f;  // Frequency command
+            fiber_buffers.tx_payload[3] = 40.0f;  // Phase command
+            fiber_buffers.tx_payload_length = 4;
+
+            // Signal 200us task: data ready for transmission
+            fiber_buffers.tx_ready = true;
+        }
+        else if (fiber_buffers.tx_ready) {
+            // Previous frame not transmitted yet - drop counter
+            fiber_buffers.tx_dropped++;
+        }
+
+        // ===== RX: Process data received by 200us task =====
+        if (fiber_buffers.rx_available) {
+            // Read command and payload from buffer
+            uint32_t rx_command = fiber_buffers.rx_command;
+            uint8_t rx_length = fiber_buffers.rx_payload_length;
+
+            // Extract command word fields
+            uint8_t rx_heartbeat = CMD_GET_HEARTBEAT(rx_command);
+            uint8_t rx_board_side = CMD_GET_BOARD_SIDE(rx_command);
+            uint8_t rx_trip_status = CMD_GET_TRIP_STATUS(rx_command);
+            uint8_t rx_user_cmd = CMD_GET_USER_COMMAND(rx_command);
+            uint8_t rx_state = CMD_GET_STATE_MACHINE(rx_command);
+            uint16_t rx_payload_type = CMD_GET_PAYLOAD_TYPE(rx_command);
+
+            // Check if remote board is tripped
+            if (rx_trip_status == TRIP_STATUS_TRIPPED || rx_trip_status == TRIP_STATUS_FAULT) {
+                // Remote board has fault - take action
+                // Example: Stop operation, enter safe mode
+            }
+
+            // Process user command from remote board
+            if (rx_user_cmd == USER_CMD_START) {
+                current_state = STATE_STARTING;
+            }
+            else if (rx_user_cmd == USER_CMD_STOP) {
+                current_state = STATE_STOPPING;
+            }
+            else if (rx_user_cmd == USER_CMD_EMERGENCY_STOP) {
+                current_state = STATE_EMERGENCY;
+            }
+
+            // Parse payload based on type
+            if (rx_payload_type == PAYLOAD_TYPE_CONTROL_DATA) {
+                // Convert uint32 payload to floats
+                float remote_values[FIBER_PROTO_MAX_PAYLOAD_WORDS];
+                if (FiberProto_ParseFloats(fiber_buffers.rx_payload, rx_length, remote_values, rx_length)) {
+                    // Use remote control values in your algorithm
+                    // Example: remote_values[0] = voltage from other board
+                    //          remote_values[1] = current from other board
+                    (void)remote_values;  // Suppress unused warning for now
+                }
+            }
+
+            // Mark as consumed (200us task can now overwrite with new data)
+            fiber_buffers.rx_available = false;
         }
     }
 }
@@ -229,49 +388,6 @@ void task_10ms(void)
         // Write LED state to hardware
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
-
-    /* Add your 10ms monitoring code here */
-
-    // ===== Fiber-Optic Test: Send 0xDEADBEEF on Channel 1 =====
-    static uint16_t fiber_test_counter = 0;
-    uint8_t rx_buffer[64] = {0};
-    uint16_t rx_length = 0;
-
-    if (system_status.fiber_optic_ok) {
-        // Send 0xDEADBEEF every 100ms (10 times per second)
-        fiber_test_counter++;
-        if (fiber_test_counter >= 10) {  // 10 × 10ms = 100ms
-            fiber_test_counter = 0;
-
-            // Transmit 0xDEADBEEF on Channel 1
-            // Format: [0xDE][0xAD][0xBE][0xEF]
-            uint8_t deadbeef[4] = {0xDE, 0xAD, 0xBE, 0xEF};
-            FiberOptic_Transmit(&fiber_optic_instance, FIBER_CH1, deadbeef, sizeof(deadbeef));
-        }
-
-        // Check Channel 1 for incoming data (every 10ms)
-        if (FiberOptic_DataAvailable(&fiber_optic_instance, FIBER_CH1)) {
-            rx_length = FiberOptic_Receive(&fiber_optic_instance, FIBER_CH1, rx_buffer, sizeof(rx_buffer));
-            if (rx_length > 0) {
-                // Data received on Channel 1!
-                // Check if it's 0xDEADBEEF from the other board
-                if (rx_length == 4 && rx_buffer[0] == 0xDE && rx_buffer[1] == 0xAD && rx_buffer[2] == 0xBE &&
-                    rx_buffer[3] == 0xEF) {
-                    // Valid 0xDEADBEEF received - toggle ALARM LED
-                    if (system_status.fsmc_gpio_ok) {
-                        static bool alarm_state = false;
-                        alarm_state = !alarm_state;
-                        FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, alarm_state);
-                        FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-                    }
-                }
-                // Note: You can add breakpoint here to inspect rx_buffer contents
-                // or send data over network for debugging
-            }
-        }
-    }
-
-    __NOP();
 }
 
 /* Timing monitoring variables */
@@ -530,6 +646,11 @@ int main(void)
 
     // Fiber-optic check: Instance will have initialized flag
     system_status.fiber_optic_ok = fiber_optic_instance.initialized;
+
+    // Initialize fiber-optic protocol layer
+    if (system_status.fiber_optic_ok) {
+        FiberProto_Init(&fiber_proto_instance, &fiber_optic_instance, FIBER_CH1);
+    }
 
     // Initialize network (W5200 on SPI2 and SPI3)
     // IP addresses configured based on DIP switch node ID
