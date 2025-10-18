@@ -1,3 +1,4 @@
+#include "adc.h"  // AD7606 ADC driver
 #include "driver_init.h"
 #include "network_config_helper.h"  // Network configuration helpers
 #include "stm32f4xx.h"
@@ -43,6 +44,16 @@ void task_10ms(void);
  * @brief FSMC GPIO driver instance (for LEDs and digital I/O via FSMC Bank 4)
  */
 fsmc_gpio_instance_t fsmc_gpio_instance = {0};
+
+/**
+ * @brief AD7606 8-channel ADC instance
+ */
+ad7606_instance_t ad7606_instance = {0};
+
+/**
+ * @brief Latest ADC reading (updated every 200µs)
+ */
+ad7606_reading_t adc_reading = {0};
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -97,15 +108,40 @@ static uint8_t spi3_rx_buffer[8192];
 static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS
 
 /**
- * @brief  200us periodic task - ADC sampling
+ * @brief  200us periodic task - ADC sampling and control
  * @note   Called from TIM3 ISR at 5 kHz rate (every 200 microseconds)
  *         This is your highest priority task - keep it fast!
+ *
+ * ADC Pipeline Operation:
+ *   1. Read previous conversion results (from last cycle)
+ *   2. Process data and update control outputs
+ *   3. Start next conversion
  */
 void task_200us(void)
 {
-    __NOP();
+    static bool first_run = true;
 
-    set_thyristor_pulses(false, false, false, false, false, false);
+    // Pipeline operation: Read previous conversion, then start next
+    if (!first_run) {
+        // Read the conversion that was started in the previous cycle
+        AD7606_Read(&ad7606_instance, &adc_reading);
+
+        // TODO: Use adc_reading.raw[0..7] for control algorithm
+        // Example: Access individual channels
+        // uint16_t current_a = adc_reading.raw[0];
+        // uint16_t current_b = adc_reading.raw[1];
+        // uint16_t voltage   = adc_reading.raw[2];
+
+        // TODO: Implement thyristor firing control based on ADC data
+        // For now, all thyristors off
+        set_thyristor_pulses(false, false, false, false, false, false);
+    }
+    else {
+        first_run = false;
+    }
+
+    // Start conversion for next cycle (takes ~5µs)
+    AD7606_StartConversion(&ad7606_instance);
 }
 
 /**

@@ -157,34 +157,34 @@ int Init_Hardware(void)
         init_success = false;
     }
 
+    // 5. Initialize external ADC (AD7606)
+    // The AD7606 uses FSMC Bank 2 for high-speed 8-channel sampling
+    extern ad7606_instance_t ad7606_instance;
+    if (!AD7606_Init(&ad7606_instance)) {
+        init_success = false;
+    }
+
     // Set FAULT LED if any initialization failed
     if (!init_success) {
         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
 
-    // 5. Initialize external SRAM
+    // 5. Initialize external SRAM (if needed)
     // Note: This uses a shared global instance - to be refactored
     // if (!SRAM_Init(&sram)) {
     //     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
     //     FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     // }
 
-    // 6. Initialize external ADC (AD7606)
-    // Note: This uses a shared global instance - to be refactored
-    // if (!AD7606_Init(&adc)) {
-    //     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
-    //     FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-    // }
-
-    // 7. Initialize NAND Flash
+    // 6. Initialize NAND Flash (if needed)
     // Note: This uses a shared global instance - to be refactored
     // if (NAND_Init(&nand) != NAND_OK) {
     //     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
     //     FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     // }
 
-    // 8. Initialize watchdog (no parameters needed)
+    // 7. Initialize watchdog (if needed)
     // Watchdog_Init();
 
     // Note: The following were removed as they depend on archived files:

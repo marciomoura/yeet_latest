@@ -211,9 +211,19 @@ float AD7606_RawToVoltage(uint16_t raw_value, ad7606_range_t range)
 
 /**
  * @brief Initialize on-chip ADC
+ * @note DISABLED: Legacy functions not available in refactored codebase
+ *       Use AD7606 external ADC instead, or implement STM32 HAL-based on-chip ADC
  */
 bool OnChipADC_Init(onchip_adc_t* adc, uint16_t num_channels)
 {
+    (void)adc;
+    (void)num_channels;
+
+    // TODO: Implement using STM32 HAL if on-chip ADC is needed
+    // For now, return false to indicate on-chip ADC is not available
+    return false;
+
+#if 0  // Disabled - legacy functions not available
     if (adc == NULL || num_channels == 0 || num_channels > 4) {
         return false;
     }
@@ -232,13 +242,21 @@ bool OnChipADC_Init(onchip_adc_t* adc, uint16_t num_channels)
 
     adc->initialized = true;
     return true;
+#endif
 }
 
 /**
  * @brief Get on-chip ADC results
+ * @note DISABLED: Legacy functions not available in refactored codebase
  */
 void OnChipADC_GetResults(onchip_adc_t* adc, uint16_t* results)
 {
+    (void)adc;
+    (void)results;
+
+    // TODO: Implement using STM32 HAL if on-chip ADC is needed
+
+#if 0  // Disabled - legacy functions not available
     if (adc == NULL || results == NULL) {
         return;
     }
@@ -249,6 +267,7 @@ void OnChipADC_GetResults(onchip_adc_t* adc, uint16_t* results)
     for (uint16_t i = 0; i < adc->num_channels && i < 12; i++) {
         results[i] = AD_Result[i];
     }
+#endif
 }
 
 /* ============================================================================
