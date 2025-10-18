@@ -16,10 +16,11 @@
  * 2. Timers (required for delay functions)
  * 3. FPGA (if present, uses timer delays)
  * 4. FSMC GPIO
- * 5. SRAM
- * 6. ADC
- * 7. Flash memory
- * 8. Watchdog
+ * 5. ADC (AD7606 via FSMC)
+ * 6. DAC (AD5724 via SPI1)
+ * 7. SRAM (optional)
+ * 8. Flash memory (optional)
+ * 9. Watchdog (optional)
  *
  ******************************************************************************
  */
@@ -28,6 +29,7 @@
 #include "driver_init.h"
 
 #include "adc.h"               // ADC driver (AD7606)
+#include "dac.h"               // DAC driver (AD5724)
 #include "fpga.h"              // FPGA configuration
 #include "fsmc_gpio_driver.h"  // FSMC GPIO driver
 #include "nand_driver.h"       // NAND Flash driver
@@ -161,6 +163,13 @@ int Init_Hardware(void)
     // The AD7606 uses FSMC Bank 2 for high-speed 8-channel sampling
     extern ad7606_instance_t ad7606_instance;
     if (!AD7606_Init(&ad7606_instance)) {
+        init_success = false;
+    }
+
+    // 6. Initialize external DAC (AD5724)
+    // The AD5724 uses SPI1 for 4-channel analog output
+    extern ad5724_instance_t ad5724_instance;
+    if (!AD5724_Init(&ad5724_instance)) {
         init_success = false;
     }
 

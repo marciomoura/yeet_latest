@@ -321,6 +321,12 @@ static void AD7606_InitFSMC(void)
 
 /**
  * @brief Read buffer from FSMC memory
+ *
+ * CRITICAL: AD7606 requires reading from the SAME address multiple times.
+ * Each read from the same FSMC address automatically advances the AD7606's
+ * internal channel counter (CH0 -> CH1 -> ... -> CH7).
+ *
+ * DO NOT increment read_addr between reads!
  */
 static void FSMC_ReadBuffer(uint16_t* pBuffer, uint32_t read_addr, uint32_t num_words)
 {
@@ -328,9 +334,12 @@ static void FSMC_ReadBuffer(uint16_t* pBuffer, uint32_t read_addr, uint32_t num_
         return;
     }
 
+    // Read from the SAME address num_words times
+    // The AD7606 automatically outputs the next channel on each read
     for (uint32_t i = 0; i < num_words; i++) {
         *pBuffer++ = *(volatile uint16_t*)(AD7606_BASE_ADDR + read_addr);
-        read_addr += 2;
+        // NOTE: read_addr is NOT incremented - this is intentional!
+        // The AD7606 auto-increments its internal channel pointer
     }
 }
 

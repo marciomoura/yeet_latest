@@ -1,4 +1,5 @@
 #include "adc.h"  // AD7606 ADC driver
+#include "dac.h"  // AD5724 DAC driver
 #include "driver_init.h"
 #include "network_config_helper.h"  // Network configuration helpers
 #include "stm32f4xx.h"
@@ -54,6 +55,11 @@ ad7606_instance_t ad7606_instance = {0};
  * @brief Latest ADC reading (updated every 200µs)
  */
 ad7606_reading_t adc_reading = {0};
+
+/**
+ * @brief AD5724 4-channel DAC instance
+ */
+ad5724_instance_t ad5724_instance = {0};
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -145,10 +151,36 @@ void task_200us(void)
 }
 
 /**
- * @brief  1ms periodic task - Fast control loop
+ * @brief  1ms periodic task - Fast control loop and DAC output
  * @note   Called from TIM4 ISR at 1 kHz rate (every 1 millisecond)
+ *         Updates DAC outputs based on control algorithm
  */
-void task_1ms(void) { __NOP(); }
+void task_1ms(void)
+{
+    // TODO: Implement your control algorithm here
+    // Example: Process ADC data and generate control outputs
+
+    // For demonstration: Simple test pattern (can be removed)
+    // static float test_phase = 0.0f;
+    // test_phase += 0.01f;
+    // if (test_phase > 6.28f) test_phase = 0.0f;
+    // dac_outputs[0] = 2.5f * sinf(test_phase);
+
+    /**
+     * @brief DAC output values (updated every 1ms)
+     * Channel mapping (example - customize for your application):
+     * - Channel A: Control signal 1
+     * - Channel B: Control signal 2
+     * - Channel C: Control signal 3
+     * - Channel D: Control signal 4
+     */
+    float dac_outputs[AD5724_NUM_CHANNELS] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+    // Write DAC outputs (all channels updated every 1ms)
+    for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
+        AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, dac_outputs[ch]);
+    }
+}
 
 /**
  * @brief  10ms periodic task - Slow monitoring
