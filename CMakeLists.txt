@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.25)
 
+get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(isMultiConfig AND DEFINED CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE STREQUAL "")
+    message(WARNING "CMAKE_BUILD_TYPE is set to '${CMAKE_BUILD_TYPE}' but generator '${CMAKE_GENERATOR}' is multi-config. Remove -DCMAKE_BUILD_TYPE from your cmake invocation.")
+endif()
+
 # ASCII art banner because we're extra ✨
 message(
     STATUS
