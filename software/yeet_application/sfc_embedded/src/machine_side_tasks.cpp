@@ -162,7 +162,7 @@ void yeet_embedded_init(void)
 }
 
 ARM_FUNCTION
-void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
+void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
 {
     // HIGH-FREQUENCY CONTROL TASK
     // Configured rate: 200 µs (5 kHz)
@@ -174,30 +174,35 @@ void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs)
 
     // Update mock ADC inputs with real hardware measurements
     // In embedded operation, these would come from actual ADC DMA buffers
-    if (inputs != nullptr) {
-        // TODO: Map ADC channels to machine-side measurements when configuration is finalized
-        // For now, keep existing mock behavior
+    if (inputs != nullptr && inputs->analog_inputs.valid) {
+        // Map generic analog inputs to application-specific mock signals
+        // TODO: Replace with actual signal mapping based on hardware configuration
+        // Example mapping (adjust indices based on your ADC channel assignment):
+        //   channels[0-2] = Machine phase voltages
+        //   channels[3-5] = Machine phase currents (if measured on machine side)
+        mock_v_ab_counts.write(yeet::control::adc_counts{inputs->analog_inputs.channels[0]});
+        mock_v_bc_counts.write(yeet::control::adc_counts{inputs->analog_inputs.channels[1]});
     }
 
     // Execute the 5 kHz control update
-    get_machine_side_control().update_200us();
+    // get_machine_side_control().update_200us();
 
     // Extract gate pulse outputs from the modulator
     // In production, these would be applied to thyristor gate driver hardware
     if (outputs != nullptr) {
         // For now, initialize all pulses to false (safe default)
         // TODO: Read actual pulse commands from machine_side_modulator output when available
-        outputs->pulse_1 = false;
-        outputs->pulse_2 = false;
-        outputs->pulse_3 = false;
-        outputs->pulse_4 = false;
-        outputs->pulse_5 = false;
-        outputs->pulse_6 = false;
+        outputs->thyristor_pulses.a_plus = false;
+        outputs->thyristor_pulses.c_minus = false;
+        outputs->thyristor_pulses.b_plus = false;
+        outputs->thyristor_pulses.a_minus = false;
+        outputs->thyristor_pulses.c_plus = false;
+        outputs->thyristor_pulses.b_minus = false;
     }
 }
 
 ARM_FUNCTION
-void yeet_task_1000us(void)
+void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
 {
     // MEDIUM-FREQUENCY CONTROL TASK
     // Configured rate: 1 ms (1 kHz)
@@ -206,11 +211,54 @@ void yeet_task_1000us(void)
     // Priority: Medium (machine controller)
 
     counter_task2++;
-    get_machine_side_control().update_1ms();
+
+    // Process fiber-optic RX data if available
+    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready) {
+        // TODO: Process received data from grid-side board
+        // Example: Read DC link current, operating mode, freeze signals
+        // float dc_link_current = inputs->fiber_optic_rx.payload[0];
+        // bool freeze_integrator = (inputs->fiber_optic_rx.payload[1] > 0.5f);
+    }
+
+    // Update digital input states
+    if (inputs != nullptr && inputs->digital_inputs.valid) {
+        // TODO: Map generic digital inputs to control signals
+        // Example mappings for machine side:
+        //   signals[0] = Speed reference select
+        //   signals[1] = Enable speed control
+        //   signals[2] = External trip signal
+        // bool enable_speed = inputs->digital_inputs.signals[1];
+    }
+
+    // get_machine_side_control().update_1ms();
+
+    // Prepare fiber-optic TX data
+    if (outputs != nullptr) {
+        // TODO: Populate fiber TX payload with data for grid-side board
+        // Example: Send speed measurement, current reference, voltage magnitude
+        // outputs->fiber_optic_tx.payload[0] = measured_speed;
+        // outputs->fiber_optic_tx.payload[1] = current_reference;
+        // outputs->fiber_optic_tx.payload[2] = voltage_magnitude;
+        // outputs->fiber_optic_tx.payload_length = 3;
+        // outputs->fiber_optic_tx.transmit_request = true;
+        outputs->fiber_optic_tx.payload_length = 0;
+        outputs->fiber_optic_tx.transmit_request = false;
+    }
+
+    // Update digital outputs
+    if (outputs != nullptr) {
+        // TODO: Map control status to generic digital outputs
+        // Example mappings for machine side:
+        //   signals[0] = Speed controller active
+        //   signals[1] = At speed setpoint
+        //   signals[2] = Current controller saturated
+        // outputs->digital_outputs.signals[0] = speed_control_active;
+        // outputs->digital_outputs.signals[2] = current_saturated;
+    }
 }
 
 ARM_FUNCTION
-void yeet_task_10000us(void)
+void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
 {
     // LOW-FREQUENCY CONTROL TASK
     // Configured rate: 10 ms (100 Hz)
@@ -219,7 +267,65 @@ void yeet_task_10000us(void)
     // Priority: Lowest (speed controller)
 
     counter_task3++;
-    get_machine_side_control().update_10ms();
+
+    // Optional: Use inputs for monitoring/diagnostics
+    (void)inputs;  // Suppress unused parameter warning
+
+    // get_machine_side_control().update_10ms();
+
+    // Optional: Update diagnostic outputs
+    (void)outputs;  // Suppress unused parameter warning
+}
+
+ARM_FUNCTION
+void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
+{
+    // NON-REAL-TIME NETWORK COMMUNICATION TASK
+    // Called from: Main loop (not time-critical)
+    // Purpose: Handle TCP/IP and UDP communication for:
+    //   - HMI/SCADA supervisory control (speed reference, start/stop)
+    //   - Configuration updates
+    //   - Diagnostic data requests
+    //   - Parameter tuning
+    //   - Event logging and telemetry
+
+    // Process incoming network data
+    if (inputs != nullptr && inputs->network_rx.data_ready) {
+        // TODO: Parse received network packet
+        // Examples for machine side:
+        //   - Speed reference commands from HMI
+        //   - Start/stop/emergency stop commands
+        //   - Configuration updates (PI gains, limits)
+        //   - Diagnostic requests
+        //
+        // const uint8_t* rx_data = inputs->network_rx.rx_buffer;
+        // uint16_t rx_len = inputs->network_rx.rx_length;
+        // bool connected = inputs->network_rx.tcp_connected;
+        //
+        // if (rx_len > 0) {
+        //     parse_supervisory_command(rx_data, rx_len);
+        //     // Update speed reference, control mode, etc.
+        // }
+    }
+
+    // Prepare network response or periodic telemetry
+    if (outputs != nullptr) {
+        // TODO: Encode status/diagnostic data for transmission
+        // Examples for machine side:
+        //   - Current speed, torque, and motor status
+        //   - Response to configuration command
+        //   - Periodic telemetry data
+        //   - Fault/event notifications
+        //
+        // uint8_t* tx_data = outputs->network_tx.tx_buffer;
+        // outputs->network_tx.tx_length = encode_machine_status(tx_data);
+        // outputs->network_tx.transmit_request = true;
+        // outputs->network_tx.socket_id = 0;
+
+        // Default: No transmission
+        outputs->network_tx.transmit_request = false;
+        outputs->network_tx.tx_length = 0;
+    }
 }
 
 }  // extern "C"

@@ -478,7 +478,7 @@ uint8_t TIM_Verify_Preemption(void)
     /* TIM3:TIM4 should be ~5:1 (5000Hz : 1000Hz) */
     /* TIM3:TIM2 should be ~50:1 (5000Hz : 100Hz) */
     uint8_t ratio_ok =
-        (ratio_3_to_4 >= 4.5f && ratio_3_to_4 <= 5.5f) && (ratio_3_to_2 >= 45.0f && ratio_3_to_2 <= 55.0f);
+        (ratio_3_to_4 >= 4.95f && ratio_3_to_4 <= 5.05f) && (ratio_3_to_2 >= 49.5f && ratio_3_to_2 <= 50.05f);
 
     return ratio_ok;
 }

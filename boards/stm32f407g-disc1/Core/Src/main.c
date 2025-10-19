@@ -102,9 +102,9 @@ void MX_USB_HOST_Process(void);
 #include "sfc_embedded/task_io.h"
 
 // Forward declarations for task functions (defined in yeet application layer)
-extern void yeet_task_200us(const task1_inputs_t* inputs, task1_outputs_t* outputs);
-extern void yeet_task_1000us(void);
-extern void yeet_task_10000us(void);
+extern void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs);
+extern void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs);
+extern void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs);
 
 /* USER CODE END 0 */
 
@@ -188,6 +188,36 @@ int main(void)
         MX_USB_HOST_Process();
 
         /* USER CODE BEGIN 3 */
+
+        // ==================== NON-REAL-TIME NETWORK COMMUNICATION ====================
+        // For boards with network (W5200), call yeet_network() here in main loop
+        // This handles TCP/IP and UDP communication for supervisory control
+        //
+        // Example integration (uncomment and adapt for CN board):
+        // static network_inputs_t net_inputs = {0};
+        // static network_outputs_t net_outputs = {0};
+        //
+        // // Check for incoming TCP data
+        // uint16_t rx_size = W5200_GetRxSize(&w5200_spi2, 0);
+        // if (rx_size > 0 && rx_size <= TASK_IO_NETWORK_MAX_PACKET_SIZE) {
+        //     net_inputs.network_rx.rx_length = W5200_Receive(&w5200_spi2, 0,
+        //                                                      net_inputs.network_rx.rx_buffer,
+        //                                                      rx_size);
+        //     net_inputs.network_rx.data_ready = (net_inputs.network_rx.rx_length > 0);
+        //     net_inputs.network_rx.tcp_connected = (W5200_GetSocketStatus(&w5200_spi2, 0) == W5200_SOCK_ESTABLISHED);
+        //     net_inputs.network_rx.socket_id = 0;
+        // }
+        //
+        // // Call network handler
+        // yeet_network(&net_inputs, &net_outputs);
+        //
+        // // Transmit if requested
+        // if (net_outputs.network_tx.transmit_request && net_inputs.network_rx.tcp_connected) {
+        //     W5200_Send(&w5200_spi2, net_outputs.network_tx.socket_id,
+        //                net_outputs.network_tx.tx_buffer,
+        //                net_outputs.network_tx.tx_length);
+        //     net_outputs.network_tx.transmit_request = false;
+        // }
     }
     /* USER CODE END 3 */
 }
@@ -738,12 +768,16 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     }
 
     // Prepare structured inputs from ADC DMA buffer
-    // DISC1 has only 1 ADC channel, so populate only channel 10 (1-indexed array)
-    task1_inputs_t inputs = {0};
-    inputs.adc_channels[10] = adc_dma_buffer[0];  // Single ADC channel mapped to index 10
+    // DISC1 has only 1 ADC channel, so populate analog inputs
+    task_inputs_t inputs = {0};
+    inputs.analog_inputs.channels[0] = adc_dma_buffer[0];  // Single ADC channel
+    inputs.analog_inputs.valid = true;
+    inputs.digital_inputs.valid = false;       // No digital inputs on DISC1
+    inputs.fiber_optic_rx.data_ready = false;  // No fiber optic on DISC1
+    inputs.fiber_optic_rx.link_ok = false;
 
-    // Prepare output structure for gate pulses
-    task1_outputs_t outputs = {0};
+    // Prepare output structure for gate pulses and digital outputs
+    task_outputs_t outputs = {0};
 
     // Execute high-frequency control task with structured I/O
     // This should contain:
@@ -754,8 +788,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     yeet_task_200us(&inputs, &outputs);
 
     // Apply gate pulses atomically using BSRR
-    apply_gate_pulses_fast(
-        outputs.pulse_1, outputs.pulse_2, outputs.pulse_3, outputs.pulse_4, outputs.pulse_5, outputs.pulse_6);
+    apply_gate_pulses_fast(outputs.thyristor_pulses.a_plus, outputs.thyristor_pulses.c_minus,
+        outputs.thyristor_pulses.b_plus, outputs.thyristor_pulses.a_minus, outputs.thyristor_pulses.c_plus,
+        outputs.thyristor_pulses.b_minus);
 }
 
 /**
@@ -779,12 +814,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
             task2_counter = 0;
         }
 
+        // Prepare task I/O structures
+        task_inputs_t inputs = {0};
+        inputs.analog_inputs.valid = false;  // No new ADC data in this task
+        inputs.digital_inputs.valid = false;
+        inputs.fiber_optic_rx.data_ready = false;
+        inputs.fiber_optic_rx.link_ok = false;
+
+        task_outputs_t outputs = {0};
+
         // Execute medium-frequency control task
         // This should contain:
         // - Speed/torque control loop
         // - Flux control calculations
         // - Protection monitoring (overcurrent, overvoltage)
-        yeet_task_1000us();
+        yeet_task_1000us(&inputs, &outputs);
     }
     else if (htim->Instance == TIM5) {
         // Increment diagnostic counter
@@ -798,13 +842,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
             task3_counter = 0;
         }
 
+        // Prepare task I/O structures
+        task_inputs_t inputs = {0};
+        inputs.analog_inputs.valid = false;
+        inputs.digital_inputs.valid = false;
+        inputs.fiber_optic_rx.data_ready = false;
+        inputs.fiber_optic_rx.link_ok = false;
+
+        task_outputs_t outputs = {0};
+        inputs.fiber_optic_rx.data_ready = false;
+        inputs.fiber_optic_rx.link_ok = false;
+
+        task_outputs_t outputs = {0};
+
         // Execute low-frequency control task
         // This should contain:
         // - State machine management
         // - Communication protocol handling
         // - Diagnostics and logging
         // - Non-critical supervisory functions
-        yeet_task_10000us();
+        yeet_task_10000us(&inputs, &outputs);
     }
 }
 

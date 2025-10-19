@@ -7,10 +7,19 @@
 #include "fpga.h"                   // FPGA configuration
 #include "fsmc_gpio_driver.h"       // FSMC GPIO driver
 #include "network_config_helper.h"  // Network configuration helpers
+#include "sfc_embedded/task_io.h"   // Generic I/O interface for application layer
 #include "stm32f4xx.h"              // STM32F4xx HAL
 #include "tasks.h"                  // 200us, 1ms, 10ms task prototypes
 #include "thyristor_control.h"      // Thyristor control driver
 #include "w5200_driver.h"           // New W5200 driver
+
+/* Application Layer Function Declarations --------------------------------- */
+// Defined in yeet_application layer (grid_side_tasks.cpp or machine_side_tasks.cpp)
+extern void yeet_embedded_init(void);
+extern void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs);
+extern void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs);
+extern void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs);
+extern void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs);
 
 /* Network Configuration Flags --------------------------------------------- */
 /**
@@ -175,6 +184,24 @@ static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS
  */
 static uint8_t dip_switch_channel_number = 0;
 
+/* Task I/O Structure Instances --------------------------------------------- */
+
+/**
+ * @brief Shared real-time task I/O structures
+ * Single instance passed to all tasks (200us, 1ms, 10ms)
+ * Application layer manages state - board support layer only populates inputs
+ * and reads outputs without clearing/overriding between tasks
+ */
+static task_inputs_t task_inputs = {0};
+static task_outputs_t task_outputs = {0};
+
+/**
+ * @brief Network I/O structures (non-real-time)
+ * Separate structures for network communication (called from main loop)
+ */
+static network_inputs_t network_inputs = {0};
+static network_outputs_t network_outputs = {0};
+
 /* Application-Specific Functions ------------------------------------------- */
 
 /**
@@ -258,15 +285,30 @@ void task_200us(void)
     // Read the conversion that was started in the previous cycle
     AD7606_Read(&ad7606_instance, &adc_reading);
 
-    // TODO: Use adc_reading.raw[0..7] for control algorithm
-    // Example: Access individual channels
-    // uint16_t current_a = adc_reading.raw[0];
-    // uint16_t current_b = adc_reading.raw[1];
-    // uint16_t voltage   = adc_reading.raw[2];
+    // ===== Populate Generic Task Inputs =====
+    // Map AD7606 ADC channels to generic analog inputs
+    for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
+        task_inputs.analog_inputs.channels[i] = adc_reading.raw[i];
+    }
+    task_inputs.analog_inputs.valid = true;
 
-    // TODO: Implement thyristor firing control based on ADC data
-    // For now, all thyristors off
-    set_thyristor_pulses(false, false, false, false, false, false);
+    // Digital inputs (not available in 200us task - too fast for FSMC)
+    task_inputs.digital_inputs.valid = false;
+
+    // Fiber-optic data (updated in 1ms task, not read here)
+    task_inputs.fiber_optic_rx.data_ready = false;
+    task_inputs.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+
+    // ===== Call Application Layer Control Task =====
+    yeet_task_200us(&task_inputs, &task_outputs);
+
+    // ===== Apply Task Outputs to Hardware =====
+    // Apply thyristor gate pulses
+    set_thyristor_pulses(task_outputs.thyristor_pulses.a_plus, task_outputs.thyristor_pulses.c_minus,
+        task_outputs.thyristor_pulses.b_plus, task_outputs.thyristor_pulses.a_minus,
+        task_outputs.thyristor_pulses.c_plus, task_outputs.thyristor_pulses.b_minus);
+
+    // Digital outputs not updated here (too fast for FSMC)
 
     // Start conversion for next cycle (takes ~5µs)
     AD7606_StartConversion(&ad7606_instance);
@@ -329,6 +371,11 @@ bool FiberComm_GetRxPayload(float* payload_out, uint8_t* length_out)
  */
 void task_1ms(void)
 {
+    // ===== Populate Generic Task Inputs =====
+
+    // Analog inputs (from ADC, but typically not used in 1ms task)
+    task_inputs.analog_inputs.valid = false;  // ADC is read in 200us task
+
     // ===== Fiber-Optic RX: Receive data FIRST (before control algorithm) =====
     if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
         // State tracking
@@ -358,6 +405,14 @@ void task_1ms(void)
             fiber_rx_length = rx_length;
             fiber_rx_data_ready = true;
 
+            // Populate generic task inputs with fiber-optic RX data
+            for (int i = 0; i < rx_length && i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
+                task_inputs.fiber_optic_rx.payload[i] = fiber_rx_payload[i];
+            }
+            task_inputs.fiber_optic_rx.payload_length = rx_length;
+            task_inputs.fiber_optic_rx.data_ready = true;
+            task_inputs.fiber_optic_rx.link_ok = true;
+
             // TODO: Process command word if needed
             // uint8_t rx_trip_status = CMD_GET_TRIP_STATUS(rx_command);
             // uint8_t rx_user_cmd = CMD_GET_USER_COMMAND(rx_command);
@@ -386,6 +441,8 @@ void task_1ms(void)
             // Error (not timeout) - reset stability tracking
             fiber_status.communication_stable = false;
             first_valid_rx_time_ms = 0;
+            task_inputs.fiber_optic_rx.data_ready = false;
+            task_inputs.fiber_optic_rx.link_ok = false;
         }
 
         // ===== Timeout Detection (10ms) =====
@@ -398,7 +455,14 @@ void task_1ms(void)
             // Reset stability tracking
             fiber_status.communication_stable = false;
             first_valid_rx_time_ms = 0;
+            task_inputs.fiber_optic_rx.data_ready = false;
+            task_inputs.fiber_optic_rx.link_ok = false;
         }
+    }
+    else {
+        // Fiber-optic not available
+        task_inputs.fiber_optic_rx.data_ready = false;
+        task_inputs.fiber_optic_rx.link_ok = false;
     }
 
     // ===== Digital I/O Input: Read hardware inputs (fuses, breakers, commands) =====
@@ -407,35 +471,45 @@ void task_1ms(void)
         DIO_ReadInputs(&dio_instance);
         const dio_input_flags_t* digital_inputs = DIO_GetInputFlags(&dio_instance);
 
-        // TODO: Use digital_inputs in your control logic
-        // Example: if (digital_inputs->stop_command) { /* stop system */ }
-        // Example: if (digital_inputs->over_temperature_flag) { /* activate protection */ }
-        // Example: if (digital_inputs->breaker_flag) { /* handle breaker trip */ }
-        (void)digital_inputs;  // Suppress unused warning until TODO is implemented
+        // Map hardware digital inputs to generic task inputs (all 16 channels)
+        // TODO: Document what each input signal represents in your application
+        task_inputs.digital_inputs.signals[0] = digital_inputs->digital_input_1;
+        task_inputs.digital_inputs.signals[1] = digital_inputs->digital_input_2;
+        task_inputs.digital_inputs.signals[2] = digital_inputs->digital_input_3;
+        task_inputs.digital_inputs.signals[3] = digital_inputs->digital_input_4;
+        task_inputs.digital_inputs.signals[4] = digital_inputs->digital_input_5;
+        task_inputs.digital_inputs.signals[5] = digital_inputs->digital_input_6;
+        task_inputs.digital_inputs.signals[6] = digital_inputs->digital_input_7;
+        task_inputs.digital_inputs.signals[7] = digital_inputs->digital_input_8;
+        task_inputs.digital_inputs.signals[8] = digital_inputs->digital_input_9;
+        task_inputs.digital_inputs.signals[9] = digital_inputs->digital_input_10;
+        task_inputs.digital_inputs.signals[10] = digital_inputs->digital_input_11;
+        task_inputs.digital_inputs.signals[11] = digital_inputs->digital_input_12;
+        task_inputs.digital_inputs.signals[12] = digital_inputs->digital_input_13;
+        task_inputs.digital_inputs.signals[13] = digital_inputs->digital_input_14;
+        task_inputs.digital_inputs.signals[14] = digital_inputs->digital_input_15;
+        task_inputs.digital_inputs.signals[15] = digital_inputs->digital_input_16;
+        task_inputs.digital_inputs.valid = true;
+    }
+    else {
+        task_inputs.digital_inputs.valid = false;
     }
 
-    // ===== Control Algorithm Integration Point =====
-    // At this point, you have:
-    // - fiber_rx_payload[]: Data from remote board via fiber-optic
-    // - digital_inputs->*: Generic hardware input flags (application-defined mapping)
-    // TODO: Implement your control algorithm here
-    // Example: Process ADC data, remote data, and digital inputs to generate control outputs
+    // ===== Call Application Layer Control Task =====
+    yeet_task_1000us(&task_inputs, &task_outputs);
 
-    // ===== Digital I/O Output: Write status flags to hardware =====
+    // ===== Apply Task Outputs to Hardware =====
+
+    // Digital I/O Output: Write status flags to hardware
     if (system_status.fsmc_gpio_ok && dio_instance.initialized) {
         dio_output_flags_t digital_outputs = {0};
 
-        // TODO: Map your application outputs to generic digital outputs
-        // Example mappings (application-specific):
-        //   digital_output_1  = SCR/thyristor error flag
-        //   digital_output_2  = Fuse fault
-        //   digital_output_3  = Fan on status
-        //   digital_output_16 = Online/communication status
-        //   digital_output_17 = Running heartbeat (auto-toggled by driver)
-
+        // Map generic digital outputs to hardware outputs
+        // TODO: Complete signal mapping based on hardware documentation
         digital_outputs.digital_output_16 = !fiber_status.communication_timeout;  // Online status
-        // digital_outputs.digital_output_1 = thyristor_fault_detected;
-        // digital_outputs.digital_output_3 = (digital_inputs && digital_inputs->digital_input_8);  // Fan control
+        // Map remaining signals from task_outputs_1ms.digital_outputs.signals[]
+        // digital_outputs.digital_output_1 = task_outputs_1ms.digital_outputs.signals[0];
+        // ... map remaining signals ...
 
         DIO_SetOutputFlags(&dio_instance, &digital_outputs);
         DIO_WriteOutputs(&dio_instance);
@@ -443,11 +517,9 @@ void task_1ms(void)
 
     // ===== DAC Output (only if DAC initialized) =====
     if (system_status.dac_ok) {
+        // TODO: Extract DAC values from control outputs
+        // For now, just write zeros
         float dac_outputs[AD5724_NUM_CHANNELS] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-        // TODO: Populate dac_outputs[] from control algorithm
-        // Example: dac_outputs[0] = pid_controller_output;
-        // Example: dac_outputs[1] = fiber_rx_payload[0] * gain;  // Use remote data
 
         // Write DAC outputs (all channels updated every 1ms)
         for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
@@ -471,14 +543,15 @@ void task_1ms(void)
         uint32_t tx_command = CMD_BUILD(
             heartbeat_counter, board_side, trip_status, user_command, current_state, PAYLOAD_TYPE_CONTROL_DATA);
 
-        // TODO: Populate fiber_tx_payload[] from control logic
-        // Example: fiber_tx_payload[0] = voltage_setpoint;
-        //          fiber_tx_payload[1] = current_setpoint;
-        //          fiber_tx_payload[2] = frequency_setpoint;
-        //          fiber_tx_payload[3] = phase_setpoint;
+        // Copy TX payload from application outputs
+        for (int i = 0; i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
+            fiber_tx_payload[i] = task_outputs.fiber_optic_tx.payload[i];
+        }
 
         // Transmit frame (~347µs @ 691,200 baud for 24-byte frame)
-        FiberProto_SendFloats(&fiber_proto_instance, tx_command, fiber_tx_payload, FIBER_PROTO_MAX_PAYLOAD_WORDS);
+        FiberProto_SendFloats(&fiber_proto_instance, tx_command, fiber_tx_payload,
+            task_outputs.fiber_optic_tx.payload_length > 0 ? task_outputs.fiber_optic_tx.payload_length
+                                                           : FIBER_PROTO_MAX_PAYLOAD_WORDS);
     }
 }
 
@@ -519,6 +592,19 @@ static void Update_System_LEDs()
  */
 void task_10ms(void)
 {
+    // ===== Populate Generic Task Inputs =====
+    // Analog and digital inputs not typically read at this slow rate
+    task_inputs.analog_inputs.valid = false;
+    task_inputs.digital_inputs.valid = false;
+    task_inputs.fiber_optic_rx.data_ready = false;
+    task_inputs.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+
+    // ===== Call Application Layer Task =====
+    yeet_task_10000us(&task_inputs, &task_outputs);
+
+    // ===== Apply Task Outputs (if any) =====
+    // Typically 10ms task doesn't update outputs, but structure allows it
+
     // Update all system LEDs based on runtime status (called every 10ms)
     Update_System_LEDs();
 }
@@ -626,57 +712,81 @@ static bool TCP_Server_Init(void)
 /**
  * @brief Handle SPI2 TCP server socket (192.168.2.x network)
  * @note Handles connection, data transfer, and reconnection logic
+ *       Integrates with yeet_network() for application layer processing
  */
 static void TCP_Server_SPI2_Task(void)
 {
     uint16_t rx_size;
     uint16_t bytes_received;
     uint8_t status;
-    static bool deadbeef_sent = false;
+    bool sent;
 
     // Get socket status
     status = W5200_GetSocketStatus(&w5200_spi2, 0);
 
     // Handle different socket states
     if (status == W5200_SOCK_ESTABLISHED) {
-        // Send 0xDEADBEEF once when connection is first established
-        if (!deadbeef_sent) {
-            uint8_t deadbeef[4] = {0xDE, 0xAD, 0xBE, 0xEF};
-            W5200_Send(&w5200_spi2, 0, deadbeef, 4);
-            deadbeef_sent = true;
-        }
+        // Update network input status
+        network_inputs.network_rx.tcp_connected = true;
+        network_inputs.network_rx.socket_id = 0;
+
+        // Default values when no RX data is present
+        network_inputs.network_rx.rx_length = 0;
+        network_inputs.network_rx.data_ready = false;
 
         // Connection established - check for received data
         rx_size = W5200_GetRxSize(&w5200_spi2, 0);
         if (rx_size > 0) {
-            // Limit to buffer size
-            if (rx_size > sizeof(tcp_packet_buffer)) {
-                rx_size = sizeof(tcp_packet_buffer);
+            // Limit to buffer size (use network_inputs buffer directly)
+            if (rx_size > TASK_IO_NETWORK_MAX_PACKET_SIZE) {
+                rx_size = TASK_IO_NETWORK_MAX_PACKET_SIZE;
             }
 
-            // Receive data
-            bytes_received = W5200_Receive(&w5200_spi2, 0, tcp_packet_buffer, rx_size);
+            // Receive data directly into network_inputs buffer
+            bytes_received = W5200_Receive(&w5200_spi2, 0, network_inputs.network_rx.rx_buffer, rx_size);
             if (bytes_received > 0) {
-                // Process received data here
-                // For now, echo it back (example)
-                W5200_Send(&w5200_spi2, 0, tcp_packet_buffer, bytes_received);
+                // Populate network inputs for application layer
+                network_inputs.network_rx.rx_length = bytes_received;
+                network_inputs.network_rx.data_ready = true;
             }
+        }
+
+        // Call application layer network handler every loop (even without new RX data)
+        yeet_network(&network_inputs, &network_outputs);
+
+        // Clear data_ready flag after processing so one-shot commands do not repeat
+        network_inputs.network_rx.data_ready = false;
+
+        // Attempt to transmit if application requested it
+        if (network_outputs.network_tx.transmit_request) {
+            sent = W5200_Send(&w5200_spi2, network_outputs.network_tx.socket_id, network_outputs.network_tx.tx_buffer,
+                network_outputs.network_tx.tx_length);
+            if (sent) {
+                network_outputs.network_tx.transmit_request = false;
+            }
+            // If send fails (e.g., TX buffer full), keep transmit_request true to retry next iteration
         }
     }
     else if (status == W5200_SOCK_CLOSE_WAIT) {
         // Client requested disconnect
+        network_inputs.network_rx.tcp_connected = false;
         W5200_SocketDisconnect(&w5200_spi2, 0);
         W5200_SocketClose(&w5200_spi2, 0);
         // Reopen and listen again
         W5200_SocketOpen(&w5200_spi2, 0);
         W5200_SocketListen(&w5200_spi2, 0);
-        deadbeef_sent = false;  // Reset flag for next connection
     }
     else if (status == W5200_SOCK_CLOSED) {
         // Socket closed unexpectedly, reopen
+        network_inputs.network_rx.tcp_connected = false;
         W5200_SocketOpen(&w5200_spi2, 0);
         W5200_SocketListen(&w5200_spi2, 0);
-        deadbeef_sent = false;  // Reset flag for next connection
+    }
+    else {
+        // Other states (INIT, LISTEN, etc.) - not connected
+        network_inputs.network_rx.tcp_connected = false;
+        network_outputs.network_tx.transmit_request = false;
+        network_outputs.network_tx.tx_length = 0;
     }
 }
 #endif  // ENABLE_W5200_SPI2
@@ -831,6 +941,9 @@ int main(void)
     //     IP addresses configured based on DIP switch node ID
     system_status.network_ok = TCP_Server_Init();
 
+    // 11. Initialize application layer (yeet control algorithms)
+    yeet_embedded_init();
+
     /* ========================================================================
      * ERROR HANDLING - Set FAULT LED if critical subsystems failed
      * ======================================================================== */
@@ -849,8 +962,10 @@ int main(void)
     }
 
     while (1) {
-        // Network communication task - handles TCP server operations
-        // Only run if network initialized successfully
+        // ===== Network Communication Task (Non-Real-Time) =====
+        // Handles TCP server operations only if network initialized successfully
+        // Note: yeet_network() is now called directly inside TCP_Server_SPI2_Task()
+        //       when data is received, so it's not called here separately
         if (system_status.network_ok) {
             TCP_Server_Task();
         }
