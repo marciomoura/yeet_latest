@@ -1,8 +1,11 @@
 #include "adc.h"                    // AD7606 ADC driver
 #include "dac.h"                    // AD5724 DAC driver
+#include "digital_ios.h"            // Digital I/O driver (inputs/outputs)
 #include "driver_init.h"            // Driver initialization functions
 #include "fiber_optic.h"            // Fiber-optic communication driver
 #include "fiber_protocol.h"         // Fiber-optic protocol layer
+#include "fpga.h"                   // FPGA configuration
+#include "fsmc_gpio_driver.h"       // FSMC GPIO driver
 #include "network_config_helper.h"  // Network configuration helpers
 #include "stm32f4xx.h"              // STM32F4xx HAL
 #include "tasks.h"                  // 200us, 1ms, 10ms task prototypes
@@ -101,6 +104,11 @@ fiber_optic_instance_t fiber_optic_instance = {0};
 fiber_proto_instance_t fiber_proto_instance = {0};
 
 /**
+ * @brief Digital I/O instance for reading inputs and writing outputs
+ */
+static dio_instance_t dio_instance = {0};
+
+/**
  * @brief Fiber-optic communication payload buffers
  * These buffers store the latest TX/RX payload data for integration with control logic
  */
@@ -160,6 +168,65 @@ static uint8_t spi3_rx_buffer[8192];
  * @brief TCP packet buffers for application layer
  */
 static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS
+
+/**
+ * @brief Node ID read from DIP switches (0-15)
+ * Used to configure network IP addresses
+ */
+static uint8_t dip_switch_channel_number = 0;
+
+/* Application-Specific Functions ------------------------------------------- */
+
+/**
+ * @brief  Initialize DIP switch GPIO pins (PC6-PC9)
+ * @note   DIP switches are configured as inputs with pull-ups
+ *         PC6 = Bit 0, PC7 = Bit 1, PC8 = Bit 2, PC9 = Bit 3
+ */
+static void DIP_Switch_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // Enable GPIOC clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+
+    // Configure PC6, PC7, PC8, PC9 as inputs with pull-ups
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+}
+
+/**
+ * @brief  Read node ID from DIP switches
+ * @retval Node ID value (0-15)
+ * @note   DIP switches use normal logic with pull-ups:
+ *         - Switch OFF (open) = GPIO reads HIGH (1) due to pull-up = bit set in result
+ *         - Switch ON (closed to GND) = GPIO reads LOW (0) = bit clear in result
+ *         Reading switches as binary number directly (HIGH = 1, LOW = 0)
+ */
+static uint8_t Read_DIP_Switch(void)
+{
+    uint8_t node_id = 0;
+
+    // Read 4 bits from PC6-PC9 (direct logic: HIGH = 1, LOW = 0)
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_6) == 1) {
+        node_id |= 0x01;  // Bit 0
+    }
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_7) == 1) {
+        node_id |= 0x02;  // Bit 1
+    }
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8) == 1) {
+        node_id |= 0x04;  // Bit 2
+    }
+    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_9) == 1) {
+        node_id |= 0x08;  // Bit 3
+    }
+
+    return node_id;
+}
+
+/* Task Implementations ----------------------------------------------------- */
 
 /**
  * @brief  200us periodic task - ADC sampling and control
@@ -334,10 +401,39 @@ void task_1ms(void)
         }
     }
 
+    // ===== Digital I/O Input: Read hardware inputs (fuses, breakers, commands) =====
+    if (system_status.fsmc_gpio_ok && dio_instance.initialized) {
+        // Read all digital inputs with debouncing (~50µs)
+        DIO_ReadInputs(&dio_instance);
+        const dio_input_flags_t* digital_inputs = DIO_GetInputFlags(&dio_instance);
+
+        // TODO: Use digital_inputs in your control logic
+        // Example: if (digital_inputs->stop_command) { /* stop system */ }
+        // Example: if (digital_inputs->over_temperature_flag) { /* activate protection */ }
+        // Example: if (digital_inputs->breaker_flag) { /* handle breaker trip */ }
+        (void)digital_inputs;  // Suppress unused warning until TODO is implemented
+    }
+
     // ===== Control Algorithm Integration Point =====
-    // At this point, fiber_rx_payload[] contains latest data from remote board
+    // At this point, you have:
+    // - fiber_rx_payload[]: Data from remote board via fiber-optic
+    // - digital_inputs->*: Hardware input flags (fuses, breakers, commands, etc.)
     // TODO: Implement your control algorithm here
-    // Example: Process ADC data and fiber_rx_payload[] to generate control outputs
+    // Example: Process ADC data, remote data, and digital inputs to generate control outputs
+
+    // ===== Digital I/O Output: Write status flags to hardware =====
+    if (system_status.fsmc_gpio_ok && dio_instance.initialized) {
+        dio_output_flags_t digital_outputs = {0};
+
+        // TODO: Set output flags based on system state
+        digital_outputs.running_flag = true;                                // System running
+        digital_outputs.online_flag = !fiber_status.communication_timeout;  // Communication status
+        // digital_outputs.scr_error_flag = thyristor_fault_detected;
+        // digital_outputs.fan_on_flag = (digital_inputs && digital_inputs->over_temperature_flag);
+
+        DIO_SetOutputFlags(&dio_instance, &digital_outputs);
+        DIO_WriteOutputs(&dio_instance);
+    }
 
     // ===== DAC Output (only if DAC initialized) =====
     if (system_status.dac_ok) {
@@ -644,52 +740,104 @@ static void TCP_Server_Task(void)
 
 int main(void)
 {
-    int init_status;
+    FPGA_Status_t fpga_status;
+    bool hardware_ok = true;
 
-    /* Initialize all hardware using NSD_Driver */
-    // This returns 0 on success, -1 if any component failed
-    // Individual component status is tracked in system_status structure
-    init_status = Init_Hardware();
+    /* ========================================================================
+     * HARDWARE INITIALIZATION SEQUENCE
+     * ======================================================================== */
 
-    // Update system status flags based on hardware initialization
-    // Timers are assumed OK if we reached here (required for Init_Hardware to work)
+    // 1. Read board configuration from DIP switches (PC6-PC9)
+    //    DIP switches determine node ID for network addressing (0-15)
+    DIP_Switch_Init();
+    dip_switch_channel_number = Read_DIP_Switch();
+
+    // 2. Initialize timers FIRST (required for FPGA delay functions and tasks)
+    TIMx_Init();
     system_status.timers_ok = true;
 
-    // Check individual subsystem initialization
-    // FPGA check: If init failed, FPGA-dependent features won't work
-    system_status.fpga_ok = (init_status == 0);  // For now, assume FPGA is critical
+    // 3. Initialize FPGA (required for fiber-optic communication)
+    //    Configure FPGA with 5-second timeout protection
+    FPGA_Init_Pins();
+    fpga_status = FPGA_Configure(5000);
 
-    // FSMC GPIO check: Try to verify by checking if instance is initialized
-    system_status.fsmc_gpio_ok = (init_status == 0);
+    if (fpga_status == FPGA_CONFIG_SUCCESS) {
+        FPGA_Reset();  // Perform internal reset after successful configuration
+        system_status.fpga_ok = true;
+    }
+    else {
+        // FPGA configuration failed - fiber-optic won't work
+        system_status.fpga_ok = false;
+        hardware_ok = false;
+    }
 
-    // ADC check: Instance will have initialized flag
-    system_status.adc_ok = ad7606_instance.initialized;
+    // 4. Initialize FSMC GPIO (LEDs and digital I/O at 0x6C000000)
+    //    Must be after FPGA for some board configurations
+    if (FSMC_GPIO_Init(&fsmc_gpio_instance)) {
+        system_status.fsmc_gpio_ok = true;
+    }
+    else {
+        system_status.fsmc_gpio_ok = false;
+        hardware_ok = false;
+    }
 
-    // DAC check: Instance will have initialized flag
-    system_status.dac_ok = ad5724_instance.initialized;
+    // 5. Initialize external ADC (AD7606 8-channel via FSMC Bank 2)
+    if (AD7606_Init(&ad7606_instance)) {
+        system_status.adc_ok = true;
+    }
+    else {
+        system_status.adc_ok = false;
+        hardware_ok = false;
+    }
 
-    // Fiber-optic check: Instance will have initialized flag
-    system_status.fiber_optic_ok = fiber_optic_instance.initialized;
+    // 6. Initialize external DAC (AD5724 4-channel via SPI1)
+    if (AD5724_Init(&ad5724_instance)) {
+        system_status.dac_ok = true;
+    }
+    else {
+        system_status.dac_ok = false;
+        hardware_ok = false;
+    }
 
-    // Initialize fiber-optic protocol layer
+    // 7. Initialize fiber-optic communication (691,200 baud)
+    //    Requires successful FPGA configuration
+    if (FiberOptic_Init(&fiber_optic_instance, 691200, dip_switch_channel_number)) {
+        system_status.fiber_optic_ok = true;
+    }
+    else {
+        system_status.fiber_optic_ok = false;
+        hardware_ok = false;
+    }
+
+    // 8. Initialize fiber-optic protocol layer (frame handling)
     if (system_status.fiber_optic_ok) {
         FiberProto_Init(&fiber_proto_instance, &fiber_optic_instance, FIBER_CH1);
     }
 
-    // Initialize network (W5200 on SPI2 and SPI3)
-    // IP addresses configured based on DIP switch node ID
+    // 9. Initialize digital I/O driver (64 inputs + 64 outputs via FSMC GPIO)
+    if (system_status.fsmc_gpio_ok) {
+        if (!DIO_Init(&dio_instance, &fsmc_gpio_instance)) {
+            dio_instance.initialized = false;
+        }
+    }
+
+    // 10. Initialize network (W5200 on SPI2 and SPI3)
+    //     IP addresses configured based on DIP switch node ID
     system_status.network_ok = TCP_Server_Init();
 
-    // Set FAULT LED if critical subsystems failed
-    if (!system_status.fsmc_gpio_ok || !system_status.fpga_ok) {
-        // Can't set FAULT LED if FSMC GPIO failed
+    /* ========================================================================
+     * ERROR HANDLING - Set FAULT LED if critical subsystems failed
+     * ======================================================================== */
+
+    if (!hardware_ok) {
+        // Hardware initialization failed
         if (system_status.fsmc_gpio_ok) {
             FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
             FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
         }
     }
     else if (!system_status.network_ok) {
-        // Network failed but GPIO works - indicate with FAULT LED
+        // Network failed but hardware OK - indicate with FAULT LED
         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }

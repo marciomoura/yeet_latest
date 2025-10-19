@@ -24,7 +24,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "fiber_optic.h"
 
-#include "driver_init.h"     // For dip_switch_channel_number
 #include "fpga.h"            // For FPGA configuration
 #include "stm32f4xx.h"       // For __IO definition
 #include "stm32f4xx_fsmc.h"  // For FSMC peripheral definitions
@@ -103,7 +102,7 @@ static void FiberOptic_FSMC_Init(void)
 /**
  * @brief  Initialize fiber-optic communication system
  */
-bool FiberOptic_Init(fiber_optic_instance_t* instance, uint32_t baud_rate)
+bool FiberOptic_Init(fiber_optic_instance_t* instance, uint32_t baud_rate, uint8_t node_id)
 {
     uint32_t baud_divisor;
 
@@ -123,11 +122,11 @@ bool FiberOptic_Init(fiber_optic_instance_t* instance, uint32_t baud_rate)
     *(__IO uint16_t*)(FIBER_OPTIC_BASE_ADDR + FPGA_REG_BAUD_DIVISOR) = (uint16_t)baud_divisor;
 
     // Step 3: Set node ID (from DIP switches)
-    *(__IO uint16_t*)(FIBER_OPTIC_BASE_ADDR + FPGA_REG_NODE_ID) = (uint16_t)dip_switch_channel_number;
+    *(__IO uint16_t*)(FIBER_OPTIC_BASE_ADDR + FPGA_REG_NODE_ID) = (uint16_t)node_id;
 
     // Update instance structure
     instance->baud_rate = baud_rate;
-    instance->node_id = dip_switch_channel_number;
+    instance->node_id = node_id;
     instance->initialized = true;
 
     return true;

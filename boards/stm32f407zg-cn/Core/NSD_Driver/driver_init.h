@@ -30,54 +30,12 @@ extern "C" {
 /* Exported variables --------------------------------------------------------*/
 
 /**
- * @brief Node ID read from DIP switches (0-15)
- */
-extern uint8_t dip_switch_channel_number;
-
-/**
  * @brief FSMC GPIO driver instance (for LEDs and digital I/O via FSMC Bank 4)
  * @note  This should be defined in the application (e.g., main.c)
  */
 extern fsmc_gpio_instance_t fsmc_gpio_instance;
 
 /* Exported functions --------------------------------------------------------*/
-
-/**
- * @brief  Initialize DIP switch GPIO pins (PC6-PC9)
- * @note   DIP switches are used to set the node ID (4-bit value)
- */
-void DIP_Switch_Init(void);
-
-/**
- * @brief  Read node ID from DIP switches
- * @retval Node ID value (0-15)
- * @note   DIP switches use inverted logic (ON = 0, OFF = 1)
- */
-uint8_t Read_DIP_Switch(void);
-
-/**
- * @brief  Initialize all hardware peripherals
- * @note   This function initializes:
- *         - DIP switches and reads node ID
- *         - Timers (must be first for delay functions)
- *         - FPGA (if present)
- *         - FSMC GPIO
- *         - SRAM
- *         - ADC (AD7606)
- *         - Flash memory (M25P32)
- *         - Watchdog
- * @note   Call this function before using any hardware peripherals
- * @note   Sets FAULT LED if any critical initialization fails
- * @retval 0 if successful, -1 if any initialization failed
- */
-int Init_Hardware(void);
-
-/**
- * @brief  Initialize application data structures
- * @note   Minimal version - user applications should implement their own
- *         Initializes ADC data buffers only
- */
-void Init_Data(void);
 
 /**
  * @brief  Convert 16-bit integer to two bytes (big-endian)

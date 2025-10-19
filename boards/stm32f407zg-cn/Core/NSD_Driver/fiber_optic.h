@@ -83,6 +83,7 @@ typedef struct {
  * @brief  Initialize fiber-optic communication system
  * @param  instance: Pointer to fiber-optic instance structure
  * @param  baud_rate: Communication baud rate (max 1,382,400)
+ * @param  node_id: Device node ID (0-15, typically from DIP switches)
  * @retval true if initialization successful, false otherwise
  * @note   CRITICAL: This function assumes FPGA is already initialized!
  *         Must call FPGA_Init_Pins() and FPGA_Configure() BEFORE this function.
@@ -91,9 +92,9 @@ typedef struct {
  *         This function:
  *         - Configures FSMC Bank 4 for FPGA access
  *         - Sets baud rate divider register
- *         - Sets node ID from DIP switches
+ *         - Sets node ID register
  */
-bool FiberOptic_Init(fiber_optic_instance_t* instance, uint32_t baud_rate);
+bool FiberOptic_Init(fiber_optic_instance_t* instance, uint32_t baud_rate, uint8_t node_id);
 
 /**
  * @brief  Transmit data on specified channel
