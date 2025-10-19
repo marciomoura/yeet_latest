@@ -54,6 +54,13 @@ extern "C" {
 #define FIBER_PROTO_BAUD_RATE 691200  ///< 691,200 baud for 1ms control
 
 /**
+ * @brief RX buffer timeout (ms) - discard incomplete frames after this duration
+ * @note Set to 5ms to allow reception across multiple 1ms cycles while preventing
+ *       stale data accumulation. Normal frames arrive within 1-2ms.
+ */
+#define FIBER_PROTO_RX_TIMEOUT_MS 5
+
+/**
  * @brief Command Word Bit Layout (32 bits total)
  *
  * Bits 31-30: Heartbeat Counter (2 bits) - Increments each transmission (0-3)
@@ -191,7 +198,7 @@ typedef struct {
 } fiber_proto_stats_t;
 
 /**
- * @brief Protocol instance
+ * @brief Protocol instance with buffered RX for reliable 1ms operation
  */
 typedef struct {
     fiber_optic_instance_t* fiber_instance;  ///< Hardware fiber-optic instance
@@ -200,6 +207,11 @@ typedef struct {
     uint16_t rx_seq;                         ///< RX sequence counter
     fiber_proto_stats_t stats;               ///< Protocol statistics
     bool initialized;                        ///< Initialization flag
+
+    // RX buffering for reliable frame reception across multiple 1ms cycles
+    uint8_t rx_buffer[FIBER_PROTO_MAX_FRAME_SIZE];  ///< Persistent receive buffer
+    uint16_t rx_buffer_len;                         ///< Current bytes in RX buffer
+    uint32_t last_rx_time_ms;                       ///< Timestamp of last received byte (for timeout)
 } fiber_proto_instance_t;
 
 /* Exported functions --------------------------------------------------------*/
@@ -236,8 +248,12 @@ fiber_proto_error_t FiberProto_SendPacket(
  * @param  length: Pointer to store number of uint32 words received
  * @retval FIBER_PROTO_OK or error code
  *
- * @note   Non-blocking. Returns FIBER_PROTO_ERR_TIMEOUT if no data available.
+ * @note   Non-blocking. Returns FIBER_PROTO_ERR_TIMEOUT if no complete frame available.
+ *         Buffers partial frames across multiple calls for reliable reception.
  *         CRC is automatically verified. Invalid frames are discarded.
+ *
+ *         Call this every 1ms from your control task. If a frame spans multiple
+ *         cycles, it will be accumulated automatically until complete.
  */
 fiber_proto_error_t FiberProto_ReceivePacket(
     fiber_proto_instance_t* proto, uint32_t* command, uint32_t* payload, uint8_t* length);

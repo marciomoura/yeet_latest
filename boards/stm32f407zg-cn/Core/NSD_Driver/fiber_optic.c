@@ -174,6 +174,7 @@ uint16_t FiberOptic_Receive(
     uint16_t status;
     uint32_t data_addr;
     uint32_t status_addr;
+    uint16_t safety_counter = 0;
 
     // Validate parameters
     if (!instance || !instance->initialized || !buffer || max_length == 0) {
@@ -185,7 +186,8 @@ uint16_t FiberOptic_Receive(
     status_addr = FIBER_OPTIC_BASE_ADDR + (channel + 100) * 2;  // Status register
 
     // Read data until RX buffer empty or max length reached
-    while (length < max_length) {
+    // Added safety counter (matching legacy implementation) to prevent infinite loops
+    while (length < max_length && safety_counter < 255) {
         // Check if data available (bit 1 = 0 means data present)
         status = *(__IO uint16_t*)status_addr;
         if (status & CHANNEL_STATUS_RX_EMPTY) {
@@ -195,6 +197,7 @@ uint16_t FiberOptic_Receive(
 
         // Read one byte from RX FIFO
         buffer[length++] = (uint8_t)(*(__IO uint16_t*)data_addr);
+        safety_counter++;
     }
 
     return length;

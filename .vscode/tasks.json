@@ -27,7 +27,8 @@
             "description": "Select build configuration",
             "options": [
                 "debug",
-                "release"
+                "release",
+                "relwithdebinfo"
             ],
             "default": "release"
         },
@@ -37,7 +38,8 @@
             "description": "Select build configuration (for path)",
             "options": [
                 "Debug",
-                "Release"
+                "Release",
+                "RelWithDebInfo"
             ],
             "default": "Release"
         }

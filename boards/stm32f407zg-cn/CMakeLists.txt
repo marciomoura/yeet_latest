@@ -116,11 +116,6 @@ target_sources(
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/w5200_driver.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/network_config_helper.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/watchdog_simple.c
-            # Legacy network code (commented out - using new driver now)
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy/w5200.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy/net.c
-            # ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/legacy/pub.c Startup
-            # file (assembly)
             ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s)
 
 # Add include paths - PUBLIC so consumers inherit them

@@ -178,7 +178,8 @@ int Init_Hardware(void)
     // The fiber-optic system uses FPGA and FSMC Bank 4 for 6-channel communication
     // Configure at 691,200 baud (legacy code standard for 1ms control loops)
     extern fiber_optic_instance_t fiber_optic_instance;
-    if (!FiberOptic_Init(&fiber_optic_instance, 691200)) {
+    // 1382400
+    if (!FiberOptic_Init(&fiber_optic_instance, 1382400)) {
         // Fiber-optic init failed - likely FPGA configuration issue
         // System can continue but fiber communication won't work
         init_success = false;

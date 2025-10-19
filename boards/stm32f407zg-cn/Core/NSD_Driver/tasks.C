@@ -240,7 +240,7 @@ static void TIM2_Config(void)
 void TIM3_IRQHandler(void)
 {
     if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET) {
-        uint32_t start_cycles = DWT_CYCCNT;
+        // uint32_t start_cycles = DWT_CYCCNT;
 
         TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
 
@@ -249,10 +249,22 @@ void TIM3_IRQHandler(void)
         task_200us();
 
         /* Measure execution time */
-        tim3_isr_cycles = DWT_CYCCNT - start_cycles;
-        if (tim3_isr_cycles > tim3_isr_max_cycles) {
-            tim3_isr_max_cycles = tim3_isr_cycles;
-        }
+        // tim3_isr_cycles = DWT_CYCCNT - start_cycles;
+        // if (tim3_isr_cycles > tim3_isr_max_cycles) {
+        //     tim3_isr_max_cycles = tim3_isr_cycles;
+        // }
+
+        /* Log execution time to diagnostic buffer (every 64th execution to reduce overhead) */
+        // static uint8_t log_divider_200us = 0;
+        // if (++log_divider_200us >= 64) {
+        //     log_divider_200us = 0;
+        //     DIAG_LOG_TASK_TIME(200, tim3_isr_cycles);
+
+        //     // Check for overrun
+        //     if (tim3_isr_cycles > (200 * 168)) {  // 200us * 168 cycles/us
+        //         Diagnostics_Log(DIAG_EVENT_TASK_OVERRUN, 200, tim3_isr_cycles);
+        //     }
+        // }
     }
 }
 
@@ -265,7 +277,7 @@ void TIM3_IRQHandler(void)
 void TIM4_IRQHandler(void)
 {
     if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET) {
-        uint32_t start_cycles = DWT_CYCCNT;
+        // uint32_t start_cycles = DWT_CYCCNT;
 
         TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
 
@@ -274,10 +286,22 @@ void TIM4_IRQHandler(void)
         task_1ms();
 
         /* Measure execution time */
-        tim4_isr_cycles = DWT_CYCCNT - start_cycles;
-        if (tim4_isr_cycles > tim4_isr_max_cycles) {
-            tim4_isr_max_cycles = tim4_isr_cycles;
-        }
+        // tim4_isr_cycles = DWT_CYCCNT - start_cycles;
+        // if (tim4_isr_cycles > tim4_isr_max_cycles) {
+        //     tim4_isr_max_cycles = tim4_isr_cycles;
+        // }
+
+        /* Log execution time to diagnostic buffer (every 16th execution) */
+        // static uint8_t log_divider_1ms = 0;
+        // if (++log_divider_1ms >= 16) {
+        //     log_divider_1ms = 0;
+        //     DIAG_LOG_TASK_TIME(1000, tim4_isr_cycles);
+
+        //     // Check for overrun
+        //     if (tim4_isr_cycles > (1000 * 168)) {  // 1000us * 168 cycles/us
+        //         Diagnostics_Log(DIAG_EVENT_TASK_OVERRUN, 1000, tim4_isr_cycles);
+        //     }
+        // }
     }
 }
 
@@ -290,7 +314,7 @@ void TIM4_IRQHandler(void)
 void TIM2_IRQHandler(void)
 {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET) {
-        uint32_t start_cycles = DWT_CYCCNT;
+        // uint32_t start_cycles = DWT_CYCCNT;
 
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
 
@@ -299,10 +323,18 @@ void TIM2_IRQHandler(void)
         task_10ms();
 
         /* Measure execution time */
-        tim2_isr_cycles = DWT_CYCCNT - start_cycles;
-        if (tim2_isr_cycles > tim2_isr_max_cycles) {
-            tim2_isr_max_cycles = tim2_isr_cycles;
-        }
+        // tim2_isr_cycles = DWT_CYCCNT - start_cycles;
+        // if (tim2_isr_cycles > tim2_isr_max_cycles) {
+        //     tim2_isr_max_cycles = tim2_isr_cycles;
+        // }
+
+        // /* Log execution time to diagnostic buffer (every execution) */
+        // DIAG_LOG_TASK_TIME(10000, tim2_isr_cycles);
+
+        // // Check for overrun
+        // if (tim2_isr_cycles > (10000 * 168)) {  // 10000us * 168 cycles/us
+        //     Diagnostics_Log(DIAG_EVENT_TASK_OVERRUN, 10000, tim2_isr_cycles);
+        // }
     }
 }
 

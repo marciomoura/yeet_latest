@@ -48,6 +48,11 @@ bool FiberProto_Init(fiber_proto_instance_t* proto, fiber_optic_instance_t* fibe
     proto->rx_seq = 0;
     proto->initialized = true;
 
+    // Initialize RX buffer
+    proto->rx_buffer_len = 0;
+    proto->last_rx_time_ms = 0;
+    memset(proto->rx_buffer, 0, sizeof(proto->rx_buffer));
+
     // Reset statistics
     FiberProto_ResetStats(proto);
 
@@ -121,80 +126,151 @@ fiber_proto_error_t FiberProto_SendPacket(
 }
 
 /**
- * @brief  Receive and parse packet
+ * @brief  Receive and parse packet with buffered reception
+ * @note   This function accumulates data across multiple calls until a complete
+ *         frame is received. Safe for 1ms periodic calling even if frames arrive
+ *         slowly or span multiple cycles.
  */
 fiber_proto_error_t FiberProto_ReceivePacket(
     fiber_proto_instance_t* proto, uint32_t* command, uint32_t* payload, uint8_t* length)
 {
-    uint8_t rx_buffer[FIBER_PROTO_MAX_FRAME_SIZE];
-    uint16_t rx_length;
+    uint16_t bytes_available;
+    uint16_t bytes_to_read;
     uint16_t expected_frame_size;
     uint16_t calculated_crc, received_crc;
     uint8_t payload_words;
+    uint32_t current_time_ms;
+    extern uint32_t get_1ms_counter(void);  // From tasks.c
 
     if (!proto || !proto->initialized || !command || !payload || !length) {
         return FIBER_PROTO_ERR_PARAM;
     }
 
-    // Check if data available
-    if (!FiberOptic_DataAvailable(proto->fiber_instance, proto->channel)) {
+    // Get current timestamp for timeout detection
+    current_time_ms = get_1ms_counter();
+
+    // Check if RX buffer has stale data (timeout expired)
+    if (proto->rx_buffer_len > 0) {
+        uint32_t elapsed_ms = current_time_ms - proto->last_rx_time_ms;
+        if (elapsed_ms > FIBER_PROTO_RX_TIMEOUT_MS) {
+            // Timeout - discard stale partial frame
+            proto->rx_buffer_len = 0;
+            proto->stats.timeout_count++;
+        }
+    }
+
+    // Try to read new data from hardware FIFO
+    if (FiberOptic_DataAvailable(proto->fiber_instance, proto->channel)) {
+        // Calculate remaining space in buffer
+        bytes_to_read = FIBER_PROTO_MAX_FRAME_SIZE - proto->rx_buffer_len;
+
+        // Read new data and append to buffer
+        bytes_available = FiberOptic_Receive(
+            proto->fiber_instance, proto->channel, &proto->rx_buffer[proto->rx_buffer_len], bytes_to_read);
+
+        if (bytes_available > 0) {
+            proto->rx_buffer_len += bytes_available;
+            proto->last_rx_time_ms = current_time_ms;  // Update timestamp
+        }
+    }
+
+    // Check if we have any data buffered
+    if (proto->rx_buffer_len == 0) {
         proto->stats.timeout_count++;
         return FIBER_PROTO_ERR_TIMEOUT;
     }
 
-    // Receive data
-    rx_length = FiberOptic_Receive(proto->fiber_instance, proto->channel, rx_buffer, sizeof(rx_buffer));
-
-    if (rx_length < (FIBER_PROTO_HEADER_SIZE + FIBER_PROTO_CRC_SIZE)) {
-        proto->stats.length_errors++;
-        return FIBER_PROTO_ERR_LENGTH;
+    // Check for minimum frame size (START + CMD + LEN + CRC = 8 bytes)
+    if (proto->rx_buffer_len < (FIBER_PROTO_HEADER_SIZE + FIBER_PROTO_CRC_SIZE)) {
+        // Not enough data yet - wait for more in next cycle
+        return FIBER_PROTO_ERR_TIMEOUT;
     }
 
     // Check start byte
-    if (rx_buffer[0] != FIBER_PROTO_START_BYTE) {
+    if (proto->rx_buffer[0] != FIBER_PROTO_START_BYTE) {
+        // Invalid start byte - scan for valid start byte
+        bool found_start = false;
+        for (uint16_t i = 1; i < proto->rx_buffer_len; i++) {
+            if (proto->rx_buffer[i] == FIBER_PROTO_START_BYTE) {
+                // Found potential start - shift buffer
+                uint16_t shift_amount = i;
+                memmove(proto->rx_buffer, &proto->rx_buffer[i], proto->rx_buffer_len - i);
+                proto->rx_buffer_len -= shift_amount;
+                found_start = true;
+                break;
+            }
+        }
+
+        if (!found_start) {
+            // No valid start byte found - clear buffer
+            proto->rx_buffer_len = 0;
+        }
+
         proto->stats.length_errors++;
         return FIBER_PROTO_ERR_LENGTH;
     }
 
-    // Extract header
-    // Command (little-endian)
-    *command = ((uint32_t)rx_buffer[1]) | ((uint32_t)rx_buffer[2] << 8) | ((uint32_t)rx_buffer[3] << 16) |
-               ((uint32_t)rx_buffer[4] << 24);
-
-    // Length (number of uint32 words)
-    payload_words = rx_buffer[5];
-    *length = payload_words;
+    // Extract payload length from header (we have at least 8 bytes at this point)
+    payload_words = proto->rx_buffer[5];
 
     // Validate length
     if (payload_words > FIBER_PROTO_MAX_PAYLOAD_WORDS) {
+        // Invalid length - discard frame and resync
+        proto->rx_buffer_len = 0;
         proto->stats.length_errors++;
         return FIBER_PROTO_ERR_LENGTH;
     }
 
+    // Calculate expected frame size
     expected_frame_size = FIBER_PROTO_HEADER_SIZE + (payload_words * 4) + FIBER_PROTO_CRC_SIZE;
-    if (rx_length != expected_frame_size) {
-        proto->stats.length_errors++;
-        return FIBER_PROTO_ERR_LENGTH;
+
+    // Check if we have complete frame
+    if (proto->rx_buffer_len < expected_frame_size) {
+        // Incomplete frame - wait for more data in next cycle
+        return FIBER_PROTO_ERR_TIMEOUT;
     }
+
+    // === Complete frame received - parse it ===
+
+    // Extract command (little-endian)
+    *command = ((uint32_t)proto->rx_buffer[1]) | ((uint32_t)proto->rx_buffer[2] << 8) |
+               ((uint32_t)proto->rx_buffer[3] << 16) | ((uint32_t)proto->rx_buffer[4] << 24);
+
+    *length = payload_words;
 
     // Extract payload (bytes to uint32 array, little-endian)
     uint16_t byte_index = FIBER_PROTO_HEADER_SIZE;
     for (uint8_t i = 0; i < payload_words; i++) {
-        payload[i] = ((uint32_t)rx_buffer[byte_index]) | ((uint32_t)rx_buffer[byte_index + 1] << 8) |
-                     ((uint32_t)rx_buffer[byte_index + 2] << 16) | ((uint32_t)rx_buffer[byte_index + 3] << 24);
+        payload[i] = ((uint32_t)proto->rx_buffer[byte_index]) | ((uint32_t)proto->rx_buffer[byte_index + 1] << 8) |
+                     ((uint32_t)proto->rx_buffer[byte_index + 2] << 16) |
+                     ((uint32_t)proto->rx_buffer[byte_index + 3] << 24);
         byte_index += 4;
     }
 
     // Extract CRC (big-endian)
-    received_crc = ((uint16_t)rx_buffer[byte_index] << 8) | rx_buffer[byte_index + 1];
+    received_crc = ((uint16_t)proto->rx_buffer[byte_index] << 8) | proto->rx_buffer[byte_index + 1];
 
     // Calculate CRC
-    calculated_crc = FiberProto_CalculateCRC16(rx_buffer, FIBER_PROTO_HEADER_SIZE + (payload_words * 4));
+    calculated_crc = FiberProto_CalculateCRC16(proto->rx_buffer, FIBER_PROTO_HEADER_SIZE + (payload_words * 4));
 
     // Verify CRC
     if (calculated_crc != received_crc) {
+        // CRC error - discard frame and clear buffer
+        proto->rx_buffer_len = 0;
         proto->stats.crc_errors++;
         return FIBER_PROTO_ERR_CRC;
+    }
+
+    // Success! Remove processed frame from buffer
+    if (proto->rx_buffer_len > expected_frame_size) {
+        // More data in buffer - shift remaining bytes to start
+        uint16_t remaining = proto->rx_buffer_len - expected_frame_size;
+        memmove(proto->rx_buffer, &proto->rx_buffer[expected_frame_size], remaining);
+        proto->rx_buffer_len = remaining;
+    }
+    else {
+        // Buffer exactly consumed
+        proto->rx_buffer_len = 0;
     }
 
     // Update statistics
