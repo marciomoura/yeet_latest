@@ -106,6 +106,12 @@
             "configuration": "Release"
         },
         {
+            "name": "host-gcc-relwithdebinfo",
+            "displayName": "Host GCC - RelWithDebInfo",
+            "configurePreset": "host-gcc",
+            "configuration": "RelWithDebInfo"
+        },
+        {
             "name": "host-clang-debug",
             "displayName": "Host Clang - Debug",
             "configurePreset": "host-clang",
@@ -116,6 +122,12 @@
             "displayName": "Host Clang - Release",
             "configurePreset": "host-clang",
             "configuration": "Release"
+        },
+        {
+            "name": "host-clang-relwithdebinfo",
+            "displayName": "Host Clang - RelWithDebInfo",
+            "configurePreset": "host-clang",
+            "configuration": "RelWithDebInfo"
         },
         {
             "name": "embedded-disc1-grid-debug",
@@ -130,6 +142,12 @@
             "configuration": "Release"
         },
         {
+            "name": "embedded-disc1-grid-relwithdebinfo",
+            "displayName": "DISC1 Grid - RelWithDebInfo",
+            "configurePreset": "embedded-disc1-grid",
+            "configuration": "RelWithDebInfo"
+        },
+        {
             "name": "embedded-disc1-machine-debug",
             "displayName": "DISC1 Machine - Debug",
             "configurePreset": "embedded-disc1-machine",
@@ -140,6 +158,12 @@
             "displayName": "DISC1 Machine - Release",
             "configurePreset": "embedded-disc1-machine",
             "configuration": "Release"
+        },
+        {
+            "name": "embedded-disc1-machine-relwithdebinfo",
+            "displayName": "DISC1 Machine - RelWithDebInfo",
+            "configurePreset": "embedded-disc1-machine",
+            "configuration": "RelWithDebInfo"
         },
         {
             "name": "embedded-cn-grid-debug",
@@ -154,6 +178,12 @@
             "configuration": "Release"
         },
         {
+            "name": "embedded-cn-grid-relwithdebinfo",
+            "displayName": "CN Grid - RelWithDebInfo",
+            "configurePreset": "embedded-cn-grid",
+            "configuration": "RelWithDebInfo"
+        },
+        {
             "name": "embedded-cn-machine-debug",
             "displayName": "CN Machine - Debug",
             "configurePreset": "embedded-cn-machine",
@@ -164,6 +194,12 @@
             "displayName": "CN Machine - Release",
             "configurePreset": "embedded-cn-machine",
             "configuration": "Release"
+        },
+        {
+            "name": "embedded-cn-machine-relwithdebinfo",
+            "displayName": "CN Machine - RelWithDebInfo",
+            "configurePreset": "embedded-cn-machine",
+            "configuration": "RelWithDebInfo"
         }
     ],
     "testPresets": [

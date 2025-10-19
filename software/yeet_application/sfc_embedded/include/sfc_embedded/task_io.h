@@ -1,11 +1,18 @@
 /**
  * @file task_io.h
- * @brief Structured I/O definitions for embedded control tasks
+ * @brief Generic I/O interface for embedded control tasks
  *
- * This header defines the data structures used to pass inputs and outputs
- * between the HAL layer (C) and the application layer (C++).
+ * This header defines generic data structures for passing inputs and outputs
+ * between the board support layer (hardware drivers in main.c) and the
+ * application layer (SFC control algorithms in C++).
  *
- * @note All structures are designed to be compatible with both C and C++ code.
+ * Design Principles:
+ * - Hardware-agnostic: No dependencies on board-specific drivers
+ * - Const-correct: Tasks receive const inputs (read-only) and writable outputs
+ * - Organized: Nested structs group related interfaces (analog, digital, fiber-optic)
+ * - Generic: Suitable for any control application, not SFC-specific
+ *
+ * @note All structures are C-compatible and can be used from both C and C++ code.
  */
 
 #pragma once
@@ -17,72 +24,218 @@
 extern "C" {
 #endif
 
-/**
- * @brief Input structure for yeet_task_200us (5 kHz control task)
- *
- * Contains ADC measurement data from the current control loop.
- * - AD7606: 8 channels of high-speed 16-bit ADC via FSMC (channels 1-8, but only 1-9 used)
- * - STM32F407ZG-CN: Internal ADC channels IN10-IN13 (PC0-PC3) for 12-bit ADC (channels 10-13)
- * - FPGA: 48 digital inputs via FSMC (debounced)
- *
- * ADC Channel Mapping (1-indexed array, index 0 unused):
- * - adc_channels[1-9]:  AD7606 external ADC (16-bit, ±10V or ±5V range)
- *   [1] = Va   (Phase A Voltage)
- *   [2] = Vb   (Phase B Voltage)
- *   [3] = Vc   (Phase C Voltage)
- *   [4] = Vfd  (Field Voltage)
- *   [5] = Ia   (Phase A Current)
- *   [6] = Ib   (Phase B Current)
- *   [7] = Ic   (Phase C Current)
- *   [8] = Ifd  (Field Current)
- *   [9] = Reserved (not used, maps to AD7606 channel 8)
- *
- * - adc_channels[10-13]: STM32 internal ADC (12-bit, 0-4095 range)
- *   [10] = ADC1_IN10 (PC0)
- *   [11] = ADC1_IN11 (PC1)
- *   [12] = ADC1_IN12 (PC2)
- *   [13] = ADC1_IN13 (PC3)
- */
-typedef struct {
-    /* Unified ADC channels array (1-indexed, index 0 unused) */
-    uint16_t adc_channels[14]; /**< ADC channels 1-13 (index 0 unused for 1-based indexing) */
+/* ============================================================================
+ * Configuration Constants
+ * ============================================================================ */
 
-    /* FPGA Digital Inputs (48 channels, debounced, 5 kHz sampling via FSMC) */
-    struct {
-        bool inputs[48]; /**< Debounced digital input states (DI0-DI47) */
-        bool data_valid; /**< Flag indicating if FPGA input data is valid */
-    } fpga_inputs;
-} task1_inputs_t;
+/** @brief Number of analog input channels (AD7606) */
+#define TASK_IO_NUM_ANALOG_INPUTS 8
+
+/** @brief Number of digital input channels */
+#define TASK_IO_NUM_DIGITAL_INPUTS 16
+
+/** @brief Number of digital output channels */
+#define TASK_IO_NUM_DIGITAL_OUTPUTS 17
+
+/** @brief Maximum number of float payload words in fiber-optic packets */
+#define TASK_IO_FIBER_MAX_PAYLOAD 4
+
+/** @brief Maximum network packet size (bytes) */
+#define TASK_IO_NETWORK_MAX_PACKET_SIZE 1460  // TCP MSS typical size
+
+/* ============================================================================
+ * Real-Time Task Input Structures
+ * ============================================================================ */
 
 /**
- * @brief Output structure for yeet_task_200us (5 kHz control task)
+ * @brief Generic task input structure (real-time tasks)
  *
- * Contains thyristor gate pulse commands and FPGA digital outputs.
- * - STM32F407ZG-CN: GPIO pins PC6-PC9, PB0-PB1 for gate pulses
- * - FPGA: 48 digital outputs via FSMC
+ * Contains all input interfaces available to real-time control tasks:
+ * - Analog inputs: ADC measurements from sensors
+ * - Digital inputs: Debounced discrete signals (buttons, switches, status flags)
+ * - Fiber-optic RX: Inter-board communication data (high-speed, deterministic)
  *
- * Each boolean represents a gate pulse output:
- * - true: Gate pulse active (GPIO HIGH)
- * - false: Gate pulse inactive (GPIO LOW)
+ * Signal Mapping (Application-Specific):
+ * The board support layer (main.c) is responsible for mapping hardware-specific
+ * signals to these generic arrays. Applications define their own semantic meanings.
  *
- * @note Gate pulse outputs are applied atomically using the BSRR register to avoid glitches.
- * @note FPGA outputs are written as a block to FSMC registers.
+ * Example Analog Input Mapping:
+ *   analog_inputs.channels[0] = Phase A voltage
+ *   analog_inputs.channels[1] = Phase B voltage
+ *   analog_inputs.channels[2] = Phase C voltage
+ *   analog_inputs.channels[3] = DC link current
+ *   analog_inputs.channels[4-7] = Application-defined
+ *
+ * Example Digital Input Mapping:
+ *   digital_inputs.signals[0] = Emergency stop button
+ *   digital_inputs.signals[1] = Enable command
+ *   digital_inputs.signals[2] = Fault reset button
+ *   digital_inputs.signals[3-15] = Application-defined
+ *
+ * @note Network I/O is handled separately via network_inputs_t (non-real-time)
  */
 typedef struct {
-    /* Gate pulse outputs (direct GPIO control) */
-    bool pulse_1; /**< Gate pulse 1 (PC6) */
-    bool pulse_2; /**< Gate pulse 2 (PC7) */
-    bool pulse_3; /**< Gate pulse 3 (PC8) */
-    bool pulse_4; /**< Gate pulse 4 (PC9) */
-    bool pulse_5; /**< Gate pulse 5 (PB0) */
-    bool pulse_6; /**< Gate pulse 6 (PB1) */
-
-    /* FPGA Digital Outputs (48 channels, 5 kHz update via FSMC) */
+    /**
+     * @brief Analog input interface (ADC measurements)
+     */
     struct {
-        bool outputs[48];    /**< Digital output states (DO0-DO47) */
-        bool update_outputs; /**< Flag: true = write outputs to FPGA this cycle */
-    } fpga_outputs;
-} task1_outputs_t;
+        uint16_t channels[TASK_IO_NUM_ANALOG_INPUTS]; /**< ADC channel values (raw counts) */
+        bool valid;                                   /**< true = ADC data is valid */
+    } analog_inputs;
+
+    /**
+     * @brief Digital input interface (discrete signals)
+     */
+    struct {
+        bool signals[TASK_IO_NUM_DIGITAL_INPUTS]; /**< Digital input states (true = active) */
+        bool valid;                               /**< true = digital input data is valid */
+    } digital_inputs;
+
+    /**
+     * @brief Fiber-optic receive interface (inter-board communication)
+     */
+    struct {
+        float payload[TASK_IO_FIBER_MAX_PAYLOAD]; /**< Received float data from remote board */
+        uint8_t payload_length;                   /**< Number of valid floats in payload (0-4) */
+        bool data_ready;                          /**< true = new data received this cycle */
+        bool link_ok;                             /**< true = fiber-optic link healthy */
+    } fiber_optic_rx;
+
+} task_inputs_t;
+
+/* ============================================================================
+ * Real-Time Task Output Structures
+ * ============================================================================ */
+
+/**
+ * @brief Generic task output structure (real-time tasks)
+ *
+ * Contains all output interfaces available to real-time control tasks:
+ * - Digital outputs: Status LEDs, relay controls, discrete commands
+ * - Thyristor pulses: Gate firing signals for 3-phase thyristor bridge
+ * - Fiber-optic TX: Inter-board communication data (high-speed, deterministic)
+ *
+ * Signal Mapping (Application-Specific):
+ * The board support layer (main.c) reads these generic outputs and applies
+ * them to hardware-specific drivers.
+ *
+ * Example Digital Output Mapping:
+ *   digital_outputs.signals[0] = Fault indicator LED
+ *   digital_outputs.signals[1] = Running indicator LED
+ *   digital_outputs.signals[2] = Contactor control
+ *   digital_outputs.signals[16] = Communication status LED
+ *   digital_outputs.signals[17] = Heartbeat LED (auto-toggled)
+ *
+ * @note Network I/O is handled separately via network_outputs_t (non-real-time)
+ */
+typedef struct {
+    /**
+     * @brief Digital output interface (discrete signals)
+     */
+    struct {
+        bool signals[TASK_IO_NUM_DIGITAL_OUTPUTS]; /**< Digital output states (true = active) */
+    } digital_outputs;
+
+    /**
+     * @brief Thyristor gate pulse interface (3-phase bridge control)
+     *
+     * Controls six thyristor arms for 3-phase converter:
+     * - Three positive arms (A+, B+, C+)
+     * - Three negative arms (A-, B-, C-)
+     *
+     * @note Pulses are applied directly to GPIO pins by board support layer
+     * @note Application is responsible for commutation logic and safety
+     */
+    struct {
+        bool a_plus;  /**< Phase A positive arm gate pulse */
+        bool c_minus; /**< Phase C negative arm gate pulse */
+        bool b_plus;  /**< Phase B positive arm gate pulse */
+        bool a_minus; /**< Phase A negative arm gate pulse */
+        bool c_plus;  /**< Phase C positive arm gate pulse */
+        bool b_minus; /**< Phase B negative arm gate pulse */
+    } thyristor_pulses;
+
+    /**
+     * @brief Fiber-optic transmit interface (inter-board communication)
+     */
+    struct {
+        float payload[TASK_IO_FIBER_MAX_PAYLOAD]; /**< Float data to transmit to remote board */
+        uint8_t payload_length;                   /**< Number of valid floats to send (0-4) */
+        bool transmit_request;                    /**< true = transmit this cycle */
+    } fiber_optic_tx;
+
+} task_outputs_t;
+
+/* ============================================================================
+ * Non-Real-Time Network Communication Structures
+ * ============================================================================ */
+
+/**
+ * @brief Network input structure (non-real-time communication)
+ *
+ * Handles TCP/IP and UDP communication for supervisory control, diagnostics,
+ * and configuration. This interface is designed for slower, non-deterministic
+ * network protocols and should be processed separately from real-time tasks.
+ *
+ * Usage Pattern:
+ * - Called from main loop or low-priority task (e.g., yeet_network())
+ * - Board support layer polls network controller for incoming data
+ * - Populates rx_buffer when data received
+ * - Application processes command/data
+ * - Responds via network_outputs_t
+ *
+ * Typical Use Cases:
+ * - HMI/SCADA communication
+ * - Remote configuration updates
+ * - Diagnostic data requests
+ * - Parameter tuning
+ * - Fault log retrieval
+ */
+typedef struct {
+    /**
+     * @brief Network receive buffer and metadata
+     */
+    struct {
+        uint8_t rx_buffer[TASK_IO_NETWORK_MAX_PACKET_SIZE]; /**< Received packet data */
+        uint16_t rx_length;                                 /**< Number of bytes received (0 = no data) */
+        bool data_ready;                                    /**< true = new data available */
+        bool tcp_connected;                                 /**< true = TCP connection established */
+        uint8_t socket_id;                                  /**< Socket identifier (0-7 for multi-socket controllers) */
+    } network_rx;
+
+} network_inputs_t;
+
+/**
+ * @brief Network output structure (non-real-time communication)
+ *
+ * Handles TCP/IP and UDP transmission for supervisory responses, status updates,
+ * and diagnostic data. Processed separately from real-time control loops.
+ *
+ * Usage Pattern:
+ * - Application prepares response data in tx_buffer
+ * - Sets tx_length and transmit_request flag
+ * - Board support layer transmits via network controller
+ * - Clears transmit_request after successful send
+ *
+ * Typical Use Cases:
+ * - Status reports to HMI/SCADA
+ * - Diagnostic data responses
+ * - Configuration acknowledgments
+ * - Periodic telemetry updates
+ * - Event notifications
+ */
+typedef struct {
+    /**
+     * @brief Network transmit buffer and metadata
+     */
+    struct {
+        uint8_t tx_buffer[TASK_IO_NETWORK_MAX_PACKET_SIZE]; /**< Data to transmit */
+        uint16_t tx_length;                                 /**< Number of bytes to send */
+        bool transmit_request;                              /**< true = transmit this cycle */
+        uint8_t socket_id;                                  /**< Target socket identifier (0-7 for multi-socket) */
+    } network_tx;
+
+} network_outputs_t;
 
 #ifdef __cplusplus
 }
