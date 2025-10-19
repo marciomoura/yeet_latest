@@ -1,8 +1,25 @@
 /**
  ******************************************************************************
  * @file    digital_ios.c
- * @brief   Digital I/O status monitoring driver implementation
+ * @brief   Generic Digital I/O Driver Implementation
  * @date    2025
+ ******************************************************************************
+ * @attention
+ *
+ * This driver provides generic digital I/O signal handling.
+ * Hardware GPIO mapping:
+ *
+ * Inputs (16 signals):
+ *   digital_input_1..7   -> Row 3, Columns 0-6
+ *   digital_input_8      -> Row 4, Column 1
+ *   digital_input_9..15  -> Row 4, Columns 2-7
+ *   digital_input_16     -> Row 5, Column 0
+ *
+ * Outputs (17 signals):
+ *   digital_output_1..8  -> Byte 1 (Row 0, bits 0-7)
+ *   digital_output_9..16 -> Byte 2 (Row 1, bits 0-7)
+ *   digital_output_17    -> Running indicator (auto-toggled)
+ *
  ******************************************************************************
  */
 
@@ -64,8 +81,6 @@ bool DIO_Init(dio_instance_t* dio, fsmc_gpio_instance_t* gpio_driver)
     dio->initialized = true;
     dio->update_count = 0;
     dio->running_count = 0;
-    dio->do_lock_delay = 0;
-    dio->do_lock_flag = false;
 
     return true;
 }
@@ -86,8 +101,6 @@ void DIO_Reset(dio_instance_t* dio)
     memset(dio->output_data, 0, sizeof(dio->output_data));
 
     dio->running_count = 0;
-    dio->do_lock_delay = 0;
-    dio->do_lock_flag = false;
 }
 
 /* ============================================================================
@@ -213,25 +226,12 @@ void DIO_GetOutputData(const dio_instance_t* dio, uint8_t* buffer)
     memcpy(buffer, dio->output_data, DIO_NUM_OUTPUT_BYTES);
 }
 
-/**
- * @brief Set output lock
- */
-void DIO_SetOutputLock(dio_instance_t* dio, int16_t delay_cycles)
-{
-    if (dio == NULL) {
-        return;
-    }
-
-    dio->do_lock_delay = delay_cycles;
-    dio->do_lock_flag = (delay_cycles > 0);
-}
-
 /* ============================================================================
  * Private Function Implementations - Input Processing
  * ============================================================================ */
 
 /**
- * @brief Process digital input byte 1
+ * @brief Process digital input byte 1 (inputs 1-8)
  */
 static void DIO_ProcessInputByte1(dio_instance_t* dio)
 {
@@ -239,36 +239,34 @@ static void DIO_ProcessInputByte1(dio_instance_t* dio)
         return;
     }
 
-    // Read individual arm fuse flags from hardware GPIO inputs
-    for (int i = 0; i < 6; i++) {
-        dio->inputs.arm_fuse_flag[i] = GET_DI_DEBOUNCED(dio, 3, i);
-    }
+    // Map hardware inputs to generic input signals
+    // Inputs 1-7: Row 3, Columns 0-6
+    dio->inputs.digital_input_1 = GET_DI_DEBOUNCED(dio, 3, 0);
+    dio->inputs.digital_input_2 = GET_DI_DEBOUNCED(dio, 3, 1);
+    dio->inputs.digital_input_3 = GET_DI_DEBOUNCED(dio, 3, 2);
+    dio->inputs.digital_input_4 = GET_DI_DEBOUNCED(dio, 3, 3);
+    dio->inputs.digital_input_5 = GET_DI_DEBOUNCED(dio, 3, 4);
+    dio->inputs.digital_input_6 = GET_DI_DEBOUNCED(dio, 3, 5);
+    dio->inputs.digital_input_7 = GET_DI_DEBOUNCED(dio, 3, 6);
 
-    // Combine all 6 arm fuse flags
-    dio->inputs.fuse_flag = dio->inputs.arm_fuse_flag[0] | dio->inputs.arm_fuse_flag[1] | dio->inputs.arm_fuse_flag[2] |
-                            dio->inputs.arm_fuse_flag[3] | dio->inputs.arm_fuse_flag[4] | dio->inputs.arm_fuse_flag[5];
+    // Input 8: Row 4, Column 1 (with inverted logic)
+    dio->inputs.digital_input_8 = (GET_DI_DEBOUNCED(dio, 4, 1) == 0);
 
-    // Temperature status (inverted logic: 1=OK, 0=Fault)
-    dio->inputs.over_temperature_flag = (GET_DI_DEBOUNCED(dio, 4, 1) == 0);
-
-    // Direct mapped inputs
-    dio->inputs.fan_flag = GET_DI_DEBOUNCED(dio, 4, 2);
-    dio->inputs.ref_up_flag = (1 - GET_DI_DEBOUNCED(dio, 4, 5));
-    dio->inputs.ref_down_flag = (1 - GET_DI_DEBOUNCED(dio, 4, 6));
-    dio->inputs.stop_command = (1 - GET_DI_DEBOUNCED(dio, 4, 7));
-
-    // Pack into communication byte
-    uint8_t di_temp = dio->inputs.fuse_flag;
-    for (int i = 1; i < 8; i++) {
-        if (GET_DI_DEBOUNCED(dio, 4, i)) {
-            di_temp |= (1 << i);
-        }
-    }
+    // Pack into communication byte 1
+    uint8_t di_temp = 0;
+    di_temp |= (dio->inputs.digital_input_1 << 0);
+    di_temp |= (dio->inputs.digital_input_2 << 1);
+    di_temp |= (dio->inputs.digital_input_3 << 2);
+    di_temp |= (dio->inputs.digital_input_4 << 3);
+    di_temp |= (dio->inputs.digital_input_5 << 4);
+    di_temp |= (dio->inputs.digital_input_6 << 5);
+    di_temp |= (dio->inputs.digital_input_7 << 6);
+    di_temp |= (dio->inputs.digital_input_8 << 7);
     dio->input_data[0] = di_temp;
 }
 
 /**
- * @brief Process digital input byte 2
+ * @brief Process digital input byte 2 (inputs 9-16)
  */
 static void DIO_ProcessInputByte2(dio_instance_t* dio)
 {
@@ -276,22 +274,29 @@ static void DIO_ProcessInputByte2(dio_instance_t* dio)
         return;
     }
 
-    // Breaker status from GPIO input
-    dio->inputs.breaker_flag = GET_DI_DEBOUNCED(dio, 5, 0);
+    // Map hardware inputs to generic input signals
+    // Inputs 9-15: Row 4, Columns 2-7 (with inverted logic for some)
+    dio->inputs.digital_input_9 = GET_DI_DEBOUNCED(dio, 4, 2);
+    dio->inputs.digital_input_10 = GET_DI_DEBOUNCED(dio, 4, 3);
+    dio->inputs.digital_input_11 = GET_DI_DEBOUNCED(dio, 4, 4);
+    dio->inputs.digital_input_12 = (1 - GET_DI_DEBOUNCED(dio, 4, 5));  // Inverted
+    dio->inputs.digital_input_13 = (1 - GET_DI_DEBOUNCED(dio, 4, 6));  // Inverted
+    dio->inputs.digital_input_14 = (1 - GET_DI_DEBOUNCED(dio, 4, 7));  // Inverted
 
-    // Pulse enabled flag from GPIO input
-    dio->inputs.pulse_enabled_flag = GET_DI_DEBOUNCED(dio, 5, 1);
+    // Input 16: Row 5, Column 0
+    dio->inputs.digital_input_15 = GET_DI_DEBOUNCED(dio, 5, 0);
+    dio->inputs.digital_input_16 = GET_DI_DEBOUNCED(dio, 5, 1);
 
-    // Pulse power supply fault
-    dio->inputs.pulse_power_flag = GET_DI_DEBOUNCED(dio, 5, 2);
-
-    // Pack into communication byte
-    uint8_t di_temp = dio->inputs.pulse_enabled_flag;
-    for (int i = 1; i < 8; i++) {
-        if (GET_DI_DEBOUNCED(dio, 5, i)) {
-            di_temp |= (1 << i);
-        }
-    }
+    // Pack into communication byte 2
+    uint8_t di_temp = 0;
+    di_temp |= (dio->inputs.digital_input_9 << 0);
+    di_temp |= (dio->inputs.digital_input_10 << 1);
+    di_temp |= (dio->inputs.digital_input_11 << 2);
+    di_temp |= (dio->inputs.digital_input_12 << 3);
+    di_temp |= (dio->inputs.digital_input_13 << 4);
+    di_temp |= (dio->inputs.digital_input_14 << 5);
+    di_temp |= (dio->inputs.digital_input_15 << 6);
+    di_temp |= (dio->inputs.digital_input_16 << 7);
     dio->input_data[1] = di_temp;
 }
 
@@ -300,7 +305,7 @@ static void DIO_ProcessInputByte2(dio_instance_t* dio)
  * ============================================================================ */
 
 /**
- * @brief Map status flags to output byte 1
+ * @brief Map output flags to byte 1 (outputs 1-8)
  */
 static void DIO_MapOutputByte1(dio_instance_t* dio)
 {
@@ -308,27 +313,29 @@ static void DIO_MapOutputByte1(dio_instance_t* dio)
         return;
     }
 
-    uint8_t do_temp = dio->outputs.scr_error_flag;
-
-    if (dio->outputs.fuse_flag) do_temp |= 0x02;
-    if (dio->outputs.fan_on_flag) do_temp |= 0x04;
-    if (dio->outputs.sec_a_flag || dio->outputs.syn_a_err_flag) do_temp |= 0x08;
-    if (dio->outputs.sec_b_flag || dio->outputs.syn_b_err_flag) do_temp |= 0x10;
-    if (dio->outputs.sec_c_flag || dio->outputs.syn_c_err_flag) do_temp |= 0x20;
-
+    // Pack output byte 1
+    uint8_t do_temp = 0;
+    do_temp |= (dio->outputs.digital_output_1 << 0);
+    do_temp |= (dio->outputs.digital_output_2 << 1);
+    do_temp |= (dio->outputs.digital_output_3 << 2);
+    do_temp |= (dio->outputs.digital_output_4 << 3);
+    do_temp |= (dio->outputs.digital_output_5 << 4);
+    do_temp |= (dio->outputs.digital_output_6 << 5);
+    do_temp |= (dio->outputs.digital_output_7 << 6);
+    do_temp |= (dio->outputs.digital_output_8 << 7);
     dio->output_data[0] = do_temp;
 
-    // Map to hardware GPIO driver outputs
-    SET_DO(dio, 0, 0, dio->outputs.scr_error_flag);
-    SET_DO(dio, 0, 1, dio->outputs.fuse_flag);
-    SET_DO(dio, 0, 2, dio->outputs.fan_on_flag);
-    SET_DO(dio, 0, 3, dio->outputs.sec_a_flag || dio->outputs.syn_a_err_flag);
-    SET_DO(dio, 0, 4, dio->outputs.sec_b_flag || dio->outputs.syn_b_err_flag);
-    SET_DO(dio, 0, 5, dio->outputs.sec_c_flag || dio->outputs.syn_c_err_flag);
-    SET_DO(dio, 0, 6, 0);
-    SET_DO(dio, 0, 7, 0);
+    // Map to hardware GPIO driver outputs (Row 0)
+    SET_DO(dio, 0, 0, dio->outputs.digital_output_1);
+    SET_DO(dio, 0, 1, dio->outputs.digital_output_2);
+    SET_DO(dio, 0, 2, dio->outputs.digital_output_3);
+    SET_DO(dio, 0, 3, dio->outputs.digital_output_4);
+    SET_DO(dio, 0, 4, dio->outputs.digital_output_5);
+    SET_DO(dio, 0, 5, dio->outputs.digital_output_6);
+    SET_DO(dio, 0, 6, dio->outputs.digital_output_7);
+    SET_DO(dio, 0, 7, dio->outputs.digital_output_8);
 
-    // Copy to extended bank
+    // Copy to extended bank (Row 4)
     for (int i = 0; i < 8; i++) {
         uint8_t val = FSMC_GPIO_GetOutput(dio->gpio_driver, 0, i);
         SET_DO(dio, 4, i, val);
@@ -336,7 +343,7 @@ static void DIO_MapOutputByte1(dio_instance_t* dio)
 }
 
 /**
- * @brief Map status flags to output byte 2
+ * @brief Map output flags to byte 2 (outputs 9-16)
  */
 static void DIO_MapOutputByte2(dio_instance_t* dio)
 {
@@ -344,27 +351,27 @@ static void DIO_MapOutputByte2(dio_instance_t* dio)
         return;
     }
 
-    uint8_t do_temp = dio->outputs.rom_flag;
-
-    if (dio->inputs.arm_fuse_flag[5]) do_temp |= 0x02;
-    if (dio->inputs.arm_fuse_flag[4]) do_temp |= 0x04;
-    if (dio->inputs.arm_fuse_flag[3]) do_temp |= 0x08;
-    if (dio->inputs.arm_fuse_flag[2]) do_temp |= 0x10;
-    if (dio->inputs.arm_fuse_flag[1]) do_temp |= 0x20;
-    if (dio->inputs.arm_fuse_flag[0]) do_temp |= 0x40;
-    if (dio->outputs.scr_exit_flag) do_temp |= 0x80;
-
+    // Pack output byte 2
+    uint8_t do_temp = 0;
+    do_temp |= (dio->outputs.digital_output_9 << 0);
+    do_temp |= (dio->outputs.digital_output_10 << 1);
+    do_temp |= (dio->outputs.digital_output_11 << 2);
+    do_temp |= (dio->outputs.digital_output_12 << 3);
+    do_temp |= (dio->outputs.digital_output_13 << 4);
+    do_temp |= (dio->outputs.digital_output_14 << 5);
+    do_temp |= (dio->outputs.digital_output_15 << 6);
+    do_temp |= (dio->outputs.digital_output_16 << 7);
     dio->output_data[1] = do_temp;
 
-    // Map to hardware GPIO driver
-    SET_DO(dio, 1, 0, dio->outputs.rom_flag);
-    SET_DO(dio, 1, 1, dio->inputs.arm_fuse_flag[5]);
-    SET_DO(dio, 1, 2, dio->inputs.arm_fuse_flag[4]);
-    SET_DO(dio, 1, 3, dio->inputs.arm_fuse_flag[3]);
-    SET_DO(dio, 1, 4, dio->inputs.arm_fuse_flag[2]);
-    SET_DO(dio, 1, 5, dio->inputs.arm_fuse_flag[1]);
-    SET_DO(dio, 1, 6, dio->inputs.arm_fuse_flag[0]);
-    SET_DO(dio, 1, 7, dio->outputs.scr_exit_flag);
+    // Map to hardware GPIO driver (Row 1)
+    SET_DO(dio, 1, 0, dio->outputs.digital_output_9);
+    SET_DO(dio, 1, 1, dio->outputs.digital_output_10);
+    SET_DO(dio, 1, 2, dio->outputs.digital_output_11);
+    SET_DO(dio, 1, 3, dio->outputs.digital_output_12);
+    SET_DO(dio, 1, 4, dio->outputs.digital_output_13);
+    SET_DO(dio, 1, 5, dio->outputs.digital_output_14);
+    SET_DO(dio, 1, 6, dio->outputs.digital_output_15);
+    SET_DO(dio, 1, 7, dio->outputs.digital_output_16);
 }
 
 /**
@@ -376,24 +383,14 @@ static void DIO_MapOutputByte3(dio_instance_t* dio)
         return;
     }
 
-    uint8_t do_temp = 0;  // Optical communication status would go here if available
-
-    if (dio->outputs.low_f_flag) do_temp |= 0x10;
-    if (dio->outputs.over_ex_flag) do_temp |= 0x20;
-    if (dio->outputs.pt_break_flag) do_temp |= 0x40;
-    if (dio->outputs.standby_flag) do_temp |= 0x80;
+    uint8_t do_temp = 0;  // Reserved for future expansion
 
     dio->output_data[2] = do_temp;
 
-    // Map to hardware GPIO driver
-    SET_DO(dio, 2, 0, 0);  // Optical_Comm_Status[0] bits would go here
-    SET_DO(dio, 2, 1, 0);
-    SET_DO(dio, 2, 2, 0);  // Optical_Comm_Status[1] bits would go here
-    SET_DO(dio, 2, 3, 0);
-    SET_DO(dio, 2, 4, dio->outputs.low_f_flag);
-    SET_DO(dio, 2, 5, dio->outputs.over_ex_flag);
-    SET_DO(dio, 2, 6, dio->outputs.pt_break_flag);
-    SET_DO(dio, 2, 7, dio->outputs.standby_flag);
+    // Map to hardware GPIO driver (all zeros for now)
+    for (int i = 0; i < 8; i++) {
+        SET_DO(dio, 2, i, 0);
+    }
 }
 
 /**
@@ -405,15 +402,8 @@ static void DIO_MapOutputByte4(dio_instance_t* dio)
         return;
     }
 
-    uint8_t do_temp = 0;
-
-    // Online source information would be provided from external system
-    // For now, use the online_flag from outputs
-    if (dio->outputs.online_flag) {
-        do_temp = 0x01;  // Default to source 0 if online
-    }
-
-    dio->output_data[3] = do_temp;
+    // Reserved for future expansion
+    dio->output_data[3] = 0;
 }
 
 /**
@@ -453,17 +443,8 @@ static void DIO_MapOutputByte8(dio_instance_t* dio)
         return;
     }
 
-    uint8_t do_temp = 0;
-    int j = 1;
-
-    for (int i = 0; i < 6; i++) {
-        j <<= 1;
-        if (dio->inputs.arm_fuse_flag[i]) {
-            do_temp |= j;
-        }
-    }
-
-    dio->output_data[7] = do_temp;
+    // Reserved for future expansion
+    dio->output_data[7] = 0;
 }
 
 /* ============================================================================
@@ -471,7 +452,7 @@ static void DIO_MapOutputByte8(dio_instance_t* dio)
  * ============================================================================ */
 
 /**
- * @brief Update running indicator LED
+ * @brief Update running indicator LED (digital_output_17)
  */
 static void DIO_UpdateRunningIndicator(dio_instance_t* dio)
 {
@@ -481,51 +462,6 @@ static void DIO_UpdateRunningIndicator(dio_instance_t* dio)
 
     if (++dio->running_count >= DIO_RUNNING_TOGGLE_CYCLES) {
         dio->running_count = 0;
-        dio->outputs.running_flag = !dio->outputs.running_flag;
+        dio->outputs.digital_output_17 = !dio->outputs.digital_output_17;
     }
-}
-
-/**
- * @brief Update digital output lock status
- */
-static void DIO_UpdateOutputLock(dio_instance_t* dio)
-{
-    if (dio == NULL) {
-        return;
-    }
-
-    if (dio->do_lock_delay > 0) {
-        dio->do_lock_delay--;
-        if (dio->do_lock_delay <= 0) {
-            dio->do_lock_delay = 0;
-            dio->do_lock_flag = false;
-        }
-    }
-}
-
-/* ============================================================================
- * Private Function Implementations - Legacy Compatibility
- * ============================================================================ */
-
-/* ============================================================================
- * Legacy Function Implementations (preserved for backward compatibility)
- * ============================================================================ */
-
-/**
- * @brief Legacy DIDO update function
- * @note Preserved for backward compatibility with existing code
- */
-void DIDO(void)
-{
-    static fsmc_gpio_instance_t legacy_gpio = {.initialized = false};
-    static dio_instance_t legacy_dio = {.initialized = false};
-
-    // Initialize on first call
-    if (!legacy_dio.initialized) {
-        FSMC_GPIO_Init(&legacy_gpio);
-        DIO_Init(&legacy_dio, &legacy_gpio);
-    }
-
-    // Perform update cycle
-    DIO_Update(&legacy_dio);
 }

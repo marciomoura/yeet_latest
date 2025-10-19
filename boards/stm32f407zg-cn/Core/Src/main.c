@@ -417,7 +417,7 @@ void task_1ms(void)
     // ===== Control Algorithm Integration Point =====
     // At this point, you have:
     // - fiber_rx_payload[]: Data from remote board via fiber-optic
-    // - digital_inputs->*: Hardware input flags (fuses, breakers, commands, etc.)
+    // - digital_inputs->*: Generic hardware input flags (application-defined mapping)
     // TODO: Implement your control algorithm here
     // Example: Process ADC data, remote data, and digital inputs to generate control outputs
 
@@ -425,11 +425,17 @@ void task_1ms(void)
     if (system_status.fsmc_gpio_ok && dio_instance.initialized) {
         dio_output_flags_t digital_outputs = {0};
 
-        // TODO: Set output flags based on system state
-        digital_outputs.running_flag = true;                                // System running
-        digital_outputs.online_flag = !fiber_status.communication_timeout;  // Communication status
-        // digital_outputs.scr_error_flag = thyristor_fault_detected;
-        // digital_outputs.fan_on_flag = (digital_inputs && digital_inputs->over_temperature_flag);
+        // TODO: Map your application outputs to generic digital outputs
+        // Example mappings (application-specific):
+        //   digital_output_1  = SCR/thyristor error flag
+        //   digital_output_2  = Fuse fault
+        //   digital_output_3  = Fan on status
+        //   digital_output_16 = Online/communication status
+        //   digital_output_17 = Running heartbeat (auto-toggled by driver)
+
+        digital_outputs.digital_output_16 = !fiber_status.communication_timeout;  // Online status
+        // digital_outputs.digital_output_1 = thyristor_fault_detected;
+        // digital_outputs.digital_output_3 = (digital_inputs && digital_inputs->digital_input_8);  // Fan control
 
         DIO_SetOutputFlags(&dio_instance, &digital_outputs);
         DIO_WriteOutputs(&dio_instance);

@@ -1,19 +1,21 @@
 /**
  ******************************************************************************
  * @file    digital_ios.h
- * @brief   Digital I/O status monitoring driver for STM32F407
+ * @brief   Generic Digital I/O Driver for STM32F407
  * @date    2025
  ******************************************************************************
  * @attention
  *
  * Digital I/O Configuration:
- * - Input monitoring: Fuses, temperature, breaker, fan status
- * - Output control: SCR errors, sync faults, optical communication status
- * - Debounce filtering for reliable input reading
- * - Status flag mapping for external monitoring equipment
+ * - 16 generic digital inputs (application-defined mapping)
+ * - 17 generic digital outputs (application-defined mapping)
+ * - Hardware debounce filtering for reliable input reading
+ * - Automatic heartbeat indicator on output 17
  *
- * This module provides application-specific interpretation of hardware GPIO
- * signals. It uses the FSMC GPIO driver for low-level hardware access.
+ * This module provides a generic hardware abstraction for digital I/O signals.
+ * It uses the FSMC GPIO driver for low-level hardware access. Applications
+ * should map the generic signals (digital_input_1, digital_output_1, etc.) to
+ * their specific use cases.
  *
  ******************************************************************************
  */
@@ -35,20 +37,17 @@ extern "C" {
  * Configuration Constants
  * ============================================================================ */
 
-/** @brief Number of digital input bytes */
+/** @brief Number of digital input signals */
+#define DIO_NUM_INPUTS 16
+
+/** @brief Number of digital output signals */
+#define DIO_NUM_OUTPUTS 17
+
+/** @brief Number of digital input bytes (for communication) */
 #define DIO_NUM_INPUT_BYTES 2
 
-/** @brief Number of digital output bytes */
+/** @brief Number of digital output bytes (for communication) */
 #define DIO_NUM_OUTPUT_BYTES 8
-
-/** @brief Number of bits per byte */
-#define DIO_BITS_PER_BYTE 8
-
-/** @brief Number of fuse arms monitored */
-#define DIO_NUM_FUSE_ARMS 6
-
-/** @brief Number of optical communication channels */
-#define DIO_NUM_OPTICAL_CHANNELS 8
 
 /** @brief Running indicator toggle rate (cycles) */
 #define DIO_RUNNING_TOGGLE_CYCLES 100
@@ -58,42 +57,50 @@ extern "C" {
  * ============================================================================ */
 
 /**
- * @brief Digital input flags structure
+ * @brief Digital input signals structure
+ * @note  Generic signal names - application maps these to specific functions
  */
 typedef struct {
-    bool fuse_flag;             /**< Combined fuse status (any arm) */
-    bool arm_fuse_flag[6];      /**< Individual arm fuse flags */
-    bool over_temperature_flag; /**< Over temperature fault */
-    bool fan_flag;              /**< Cooling fan status */
-    bool ref_up_flag;           /**< Reference up command */
-    bool ref_down_flag;         /**< Reference down command */
-    bool stop_command;          /**< Stop command */
-    bool pulse_enabled_flag;    /**< Pulse enable state */
-    bool breaker_flag;          /**< Circuit breaker status */
-    bool pulse_power_flag;      /**< Pulse power supply fault */
+    bool digital_input_1;  /**< Digital input 1 */
+    bool digital_input_2;  /**< Digital input 2 */
+    bool digital_input_3;  /**< Digital input 3 */
+    bool digital_input_4;  /**< Digital input 4 */
+    bool digital_input_5;  /**< Digital input 5 */
+    bool digital_input_6;  /**< Digital input 6 */
+    bool digital_input_7;  /**< Digital input 7 */
+    bool digital_input_8;  /**< Digital input 8 */
+    bool digital_input_9;  /**< Digital input 9 */
+    bool digital_input_10; /**< Digital input 10 */
+    bool digital_input_11; /**< Digital input 11 */
+    bool digital_input_12; /**< Digital input 12 */
+    bool digital_input_13; /**< Digital input 13 */
+    bool digital_input_14; /**< Digital input 14 */
+    bool digital_input_15; /**< Digital input 15 */
+    bool digital_input_16; /**< Digital input 16 */
 } dio_input_flags_t;
 
 /**
- * @brief Digital output flags structure
+ * @brief Digital output signals structure
+ * @note  Generic signal names - application maps these to specific functions
  */
 typedef struct {
-    bool scr_error_flag; /**< SCR (thyristor) error */
-    bool fuse_flag;      /**< Fuse fault */
-    bool fan_on_flag;    /**< Fan on status */
-    bool sec_a_flag;     /**< Phase A secondary fault */
-    bool sec_b_flag;     /**< Phase B secondary fault */
-    bool sec_c_flag;     /**< Phase C secondary fault */
-    bool syn_a_err_flag; /**< Phase A sync error */
-    bool syn_b_err_flag; /**< Phase B sync error */
-    bool syn_c_err_flag; /**< Phase C sync error */
-    bool rom_flag;       /**< ROM/Flash memory status */
-    bool scr_exit_flag;  /**< SCR exit flag */
-    bool low_f_flag;     /**< Low frequency flag */
-    bool over_ex_flag;   /**< Over excitation flag */
-    bool pt_break_flag;  /**< PT (potential transformer) disconnection */
-    bool standby_flag;   /**< Standby mode flag */
-    bool online_flag;    /**< Online communication active */
-    bool running_flag;   /**< System running heartbeat */
+    bool digital_output_1;  /**< Digital output 1 */
+    bool digital_output_2;  /**< Digital output 2 */
+    bool digital_output_3;  /**< Digital output 3 */
+    bool digital_output_4;  /**< Digital output 4 */
+    bool digital_output_5;  /**< Digital output 5 */
+    bool digital_output_6;  /**< Digital output 6 */
+    bool digital_output_7;  /**< Digital output 7 */
+    bool digital_output_8;  /**< Digital output 8 */
+    bool digital_output_9;  /**< Digital output 9 */
+    bool digital_output_10; /**< Digital output 10 */
+    bool digital_output_11; /**< Digital output 11 */
+    bool digital_output_12; /**< Digital output 12 */
+    bool digital_output_13; /**< Digital output 13 */
+    bool digital_output_14; /**< Digital output 14 */
+    bool digital_output_15; /**< Digital output 15 */
+    bool digital_output_16; /**< Digital output 16 */
+    bool digital_output_17; /**< Digital output 17 (running heartbeat) */
 } dio_output_flags_t;
 
 /**
@@ -106,8 +113,6 @@ typedef struct {
     uint8_t input_data[DIO_NUM_INPUT_BYTES];   /**< Raw input data bytes */
     uint8_t output_data[DIO_NUM_OUTPUT_BYTES]; /**< Raw output data bytes */
     uint16_t running_count;                    /**< Running indicator counter */
-    int16_t do_lock_delay;                     /**< Output lock delay counter */
-    bool do_lock_flag;                         /**< Output lock flag */
     bool initialized;                          /**< Initialization flag */
     uint32_t update_count;                     /**< Total updates performed */
 } dio_instance_t;
@@ -211,37 +216,6 @@ void DIO_GetInputData(const dio_instance_t* dio, uint8_t* buffer);
  * @param buffer Buffer to store output bytes (must have space for DIO_NUM_OUTPUT_BYTES)
  */
 void DIO_GetOutputData(const dio_instance_t* dio, uint8_t* buffer);
-
-/**
- * @brief Set output lock (prevents output updates)
- * @param dio Pointer to DIO instance
- * @param delay_cycles Number of cycles to lock outputs
- */
-void DIO_SetOutputLock(dio_instance_t* dio, int16_t delay_cycles);
-
-/**
- * @brief Check if outputs are locked
- * @param dio Pointer to DIO instance
- * @retval true if outputs are locked
- * @retval false if outputs are not locked
- */
-static inline bool DIO_IsOutputLocked(const dio_instance_t* dio)
-{
-    if (dio == NULL) {
-        return false;
-    }
-    return dio->do_lock_flag;
-}
-
-/* ============================================================================
- * Legacy Function Prototypes (backward compatibility)
- * ============================================================================ */
-
-/**
- * @brief Legacy DIDO update function
- * @note Preserved for backward compatibility with existing code
- */
-void DIDO(void);
 
 #ifdef __cplusplus
 }
