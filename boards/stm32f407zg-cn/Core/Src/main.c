@@ -1,13 +1,13 @@
-#include "adc.h"  // AD7606 ADC driver
-#include "dac.h"  // AD5724 DAC driver
-#include "driver_init.h"
+#include "adc.h"                    // AD7606 ADC driver
+#include "dac.h"                    // AD5724 DAC driver
+#include "driver_init.h"            // Driver initialization functions
 #include "fiber_optic.h"            // Fiber-optic communication driver
 #include "fiber_protocol.h"         // Fiber-optic protocol layer
 #include "network_config_helper.h"  // Network configuration helpers
-#include "stm32f4xx.h"
-#include "tasks.h"
-#include "thyristor_control.h"
-#include "w5200_driver.h"  // New W5200 driver
+#include "stm32f4xx.h"              // STM32F4xx HAL
+#include "tasks.h"                  // 200us, 1ms, 10ms task prototypes
+#include "thyristor_control.h"      // Thyristor control driver
+#include "w5200_driver.h"           // New W5200 driver
 
 /* Network Configuration Flags --------------------------------------------- */
 /**
@@ -57,7 +57,18 @@ typedef struct {
     bool network_ok;      ///< W5200 network initialized
 } system_status_t;
 
+/**
+ * @brief Runtime status for fiber-optic communication
+ * Used to track communication health and control LED indicators
+ */
+typedef struct {
+    bool communication_timeout;  ///< True if no valid packets received within timeout (10ms)
+    bool communication_stable;   ///< True if stable communication for 5s (clears FAULT LED)
+    uint32_t last_rx_time_ms;    ///< Timestamp of last valid packet received
+} fiber_runtime_status_t;
+
 static system_status_t system_status = {0};
+static fiber_runtime_status_t fiber_status = {0};
 
 /**
  * @brief FSMC GPIO driver instance (for LEDs and digital I/O via FSMC Bank 4)
@@ -89,8 +100,14 @@ fiber_optic_instance_t fiber_optic_instance = {0};
  */
 fiber_proto_instance_t fiber_proto_instance = {0};
 
-// Convert uint32 payload to floats
-static float remote_values[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};
+/**
+ * @brief Fiber-optic communication payload buffers
+ * These buffers store the latest TX/RX payload data for integration with control logic
+ */
+static float fiber_tx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< TX payload (from control logic)
+static float fiber_rx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< RX payload (to control logic)
+static uint8_t fiber_rx_length = 0;                                  ///< Number of floats received
+static bool fiber_rx_data_ready = false;                             ///< New data available flag
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -164,45 +181,171 @@ void task_200us(void)
     static bool first_run = true;
 
     // Pipeline operation: Read previous conversion, then start next
-    if (!first_run) {
-        // Read the conversion that was started in the previous cycle
-        AD7606_Read(&ad7606_instance, &adc_reading);
-
-        // TODO: Use adc_reading.raw[0..7] for control algorithm
-        // Example: Access individual channels
-        // uint16_t current_a = adc_reading.raw[0];
-        // uint16_t current_b = adc_reading.raw[1];
-        // uint16_t voltage   = adc_reading.raw[2];
-
-        // TODO: Implement thyristor firing control based on ADC data
-        // For now, all thyristors off
-        set_thyristor_pulses(false, false, false, false, false, false);
+    if (first_run) {
+        first_run = false;  // Skip read on first run (no prior conversion)
+        // Start conversion for next cycle (takes ~5µs)
+        AD7606_StartConversion(&ad7606_instance);
+        return;
     }
-    else {
-        first_run = false;
-    }
+
+    // Read the conversion that was started in the previous cycle
+    AD7606_Read(&ad7606_instance, &adc_reading);
+
+    // TODO: Use adc_reading.raw[0..7] for control algorithm
+    // Example: Access individual channels
+    // uint16_t current_a = adc_reading.raw[0];
+    // uint16_t current_b = adc_reading.raw[1];
+    // uint16_t voltage   = adc_reading.raw[2];
+
+    // TODO: Implement thyristor firing control based on ADC data
+    // For now, all thyristors off
+    set_thyristor_pulses(false, false, false, false, false, false);
 
     // Start conversion for next cycle (takes ~5µs)
     AD7606_StartConversion(&ad7606_instance);
 }
 
-#define LOGGER_COMMUNICATION_LENGTH 128
-static uint32_t log_communication_counter = 0;
-static bool log_communication_state[LOGGER_COMMUNICATION_LENGTH] = {0};  // To avoid log flooding
+/**
+ * @brief Fiber-optic communication timeout configuration
+ */
+#define FIBER_RX_TIMEOUT_MS      10    ///< Communication timeout (10ms) - triggers ALARM LED
+#define FIBER_STABLE_DURATION_MS 5000  ///< Stability duration (5s) - clears FAULT LED after stable comms
 
 /**
- * @brief  1ms periodic task - Fast control loop and DAC output
+ * @brief  Get TX payload pointer for control logic to populate
+ * @note   Call this before task_1ms to prepare outgoing data
+ * @retval Pointer to TX payload buffer (FIBER_PROTO_MAX_PAYLOAD_WORDS floats)
+ */
+float* FiberComm_GetTxPayloadBuffer(void) { return fiber_tx_payload; }
+
+/**
+ * @brief  Get RX payload data received from remote board
+ * @param  payload_out: Buffer to copy received data (min FIBER_PROTO_MAX_PAYLOAD_WORDS floats)
+ * @param  length_out: Pointer to store number of floats received
+ * @retval true if new data available, false if no new data since last call
+ */
+bool FiberComm_GetRxPayload(float* payload_out, uint8_t* length_out)
+{
+    if (!fiber_rx_data_ready) {
+        return false;
+    }
+
+    // Copy data to output buffer
+    for (uint8_t i = 0; i < fiber_rx_length; i++) {
+        payload_out[i] = fiber_rx_payload[i];
+    }
+    *length_out = fiber_rx_length;
+
+    // Clear ready flag
+    fiber_rx_data_ready = false;
+
+    return true;
+}
+
+/**
+ * @brief  1ms periodic task - Fast control loop and fiber-optic communication
  * @note   Called from TIM4 ISR at 1 kHz rate (every 1 millisecond)
- *         Updates DAC outputs based on control algorithm
+ *
+ * Execution Order:
+ * 1. Fiber-Optic RX: Receive data from remote board (needed for control algorithm)
+ * 2. Control Algorithm: Process data and compute outputs
+ * 3. Fiber-Optic TX: Transmit control outputs to remote board
+ *
+ * Integration Points:
+ * - fiber_rx_payload[]: Contains data from remote board (updated at start of task)
+ * - fiber_tx_payload[]: Populate with control outputs (before TX at end of task)
+ *
+ * Runtime Status:
+ * - Updates fiber_status structure for LED management in 10ms task
+ * - fiber_status.communication_timeout: Set when >10ms without valid packets
+ * - fiber_status.communication_stable: Set after 5s of continuous valid communication
  */
 void task_1ms(void)
 {
+    // ===== Fiber-Optic RX: Receive data FIRST (before control algorithm) =====
+    if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
+        // State tracking
+        static uint32_t first_valid_rx_time_ms = 0;
+        static bool first_cycle = true;
+
+        // Get current time once per cycle
+        uint32_t current_time_ms = get_1ms_counter();
+
+        // Initialize on first cycle to avoid false timeout
+        if (first_cycle) {
+            fiber_status.last_rx_time_ms = current_time_ms;
+            first_cycle = false;
+        }
+
+        // ===== RX: Receive payload from remote board =====
+        uint32_t rx_command;
+        uint32_t rx_payload_words[FIBER_PROTO_MAX_PAYLOAD_WORDS];
+        uint8_t rx_length;
+
+        fiber_proto_error_t rx_status =
+            FiberProto_ReceivePacket(&fiber_proto_instance, &rx_command, rx_payload_words, &rx_length);
+
+        if (rx_status == FIBER_PROTO_OK) {
+            // Valid frame received - parse payload into fiber_rx_payload[]
+            FiberProto_ParseFloats(rx_payload_words, rx_length, fiber_rx_payload, rx_length);
+            fiber_rx_length = rx_length;
+            fiber_rx_data_ready = true;
+
+            // TODO: Process command word if needed
+            // uint8_t rx_trip_status = CMD_GET_TRIP_STATUS(rx_command);
+            // uint8_t rx_user_cmd = CMD_GET_USER_COMMAND(rx_command);
+            // if (rx_trip_status == TRIP_STATUS_FAULT) { /* handle remote fault */ }
+
+            // Update RX timestamp
+            fiber_status.last_rx_time_ms = current_time_ms;
+
+            // Track stability for FAULT LED (5s of stable communication before clearing)
+            if (!fiber_status.communication_stable) {
+                if (first_valid_rx_time_ms == 0) {
+                    first_valid_rx_time_ms = current_time_ms;
+                }
+                else {
+                    uint32_t stable_duration = current_time_ms - first_valid_rx_time_ms;
+                    if (stable_duration >= FIBER_STABLE_DURATION_MS) {
+                        fiber_status.communication_stable = true;
+                    }
+                }
+            }
+
+            // Clear timeout flag on successful RX
+            fiber_status.communication_timeout = false;
+        }
+        else if (rx_status != FIBER_PROTO_ERR_TIMEOUT) {
+            // Error (not timeout) - reset stability tracking
+            fiber_status.communication_stable = false;
+            first_valid_rx_time_ms = 0;
+        }
+
+        // ===== Timeout Detection (10ms) =====
+        uint32_t time_since_last_rx = current_time_ms - fiber_status.last_rx_time_ms;
+
+        if (time_since_last_rx > FIBER_RX_TIMEOUT_MS) {
+            // Communication timeout detected
+            fiber_status.communication_timeout = true;
+
+            // Reset stability tracking
+            fiber_status.communication_stable = false;
+            first_valid_rx_time_ms = 0;
+        }
+    }
+
+    // ===== Control Algorithm Integration Point =====
+    // At this point, fiber_rx_payload[] contains latest data from remote board
     // TODO: Implement your control algorithm here
-    // Example: Process ADC data and generate control outputs
+    // Example: Process ADC data and fiber_rx_payload[] to generate control outputs
 
     // ===== DAC Output (only if DAC initialized) =====
     if (system_status.dac_ok) {
         float dac_outputs[AD5724_NUM_CHANNELS] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        // TODO: Populate dac_outputs[] from control algorithm
+        // Example: dac_outputs[0] = pid_controller_output;
+        // Example: dac_outputs[1] = fiber_rx_payload[0] * gain;  // Use remote data
 
         // Write DAC outputs (all channels updated every 1ms)
         for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
@@ -210,238 +353,73 @@ void task_1ms(void)
         }
     }
 
-    bool received_data = false;
-
-    // ===== Fiber-Optic Communication (Buffered RX for Reliable 1ms Operation) =====
-    // The protocol layer now buffers incoming data across multiple 1ms cycles.
-    // This ensures reliable reception even if frames arrive slowly or span cycles.
-    // Benefits:
-    // - No packet loss due to timing variations
-    // - Automatic frame accumulation and parsing
-    // - Robust resynchronization if frames are corrupted
+    // ===== Fiber-Optic TX: Transmit AFTER control algorithm =====
     if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
-        // Static variables for heartbeat and state tracking
         static uint8_t heartbeat_counter = 0;
-        static uint8_t current_state = STATE_IDLE;
-        static uint8_t user_command = USER_CMD_NONE;
 
-        // Packet reception timeout tracking (for FAULT LED)
-        static uint32_t last_rx_time_ms = 0;
-        static uint32_t first_valid_rx_time_ms = 0;  // Time when valid RX started
-        static bool fault_led_on = false;
-        static bool communication_stable = false;  // Tracks if we've had stable comms
-        static bool first_cycle = true;            // Track first execution
-        const uint32_t RX_TIMEOUT_MS = 1;          // 5ms timeout (5x the expected 1ms rate)
-        const uint32_t STABLE_DURATION_MS = 5000;  // 5000ms (5 seconds) of stable data before clearing FAULT
-
-        // Get current time once per cycle
-        uint32_t current_time_ms = get_1ms_counter();
-
-        // Initialize last_rx_time_ms on first cycle to avoid false timeout
-        if (first_cycle) {
-            last_rx_time_ms = current_time_ms;
-            first_cycle = false;
-        }
-
-        // Update heartbeat (0-3, rolls over)
+        // Update heartbeat (0-3, rolls over every 4ms)
         heartbeat_counter = (heartbeat_counter + 1) & 0x03;
 
-        // ===== TX: Build and transmit frame =====
         // Build command word
         uint8_t board_side = BOARD_SIDE_GRID;      // TODO: Replace with actual board side detection
         uint8_t trip_status = TRIP_STATUS_NORMAL;  // TODO: Read from fault detection system
+        uint8_t user_command = USER_CMD_NONE;      // TODO: Set from upstream command logic
+        uint8_t current_state = STATE_IDLE;        // TODO: Set from state machine
 
         uint32_t tx_command = CMD_BUILD(
             heartbeat_counter, board_side, trip_status, user_command, current_state, PAYLOAD_TYPE_CONTROL_DATA);
 
-        // Prepare payload (4 control values)
-        float tx_payload[4];
-        tx_payload[0] = 10.0f;  // Voltage command
-        tx_payload[1] = 20.0f;  // Current command
-        tx_payload[2] = 30.0f;  // Frequency command
-        tx_payload[3] = 40.0f;  // Phase command
+        // TODO: Populate fiber_tx_payload[] from control logic
+        // Example: fiber_tx_payload[0] = voltage_setpoint;
+        //          fiber_tx_payload[1] = current_setpoint;
+        //          fiber_tx_payload[2] = frequency_setpoint;
+        //          fiber_tx_payload[3] = phase_setpoint;
 
-        // Transmit the frame (~277us @ 691,200 baud for 24-byte frame: START+CMD+LEN+4×float+CRC)
-        fiber_proto_error_t tx_status = FiberProto_SendFloats(&fiber_proto_instance, tx_command, tx_payload, 4);
-
-        // ===== RX: Receive and process frame (buffered reception) =====
-        // The protocol layer accumulates data across multiple 1ms calls.
-        // Returns FIBER_PROTO_OK only when a complete, valid frame is received.
-        // Partial frames are buffered automatically - no data loss!
-        uint32_t rx_command_temp;
-        uint32_t rx_payload_temp[FIBER_PROTO_MAX_PAYLOAD_WORDS];
-        uint8_t rx_length_temp;
-
-        fiber_proto_error_t rx_status =
-            FiberProto_ReceivePacket(&fiber_proto_instance, &rx_command_temp, rx_payload_temp, &rx_length_temp);
-
-        if (rx_status == FIBER_PROTO_OK) {
-            // Extract command word fields
-            uint8_t rx_heartbeat = CMD_GET_HEARTBEAT(rx_command_temp);
-            uint8_t rx_board_side = CMD_GET_BOARD_SIDE(rx_command_temp);
-            uint8_t rx_trip_status = CMD_GET_TRIP_STATUS(rx_command_temp);
-            uint8_t rx_user_cmd = CMD_GET_USER_COMMAND(rx_command_temp);
-            uint8_t rx_state = CMD_GET_STATE_MACHINE(rx_command_temp);
-            uint16_t rx_payload_type = CMD_GET_PAYLOAD_TYPE(rx_command_temp);
-
-            // Check if remote board is tripped
-            if (rx_trip_status == TRIP_STATUS_TRIPPED || rx_trip_status == TRIP_STATUS_FAULT) {
-                // Remote board has fault - take action
-                // Example: Stop operation, enter safe mode
-            }
-
-            // Process user command from remote board
-            if (rx_user_cmd == USER_CMD_START) {
-                current_state = STATE_STARTING;
-            }
-            else if (rx_user_cmd == USER_CMD_STOP) {
-                current_state = STATE_STOPPING;
-            }
-            else if (rx_user_cmd == USER_CMD_EMERGENCY_STOP) {
-                current_state = STATE_EMERGENCY;
-            }
-
-            // Parse payload
-            FiberProto_ParseFloats(rx_payload_temp, rx_length_temp, remote_values, rx_length_temp);
-
-            // ===== PAYLOAD VALIDATION TEST =====
-            // Verify that received payload matches expected values (10.0f, 20.0f, 30.0f, 40.0f)
-            // If mismatch detected, turn on ALARM LED
-            static const float expected_payload[4] = {10.0f, 20.0f, 30.0f, 40.0f};
-            bool payload_valid = true;
-
-            // Check payload length
-            if (rx_length_temp != 4) {
-                payload_valid = false;
-            }
-            else {
-                // Compare each value (with small tolerance for floating point comparison)
-                const float tolerance = 0.01f;
-                for (uint8_t i = 0; i < 4; i++) {
-                    float diff = remote_values[i] - expected_payload[i];
-                    if (diff < 0.0f) diff = -diff;  // abs()
-                    if (diff > tolerance) {
-                        payload_valid = false;
-                        break;
-                    }
-                }
-            }
-
-            // Update FAULT LED based on validation result
-            if (!payload_valid) {
-                FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);  // Turn on FAULT for bad payload
-                FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-            }
-
-            received_data = true;
-
-            // Update last RX time (using current_time_ms declared at top of fiber-optic block)
-            last_rx_time_ms = current_time_ms;
-
-            // Track stability for FAULT LED hysteresis (requires both valid frames AND valid payload)
-            if (!communication_stable) {
-                if (payload_valid) {
-                    // Payload is valid - accumulate stability
-                    if (first_valid_rx_time_ms == 0) {
-                        // First valid packet with valid payload - start stability timer
-                        first_valid_rx_time_ms = current_time_ms;
-                    }
-                    else {
-                        // Check if we've maintained stable communication for 100ms
-                        uint32_t stable_duration = current_time_ms - first_valid_rx_time_ms;
-                        if (stable_duration >= STABLE_DURATION_MS) {
-                            communication_stable = true;
-                        }
-                    }
-                }
-                else {
-                    // Payload invalid - reset stability tracking
-                    first_valid_rx_time_ms = 0;
-                }
-            }
-            else {
-                // Already stable, but check if payload becomes invalid
-                if (!payload_valid) {
-                    // Payload corrupted - reset stability
-                    communication_stable = false;
-                    first_valid_rx_time_ms = 0;
-                }
-            }
-
-            // Clear FAULT LED only if communication has been stable for 100ms (with valid payload)
-            if (fault_led_on && communication_stable && system_status.fsmc_gpio_ok) {
-                FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
-                FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-                fault_led_on = false;
-            }
-        }
-        else if (rx_status != FIBER_PROTO_ERR_TIMEOUT) {
-            // Any error besides timeout resets stability tracking
-            communication_stable = false;
-            first_valid_rx_time_ms = 0;
-        }
-
-        // Check for RX timeout - if no packet received within timeout period, set FAULT LED
-        // (using current_time_ms declared at top of fiber-optic block)
-        uint32_t time_since_last_rx = current_time_ms - last_rx_time_ms;
-
-        if (time_since_last_rx > RX_TIMEOUT_MS) {
-            // Timeout exceeded - no packets received
-            if (!fault_led_on && system_status.fsmc_gpio_ok) {
-                // Turn on FAULT LED immediately
-                FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
-                FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-                fault_led_on = true;
-                // Diagnostics_Log(DIAG_EVENT_USER_1, 0xF041, time_since_last_rx);  // Log "FOAL" (fiber optic fail)
-            }
-
-            // Reset stability tracking - need another 100ms of good data to clear fault
-            communication_stable = false;
-            first_valid_rx_time_ms = 0;
-        }
+        // Transmit frame (~347µs @ 691,200 baud for 24-byte frame)
+        FiberProto_SendFloats(&fiber_proto_instance, tx_command, fiber_tx_payload, FIBER_PROTO_MAX_PAYLOAD_WORDS);
     }
-
-    // Append to logger
-    log_communication_state[log_communication_counter++ % LOGGER_COMMUNICATION_LENGTH] = received_data;
 }
 
 /**
- * @brief  10ms periodic task - Slow monitoring
+ * @brief  Update system LEDs based on runtime status
+ * @note   Centralized LED control - all LED updates happen here
+ *         This prevents confusion about which code controls which LED
+ */
+static void Update_System_LEDs()
+{
+    // ===== RUN LED: Heartbeat and preemption status =====
+    if (TIM_Verify_Preemption()) {
+        FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 1);
+    }
+    else {
+        // Preemption failed - turn off RUN LED as error indicator
+        FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 0);
+    }
+
+    // ===== FAULT LED: Set on timeout, cleared after 5s of stable communication =====
+    if (fiber_status.communication_timeout) {
+        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
+    }
+    else if (fiber_status.communication_stable) {
+        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
+    }
+    // Note: FAULT LED stays ON between timeout and stability (hysteresis behavior)
+
+    // Write all LED states to hardware in one operation
+    FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+}
+
+/**
+ * @brief  10ms periodic task - Slow monitoring and LED management
  * @note   Called from TIM2 ISR at 100 Hz rate (every 10 milliseconds)
- *         Controls RUN LED as a "heartbeat" indicator if tasks are running correctly
+ *         Controls RUN LED heartbeat and manages system LEDs
+ *         Monitors task execution time and blinks ALARM if load > 50%
  */
 void task_10ms(void)
 {
-    // Only update LEDs if FSMC GPIO initialized
-    if (!system_status.fsmc_gpio_ok) {
-        return;  // Skip task if GPIO not available
-    }
-
-    static uint16_t counter = 0;
-    counter++;
-    if (counter >= 50) {  // 50 × 10ms = 500ms
-        counter = 0;
-        // Check if task preemption ratios are correct
-        if (TIM_Verify_Preemption()) {
-            // System healthy - RUN LED for heartbeat
-            FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 1);
-        }
-        else {
-            // Preemption failed - turn off RUN LED as error indicator
-            FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 0);
-            // Trigger alarm LED
-            FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, 1);
-        }
-
-        // Write LED state to hardware
-        FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-    }
+    // Update all system LEDs based on runtime status (called every 10ms)
+    Update_System_LEDs();
 }
-
-/* Timing monitoring variables */
-static task_timing_t timing_200us;
-static task_timing_t timing_1ms;
-static task_timing_t timing_10ms;
 
 #if ENABLE_W5200_SPI2
 /**
@@ -667,8 +645,6 @@ static void TCP_Server_Task(void)
 int main(void)
 {
     int init_status;
-    uint32_t last_check_time = 0;
-    bool overrun_detected = false;
 
     /* Initialize all hardware using NSD_Driver */
     // This returns 0 on success, -1 if any component failed
@@ -724,47 +700,6 @@ int main(void)
         if (system_status.network_ok) {
             TCP_Server_Task();
         }
-
-        // Check task timing every 100ms
-        // Note: This overflow-safe subtraction works due to unsigned arithmetic wrapping
-        if (system_status.timers_ok) {
-            uint32_t current_time = get_1ms_counter();
-            uint32_t elapsed_time = current_time - last_check_time;
-
-            if (elapsed_time >= 100) {
-                last_check_time = current_time;
-
-                // Get timing information for all tasks
-                TIM_Get_Task200us_Timing(&timing_200us);
-                TIM_Get_Task1ms_Timing(&timing_1ms);
-                TIM_Get_Task10ms_Timing(&timing_10ms);
-
-                // Check for task overruns
-                if (TIM_Check_Task_Overruns()) {
-                    if (!overrun_detected && system_status.fsmc_gpio_ok) {
-                        // First time detecting overrun - set FAULT LED
-                        overrun_detected = true;
-                        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
-                        FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-                    }
-                }
-
-                // Optional: Clear overrun flag if system recovers
-                // (uncomment if you want auto-recovery)
-                // else {
-                //     if (overrun_detected && system_status.fsmc_gpio_ok) {
-                //         overrun_detected = false;
-                //         FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
-                //         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
-                //     }
-                // }
-            }
-        }
-
-        // Small delay to avoid tight polling (only if timers work)
-        // if (system_status.timers_ok) {
-        //     delay_ms(10);
-        // }
     }
     /* USER CODE END 3 */
 }
