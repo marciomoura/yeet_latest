@@ -95,10 +95,10 @@ typedef struct {
      * @brief Fiber-optic receive interface (inter-board communication)
      */
     struct {
-        float payload[TASK_IO_FIBER_MAX_PAYLOAD]; /**< Received float data from remote board */
-        uint8_t payload_length;                   /**< Number of valid floats in payload (0-4) */
-        bool data_ready;                          /**< true = new data received this cycle */
-        bool link_ok;                             /**< true = fiber-optic link healthy */
+        uint32_t payload[TASK_IO_FIBER_MAX_PAYLOAD]; /**< Received uint32_t data from remote board */
+        uint8_t payload_length;                      /**< Number of valid uint32_t words in payload (0-4) */
+        bool data_ready;                             /**< true = new data received this cycle */
+        bool link_ok;                                /**< true = fiber-optic link healthy */
     } fiber_optic_rx;
 
 } task_inputs_t;
@@ -159,9 +159,9 @@ typedef struct {
      * @brief Fiber-optic transmit interface (inter-board communication)
      */
     struct {
-        float payload[TASK_IO_FIBER_MAX_PAYLOAD]; /**< Float data to transmit to remote board */
-        uint8_t payload_length;                   /**< Number of valid floats to send (0-4) */
-        bool transmit_request;                    /**< true = transmit this cycle */
+        uint32_t payload[TASK_IO_FIBER_MAX_PAYLOAD]; /**< uint32_t data to transmit to remote board */
+        uint8_t payload_length;                      /**< Number of valid uint32_t words to send (0-4) */
+        bool transmit_request;                       /**< true = transmit this cycle */
     } fiber_optic_tx;
 
 } task_outputs_t;
