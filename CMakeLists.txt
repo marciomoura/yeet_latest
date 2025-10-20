@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.25)
 
 get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(isMultiConfig AND DEFINED CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE STREQUAL "")
-    message(WARNING "CMAKE_BUILD_TYPE is set to '${CMAKE_BUILD_TYPE}' but generator '${CMAKE_GENERATOR}' is multi-config. Remove -DCMAKE_BUILD_TYPE from your cmake invocation.")
+if(isMultiConfig
+   AND DEFINED CMAKE_BUILD_TYPE
+   AND NOT
+       CMAKE_BUILD_TYPE
+       STREQUAL
+       "")
+    message(
+        WARNING
+            "CMAKE_BUILD_TYPE is set to '${CMAKE_BUILD_TYPE}' but generator '${CMAKE_GENERATOR}' is multi-config. Remove -DCMAKE_BUILD_TYPE from your cmake invocation."
+    )
 endif()
 
 # ASCII art banner because we're extra ✨
@@ -29,6 +37,8 @@ project(
 # Define all options upfront with proper descriptions - keeping it 💯
 option(YEET_BUILD_EMBEDDED "Build embedded targets for ARM microcontrollers"
        OFF)
+option(YEET_SFC_HOST_BUILD
+       "Build SFC host simulator for testing without hardware" ON)
 option(YEET_CODE_COVERAGE
        "Enable code coverage (because we test our code like bosses)" OFF)
 option(YEET_SANITIZE "Enable clang-sanitizer builds (catch those bugs bestie)"
@@ -169,8 +179,8 @@ add_subdirectory(software/yeet_control)
 add_subdirectory(software/yeet_application/sfc)
 add_subdirectory(software/yeet_application/sfc_integration)
 
-# Add SFC embedded application (only for embedded builds) Only include embedded
-# board if explicitly requested
+# Add SFC embedded application (only for embedded builds or host simulator) Only
+# include embedded board if explicitly requested
 if(YEET_BUILD_EMBEDDED)
     message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
     # The sfc_embedded CMakeLists.txt will handle board inclusion and executable
@@ -178,6 +188,10 @@ if(YEET_BUILD_EMBEDDED)
     set(YEET_SKIP_HOST_TARGETS ON)
 
     include(stm32_hal)
+    add_subdirectory(software/yeet_application/sfc_embedded)
+elseif(YEET_SFC_HOST_BUILD)
+    message(STATUS "yeet build-config: Building SFC host simulator 💻")
+    # Host simulator doesn't need STM32 HAL or board directories
     add_subdirectory(software/yeet_application/sfc_embedded)
 endif()
 

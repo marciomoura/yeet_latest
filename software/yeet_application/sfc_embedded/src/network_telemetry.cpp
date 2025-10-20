@@ -5,6 +5,7 @@
 
 #include "sfc_embedded/network_telemetry.hpp"
 
+#include <cstdio>
 #include <cstring>
 
 namespace yeet::application::sfc::telemetry {
@@ -65,9 +66,38 @@ std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet,
     header.protocol_version = protocol_version;
     header.payload_length = static_cast<std::uint16_t>(calculate_payload_size(header.flags));
 
-    // Encode header (16 bytes)
-    std::memcpy(buffer + offset, &header, sizeof(telemetry_packet_header));
-    offset += sizeof(telemetry_packet_header);
+#ifdef HOST_BUILD
+    // Debug: print header values
+    printf("[ENCODE] Header: type=%u, ver=%u, len=%u, flags=0x%08X, ts=%u, seq=%u\n", header.packet_type,
+        header.protocol_version, header.payload_length, header.flags, header.timestamp_ms, header.sequence_number);
+#endif
+
+    // Encode header (16 bytes) - explicit byte order (little-endian)
+    buffer[offset++] = header.packet_type;
+    buffer[offset++] = header.protocol_version;
+    buffer[offset++] = static_cast<std::uint8_t>(header.payload_length & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.payload_length >> 8) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>(header.flags & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.flags >> 8) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.flags >> 16) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.flags >> 24) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>(header.timestamp_ms & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.timestamp_ms >> 8) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.timestamp_ms >> 16) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.timestamp_ms >> 24) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>(header.sequence_number & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 8) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 16) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 24) & 0xFF);
+
+#ifdef HOST_BUILD
+    // Debug: print first 32 bytes of buffer
+    printf("[ENCODE] First 32 bytes: ");
+    for (int i = 0; i < 32 && i < static_cast<int>(offset + 16); i++) {
+        printf("%02x ", buffer[i]);
+    }
+    printf("\n");
+#endif
 
     // Encode signal groups (only if flag is set)
     if (header.flags & telemetry_flags::measurements) {
