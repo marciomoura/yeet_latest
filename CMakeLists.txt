@@ -189,19 +189,16 @@ add_subdirectory(software/yeet_control)
 add_subdirectory(software/yeet_application/sfc)
 add_subdirectory(software/yeet_application/sfc_integration)
 
-# Add SFC embedded application (only for embedded builds or host simulator) Only
-# include embedded board if explicitly requested
+# Add SFC embedded application (for embedded builds or host simulator)
 if(YEET_BUILD_EMBEDDED)
     message(STATUS "yeet build-config: Building for embedded ARM target 🎯")
-    # The sfc_embedded CMakeLists.txt will handle board inclusion and executable
-    # creation No host-only targets after this point
     set(YEET_SKIP_HOST_TARGETS ON)
+endif()
 
-    include(stm32_hal)
-    add_subdirectory(software/yeet_application/sfc_embedded)
-elseif(YEET_SFC_HOST_BUILD)
-    message(STATUS "yeet build-config: Building SFC host simulator 💻")
-    # Host simulator doesn't need STM32 HAL or board directories
+if(YEET_BUILD_EMBEDDED OR YEET_SFC_HOST_BUILD)
+    if(YEET_SFC_HOST_BUILD AND NOT YEET_BUILD_EMBEDDED)
+        message(STATUS "yeet build-config: Building SFC host simulator 💻")
+    endif()
     add_subdirectory(software/yeet_application/sfc_embedded)
 endif()
 
