@@ -72,13 +72,10 @@ public:
 
     void mock_inputs()
     {
-        // Mock external control inputs for standalone testing
-        grid_side_control.auxiliaries_are_on.write(false);
-        grid_side_control.breakers_are_on.write(false);
-        grid_side_control.start_command.write(false);
-        grid_side_control.stop_command.write(false);
-        grid_side_control.shutdown_request.write(false);
-        grid_side_control.is_current_extinguished.write(false);
+        // NOTE: Grid-side control inputs are now connected via I/O interface through signals_connector
+        // in connect_all_components(). The I/O interface uses direct references to signal_inputs,
+        // so we cannot write() directly anymore. Instead, inputs come from the simulation command
+        // signals (auxiliaries_are_on, breakers_are_on, etc.) which are connected in connect_all_components().
 
         // Mock excitation control inputs
         machine_side_control.exciter_ready.write(true);  // Exciter is ready (perfect exciter)
@@ -97,7 +94,7 @@ public:
         // Note: Torque controller dynamic limits now managed by speed generator
         // Old mock values removed - speed generator provides these outputs based on active profile
 
-        // Remove these as they're now connected directly:
+        // Grid-side control inputs now connected via I/O interface in connect_all_components():
         // - measured_speed_pu (connected from machine-side observer)
         // - pulse_releases (connected from grid-side state machine)
         // - operating_mode (connected from operation mode monitor)
@@ -212,27 +209,18 @@ private:
         // signals_connector::connect_output_to_input(plant.get_outputs().machine_current,
         // machine_side_hardware_mock.get_inputs().machine_current_measurements);
 
-        // ==================== Plant Outputs to Control Class Measurements ====================
-        // Connect plant outputs to internal measurement components within control classes
+        // ==================== Plant Outputs to Control Class I/O Interface ====================
+        // Connect plant ADC mock outputs to control I/O interface analog inputs
 
-        // Grid side measurements from plant to grid side control internal components
-        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().v_ab_counts,
-            grid_side_control.grid_measurements.get_inputs().v_ab_counts);
-        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().v_bc_counts,
-            grid_side_control.grid_measurements.get_inputs().v_bc_counts);
-        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().i_a_counts,
-            grid_side_control.grid_measurements.get_inputs().i_a_counts);
-        signals_connector::connect_output_to_input(grid_side_hardware_mock.get_outputs().i_c_counts,
-            grid_side_control.grid_measurements.get_inputs().i_c_counts);
-
-        // Additional grid measurements inputs
-        signals_connector::connect_output_to_input(plant.get_outputs().grid_voltage_source_angle,
-            grid_side_control.grid_measurements.get_inputs().grid_side_angle);
+        // Grid side measurements from plant to grid side control I/O interface
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_side_control.grid_measurements.get_inputs().grid_side_frequency);
+            grid_side_hardware_mock.get_outputs().v_ab_counts, grid_side_control.get_io().analog_inputs.v_ab_counts);
         signals_connector::connect_output_to_input(
-            grid_side_control.grid_side_pulse_generator.get_outputs().firing_pulses,
-            grid_side_control.grid_measurements.get_inputs().grid_pulses);
+            grid_side_hardware_mock.get_outputs().v_bc_counts, grid_side_control.get_io().analog_inputs.v_bc_counts);
+        signals_connector::connect_output_to_input(
+            grid_side_hardware_mock.get_outputs().i_a_counts, grid_side_control.get_io().analog_inputs.i_a_counts);
+        signals_connector::connect_output_to_input(
+            grid_side_hardware_mock.get_outputs().i_c_counts, grid_side_control.get_io().analog_inputs.i_c_counts);
 
         // Machine side measurements from plant to machine side control internal components
         signals_connector::connect_output_to_input(machine_side_hardware_mock.get_outputs().v_ab_counts,
@@ -240,31 +228,22 @@ private:
         signals_connector::connect_output_to_input(machine_side_hardware_mock.get_outputs().v_bc_counts,
             machine_side_control.machine_measurements.get_inputs().v_bc_counts);
 
-        // Additional machine measurements inputs
-        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
-            machine_side_control.machine_measurements.get_inputs().machine_side_angle);
-        signals_connector::connect_output_to_input(plant.get_outputs().machine_frequency,
-            machine_side_control.machine_measurements.get_inputs().machine_side_frequency);
-        signals_connector::connect_output_to_input(
-            machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,
-            machine_side_control.machine_measurements.get_inputs().machine_pulses);
-
         // ==================== External Inputs to Control Classes ====================
-        // Connect external command signals to appropriate control class components
+        // Connect external command signals to control class I/O interfaces
 
-        // System commands to grid side state machine
+        // System commands to grid side control via I/O interface
         signals_connector::connect_output_to_input(
-            auxiliaries_are_on, grid_side_control.state_machine.get_inputs().auxiliaries_are_on);
+            auxiliaries_are_on, grid_side_control.get_io().digital_inputs.auxiliaries_are_on);
         signals_connector::connect_output_to_input(
-            breakers_are_on, grid_side_control.state_machine.get_inputs().breakers_are_on);
+            breakers_are_on, grid_side_control.get_io().digital_inputs.breakers_are_on);
         signals_connector::connect_output_to_input(
-            start_command, grid_side_control.state_machine.get_inputs().start_command);
+            start_command, grid_side_control.get_io().digital_inputs.start_command);
         signals_connector::connect_output_to_input(
-            stop_command, grid_side_control.state_machine.get_inputs().stop_command);
+            stop_command, grid_side_control.get_io().digital_inputs.stop_command);
         signals_connector::connect_output_to_input(
-            shutdown_request, grid_side_control.state_machine.get_inputs().shutdown_request);
+            shutdown_request, grid_side_control.get_io().digital_inputs.shutdown_request);
         signals_connector::connect_output_to_input(
-            is_current_extinguished, grid_side_control.state_machine.get_inputs().is_current_extinguished);
+            is_current_extinguished, grid_side_control.get_io().digital_inputs.is_current_extinguished);
 
         // Enable speed control
         // machine_side_control.enable_speed_control.write(true);
@@ -273,47 +252,46 @@ private:
         // Connect outputs from one control class to inputs of the other
 
         // 1. Torque Controller → Current Controller (CRITICAL CASCADE CONNECTION)
-        // Speed controller produces torque ref, torque controller converts to current ref
+        // Speed controller produces torque ref, torque controller converts to current ref via I/O interface
         signals_connector::connect_output_to_input(
             machine_side_control.torque_controller.get_outputs().current_reference,
-            grid_side_control.current_controller.get_inputs().dc_link_current_reference);
+            grid_side_control.get_io().machine_side_inputs.dc_link_current_reference);
 
         // 2. Connect pulse releases from grid-side state machine to machine-side modulator enable
-        signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().pulse_releases,
+        signals_connector::connect_output_to_input(grid_side_control.get_io().digital_outputs.pulse_releases,
             machine_side_control.machine_side_modulator.get_inputs().enable);
 
-        // 3. Connect machine-side estimated speed to grid-side operation mode monitor
+        // 3. Connect machine-side estimated speed to grid-side operation mode monitor via I/O interface
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_observer.get_outputs().estimated_speed,
-            grid_side_control.operation_mode_monitor.get_inputs().measured_speed_pu);
+            grid_side_control.get_io().machine_side_inputs.measured_speed_pu);
 
-        // 4. Connect machine voltage magnitude for current controller feedforward
+        // 4. Connect machine voltage magnitude for current controller feedforward via I/O interface
         // Use machine-side observer estimated voltage magnitude instead of filtered measurement for sensorless parity
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_observer.get_outputs().estimated_voltage_magnitude,
-            grid_side_control.current_controller.get_inputs().machine_side_voltage_magnitude);
+            grid_side_control.get_io().machine_side_inputs.machine_voltage_magnitude);
 
-        // 5. DC link current to machine-side controller for lookup table
+        // 5. DC link current to machine-side controller for lookup table (from grid-side I/O output)
         signals_connector::connect_output_to_input(
-            grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu,
+            grid_side_control.get_io().machine_side_outputs.dc_link_current_measured,
             machine_side_control.machine_side_controller.get_inputs().dc_link_current);
 
-        // 6. Operating mode from grid-side to machine-side
-        signals_connector::connect_output_to_input(
-            grid_side_control.operation_mode_monitor.get_outputs().operating_mode,
+        // 6. Operating mode from grid-side to machine-side (from grid-side I/O output)
+        signals_connector::connect_output_to_input(grid_side_control.get_io().machine_side_outputs.operating_mode,
             machine_side_control.machine_side_modulator.get_inputs().operating_mode);
 
         // 7. Force commutation handshake
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_modulator.get_outputs().request_force_commutation,
-            grid_side_control.grid_side_modulator.get_inputs().request_force_commutation);
+            grid_side_control.get_io().machine_side_inputs.request_force_commutation);
 
         signals_connector::connect_output_to_input(
-            grid_side_control.grid_side_modulator.get_outputs().force_commutation_acknowledged,
+            grid_side_control.get_io().machine_side_outputs.force_commutation_acknowledged,
             machine_side_control.machine_side_modulator.get_inputs().force_commutation_acknowledged);
 
-        // 8. Freeze integrator cascading from grid-side to machine-side
-        signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().freeze_integrator,
+        // 8. Freeze integrator cascading from grid-side to machine-side via I/O interface
+        signals_connector::connect_output_to_input(grid_side_control.get_io().machine_side_outputs.freeze_integrator,
             machine_side_control.speed_controller.get_inputs().freeze_integrator);
 
         // 8b. Current state ID from grid-side state machine to machine-side speed generator
@@ -322,7 +300,7 @@ private:
 
         // 9. Current controller saturation to torque controller for composite saturation handling
         signals_connector::connect_output_to_input(
-            grid_side_control.current_controller.get_outputs().current_controller_is_saturated,
+            grid_side_control.get_io().digital_outputs.current_controller_saturated,
             machine_side_control.torque_controller.get_inputs().current_controller_is_saturated);
 
         // 10. Torque controller composite saturation to speed controller for anti-windup
@@ -331,7 +309,7 @@ private:
             machine_side_control.torque_controller.get_outputs().composite_saturation,
             machine_side_control.speed_controller.get_inputs().current_controller_is_saturated);
 
-        signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().pulse_releases,
+        signals_connector::connect_output_to_input(grid_side_control.get_io().digital_outputs.pulse_releases,
             machine_side_control.speed_controller.get_inputs().enable_speed_control);
 
         signals_connector::connect_output_to_input(
@@ -339,10 +317,9 @@ private:
             machine_side_control.speed_controller.get_inputs().modulator_freeze_integrator);
 
         // ==================== Control Class Outputs to Plant ====================
-        // Connect control class firing pulses directly to plant (bypassing external pulse generators for now)
+        // Connect control class firing pulses to plant via I/O interface outputs
         signals_connector::connect_output_to_input(
-            grid_side_control.grid_side_pulse_generator.get_outputs().firing_pulses,
-            plant.get_inputs().grid_side_firing_pulses);
+            grid_side_control.get_io().pulse_outputs.firing_pulses, plant.get_inputs().grid_side_firing_pulses);
 
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,

@@ -6,6 +6,7 @@
 
 #include "sfc/sfc_types.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
+#include "yeet/signal.hpp"
 
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
@@ -60,16 +61,25 @@ static yeet::signal_output<bool> mock_force_commutation_acknowledged;
 // Current controller saturation status from machine-side
 static yeet::signal_output<bool> mock_current_controller_saturated;
 
+// ==================== MOCK SUPERVISORY CONTROLLER INPUTS ====================
+// These signal_outputs simulate the digital inputs from a supervisory controller
+// In production, these come from physical digital inputs
+static yeet::signal_output<bool> mock_auxiliaries_are_on;
+static yeet::signal_output<bool> mock_breakers_are_on;
+static yeet::signal_output<bool> mock_start_command;
+static yeet::signal_output<bool> mock_stop_command;
+static yeet::signal_output<bool> mock_shutdown_request;
+static yeet::signal_output<bool> mock_is_current_extinguished;
+
 // ==================== MOCK GRID-SIDE MEASUREMENT RAW INPUTS ====================
-// These simulate hardware ADC + timing/angle sources which are not present in the
-// embedded-only build (no plant / hardware mock). They feed the grid_side_measurements runner.
+// These simulate hardware ADC sources which are not present in the embedded-only build
+// (no plant / hardware mock). In production, these come from real ADC channels.
+// Note: For sensorless operation, angle and frequency are estimated by the observer,
+// not measured directly. They are connected internally within sfc_grid_side_control.
 static yeet::signal_output<yeet::control::adc_counts> mock_v_ab_counts;  // line voltage AB differential sample
 static yeet::signal_output<yeet::control::adc_counts> mock_v_bc_counts;  // line voltage BC differential sample
 static yeet::signal_output<yeet::control::adc_counts> mock_i_a_counts;   // phase A current sample
 static yeet::signal_output<yeet::control::adc_counts> mock_i_c_counts;   // phase C current sample
-static yeet::signal_output<yeet::frequency_t> mock_grid_side_frequency;  // fundamental grid frequency
-static yeet::signal_output<yeet::angle_wrapped> mock_grid_side_angle;    // electrical angle reference
-static yeet::signal_output<yeet::control::six_pulse_generator::pulses> mock_grid_pulses;  // commutation events
 
 // ==================== NETWORK STREAMING STATE ====================
 // State machine for TCP streaming data protocol
@@ -87,14 +97,28 @@ static network_streaming_state net_stream_state;
 ARM_FUNCTION
 void yeet_embedded_init(void)
 {
-    // ==================== MOCK SUPERVISORY CONTROLLER SIGNALS ====================
-    // State machine command inputs - Safe default values
-    get_grid_side_control().auxiliaries_are_on.write(false);
-    get_grid_side_control().breakers_are_on.write(false);
-    get_grid_side_control().start_command.write(false);
-    get_grid_side_control().stop_command.write(false);
-    get_grid_side_control().shutdown_request.write(false);
-    get_grid_side_control().is_current_extinguished.write(true);
+    // ==================== CONNECT SUPERVISORY CONTROLLER SIGNALS ====================
+    // Initialize mock signal outputs with safe default values
+    mock_auxiliaries_are_on.write(false);
+    mock_breakers_are_on.write(false);
+    mock_start_command.write(false);
+    mock_stop_command.write(false);
+    mock_shutdown_request.write(false);
+    mock_is_current_extinguished.write(true);
+
+    // Connect mock signals to grid-side control inputs
+    yeet::signals_connector::connect_output_to_input(
+        mock_auxiliaries_are_on, get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on);
+    yeet::signals_connector::connect_output_to_input(
+        mock_breakers_are_on, get_grid_side_control().get_io().digital_inputs.breakers_are_on);
+    yeet::signals_connector::connect_output_to_input(
+        mock_start_command, get_grid_side_control().get_io().digital_inputs.start_command);
+    yeet::signals_connector::connect_output_to_input(
+        mock_stop_command, get_grid_side_control().get_io().digital_inputs.stop_command);
+    yeet::signals_connector::connect_output_to_input(
+        mock_shutdown_request, get_grid_side_control().get_io().digital_inputs.shutdown_request);
+    yeet::signals_connector::connect_output_to_input(
+        mock_is_current_extinguished, get_grid_side_control().get_io().digital_inputs.is_current_extinguished);
 
     // ==================== MOCK MACHINE-SIDE CONTROLLER SIGNALS ====================
     // Initialize mock outputs with safe default values
@@ -104,16 +128,13 @@ void yeet_embedded_init(void)
     mock_request_force_commutation.write(false);
 
     // ==================== INITIALIZE RAW MEASUREMENT MOCKS ====================
+    // Initialize ADC mocks with zero values (in production, these come from real ADC channels)
     mock_v_ab_counts.write(yeet::control::adc_counts{0});
     mock_v_bc_counts.write(yeet::control::adc_counts{0});
     mock_i_a_counts.write(yeet::control::adc_counts{0});
     mock_i_c_counts.write(yeet::control::adc_counts{0});
-    // Choose nominal frequency to keep any internal observers stable (50 Hz base)
-    mock_grid_side_frequency.write(yeet::frequency_t{50.0});
-    mock_grid_side_angle.write(yeet::angle_wrapped{0.0});
-    // All pulses false (no thyristor conduction yet)
-    mock_grid_pulses.write(yeet::control::six_pulse_generator::pulses{});
 
+    // ==================== CONNECT MACHINE-SIDE CROSS-COUPLED SIGNALS ====================
     // Connect mock machine-side outputs to grid-side control inputs
     yeet::signals_connector::connect_output_to_input(
         mock_measured_speed_pu, get_grid_side_control().operation_mode_monitor.get_inputs().measured_speed_pu);
@@ -129,6 +150,8 @@ void yeet_embedded_init(void)
 
     // ==================== CONNECT RAW MEASUREMENT MOCKS ====================
     // Feed ADC-based measurement runner inputs
+    // Note: For sensorless operation, grid_side_angle, grid_side_frequency, and grid_pulses
+    // are now connected internally within sfc_grid_side_control (from observer and pulse generator)
     yeet::signals_connector::connect_output_to_input(
         mock_v_ab_counts, get_grid_side_control().grid_measurements.get_inputs().v_ab_counts);
     yeet::signals_connector::connect_output_to_input(
@@ -137,12 +160,6 @@ void yeet_embedded_init(void)
         mock_i_a_counts, get_grid_side_control().grid_measurements.get_inputs().i_a_counts);
     yeet::signals_connector::connect_output_to_input(
         mock_i_c_counts, get_grid_side_control().grid_measurements.get_inputs().i_c_counts);
-    yeet::signals_connector::connect_output_to_input(
-        mock_grid_pulses, get_grid_side_control().grid_measurements.get_inputs().grid_pulses);
-    yeet::signals_connector::connect_output_to_input(
-        mock_grid_side_frequency, get_grid_side_control().grid_measurements.get_inputs().grid_side_frequency);
-    yeet::signals_connector::connect_output_to_input(
-        mock_grid_side_angle, get_grid_side_control().grid_measurements.get_inputs().grid_side_angle);
 
     // ==================== DIRECT MOCKING OF UNCONNECTED CONTROLLER FREEZE INPUTS ====================
     // Ensure deterministic start: explicitly force all freeze inputs false prior to state machine activity.
@@ -150,7 +167,8 @@ void yeet_embedded_init(void)
     yeet::mock_signal_input::write(
         get_grid_side_control().current_controller.get_inputs().modulator_freeze_integrator, false);
 
-    // Initialize grid - side control subsystem
+    // Initialize grid-side control subsystem
+    // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
     get_grid_side_control().initialize();
 }
 
@@ -163,35 +181,43 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Called from: TIM2_IRQHandler
     // Priority: Highest (innermost current control loop)
 
-    // Update mock ADC inputs with real hardware measurements
-    // In embedded operation, these would come from actual ADC DMA buffers
-    if (inputs != nullptr && inputs->analog_inputs.valid) {
-        // Map generic analog inputs to application-specific mock signals
-        // TODO: Replace with actual signal mapping based on hardware configuration
-        // Example mapping (adjust indices based on your ADC channel assignment):
-        //   channels[0-2] = Phase voltages
-        //   channels[3-5] = Phase currents
-        //   channels[6-7] = DC link measurements
-        mock_i_a_counts.write(yeet::control::adc_counts{inputs->analog_inputs.channels[0]});
-        mock_i_c_counts.write(yeet::control::adc_counts{inputs->analog_inputs.channels[1]});
-        mock_v_ab_counts.write(yeet::control::adc_counts{inputs->analog_inputs.channels[2]});
-        mock_v_bc_counts.write(yeet::control::adc_counts{inputs->analog_inputs.channels[3]});
-    }
+    // ==================== ANALOG INPUTS → MEASUREMENTS ====================
+    // Map hardware ADC channels to grid-side measurements
+    // Based on sfc_io_definitions.md:
+    //   AI1 (X1-1): Grid voltage Vab (100V → 3.5V, ±200V range)
+    //   AI2 (X1-2): Grid voltage Vbc
+    //   AI5 (X1-5): Grid current Ia (1A → 5V or 5A → 5V, ±7.5A range)
+    //   AI7 (X1-7): Grid current Ic
+    // Grid voltage measurements (line-to-line differential)
+    mock_v_ab_counts.write(yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[0])});
+    mock_v_bc_counts.write(yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
 
-    // Execute the 5 kHz control update
+    // Grid current measurements (phase currents)
+    mock_i_a_counts.write(yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[4])});
+    mock_i_c_counts.write(yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[6])});
+
+    // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     get_grid_side_control().update_200us();
 
-    // Extract gate pulse outputs from the modulator
-    // In production, these would be applied to thyristor gate driver hardware
+    // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
+    // Extract firing pulses from grid-side pulse generator and map to hardware PWM channels
+    // Based on sfc_io_definitions.md PWM mapping:
+    //   PWM1 (PC6) → a_plus  (Phase A positive arm, T1)
+    //   PWM2 (PC7) → c_minus (Phase C negative arm, T6)
+    //   PWM3 (PC8) → b_plus  (Phase B positive arm, T3)
+    //   PWM4 (PC9) → a_minus (Phase A negative arm, T4)
+    //   PWM5 (PB0) → c_plus  (Phase C positive arm, T5)
+    //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
     if (outputs != nullptr) {
-        // For now, initialize all pulses to false (safe default)
-        // TODO: Read actual pulse commands from grid_side_modulator output when available
-        outputs->thyristor_pulses.a_plus = false;
-        outputs->thyristor_pulses.c_minus = false;
-        outputs->thyristor_pulses.b_plus = false;
-        outputs->thyristor_pulses.a_minus = false;
-        outputs->thyristor_pulses.c_plus = false;
-        outputs->thyristor_pulses.b_minus = false;
+        const auto& firing_pulses =
+            get_grid_side_control().grid_side_pulse_generator.get_outputs().firing_pulses.read();
+
+        outputs->thyristor_pulses.a_plus = firing_pulses.p1;   // T1 (A+) → p1
+        outputs->thyristor_pulses.b_minus = firing_pulses.p2;  // T2 (B-) → p2
+        outputs->thyristor_pulses.b_plus = firing_pulses.p3;   // T3 (B+) → p3
+        outputs->thyristor_pulses.a_minus = firing_pulses.p4;  // T4 (A-) → p4
+        outputs->thyristor_pulses.c_plus = firing_pulses.p5;   // T5 (C+) → p5
+        outputs->thyristor_pulses.c_minus = firing_pulses.p6;  // T6 (C-) → p6
     }
 }
 
@@ -204,47 +230,99 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Called from: TIM3_IRQHandler
     // Priority: Medium (outer control loops)
 
-    // Process fiber-optic RX data if available
-    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready) {
-        // TODO: Process received data from remote board
-        // Example: Read speed reference, status flags, or setpoints
-        // float remote_speed = inputs->fiber_optic_rx.payload[0];
-        // float remote_current = inputs->fiber_optic_rx.payload[1];
-    }
-
-    // Update digital input states
+    // ==================== DIGITAL INPUTS → CONTROL COMMANDS ====================
+    // Map hardware digital inputs to state machine control signals
+    // Based on typical SFC system supervisory control interface:
+    //   DI1-DI6: State machine commands (auxiliaries, breakers, start, stop, etc.)
+    //   DI7-DI16: System status and interlocks
     if (inputs != nullptr && inputs->digital_inputs.valid) {
-        // TODO: Map generic digital inputs to control signals
-        // Example mappings:
-        //   signals[0] = Emergency stop
-        //   signals[1] = Enable command
-        //   signals[2] = Fault reset
-        // bool emergency_stop = inputs->digital_inputs.signals[0];
+        // State machine command inputs (active-high logic)
+        bool auxiliaries_on = inputs->digital_inputs.signals[0];        // DI1: Auxiliary systems ready
+        bool breakers_on = inputs->digital_inputs.signals[1];           // DI2: Grid breakers closed
+        bool start_cmd = inputs->digital_inputs.signals[2];             // DI3: Start command
+        bool stop_cmd = inputs->digital_inputs.signals[3];              // DI4: Stop command
+        bool shutdown_req = inputs->digital_inputs.signals[4];          // DI5: Emergency shutdown
+        bool current_extinguished = inputs->digital_inputs.signals[5];  // DI6: DC link current is zero
+
+        // Write to mock signal outputs which are connected to grid-side control inputs
+        mock_auxiliaries_are_on.write(auxiliaries_on);
+        mock_breakers_are_on.write(breakers_on);
+        mock_start_command.write(start_cmd);
+        mock_stop_command.write(stop_cmd);
+        mock_shutdown_request.write(shutdown_req);
+        mock_is_current_extinguished.write(current_extinguished);
     }
 
+    // Process fiber-optic RX data from machine-side controller
+    // Fiber-optic link provides cross-coupled signals between grid and machine sides
+    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
+        // Expected payload format from machine-side board:
+        //   payload[0]: Measured speed [pu]
+        //   payload[1]: DC link current reference [pu]
+        //   payload[2]: Machine voltage magnitude [pu]
+        //   payload[3]: Force commutation request [boolean as float]
+
+        if (inputs->fiber_optic_rx.payload_length >= 4) {
+            // Update mock machine-side signals with received data
+            mock_measured_speed_pu.write(yeet::speed_pu_t{inputs->fiber_optic_rx.payload[0]});
+            mock_dc_link_current_reference.write(yeet::current_pu_t{inputs->fiber_optic_rx.payload[1]});
+            mock_machine_voltage_magnitude.write(yeet::voltage_pu_t{inputs->fiber_optic_rx.payload[2]});
+            mock_request_force_commutation.write(inputs->fiber_optic_rx.payload[3] > 0.5f);
+        }
+    }
+
+    // Execute 1 kHz control update (current controller)
     get_grid_side_control().update_1ms();
 
-    // Prepare fiber-optic TX data
+    // ==================== FIBER-OPTIC TX → MACHINE-SIDE CONTROLLER ====================
+    // Prepare fiber-optic TX data to send to machine-side board
+    // Transmit grid-side status and cross-coupled signals
     if (outputs != nullptr) {
-        // TODO: Populate fiber TX payload with data for remote board
-        // Example: Send measured values, status flags, or commands
-        // outputs->fiber_optic_tx.payload[0] = measured_voltage;
-        // outputs->fiber_optic_tx.payload[1] = measured_current;
-        // outputs->fiber_optic_tx.payload_length = 2;
-        // outputs->fiber_optic_tx.transmit_request = true;
-        outputs->fiber_optic_tx.payload_length = 0;
-        outputs->fiber_optic_tx.transmit_request = false;
+        // Payload format to machine-side:
+        //   payload[0]: Operating mode [enumeration as float]
+        //   payload[1]: Is current zero [boolean as float]
+        //   payload[2]: Force commutation acknowledged [boolean as float]
+        //   payload[3]: Pulse releases [boolean as float]
+
+        const auto operating_mode = get_grid_side_control().operation_mode_monitor.get_outputs().operating_mode.read();
+        const bool is_current_zero =
+            get_grid_side_control().operation_mode_monitor.get_outputs().is_current_zero.read();
+        const bool force_comm_ack =
+            get_grid_side_control().grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
+        const bool pulse_releases = get_grid_side_control().state_machine.get_outputs().pulse_releases.read();
+
+        outputs->fiber_optic_tx.payload[0] = static_cast<float>(static_cast<int>(operating_mode));
+        outputs->fiber_optic_tx.payload[1] = is_current_zero ? 1.0f : 0.0f;
+        outputs->fiber_optic_tx.payload[2] = force_comm_ack ? 1.0f : 0.0f;
+        outputs->fiber_optic_tx.payload[3] = pulse_releases ? 1.0f : 0.0f;
+        outputs->fiber_optic_tx.payload_length = 4;
+        outputs->fiber_optic_tx.transmit_request = true;
     }
 
-    // Update digital outputs
+    // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
+    // Map control system status to hardware digital outputs
+    // Based on typical HMI and system monitoring requirements
     if (outputs != nullptr) {
-        // TODO: Map control status to generic digital outputs
-        // Example mappings:
-        //   signals[0] = Fault indicator
-        //   signals[1] = Running indicator
-        //   signals[16] = Communication status
-        // outputs->digital_outputs.signals[0] = system_fault;
-        // outputs->digital_outputs.signals[1] = system_running;
+        const bool pulse_releases = get_grid_side_control().state_machine.get_outputs().pulse_releases.read();
+        const bool is_current_zero =
+            get_grid_side_control().operation_mode_monitor.get_outputs().is_current_zero.read();
+        const bool current_saturated =
+            get_grid_side_control().current_controller.get_outputs().current_controller_is_saturated.read();
+        const auto operating_mode = get_grid_side_control().operation_mode_monitor.get_outputs().operating_mode.read();
+
+        // Status output mapping:
+        outputs->digital_outputs.signals[0] = pulse_releases;     // DO1: System running
+        outputs->digital_outputs.signals[1] = is_current_zero;    // DO2: Current zero status
+        outputs->digital_outputs.signals[2] = current_saturated;  // DO3: Controller saturation
+        outputs->digital_outputs.signals[3] =
+            (operating_mode ==
+                yeet::application::sfc::sfc_operating_mode_t::forced_commutation);  // DO4: Forced commutation mode
+        outputs->digital_outputs.signals[4] =
+            (operating_mode ==
+                yeet::application::sfc::sfc_operating_mode_t::natural_commutation);  // DO5: Natural commutation mode
+        outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
+
+        // Additional outputs (DO7-DO17) available for application-specific status
     }
 }
 

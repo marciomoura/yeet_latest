@@ -30,6 +30,12 @@ void sfc_grid_side_control::update_200us()
 
 void sfc_grid_side_control::connect_internal_signals()
 {
+    // NOTE: I/O interface connections are established automatically in sfc_grid_side_control_io constructor
+    // through direct reference initialization. External systems can connect to io.analog_inputs, io.digital_inputs,
+    // etc. which are references to the actual component signal_input members.
+
+    // ==================== Internal Component Signal Flow ====================
+
     // State machine → Components
     signals_connector::connect_output_to_input(
         state_machine.get_outputs().pulse_releases, grid_side_pulse_generator.get_inputs().release_pulses);
@@ -43,17 +49,7 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         state_machine.get_outputs().pulse_releases, grid_side_modulator.get_inputs().enable);
 
-    // External state machine inputs
-    signals_connector::connect_output_to_input(auxiliaries_are_on, state_machine.get_inputs().auxiliaries_are_on);
-    signals_connector::connect_output_to_input(breakers_are_on, state_machine.get_inputs().breakers_are_on);
-    signals_connector::connect_output_to_input(start_command, state_machine.get_inputs().start_command);
-    signals_connector::connect_output_to_input(stop_command, state_machine.get_inputs().stop_command);
-    signals_connector::connect_output_to_input(shutdown_request, state_machine.get_inputs().shutdown_request);
-    signals_connector::connect_output_to_input(
-        is_current_extinguished, state_machine.get_inputs().is_current_extinguished);
-
     // Operation mode monitor inputs
-    // Note: measured_speed_pu is connected externally from machine-side observer
     signals_connector::connect_output_to_input(
         dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current_pu);
 
@@ -87,10 +83,6 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         grid_side_modulator.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
 
-    // Force commutation handshake
-    // signals_connector::connect_output_to_input(
-    //     request_force_commutation, grid_side_modulator.get_inputs().request_force_commutation);
-
     // Grid measurements → Observer
     signals_connector::connect_output_to_input(
         grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_pu);
@@ -98,6 +90,16 @@ void sfc_grid_side_control::connect_internal_signals()
     // Observer → Pulse generator synchronization
     signals_connector::connect_output_to_input(
         grid_side_observer.get_outputs().estimated_position, grid_side_pulse_generator.get_inputs().reference_angle);
+
+    // Internal feedback: Pulse generator → Measurements (for commutation detection)
+    signals_connector::connect_output_to_input(
+        grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
+
+    // Observer → Measurements (for sensorless operation - estimated angle/frequency)
+    signals_connector::connect_output_to_input(
+        grid_side_observer.get_outputs().estimated_position, grid_measurements.get_inputs().grid_side_angle);
+    signals_connector::connect_output_to_input(
+        grid_side_observer.get_outputs().estimated_frequency, grid_measurements.get_inputs().grid_side_frequency);
 }
 
 }  // namespace yeet::application::sfc::integration

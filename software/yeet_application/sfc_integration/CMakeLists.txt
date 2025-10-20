@@ -68,6 +68,7 @@ set(SFC_CORE_SOURCES
     src/sfc_dc_link_measurements_runner.cpp
     src/sfc_excitation_controller_runner.cpp
     src/sfc_grid_side_control.cpp
+    src/sfc_grid_side_control_io.cpp
     src/sfc_grid_side_hardware_mock_runner.cpp
     src/sfc_grid_side_measurements_runner.cpp
     src/sfc_grid_side_modulator_runner.cpp
