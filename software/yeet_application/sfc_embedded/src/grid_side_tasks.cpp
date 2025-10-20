@@ -7,6 +7,8 @@
 
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/fiber_optic_protocol.hpp"
+#include "sfc_embedded/network_command_parser.hpp"
+#include "sfc_embedded/network_telemetry_manager.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
 #include "yeet/signal.hpp"
 
@@ -41,18 +43,13 @@ static inline yeet::application::sfc::integration::sfc_grid_side_control& get_gr
     return grid_side_control;
 }
 
-// ==================== NETWORK STREAMING STATE ====================
-// State machine for TCP streaming data protocol
-struct network_streaming_state {
-    bool is_streaming = false;                           // Streaming active flag
-    float test_signal_amplitude = 1.0f;                  // Configurable amplitude
-    float noise_level = 0.1f;                            // Configurable noise level
-    uint32_t sample_count = 0;                           // Sample counter for signal generation
-    uint32_t tx_packet_count = 0;                        // Transmitted packet counter
-    static constexpr uint16_t SAMPLES_PER_PACKET = 361;  // Max floats that fit in 1460 byte packet
-};
-
-static network_streaming_state net_stream_state;
+// ==================== NETWORK TELEMETRY MANAGER ====================
+// Telemetry streaming manager for TCP/IP interface
+static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
+{
+    static yeet::application::sfc::network::telemetry_manager manager(get_grid_side_control(), 10);
+    return manager;
+}
 
 ARM_FUNCTION
 void yeet_embedded_init(void)
@@ -293,189 +290,75 @@ void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     // Called from: Main loop (not time-critical)
     // Purpose: Handle TCP/IP and UDP communication for:
     //   - HMI/SCADA supervisory control
+    //   - Real-time telemetry streaming (measurements, observers, controllers)
     //   - Configuration updates
     //   - Diagnostic data requests
     //   - Parameter tuning
-    //   - Event logging and telemetry
+    //   - Event logging
 
     // ==================== COMMAND PROTOCOL ====================
     // Simple text-based protocol:
-    //   "START\n"  - Begin streaming data
-    //   "STOP\n"   - Stop streaming data
-    //   "AMP:X.X\n" - Set signal amplitude (e.g., "AMP:2.5\n")
-    //   "NOISE:X.X\n" - Set noise level (e.g., "NOISE:0.05\n")
+    //   "START\n"  - Begin streaming telemetry data
+    //   "STOP\n"   - Stop streaming telemetry data
     //
-    // ==================== DATA PACKET FORMAT ====================
-    // Binary format for bulk streaming (maximum throughput):
-    //   [Header: 4 bytes = 0xDEADBEEF]
-    //   [Packet Count: 4 bytes uint32_t]
-    //   [Start Sample Index: 4 bytes uint32_t]
-    //   [Num Samples: 2 bytes uint16_t]
-    //   [Sample Data: N x 4 bytes floats (max 361 samples = 1444 bytes)]
-    //   [Checksum: 2 bytes uint16_t]
-    // Total packet size: 16 + (N * 4) bytes, max 1460 bytes
+    // ==================== TELEMETRY PACKET FORMAT ====================
+    // Binary format using network_telemetry protocol (see network_telemetry_protocol.md):
+    //   [Header: 16 bytes] - Packet type, version, flags, timestamp, sequence
+    //   [Payload: Variable] - Selected signal groups (measurements, observer, modulator, etc.)
+    //
+    // Packet size: 44-108 bytes depending on selected groups
+    // Transmission rate: Decimated to 100 Hz (every 10th call)
+    // Bandwidth: ~86 kbps (full packet at 100 Hz)
 
-    // Process incoming network commands
+    // ==================== COMMAND PROCESSING ====================
+    // Parse incoming network commands and dispatch to handlers
     if (inputs != nullptr && inputs->network_rx.data_ready && inputs->network_rx.rx_length > 0) {
-        const uint8_t* rx_data = inputs->network_rx.rx_buffer;
-        uint16_t rx_len = inputs->network_rx.rx_length;
+        // Parse command from received buffer
+        auto cmd = yeet::application::sfc::network::command_parser::parse(
+            inputs->network_rx.rx_buffer, inputs->network_rx.rx_length);
 
-        // Parse text-based commands (null-terminated or newline-terminated)
-        if (rx_len >= 5 && rx_data[0] == 'S' && rx_data[1] == 'T' && rx_data[2] == 'A' && rx_data[3] == 'R' &&
-            rx_data[4] == 'T') {
-            // START command received
-            net_stream_state.is_streaming = true;
-            net_stream_state.sample_count = 0;
-            net_stream_state.tx_packet_count = 0;
-        }
-        else if (rx_len >= 4 && rx_data[0] == 'S' && rx_data[1] == 'T' && rx_data[2] == 'O' && rx_data[3] == 'P') {
-            // STOP command received
-            net_stream_state.is_streaming = false;
-        }
-        else if (rx_len >= 4 && rx_data[0] == 'A' && rx_data[1] == 'M' && rx_data[2] == 'P' && rx_data[3] == ':') {
-            // AMP:X.X command - parse float value
-            // Simple ASCII to float conversion (assumes format "AMP:1.23")
-            float new_amp = 0.0f;
-            bool is_negative = false;
-            uint16_t idx = 4;
+        // Handle parsed command
+        if (cmd.is_valid()) {
+            switch (cmd.type) {
+                case yeet::application::sfc::network::command_type::start_telemetry:
+                    get_telemetry_manager().start();
+                    break;
 
-            if (idx < rx_len && rx_data[idx] == '-') {
-                is_negative = true;
-                idx++;
-            }
+                case yeet::application::sfc::network::command_type::stop_telemetry:
+                    get_telemetry_manager().stop();
+                    break;
 
-            // Parse integer part
-            while (idx < rx_len && rx_data[idx] >= '0' && rx_data[idx] <= '9') {
-                new_amp = new_amp * 10.0f + (rx_data[idx] - '0');
-                idx++;
-            }
-
-            // Parse decimal part
-            if (idx < rx_len && rx_data[idx] == '.') {
-                idx++;
-                float decimal_place = 0.1f;
-                while (idx < rx_len && rx_data[idx] >= '0' && rx_data[idx] <= '9') {
-                    new_amp += (rx_data[idx] - '0') * decimal_place;
-                    decimal_place *= 0.1f;
-                    idx++;
-                }
-            }
-
-            if (is_negative) new_amp = -new_amp;
-
-            // Clamp to reasonable range
-            if (new_amp >= 0.0f && new_amp <= 10.0f) {
-                net_stream_state.test_signal_amplitude = new_amp;
-            }
-        }
-        else if (rx_len >= 6 && rx_data[0] == 'N' && rx_data[1] == 'O' && rx_data[2] == 'I' && rx_data[3] == 'S' &&
-                 rx_data[4] == 'E' && rx_data[5] == ':') {
-            // NOISE:X.X command - parse float value
-            float new_noise = 0.0f;
-            uint16_t idx = 6;
-
-            // Parse integer part
-            while (idx < rx_len && rx_data[idx] >= '0' && rx_data[idx] <= '9') {
-                new_noise = new_noise * 10.0f + (rx_data[idx] - '0');
-                idx++;
-            }
-
-            // Parse decimal part
-            if (idx < rx_len && rx_data[idx] == '.') {
-                idx++;
-                float decimal_place = 0.1f;
-                while (idx < rx_len && rx_data[idx] >= '0' && rx_data[idx] <= '9') {
-                    new_noise += (rx_data[idx] - '0') * decimal_place;
-                    decimal_place *= 0.1f;
-                    idx++;
-                }
-            }
-
-            // Clamp to reasonable range
-            if (new_noise >= 0.0f && new_noise <= 1.0f) {
-                net_stream_state.noise_level = new_noise;
+                default:
+                    // Unknown command (should not reach here if parser is correct)
+                    break;
             }
         }
     }
 
-    // Prepare network transmission (streaming data packets)
-    if (outputs != nullptr) {
-        if (net_stream_state.is_streaming && inputs != nullptr && inputs->network_rx.tcp_connected) {
-            if (outputs->network_tx.transmit_request) {
-                // Previous packet still waiting to be transmitted; do not overwrite the buffer
-                return;
-            }
+    // ==================== TELEMETRY TRANSMISSION ====================
+    // Update telemetry manager and transmit packets when ready
+    if (outputs != nullptr && inputs != nullptr && inputs->network_rx.tcp_connected) {
+        // Update telemetry manager (handles decimation and packet building)
+        auto tx = get_telemetry_manager().update(outputs->network_tx.transmit_request);
 
-            const uint16_t num_samples = network_streaming_state::SAMPLES_PER_PACKET;
-            const uint32_t start_sample_idx = net_stream_state.sample_count;
-
-            // Build binary packet header
-            uint8_t* tx_data = outputs->network_tx.tx_buffer;
-            uint16_t tx_idx = 0;
-
-            // Header: 0xDEADBEEF
-            tx_data[tx_idx++] = 0xDE;
-            tx_data[tx_idx++] = 0xAD;
-            tx_data[tx_idx++] = 0xBE;
-            tx_data[tx_idx++] = 0xEF;
-
-            // Packet count (big-endian)
-            tx_data[tx_idx++] = (net_stream_state.tx_packet_count >> 24) & 0xFF;
-            tx_data[tx_idx++] = (net_stream_state.tx_packet_count >> 16) & 0xFF;
-            tx_data[tx_idx++] = (net_stream_state.tx_packet_count >> 8) & 0xFF;
-            tx_data[tx_idx++] = net_stream_state.tx_packet_count & 0xFF;
-
-            // Start sample index (big-endian)
-            tx_data[tx_idx++] = (start_sample_idx >> 24) & 0xFF;
-            tx_data[tx_idx++] = (start_sample_idx >> 16) & 0xFF;
-            tx_data[tx_idx++] = (start_sample_idx >> 8) & 0xFF;
-            tx_data[tx_idx++] = start_sample_idx & 0xFF;
-
-            // Number of samples (big-endian, 16-bit)
-            tx_data[tx_idx++] = (num_samples >> 8) & 0xFF;
-            tx_data[tx_idx++] = num_samples & 0xFF;
-
-            // Generate and pack sample data (IEEE 754 float, big-endian)
-            union {
-                float f;
-                uint32_t u;
-            } float_converter;
-
-            // CONSTANT SIGNAL FOR TESTING - all samples have identical value
-            // This ensures every packet has the same checksum, making it easy to detect corruption/framing issues
-            float constant_value = net_stream_state.test_signal_amplitude;  // Use amplitude parameter as constant value
-            float_converter.f = constant_value;
-
-            for (uint16_t i = 0; i < num_samples; i++) {
-                // Pack constant value as big-endian float (same value for all samples)
-                tx_data[tx_idx++] = (float_converter.u >> 24) & 0xFF;
-                tx_data[tx_idx++] = (float_converter.u >> 16) & 0xFF;
-                tx_data[tx_idx++] = (float_converter.u >> 8) & 0xFF;
-                tx_data[tx_idx++] = float_converter.u & 0xFF;
-            }
-
-            // Checksum: simple sum of all bytes (excluding checksum itself)
-            uint16_t checksum = 0;
-            for (uint16_t i = 0; i < tx_idx; i++) {
-                checksum += tx_data[i];
-            }
-            tx_data[tx_idx++] = (checksum >> 8) & 0xFF;
-            tx_data[tx_idx++] = checksum & 0xFF;
-
-            // Set transmission parameters
-            outputs->network_tx.tx_length = tx_idx;  // Should be 1460 bytes max
+        // Transmit packet if ready
+        if (tx.is_ready()) {
+            // Copy encoded packet to transmission buffer
+            std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
+            outputs->network_tx.tx_length = static_cast<uint16_t>(tx.size);
             outputs->network_tx.transmit_request = true;
             outputs->network_tx.socket_id = inputs->network_rx.socket_id;
-
-            // Increment counters
-            net_stream_state.sample_count += num_samples;  // Advance by chunk size
-            net_stream_state.tx_packet_count++;
         }
         else {
-            // Default: No transmission
+            // No transmission this cycle
             outputs->network_tx.transmit_request = false;
             outputs->network_tx.tx_length = 0;
         }
+    }
+    else if (outputs != nullptr) {
+        // Default: No transmission when not connected
+        outputs->network_tx.transmit_request = false;
+        outputs->network_tx.tx_length = 0;
     }
 }
 
