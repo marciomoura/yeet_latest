@@ -82,7 +82,7 @@ class TelemetryPacketHeader:
 class GridMeasurementsGroup:
     """Grid and DC link measurement signals (per-unit).
     
-    Size: 20 bytes (5 floats)
+    Size: 24 bytes (5 floats + 1 bool with padding)
     Flag: MEASUREMENTS
     
     Attributes:
@@ -91,25 +91,29 @@ class GridMeasurementsGroup:
         grid_voltage_b_pu: Phase B voltage [pu]
         grid_voltage_c_pu: Phase C voltage [pu]
         dc_link_current_pu: DC link current [pu]
+        is_commuting: Thyristor commutation status
     """
     grid_voltage_magnitude_pu: float
     grid_voltage_a_pu: float
     grid_voltage_b_pu: float
     grid_voltage_c_pu: float
     dc_link_current_pu: float
+    is_commuting: bool
 
 
 @dataclass
 class GridObserverGroup:
     """Grid-side observer estimates.
     
-    Size: 8 bytes (2 floats)
+    Size: 12 bytes (3 floats)
     Flag: OBSERVER
     
     Attributes:
+        estimated_voltage_magnitude_pu: Estimated grid voltage magnitude [pu]
         estimated_frequency_pu: Estimated grid frequency [pu]
         estimated_angle_rad: Estimated grid angle [radians]
     """
+    estimated_voltage_magnitude_pu: float
     estimated_frequency_pu: float
     estimated_angle_rad: float
 
@@ -118,33 +122,31 @@ class GridObserverGroup:
 class GridModulatorGroup:
     """Grid-side modulator outputs.
     
-    Size: 12 bytes (2 floats + 4 uint8)
+    Size: 16 bytes (2 bools + 2 floats with padding)
     Flag: MODULATOR
     
     Attributes:
-        firing_angle_reference_rad: Commanded firing angle [radians]
-        firing_angle_actual_rad: Actual firing angle (after limits) [radians]
+        is_enabled: Modulator enable status
+        firing_angle_input_pu: Commanded firing angle [pu]
+        firing_angle_output_pu: Actual firing angle (after limits) [pu]
         force_commutation_ack: Force commutation acknowledgment flag
-        reserved_1: Reserved byte
-        reserved_2: Reserved byte
-        reserved_3: Reserved byte
     """
-    firing_angle_reference_rad: float
-    firing_angle_actual_rad: float
-    force_commutation_ack: int
-    reserved_1: int
-    reserved_2: int
-    reserved_3: int
+    is_enabled: bool
+    firing_angle_input_pu: float
+    firing_angle_output_pu: float
+    force_commutation_ack: bool
 
 
 @dataclass
 class GridControllerGroup:
     """Current controller state.
     
-    Size: 12 bytes (2 floats + 4 uint8)
+    Size: 20 bytes (4 floats + 4 uint8_t)
     Flag: CONTROLLER
     
     Attributes:
+        dc_link_current_reference: Control reference [pu]
+        dc_link_current_measured: Control measured [pu]
         current_error_pu: Control error [pu]
         controller_output_pu: PI controller output [pu]
         operating_mode: 0=forced, 1=natural commutation
@@ -152,6 +154,8 @@ class GridControllerGroup:
         freeze_integrator: Integrator freeze flag
         reserved: Reserved byte
     """
+    dc_link_current_reference: float
+    dc_link_current_measured: float
     current_error_pu: float
     controller_output_pu: float
     operating_mode: int
@@ -164,20 +168,27 @@ class GridControllerGroup:
 class StateMachineGroup:
     """State machine status.
     
-    Size: 4 bytes (4 uint8)
+    Size: 8 bytes (1 uint8_t + 7 bools, packed)
     Flag: STATE_MACHINE
     
     Attributes:
         current_state: Current state enum value
         pulse_releases: Pulses enabled flag
-        reserved_1: Reserved byte
-        reserved_2: Reserved byte
+        auxiliaries_are_on: Auxiliaries status
+        breakers_are_on: Breakers status
+        start_command: Start command status
+        stop_command: Stop command status
+        is_current_extinguished: Current extinguished status
+        is_shutdown_requested: Shutdown requested flag
     """
     current_state: int
-    pulse_releases: int
-    reserved_1: int
-    reserved_2: int
-
+    pulse_releases: bool
+    auxiliaries_are_on: bool
+    breakers_are_on: bool
+    start_command: bool
+    stop_command: bool
+    is_current_extinguished: bool
+    is_shutdown_requested: bool
 
 @dataclass
 class GridSideTelemetryPacket:
@@ -218,11 +229,11 @@ class TelemetryDecoder:
     
     # Struct format strings (little-endian)
     HEADER_FORMAT = '<BBHIII'            # 16 bytes (B+B+H+I+I+I = 1+1+2+4+4+4)
-    MEASUREMENTS_FORMAT = '<fffff'       # 20 bytes (5 floats)
-    OBSERVER_FORMAT = '<ff'              # 8 bytes (2 floats)
-    MODULATOR_FORMAT = '<ffBBBB'         # 12 bytes (2 floats + 4 uint8)
-    CONTROLLER_FORMAT = '<ffBBBB'        # 12 bytes (2 floats + 4 uint8)
-    STATE_MACHINE_FORMAT = '<BBBB'       # 4 bytes (4 uint8)
+    MEASUREMENTS_FORMAT = '<fffffBxxx'   # 24 bytes (5 floats + 1 bool + 3 padding bytes)
+    OBSERVER_FORMAT = '<fff'             # 12 bytes (3 floats)
+    MODULATOR_FORMAT = '<Bxxxffbxxx'     # 16 bytes (bool + 3 pad + 2 floats + bool + 3 pad)
+    CONTROLLER_FORMAT = '<ffffBBBB'      # 20 bytes (4 floats + 4 uint8)
+    STATE_MACHINE_FORMAT = '<BBBBBBBB'   # 8 bytes (1 uint8 + 7 bools)
     
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     MEASUREMENTS_SIZE = struct.calcsize(MEASUREMENTS_FORMAT)
@@ -324,10 +335,11 @@ class TelemetryDecoder:
                 grid_voltage_a_pu=meas_data[1],
                 grid_voltage_b_pu=meas_data[2],
                 grid_voltage_c_pu=meas_data[3],
-                dc_link_current_pu=meas_data[4]
+                dc_link_current_pu=meas_data[4],
+                is_commuting=bool(meas_data[5])
             )
             if verbose:
-                print(f"[DECODE] MEASUREMENTS decoded at offset {offset}: magnitude={meas_data[0]:.3f}, a={meas_data[1]:.3f}, b={meas_data[2]:.3f}, c={meas_data[3]:.3f}, dc={meas_data[4]:.3f}")
+                print(f"[DECODE] MEASUREMENTS decoded at offset {offset}: magnitude={meas_data[0]:.3f}, a={meas_data[1]:.3f}, b={meas_data[2]:.3f}, c={meas_data[3]:.3f}, dc={meas_data[4]:.3f}, commuting={meas_data[5]}")
             offset += self.MEASUREMENTS_SIZE
             
         # Observer group
@@ -347,11 +359,12 @@ class TelemetryDecoder:
                 return None
                 
             packet.observer = GridObserverGroup(
-                estimated_frequency_pu=obs_data[0],
-                estimated_angle_rad=obs_data[1]
+                estimated_voltage_magnitude_pu=obs_data[0],
+                estimated_frequency_pu=obs_data[1],
+                estimated_angle_rad=obs_data[2]
             )
             if verbose:
-                print(f"[DECODE] OBSERVER decoded at offset {offset}: freq={obs_data[0]:.3f}, angle={obs_data[1]:.3f}")
+                print(f"[DECODE] OBSERVER decoded at offset {offset}: voltage_mag={obs_data[0]:.3f}, freq={obs_data[1]:.3f}, angle={obs_data[2]:.3f}")
             offset += self.OBSERVER_SIZE
             
         # Modulator group
@@ -371,15 +384,13 @@ class TelemetryDecoder:
                 return None
                 
             packet.modulator = GridModulatorGroup(
-                firing_angle_reference_rad=mod_data[0],
-                firing_angle_actual_rad=mod_data[1],
-                force_commutation_ack=mod_data[2],
-                reserved_1=mod_data[3],
-                reserved_2=mod_data[4],
-                reserved_3=mod_data[5]
+                is_enabled=bool(mod_data[0]),
+                firing_angle_input_pu=mod_data[1],
+                firing_angle_output_pu=mod_data[2],
+                force_commutation_ack=bool(mod_data[3])
             )
             if verbose:
-                print(f"[DECODE] MODULATOR decoded at offset {offset}: ref_angle={mod_data[0]:.3f}, actual_angle={mod_data[1]:.3f}")
+                print(f"[DECODE] MODULATOR decoded at offset {offset}: enabled={mod_data[0]}, input_angle={mod_data[1]:.3f}, output_angle={mod_data[2]:.3f}, force_comm={mod_data[3]}")
             offset += self.MODULATOR_SIZE
             
         # Controller group
@@ -399,15 +410,17 @@ class TelemetryDecoder:
                 return None
                 
             packet.controller = GridControllerGroup(
-                current_error_pu=ctrl_data[0],
-                controller_output_pu=ctrl_data[1],
-                operating_mode=ctrl_data[2],
-                controller_saturated=ctrl_data[3],
-                freeze_integrator=ctrl_data[4],
-                reserved=ctrl_data[5]
+                dc_link_current_reference=ctrl_data[0],
+                dc_link_current_measured=ctrl_data[1],
+                current_error_pu=ctrl_data[2],
+                controller_output_pu=ctrl_data[3],
+                operating_mode=ctrl_data[4],
+                controller_saturated=ctrl_data[5],
+                freeze_integrator=ctrl_data[6],
+                reserved=ctrl_data[7]
             )
             if verbose:
-                print(f"[DECODE] CONTROLLER decoded at offset {offset}: error={ctrl_data[0]:.3f}, output={ctrl_data[1]:.3f}")
+                print(f"[DECODE] CONTROLLER decoded at offset {offset}: ref={ctrl_data[0]:.3f}, meas={ctrl_data[1]:.3f}, error={ctrl_data[2]:.3f}, output={ctrl_data[3]:.3f}, mode={ctrl_data[4]}")
             offset += self.CONTROLLER_SIZE
             
         # State machine group
@@ -428,12 +441,16 @@ class TelemetryDecoder:
                 
             packet.state_machine = StateMachineGroup(
                 current_state=state_data[0],
-                pulse_releases=state_data[1],
-                reserved_1=state_data[2],
-                reserved_2=state_data[3]
+                pulse_releases=bool(state_data[1]),
+                auxiliaries_are_on=bool(state_data[2]),
+                breakers_are_on=bool(state_data[3]),
+                start_command=bool(state_data[4]),
+                stop_command=bool(state_data[5]),
+                is_current_extinguished=bool(state_data[6]),
+                is_shutdown_requested=bool(state_data[7])
             )
             if verbose:
-                print(f"[DECODE] STATE_MACHINE decoded at offset {offset}: state={state_data[0]}, pulses={state_data[1]}")
+                print(f"[DECODE] STATE_MACHINE decoded at offset {offset}: state={state_data[0]}, pulses={state_data[1]}, aux_on={state_data[2]}, brk_on={state_data[3]}, start={state_data[4]}, stop={state_data[5]}, curr_ext={state_data[6]}, shutdown={state_data[7]}")
             offset += self.STATE_MACHINE_SIZE
         
         if verbose:

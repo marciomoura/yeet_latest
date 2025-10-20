@@ -19,6 +19,8 @@
 #define ARM_FUNCTION
 #endif
 
+#define RECTIFIER_MODE 1
+
 extern "C" {
 
 inline std::shared_ptr<yeet::application::sfc::sfc_per_unit_system> create_per_unit_system()
@@ -91,6 +93,9 @@ void yeet_embedded_init(void)
     yeet::mock_signal_input::write(get_grid_side_control().current_controller.get_inputs().freeze_integrator, false);
     yeet::mock_signal_input::write(
         get_grid_side_control().current_controller.get_inputs().modulator_freeze_integrator, false);
+
+    // Force initial conditions...
+    get_grid_side_control().grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
 
     // Initialize grid-side control subsystem
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
@@ -171,6 +176,7 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         bool shutdown_req = inputs->digital_inputs.signals[4];          // DI5: Emergency shutdown
         bool current_extinguished = inputs->digital_inputs.signals[5];  // DI6: DC link current is zero
 
+#ifndef RECTIFIER_MODE
         // Write digital input values directly to I/O interface
         yeet::mock_signal_input::write(
             get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, auxiliaries_on);
@@ -180,10 +186,19 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, shutdown_req);
         yeet::mock_signal_input::write(
             get_grid_side_control().get_io().digital_inputs.is_current_extinguished, current_extinguished);
+#else
+        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, true);
+        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, true);
+        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, true);
+        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
+        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
+        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.is_current_extinguished, false);
+#endif
     }
 
     // Process fiber-optic RX data from machine-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
+#ifndef RECTIFIER_MODE
     if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Decode Machine → Grid protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
@@ -202,6 +217,16 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
                 rx_msg->force_commutation_request);
         }
     }
+#else
+    yeet::mock_signal_input::write(
+        get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
+    yeet::mock_signal_input::write(
+        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{1.0f});
+    yeet::mock_signal_input::write(
+        get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude, yeet::voltage_pu_t{1.0f});
+    yeet::mock_signal_input::write(
+        get_grid_side_control().get_io().machine_side_inputs.request_force_commutation, false);
+#endif
 
     // Execute 1 kHz control update (current controller)
     get_grid_side_control().update_1ms();

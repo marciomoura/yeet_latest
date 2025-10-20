@@ -119,7 +119,7 @@ static_assert(sizeof(telemetry_packet_header) == 16, "Header must be 16 bytes");
  * @brief Grid and DC link measurement signals (per-unit)
  *
  * Group: TELEM_FLAG_MEASUREMENTS
- * Size: 20 bytes (reduced from 28 bytes - removed unavailable dc_link_voltage and dc_link_power)
+ * Size: 24 bytes (5 floats + 1 bool with padding)
  */
 struct grid_measurements_group {
     float grid_voltage_magnitude_pu; /**< Grid voltage magnitude [pu] */
@@ -127,44 +127,46 @@ struct grid_measurements_group {
     float grid_voltage_b_pu;         /**< Phase B voltage [pu] */
     float grid_voltage_c_pu;         /**< Phase C voltage [pu] */
     float dc_link_current_pu;        /**< DC link current [pu] */
+    bool is_commuting;               /**< Thyristor commutation status */
 };
-static_assert(sizeof(grid_measurements_group) == 20, "Must be fixed size");
+static_assert(sizeof(grid_measurements_group) == 24, "Must be fixed size");
 
 /**
  * @brief Grid-side observer estimates
  *
  * Group: TELEM_FLAG_OBSERVER
- * Size: 8 bytes (reduced from 12 bytes - removed unavailable pll_error)
+ * Size: 12 bytes (3 floats)
  */
 struct grid_observer_group {
-    float estimated_frequency_pu; /**< Estimated grid frequency [pu] */
-    float estimated_angle_rad;    /**< Estimated grid angle [rad] */
+    float estimated_voltage_magnitude_pu; /**< Estimated grid voltage magnitude [pu] */
+    float estimated_frequency_pu;         /**< Estimated grid frequency [pu] */
+    float estimated_angle_rad;            /**< Estimated grid angle [rad] */
 };
-static_assert(sizeof(grid_observer_group) == 8, "Must be fixed size");
+static_assert(sizeof(grid_observer_group) == 12, "Must be fixed size");
 
 /**
  * @brief Grid-side modulator outputs
  *
  * Group: TELEM_FLAG_MODULATOR
- * Size: 12 bytes (reduced from 20 bytes - removed unavailable force_commutation_mode and alpha limits)
+ * Size: 16 bytes (2 bools + 2 floats with padding)
  */
 struct grid_modulator_group {
-    float firing_angle_reference_rad;   /**< Commanded firing angle [rad] */
-    float firing_angle_actual_rad;      /**< Actual firing angle (after limits) [rad] */
-    std::uint8_t force_commutation_ack; /**< Force commutation acknowledgment flag */
-    std::uint8_t reserved_1;
-    std::uint8_t reserved_2;
-    std::uint8_t reserved_3;
+    bool is_enabled;              /**< Modulator enable status */
+    float firing_angle_input_pu;  /**< Commanded firing angle [pu] */
+    float firing_angle_output_pu; /**< Actual firing angle (after limits) [pu] */
+    bool force_commutation_ack;   /**< Force commutation acknowledgment flag */
 };
-static_assert(sizeof(grid_modulator_group) == 12, "Must be fixed size");
+static_assert(sizeof(grid_modulator_group) == 16, "Must be fixed size");
 
 /**
  * @brief Current controller state
  *
  * Group: TELEM_FLAG_CONTROLLER
- * Size: 12 bytes (reduced from 20 bytes - removed unavailable current_reference and current_measured)
+ * Size: 20 bytes (4 floats + 4 uint8_t)
  */
 struct grid_controller_group {
+    float dc_link_current_reference;   /**< Control reference [pu] */
+    float dc_link_current_measured;    /**< Control measured [pu] */
     float current_error_pu;            /**< Control error [pu] */
     float controller_output_pu;        /**< PI controller output [pu] */
     std::uint8_t operating_mode;       /**< 0=forced, 1=natural commutation */
@@ -172,21 +174,25 @@ struct grid_controller_group {
     std::uint8_t freeze_integrator;    /**< Integrator freeze flag */
     std::uint8_t reserved;
 };
-static_assert(sizeof(grid_controller_group) == 12, "Must be fixed size");
+static_assert(sizeof(grid_controller_group) == 20, "Must be fixed size");
 
 /**
  * @brief State machine status
  *
  * Group: TELEM_FLAG_STATE_MACHINE
- * Size: 4 bytes (reduced from 12 bytes - removed unavailable previous_state, fault, and state_duration)
+ * Size: 9 bytes (1 uint8_t + 8 bools, packed)
  */
 struct state_machine_group {
-    std::uint8_t current_state;  /**< Current state enum value */
-    std::uint8_t pulse_releases; /**< Pulses enabled flag */
-    std::uint8_t reserved_1;
-    std::uint8_t reserved_2;
+    std::uint8_t current_state;   /**< Current state enum value */
+    bool pulse_releases;          /**< Pulses enabled flag */
+    bool auxiliaries_are_on;      /**< Auxiliaries status */
+    bool breakers_are_on;         /**< Breakers status */
+    bool start_command;           /**< Start command status */
+    bool stop_command;            /**< Stop command status */
+    bool is_current_extinguished; /**< Current extinguished status */
+    bool is_shutdown_requested;   /**< Shutdown requested flag */
 };
-static_assert(sizeof(state_machine_group) == 4, "Must be fixed size");
+static_assert(sizeof(state_machine_group) == 8, "Must be fixed size");
 
 /* ============================================================================
  * Complete Packet Structures

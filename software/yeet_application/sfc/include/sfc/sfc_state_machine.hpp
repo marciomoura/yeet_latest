@@ -13,13 +13,13 @@ namespace yeet::application::sfc {
  * @brief State identifiers for the sfc state machine
  */
 enum class sfc_state_id {
-    IDLE,
-    AUXILIARIES_ON,
-    BREAKERS_OFF,
-    BREAKERS_ON,
-    OPERATION_OFF,
-    OPERATION_ON,
-    SHUTDOWN_REQUESTED
+    IDLE = 0,
+    AUXILIARIES_ON = 1,
+    BREAKERS_OFF = 2,
+    BREAKERS_ON = 3,
+    OPERATION_OFF = 4,
+    OPERATION_ON = 5,
+    SHUTDOWN_REQUESTED = 6
 };
 
 class sfc_state_event {
