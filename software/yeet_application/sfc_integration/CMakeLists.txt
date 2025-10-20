@@ -37,6 +37,7 @@ set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_grid_side_pulse_generator_datamodel.hpp
     include/sfc_integration/sfc_grid_side_pulse_generator_runner.hpp
     include/sfc_integration/sfc_machine_side_control.hpp
+    include/sfc_integration/sfc_machine_side_control_io.hpp
     include/sfc_integration/sfc_machine_side_controller_datamodel.hpp
     include/sfc_integration/sfc_machine_side_controller_runner.hpp
     include/sfc_integration/sfc_machine_side_hardware_mock_datamodel.hpp
@@ -68,12 +69,14 @@ set(SFC_CORE_SOURCES
     src/sfc_dc_link_measurements_runner.cpp
     src/sfc_excitation_controller_runner.cpp
     src/sfc_grid_side_control.cpp
+    src/sfc_grid_side_control_io.cpp
     src/sfc_grid_side_hardware_mock_runner.cpp
     src/sfc_grid_side_measurements_runner.cpp
     src/sfc_grid_side_modulator_runner.cpp
     src/sfc_grid_side_observer_runner.cpp
     src/sfc_grid_side_pulse_generator_runner.cpp
     src/sfc_machine_side_control.cpp
+    src/sfc_machine_side_control_io.cpp
     src/sfc_machine_side_controller_runner.cpp
     src/sfc_machine_side_hardware_mock_runner.cpp
     src/sfc_machine_side_measurements_runner.cpp

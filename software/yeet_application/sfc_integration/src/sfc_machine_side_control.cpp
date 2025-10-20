@@ -141,6 +141,16 @@ void sfc_machine_side_control::connect_internal_signals()
     // External machine voltage magnitude feedforward
     // signals_connector::connect_output_to_input(
     //     machine_side_voltage_magnitude, machine_side_observer.get_outputs().estimated_voltage_magnitude);
+
+    // Internal feedback: Pulse generator → Measurements (for commutation detection)
+    signals_connector::connect_output_to_input(
+        machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
+
+    // Observer → Measurements (for sensorless operation - estimated angle/frequency)
+    signals_connector::connect_output_to_input(
+        machine_side_observer.get_outputs().estimated_position, machine_measurements.get_inputs().machine_side_angle);
+    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_frequency,
+        machine_measurements.get_inputs().machine_side_frequency);
 }
 
 }  // namespace yeet::application::sfc::integration

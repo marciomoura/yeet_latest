@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
+#include "sfc_integration/sfc_machine_side_control_io.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
@@ -42,7 +43,16 @@ public:
           machine_side_observer(),
           machine_side_modulator(),
           machine_side_pulse_generator(),
-          machine_measurements(_per_unit_system)
+          machine_measurements(_per_unit_system),
+          io(machine_measurements,
+              excitation_controller,
+              speed_generator,
+              speed_controller,
+              torque_controller,
+              machine_side_controller,
+              machine_side_observer,
+              machine_side_modulator,
+              machine_side_pulse_generator)
     {
         connect_internal_signals();
     }
@@ -102,7 +112,13 @@ public:
     sfc_machine_side_measurements_runner& get_machine_measurements() { return machine_measurements; }
     const sfc_machine_side_measurements_runner& get_machine_measurements() const { return machine_measurements; }
 
-    // ==================== External Input Signals ====================
+    /**
+     * @brief Get I/O interface for external connections
+     */
+    sfc_machine_side_control_io& get_io() { return io; }
+    const sfc_machine_side_control_io& get_io() const { return io; }
+
+    // ==================== External Input Signals (DEPRECATED - Use io interface) ====================
 
     // Speed generator profile commands (semantic names for turbine starting sequence)
     signal_output<bool> run_creep_speed;     // Execute Profile 1: Creep speed for maintenance (~5% rated)
@@ -232,6 +248,9 @@ public:
     sfc_machine_side_modulator_runner machine_side_modulator;
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
     sfc_machine_side_measurements_runner machine_measurements;
+
+    // I/O interface for external connections (must be last as it references all components)
+    sfc_machine_side_control_io io;
 
 private:
     /**

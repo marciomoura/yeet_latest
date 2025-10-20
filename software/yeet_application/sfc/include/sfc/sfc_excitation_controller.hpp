@@ -86,8 +86,6 @@ public:
     void configure_field_established_timeout(duration_t timeout);
 
     /**
-     * @brief Configures the field current ramp-down time on shutdown.
-    /**
      * @brief Configures the excitation voltage setpoint ramp-down time on shutdown.
      *
      * Controls how quickly excitation voltage is reduced to zero when stop_excitation()

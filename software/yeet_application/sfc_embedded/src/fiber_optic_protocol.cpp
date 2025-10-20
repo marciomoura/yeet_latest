@@ -1,0 +1,123 @@
+/**
+ * @file fiber_optic_protocol.cpp
+ * @brief Fiber-optic communication protocol encoding/decoding implementation
+ */
+
+#include "sfc_embedded/fiber_optic_protocol.hpp"
+
+#include <cstring>  // for memcpy (until C++20 bit_cast is available)
+
+namespace yeet::application::sfc::fiber_optic {
+
+/* ============================================================================
+ * Grid → Machine Protocol Implementation
+ * ============================================================================ */
+
+[[nodiscard]] std::uint8_t encode_grid_to_machine(const grid_to_machine_message& msg, std::uint32_t* payload) noexcept
+{
+    // Pack all status and control flags into a single uint32_t word
+    // Bit layout:
+    //   Bits 0-7:   Operating mode (enum, 0-255)
+    //   Bit 8:      Is current zero
+    //   Bit 9:      Force commutation acknowledged
+    //   Bit 10:     Pulse releases
+    //   Bits 11-31: Reserved for future use
+
+    std::uint32_t packed_flags = 0;
+
+    // Encode operating mode (bits 0-7)
+    packed_flags |= (static_cast<std::uint32_t>(msg.mode) & detail::g2m_operating_mode_mask)
+                    << detail::g2m_operating_mode_shift;
+
+    // Encode boolean flags
+    if (msg.is_current_zero) {
+        packed_flags |= detail::g2m_is_current_zero_bit;
+    }
+    if (msg.force_commutation_acknowledged) {
+        packed_flags |= detail::g2m_force_comm_ack_bit;
+    }
+    if (msg.pulse_releases) {
+        packed_flags |= detail::g2m_pulse_releases_bit;
+    }
+
+    // Write packed word to payload
+    payload[0] = packed_flags;
+
+    return grid_to_machine_payload_length;
+}
+
+[[nodiscard]] std::optional<grid_to_machine_message> decode_grid_to_machine(
+    const std::uint32_t* payload, std::uint8_t payload_length) noexcept
+{
+    // Validate payload length
+    if (payload_length < grid_to_machine_payload_length) {
+        return std::nullopt;
+    }
+
+    // Extract packed word
+    const std::uint32_t packed_flags = payload[0];
+
+    // Decode operating mode (bits 0-7)
+    grid_to_machine_message msg;
+    msg.mode = static_cast<operating_mode>(
+        (packed_flags >> detail::g2m_operating_mode_shift) & detail::g2m_operating_mode_mask);
+
+    // Decode boolean flags
+    msg.is_current_zero = (packed_flags & detail::g2m_is_current_zero_bit) != 0;
+    msg.force_commutation_acknowledged = (packed_flags & detail::g2m_force_comm_ack_bit) != 0;
+    msg.pulse_releases = (packed_flags & detail::g2m_pulse_releases_bit) != 0;
+
+    return msg;
+}
+
+/* ============================================================================
+ * Machine → Grid Protocol Implementation
+ * ============================================================================ */
+
+[[nodiscard]] std::uint8_t encode_machine_to_grid(const machine_to_grid_message& msg, std::uint32_t* payload) noexcept
+{
+    // Word 0: Measured speed [pu] (IEEE 754 float bits)
+    // Word 1: DC link current reference [pu] (IEEE 754 float bits)
+    // Word 2: Machine voltage magnitude [pu] (IEEE 754 float bits)
+    // Word 3: Packed control flags
+
+    // Encode float values using standards-compliant type punning
+    // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
+    std::memcpy(&payload[0], &msg.measured_speed_pu, sizeof(float));
+    std::memcpy(&payload[1], &msg.dc_link_current_reference_pu, sizeof(float));
+    std::memcpy(&payload[2], &msg.machine_voltage_magnitude_pu, sizeof(float));
+
+    // Pack control flags into word 3
+    std::uint32_t packed_flags = 0;
+    if (msg.force_commutation_request) {
+        packed_flags |= detail::m2g_force_comm_req_bit;
+    }
+    payload[3] = packed_flags;
+
+    return machine_to_grid_payload_length;
+}
+
+[[nodiscard]] std::optional<machine_to_grid_message> decode_machine_to_grid(
+    const std::uint32_t* payload, std::uint8_t payload_length) noexcept
+{
+    // Validate payload length
+    if (payload_length < machine_to_grid_payload_length) {
+        return std::nullopt;
+    }
+
+    machine_to_grid_message msg;
+
+    // Decode float values using standards-compliant type punning
+    // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
+    std::memcpy(&msg.measured_speed_pu, &payload[0], sizeof(float));
+    std::memcpy(&msg.dc_link_current_reference_pu, &payload[1], sizeof(float));
+    std::memcpy(&msg.machine_voltage_magnitude_pu, &payload[2], sizeof(float));
+
+    // Decode packed control flags from word 3
+    const std::uint32_t packed_flags = payload[3];
+    msg.force_commutation_request = (packed_flags & detail::m2g_force_comm_req_bit) != 0;
+
+    return msg;
+}
+
+}  // namespace yeet::application::sfc::fiber_optic

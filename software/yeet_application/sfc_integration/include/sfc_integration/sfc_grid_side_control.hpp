@@ -2,6 +2,7 @@
 
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
+#include "sfc_integration/sfc_grid_side_control_io.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
@@ -24,6 +25,11 @@ namespace yeet::application::sfc::integration {
  * - Grid-side modulator and pulse generator
  * - Measurement processing for grid and DC link
  * - Operation mode monitoring
+ *
+ * I/O Interface:
+ * - Access inputs via `get_io().analog_inputs`, `get_io().digital_inputs`, etc.
+ * - Access outputs via `get_io().pulse_outputs`, `get_io().digital_outputs`, etc.
+ * - Works identically in simulation and embedded environments
  */
 class sfc_grid_side_control {
 public:
@@ -40,7 +46,15 @@ public:
           grid_side_pulse_generator(),
           grid_measurements(_per_unit_system),
           dc_link_measurements(_per_unit_system),
-          operation_mode_monitor()
+          operation_mode_monitor(),
+          io(grid_measurements,
+              dc_link_measurements,
+              state_machine,
+              operation_mode_monitor,
+              current_controller,
+              grid_side_modulator,
+              grid_side_pulse_generator,
+              grid_side_observer)
     {
         connect_internal_signals();
     }
@@ -72,7 +86,19 @@ public:
      */
     void update_200us();
 
-    // ==================== Component Access ====================
+    // ==================== I/O Interface Access ====================
+
+    /**
+     * @brief Get I/O interface for external signal connections
+     *
+     * This is the primary interface for both embedded and simulation environments.
+     * - Embedded: ADC/DI write to io.analog_inputs/digital_inputs, read io.pulse_outputs/digital_outputs
+     * - Simulation: Plant writes to io.analog_inputs, reads io.pulse_outputs
+     */
+    sfc_grid_side_control_io& get_io() { return io; }
+    const sfc_grid_side_control_io& get_io() const { return io; }
+
+    // ==================== Component Access (for advanced configuration/debugging) ====================
 
     sfc_state_machine_runner& get_state_machine() { return state_machine; }
     const sfc_state_machine_runner& get_state_machine() const { return state_machine; }
@@ -100,25 +126,6 @@ public:
 
     sfc_operation_mode_monitor_runner& get_operation_mode_monitor() { return operation_mode_monitor; }
     const sfc_operation_mode_monitor_runner& get_operation_mode_monitor() const { return operation_mode_monitor; }
-
-    // ==================== External Input Signals ====================
-
-    // State machine control inputs
-    signal_output<bool> auxiliaries_are_on;
-    signal_output<bool> breakers_are_on;
-    signal_output<bool> start_command;
-    signal_output<bool> stop_command;
-    signal_output<bool> shutdown_request;
-    signal_output<bool> is_current_extinguished;
-
-    // Current controller reference
-    // signal_output<current_pu_t> dc_link_current_reference;
-
-    // Speed feedback for operation mode monitor
-    // signal_output<speed_pu_t> measured_speed_pu;
-
-    // Force commutation request from machine side
-    // signal_output<bool> request_force_commutation;
 
     // ==================== External Output Signals ====================
 
@@ -195,6 +202,9 @@ public:
     sfc_grid_side_measurements_runner grid_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_operation_mode_monitor_runner operation_mode_monitor;
+
+    // I/O interface for external connections (must be last as it references all components)
+    sfc_grid_side_control_io io;
 
 private:
     /**
