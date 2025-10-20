@@ -38,8 +38,7 @@ telemetry_transmission telemetry_manager::update(bool previous_tx_pending) noexc
     _decimation_counter = 0;
 
     // Build telemetry packet from control system
-    telemetry::grid_side_telemetry_builder builder(_control);
-    auto packet = builder.build_full_packet(_timestamp_ms);
+    auto packet = _builder.build_full_packet(_timestamp_ms);
 
     // Encode packet to binary buffer
     std::size_t encoded_size = telemetry::encode_grid_side_telemetry(packet, _packet_buffer);

@@ -63,7 +63,7 @@ public:
      * @endcode
      */
     explicit telemetry_manager(const integration::sfc_grid_side_control& control, std::uint32_t decimation_factor = 10)
-        : _control(control), _decimation_factor(decimation_factor)
+        : _control(control), _builder(control), _decimation_factor(decimation_factor)
     {
     }
 
@@ -124,6 +124,7 @@ public:
 
 private:
     const integration::sfc_grid_side_control& _control; /**< Reference to control system */
+    telemetry::grid_side_telemetry_builder _builder;    /**< Telemetry packet builder (maintains sequence number) */
     bool _is_streaming = false;                         /**< Streaming active flag */
     std::uint32_t _timestamp_ms = 0;                    /**< System timestamp in milliseconds */
     std::uint32_t _decimation_counter = 0;              /**< Counter for rate control */

@@ -37,8 +37,18 @@ project(
 # Define all options upfront with proper descriptions - keeping it 💯
 option(YEET_BUILD_EMBEDDED "Build embedded targets for ARM microcontrollers"
        OFF)
+
+# Auto-enable host simulator on Windows/Linux platforms (unless building
+# embedded)
+if(NOT YEET_BUILD_EMBEDDED AND (WIN32 OR UNIX))
+    set(YEET_SFC_HOST_BUILD_DEFAULT ON)
+else()
+    set(YEET_SFC_HOST_BUILD_DEFAULT OFF)
+endif()
+
 option(YEET_SFC_HOST_BUILD
-       "Build SFC host simulator for testing without hardware" ON)
+       "Build SFC host simulator for testing without hardware"
+       ${YEET_SFC_HOST_BUILD_DEFAULT})
 option(YEET_CODE_COVERAGE
        "Enable code coverage (because we test our code like bosses)" OFF)
 option(YEET_SANITIZE "Enable clang-sanitizer builds (catch those bugs bestie)"

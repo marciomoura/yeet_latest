@@ -5,8 +5,10 @@
 
 #include "sfc_embedded/network_telemetry.hpp"
 
-#include <cstdio>
 #include <cstring>
+#ifdef HOST_BUILD
+#include <cstdio>
+#endif
 
 namespace yeet::application::sfc::telemetry {
 

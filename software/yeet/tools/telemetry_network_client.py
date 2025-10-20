@@ -265,14 +265,26 @@ class TelemetryNetworkClient:
             if self._last_sequence >= 0:
                 expected_seq = (self._last_sequence + 1) & 0xFFFFFFFF
                 if packet.header.sequence_number != expected_seq:
-                    # Calculate number of lost packets
-                    if packet.header.sequence_number > expected_seq:
+                    # Detect stuck sequence number (likely firmware bug)
+                    if packet.header.sequence_number == self._last_sequence:
+                        logger.warning(f"Sequence number stuck at {packet.header.sequence_number} (firmware may not be incrementing)")
+                        # Don't count as lost packets - this is a different issue
+                    # Calculate number of lost packets only if sequence advanced
+                    elif packet.header.sequence_number > expected_seq:
                         lost = packet.header.sequence_number - expected_seq
+                        self._packets_lost += lost
+                        logger.warning(f"Lost {lost} packets (seq {expected_seq} -> {packet.header.sequence_number})")
                     else:
-                        # Handle sequence number wraparound
-                        lost = (0xFFFFFFFF - expected_seq) + packet.header.sequence_number + 1
-                    self._packets_lost += lost
-                    logger.warning(f"Lost {lost} packets (seq {expected_seq} -> {packet.header.sequence_number})")
+                        # Handle sequence number wraparound (0xFFFFFFFF -> 0)
+                        # Only count as wraparound if the jump is very large (> 0x80000000)
+                        gap = expected_seq - packet.header.sequence_number
+                        if gap > 0x80000000:  # Likely wraparound
+                            lost = (0xFFFFFFFF - expected_seq) + packet.header.sequence_number + 1
+                            self._packets_lost += lost
+                            logger.warning(f"Lost {lost} packets on wraparound (seq {expected_seq} -> {packet.header.sequence_number})")
+                        else:
+                            # Sequence went backwards significantly - likely a reset or major issue
+                            logger.error(f"Sequence number went backwards unexpectedly: {expected_seq} -> {packet.header.sequence_number}")
             
             self._last_sequence = packet.header.sequence_number
     
