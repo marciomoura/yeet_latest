@@ -39,8 +39,14 @@ if(YEET_SFC_EMBEDDED_SIDE STREQUAL "GRID" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
                                              "BOTH")
     add_library(yeet_sfc_embedded_grid STATIC)
 
-    target_sources(yeet_sfc_embedded_grid PRIVATE src/grid_side_tasks.cpp
-                                                  src/fiber_optic_protocol.cpp)
+    target_sources(
+        yeet_sfc_embedded_grid
+        PRIVATE src/grid_side_tasks.cpp
+                src/fiber_optic_protocol.cpp
+                src/network_telemetry.cpp
+                src/network_telemetry_builder.cpp
+                src/network_command_parser.cpp
+                src/network_telemetry_manager.cpp)
 
     target_include_directories(
         yeet_sfc_embedded_grid
