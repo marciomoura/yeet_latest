@@ -171,12 +171,8 @@ static uint8_t spi2_rx_buffer[512];
 #if ENABLE_W5200_SPI3
 static uint8_t spi3_tx_buffer[8192];
 static uint8_t spi3_rx_buffer[8192];
+static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS for SPI3 network
 #endif
-
-/**
- * @brief TCP packet buffers for application layer
- */
-static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS
 
 /**
  * @brief Node ID read from DIP switches (0-15)

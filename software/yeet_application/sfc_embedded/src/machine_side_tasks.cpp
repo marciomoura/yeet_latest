@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "sfc/sfc_types.hpp"
+#include "sfc_embedded/fiber_optic_protocol.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
 #include "yeet/signal.hpp"
 
@@ -176,30 +177,31 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Process fiber-optic RX data from grid-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
     if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
-        // Expected payload format from grid-side board (uint32_t words):
-        //   payload[0]: Operating mode [enumeration as uint32_t]
-        //   payload[1]: Is current zero [boolean as uint32_t: 0 or 1]
-        //   payload[2]: Force commutation acknowledged [boolean as uint32_t: 0 or 1]
-        //   payload[3]: Pulse releases [boolean as uint32_t: 0 or 1]
-
-        if (inputs->fiber_optic_rx.payload_length >= 4) {
-            // Decode uint32_t payload
-            auto operating_mode =
-                static_cast<yeet::application::sfc::sfc_operating_mode_t>(inputs->fiber_optic_rx.payload[0]);
-            bool is_current_zero = (inputs->fiber_optic_rx.payload[1] != 0);
-            bool force_comm_ack = (inputs->fiber_optic_rx.payload[2] != 0);
-            bool pulse_releases = (inputs->fiber_optic_rx.payload[3] != 0);
+        // Decode Grid → Machine protocol message
+        if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
+                inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
+            // Map fiber-optic protocol enum to SFC operating mode
+            yeet::application::sfc::sfc_operating_mode_t operating_mode;
+            if (rx_msg->mode == yeet::application::sfc::fiber_optic::operating_mode::forced_commutation) {
+                operating_mode = yeet::application::sfc::sfc_operating_mode_t::forced_commutation;
+            }
+            else if (rx_msg->mode == yeet::application::sfc::fiber_optic::operating_mode::natural_commutation) {
+                operating_mode = yeet::application::sfc::sfc_operating_mode_t::natural_commutation;
+            }
+            else {
+                operating_mode = yeet::application::sfc::sfc_operating_mode_t::forced_commutation;  // Safe default
+            }
 
             // Write grid-side cross-coupled signals directly to I/O interface
             yeet::mock_signal_input::write(
                 get_machine_side_control().get_io().grid_side_inputs.operating_mode, operating_mode);
             yeet::mock_signal_input::write(
-                get_machine_side_control().get_io().grid_side_inputs.force_commutation_acknowledged, force_comm_ack);
+                get_machine_side_control().get_io().grid_side_inputs.force_commutation_acknowledged,
+                rx_msg->force_commutation_acknowledged);
             yeet::mock_signal_input::write(
-                get_machine_side_control().get_io().grid_side_inputs.pulse_releases, pulse_releases);
+                get_machine_side_control().get_io().grid_side_inputs.pulse_releases, rx_msg->pulse_releases);
 
-            // Note: DC link current, freeze integrator, current controller saturation, and state ID
-            // would require additional payload words if needed in the future
+            // Note: is_current_zero decoded but not currently used by machine-side
         }
     }
 
@@ -210,30 +212,20 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Prepare fiber-optic TX data to send to grid-side board via I/O interface outputs
     // Transmit machine-side status and cross-coupled signals
     if (outputs != nullptr) {
-        // Payload format to grid-side (uint32_t words, but floats need type punning):
-        //   payload[0]: Measured speed [pu] (as float bits in uint32_t)
-        //   payload[1]: DC link current reference [pu] (as float bits in uint32_t)
-        //   payload[2]: Machine voltage magnitude [pu] (as float bits in uint32_t)
-        //   payload[3]: Force commutation request [boolean as uint32_t: 0 or 1]
+        // Prepare Machine → Grid protocol message
+        yeet::application::sfc::fiber_optic::machine_to_grid_message tx_msg{
+            .measured_speed_pu =
+                static_cast<float>(get_machine_side_control().get_io().grid_side_outputs.measured_speed_pu.read()),
+            .dc_link_current_reference_pu =
+                static_cast<float>(get_machine_side_control().get_io().grid_side_outputs.current_reference.read()),
+            .machine_voltage_magnitude_pu = static_cast<float>(
+                get_machine_side_control().get_io().grid_side_outputs.machine_voltage_magnitude.read()),
+            .force_commutation_request =
+                get_machine_side_control().get_io().grid_side_outputs.request_force_commutation.read()};
 
-        // Read from I/O interface grid-side outputs
-        const auto measured_speed = get_machine_side_control().get_io().grid_side_outputs.measured_speed_pu.read();
-        const auto current_ref = get_machine_side_control().get_io().grid_side_outputs.current_reference.read();
-        const auto voltage_mag = get_machine_side_control().get_io().grid_side_outputs.machine_voltage_magnitude.read();
-        const bool force_comm_req =
-            get_machine_side_control().get_io().grid_side_outputs.request_force_commutation.read();
-
-        // Convert float values to uint32_t using type punning
-        float speed_value = static_cast<float>(measured_speed);
-        float current_value = static_cast<float>(current_ref);
-        float voltage_value = static_cast<float>(voltage_mag);
-
-        std::memcpy(&outputs->fiber_optic_tx.payload[0], &speed_value, sizeof(float));
-        std::memcpy(&outputs->fiber_optic_tx.payload[1], &current_value, sizeof(float));
-        std::memcpy(&outputs->fiber_optic_tx.payload[2], &voltage_value, sizeof(float));
-        outputs->fiber_optic_tx.payload[3] = force_comm_req ? 1U : 0U;
-
-        outputs->fiber_optic_tx.payload_length = 4;
+        // Encode and transmit
+        outputs->fiber_optic_tx.payload_length =
+            yeet::application::sfc::fiber_optic::encode_machine_to_grid(tx_msg, outputs->fiber_optic_tx.payload);
         outputs->fiber_optic_tx.transmit_request = true;
     }
 

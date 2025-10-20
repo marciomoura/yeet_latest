@@ -39,7 +39,8 @@ if(YEET_SFC_EMBEDDED_SIDE STREQUAL "GRID" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
                                              "BOTH")
     add_library(yeet_sfc_embedded_grid STATIC)
 
-    target_sources(yeet_sfc_embedded_grid PRIVATE src/grid_side_tasks.cpp)
+    target_sources(yeet_sfc_embedded_grid PRIVATE src/grid_side_tasks.cpp
+                                                  src/fiber_optic_protocol.cpp)
 
     target_include_directories(
         yeet_sfc_embedded_grid
@@ -77,7 +78,9 @@ if(YEET_SFC_EMBEDDED_SIDE STREQUAL "MACHINE" OR YEET_SFC_EMBEDDED_SIDE STREQUAL
                                                 "BOTH")
     add_library(yeet_sfc_embedded_machine STATIC)
 
-    target_sources(yeet_sfc_embedded_machine PRIVATE src/machine_side_tasks.cpp)
+    target_sources(
+        yeet_sfc_embedded_machine PRIVATE src/machine_side_tasks.cpp
+                                          src/fiber_optic_protocol.cpp)
 
     target_include_directories(
         yeet_sfc_embedded_machine
