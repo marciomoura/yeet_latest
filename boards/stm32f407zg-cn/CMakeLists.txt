@@ -99,6 +99,7 @@ target_sources(
             # System support
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sysmem.c
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/syscalls.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/wchar_wrappers.c
             # NSD Driver files - Refactored drivers only (files that actually
             # exist)
             ${CMAKE_CURRENT_SOURCE_DIR}/Core/NSD_Driver/adc.c

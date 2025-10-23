@@ -136,14 +136,14 @@ static bool fiber_rx_data_ready = false;                             ///< New da
  *   - Gateway:    192.168.2.1
  *   - Subnet:     255.255.255.0
  *   - Port:       7000 (TCP Server)
- *   - DMA:        Disabled (conflicts with USART3)
+ *   - DMA:        8KB TX/RX buffers (enabled)
  *
  * SPI3 Network:
  *   - IP Address: 192.168.10.(31 + uchNodeNum)
  *   - Gateway:    192.168.10.1
  *   - Subnet:     255.255.255.0
  *   - Port:       7000 (TCP Server)
- *   - DMA:        8KB TX/RX buffers
+ *   - DMA:        8KB TX/RX buffers (enabled)
  *
  * Examples:
  *   - DIP switch = 0:  SPI2 = 192.168.2.100,  SPI3 = 192.168.10.31
@@ -160,17 +160,17 @@ w5200_instance_t w5200_spi3 = {0};
 
 /**
  * @brief Network buffers for W5200 controllers
- * SPI2: 512 bytes (no DMA)
- * SPI3: 8KB (with DMA)
+ * Both SPI2 and SPI3: 8KB buffers (with DMA)
+ * Buffer size must be at least DMA_SIZE + 4 bytes for protocol header
  */
 #if ENABLE_W5200_SPI2
-static uint8_t spi2_tx_buffer[512];
-static uint8_t spi2_rx_buffer[512];
+static uint8_t spi2_tx_buffer[8196];  // 8KB + 4 byte header
+static uint8_t spi2_rx_buffer[8196];
 #endif
 
 #if ENABLE_W5200_SPI3
-static uint8_t spi3_tx_buffer[8192];
-static uint8_t spi3_rx_buffer[8192];
+static uint8_t spi3_tx_buffer[8196];  // 8KB + 4 byte header
+static uint8_t spi3_rx_buffer[8196];
 static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS for SPI3 network
 #endif
 
@@ -616,9 +616,9 @@ static bool TCP_Server_SPI2_Init(void)
 {
     uint8_t node_id = dip_switch_channel_number;
 
-    // Initialize W5200 hardware driver
-    if (!W5200_Init(&w5200_spi2, SPI2, spi2_tx_buffer, spi2_rx_buffer, 0)) {
-        return false;  // SPI2 init failed (no DMA)
+    // Initialize W5200 hardware driver with 8KB DMA
+    if (!W5200_Init(&w5200_spi2, SPI2, spi2_tx_buffer, spi2_rx_buffer, W5200_DMA_SIZE_8K)) {
+        return false;  // SPI2 init failed
     }
 
     // Configure network: 192.168.2.(100 + node_id), port 7000
@@ -654,9 +654,9 @@ static bool TCP_Server_SPI3_Init(void)
 {
     uint8_t node_id = uchNodeNum;
 
-    // Initialize W5200 hardware driver (with 8K DMA)
-    if (!W5200_Init(&w5200_spi3, SPI3, spi3_tx_buffer, spi3_rx_buffer, 0)) {  // W5200_DMA_SIZE_8K
-        return false;                                                         // SPI3 init failed
+    // Initialize W5200 hardware driver with 8KB DMA
+    if (!W5200_Init(&w5200_spi3, SPI3, spi3_tx_buffer, spi3_rx_buffer, W5200_DMA_SIZE_8K)) {
+        return false;  // SPI3 init failed
     }
 
     // Configure network: 192.168.10.(31 + node_id), port 7000
@@ -734,6 +734,7 @@ static void TCP_Server_SPI2_Task(void)
 
         // Connection established - check for received data
         rx_size = W5200_GetRxSize(&w5200_spi2, 0);
+
         if (rx_size > 0) {
             // Limit to buffer size (use network_inputs buffer directly)
             if (rx_size > TASK_IO_NETWORK_MAX_PACKET_SIZE) {
@@ -962,6 +963,17 @@ int main(void)
     }
 
     while (1) {
+// ===== DMA State Update (Required for DMA transfers) =====
+// Poll DMA completion and handle timeouts
+// Must be called periodically when using W5200_SendDMA/ReceiveDMA
+#if ENABLE_W5200_SPI2
+        W5200_UpdateDMA(&w5200_spi2);
+#endif
+
+#if ENABLE_W5200_SPI3
+        W5200_UpdateDMA(&w5200_spi3);
+#endif
+
         // ===== Network Communication Task (Non-Real-Time) =====
         // Handles TCP server operations only if network initialized successfully
         // Note: yeet_network() is now called directly inside TCP_Server_SPI2_Task()
