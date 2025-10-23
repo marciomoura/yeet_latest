@@ -245,6 +245,13 @@ typedef struct {
     uint8_t* rx_buffer; /**< RX DMA buffer pointer */
     uint16_t dma_size;  /**< DMA transfer size */
 
+    // DMA state tracking
+    w5200_state_t dma_state; /**< DMA operation state (IDLE, SENDING, RECEIVING) */
+    uint8_t dma_socket;      /**< Socket number currently using DMA (0-7, or 0xFF for none) */
+    uint16_t dma_tx_delay;   /**< TX DMA timeout counter (increments each call) */
+    uint16_t dma_rx_delay;   /**< RX DMA timeout counter (increments each call) */
+    uint16_t dma_rx_size;    /**< Expected RX size for current DMA operation */
+
     uint16_t check_delay; /**< Connection check delay counter */
     bool initialized;     /**< Initialization complete flag */
 } w5200_instance_t;
@@ -458,6 +465,14 @@ void W5200_ProcessInterrupts(w5200_instance_t* w5200);
  * @note Call this function periodically in main loop
  */
 void W5200_Update(w5200_instance_t* w5200);
+
+/**
+ * @brief Update DMA state and handle completion
+ * @param w5200 Pointer to W5200 instance
+ * @note Call this function periodically (e.g., from main loop at ~1kHz) to poll
+ *       for DMA completion. Required when using W5200_SendDMA or W5200_ReceiveDMA.
+ */
+void W5200_UpdateDMA(w5200_instance_t* w5200);
 
 /* ============================================================================
  * Helper Functions
