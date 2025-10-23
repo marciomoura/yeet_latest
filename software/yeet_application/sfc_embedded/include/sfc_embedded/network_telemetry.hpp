@@ -119,17 +119,21 @@ static_assert(sizeof(telemetry_packet_header) == 16, "Header must be 16 bytes");
  * @brief Grid and DC link measurement signals (per-unit)
  *
  * Group: TELEM_FLAG_MEASUREMENTS
- * Size: 24 bytes (5 floats + 1 bool with padding)
+ * Size: 40 bytes (9 floats + 1 bool with padding)
  */
 struct grid_measurements_group {
     float grid_voltage_magnitude_pu; /**< Grid voltage magnitude [pu] */
     float grid_voltage_a_pu;         /**< Phase A voltage [pu] */
     float grid_voltage_b_pu;         /**< Phase B voltage [pu] */
     float grid_voltage_c_pu;         /**< Phase C voltage [pu] */
+    float grid_current_magnitude_pu; /**< Grid current magnitude [pu] */
+    float grid_current_a_pu;         /**< Phase A current [pu] */
+    float grid_current_b_pu;         /**< Phase B current [pu] */
+    float grid_current_c_pu;         /**< Phase C current [pu] */
     float dc_link_current_pu;        /**< DC link current [pu] */
     bool is_commuting;               /**< Thyristor commutation status */
 };
-static_assert(sizeof(grid_measurements_group) == 24, "Must be fixed size");
+static_assert(sizeof(grid_measurements_group) == 40, "Must be fixed size");
 
 /**
  * @brief Grid-side observer estimates

@@ -397,6 +397,10 @@ class DashboardWindow(QtWidgets.QMainWindow):
         meas_widget.add_signal_display('grid_voltage_a_pu', 'Grid Voltage Phase A', 'pu')
         meas_widget.add_signal_display('grid_voltage_b_pu', 'Grid Voltage Phase B', 'pu')
         meas_widget.add_signal_display('grid_voltage_c_pu', 'Grid Voltage Phase C', 'pu')
+        meas_widget.add_signal_display('grid_current_magnitude_pu', 'Grid Current Mag.', 'pu')
+        meas_widget.add_signal_display('grid_current_a_pu', 'Grid Current Phase A', 'pu')
+        meas_widget.add_signal_display('grid_current_b_pu', 'Grid Current Phase B', 'pu')
+        meas_widget.add_signal_display('grid_current_c_pu', 'Grid Current Phase C', 'pu')
         meas_widget.add_signal_display('dc_link_current_pu', 'DC Link Current', 'pu')
         meas_widget.add_signal_display('is_commuting', 'Is Commuting', '')
         self.signal_group_widgets['measurements'] = meas_widget

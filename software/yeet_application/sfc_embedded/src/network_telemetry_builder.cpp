@@ -20,6 +20,15 @@ void grid_side_telemetry_builder::populate_measurements(grid_measurements_group&
     group.grid_voltage_b_pu = static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().b());
     group.grid_voltage_c_pu = static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().c());
 
+    // Grid current measurements
+    const auto& grid_current = grid_meas.get_outputs().grid_current_abc.read();
+    group.grid_current_a_pu = static_cast<float>(grid_current.a());
+    group.grid_current_b_pu = static_cast<float>(grid_current.b());
+    group.grid_current_c_pu = static_cast<float>(grid_current.c());
+
+    // Calculate grid current magnitude from abc components
+    group.grid_current_magnitude_pu = grid_meas.get_outputs().grid_current_abc.read().to_alphabeta().magnitude();
+
     // DC link measurements
     group.dc_link_current_pu = static_cast<float>(dc_meas.get_outputs().dc_current_pu.read());
 }

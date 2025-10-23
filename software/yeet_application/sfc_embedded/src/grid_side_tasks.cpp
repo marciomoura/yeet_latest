@@ -100,6 +100,17 @@ void yeet_embedded_init(void)
     // Initialize grid-side control subsystem
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
     get_grid_side_control().initialize();
+
+    // Parametrize the software
+    get_grid_side_control().grid_measurements.get_parameters().voltage_transducer_gain.write(
+        yeet::real_t{1.0f / 300.0f});
+    get_grid_side_control().grid_measurements.get_parameters().current_transducer_gain.write(
+        yeet::real_t{1.0f / 120.0f});
+
+    get_grid_side_control().grid_side_pulse_generator.get_parameters().reference_type.write(
+        yeet::control::six_pulse_generator::reference_type::line);
+    get_grid_side_control().grid_side_pulse_generator.get_parameters().pulse_width.write(
+        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 }
 
 ARM_FUNCTION
@@ -121,13 +132,14 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
 
     // Write ADC values directly to I/O interface analog inputs
     yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.v_ab_counts,
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[0])});
+        yeet::control::adc_counts{
+            static_cast<int16_t>(inputs->analog_inputs.channels[1])});  // On hil this is channel 1
     yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.v_bc_counts,
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
+        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});  // On hil this is 2
     yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.i_a_counts,
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[4])});
+        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
     yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.i_c_counts,
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[6])});
+        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     get_grid_side_control().update_200us();
@@ -144,12 +156,12 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     if (outputs != nullptr) {
         const auto& firing_pulses = get_grid_side_control().get_io().pulse_outputs.firing_pulses.read();
 
-        outputs->thyristor_pulses.a_plus = firing_pulses.p1;   // T1 (A+) → p1
-        outputs->thyristor_pulses.b_minus = firing_pulses.p2;  // T2 (B-) → p2
-        outputs->thyristor_pulses.b_plus = firing_pulses.p3;   // T3 (B+) → p3
-        outputs->thyristor_pulses.a_minus = firing_pulses.p4;  // T4 (A-) → p4
-        outputs->thyristor_pulses.c_plus = firing_pulses.p5;   // T5 (C+) → p5
-        outputs->thyristor_pulses.c_minus = firing_pulses.p6;  // T6 (C-) → p6
+        outputs->thyristor_pulses.a_plus = firing_pulses.p1;
+        outputs->thyristor_pulses.b_minus = firing_pulses.p6;
+        outputs->thyristor_pulses.b_plus = firing_pulses.p3;
+        outputs->thyristor_pulses.a_minus = firing_pulses.p4;
+        outputs->thyristor_pulses.c_plus = firing_pulses.p5;
+        outputs->thyristor_pulses.c_minus = firing_pulses.p2;
     }
 }
 
@@ -221,7 +233,7 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
     yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{1.0f});
+        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.2f});
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude, yeet::voltage_pu_t{1.0f});
     yeet::mock_signal_input::write(
@@ -275,18 +287,46 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         const auto operating_mode = get_grid_side_control().get_io().digital_outputs.operating_mode.read();
 
         // Status output mapping:
-        outputs->digital_outputs.signals[0] = pulse_releases;     // DO1: System running
-        outputs->digital_outputs.signals[1] = is_current_zero;    // DO2: Current zero status
-        outputs->digital_outputs.signals[2] = current_saturated;  // DO3: Controller saturation
-        outputs->digital_outputs.signals[3] =
-            (operating_mode ==
-                yeet::application::sfc::sfc_operating_mode_t::forced_commutation);  // DO4: Forced commutation mode
-        outputs->digital_outputs.signals[4] =
-            (operating_mode ==
-                yeet::application::sfc::sfc_operating_mode_t::natural_commutation);  // DO5: Natural commutation mode
-        outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
+        // outputs->digital_outputs.signals[0] = pulse_releases;     // DO1: System running
+        // outputs->digital_outputs.signals[1] = is_current_zero;    // DO2: Current zero status
+        // outputs->digital_outputs.signals[2] = current_saturated;  // DO3: Controller saturation
+        // outputs->digital_outputs.signals[3] =
+        //     (operating_mode ==
+        //         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);  // DO4: Forced commutation mode
+        // outputs->digital_outputs.signals[4] =
+        //     (operating_mode ==
+        //         yeet::application::sfc::sfc_operating_mode_t::natural_commutation);  // DO5: Natural commutation mode
+        // outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
+
+        for (auto& n : outputs->digital_outputs.signals) {
+            n = true;
+        }
+
+        // outputs->digital_outputs.signals[0] = true;  // DO1: System running
+        // outputs->digital_outputs.signals[1] = true;  // DO2: Current zero status
+        // outputs->digital_outputs.signals[2] = true;  // DO3: Controller saturation
+        // outputs->digital_outputs.signals[3] = true;  // DO4: Forced commutation mode
+        // outputs->digital_outputs.signals[4] = true;
+        // outputs->digital_outputs.signals[5] = true;  // DO6: Fiber link status
 
         // Additional outputs (DO7-DO17) available for application-specific status
+    }
+
+    // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
+    // Map control system signals to DAC outputs for monitoring and testing
+    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
+    if (outputs != nullptr) {
+        // Example DAC output mappings (customize based on your application):
+        // Channel A: Test signal 1
+        // Channel B: Test signal 2
+        // Channel C: Test signal 3
+        // Channel D: Test signal 4
+
+        outputs->analog_outputs.channels[0] = 0.0f;  // Channel A: Zero
+        outputs->analog_outputs.channels[1] = 2.5f;  // Channel B: Constant 2.5V
+        outputs->analog_outputs.channels[2] = 5.0f;  // Channel C: Sine wave ±2V
+        outputs->analog_outputs.channels[3] = 1.0f;  // Channel D: Zero
+        outputs->analog_outputs.valid = true;        // Enable DAC outputs
     }
 }
 

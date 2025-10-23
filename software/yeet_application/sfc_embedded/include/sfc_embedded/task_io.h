@@ -37,6 +37,9 @@ extern "C" {
 /** @brief Number of digital output channels */
 #define TASK_IO_NUM_DIGITAL_OUTPUTS 17
 
+/** @brief Number of analog output channels (AD5724 DAC) */
+#define TASK_IO_NUM_ANALOG_OUTPUTS 4
+
 /** @brief Maximum number of float payload words in fiber-optic packets */
 #define TASK_IO_FIBER_MAX_PAYLOAD 4
 
@@ -135,6 +138,28 @@ typedef struct {
     struct {
         bool signals[TASK_IO_NUM_DIGITAL_OUTPUTS]; /**< Digital output states (true = active) */
     } digital_outputs;
+
+    /**
+     * @brief Analog output interface (DAC outputs)
+     *
+     * Controls four analog output channels via AD5724 DAC:
+     * - Channel A, B, C, D (application-defined usage)
+     * - Voltage range: Configurable (±5V, ±10V, etc.)
+     * - Resolution: 16-bit
+     *
+     * Example DAC Output Mapping:
+     *   analog_outputs.channels[0] = Reference voltage setpoint
+     *   analog_outputs.channels[1] = Current command
+     *   analog_outputs.channels[2] = Test signal
+     *   analog_outputs.channels[3] = Diagnostic output
+     *
+     * @note DAC outputs are applied in 1ms task (1 kHz update rate)
+     * @note Board support layer handles voltage range conversion
+     */
+    struct {
+        float channels[TASK_IO_NUM_ANALOG_OUTPUTS]; /**< DAC output voltages (volts) */
+        bool valid;                                 /**< true = DAC outputs should be applied */
+    } analog_outputs;
 
     /**
      * @brief Thyristor gate pulse interface (3-phase bridge control)

@@ -11,56 +11,57 @@
 #include <string.h>
 
 #include "stm32f4xx_spi.h"
+#include "tasks.h"  // For delay_ms() timer-based delays
 
 /* ============================================================================
  * Private Constants - Register Definitions
  * ============================================================================ */
 
 // Command field bits
-#define AD5724_CMD_READ 0x800000
+#define AD5724_CMD_READ  0x800000
 #define AD5724_CMD_WRITE 0x000000
 
 // Channel select bits
-#define AD5724_CH_SEL_A 0x000000
-#define AD5724_CH_SEL_B 0x010000
-#define AD5724_CH_SEL_C 0x020000
-#define AD5724_CH_SEL_D 0x030000
+#define AD5724_CH_SEL_A   0x000000
+#define AD5724_CH_SEL_B   0x010000
+#define AD5724_CH_SEL_C   0x020000
+#define AD5724_CH_SEL_D   0x030000
 #define AD5724_CH_SEL_ALL 0x040000
 
 // Register select bits
-#define AD5724_REG_DAC 0x000000
-#define AD5724_REG_OUTPUT_RANGE 0x080000
+#define AD5724_REG_DAC           0x000000
+#define AD5724_REG_OUTPUT_RANGE  0x080000
 #define AD5724_REG_POWER_CONTROL 0x100000
-#define AD5724_REG_CONTROL 0x180000
+#define AD5724_REG_CONTROL       0x180000
 
 // Power control bits
-#define AD5724_PWR_UP_ALL 0x00000F
-#define AD5724_PWR_UP_CH_A 0x000001
+#define AD5724_PWR_UP_ALL    0x00000F
+#define AD5724_PWR_UP_CH_A   0x000001
 #define AD5724_PWR_DOWN_CH_A 0xFFFFFE
-#define AD5724_PWR_UP_CH_B 0x000002
+#define AD5724_PWR_UP_CH_B   0x000002
 #define AD5724_PWR_DOWN_CH_B 0xFFFFFD
-#define AD5724_PWR_UP_CH_C 0x000004
+#define AD5724_PWR_UP_CH_C   0x000004
 #define AD5724_PWR_DOWN_CH_C 0xFFFFFB
-#define AD5724_PWR_UP_CH_D 0x000008
+#define AD5724_PWR_UP_CH_D   0x000008
 #define AD5724_PWR_DOWN_CH_D 0xFFFFF7
-#define AD5724_PWR_UP_REF 0x000010
-#define AD5724_PWR_DOWN_REF 0xFFFFEF
+#define AD5724_PWR_UP_REF    0x000010
+#define AD5724_PWR_DOWN_REF  0xFFFFEF
 
 // Control register commands
-#define AD5724_CMD_NOP 0x180000
+#define AD5724_CMD_NOP     0x180000
 #define AD5724_CMD_CONTROL 0x190000
-#define AD5724_CMD_CLEAR 0x1C0000
-#define AD5724_CMD_LOAD 0x1D0000
+#define AD5724_CMD_CLEAR   0x1C0000
+#define AD5724_CMD_LOAD    0x1D0000
 
 // Control register bits
-#define AD5724_CTRL_TSD_ENABLE 0x000008
-#define AD5724_CTRL_TSD_DISABLE 0x000000
-#define AD5724_CTRL_CLAMP_ENABLE 0x000004
+#define AD5724_CTRL_TSD_ENABLE    0x000008
+#define AD5724_CTRL_TSD_DISABLE   0x000000
+#define AD5724_CTRL_CLAMP_ENABLE  0x000004
 #define AD5724_CTRL_CLAMP_DISABLE 0x000000
-#define AD5724_CTRL_CLEAR_SEL0 0x000002
-#define AD5724_CTRL_CLEAR_SEL1 0x000000
-#define AD5724_CTRL_SDO_DISABLE 0x000001
-#define AD5724_CTRL_SDO_ENABLE 0x000000
+#define AD5724_CTRL_CLEAR_SEL0    0x000002
+#define AD5724_CTRL_CLEAR_SEL1    0x000000
+#define AD5724_CTRL_SDO_DISABLE   0x000001
+#define AD5724_CTRL_SDO_ENABLE    0x000000
 
 /* ============================================================================
  * Private Function Prototypes
@@ -69,7 +70,7 @@
 static void AD5724_InitSPI(void);
 static void AD5724_InitPins(void);
 static void AD5724_WriteRegister(uint32_t data);
-static void AD5724_Delay(uint32_t count);
+static void AD5724_DrainRxFifo(void);
 static uint32_t AD5724_GetChannelBits(ad5724_channel_t channel);
 static void AD5724_GetRangeMinMax(ad5724_range_t range, float* min_v, float* max_v);
 
@@ -101,11 +102,10 @@ bool AD5724_Init(ad5724_instance_t* dac)
         // Power up all channels and reference
         uint32_t power_cmd = AD5724_REG_POWER_CONTROL | AD5724_PWR_UP_ALL;
         AD5724_WriteRegister(power_cmd);
-        AD5724_Delay(4000);
+        delay_ms(1);  // Use timer-based delay instead of busy-wait
 
         // Set default range to ±5V for all channels
-        uint32_t range_cmd =
-            AD5724_REG_OUTPUT_RANGE | AD5724_RANGE_N5_5V | AD5724_CH_SEL_ALL;
+        uint32_t range_cmd = AD5724_REG_OUTPUT_RANGE | AD5724_RANGE_N5_5V | AD5724_CH_SEL_ALL;
         AD5724_WriteRegister(range_cmd);
     }
 
@@ -165,12 +165,12 @@ void AD5724_Reset(ad5724_instance_t* dac)
     }
 
     // Pull CLR pin low then high
-    GPIOC->BSRRH = GPIO_Pin_5; // CLR LOW
-    AD5724_Delay(100);
-    GPIOC->BSRRL = GPIO_Pin_5; // CLR HIGH
+    GPIOC->BSRRH = GPIO_Pin_5;  // CLR LOW
+    delay_ms(1);                // Use timer-based delay for reset pulse
+    GPIOC->BSRRL = GPIO_Pin_5;  // CLR HIGH
 
     // Pull LDAC pin low (default state)
-    GPIOC->BSRRH = GPIO_Pin_4; // LDAC LOW
+    GPIOC->BSRRH = GPIO_Pin_4;  // LDAC LOW
 
     // Reset tracking
     for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
@@ -323,10 +323,10 @@ static void AD5724_InitSPI(void)
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
     // Configure alternate functions for PA4-PA7
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource4, GPIO_AF_SPI1); // NSS
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI1); // SCK
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI1); // MISO
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI1); // MOSI
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource4, GPIO_AF_SPI1);  // NSS
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI1);  // SCK
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI1);  // MISO
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI1);  // MOSI
 
     // Configure GPIO pins PA5-PA7 (SCK, MISO, MOSI)
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
@@ -382,8 +382,8 @@ static void AD5724_InitPins(void)
     GPIO_Init(GPIOC, &GPIO_InitStructure);
 
     // Set initial states
-    GPIOC->BSRRL = GPIO_Pin_5; // CLR HIGH (inactive)
-    GPIOC->BSRRH = GPIO_Pin_4; // LDAC LOW (active)
+    GPIOC->BSRRL = GPIO_Pin_5;  // CLR HIGH (inactive)
+    GPIOC->BSRRH = GPIO_Pin_4;  // LDAC LOW (active)
 }
 
 /**
@@ -391,46 +391,56 @@ static void AD5724_InitPins(void)
  */
 static void AD5724_WriteRegister(uint32_t data)
 {
-    uint8_t byte1 = (uint8_t)(data >> 16);
-    uint8_t byte2 = (uint8_t)(data >> 8);
-    uint8_t byte3 = (uint8_t)data;
+    uint8_t tx_bytes[3] = {
+        (uint8_t)(data >> 16),
+        (uint8_t)(data >> 8),
+        (uint8_t)data,
+    };
+
+    AD5724_DrainRxFifo();
 
     SPI_Cmd(SPI1, ENABLE);
 
-    // Send byte 1 (MSB)
-    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET)
-        ;
-    SPI_I2S_SendData(SPI1, byte1);
+    for (int i = 0; i < 3; i++) {
+        while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET) {
+            __NOP();
+        }
+        SPI_I2S_SendData(SPI1, tx_bytes[i]);
 
-    // Send byte 2
-    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET)
-        ;
-    SPI_I2S_SendData(SPI1, byte2);
+        while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET) {
+            if (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == RESET) {
+                break;
+            }
+            __NOP();
+        }
 
-    // Send byte 3 (LSB)
-    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET)
-        ;
-    SPI_I2S_SendData(SPI1, byte3);
+        if (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == SET) {
+            (void)SPI_I2S_ReceiveData(SPI1);  // Drain dummy data to prevent OVR
+        }
+    }
 
-    // Wait for transmission to complete
-    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET)
-        ;
+    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET) {
+        __NOP();
+    }
 
     SPI_Cmd(SPI1, DISABLE);
 
-    // Small delay for chip processing
+    AD5724_DrainRxFifo();
+
     for (volatile int i = 0; i < 30; i++) {
         __NOP();
     }
 }
 
-/**
- * @brief Simple delay loop
- */
-static void AD5724_Delay(uint32_t count)
+static void AD5724_DrainRxFifo(void)
 {
-    for (volatile uint32_t i = 0; i < count; i++) {
-        __NOP();
+    if (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_OVR) == SET) {
+        (void)SPI1->DR;
+        (void)SPI1->SR;
+    }
+
+    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == SET) {
+        (void)SPI_I2S_ReceiveData(SPI1);
     }
 }
 
@@ -487,36 +497,5 @@ static void AD5724_GetRangeMinMax(ad5724_range_t range, float* min_v, float* max
             *min_v = -5.0f;
             *max_v = 5.0f;
             break;
-    }
-}
-
-/* ============================================================================
- * Legacy Function Implementations (preserved for backward compatibility)
- * ============================================================================ */
-
-/**
- * @brief Legacy initialization function (maps to new driver)
- * @note Preserved for backward compatibility with existing code
- */
-void Init_DA(void)
-{
-    static ad5724_instance_t legacy_dac;
-    AD5724_Init(&legacy_dac);
-}
-
-/**
- * @brief Legacy DA output function (maps to new driver)
- * @param nCh Channel number (0-3)
- * @param DA_V Voltage value (-5V to +5V)
- * @note Preserved for backward compatibility with existing code
- */
-void DA(int nCh, float DA_V)
-{
-    static ad5724_instance_t legacy_dac = {
-        .range = {AD5724_RANGE_N5_5V, AD5724_RANGE_N5_5V, AD5724_RANGE_N5_5V, AD5724_RANGE_N5_5V},
-        .initialized = true};
-
-    if (nCh >= 0 && nCh < 4) {
-        AD5724_SetVoltage(&legacy_dac, (ad5724_channel_t)nCh, DA_V);
     }
 }

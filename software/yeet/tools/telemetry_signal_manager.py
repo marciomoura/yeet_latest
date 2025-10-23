@@ -209,6 +209,14 @@ class SignalManager:
         measurements.add_signal(SignalHistory(
             'grid_voltage_c_pu', 'pu', 'Grid Voltage Phase C', self.buffer_size))
         measurements.add_signal(SignalHistory(
+            'grid_current_magnitude_pu', 'pu', 'Grid Current Mag.', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'grid_current_a_pu', 'pu', 'Grid Current Phase A', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'grid_current_b_pu', 'pu', 'Grid Current Phase B', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'grid_current_c_pu', 'pu', 'Grid Current Phase C', self.buffer_size))
+        measurements.add_signal(SignalHistory(
             'dc_link_current_pu', 'pu', 'DC Link Current', self.buffer_size))
         measurements.add_signal(SignalHistory(
             'is_commuting', '', 'Is Commuting', self.buffer_size))
@@ -297,6 +305,14 @@ class SignalManager:
                               meas.grid_voltage_b_pu, timestamp_ms, sequence)
             self._append_signal('measurements', 'grid_voltage_c_pu',
                               meas.grid_voltage_c_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_magnitude_pu',
+                              meas.grid_current_magnitude_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_a_pu',
+                              meas.grid_current_a_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_b_pu',
+                              meas.grid_current_b_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_c_pu',
+                              meas.grid_current_c_pu, timestamp_ms, sequence)
             self._append_signal('measurements', 'dc_link_current_pu',
                               meas.dc_link_current_pu, timestamp_ms, sequence)
             self._append_signal('measurements', 'is_commuting',

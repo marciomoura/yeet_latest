@@ -27,8 +27,8 @@ void sfc_current_controller_runner::run()
 
     _outputs.current_error.write(_inputs.dc_link_current_reference.read() - _inputs.dc_link_current_measured.read());
     _outputs.current_controller_is_saturated.write(_sfc_current_controller.is_saturated());
-
-    _outputs.is_active.write(true);  // TODO: Implement
+    _outputs.pi_output.write(_sfc_current_controller.get_pi_output());
+    _outputs.is_active.write(true);  // TODO: To be implemented
 }
 
 void sfc_current_controller_runner::stop() { _sfc_current_controller.reset(); }

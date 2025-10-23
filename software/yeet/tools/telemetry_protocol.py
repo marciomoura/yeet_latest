@@ -82,7 +82,7 @@ class TelemetryPacketHeader:
 class GridMeasurementsGroup:
     """Grid and DC link measurement signals (per-unit).
     
-    Size: 24 bytes (5 floats + 1 bool with padding)
+    Size: 40 bytes (9 floats + 1 bool with padding)
     Flag: MEASUREMENTS
     
     Attributes:
@@ -90,6 +90,10 @@ class GridMeasurementsGroup:
         grid_voltage_a_pu: Phase A voltage [pu]
         grid_voltage_b_pu: Phase B voltage [pu]
         grid_voltage_c_pu: Phase C voltage [pu]
+        grid_current_magnitude_pu: Grid current magnitude [pu]
+        grid_current_a_pu: Phase A current [pu]
+        grid_current_b_pu: Phase B current [pu]
+        grid_current_c_pu: Phase C current [pu]
         dc_link_current_pu: DC link current [pu]
         is_commuting: Thyristor commutation status
     """
@@ -97,6 +101,10 @@ class GridMeasurementsGroup:
     grid_voltage_a_pu: float
     grid_voltage_b_pu: float
     grid_voltage_c_pu: float
+    grid_current_magnitude_pu: float
+    grid_current_a_pu: float
+    grid_current_b_pu: float
+    grid_current_c_pu: float
     dc_link_current_pu: float
     is_commuting: bool
 
@@ -229,7 +237,7 @@ class TelemetryDecoder:
     
     # Struct format strings (little-endian)
     HEADER_FORMAT = '<BBHIII'            # 16 bytes (B+B+H+I+I+I = 1+1+2+4+4+4)
-    MEASUREMENTS_FORMAT = '<fffffBxxx'   # 24 bytes (5 floats + 1 bool + 3 padding bytes)
+    MEASUREMENTS_FORMAT = '<fffffffffBxxx'   # 40 bytes (9 floats + 1 bool + 3 padding bytes)
     OBSERVER_FORMAT = '<fff'             # 12 bytes (3 floats)
     MODULATOR_FORMAT = '<Bxxxffbxxx'     # 16 bytes (bool + 3 pad + 2 floats + bool + 3 pad)
     CONTROLLER_FORMAT = '<ffffBBBB'      # 20 bytes (4 floats + 4 uint8)
@@ -335,11 +343,15 @@ class TelemetryDecoder:
                 grid_voltage_a_pu=meas_data[1],
                 grid_voltage_b_pu=meas_data[2],
                 grid_voltage_c_pu=meas_data[3],
-                dc_link_current_pu=meas_data[4],
-                is_commuting=bool(meas_data[5])
+                grid_current_magnitude_pu=meas_data[4],
+                grid_current_a_pu=meas_data[5],
+                grid_current_b_pu=meas_data[6],
+                grid_current_c_pu=meas_data[7],
+                dc_link_current_pu=meas_data[8],
+                is_commuting=bool(meas_data[9])
             )
             if verbose:
-                print(f"[DECODE] MEASUREMENTS decoded at offset {offset}: magnitude={meas_data[0]:.3f}, a={meas_data[1]:.3f}, b={meas_data[2]:.3f}, c={meas_data[3]:.3f}, dc={meas_data[4]:.3f}, commuting={meas_data[5]}")
+                print(f"[DECODE] MEASUREMENTS decoded at offset {offset}: v_mag={meas_data[0]:.3f}, v_a={meas_data[1]:.3f}, v_b={meas_data[2]:.3f}, v_c={meas_data[3]:.3f}, i_mag={meas_data[4]:.3f}, i_a={meas_data[5]:.3f}, i_b={meas_data[6]:.3f}, i_c={meas_data[7]:.3f}, dc={meas_data[8]:.3f}, commuting={meas_data[9]}")
             offset += self.MEASUREMENTS_SIZE
             
         # Observer group

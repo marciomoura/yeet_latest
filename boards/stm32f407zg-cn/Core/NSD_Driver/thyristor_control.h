@@ -39,6 +39,8 @@ extern "C" {
  * Function Prototypes
  * ============================================================================ */
 
+void Thyristor_DO_Init(void);
+
 /**
  * @brief Set thyristor firing pulses by individual named arms
  *
