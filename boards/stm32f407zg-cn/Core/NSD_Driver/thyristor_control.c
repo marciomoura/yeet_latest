@@ -12,6 +12,30 @@
  * Public Function Implementations
  * ============================================================================ */
 
+void Thyristor_DO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // Enable GPIO clocks
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+
+    // Configure GPIOC pins: PC6, PC7, PC8, PC9
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;    // Push-Pull
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;  // No pull-up/down
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+    // Configure GPIOB pins: PB0, PB1
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    // Initialize all outputs to LOW (no pulses)
+    set_thyristor_pulses(false, false, false, false, false, false);
+}
+
 /**
  * @brief Set thyristor firing pulses by individual named arms
  *

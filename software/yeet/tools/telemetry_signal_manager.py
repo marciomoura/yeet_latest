@@ -209,11 +209,23 @@ class SignalManager:
         measurements.add_signal(SignalHistory(
             'grid_voltage_c_pu', 'pu', 'Grid Voltage Phase C', self.buffer_size))
         measurements.add_signal(SignalHistory(
+            'grid_current_magnitude_pu', 'pu', 'Grid Current Mag.', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'grid_current_a_pu', 'pu', 'Grid Current Phase A', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'grid_current_b_pu', 'pu', 'Grid Current Phase B', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'grid_current_c_pu', 'pu', 'Grid Current Phase C', self.buffer_size))
+        measurements.add_signal(SignalHistory(
             'dc_link_current_pu', 'pu', 'DC Link Current', self.buffer_size))
+        measurements.add_signal(SignalHistory(
+            'is_commuting', '', 'Is Commuting', self.buffer_size))
         self.groups['measurements'] = measurements
         
         # Observer group
         observer = SignalGroup('observer', 'Grid Observer')
+        observer.add_signal(SignalHistory(
+            'estimated_voltage_magnitude_pu', 'pu', 'Est. Voltage Mag.', self.buffer_size))
         observer.add_signal(SignalHistory(
             'estimated_frequency_pu', 'pu', 'Estimated Frequency', self.buffer_size))
         observer.add_signal(SignalHistory(
@@ -223,15 +235,21 @@ class SignalManager:
         # Modulator group
         modulator = SignalGroup('modulator', 'Grid-Side Modulator')
         modulator.add_signal(SignalHistory(
-            'firing_angle_reference_rad', 'rad', 'Firing Angle Ref.', self.buffer_size))
+            'is_enabled', '', 'Is Enabled', self.buffer_size))
         modulator.add_signal(SignalHistory(
-            'firing_angle_actual_rad', 'rad', 'Firing Angle Actual', self.buffer_size))
+            'firing_angle_input_pu', 'pu', 'Firing Angle Input', self.buffer_size))
+        modulator.add_signal(SignalHistory(
+            'firing_angle_output_pu', 'pu', 'Firing Angle Output', self.buffer_size))
         modulator.add_signal(SignalHistory(
             'force_commutation_ack', '', 'Force Commutation Ack', self.buffer_size))
         self.groups['modulator'] = modulator
         
         # Controller group
         controller = SignalGroup('controller', 'Current Controller')
+        controller.add_signal(SignalHistory(
+            'dc_link_current_reference', 'pu', 'DC Current Reference', self.buffer_size))
+        controller.add_signal(SignalHistory(
+            'dc_link_current_measured', 'pu', 'DC Current Measured', self.buffer_size))
         controller.add_signal(SignalHistory(
             'current_error_pu', 'pu', 'Current Error', self.buffer_size))
         controller.add_signal(SignalHistory(
@@ -250,6 +268,18 @@ class SignalManager:
             'current_state', '', 'Current State', self.buffer_size))
         state_machine.add_signal(SignalHistory(
             'pulse_releases', '', 'Pulse Releases', self.buffer_size))
+        state_machine.add_signal(SignalHistory(
+            'auxiliaries_are_on', '', 'Auxiliaries Are On', self.buffer_size))
+        state_machine.add_signal(SignalHistory(
+            'breakers_are_on', '', 'Breakers Are On', self.buffer_size))
+        state_machine.add_signal(SignalHistory(
+            'start_command', '', 'Start Command', self.buffer_size))
+        state_machine.add_signal(SignalHistory(
+            'stop_command', '', 'Stop Command', self.buffer_size))
+        state_machine.add_signal(SignalHistory(
+            'is_current_extinguished', '', 'Current Extinguished', self.buffer_size))
+        state_machine.add_signal(SignalHistory(
+            'is_shutdown_requested', '', 'Shutdown Requested', self.buffer_size))
         self.groups['state_machine'] = state_machine
     
     def update_from_packet(self, packet: GridSideTelemetryPacket) -> None:
@@ -275,12 +305,24 @@ class SignalManager:
                               meas.grid_voltage_b_pu, timestamp_ms, sequence)
             self._append_signal('measurements', 'grid_voltage_c_pu',
                               meas.grid_voltage_c_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_magnitude_pu',
+                              meas.grid_current_magnitude_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_a_pu',
+                              meas.grid_current_a_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_b_pu',
+                              meas.grid_current_b_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'grid_current_c_pu',
+                              meas.grid_current_c_pu, timestamp_ms, sequence)
             self._append_signal('measurements', 'dc_link_current_pu',
                               meas.dc_link_current_pu, timestamp_ms, sequence)
+            self._append_signal('measurements', 'is_commuting',
+                              float(meas.is_commuting), timestamp_ms, sequence)
         
         # Update observer
         if packet.observer:
             obs = packet.observer
+            self._append_signal('observer', 'estimated_voltage_magnitude_pu',
+                              obs.estimated_voltage_magnitude_pu, timestamp_ms, sequence)
             self._append_signal('observer', 'estimated_frequency_pu',
                               obs.estimated_frequency_pu, timestamp_ms, sequence)
             self._append_signal('observer', 'estimated_angle_rad',
@@ -289,16 +331,22 @@ class SignalManager:
         # Update modulator
         if packet.modulator:
             mod = packet.modulator
-            self._append_signal('modulator', 'firing_angle_reference_rad',
-                              mod.firing_angle_reference_rad, timestamp_ms, sequence)
-            self._append_signal('modulator', 'firing_angle_actual_rad',
-                              mod.firing_angle_actual_rad, timestamp_ms, sequence)
+            self._append_signal('modulator', 'is_enabled',
+                              float(mod.is_enabled), timestamp_ms, sequence)
+            self._append_signal('modulator', 'firing_angle_input_pu',
+                              mod.firing_angle_input_pu, timestamp_ms, sequence)
+            self._append_signal('modulator', 'firing_angle_output_pu',
+                              mod.firing_angle_output_pu, timestamp_ms, sequence)
             self._append_signal('modulator', 'force_commutation_ack',
                               float(mod.force_commutation_ack), timestamp_ms, sequence)
         
         # Update controller
         if packet.controller:
             ctrl = packet.controller
+            self._append_signal('controller', 'dc_link_current_reference',
+                              ctrl.dc_link_current_reference, timestamp_ms, sequence)
+            self._append_signal('controller', 'dc_link_current_measured',
+                              ctrl.dc_link_current_measured, timestamp_ms, sequence)
             self._append_signal('controller', 'current_error_pu',
                               ctrl.current_error_pu, timestamp_ms, sequence)
             self._append_signal('controller', 'controller_output_pu',
@@ -317,6 +365,18 @@ class SignalManager:
                               float(state.current_state), timestamp_ms, sequence)
             self._append_signal('state_machine', 'pulse_releases',
                               float(state.pulse_releases), timestamp_ms, sequence)
+            self._append_signal('state_machine', 'auxiliaries_are_on',
+                              float(state.auxiliaries_are_on), timestamp_ms, sequence)
+            self._append_signal('state_machine', 'breakers_are_on',
+                              float(state.breakers_are_on), timestamp_ms, sequence)
+            self._append_signal('state_machine', 'start_command',
+                              float(state.start_command), timestamp_ms, sequence)
+            self._append_signal('state_machine', 'stop_command',
+                              float(state.stop_command), timestamp_ms, sequence)
+            self._append_signal('state_machine', 'is_current_extinguished',
+                              float(state.is_current_extinguished), timestamp_ms, sequence)
+            self._append_signal('state_machine', 'is_shutdown_requested',
+                              float(state.is_shutdown_requested), timestamp_ms, sequence)
     
     def _append_signal(self, group_name: str, signal_name: str,
                       value: float, timestamp_ms: int, sequence: int) -> None:

@@ -24,19 +24,17 @@
 
 #ifdef HOST_BUILD
 
-#include "sfc_embedded/host_platform/host_io_mocks.hpp"
-#include "sfc_embedded/host_platform/host_tcp_server.hpp"
-#include "sfc_embedded/host_platform/host_timing.hpp"
-#include "sfc_embedded/network_telemetry.hpp"
-
-// TODO: Include actual SFC control headers when integration complete
-// #include "sfc_embedded/grid_side_tasks.h"
-// #include "sfc_embedded/telemetry_manager.h"
-
 #include <atomic>
 #include <csignal>
 #include <cstring>
 #include <iostream>
+
+#include "sfc_embedded/grid_side_tasks.hpp"
+#include "sfc_embedded/host_platform/host_io_mocks.hpp"
+#include "sfc_embedded/host_platform/host_tcp_server.hpp"
+#include "sfc_embedded/host_platform/host_timing.hpp"
+#include "sfc_embedded/network_telemetry.hpp"
+#include "sfc_embedded/task_io.h"
 
 namespace {
 // Global flag for graceful shutdown on Ctrl+C
@@ -125,9 +123,8 @@ int main(int argc, char* argv[])
     std::cout << "[INIT] Initializing timing loop..." << std::endl;
     host_timing_loop control_loop(cfg.frequency_hz);
 
-    // TODO: Initialize actual SFC control modules here
-    // grid_side_controller controller;
-    // controller.initialize();
+    std::cout << "[INIT] Initializing SFC grid-side control..." << std::endl;
+    yeet_embedded_init();
 
     std::cout << "[READY] Starting control loop at " << cfg.frequency_hz << " Hz" << std::endl;
     std::cout << "[READY] Connect telemetry dashboard to localhost:" << cfg.port << std::endl;
@@ -160,61 +157,89 @@ int main(int argc, char* argv[])
         mock_adc_measurements adc = read_mock_adc();
         mock_dio_inputs dio_in = read_mock_dio();
 
-        // TODO: Execute actual control code here
-        // controller.update(adc, dio_in);
-        // mock_dio_outputs dio_out = controller.get_outputs();
+        // Prepare task inputs structure
+        // Convert per-unit values to ADC counts (assume 16-bit ADC, ±10V range, centered at 32768)
+        // For voltage: 1.0 pu = full scale = 40000 counts (approx)
+        // For current: 1.0 pu = full scale = 40000 counts (approx)
+        task_inputs_t task_inputs{};
+        task_inputs.analog_inputs.channels[0] = static_cast<std::uint16_t>(32768 + adc.grid_voltage_a_pu * 10000);
+        task_inputs.analog_inputs.channels[1] = static_cast<std::uint16_t>(32768 + adc.grid_voltage_b_pu * 10000);
+        task_inputs.analog_inputs.channels[2] = static_cast<std::uint16_t>(32768 + adc.grid_voltage_c_pu * 10000);
+        task_inputs.analog_inputs.channels[3] = static_cast<std::uint16_t>(32768 + adc.dc_link_current_pu * 10000);
+        task_inputs.analog_inputs.valid = true;
+
+        task_inputs.digital_inputs.signals[0] = dio_in.fault_reset_command;
+        task_inputs.digital_inputs.signals[1] = dio_in.enable_command;
+        task_inputs.digital_inputs.signals[2] = dio_in.start_command;
+        task_inputs.digital_inputs.signals[3] = dio_in.stop_command;
+        task_inputs.digital_inputs.valid = true;
+        task_inputs.fiber_optic_rx.data_ready = false;
+        task_inputs.fiber_optic_rx.link_ok = false;
+        task_inputs.fiber_optic_rx.payload_length = 0;
+
+        // Prepare task outputs structure
+        task_outputs_t task_outputs{};
+
+        // Execute control tasks based on timing
+        // 200µs task runs every cycle (main control loop)
+        yeet_task_200us(&task_inputs, &task_outputs);
+
+        // 1ms task runs every 10 cycles (at 100 Hz = 10ms period, every 10ms)
+        if (cycle_count % 10 == 0) {
+            yeet_task_1000us(&task_inputs, &task_outputs);
+        }
+
+        // 10ms task runs every 100 cycles (at 100 Hz = 10ms period, every 100ms)
+        if (cycle_count % 100 == 0) {
+            yeet_task_10000us(&task_inputs, &task_outputs);
+        }
 
         // Write mock outputs
-        mock_dio_outputs dio_out;  // Placeholder
+        mock_dio_outputs dio_out{};
+        dio_out.fault_status = task_outputs.digital_outputs.signals[0];
+        dio_out.running_status = task_outputs.digital_outputs.signals[1];
+        dio_out.ready_status = task_outputs.digital_outputs.signals[2];
+        dio_out.grid_contactor_command = task_outputs.digital_outputs.signals[3];
+        dio_out.machine_contactor_command = task_outputs.digital_outputs.signals[4];
         write_mock_dio(dio_out);
 
-        // Send telemetry packet if client connected
+        // Handle network communication (telemetry)
         if (telemetry_server.is_client_connected()) {
-            using namespace yeet::application::sfc::telemetry;
+            network_inputs_t network_inputs{};
+            network_outputs_t network_outputs{};
 
-            // Create test telemetry packet
-            grid_side_telemetry_packet packet{};
+            // Check for received commands from TCP client (e.g., "START\n", "STOP\n")
+            int rx_len = telemetry_server.receive_data(
+                network_inputs.network_rx.rx_buffer, sizeof(network_inputs.network_rx.rx_buffer));
+            if (rx_len > 0) {
+                network_inputs.network_rx.data_ready = true;
+                network_inputs.network_rx.rx_length = static_cast<std::uint16_t>(rx_len);
 
-            // Fill header
-            packet.header.packet_type = static_cast<std::uint8_t>(packet_type::grid_side_telemetry);
-            packet.header.protocol_version = protocol_version;
-            packet.header.timestamp_ms = timestamp_ms;
-            packet.header.sequence_number = cycle_count;
-            packet.header.flags = telemetry_flags::measurements | telemetry_flags::observer |
-                                  telemetry_flags::modulator | telemetry_flags::controller |
-                                  telemetry_flags::state_machine;
+                if (cfg.verbose) {
+                    std::cout << "[NET] Received " << rx_len << " bytes from client" << std::endl;
+                }
+            }
+            else {
+                network_inputs.network_rx.data_ready = false;
+                network_inputs.network_rx.rx_length = 0;
+            }
 
-            // Fill measurement data (from mock I/O)
-            packet.measurements.grid_voltage_a_pu = adc.grid_voltage_a_pu;
-            packet.measurements.grid_voltage_b_pu = adc.grid_voltage_b_pu;
-            packet.measurements.grid_voltage_c_pu = adc.grid_voltage_c_pu;
-            packet.measurements.grid_voltage_magnitude_pu = 1.0f;
-            packet.measurements.dc_link_current_pu = adc.dc_link_current_pu;
+            network_inputs.network_rx.tcp_connected = true;
+            network_inputs.network_rx.socket_id = 0;  // Single client socket
 
-            // Fill observer data (test values)
-            packet.observer.estimated_frequency_pu = 1.0f;  // 50 Hz nominal
-            packet.observer.estimated_angle_rad = 0.0f;
+            // Execute network task (handles command parsing and telemetry streaming)
+            yeet_network(&network_inputs, &network_outputs);
 
-            // Fill modulator data (test values)
-            packet.modulator.firing_angle_reference_rad = 0.0f;
-            packet.modulator.firing_angle_actual_rad = 0.0f;
-            packet.modulator.force_commutation_ack = 0;
+            // Send telemetry data if network task prepared it
+            if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+                bool sent = telemetry_server.send_data(
+                    network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
 
-            // Fill controller data (test values)
-            packet.controller.current_error_pu = 0.0f;
-            packet.controller.controller_output_pu = 0.0f;
-            packet.controller.operating_mode = 0;
-            packet.controller.controller_saturated = 0;
-            packet.controller.freeze_integrator = 0;
-
-            // Fill state machine data (test values)
-            packet.state_machine.current_state = 0;  // INIT state
-            packet.state_machine.pulse_releases = 0;
-
-            // Encode and send (encode function sets payload_length automatically)
-            std::uint8_t buffer[1024];
-            std::size_t size = encode_grid_side_telemetry(packet, buffer);
-            telemetry_server.send_data(buffer, size);
+                if (cfg.verbose && sent) {
+                    std::cout << "[NET] Sent telemetry packet (" << network_outputs.network_tx.tx_length << " bytes)"
+                              << std::endl;
+                }
+            }
         }
 
         // Mark end of cycle for timing measurement

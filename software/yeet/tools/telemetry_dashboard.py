@@ -64,18 +64,20 @@ class SignalDisplayWidget(QtWidgets.QWidget):
         DC Link Current:   [ 0.456 ] pu
     """
     
-    def __init__(self, display_name: str, unit: str, parent=None):
+    def __init__(self, display_name: str, unit: str, enum_map: Optional[dict] = None, parent=None):
         """Initialize signal display widget.
         
         Args:
             display_name: Human-readable signal name
             unit: Physical unit (e.g., 'pu', 'rad', 'Hz')
+            enum_map: Optional mapping from numeric value to text (for enums)
             parent: Parent widget
         """
         super().__init__(parent)
         
         self.display_name = display_name
         self.unit = unit
+        self.enum_map = enum_map
         
         # Create layout
         layout = QtWidgets.QHBoxLayout(self)
@@ -124,15 +126,20 @@ class SignalDisplayWidget(QtWidgets.QWidget):
         if value is None:
             self.value_display.setText("--")
         else:
-            # Format based on magnitude
-            if abs(value) < 0.001:
-                text = f"{value:.6f}"
-            elif abs(value) < 1.0:
-                text = f"{value:.4f}"
-            elif abs(value) < 100.0:
-                text = f"{value:.3f}"
+            # If enum mapping provided, convert to text
+            if self.enum_map is not None:
+                int_value = int(value)
+                text = self.enum_map.get(int_value, f"UNKNOWN({int_value})")
             else:
-                text = f"{value:.1f}"
+                # Format numeric value based on magnitude
+                if abs(value) < 0.001:
+                    text = f"{value:.6f}"
+                elif abs(value) < 1.0:
+                    text = f"{value:.4f}"
+                elif abs(value) < 100.0:
+                    text = f"{value:.3f}"
+                else:
+                    text = f"{value:.1f}"
             self.value_display.setText(text)
 
 
@@ -177,15 +184,17 @@ class SignalGroupWidget(QtWidgets.QGroupBox):
             }
         """)
     
-    def add_signal_display(self, signal_name: str, display_name: str, unit: str) -> None:
+    def add_signal_display(self, signal_name: str, display_name: str, unit: str, 
+                           enum_map: Optional[dict] = None) -> None:
         """Add signal display to group.
         
         Args:
             signal_name: Internal signal name
             display_name: Human-readable name
             unit: Physical unit
+            enum_map: Optional mapping from numeric value to text (for enums)
         """
-        display = SignalDisplayWidget(display_name, unit, self)
+        display = SignalDisplayWidget(display_name, unit, enum_map, self)
         self.signal_displays[signal_name] = display
         self.layout.addWidget(display)
     
@@ -371,18 +380,35 @@ class DashboardWindow(QtWidgets.QMainWindow):
         Args:
             parent_layout: Layout to add group widgets to
         """
+        # State machine enumeration mappings
+        sfc_state_map = {
+            0: 'IDLE',
+            1: 'AUXILIARIES_ON',
+            2: 'BREAKERS_OFF',
+            3: 'BREAKERS_ON',
+            4: 'OPERATION_OFF',
+            5: 'OPERATION_ON',
+            6: 'SHUTDOWN_REQUESTED'
+        }
+        
         # Measurements group
         meas_widget = SignalGroupWidget('measurements', 'Grid & DC Measurements', self)
         meas_widget.add_signal_display('grid_voltage_magnitude_pu', 'Grid Voltage Mag.', 'pu')
         meas_widget.add_signal_display('grid_voltage_a_pu', 'Grid Voltage Phase A', 'pu')
         meas_widget.add_signal_display('grid_voltage_b_pu', 'Grid Voltage Phase B', 'pu')
         meas_widget.add_signal_display('grid_voltage_c_pu', 'Grid Voltage Phase C', 'pu')
+        meas_widget.add_signal_display('grid_current_magnitude_pu', 'Grid Current Mag.', 'pu')
+        meas_widget.add_signal_display('grid_current_a_pu', 'Grid Current Phase A', 'pu')
+        meas_widget.add_signal_display('grid_current_b_pu', 'Grid Current Phase B', 'pu')
+        meas_widget.add_signal_display('grid_current_c_pu', 'Grid Current Phase C', 'pu')
         meas_widget.add_signal_display('dc_link_current_pu', 'DC Link Current', 'pu')
+        meas_widget.add_signal_display('is_commuting', 'Is Commuting', '')
         self.signal_group_widgets['measurements'] = meas_widget
         parent_layout.addWidget(meas_widget)
         
         # Observer group
         obs_widget = SignalGroupWidget('observer', 'Grid Observer', self)
+        obs_widget.add_signal_display('estimated_voltage_magnitude_pu', 'Est. Voltage Mag.', 'pu')
         obs_widget.add_signal_display('estimated_frequency_pu', 'Estimated Frequency', 'pu')
         obs_widget.add_signal_display('estimated_angle_rad', 'Estimated Angle', 'rad')
         self.signal_group_widgets['observer'] = obs_widget
@@ -390,14 +416,17 @@ class DashboardWindow(QtWidgets.QMainWindow):
         
         # Modulator group
         mod_widget = SignalGroupWidget('modulator', 'Grid-Side Modulator', self)
-        mod_widget.add_signal_display('firing_angle_reference_rad', 'Firing Angle Ref.', 'rad')
-        mod_widget.add_signal_display('firing_angle_actual_rad', 'Firing Angle Actual', 'rad')
+        mod_widget.add_signal_display('is_enabled', 'Is Enabled', '')
+        mod_widget.add_signal_display('firing_angle_input_pu', 'Firing Angle Input', 'pu')
+        mod_widget.add_signal_display('firing_angle_output_pu', 'Firing Angle Output', 'pu')
         mod_widget.add_signal_display('force_commutation_ack', 'Force Commutation Ack', '')
         self.signal_group_widgets['modulator'] = mod_widget
         parent_layout.addWidget(mod_widget)
         
         # Controller group
         ctrl_widget = SignalGroupWidget('controller', 'Current Controller', self)
+        ctrl_widget.add_signal_display('dc_link_current_reference', 'DC Current Reference', 'pu')
+        ctrl_widget.add_signal_display('dc_link_current_measured', 'DC Current Measured', 'pu')
         ctrl_widget.add_signal_display('current_error_pu', 'Current Error', 'pu')
         ctrl_widget.add_signal_display('controller_output_pu', 'Controller Output', 'pu')
         ctrl_widget.add_signal_display('operating_mode', 'Operating Mode', '')
@@ -408,8 +437,14 @@ class DashboardWindow(QtWidgets.QMainWindow):
         
         # State machine group
         state_widget = SignalGroupWidget('state_machine', 'State Machine', self)
-        state_widget.add_signal_display('current_state', 'Current State', '')
-        state_widget.add_signal_display('pulse_releases', 'Pulse Releases', '')
+        state_widget.add_signal_display('current_state', 'Current State', '', enum_map=sfc_state_map)
+        state_widget.add_signal_display('pulse_releases', 'Pulses Are Released', '')
+        state_widget.add_signal_display('auxiliaries_are_on', 'Auxiliaries Are On', '')
+        state_widget.add_signal_display('breakers_are_on', 'Breakers Are On', '')
+        state_widget.add_signal_display('start_command', 'Start Command', '')
+        state_widget.add_signal_display('stop_command', 'Stop Command', '')
+        state_widget.add_signal_display('is_current_extinguished', 'Current Extinguished', '')
+        state_widget.add_signal_display('is_shutdown_requested', 'Shutdown Requested', '')
         self.signal_group_widgets['state_machine'] = state_widget
         parent_layout.addWidget(state_widget)
     

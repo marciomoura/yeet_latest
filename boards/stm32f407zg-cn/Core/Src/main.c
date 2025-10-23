@@ -201,49 +201,55 @@ static network_outputs_t network_outputs = {0};
 /* Application-Specific Functions ------------------------------------------- */
 
 /**
- * @brief  Initialize DIP switch GPIO pins (PC6-PC9)
- * @note   DIP switches are configured as inputs with pull-ups
- *         PC6 = Bit 0, PC7 = Bit 1, PC8 = Bit 2, PC9 = Bit 3
+ * @brief  Initialize DIP switch GPIO pins (PA8, PB2, PF11)
+ * @note   DIP switches are configured as plain inputs with no pull-up/down
+ *         PA8 = Bit 0, PB2 = Bit 1, PF11 = Bit 2
  */
 static void DIP_Switch_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
 
-    // Enable GPIOC clock
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+    // Enable GPIO clocks for GPIOA, GPIOB, and GPIOF
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
 
-    // Configure PC6, PC7, PC8, PC9 as inputs with pull-ups
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
+    // Configure PA8 as input (Bit 0)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;  // No pull-up/down
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // Configure PB2 as input (Bit 1)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    // Configure PF11 as input (Bit 2)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+    GPIO_Init(GPIOF, &GPIO_InitStructure);
 }
 
 /**
  * @brief  Read node ID from DIP switches
- * @retval Node ID value (0-15)
- * @note   DIP switches use normal logic with pull-ups:
- *         - Switch OFF (open) = GPIO reads HIGH (1) due to pull-up = bit set in result
- *         - Switch ON (closed to GND) = GPIO reads LOW (0) = bit clear in result
- *         Reading switches as binary number directly (HIGH = 1, LOW = 0)
+ * @retval Node ID value (0-7 for 3-bit configuration)
+ * @note   DIP switches use direct logic (no pull resistors):
+ *         - Reading GPIO state directly as binary value
+ *         - Bit mapping: PA8 = Bit 0, PB2 = Bit 1, PF11 = Bit 2
  */
 static uint8_t Read_DIP_Switch(void)
 {
     uint8_t node_id = 0;
 
-    // Read 4 bits from PC6-PC9 (direct logic: HIGH = 1, LOW = 0)
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_6) == 1) {
-        node_id |= 0x01;  // Bit 0
+    // Read 3 bits from PA8, PB2, PF11 (direct logic: HIGH = 1, LOW = 0)
+    if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_8) == 1) {
+        node_id |= 0x01;  // Bit 0 (PA8)
     }
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_7) == 1) {
-        node_id |= 0x02;  // Bit 1
+    if (GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_2) == 1) {
+        node_id |= 0x02;  // Bit 1 (PB2)
     }
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_8) == 1) {
-        node_id |= 0x04;  // Bit 2
-    }
-    if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_9) == 1) {
-        node_id |= 0x08;  // Bit 3
+    if (GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_11) == 1) {
+        node_id |= 0x04;  // Bit 2 (PF11)
     }
 
     return node_id;
@@ -512,14 +518,10 @@ void task_1ms(void)
     }
 
     // ===== DAC Output (only if DAC initialized) =====
-    if (system_status.dac_ok) {
-        // TODO: Extract DAC values from control outputs
-        // For now, just write zeros
-        float dac_outputs[AD5724_NUM_CHANNELS] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-        // Write DAC outputs (all channels updated every 1ms)
+    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
+        // Extract DAC values from control outputs and apply to hardware
         for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
-            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, dac_outputs[ch]);
+            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
         }
     }
 
@@ -859,10 +861,12 @@ int main(void)
      * HARDWARE INITIALIZATION SEQUENCE
      * ======================================================================== */
 
-    // 1. Read board configuration from DIP switches (PC6-PC9)
-    //    DIP switches determine node ID for network addressing (0-15)
+    // 1. Read board configuration from DIP switches (PA8, PB2, PF11)
+    //    DIP switches determine node ID for network addressing (0-7 for 3-bit)
     DIP_Switch_Init();
     dip_switch_channel_number = Read_DIP_Switch();
+    // Initialize thyristor driver outputs (GPIO)
+    Thyristor_DO_Init();
 
     // 2. Initialize timers FIRST (required for FPGA delay functions and tasks)
     TIMx_Init();
@@ -933,7 +937,7 @@ int main(void)
         }
     }
 
-    // 10. Initialize network (W5200 on SPI2 and SPI3)
+    // 11. Initialize network (W5200 on SPI2 and SPI3)
     //     IP addresses configured based on DIP switch node ID
     system_status.network_ok = TCP_Server_Init();
 

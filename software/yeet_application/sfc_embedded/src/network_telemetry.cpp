@@ -5,8 +5,11 @@
 
 #include "sfc_embedded/network_telemetry.hpp"
 
+// Enable to print
+// #define PRINT_DEBUG
+
 #include <cstring>
-#ifdef HOST_BUILD
+#ifdef PRINT_DEBUG
 #include <cstdio>
 #endif
 
@@ -68,7 +71,7 @@ std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet,
     header.protocol_version = protocol_version;
     header.payload_length = static_cast<std::uint16_t>(calculate_payload_size(header.flags));
 
-#ifdef HOST_BUILD
+#ifdef PRINT_DEBUG
     // Debug: print header values
     printf("[ENCODE] Header: type=%u, ver=%u, len=%u, flags=0x%08X, ts=%u, seq=%u\n", header.packet_type,
         header.protocol_version, header.payload_length, header.flags, header.timestamp_ms, header.sequence_number);
@@ -92,7 +95,7 @@ std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet,
     buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 16) & 0xFF);
     buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 24) & 0xFF);
 
-#ifdef HOST_BUILD
+#ifdef PRINT_DEBUG
     // Debug: print first 32 bytes of buffer
     printf("[ENCODE] First 32 bytes: ");
     for (int i = 0; i < 32 && i < static_cast<int>(offset + 16); i++) {
