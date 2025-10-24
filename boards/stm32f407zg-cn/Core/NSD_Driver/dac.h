@@ -72,6 +72,7 @@ typedef struct {
     float last_voltage[AD5724_NUM_CHANNELS];   /**< Last output voltage per channel */
     bool initialized;                          /**< Initialization flag */
     uint32_t write_count;                      /**< Total writes performed */
+    uint8_t power_bitmap;                      /**< Cached power-control bits (channels + REF) */
 } ad5724_instance_t;
 
 /* ============================================================================

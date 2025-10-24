@@ -310,6 +310,14 @@ void task_200us(void)
         task_outputs.thyristor_pulses.b_plus, task_outputs.thyristor_pulses.a_minus,
         task_outputs.thyristor_pulses.c_plus, task_outputs.thyristor_pulses.b_minus);
 
+    // ===== DAC Output (moved to 200us task for atomic operation with ADC) =====
+    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
+        // Extract DAC values from control outputs and apply to hardware
+        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
+            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
+        }
+    }
+
     // Digital outputs not updated here (too fast for FSMC)
 
     // Start conversion for next cycle (takes ~5µs)
@@ -515,14 +523,6 @@ void task_1ms(void)
 
         DIO_SetOutputFlags(&dio_instance, &digital_outputs);
         DIO_WriteOutputs(&dio_instance);
-    }
-
-    // ===== DAC Output (only if DAC initialized) =====
-    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
-        // Extract DAC values from control outputs and apply to hardware
-        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
-            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
-        }
     }
 
     // ===== Fiber-Optic TX: Transmit AFTER control algorithm =====
