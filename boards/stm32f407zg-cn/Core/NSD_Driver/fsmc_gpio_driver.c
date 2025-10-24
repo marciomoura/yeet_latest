@@ -21,6 +21,8 @@
 static void FSMC_GPIO_InitPins(void);
 static void FSMC_GPIO_InitFSMC(void);
 static void FSMC_GPIO_ApplyDebounceSingle(uint8_t current, uint8_t* filtered, int16_t* delay_counter);
+static void FSMC_GPIO_ReadWord(uint16_t addr, uint8_t* buffer);
+static void FSMC_GPIO_WriteWord(uint16_t addr, const uint8_t* buffer);
 
 /* ============================================================================
  * Public Function Implementations - Initialization
@@ -41,11 +43,6 @@ bool FSMC_GPIO_Init(fsmc_gpio_instance_t* gpio)
     // Initialize hardware
     FSMC_GPIO_InitPins();
     FSMC_GPIO_InitFSMC();
-
-    // Set default LED states
-    gpio->led_run = 1;    // Running LED enabled (will blink)
-    gpio->led_fault = 0;  // Fault LED off
-    gpio->led_alarm = 0;  // Alarm LED off
 
     gpio->initialized = true;
     gpio->read_count = 0;
@@ -74,10 +71,10 @@ void FSMC_GPIO_Reset(fsmc_gpio_instance_t* gpio)
     memset(gpio->di_delay, 0, sizeof(gpio->di_delay));
     memset(gpio->do_state, 0, sizeof(gpio->do_state));
 
-    // Reset LED states to defaults
-    gpio->led_run = 1;
-    gpio->led_fault = 0;
-    gpio->led_alarm = 0;
+    // Initialize LEDs to default state
+    gpio->led_run = 1;    // RUN LED blinks during operation
+    gpio->led_fault = 0;  // FAULT LED off by default
+    gpio->led_alarm = 0;  // ALARM LED off by default
 }
 
 /* ============================================================================
@@ -87,7 +84,7 @@ void FSMC_GPIO_Reset(fsmc_gpio_instance_t* gpio)
 /**
  * @brief Read 16 digital inputs from hardware
  */
-void FSMC_GPIO_ReadWord(uint16_t addr, uint8_t* buffer)
+static void FSMC_GPIO_ReadWord(uint16_t addr, uint8_t* buffer)
 {
     if (buffer == NULL) {
         return;
@@ -97,7 +94,7 @@ void FSMC_GPIO_ReadWord(uint16_t addr, uint8_t* buffer)
     volatile uint16_t* fsmc_addr = (volatile uint16_t*)(FSMC_GPIO_BASE_ADDR + addr * 2);
     uint16_t data = *fsmc_addr;
 
-    // Unpack bits into byte array (LSB first)
+    // Unpack bits into byte array (LSB first, matching legacy order)
     for (int i = 0; i < 16; i++) {
         buffer[i] = (data & 0x0001) ? 1 : 0;
         data >>= 1;
@@ -107,7 +104,7 @@ void FSMC_GPIO_ReadWord(uint16_t addr, uint8_t* buffer)
 /**
  * @brief Write 16 digital outputs to hardware
  */
-void FSMC_GPIO_WriteWord(uint16_t addr, const uint8_t* buffer)
+static void FSMC_GPIO_WriteWord(uint16_t addr, const uint8_t* buffer)
 {
     if (buffer == NULL) {
         return;
@@ -115,11 +112,11 @@ void FSMC_GPIO_WriteWord(uint16_t addr, const uint8_t* buffer)
 
     uint16_t data = 0;
 
-    // Pack byte array into 16-bit word (MSB first packing, LSB first in buffer)
-    for (int i = 15; i >= 0; i--) {
-        data <<= 1;
+    // Pack byte array into 16-bit word (matching legacy order: buffer[0] -> bit0)
+    for (int i = 0; i < 16; i++) {
+        data >>= 1;
         if (buffer[i]) {
-            data |= 0x0001;
+            data |= 0x8000;
         }
     }
 
@@ -147,9 +144,9 @@ void FSMC_GPIO_ReadInputs(fsmc_gpio_instance_t* gpio)
     }
 
     // Read digital inputs from hardware (48 inputs across 3 words)
-    FSMC_GPIO_ReadWord(FSMC_GPIO_DI_ADDR_0, &gpio->di_raw[0][0]);  // DI00..DI15
-    FSMC_GPIO_ReadWord(FSMC_GPIO_DI_ADDR_1, &gpio->di_raw[2][0]);  // DI16..DI31
-    FSMC_GPIO_ReadWord(FSMC_GPIO_DI_ADDR_2, &gpio->di_raw[4][0]);  // DI32..DI47
+    FSMC_GPIO_ReadWord(FSMC_GPIO_DI_ADDR_0, &gpio->di_raw[0]);   // DI1..DI16
+    FSMC_GPIO_ReadWord(FSMC_GPIO_DI_ADDR_1, &gpio->di_raw[16]);  // DI17..DI32
+    FSMC_GPIO_ReadWord(FSMC_GPIO_DI_ADDR_2, &gpio->di_raw[32]);  // DI33..DI48
 
     gpio->read_count++;
 }
@@ -164,12 +161,31 @@ void FSMC_GPIO_ApplyDebounce(fsmc_gpio_instance_t* gpio)
     }
 
     // Apply debounce filter to all inputs
-    for (int row = 0; row < FSMC_GPIO_NUM_ROWS; row++) {
-        for (int col = 0; col < FSMC_GPIO_NUM_COLS; col++) {
-            FSMC_GPIO_ApplyDebounceSingle(
-                gpio->di_raw[row][col], &gpio->di_debounced[row][col], &gpio->di_delay[row][col]);
-        }
+    for (int i = 0; i < FSMC_GPIO_NUM_DI; i++) {
+        FSMC_GPIO_ApplyDebounceSingle(gpio->di_raw[i], &gpio->di_debounced[i], &gpio->di_delay[i]);
     }
+}
+
+/**
+ * @brief Get raw input state
+ */
+uint8_t FSMC_GPIO_GetRawInput(const fsmc_gpio_instance_t* gpio, uint8_t input)
+{
+    if (gpio == NULL || input < 1 || input > FSMC_GPIO_NUM_DI) {
+        return 0;
+    }
+    return gpio->di_raw[input - 1];  // Convert 1-based to 0-based index
+}
+
+/**
+ * @brief Get debounced input state
+ */
+uint8_t FSMC_GPIO_GetDebouncedInput(const fsmc_gpio_instance_t* gpio, uint8_t input)
+{
+    if (gpio == NULL || input < 1 || input > FSMC_GPIO_NUM_DI) {
+        return 0;
+    }
+    return gpio->di_debounced[input - 1];  // Convert 1-based to 0-based index
 }
 
 /* ============================================================================
@@ -177,15 +193,26 @@ void FSMC_GPIO_ApplyDebounce(fsmc_gpio_instance_t* gpio)
  * ============================================================================ */
 
 /**
- * @brief Set output bit state
+ * @brief Set output state
  */
-void FSMC_GPIO_SetOutput(fsmc_gpio_instance_t* gpio, uint8_t row, uint8_t col, uint8_t value)
+void FSMC_GPIO_SetOutput(fsmc_gpio_instance_t* gpio, uint8_t output, uint8_t value)
 {
-    if (gpio == NULL || row >= FSMC_GPIO_NUM_ROWS || col >= FSMC_GPIO_NUM_COLS) {
+    if (gpio == NULL || output < 1 || output > FSMC_GPIO_NUM_DO) {
         return;
     }
 
-    gpio->do_state[row][col] = value ? 1 : 0;
+    gpio->do_state[output - 1] = value ? 1 : 0;  // Convert 1-based to 0-based index
+}
+
+/**
+ * @brief Get output state
+ */
+uint8_t FSMC_GPIO_GetOutput(const fsmc_gpio_instance_t* gpio, uint8_t output)
+{
+    if (gpio == NULL || output < 1 || output > FSMC_GPIO_NUM_DO) {
+        return 0;
+    }
+    return gpio->do_state[output - 1];  // Convert 1-based to 0-based index
 }
 
 /**
@@ -197,133 +224,23 @@ void FSMC_GPIO_WriteOutputs(fsmc_gpio_instance_t* gpio)
         return;
     }
 
-    uint8_t led_buffer[16] = {0};
-
-    // Prepare LED indicator word
-    led_buffer[0] = gpio->led_run;
-    led_buffer[1] = gpio->led_fault;
-    led_buffer[2] = gpio->led_alarm;
-
     // Write digital outputs (48 outputs across 3 words)
-    FSMC_GPIO_WriteWord(FSMC_GPIO_DO_ADDR_0, &gpio->do_state[0][0]);  // DO00..DO15
-    FSMC_GPIO_WriteWord(FSMC_GPIO_DO_ADDR_1, &gpio->do_state[2][0]);  // DO16..DO31
-    FSMC_GPIO_WriteWord(FSMC_GPIO_DO_ADDR_2, &gpio->do_state[4][0]);  // DO32..DO47
+    FSMC_GPIO_WriteWord(FSMC_GPIO_DO_ADDR_0, &gpio->do_state[0]);   // DO1..DO16
+    FSMC_GPIO_WriteWord(FSMC_GPIO_DO_ADDR_1, &gpio->do_state[16]);  // DO17..DO32
+    FSMC_GPIO_WriteWord(FSMC_GPIO_DO_ADDR_2, &gpio->do_state[32]);  // DO33..DO48
 
-    // Clear extended outputs (address 12, if hardware supports)
-    volatile uint16_t* fsmc_addr = (volatile uint16_t*)(FSMC_GPIO_BASE_ADDR + 12 * 2);
+    // Strobe signal (address 6, required for CPLD/FPGA to latch outputs)
+    // Legacy driver does this between DO and LED writes
+    volatile uint16_t* fsmc_addr = (volatile uint16_t*)(FSMC_GPIO_BASE_ADDR + 12);
     *fsmc_addr = 0;
     for (volatile int i = 0; i < 6; i++) {
         __NOP();
     }
 
-    // Write LED indicators
-    FSMC_GPIO_WriteWord(FSMC_GPIO_LED_ADDR, led_buffer);
+    // NOTE: LED indicators are written separately via FSMC_GPIO_WriteLEDs()
+    // Do not overwrite them here!
 
     gpio->write_count++;
-}
-
-/* ============================================================================
- * Public Function Implementations - LED Control
- * ============================================================================ */
-
-/**
- * @brief Set LED indicator states (all at once)
- */
-void FSMC_GPIO_SetLEDs(fsmc_gpio_instance_t* gpio, uint8_t led_run, uint8_t led_fault, uint8_t led_alarm)
-{
-    if (gpio == NULL) {
-        return;
-    }
-
-    gpio->led_run = led_run ? 1 : 0;
-    gpio->led_fault = led_fault ? 1 : 0;
-    gpio->led_alarm = led_alarm ? 1 : 0;
-}
-
-/**
- * @brief Set RUN LED state
- */
-void FSMC_GPIO_SetLED_Run(fsmc_gpio_instance_t* gpio, uint8_t state)
-{
-    if (gpio == NULL) {
-        return;
-    }
-    gpio->led_run = state ? 1 : 0;
-}
-
-/**
- * @brief Set FAULT LED state
- */
-void FSMC_GPIO_SetLED_Fault(fsmc_gpio_instance_t* gpio, uint8_t state)
-{
-    if (gpio == NULL) {
-        return;
-    }
-    gpio->led_fault = state ? 1 : 0;
-}
-
-/**
- * @brief Set ALARM LED state
- */
-void FSMC_GPIO_SetLED_Alarm(fsmc_gpio_instance_t* gpio, uint8_t state)
-{
-    if (gpio == NULL) {
-        return;
-    }
-    gpio->led_alarm = state ? 1 : 0;
-}
-
-/**
- * @brief Toggle RUN LED state
- */
-void FSMC_GPIO_ToggleLED_Run(fsmc_gpio_instance_t* gpio)
-{
-    if (gpio == NULL) {
-        return;
-    }
-    gpio->led_run = gpio->led_run ? 0 : 1;
-}
-
-/**
- * @brief Toggle FAULT LED state
- */
-void FSMC_GPIO_ToggleLED_Fault(fsmc_gpio_instance_t* gpio)
-{
-    if (gpio == NULL) {
-        return;
-    }
-    gpio->led_fault = gpio->led_fault ? 0 : 1;
-}
-
-/**
- * @brief Toggle ALARM LED state
- */
-void FSMC_GPIO_ToggleLED_Alarm(fsmc_gpio_instance_t* gpio)
-{
-    if (gpio == NULL) {
-        return;
-    }
-    gpio->led_alarm = gpio->led_alarm ? 0 : 1;
-}
-
-/**
- * @brief Get LED indicator states
- */
-void FSMC_GPIO_GetLEDs(const fsmc_gpio_instance_t* gpio, uint8_t* led_run, uint8_t* led_fault, uint8_t* led_alarm)
-{
-    if (gpio == NULL) {
-        return;
-    }
-
-    if (led_run != NULL) {
-        *led_run = gpio->led_run;
-    }
-    if (led_fault != NULL) {
-        *led_fault = gpio->led_fault;
-    }
-    if (led_alarm != NULL) {
-        *led_alarm = gpio->led_alarm;
-    }
 }
 
 /* ============================================================================
@@ -504,7 +421,64 @@ static void FSMC_GPIO_ApplyDebounceSingle(uint8_t current, uint8_t* filtered, in
         }
     }
     else {
-        // Input matches filtered state - reset counter
+        // Input matches filtered value - reset delay counter
         *delay_counter = 0;
     }
+}
+
+/* ============================================================================
+ * Public Function Implementations - LED Control
+ * ============================================================================ */
+
+/**
+ * @brief Set RUN LED state
+ */
+void FSMC_GPIO_SetLED_Run(fsmc_gpio_instance_t* gpio, uint8_t state)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_run = (state != 0) ? 1 : 0;
+}
+
+/**
+ * @brief Set FAULT LED state
+ */
+void FSMC_GPIO_SetLED_Fault(fsmc_gpio_instance_t* gpio, uint8_t state)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_fault = (state != 0) ? 1 : 0;
+}
+
+/**
+ * @brief Set ALARM LED state
+ */
+void FSMC_GPIO_SetLED_Alarm(fsmc_gpio_instance_t* gpio, uint8_t state)
+{
+    if (gpio == NULL) {
+        return;
+    }
+    gpio->led_alarm = (state != 0) ? 1 : 0;
+}
+
+/**
+ * @brief Write all LED states to hardware
+ */
+void FSMC_GPIO_WriteLEDs(fsmc_gpio_instance_t* gpio)
+{
+    if (gpio == NULL || !gpio->initialized) {
+        return;
+    }
+
+    // Create LED buffer (16 bits, only first 3 used)
+    uint8_t led_buffer[16] = {0};
+
+    led_buffer[0] = gpio->led_run;    // RUN LED (bit 0)
+    led_buffer[1] = gpio->led_fault;  // FAULT LED (bit 1)
+    led_buffer[2] = gpio->led_alarm;  // ALARM LED (bit 2)
+
+    // Write to LED address (address 7)
+    FSMC_GPIO_WriteWord(FSMC_GPIO_LED_ADDR, led_buffer);
 }

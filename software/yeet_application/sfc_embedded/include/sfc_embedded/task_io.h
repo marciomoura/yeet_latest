@@ -32,10 +32,10 @@ extern "C" {
 #define TASK_IO_NUM_ANALOG_INPUTS 8
 
 /** @brief Number of digital input channels */
-#define TASK_IO_NUM_DIGITAL_INPUTS 16
+#define TASK_IO_NUM_DIGITAL_INPUTS 48
 
 /** @brief Number of digital output channels */
-#define TASK_IO_NUM_DIGITAL_OUTPUTS 17
+#define TASK_IO_NUM_DIGITAL_OUTPUTS 48
 
 /** @brief Number of analog output channels (AD5724 DAC) */
 #define TASK_IO_NUM_ANALOG_OUTPUTS 4
