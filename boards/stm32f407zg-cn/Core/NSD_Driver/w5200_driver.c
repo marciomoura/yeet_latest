@@ -755,8 +755,15 @@ bool W5200_Send(w5200_instance_t* w5200, uint8_t socket_num, const uint8_t* data
     uint16_t offset = tx_ptr % W5200_SOCKET_BUF_SIZE;
     uint16_t physical_addr = tx_base + offset;
 
-    // Write data to TX buffer
-    W5200_Write(w5200, physical_addr, data, length);
+    // Write data to TX buffer, handling wrap-around within ring buffer
+    uint16_t remaining = W5200_SOCKET_BUF_SIZE - offset;
+    if (length <= remaining) {
+        W5200_Write(w5200, physical_addr, data, length);
+    }
+    else {
+        W5200_Write(w5200, physical_addr, data, remaining);
+        W5200_Write(w5200, tx_base, data + remaining, length - remaining);
+    }
 
     // Update TX write pointer
     tx_ptr += length;
@@ -805,8 +812,15 @@ uint16_t W5200_Receive(w5200_instance_t* w5200, uint8_t socket_num, uint8_t* dat
     uint16_t offset = rx_ptr % W5200_SOCKET_BUF_SIZE;
     uint16_t physical_addr = rx_base + offset;
 
-    // Read data from RX buffer
-    W5200_Read(w5200, physical_addr, data, read_size);
+    // Read data from RX buffer, handling wrap-around within ring buffer
+    uint16_t remaining = W5200_SOCKET_BUF_SIZE - offset;
+    if (read_size <= remaining) {
+        W5200_Read(w5200, physical_addr, data, read_size);
+    }
+    else {
+        W5200_Read(w5200, physical_addr, data, remaining);
+        W5200_Read(w5200, rx_base, data + remaining, read_size - remaining);
+    }
 
     // Update RX read pointer
     rx_ptr += read_size;
@@ -860,9 +874,14 @@ bool W5200_SendDMA(w5200_instance_t* w5200, uint8_t socket_num, const uint8_t* d
     uint16_t tx_wr = W5200_ReadByte(w5200, W5200_Sn_TX_WR0(socket_num)) << 8;
     tx_wr |= W5200_ReadByte(w5200, W5200_Sn_TX_WR0(socket_num) + 1);
 
+    // Fallback to CPU transfer if write would wrap the ring buffer
+    uint16_t offset = tx_wr % W5200_SOCKET_BUF_SIZE;
+    if ((uint32_t)offset + length > W5200_SOCKET_BUF_SIZE) {
+        return W5200_Send(w5200, socket_num, data, length);
+    }
+
     // Calculate socket TX buffer address
     uint16_t socket_tx_base = W5200_TX_MEM_BASE + (socket_num * W5200_SOCKET_BUF_SIZE);
-    uint16_t offset = tx_wr % W5200_SOCKET_BUF_SIZE;
     uint16_t tx_addr = socket_tx_base + offset;
 
     // Build W5200 SPI command header in TX buffer
