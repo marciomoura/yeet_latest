@@ -750,20 +750,55 @@ static void TCP_Server_SPI2_Task(void)
             }
         }
 
-        // Call application layer network handler every loop (even without new RX data)
-        yeet_network(&network_inputs, &network_outputs);
+        // Attempt to transmit FIRST if there's a pending transmission from previous iteration
+        // This prevents overwriting the buffer with new data before old data is sent
+        if (network_outputs.network_tx.transmit_request) {
+            // Validate packet before sending (detect buffer corruption)
+            // Check that packet_type and protocol_version are still valid (bytes 0-1)
+            if (network_outputs.network_tx.tx_length >= 2) {
+                uint8_t packet_type = network_outputs.network_tx.tx_buffer[0];
+                uint8_t protocol_version = network_outputs.network_tx.tx_buffer[1];
 
-        // Clear data_ready flag after processing so one-shot commands do not repeat
+                // packet_type should be 0x01 (grid_side_telemetry) or 0x10 (system_status) or 0x20 (configuration)
+                // protocol_version should be 0x01
+                bool valid =
+                    (packet_type == 0x01 || packet_type == 0x10 || packet_type == 0x20) && (protocol_version == 0x01);
+
+                if (valid) {
+                    sent = W5200_Send(&w5200_spi2, network_outputs.network_tx.socket_id,
+                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+                    if (sent) {
+                        network_outputs.network_tx.transmit_request = false;
+                    }
+                }
+                else {
+                    // Buffer corrupted! Discard packet and clear flag
+                    network_outputs.network_tx.transmit_request = false;
+                    network_outputs.network_tx.tx_length = 0;
+                }
+            }
+            else {
+                // Invalid length, discard
+                network_outputs.network_tx.transmit_request = false;
+                network_outputs.network_tx.tx_length = 0;
+            }
+            // If send fails (e.g., TX buffer full), keep transmit_request true
+            // and skip building new packet this iteration to avoid buffer corruption
+        }
+
+        // ALWAYS clear data_ready flag to prevent repeated processing of same RX data
+        // even if we skip calling yeet_network() due to pending transmission
+        bool had_new_data = network_inputs.network_rx.data_ready;
         network_inputs.network_rx.data_ready = false;
 
-        // Attempt to transmit if application requested it
-        if (network_outputs.network_tx.transmit_request) {
-            sent = W5200_Send(&w5200_spi2, network_outputs.network_tx.socket_id, network_outputs.network_tx.tx_buffer,
-                network_outputs.network_tx.tx_length);
-            if (sent) {
-                network_outputs.network_tx.transmit_request = false;
-            }
-            // If send fails (e.g., TX buffer full), keep transmit_request true to retry next iteration
+        // Only call application network handler if no pending transmission
+        // This prevents buffer corruption when previous packet is still pending
+        if (!network_outputs.network_tx.transmit_request) {
+            // Restore data_ready flag only for this call (if we're processing it)
+            network_inputs.network_rx.data_ready = had_new_data;
+            yeet_network(&network_inputs, &network_outputs);
+            // Clear again after processing
+            network_inputs.network_rx.data_ready = false;
         }
     }
     else if (status == W5200_SOCK_CLOSE_WAIT) {
