@@ -40,47 +40,10 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from monitor_client.core.telemetry_network_client import TelemetryNetworkClient
+from monitor_client.core.unified_network_client import UnifiedNetworkClient
 from monitor_client.core.telemetry_protocol import GridSideTelemetryPacket
-from monitor_client.core.parameter_network_client import ParameterClient
 from monitor_client.core.parameter_protocol import ParameterMetadata
 
-
-class ParameterLoadWorker(QtCore.QObject):
-    """Background worker for loading parameters without blocking UI."""
-    
-    finished = QtCore.pyqtSignal(list)  # Emits list of ParameterMetadata
-    error = QtCore.pyqtSignal(str)  # Emits error message
-    progress = QtCore.pyqtSignal(str)  # Emits progress updates
-    
-    def __init__(self, param_client: ParameterClient):
-        super().__init__()
-        self.param_client = param_client
-        self._is_running = True
-    
-    def run(self):
-        """Load parameters in background thread."""
-        try:
-            self.progress.emit("Connecting to controller...")
-            
-            if not self.param_client.connected:
-                if not self.param_client.connect():
-                    self.error.emit("Failed to connect to controller")
-                    return
-            
-            self.progress.emit("Discovering parameters...")
-            parameters = self.param_client.get_all_parameters(force_refresh=True)
-            
-            if self._is_running:
-                self.finished.emit(parameters)
-                
-        except Exception as e:
-            if self._is_running:
-                self.error.emit(f"Error loading parameters: {e}")
-    
-    def stop(self):
-        """Stop the worker."""
-        self._is_running = False
 
 # Configure logging
 logging.basicConfig(
@@ -492,16 +455,16 @@ class ParameterItemWidget(QtWidgets.QWidget):
 class ParameterPanelWidget(QtWidgets.QWidget):
     """Panel displaying all parameters with editing capability."""
     
-    def __init__(self, param_client: ParameterClient, parent=None):
+    # Signals for requesting parameter operations from parent
+    request_load_parameters = QtCore.pyqtSignal()
+    request_set_parameter = QtCore.pyqtSignal(str, str, float)  # component, name, value
+    
+    def __init__(self, parent=None):
         super().__init__(parent)
         
-        self.param_client = param_client
         self.parameter_widgets: Dict[str, ParameterItemWidget] = {}
         self.component_widgets: Dict[str, QtWidgets.QGroupBox] = {}
-        
-        # Background worker for parameter loading
-        self.load_worker = None
-        self.load_thread = None
+        self.all_parameters: List[ParameterMetadata] = []
         
         self._build_ui()
     
@@ -592,59 +555,27 @@ class ParameterPanelWidget(QtWidgets.QWidget):
         main_layout.addWidget(self.status_label)
     
     def load_parameters(self):
-        """Load parameters from controller in background thread."""
-        # Don't start new load if one is in progress
-        if self.load_thread is not None and self.load_thread.isRunning():
-            logger.warning("Parameter load already in progress")
-            return
-        
-        # Pause telemetry to avoid conflicts on shared socket
-        telemetry_was_streaming = False
-        if self.parent() and hasattr(self.parent(), '_pause_telemetry_for_params'):
-            telemetry_was_streaming = self.parent()._pause_telemetry_for_params()
-        
-        # Store state for later resume
-        self._telemetry_was_streaming = telemetry_was_streaming
-        
-        # Ensure parameter client has its own connection
-        if not self.param_client.connected:
-            self.status_label.setText("Connecting to parameter service...")
-            self.status_label.setStyleSheet("color: #ff8800;")
-            if not self.param_client.connect():
-                self.status_label.setText("✗ Failed to connect for parameters")
-                self.status_label.setStyleSheet("color: #ff0000;")
-                if self.parent() and hasattr(self.parent(), '_resume_telemetry_after_params'):
-                    self.parent()._resume_telemetry_after_params(self._telemetry_was_streaming)
-                return
-        
+        """Load parameters from controller (signal-based, non-blocking)."""
         # Disable buttons during load
         self.load_btn.setEnabled(False)
         self.refresh_btn.setEnabled(False)
         
-        # Create worker and thread
-        self.load_thread = QtCore.QThread()
-        self.load_worker = ParameterLoadWorker(self.param_client)
-        self.load_worker.moveToThread(self.load_thread)
+        self.status_label.setText("Requesting parameter count...")
+        self.status_label.setStyleSheet("color: #ff8800;")
         
-        # Connect signals
-        self.load_thread.started.connect(self.load_worker.run)
-        self.load_worker.finished.connect(self._on_parameters_loaded)
-        self.load_worker.error.connect(self._on_load_error)
-        self.load_worker.progress.connect(self._on_load_progress)
-        self.load_worker.finished.connect(self.load_thread.quit)
-        self.load_worker.error.connect(self.load_thread.quit)
-        self.load_thread.finished.connect(self._on_load_complete)
-        
-        # Start loading
-        self.load_thread.start()
+        # Emit signal to parent to start parameter loading
+        self.request_load_parameters.emit()
     
     def _on_load_progress(self, message: str):
         """Update status with progress message."""
         self.status_label.setText(message)
         self.status_label.setStyleSheet("color: #ff8800;")
     
-    def _on_parameters_loaded(self, parameters: List[ParameterMetadata]):
-        """Handle successfully loaded parameters."""
+    def display_parameters(self, parameters: List[ParameterMetadata]):
+        """Display loaded parameters in UI.
+        
+        Called by parent window when parameters are loaded.
+        """
         try:
             # Clear existing
             self.parameter_widgets.clear()
@@ -704,6 +635,9 @@ class ParameterPanelWidget(QtWidgets.QWidget):
             # Store the loaded parameters list for preset operations
             self.all_parameters = parameters
             
+            # Re-enable buttons
+            self.load_btn.setEnabled(True)
+            
             logger.info(f"Loaded {len(parameters)} parameters")
             
         except Exception as e:
@@ -711,103 +645,57 @@ class ParameterPanelWidget(QtWidgets.QWidget):
             self.status_label.setText(error_msg)
             self.status_label.setStyleSheet("color: #ff0000;")
             logger.error(error_msg)
+            self.load_btn.setEnabled(True)
     
     def _on_load_error(self, error_msg: str):
         """Handle parameter load error."""
         self.status_label.setText(f"✗ {error_msg}")
         self.status_label.setStyleSheet("color: #ff0000;")
         logger.error(error_msg)
-    
-    def _on_load_complete(self):
-        """Re-enable buttons when load completes."""
         self.load_btn.setEnabled(True)
-        # refresh_btn is enabled in _on_parameters_loaded if successful
-        
-        # Resume telemetry if it was streaming before
-        if hasattr(self, '_telemetry_was_streaming'):
-            if self.parent() and hasattr(self.parent(), '_resume_telemetry_after_params'):
-                self.parent()._resume_telemetry_after_params(self._telemetry_was_streaming)
-            self._telemetry_was_streaming = False
-        
-        # Clean up thread
-        if self.load_thread:
-            self.load_thread.deleteLater()
-            self.load_thread = None
-        if self.load_worker:
-            self.load_worker.deleteLater()
-            self.load_worker = None
     
     def set_parameter_value(self, param: ParameterMetadata, value: float):
-        """Set parameter value on controller and refresh only that parameter."""
-        try:
-            # Pause telemetry to avoid conflicts on shared socket
-            telemetry_was_streaming = False
-            if self.parent() and hasattr(self.parent(), '_pause_telemetry_for_params'):
-                telemetry_was_streaming = self.parent()._pause_telemetry_for_params()
-            
-            # Ensure parameter client has its own connection
-            if not self.param_client.connected:
-                if not self.param_client.connect():
-                    self.status_label.setText("✗ Failed to connect for parameter set")
-                    self.status_label.setStyleSheet("color: #ff0000;")
-                    # Resume telemetry
-                    if telemetry_was_streaming and self.parent():
-                        self.parent()._resume_telemetry_after_params()
-                    return
-            
-            success = self.param_client.set_parameter(param.component, param.name, value)
-            
-            # Resume telemetry
-            if self.parent() and hasattr(self.parent(), '_resume_telemetry_after_params'):
-                self.parent()._resume_telemetry_after_params(telemetry_was_streaming)
-            
-            if success:
-                # Update display immediately
-                key = f"{param.component}.{param.name}"
-                if key in self.parameter_widgets:
-                    self.parameter_widgets[key].update_value(value)
-                
-                self.status_label.setText(f"✓ Set {param.component}.{param.name} = {value:.4f}")
-                self.status_label.setStyleSheet("color: #00ff00;")
-                logger.info(f"Set {param.component}.{param.name} = {value}")
-            else:
-                self.status_label.setText(f"✗ Failed to set {param.component}.{param.name}")
-                self.status_label.setStyleSheet("color: #ff0000;")
-                
-        except Exception as e:
-            # Ensure telemetry is resumed even on error
-            if self.parent() and hasattr(self.parent(), '_resume_telemetry_after_params'):
-                self.parent()._resume_telemetry_after_params(telemetry_was_streaming)
-            
-            self.status_label.setText(f"Error: {e}")
+        """Set parameter value on controller.
+        
+        Args:
+            param: Parameter metadata
+            value: New parameter value
+        """
+        # Emit signal to parent to handle the actual network operation
+        self.request_set_parameter.emit(param.component, param.name, value)
+        
+        # Optimistically update display
+        key = f"{param.component}.{param.name}"
+        if key in self.parameter_widgets:
+            self.parameter_widgets[key].update_value(value)
+        
+        self.status_label.setText(f"Setting {param.component}.{param.name} = {value:.4f}...")
+        self.status_label.setStyleSheet("color: #ff8800;")
+    
+    def on_parameter_set_complete(self, component: str, name: str, success: bool, error_msg: str = ""):
+        """Called by parent when parameter set operation completes.
+        
+        Args:
+            component: Component name
+            name: Parameter name
+            success: True if successful, False otherwise
+            error_msg: Error message if failed
+        """
+        if success:
+            self.status_label.setText(f"✓ Set {component}.{name}")
+            self.status_label.setStyleSheet("color: #00ff00;")
+            logger.info(f"Set {component}.{name}")
+        else:
+            self.status_label.setText(f"✗ Failed to set {component}.{name}: {error_msg}")
             self.status_label.setStyleSheet("color: #ff0000;")
-            logger.error(f"Error setting parameter: {e}")
+            logger.error(f"Failed to set {component}.{name}: {error_msg}")
     
     def refresh_parameter_values(self):
         """Refresh all parameter values from controller (called by Refresh button only)."""
-        # Ensure parameter client has its own connection
-        if not self.param_client.connected:
-            if not self.param_client.connect():
-                self.status_label.setText("✗ Failed to connect for refresh")
-                self.status_label.setStyleSheet("color: #ff0000;")
-                return
-        
-        self.status_label.setText("Refreshing parameter values...")
+        self.status_label.setText("Parameter value refresh not yet implemented with unified client")
         self.status_label.setStyleSheet("color: #ff8800;")
-        
-        refreshed_count = 0
-        for key, widget in self.parameter_widgets.items():
-            component, name = key.split('.')
-            try:
-                value = self.param_client.get_parameter(component, name)
-                if value:
-                    widget.update_value(value.value)
-                    refreshed_count += 1
-            except Exception as e:
-                logger.error(f"Error refreshing {key}: {e}")
-        
-        self.status_label.setText(f"✓ Refreshed {refreshed_count} parameter values")
-        self.status_label.setStyleSheet("color: #00aa00;")
+        logger.warning("Parameter value refresh not implemented - would require GET requests for each parameter")
+        # TODO: Implement batch GET requests via unified client
     
     def _filter_parameters(self, text: str):
         """Filter parameters by search text."""
@@ -1055,15 +943,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             'state_machine': {}
         }
         
-        # Create network clients
-        self.telemetry_client = TelemetryNetworkClient(host=host, port=port, verbose=verbose)
-        self.telemetry_client.set_packet_callback(self._on_packet_received)
+        # Create unified network client (single-threaded)
+        self.network_client = UnifiedNetworkClient(host=host, port=port, verbose=verbose, parent=self)
         
-        self.param_client = ParameterClient(host=host, port=port, timeout=5.0, verbose=verbose)
+        # Connect signals
+        self.network_client.telemetry_packet_received.connect(self._on_packet_received)
+        self.network_client.parameter_response_received.connect(self._on_parameter_response)
+        self.network_client.connected_changed.connect(self._on_connection_changed)
+        self.network_client.error_occurred.connect(self._on_network_error)
         
         # Telemetry status tracking
         self.telemetry_streaming = False
         self.last_packet_time = 0.0
+        
+        # Parameter operation state
+        self._pending_param_requests = []  # Queue of pending parameter requests
+        self._parameter_cache = {}  # Cache loaded parameters
         
         # Build UI
         self._build_ui(host, port)
@@ -1117,7 +1012,9 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.tab_widget.addTab(oscilloscope_widget, "📈 Oscilloscope")
         
         # Tab 3: Parameters
-        self.param_panel = ParameterPanelWidget(self.param_client, self)
+        self.param_panel = ParameterPanelWidget(self)
+        self.param_panel.request_load_parameters.connect(self._start_parameter_loading)
+        self.param_panel.request_set_parameter.connect(self._handle_parameter_set)
         self.tab_widget.addTab(self.param_panel, "⚙️ Parameters")
         
         # Tab 4: Commands
@@ -1207,7 +1104,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         elif "Oscilloscope" in tab_name:
             new_content = self._build_oscilloscope()
         elif "Parameters" in tab_name:
-            new_content = ParameterPanelWidget(self.param_client, self)
+            new_content = ParameterPanelWidget(self)
+            # Connect signals for the new parameter panel
+            new_content.request_load_parameters.connect(self._start_parameter_loading)
+            new_content.request_set_parameter.connect(self._handle_parameter_set)
             # NOTE: Don't auto-load parameters - user clicks "Load Parameters" button
         elif "Commands" in tab_name:
             new_content = self._build_commands_tab()
@@ -1337,10 +1237,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             new_tab_widget.addTab(oscilloscope_widget, "📈 Oscilloscope")
         
         if "Parameters" in tab_types:
-            param_panel = ParameterPanelWidget(self.param_client, self)
+            param_panel = ParameterPanelWidget(self)
             new_tab_widget.addTab(param_panel, "⚙️ Parameters")
             # Update reference to the main parameter panel
             self.param_panel = param_panel
+            # Connect signals
+            param_panel.request_load_parameters.connect(self._start_parameter_loading)
+            param_panel.request_set_parameter.connect(self._handle_parameter_set)
             # NOTE: Don't auto-load parameters - user clicks "Load Parameters" button
         
         if "Commands" in tab_types:
@@ -2121,42 +2024,24 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         host = self.host_edit.text().strip()
         port = self.port_spin.value()
         
-        # Connect telemetry (this is the primary streaming connection)
-        self.telemetry_client.host = host
-        self.telemetry_client.port = port
+        # Update client host/port
+        self.network_client.host = host
+        self.network_client.port = port
         
-        if self.telemetry_client.connect():
+        if self.network_client.connect():
             self.connect_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
             self.start_telemetry_button.setEnabled(True)
-            self.statusBar().showMessage(f"Connected to {host}:{port} (telemetry)")
-            logger.info(f"Telemetry connected to {host}:{port}")
-            
-            # Don't auto-start telemetry - let user click Start button
-            # self.telemetry_client.send_command('START')
-            
-            # Share the telemetry socket with parameter client
-            # This is required because the server only supports one connection at a time
-            telemetry_socket = self.telemetry_client.get_socket()
-            if telemetry_socket:
-                self.param_client.set_external_socket(telemetry_socket)
-                logger.info(f"Parameter client now sharing telemetry socket for {host}:{port}")
-            else:
-                logger.warning("Could not get telemetry socket for parameter client")
-            
-            # NOTE: Don't auto-load parameters on connect - user clicks "Load Parameters" button
+            self.statusBar().showMessage(f"Connected to {host}:{port}")
+            logger.info(f"Connected to {host}:{port}")
         else:
             QtWidgets.QMessageBox.critical(self, "Connection Failed",
                                           f"Unable to connect to {host}:{port}")
     
     def _on_disconnect_clicked(self) -> None:
         """Handle disconnect button click."""
-        # Stop telemetry if running
-        if self.stop_telemetry_button.isEnabled():
-            self._on_stop_telemetry()
-        
-        self.telemetry_client.disconnect()
-        self.param_client.disconnect()
+        # Network client will stop telemetry automatically
+        self.network_client.disconnect()
         
         self.connect_button.setEnabled(True)
         self.disconnect_button.setEnabled(False)
@@ -2167,7 +2052,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _on_start_telemetry(self) -> None:
         """Start telemetry streaming and oscilloscope updates."""
-        if self.telemetry_client.send_command('START'):
+        if self.network_client.start_telemetry():
             self.telemetry_streaming = True
             self.last_packet_time = 0.0
             self.start_telemetry_button.setEnabled(False)
@@ -2180,7 +2065,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _on_stop_telemetry(self) -> None:
         """Stop telemetry streaming and oscilloscope updates."""
-        if self.telemetry_client.send_command('STOP'):
+        if self.network_client.stop_telemetry():
             self.telemetry_streaming = False
             self.start_telemetry_button.setEnabled(True)
             self.stop_telemetry_button.setEnabled(False)
@@ -2191,35 +2076,116 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Command Failed",
                                          "Failed to send STOP command. Check connection.")
     
-    def _pause_telemetry_for_params(self) -> bool:
-        """Pause telemetry temporarily for parameter operations (doesn't change UI state).
+    def _on_connection_changed(self, connected: bool) -> None:
+        """Handle connection status change from network client."""
+        if not connected:
+            # Connection lost
+            self.connect_button.setEnabled(True)
+            self.disconnect_button.setEnabled(False)
+            self.start_telemetry_button.setEnabled(False)
+            self.stop_telemetry_button.setEnabled(False)
+            self.statusBar().showMessage("Connection lost")
+    
+    def _on_network_error(self, error_msg: str) -> None:
+        """Handle network error from unified client."""
+        logger.error(f"Network error: {error_msg}")
+        QtWidgets.QMessageBox.warning(self, "Network Error", error_msg)
+    
+    def _start_parameter_loading(self) -> None:
+        """Start loading parameters from controller."""
+        if not self.network_client.connected:
+            self.param_panel._on_load_error("Not connected to controller")
+            return
         
-        Returns:
-            True if telemetry was streaming before pause, False otherwise
-        """
-        restart_needed = self.telemetry_streaming
-        self.telemetry_client.pause_receiving()
-        if restart_needed:
-            logger.info("Pausing telemetry for parameter operation")
-            if self.telemetry_client.send_command('STOP'):
-                # Give controller time to stop sending telemetry before parameter exchange
-                import time
-                time.sleep(0.05)  # 50ms delay to ensure STOP is processed
-                self.telemetry_streaming = False
-                return True
-            logger.warning("Failed to pause telemetry stream")
-        return False
-
-    def _resume_telemetry_after_params(self, should_restart: bool) -> None:
-        """Resume telemetry after parameter operations (doesn't change UI state)."""
-        self.telemetry_client.resume_receiving()
-        logger.info("Resuming telemetry after parameter operation")
-        if should_restart:
-            if self.telemetry_client.send_command('START'):
-                self.telemetry_streaming = True
-                self.last_packet_time = 0.0  # Reset watchdog
+        logger.info("Starting parameter discovery")
+        self.param_panel._on_load_progress("Requesting parameter count...")
+        
+        # Send COUNT request
+        if self.network_client.send_parameter_count_request():
+            # Response will come via signal
+            pass
+        else:
+            self.param_panel._on_load_error("Failed to send COUNT request")
+    
+    def _handle_parameter_set(self, component: str, name: str, value: float) -> None:
+        """Handle parameter SET request from parameter panel."""
+        if not self.network_client.connected:
+            self.param_panel.on_parameter_set_complete(component, name, False, "Not connected")
+            return
+        
+        logger.info(f"Setting parameter {component}.{name} = {value}")
+        
+        # Send SET request
+        if self.network_client.send_parameter_set_request(component, name, value):
+            # Response will come via signal
+            pass
+        else:
+            self.param_panel.on_parameter_set_complete(component, name, False, "Failed to send request")
+    
+    def _on_parameter_response(self, response_data: dict) -> None:
+        """Handle parameter response from network client."""
+        response_type = response_data.get('type')
+        
+        if response_type == 'count_response':
+            total = response_data['total_parameters']
+            logger.info(f"Controller has {total} parameters")
+            self.param_panel._on_load_progress(f"Loading {total} parameters...")
+            
+            # Start loading all parameters by index
+            self._pending_param_requests = []
+            self._parameter_cache = {}
+            for i in range(total):
+                self._pending_param_requests.append(i)
+            
+            # Start loading first batch
+            self._load_next_parameter()
+        
+        elif response_type == 'get_by_index_response':
+            index = response_data.get('index')
+            metadata = response_data.get('metadata')
+            
+            if metadata:  # SUCCESS
+                # Store parameter
+                key = f"{metadata.component}.{metadata.name}"
+                self._parameter_cache[key] = metadata
+                
+                logger.debug(f"Loaded parameter {index}: {metadata.component}.{metadata.name}")
+                
+                # Load next parameter
+                self._load_next_parameter()
             else:
-                logger.warning("Failed to resume telemetry stream")
+                logger.warning(f"Failed to load parameter at index {index}")
+                # Continue with next parameter
+                self._load_next_parameter()
+        
+        elif response_type == 'set_response':
+            component = response_data['component']
+            name = response_data['name']
+            status = response_data['status']
+            
+            if status == 0:  # SUCCESS
+                self.param_panel.on_parameter_set_complete(component, name, True)
+            else:
+                error_msg = response_data.get('error_message', 'Unknown error')
+                self.param_panel.on_parameter_set_complete(component, name, False, error_msg)
+    
+    def _load_next_parameter(self) -> None:
+        """Load next parameter from pending queue."""
+        if not self._pending_param_requests:
+            # All parameters loaded
+            parameters = list(self._parameter_cache.values())
+            logger.info(f"Parameter loading complete: {len(parameters)} parameters")
+            self.param_panel.display_parameters(parameters)
+            return
+        
+        # Get next index
+        index = self._pending_param_requests.pop(0)
+        
+        # Send request
+        if not self.network_client.send_parameter_get_by_index_request(index):
+            logger.error(f"Failed to send GET_BY_INDEX request for index {index}")
+            # Try next parameter
+            self._load_next_parameter()
     
     def _on_window_changed(self, value: float) -> None:
         """Handle time window change."""
@@ -2312,7 +2278,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _update_statistics(self) -> None:
         """Update statistics display."""
-        stats = self.telemetry_client.get_statistics()
+        stats = self.network_client.get_statistics()
         self.packets_label.setText(str(stats['packets_received']))
         self.loss_label.setText(f"{stats['loss_rate_percent']:.2f}%")
     
@@ -2342,12 +2308,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Handle window close event."""
-        if self.telemetry_client.connected:
-            self.telemetry_client.send_command('STOP')
-            self.telemetry_client.disconnect()
-        
-        if self.param_client.connected:
-            self.param_client.disconnect()
+        if self.network_client.connected:
+            self.network_client.disconnect()
         
         logger.info("Telemetry monitor closed")
         event.accept()
