@@ -214,6 +214,32 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     get_grid_side_control().update_200us();
 
+    // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
+    // Map control system signals to DAC outputs for monitoring and testing
+    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
+    if (outputs != nullptr) {
+        // Example DAC output mappings (customize based on your application):
+        // Channel A: Test signal 1
+        // Channel B: Test signal 2
+        // Channel C: Test signal 3
+        // Channel D: Test signal 4
+
+        // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
+        // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
+        outputs->analog_outputs.channels[0] =
+            get_grid_side_control().grid_side_observer.get_outputs().estimated_position.read().get_pu().value();  // CH
+                                                                                                                  // A
+        outputs->analog_outputs.channels[1] =
+            get_grid_side_control().grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
+        outputs->analog_outputs.channels[2] =
+            get_grid_side_control().grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();  // CH C
+        outputs->analog_outputs.channels[3] = get_grid_side_control()
+                                                  .grid_measurements.get_outputs()
+                                                  .grid_voltage_alphabeta_filtered.read()
+                                                  .alpha();  // CH D
+        outputs->analog_outputs.valid = true;                // Signal to writer task that values are valid
+    }
+
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:
@@ -380,23 +406,6 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // outputs->digital_outputs.signals[5] = true;  // DO6: Fiber link status
 
         // Additional outputs (DO7-DO17) available for application-specific status
-    }
-
-    // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
-    // Map control system signals to DAC outputs for monitoring and testing
-    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
-    if (outputs != nullptr) {
-        // Example DAC output mappings (customize based on your application):
-        // Channel A: Test signal 1
-        // Channel B: Test signal 2
-        // Channel C: Test signal 3
-        // Channel D: Test signal 4
-
-        outputs->analog_outputs.channels[0] = 0.0f;  // Channel A: Zero
-        outputs->analog_outputs.channels[1] = 2.5f;  // Channel B: Constant 2.5V
-        outputs->analog_outputs.channels[2] = 5.0f;  // Channel C: Sine wave ±2V
-        outputs->analog_outputs.channels[3] = 1.0f;  // Channel D: Zero
-        outputs->analog_outputs.valid = true;        // Enable DAC outputs
     }
 }
 

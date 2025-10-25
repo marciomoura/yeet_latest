@@ -1,6 +1,5 @@
 #include "adc.h"                    // AD7606 ADC driver
 #include "dac.h"                    // AD5724 DAC driver
-#include "digital_ios.h"            // Digital I/O driver (inputs/outputs)
 #include "driver_init.h"            // Driver initialization functions
 #include "fiber_optic.h"            // Fiber-optic communication driver
 #include "fiber_protocol.h"         // Fiber-optic protocol layer
@@ -83,7 +82,7 @@ static system_status_t system_status = {0};
 static fiber_runtime_status_t fiber_status = {0};
 
 /**
- * @brief FSMC GPIO driver instance (for LEDs and digital I/O via FSMC Bank 4)
+ * @brief FSMC GPIO driver instance (for digital I/O via FSMC Bank 4)
  */
 fsmc_gpio_instance_t fsmc_gpio_instance = {0};
 
@@ -111,11 +110,6 @@ fiber_optic_instance_t fiber_optic_instance = {0};
  * @brief Fiber-optic protocol instance
  */
 fiber_proto_instance_t fiber_proto_instance = {0};
-
-/**
- * @brief Digital I/O instance for reading inputs and writing outputs
- */
-static dio_instance_t dio_instance = {0};
 
 /**
  * @brief Fiber-optic communication payload buffers
@@ -332,6 +326,14 @@ void task_200us(void)
         task_outputs.thyristor_pulses.b_plus, task_outputs.thyristor_pulses.a_minus,
         task_outputs.thyristor_pulses.c_plus, task_outputs.thyristor_pulses.b_minus);
 
+    // ===== DAC Output (moved to 200us task for atomic operation with ADC) =====
+    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
+        // Extract DAC values from control outputs and apply to hardware
+        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
+            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
+        }
+    }
+
     // Digital outputs not updated here (too fast for FSMC)
 
     // Start conversion for next cycle (takes ~5µs)
@@ -490,29 +492,18 @@ void task_1ms(void)
     }
 
     // ===== Digital I/O Input: Read hardware inputs (fuses, breakers, commands) =====
-    if (system_status.fsmc_gpio_ok && dio_instance.initialized) {
+    if (system_status.fsmc_gpio_ok) {
         // Read all digital inputs with debouncing (~50µs)
-        DIO_ReadInputs(&dio_instance);
-        const dio_input_flags_t* digital_inputs = DIO_GetInputFlags(&dio_instance);
+        FSMC_GPIO_ReadInputs(&fsmc_gpio_instance);
+        FSMC_GPIO_ApplyDebounce(&fsmc_gpio_instance);
 
-        // Map hardware digital inputs to generic task inputs (all 16 channels)
-        // TODO: Document what each input signal represents in your application
-        task_inputs.digital_inputs.signals[0] = digital_inputs->digital_input_1;
-        task_inputs.digital_inputs.signals[1] = digital_inputs->digital_input_2;
-        task_inputs.digital_inputs.signals[2] = digital_inputs->digital_input_3;
-        task_inputs.digital_inputs.signals[3] = digital_inputs->digital_input_4;
-        task_inputs.digital_inputs.signals[4] = digital_inputs->digital_input_5;
-        task_inputs.digital_inputs.signals[5] = digital_inputs->digital_input_6;
-        task_inputs.digital_inputs.signals[6] = digital_inputs->digital_input_7;
-        task_inputs.digital_inputs.signals[7] = digital_inputs->digital_input_8;
-        task_inputs.digital_inputs.signals[8] = digital_inputs->digital_input_9;
-        task_inputs.digital_inputs.signals[9] = digital_inputs->digital_input_10;
-        task_inputs.digital_inputs.signals[10] = digital_inputs->digital_input_11;
-        task_inputs.digital_inputs.signals[11] = digital_inputs->digital_input_12;
-        task_inputs.digital_inputs.signals[12] = digital_inputs->digital_input_13;
-        task_inputs.digital_inputs.signals[13] = digital_inputs->digital_input_14;
-        task_inputs.digital_inputs.signals[14] = digital_inputs->digital_input_15;
-        task_inputs.digital_inputs.signals[15] = digital_inputs->digital_input_16;
+        // Map hardware digital inputs to generic task inputs
+        // NOTE: Only DI1-DI32 are physically connected on this board
+        //       DI33-DI48 have pull-ups in hardware and will read as '1' when unconnected
+        for (int i = 0; i < TASK_IO_NUM_DIGITAL_INPUTS; i++) {
+            task_inputs.digital_inputs.signals[i] = FSMC_GPIO_GetDebouncedInput(&fsmc_gpio_instance, i + 1);
+        }
+
         task_inputs.digital_inputs.valid = true;
     }
     else {
@@ -525,26 +516,13 @@ void task_1ms(void)
     // ===== Apply Task Outputs to Hardware =====
 
     // Digital I/O Output: Write status flags to hardware
-    if (system_status.fsmc_gpio_ok && dio_instance.initialized) {
-        dio_output_flags_t digital_outputs = {0};
-
-        // Map generic digital outputs to hardware outputs
-        // TODO: Complete signal mapping based on hardware documentation
-        digital_outputs.digital_output_16 = !fiber_status.communication_timeout;  // Online status
-        // Map remaining signals from task_outputs_1ms.digital_outputs.signals[]
-        // digital_outputs.digital_output_1 = task_outputs_1ms.digital_outputs.signals[0];
-        // ... map remaining signals ...
-
-        DIO_SetOutputFlags(&dio_instance, &digital_outputs);
-        DIO_WriteOutputs(&dio_instance);
-    }
-
-    // ===== DAC Output (only if DAC initialized) =====
-    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
-        // Extract DAC values from control outputs and apply to hardware
-        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
-            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
+    if (system_status.fsmc_gpio_ok) {
+        // Map generic digital outputs (from application) to hardware outputs (DO1-DO17)
+        // Application layer defines semantic meaning of each output
+        for (int i = 0; i < TASK_IO_NUM_DIGITAL_OUTPUTS; i++) {
+            FSMC_GPIO_SetOutput(&fsmc_gpio_instance, i + 1, task_outputs.digital_outputs.signals[i]);
         }
+        FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
 
     // ===== Fiber-Optic TX: Transmit AFTER control algorithm =====
@@ -579,29 +557,26 @@ void task_1ms(void)
  * @brief  Update system LEDs based on runtime status
  * @note   Centralized LED control - all LED updates happen here
  *         This prevents confusion about which code controls which LED
+ *         LEDs are separate from digital outputs (address 7 vs addresses 3,4,5)
  */
 static void Update_System_LEDs()
 {
-    // ===== RUN LED: Heartbeat and preemption status =====
-    if (TIM_Verify_Preemption()) {
-        FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 1);
-    }
-    else {
-        // Preemption failed - turn off RUN LED as error indicator
-        FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 0);
-    }
+    // RUN LED - blinks during normal operation (handled by application or periodic toggle)
+    // Application can toggle this LED in 10ms task for heartbeat
+    // For now, leave it at initialized state (ON)
+    FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 1);
 
-    // ===== FAULT LED: Set on timeout, cleared after 5s of stable communication =====
-    if (fiber_status.communication_timeout) {
-        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
-    }
-    else if (fiber_status.communication_stable) {
-        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 0);
-    }
-    // Note: FAULT LED stays ON between timeout and stability (hysteresis behavior)
+    // FAULT LED - indicates hardware or system errors
+    bool fault_condition = !system_status.fsmc_gpio_ok || !system_status.adc_ok || !system_status.dac_ok ||
+                           !system_status.fpga_ok || !system_status.fiber_optic_ok || !system_status.network_ok;
+    FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, fault_condition ? 1 : 0);
 
-    // Write all LED states to hardware in one operation
-    FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
+    // ALARM LED - indicates warning conditions (can be controlled by application)
+    // For now, keep it off
+    FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, 0);
+
+    // Write LED states to hardware
+    FSMC_GPIO_WriteLEDs(&fsmc_gpio_instance);
 }
 
 /**
@@ -980,34 +955,27 @@ int main(void)
         FiberProto_Init(&fiber_proto_instance, &fiber_optic_instance, FIBER_CH1);
     }
 
-    // 9. Initialize digital I/O driver (64 inputs + 64 outputs via FSMC GPIO)
-    if (system_status.fsmc_gpio_ok) {
-        if (!DIO_Init(&dio_instance, &fsmc_gpio_instance)) {
-            dio_instance.initialized = false;
-        }
-    }
-
-    // 11. Initialize network (W5200 on SPI2 and SPI3)
+    // 9. Network initialization (W5200 on SPI2 and SPI3)
     //     IP addresses configured based on DIP switch node ID
     system_status.network_ok = TCP_Server_Init();
 
-    // 11. Initialize application layer (yeet control algorithms)
+    // 10. Initialize application layer (yeet control algorithms)
     yeet_embedded_init();
 
     /* ========================================================================
-     * ERROR HANDLING - Set FAULT LED if critical subsystems failed
+     * ERROR HANDLING - Set fault outputs if critical subsystems failed
      * ======================================================================== */
 
     if (!hardware_ok) {
-        // Hardware initialization failed
+        // Hardware initialization failed - set fault output (application can map to LED)
         if (system_status.fsmc_gpio_ok) {
-            FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
+            FSMC_GPIO_SetOutput(&fsmc_gpio_instance, 1, 1);  // DO1 = Fault indicator
             FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
         }
     }
     else if (!system_status.network_ok) {
-        // Network failed but hardware OK - indicate with FAULT LED
-        FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, 1);
+        // Network failed but hardware OK - indicate with fault output
+        FSMC_GPIO_SetOutput(&fsmc_gpio_instance, 1, 1);  // DO1 = Fault indicator
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
 
