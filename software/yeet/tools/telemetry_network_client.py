@@ -22,7 +22,9 @@ Example Usage:
 
 import logging
 import socket
+import struct
 import threading
+import time
 from typing import Callable, Optional
 
 from telemetry_protocol import GridSideTelemetryPacket, TelemetryDecoder
@@ -69,6 +71,8 @@ class TelemetryNetworkClient:
         self._socket: Optional[socket.socket] = None
         self._receive_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
+        self._pause_event = threading.Event()
+        self._pause_confirm_event = threading.Event()
         self._decoder = TelemetryDecoder()
         self._packet_callback: Optional[Callable[[GridSideTelemetryPacket], None]] = None
         
@@ -98,6 +102,22 @@ class TelemetryNetworkClient:
         """
         self._packet_callback = callback
     
+    def get_socket(self) -> Optional[socket.socket]:
+        """Get the underlying TCP socket for shared use.
+        
+        This allows other clients (e.g., ParameterClient) to share the
+        same TCP connection, which is necessary when the server only
+        supports one client connection at a time.
+        
+        Returns:
+            The active socket, or None if not connected
+            
+        Warning:
+            The caller should NOT close this socket - it's managed by
+            TelemetryNetworkClient and will be closed on disconnect().
+        """
+        return self._socket if self.connected else None
+    
     def connect(self) -> bool:
         """Connect to embedded controller.
         
@@ -112,7 +132,7 @@ class TelemetryNetworkClient:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._socket.settimeout(5.0)
             self._socket.connect((self.host, self.port))
-            self._socket.settimeout(None)  # Blocking mode for receive
+            self._socket.settimeout(0.1)  # Short timeout allows pause handling
             
             self.connected = True
             logger.info(f"Connected to {self.host}:{self.port}")
@@ -139,6 +159,8 @@ class TelemetryNetworkClient:
         
         self.connected = False
         self._stop_event.set()
+        self._pause_event.clear()
+        self._pause_confirm_event.clear()
         
         # Close socket (will unblock receive)
         if self._socket:
@@ -180,6 +202,24 @@ class TelemetryNetworkClient:
         except (socket.error, OSError) as e:
             logger.error(f"Failed to send command: {e}")
             return False
+
+    def pause_receiving(self) -> bool:
+        """Pause the receive loop without dropping the socket.
+
+        Returns:
+            True if the receive loop acknowledged the pause, False otherwise.
+        """
+        if not self.connected or not self._receive_thread:
+            return False
+
+        self._pause_event.set()
+        # Wait briefly for receive loop to acknowledge pause
+        return self._pause_confirm_event.wait(timeout=0.5)
+
+    def resume_receiving(self) -> None:
+        """Resume the receive loop after a pause."""
+        self._pause_event.clear()
+        self._pause_confirm_event.clear()
     
     def _receive_loop(self) -> None:
         """Background thread for continuous packet reception.
@@ -193,6 +233,13 @@ class TelemetryNetworkClient:
         receive_buffer = bytearray()
         
         while not self._stop_event.is_set() and self.connected:
+            if self._pause_event.is_set():
+                self._pause_confirm_event.set()
+                time.sleep(0.01)
+                continue
+            else:
+                if self._pause_confirm_event.is_set():
+                    self._pause_confirm_event.clear()
             try:
                 # Receive data from socket
                 data = self._socket.recv(4096)
@@ -205,25 +252,46 @@ class TelemetryNetworkClient:
                 
                 # Try to decode complete packets from buffer
                 while len(receive_buffer) >= self._decoder.HEADER_SIZE:
-                    # Peek at header to determine packet size
-                    header_bytes = bytes(receive_buffer[:self._decoder.HEADER_SIZE])
-                    
-                    # Extract flags from header (offset 4, 4 bytes, little-endian)
-                    # Header format: packet_type(1) + protocol_version(1) + payload_length(2) + flags(4) + ...
-                    flags = int.from_bytes(header_bytes[4:8], byteorder='little')
-                    expected_size = self._decoder.calculate_expected_size(flags)
-                    
-                    # Check if we have complete packet
+                    header_slice = bytes(receive_buffer[:self._decoder.HEADER_SIZE])
+
+                    try:
+                        header_tuple = struct.unpack(self._decoder.HEADER_FORMAT, header_slice)
+                    except struct.error as exc:
+                        logger.error(f"Failed to unpack telemetry header: {exc}")
+                        self._decode_errors += 1
+                        receive_buffer = receive_buffer[self._decoder.HEADER_SIZE:]
+                        continue
+
+                    payload_length = header_tuple[2]
+                    flags = header_tuple[3]
+                    expected_size = self._decoder.HEADER_SIZE + payload_length
+
+                    if expected_size < self._decoder.HEADER_SIZE:
+                        logger.error(
+                            "Invalid payload length reported in header: %d (payload=%d)",
+                            expected_size,
+                            payload_length,
+                        )
+                        self._decode_errors += 1
+                        receive_buffer = receive_buffer[self._decoder.HEADER_SIZE:]
+                        continue
+
                     if len(receive_buffer) < expected_size:
-                        break  # Wait for more data
-                    
-                    # Extract and decode packet
+                        break
+
                     packet_bytes = bytes(receive_buffer[:expected_size])
                     receive_buffer = receive_buffer[expected_size:]
                     
                     if self.verbose:
                         print(f"\n[NETWORK] Attempting to decode packet ({expected_size} bytes)")
                         print(f"[NETWORK] First 32 bytes (hex): {packet_bytes[:32].hex()}")
+                        expected_from_flags = self._decoder.calculate_expected_size(flags)
+                        if expected_from_flags != expected_size:
+                            print(
+                                "[NETWORK WARNING] Header payload length (%d) differs from flag-derived size (%d)",
+                                expected_size,
+                                expected_from_flags,
+                            )
                     
                     packet = self._decoder.decode(packet_bytes, verbose=self.verbose)
                     

@@ -84,27 +84,36 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // Note: Implementation commented out due to compilation issues with signal registry
-        // TODO: Fix signal registry insert method compatibility
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // bool parameter - use default accessor
+        entry.parameters.insert("enable", _model_parameters->enable);
 
-        // // Register input signals
-        // entry.signal_registry.insert("reference_angle", _model_inputs->reference_angle);
-        // entry.signal_registry.insert("firing_angle", _model_inputs->firing_angle);
-        // entry.signal_registry.insert("release_pulses", _model_inputs->release_pulses);
-        // entry.signal_registry.insert("enable", _model_inputs->enable);
+        // angle_wrapped parameter - convert to/from radians
+        auto& pulse_width_param = _model_parameters->pulse_width;
+        entry.parameters.insert("pulse_width",
+            low_level_access(
+                // Read: angle_wrapped -> float (radians)
+                [&pulse_width_param]() -> float { return static_cast<float>(pulse_width_param.read().get_radians()); },
+                // Write: float (radians) -> angle_wrapped
+                [&pulse_width_param](
+                    float value_rad) { pulse_width_param.write(angle_wrapped::from_radians(angle_t{value_rad})); }));
 
-        // // Register output signals
-        // entry.signal_registry.insert("firing_pulses", _model_outputs->firing_pulses);
-        // entry.signal_registry.insert("actual_firing_angle", _model_outputs->actual_firing_angle);
-        // entry.signal_registry.insert("is_active", _model_outputs->is_active);
+        // Enum parameter - convert to/from int
+        auto& reference_type_param = _model_parameters->reference_type;
+        entry.parameters.insert("reference_type",
+            low_level_access(
+                // Read: enum -> float (as int)
+                [&reference_type_param]() -> float {
+                    return static_cast<float>(static_cast<int>(reference_type_param.read()));
+                },
+                // Write: float (as int) -> enum
+                [&reference_type_param](float value) {
+                    reference_type_param.write(
+                        static_cast<control::six_pulse_generator::reference_type>(static_cast<int>(value)));
+                }));
 
-        // // Register parameters
-        // entry.parameter_registry.insert("pulse_width", _model_parameters->pulse_width);
-        // entry.parameter_registry.insert("reference_type", _model_parameters->reference_type);
-
-        // registry.insert("sfc_grid_side_pulse_generator", std::move(entry));
+        registry.insert("grid_side_pulse_generator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

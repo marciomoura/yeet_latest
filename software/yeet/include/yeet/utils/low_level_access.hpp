@@ -12,7 +12,6 @@
 
 #include "storage_type.hpp"
 
-
 class low_level_access {
 public:
     struct sampler_accessor {
@@ -31,6 +30,13 @@ public:
         _read_as_float_function = [internal_storage]() { return static_cast<float>(*internal_storage); };
     }
 
+    // Constructor with explicit read/write functions
+    // Useful for custom types that need conversion (angle_wrapped, duration_t, unit types)
+    low_level_access(std::function<float()> read_func, std::function<void(float)> write_func)
+        : _read_as_float_function(read_func), _write_as_float_function(write_func), _storage()
+    {
+    }
+
     low_level_access(storage_type_erased& storage) : _storage(storage) {}
     ~low_level_access() = default;
 
@@ -39,6 +45,13 @@ public:
     template <typename T>
     T read() const
     {
+        // If custom read function exists and T is float, use it
+        if constexpr (std::is_same_v<T, float>) {
+            if (_read_as_float_function) {
+                return _read_as_float_function();
+            }
+        }
+
         const storage_type<T> typed_storage = _storage.get_storage_with_type<T>();
         if (typed_storage.empty()) {
             return {};
@@ -57,6 +70,14 @@ public:
     template <typename T>
     void write(T value)
     {
+        // If custom write function exists and T is float, use it
+        if constexpr (std::is_same_v<T, float>) {
+            if (_write_as_float_function) {
+                _write_as_float_function(value);
+                return;
+            }
+        }
+
         storage_type<T> typed_storage = _storage.get_storage_with_type<T>();
         if (typed_storage.empty()) {
             return;
@@ -72,6 +93,7 @@ public:
 
 private:
     std::function<float()> _read_as_float_function{};
+    std::function<void(float)> _write_as_float_function{};
 
     storage_type_erased _storage{};
 };

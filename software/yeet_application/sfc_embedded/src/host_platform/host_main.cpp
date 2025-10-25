@@ -34,6 +34,7 @@
 #include "sfc_embedded/host_platform/host_tcp_server.hpp"
 #include "sfc_embedded/host_platform/host_timing.hpp"
 #include "sfc_embedded/network_telemetry.hpp"
+#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_embedded/task_io.h"
 
 namespace {
@@ -203,41 +204,62 @@ int main(int argc, char* argv[])
         dio_out.machine_contactor_command = task_outputs.digital_outputs.signals[4];
         write_mock_dio(dio_out);
 
-        // Handle network communication (telemetry)
+        // Handle network communication (telemetry and parameters)
+        // The yeet_network() function (in grid_side_tasks.cpp) handles all packet parsing,
+        // parameter operations, and telemetry control - shared code between embedded and host builds
         if (telemetry_server.is_client_connected()) {
-            network_inputs_t network_inputs{};
-            network_outputs_t network_outputs{};
+            // Process all pending packets in a loop to handle rapid-fire parameter requests
+            // Limit iterations to prevent blocking the control loop
+            constexpr int max_packets_per_cycle = 20;
+            int packets_processed = 0;
 
-            // Check for received commands from TCP client (e.g., "START\n", "STOP\n")
-            int rx_len = telemetry_server.receive_data(
-                network_inputs.network_rx.rx_buffer, sizeof(network_inputs.network_rx.rx_buffer));
-            if (rx_len > 0) {
+            while (packets_processed < max_packets_per_cycle) {
+                network_inputs_t network_inputs{};
+                network_outputs_t network_outputs{};
+
+                // Check for received data from TCP client
+                std::uint8_t rx_buffer[1024];
+                int rx_len = telemetry_server.receive_data(rx_buffer, sizeof(rx_buffer));
+
+                if (rx_len <= 0) {
+                    // No more received packets, but still need to call yeet_network() for telemetry transmission
+                    // Only do this once per cycle (when packets_processed == 0)
+                    if (packets_processed == 0) {
+                        // Prepare network inputs with connection status but no received data
+                        network_inputs.network_rx.data_ready = false;
+                        network_inputs.network_rx.rx_length = 0;
+                        network_inputs.network_rx.tcp_connected = true;
+                        network_inputs.network_rx.socket_id = 0;
+
+                        // Execute shared network task (will transmit telemetry if ready)
+                        yeet_network(&network_inputs, &network_outputs);
+
+                        // Send telemetry packet if generated
+                        if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+                            telemetry_server.send_data(
+                                network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+                        }
+                    }
+                    break;
+                }
+
+                packets_processed++;
+
+                // Copy received data into network_inputs structure
+                std::memcpy(network_inputs.network_rx.rx_buffer, rx_buffer,
+                    std::min(rx_len, static_cast<int>(sizeof(network_inputs.network_rx.rx_buffer))));
                 network_inputs.network_rx.data_ready = true;
                 network_inputs.network_rx.rx_length = static_cast<std::uint16_t>(rx_len);
+                network_inputs.network_rx.tcp_connected = true;
+                network_inputs.network_rx.socket_id = 0;  // Single client socket
 
-                if (cfg.verbose) {
-                    std::cout << "[NET] Received " << rx_len << " bytes from client" << std::endl;
-                }
-            }
-            else {
-                network_inputs.network_rx.data_ready = false;
-                network_inputs.network_rx.rx_length = 0;
-            }
+                // Execute shared network task (handles both parameter protocol and telemetry commands)
+                yeet_network(&network_inputs, &network_outputs);
 
-            network_inputs.network_rx.tcp_connected = true;
-            network_inputs.network_rx.socket_id = 0;  // Single client socket
-
-            // Execute network task (handles command parsing and telemetry streaming)
-            yeet_network(&network_inputs, &network_outputs);
-
-            // Send telemetry data if network task prepared it
-            if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-                bool sent = telemetry_server.send_data(
-                    network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-
-                if (cfg.verbose && sent) {
-                    std::cout << "[NET] Sent telemetry packet (" << network_outputs.network_tx.tx_length << " bytes)"
-                              << std::endl;
+                // Send response if network task prepared one
+                if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+                    telemetry_server.send_data(
+                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
                 }
             }
         }

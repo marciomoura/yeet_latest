@@ -32,7 +32,7 @@ from typing import Optional
 
 # Protocol constants
 PROTOCOL_VERSION = 1
-MAX_PACKET_SIZE = 1024
+MAX_PACKET_SIZE = 1460
 
 # Packet types
 class PacketType(IntEnum):
@@ -308,10 +308,15 @@ class TelemetryDecoder:
                 print(f"[DECODE ERROR] Packet type mismatch: got 0x{header.packet_type:02X}, expected 0x{PacketType.GRID_SIDE_TELEMETRY:02X}")
             return None
             
-        # Calculate expected size
-        expected_size = self.calculate_expected_size(header.flags)
+        expected_size = self.HEADER_SIZE + header.payload_length
+        expected_from_flags = self.calculate_expected_size(header.flags)
         if verbose:
-            print(f"[DECODE] Expected packet size: {expected_size} bytes (header {self.HEADER_SIZE} + payload {expected_size - self.HEADER_SIZE})")
+            print(f"[DECODE] Expected packet size (header hint): {expected_size} bytes (header {self.HEADER_SIZE} + payload {header.payload_length})")
+            if expected_size != expected_from_flags:
+                print(
+                    f"[DECODE WARNING] Header payload length ({header.payload_length}) differs from flag-derived payload ({expected_from_flags - self.HEADER_SIZE})"
+                )
+            print(f"[DECODE] Expected packet size (flags): {expected_from_flags} bytes")
             print(f"[DECODE] Actual packet size: {len(data)} bytes")
             if len(data) < expected_size:
                 print(f"[DECODE WARNING] Packet too short! Missing {expected_size - len(data)} bytes")
@@ -470,16 +475,16 @@ class TelemetryDecoder:
             
         return packet
     
-    def calculate_expected_size(self, flags: int) -> int:
-        """Calculate expected packet size based on flags.
+    def calculate_payload_size(self, flags: int) -> int:
+        """Calculate expected payload size based on flags.
         
         Args:
             flags: Bit flags indicating which groups are present
             
         Returns:
-            Expected total packet size in bytes (header + payload)
+            Expected payload size in bytes
         """
-        size = self.HEADER_SIZE
+        size = 0
         
         if flags & TelemetryFlags.MEASUREMENTS:
             size += self.MEASUREMENTS_SIZE
@@ -493,3 +498,8 @@ class TelemetryDecoder:
             size += self.STATE_MACHINE_SIZE
             
         return size
+
+    def calculate_expected_size(self, flags: int) -> int:
+        """Calculate expected total packet size (header + payload)."""
+
+        return self.HEADER_SIZE + self.calculate_payload_size(flags)

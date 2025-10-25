@@ -1,9 +1,3 @@
-/**
- * @copyright Techperts AG.
- * @date 10-12-2024
- * @brief
- */
-
 #ifndef YEET_PARAMETER_HPP
 #define YEET_PARAMETER_HPP
 
@@ -34,12 +28,14 @@ public:
 
     operator T() const noexcept { return read(); }
 
-    T operator=(T value) noexcept {
+    T operator=(T value) noexcept
+    {
         write(value);
         return _value;
     }
 
-    void write(T value) noexcept {
+    void write(T value) noexcept
+    {
         _value = value;
 
         if (_callback) {
@@ -61,9 +57,13 @@ public:
     ~parameter_registry() = default;
 
     template <typename T>
-    void insert(const std::string& name, parameter<T>& parameter) {
+    void insert(const std::string& name, parameter<T>& parameter)
+    {
         _registry.insert(name, parameter.get_low_level_access());
     }
+
+    // Direct insertion of low_level_access with custom read/write functions
+    void insert(const std::string& name, low_level_access accessor) { _registry.insert(name, accessor); }
 
     bool empty() { return _registry.empty(); }
 

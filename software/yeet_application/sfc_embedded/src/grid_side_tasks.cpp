@@ -7,8 +7,9 @@
 
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/fiber_optic_protocol.hpp"
-#include "sfc_embedded/network_command_parser.hpp"
+#include "sfc_embedded/network_handler.hpp"
 #include "sfc_embedded/network_telemetry_manager.hpp"
+#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
 #include "yeet/signal.hpp"
 
@@ -45,6 +46,48 @@ static inline yeet::application::sfc::integration::sfc_grid_side_control& get_gr
     return grid_side_control;
 }
 
+// ==================== MODEL REGISTRY ====================
+// Global parameter registry populated from all SFC component datamodels
+static inline yeet::model_registry& get_model_registry()
+{
+    static yeet::model_registry registry;
+    static bool initialized = false;
+
+    if (!initialized) {
+        // Register all component parameters with the model_registry
+        // This makes them accessible via the parameter configuration protocol
+
+        auto& control = get_grid_side_control();
+
+        // Register current_controller parameters
+        control.get_current_controller().register_datamodel(registry);
+
+        // Register grid_side_observer parameters
+        control.get_grid_side_observer().register_datamodel(registry);
+
+        // Register grid_side_modulator parameters
+        control.get_grid_side_modulator().register_datamodel(registry);
+
+        // Register grid_side_pulse_generator parameters
+        control.get_grid_side_pulse_generator().register_datamodel(registry);
+
+        // Register grid_measurements parameters
+        control.get_grid_measurements().register_datamodel(registry);
+
+        // Register dc_link_measurements parameters
+        control.get_dc_link_measurements().register_datamodel(registry);
+
+        // Register state_machine parameters
+        control.get_state_machine().register_datamodel(registry);
+
+        // Register operation_mode_monitor parameters
+        control.get_operation_mode_monitor().register_datamodel(registry);
+
+        initialized = true;
+    }
+    return registry;
+}
+
 // ==================== NETWORK TELEMETRY MANAGER ====================
 // Telemetry streaming manager for TCP/IP interface
 static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
@@ -53,9 +96,30 @@ static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_
     return manager;
 }
 
+// ==================== PARAMETER HANDLER ====================
+// Parameter configuration handler for TCP/IP interface
+static inline yeet::application::sfc::parameter_handler& get_parameter_handler()
+{
+    static yeet::application::sfc::parameter_handler handler(&get_model_registry());
+    return handler;
+}
+
+// ==================== NETWORK HANDLER ====================
+// Network protocol handler that manages telemetry streaming and parameter requests
+static inline yeet::application::sfc::network::network_handler& get_network_handler()
+{
+    static yeet::application::sfc::network::network_handler handler(get_telemetry_manager(), get_parameter_handler());
+    return handler;
+}
+
 ARM_FUNCTION
 void yeet_embedded_init(void)
 {
+    // ==================== INITIALIZE PARAMETER HANDLER ====================
+    // Force initialization of model registry and parameter handler on startup
+    // This ensures parameters are registered before first network request
+    (void)get_parameter_handler();
+
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, false);
@@ -111,6 +175,12 @@ void yeet_embedded_init(void)
         yeet::control::six_pulse_generator::reference_type::line);
     get_grid_side_control().grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // ==================== INITIALIZE PARAMETER SYSTEM ====================
+    // Force initialization of model registry and parameter handler
+    // This ensures all component parameters are registered before network requests arrive
+    get_model_registry();     // Trigger lazy initialization of parameter registry
+    get_parameter_handler();  // Initialize parameter protocol handler
 }
 
 ARM_FUNCTION
@@ -369,71 +439,9 @@ void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     //   - Diagnostic data requests
     //   - Parameter tuning
     //   - Event logging
-
-    // ==================== COMMAND PROTOCOL ====================
-    // Simple text-based protocol:
-    //   "START\n"  - Begin streaming telemetry data
-    //   "STOP\n"   - Stop streaming telemetry data
     //
-    // ==================== TELEMETRY PACKET FORMAT ====================
-    // Binary format using network_telemetry protocol (see network_telemetry_protocol.md):
-    //   [Header: 16 bytes] - Packet type, version, flags, timestamp, sequence
-    //   [Payload: Variable] - Selected signal groups (measurements, observer, modulator, etc.)
-    //
-    // Packet size: 44-108 bytes depending on selected groups
-    // Transmission rate: Decimated to 100 Hz (every 10th call)
-    // Bandwidth: ~86 kbps (full packet at 100 Hz)
-
-    // ==================== COMMAND PROCESSING ====================
-    // Parse incoming network commands and dispatch to handlers
-    if (inputs != nullptr && inputs->network_rx.data_ready && inputs->network_rx.rx_length > 0) {
-        // Parse command from received buffer
-        auto cmd = yeet::application::sfc::network::command_parser::parse(
-            inputs->network_rx.rx_buffer, inputs->network_rx.rx_length);
-
-        // Handle parsed command
-        if (cmd.is_valid()) {
-            switch (cmd.type) {
-                case yeet::application::sfc::network::command_type::start_telemetry:
-                    get_telemetry_manager().start();
-                    break;
-
-                case yeet::application::sfc::network::command_type::stop_telemetry:
-                    get_telemetry_manager().stop();
-                    break;
-
-                default:
-                    // Unknown command (should not reach here if parser is correct)
-                    break;
-            }
-        }
-    }
-
-    // ==================== TELEMETRY TRANSMISSION ====================
-    // Update telemetry manager and transmit packets when ready
-    if (outputs != nullptr && inputs != nullptr && inputs->network_rx.tcp_connected) {
-        // Update telemetry manager (handles decimation and packet building)
-        auto tx = get_telemetry_manager().update(outputs->network_tx.transmit_request);
-
-        // Transmit packet if ready
-        if (tx.is_ready()) {
-            // Copy encoded packet to transmission buffer
-            std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
-            outputs->network_tx.tx_length = static_cast<uint16_t>(tx.size);
-            outputs->network_tx.transmit_request = true;
-            outputs->network_tx.socket_id = inputs->network_rx.socket_id;
-        }
-        else {
-            // No transmission this cycle
-            outputs->network_tx.transmit_request = false;
-            outputs->network_tx.tx_length = 0;
-        }
-    }
-    else if (outputs != nullptr) {
-        // Default: No transmission when not connected
-        outputs->network_tx.transmit_request = false;
-        outputs->network_tx.tx_length = 0;
-    }
+    // Delegate to network_handler for all packet processing and state management
+    get_network_handler().process(inputs, outputs);
 }
 
 }  // extern "C"

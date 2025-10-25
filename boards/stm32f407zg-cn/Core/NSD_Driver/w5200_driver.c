@@ -67,6 +67,13 @@ bool W5200_Init(w5200_instance_t* w5200, SPI_TypeDef* spi, uint8_t* tx_buffer, u
     w5200->rx_buffer = rx_buffer;
     w5200->dma_size = dma_size;
 
+    // Initialize DMA state
+    w5200->dma_state = W5200_STATE_IDLE;
+    w5200->dma_socket = 0xFF;  // Invalid socket (none selected)
+    w5200->dma_tx_delay = 0;
+    w5200->dma_rx_delay = 0;
+    w5200->dma_rx_size = 0;
+
     // Configure GPIO pins based on SPI interface
     if (spi == SPI2) {
         w5200->cs_port = GPIOA;
@@ -748,8 +755,15 @@ bool W5200_Send(w5200_instance_t* w5200, uint8_t socket_num, const uint8_t* data
     uint16_t offset = tx_ptr % W5200_SOCKET_BUF_SIZE;
     uint16_t physical_addr = tx_base + offset;
 
-    // Write data to TX buffer
-    W5200_Write(w5200, physical_addr, data, length);
+    // Write data to TX buffer, handling wrap-around within ring buffer
+    uint16_t remaining = W5200_SOCKET_BUF_SIZE - offset;
+    if (length <= remaining) {
+        W5200_Write(w5200, physical_addr, data, length);
+    }
+    else {
+        W5200_Write(w5200, physical_addr, data, remaining);
+        W5200_Write(w5200, tx_base, data + remaining, length - remaining);
+    }
 
     // Update TX write pointer
     tx_ptr += length;
@@ -798,8 +812,15 @@ uint16_t W5200_Receive(w5200_instance_t* w5200, uint8_t socket_num, uint8_t* dat
     uint16_t offset = rx_ptr % W5200_SOCKET_BUF_SIZE;
     uint16_t physical_addr = rx_base + offset;
 
-    // Read data from RX buffer
-    W5200_Read(w5200, physical_addr, data, read_size);
+    // Read data from RX buffer, handling wrap-around within ring buffer
+    uint16_t remaining = W5200_SOCKET_BUF_SIZE - offset;
+    if (read_size <= remaining) {
+        W5200_Read(w5200, physical_addr, data, read_size);
+    }
+    else {
+        W5200_Read(w5200, physical_addr, data, remaining);
+        W5200_Read(w5200, rx_base, data + remaining, read_size - remaining);
+    }
 
     // Update RX read pointer
     rx_ptr += read_size;
@@ -817,22 +838,179 @@ uint16_t W5200_Receive(w5200_instance_t* w5200, uint8_t socket_num, uint8_t* dat
 
 /**
  * @brief Send data using DMA
+ * @param w5200 Pointer to W5200 instance
+ * @param socket_num Socket number (0-7)
+ * @param data Pointer to data to send
+ * @param length Length of data to send
+ * @retval true if DMA transfer initiated successfully
+ * @retval false if DMA busy or parameters invalid
+ *
+ * @note This function initiates a DMA transfer. Call W5200_UpdateDMA()
+ *       periodically to poll for completion.
  */
 bool W5200_SendDMA(w5200_instance_t* w5200, uint8_t socket_num, const uint8_t* data, uint16_t length)
 {
-    // DMA implementation would go here
-    // For now, fall back to regular send
-    return W5200_Send(w5200, socket_num, data, length);
+    if (w5200 == NULL || !w5200->initialized || data == NULL || length == 0) {
+        return false;
+    }
+
+    // Check if DMA is disabled (dma_size == 0)
+    if (w5200->dma_size == 0) {
+        // Fall back to regular send
+        return W5200_Send(w5200, socket_num, data, length);
+    }
+
+    // Check if length exceeds DMA buffer size
+    if (length > w5200->dma_size) {
+        return false;  // Data too large for DMA buffer
+    }
+
+    // Check if DMA is already busy
+    if (w5200->dma_state != W5200_STATE_IDLE) {
+        return false;  // DMA busy
+    }
+
+    // Get TX write pointer from W5200 registers
+    uint16_t tx_wr = W5200_ReadByte(w5200, W5200_Sn_TX_WR0(socket_num)) << 8;
+    tx_wr |= W5200_ReadByte(w5200, W5200_Sn_TX_WR0(socket_num) + 1);
+
+    // Fallback to CPU transfer if write would wrap the ring buffer
+    uint16_t offset = tx_wr % W5200_SOCKET_BUF_SIZE;
+    if ((uint32_t)offset + length > W5200_SOCKET_BUF_SIZE) {
+        return W5200_Send(w5200, socket_num, data, length);
+    }
+
+    // Calculate socket TX buffer address
+    uint16_t socket_tx_base = W5200_TX_MEM_BASE + (socket_num * W5200_SOCKET_BUF_SIZE);
+    uint16_t tx_addr = socket_tx_base + offset;
+
+    // Build W5200 SPI command header in TX buffer
+    // Header format: [ADDR_HIGH][ADDR_LOW][OPCODE|LENGTH_HIGH][LENGTH_LOW]
+    w5200->tx_buffer[0] = (uint8_t)(tx_addr >> 8);          // Address high byte
+    w5200->tx_buffer[1] = (uint8_t)(tx_addr & 0xFF);        // Address low byte
+    w5200->tx_buffer[2] = (uint8_t)((length >> 8) | 0x80);  // Write opcode + length high
+    w5200->tx_buffer[3] = (uint8_t)(length & 0xFF);         // Length low byte
+
+    // Copy user data after header
+    for (uint16_t i = 0; i < length; i++) {
+        w5200->tx_buffer[4 + i] = data[i];
+    }
+
+    // Update DMA state
+    w5200->dma_state = W5200_STATE_SENDING;
+    w5200->dma_socket = socket_num;
+    w5200->dma_tx_delay = 0;
+
+    // Store TX info for completion handling
+    w5200->socket_state[socket_num].tx_size = length;
+    w5200->socket_state[socket_num].tx_addr_offset = tx_wr;
+
+    // Enable SPI and start DMA transfer
+    SPI_Cmd(w5200->spi, ENABLE);
+
+    if (w5200->spi == SPI2) {
+        // Update DMA transfer size and start
+        DMA1_Stream4->NDTR = length + 4;  // Data + 4-byte header
+        DMA_Cmd(DMA1_Stream4, ENABLE);
+    }
+    else if (w5200->spi == SPI3) {
+        // Update DMA transfer size and start
+        DMA1_Stream7->NDTR = length + 4;  // Data + 4-byte header
+        DMA_Cmd(DMA1_Stream7, ENABLE);
+    }
+
+    return true;
 }
 
 /**
  * @brief Receive data using DMA
+ * @param w5200 Pointer to W5200 instance
+ * @param socket_num Socket number (0-7)
+ * @retval true if DMA transfer initiated successfully
+ * @retval false if DMA busy or no data available
+ *
+ * @note This function initiates a DMA receive. Call W5200_UpdateDMA()
+ *       periodically to poll for completion. Data will be in rx_buffer
+ *       starting at offset 4 (after protocol header).
  */
 bool W5200_ReceiveDMA(w5200_instance_t* w5200, uint8_t socket_num)
 {
-    // DMA implementation would go here
-    // For now, return false to indicate DMA not implemented
-    return false;
+    if (w5200 == NULL || !w5200->initialized) {
+        return false;
+    }
+
+    // Check if DMA is disabled
+    if (w5200->dma_size == 0) {
+        return false;  // DMA not available
+    }
+
+    // Check if DMA is already busy
+    if (w5200->dma_state != W5200_STATE_IDLE) {
+        return false;  // DMA busy
+    }
+
+    // Read received data size from W5200
+    uint16_t rx_size = W5200_ReadByte(w5200, W5200_Sn_RX_RSR0(socket_num)) << 8;
+    rx_size |= W5200_ReadByte(w5200, W5200_Sn_RX_RSR0(socket_num) + 1);
+
+    if (rx_size == 0) {
+        return false;  // No data to receive
+    }
+
+    // Limit to DMA buffer size
+    if (rx_size > w5200->dma_size) {
+        rx_size = w5200->dma_size;
+    }
+
+    // Get RX read pointer from W5200 registers
+    uint16_t rx_rd = W5200_ReadByte(w5200, W5200_Sn_RX_RD0(socket_num)) << 8;
+    rx_rd |= W5200_ReadByte(w5200, W5200_Sn_RX_RD0(socket_num) + 1);
+
+    // Calculate socket RX buffer address
+    uint16_t socket_rx_base = W5200_RX_MEM_BASE + (socket_num * W5200_SOCKET_BUF_SIZE);
+    uint16_t offset = rx_rd % W5200_SOCKET_BUF_SIZE;
+    uint16_t rx_addr = socket_rx_base + offset;
+
+    // Build W5200 SPI read command header in TX buffer
+    // (SPI is full-duplex, so we transmit read command while receiving data)
+    w5200->tx_buffer[0] = (uint8_t)(rx_addr >> 8);    // Address high byte
+    w5200->tx_buffer[1] = (uint8_t)(rx_addr & 0xFF);  // Address low byte
+    w5200->tx_buffer[2] = (uint8_t)(rx_size >> 8);    // Read opcode (0x00) + length high
+    w5200->tx_buffer[3] = (uint8_t)(rx_size & 0xFF);  // Length low byte
+
+    // Fill rest of TX buffer with dummy bytes (for clock generation)
+    for (uint16_t i = 0; i < rx_size; i++) {
+        w5200->tx_buffer[4 + i] = 0x00;
+    }
+
+    // Update DMA state
+    w5200->dma_state = W5200_STATE_RECEIVING;
+    w5200->dma_socket = socket_num;
+    w5200->dma_rx_delay = 0;
+    w5200->dma_rx_size = rx_size;
+
+    // Store RX info for completion handling
+    w5200->socket_state[socket_num].rx_size = rx_size;
+    w5200->socket_state[socket_num].rx_addr_offset = rx_rd;
+
+    // Enable SPI RX DMA (always enabled in circular mode, but ensure it's on)
+    SPI_I2S_DMACmd(w5200->spi, SPI_I2S_DMAReq_Rx, ENABLE);
+
+    // Enable SPI and start DMA transfer
+    SPI_Cmd(w5200->spi, ENABLE);
+
+    if (w5200->spi == SPI2) {
+        // Update DMA transfer size and start
+        DMA1_Stream4->NDTR = rx_size + 4;  // Data + 4-byte header
+        DMA_Cmd(DMA1_Stream4, ENABLE);
+    }
+    else if (w5200->spi == SPI3) {
+        // Update DMA transfer size and start
+        DMA1_Stream7->NDTR = rx_size + 4;  // Data + 4-byte header
+        DMA_Cmd(DMA1_Stream7, ENABLE);
+    }
+
+    return true;
 }
 
 /* ============================================================================
@@ -929,6 +1107,137 @@ void W5200_Update(w5200_instance_t* w5200)
 
             // Check TX buffer availability
             W5200_GetTxFreeSize(w5200, i);
+        }
+    }
+}
+
+/**
+ * @brief Update DMA state and handle completion
+ * @param w5200 Pointer to W5200 instance
+ * @note Call this function periodically (e.g., from main loop) to poll for
+ *       DMA completion and handle timeouts.
+ */
+void W5200_UpdateDMA(w5200_instance_t* w5200)
+{
+    if (w5200 == NULL || !w5200->initialized) {
+        return;
+    }
+
+    // Skip if DMA not enabled
+    if (w5200->dma_size == 0) {
+        return;
+    }
+
+    // Handle TX DMA completion
+    if (w5200->dma_state == W5200_STATE_SENDING) {
+        bool dma_complete = false;
+        DMA_Stream_TypeDef* tx_stream = (w5200->spi == SPI2) ? DMA1_Stream4 : DMA1_Stream7;
+        uint32_t tcif_flag = (w5200->spi == SPI2) ? DMA_FLAG_TCIF4 : DMA_FLAG_TCIF7;
+
+        // Check if DMA transfer complete
+        if (DMA_GetFlagStatus(tx_stream, tcif_flag) == SET) {
+            // Wait for SPI to finish (BSY flag clear)
+            if (SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_BSY) == RESET) {
+                dma_complete = true;
+
+                // Clear DMA flag
+                DMA_ClearFlag(tx_stream, tcif_flag);
+
+                // Disable SPI
+                SPI_Cmd(w5200->spi, DISABLE);
+
+                // Update W5200 TX write pointer
+                uint8_t socket_num = w5200->dma_socket;
+                uint16_t tx_wr =
+                    w5200->socket_state[socket_num].tx_addr_offset + w5200->socket_state[socket_num].tx_size;
+
+                W5200_WriteByte(w5200, W5200_Sn_TX_WR0(socket_num), (tx_wr >> 8));
+                W5200_WriteByte(w5200, W5200_Sn_TX_WR0(socket_num) + 1, (tx_wr & 0xFF));
+
+                // Send SEND command to W5200
+                W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_SEND);
+
+                // Reset DMA state
+                w5200->dma_state = W5200_STATE_IDLE;
+                w5200->dma_socket = 0xFF;
+                w5200->dma_tx_delay = 0;
+            }
+        }
+
+        // Check for timeout (100ms @ 1kHz call rate)
+        if (!dma_complete) {
+            if (++w5200->dma_tx_delay >= 100) {
+                // Timeout - abort DMA and reset socket
+                DMA_Cmd(tx_stream, DISABLE);
+                SPI_Cmd(w5200->spi, DISABLE);
+
+                // Reset socket state
+                uint8_t socket_num = w5200->dma_socket;
+                W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_CLOSE);
+                w5200->socket_state[socket_num].state = W5200_STATE_IDLE;
+                w5200->socket_state[socket_num].status = W5200_SOCK_CLOSED;
+
+                // Reset DMA state
+                w5200->dma_state = W5200_STATE_IDLE;
+                w5200->dma_socket = 0xFF;
+                w5200->dma_tx_delay = 0;
+            }
+        }
+    }
+
+    // Handle RX DMA completion
+    else if (w5200->dma_state == W5200_STATE_RECEIVING) {
+        bool dma_complete = false;
+        DMA_Stream_TypeDef* tx_stream = (w5200->spi == SPI2) ? DMA1_Stream4 : DMA1_Stream7;
+        uint32_t tcif_flag = (w5200->spi == SPI2) ? DMA_FLAG_TCIF4 : DMA_FLAG_TCIF7;
+
+        // Check if DMA transfer complete (TX complete flag, since RX follows TX)
+        if (DMA_GetFlagStatus(tx_stream, tcif_flag) == SET) {
+            // Wait for SPI to finish
+            if (SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_BSY) == RESET) {
+                dma_complete = true;
+
+                // Clear DMA flag
+                DMA_ClearFlag(tx_stream, tcif_flag);
+
+                // Disable SPI
+                SPI_Cmd(w5200->spi, DISABLE);
+
+                // Data is now in rx_buffer[4..rx_size+3]
+                // (First 4 bytes are SPI protocol overhead)
+
+                // Update W5200 RX read pointer
+                uint8_t socket_num = w5200->dma_socket;
+                uint16_t rx_rd = w5200->socket_state[socket_num].rx_addr_offset + w5200->dma_rx_size;
+
+                W5200_WriteByte(w5200, W5200_Sn_RX_RD0(socket_num), (rx_rd >> 8));
+                W5200_WriteByte(w5200, W5200_Sn_RX_RD0(socket_num) + 1, (rx_rd & 0xFF));
+
+                // Send RECV command to W5200
+                W5200_WriteByte(w5200, W5200_Sn_CR(socket_num), W5200_Sn_CR_RECV);
+
+                // Mark RX data ready
+                w5200->socket_state[socket_num].rx_ready = true;
+
+                // Reset DMA state
+                w5200->dma_state = W5200_STATE_IDLE;
+                w5200->dma_socket = 0xFF;
+                w5200->dma_rx_delay = 0;
+            }
+        }
+
+        // Check for timeout (100ms @ 1kHz call rate)
+        if (!dma_complete) {
+            if (++w5200->dma_rx_delay >= 100) {
+                // Timeout - abort DMA and reset
+                DMA_Cmd(tx_stream, DISABLE);
+                SPI_Cmd(w5200->spi, DISABLE);
+
+                // Reset DMA state
+                w5200->dma_state = W5200_STATE_IDLE;
+                w5200->dma_socket = 0xFF;
+                w5200->dma_rx_delay = 0;
+            }
         }
     }
 }
