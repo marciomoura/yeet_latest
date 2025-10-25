@@ -24,6 +24,8 @@ public:
     void run() override;
     void stop() override;
 
+    void register_datamodel(yeet::model_registry& registry) override;
+
 private:
     void set_controller_parameters();
     void set_limit_parameters();

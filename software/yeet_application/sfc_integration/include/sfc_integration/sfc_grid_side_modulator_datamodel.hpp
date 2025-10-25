@@ -93,34 +93,35 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // Note: Implementation commented out due to compilation issues with signal registry
-        // TODO: Fix signal registry insert method compatibility
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // angle_wrapped parameter - convert to/from radians
+        auto& force_commutation_angle_param = _model_parameters->force_commutation_angle;
+        entry.parameters.insert("force_commutation_angle",
+            low_level_access(
+                // Read: angle_wrapped -> float (radians)
+                [&force_commutation_angle_param]() -> float {
+                    return static_cast<float>(force_commutation_angle_param.read().get_radians());
+                },
+                // Write: float (radians) -> angle_wrapped
+                [&force_commutation_angle_param](float value_rad) {
+                    force_commutation_angle_param.write(angle_wrapped::from_radians(angle_t{value_rad}));
+                }));
 
-        // // Register input signals
-        // entry.signal_registry.insert("request_force_commutation", _model_inputs->request_force_commutation);
-        // entry.signal_registry.insert("dc_link_current_is_zero", _model_inputs->dc_link_current_is_zero);
-        // entry.signal_registry.insert("firing_angle_from_current_controller",
-        //                              _model_inputs->firing_angle_from_current_controller);
-        // entry.signal_registry.insert("enable", _model_inputs->enable);
+        // duration_t parameter - extract value in seconds
+        auto& commutation_timeout_param = _model_parameters->commutation_timeout;
+        entry.parameters.insert(
+            "commutation_timeout", low_level_access(
+                                       // Read: duration_t -> float (seconds)
+                                       [&commutation_timeout_param]() -> float {
+                                           return static_cast<float>(commutation_timeout_param.read().value());
+                                       },
+                                       // Write: float (seconds) -> duration_t
+                                       [&commutation_timeout_param](float value_seconds) {
+                                           commutation_timeout_param.write(duration_t{value_seconds});
+                                       }));
 
-        // // Register output signals
-        // entry.signal_registry.insert("firing_angle_to_pulse_generator",
-        //                              _model_outputs->firing_angle_to_pulse_generator);
-        // entry.signal_registry.insert("force_commutation_acknowledged",
-        //                              _model_outputs->force_commutation_acknowledged);
-        // entry.signal_registry.insert("is_requesting_main_pi_reset",
-        //                              _model_outputs->is_requesting_main_pi_reset);
-        // entry.signal_registry.insert("modulator_state", _model_outputs->modulator_state);
-
-        // // Register parameters
-        // entry.parameter_registry.insert("force_commutation_angle",
-        //                                 _model_parameters->force_commutation_angle);
-        // entry.parameter_registry.insert("commutation_timeout",
-        //                                 _model_parameters->commutation_timeout);
-
-        // registry.insert("sfc_grid_side_modulator", std::move(entry));
+        registry.insert("grid_side_modulator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

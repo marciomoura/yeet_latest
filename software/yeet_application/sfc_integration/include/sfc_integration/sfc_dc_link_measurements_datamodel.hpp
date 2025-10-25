@@ -55,22 +55,30 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("dc_voltage_pu", _model_outputs->dc_voltage_pu);
-        // entry.signal_registry.insert("dc_current_pu", _model_outputs->dc_current_pu);
-        // entry.signal_registry.insert("dc_voltage_filtered_pu", _model_outputs->dc_voltage_filtered_pu);
-        // entry.signal_registry.insert("dc_current_filtered_pu", _model_outputs->dc_current_filtered_pu);
-        // entry.signal_registry.insert("dc_power_pu", _model_outputs->dc_power_pu);
-        // entry.signal_registry.insert("is_valid", _model_outputs->is_valid);
+        // Register parameters - frequency_t type needs conversion to float (Hz)
+        auto& filter_cutoff_param = _model_parameters->filter_cutoff_frequency;
+        entry.parameters.insert("filter_cutoff_frequency",
+            low_level_access(
+                // Read: frequency_t -> float (Hz)
+                [&filter_cutoff_param]() -> float { return static_cast<float>(filter_cutoff_param.read()); },
+                // Write: float (Hz) -> frequency_t
+                [&filter_cutoff_param](float value_hz) { filter_cutoff_param.write(frequency_t{value_hz}); }));
 
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("voltage_scale_factor", _model_parameters->voltage_scale_factor);
-        // entry.parameter_registry.insert("current_scale_factor", _model_parameters->current_scale_factor);
-        // entry.parameter_registry.insert("filter_cutoff_frequency", _model_parameters->filter_cutoff_frequency);
+        auto& heavy_filter_cutoff_param = _model_parameters->heavy_filter_cutoff_frequency;
+        entry.parameters.insert(
+            "heavy_filter_cutoff_frequency", low_level_access(
+                                                 // Read: frequency_t -> float (Hz)
+                                                 [&heavy_filter_cutoff_param]() -> float {
+                                                     return static_cast<float>(heavy_filter_cutoff_param.read());
+                                                 },
+                                                 // Write: float (Hz) -> frequency_t
+                                                 [&heavy_filter_cutoff_param](float value_hz) {
+                                                     heavy_filter_cutoff_param.write(frequency_t{value_hz});
+                                                 }));
 
-        // registry.insert("sfc_dc_link_measurements", std::move(entry));
+        registry.insert("dc_link_measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }
