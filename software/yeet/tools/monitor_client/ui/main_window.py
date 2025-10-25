@@ -2176,6 +2176,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             parameters = list(self._parameter_cache.values())
             logger.info(f"Parameter loading complete: {len(parameters)} parameters")
             self.param_panel.display_parameters(parameters)
+            
+            # Clear oscilloscope data to prevent timing corruption
+            # Parameter loading disrupts telemetry timing, causing data to overlap on plots
+            logger.info("Clearing oscilloscope data after parameter loading")
+            for group in self.plot_groups.values():
+                group.clear_all()
+            self.start_time = None
             return
         
         # Get next index

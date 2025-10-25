@@ -7,8 +7,9 @@ streaming and parameter configuration without threading races.
 Architecture:
     - Single TCP socket connection
     - Qt timer-based polling (no threads)
-    - Proper sequencing of telemetry vs parameter operations
+    - Stateless packet processing (displays whatever arrives from server)
     - Automatic packet type detection and routing
+    - Server manages telemetry START/STOP state
 
 Usage:
     client = UnifiedNetworkClient('192.168.2.100', 7000)
@@ -43,18 +44,16 @@ logger = logging.getLogger(__name__)
 
 
 class NetworkState(Enum):
-    """Network client operational state."""
+    """Network client connection state (NOT telemetry state - server manages that)."""
     DISCONNECTED = 0
-    IDLE = 1  # Connected but not streaming
-    TELEMETRY_STREAMING = 2  # Actively streaming telemetry
-    PARAMETER_OPERATION = 3  # Temporarily suspended for parameter operation
+    CONNECTED = 1  # Connected, receiving whatever server sends
 
 
 class UnifiedNetworkClient(QtCore.QObject):
-    """Single-threaded network client for telemetry and parameters.
+    """Single-threaded stateless network client for telemetry and parameters.
     
     Uses Qt signals/slots and timers to avoid threading issues.
-    Properly sequences telemetry streaming and parameter operations.
+    Displays whatever packets arrive from server (server manages telemetry state).
     
     Signals:
         telemetry_packet_received(GridSideTelemetryPacket): Emitted when telemetry packet decoded
@@ -106,20 +105,21 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._poll_timer.timeout.connect(self._poll_socket)
         self._poll_timer.setInterval(5)  # 5ms polling = 200Hz max
         
-        # Pending parameter operation
-        self._pending_param_operation: Optional[dict] = None
-        
         logger.info(f"UnifiedNetworkClient initialized for {host}:{port}")
     
     @property
     def connected(self) -> bool:
         """Check if connected to controller."""
-        return self._state != NetworkState.DISCONNECTED
+        return self._state == NetworkState.CONNECTED
     
     @property
     def is_streaming(self) -> bool:
-        """Check if actively streaming telemetry."""
-        return self._state == NetworkState.TELEMETRY_STREAMING
+        """Check if actively streaming telemetry.
+        
+        Note: This is not tracked client-side anymore. Server manages state.
+        Returns True if connected (client doesn't know server's telemetry state).
+        """
+        return self.connected
     
     def connect(self) -> bool:
         """Connect to controller.
@@ -137,7 +137,7 @@ class UnifiedNetworkClient(QtCore.QObject):
             self._socket.connect((self.host, self.port))
             self._socket.setblocking(False)  # Non-blocking for polling
             
-            self._state = NetworkState.IDLE
+            self._state = NetworkState.CONNECTED
             self._recv_buffer.clear()
             
             logger.info(f"Connected to {self.host}:{self.port}")
@@ -160,9 +160,8 @@ class UnifiedNetworkClient(QtCore.QObject):
         if not self.connected:
             return
         
-        # Stop telemetry if running
-        if self.is_streaming:
-            self.stop_telemetry()
+        # Send STOP command to be polite (but don't wait for response)
+        self._send_command('STOP')
         
         # Stop polling
         self._poll_timer.stop()
@@ -184,7 +183,9 @@ class UnifiedNetworkClient(QtCore.QObject):
             self._socket = None
     
     def start_telemetry(self) -> bool:
-        """Start telemetry streaming.
+        """Request server to start telemetry streaming.
+        
+        Note: Server manages actual telemetry state. This just sends the START command.
         
         Returns:
             True if command sent successfully, False otherwise
@@ -193,34 +194,30 @@ class UnifiedNetworkClient(QtCore.QObject):
             logger.error("Not connected - cannot start telemetry")
             return False
         
-        if self.is_streaming:
-            logger.warning("Telemetry already streaming")
-            return True
-        
-        # Send START command
+        # Send START command (server will manage state)
         if self._send_command('START'):
-            self._state = NetworkState.TELEMETRY_STREAMING
             self._packets_received = 0
             self._last_sequence = -1
-            logger.info("Telemetry streaming started")
+            logger.info("Sent START telemetry command to server")
             return True
         
         return False
     
     def stop_telemetry(self) -> bool:
-        """Stop telemetry streaming.
+        """Request server to stop telemetry streaming.
+        
+        Note: Server manages actual telemetry state. This just sends the STOP command.
         
         Returns:
             True if command sent successfully, False otherwise
         """
-        if not self.is_streaming:
-            logger.warning("Telemetry not streaming")
-            return True
+        if not self.connected:
+            logger.warning("Not connected - cannot stop telemetry")
+            return False
         
-        # Send STOP command
+        # Send STOP command (server will manage state)
         if self._send_command('STOP'):
-            self._state = NetworkState.IDLE
-            logger.info("Telemetry streaming stopped")
+            logger.info("Sent STOP telemetry command to server")
             return True
         
         return False
@@ -256,30 +253,12 @@ class UnifiedNetworkClient(QtCore.QObject):
             logger.error("Not connected - cannot send parameter request")
             return False
         
-        # Pause telemetry if streaming
-        was_streaming = False
-        if self.is_streaming:
-            was_streaming = True
-            if not self.stop_telemetry():
-                logger.error("Failed to pause telemetry for parameter operation")
-                return False
-            # Give controller time to process STOP
-            QtCore.QThread.msleep(50)
-        
         try:
             # Encode COUNT request
             request_bytes = self._param_encoder.encode_count_request()
             
-            # Send request
+            # Send request (server will respond while telemetry continues)
             self._socket.sendall(request_bytes)
-            
-            # Mark parameter operation pending
-            self._state = NetworkState.PARAMETER_OPERATION
-            self._pending_param_operation = {
-                'type': 'count_request',
-                'was_streaming': was_streaming,
-                'start_time': QtCore.QTime.currentTime()
-            }
             
             logger.debug("Sent parameter COUNT request")
             return True
@@ -288,11 +267,6 @@ class UnifiedNetworkClient(QtCore.QObject):
             error_msg = f"Failed to send parameter COUNT request: {e}"
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
-            
-            # Resume telemetry if it was streaming
-            if was_streaming:
-                self.start_telemetry()
-            
             return False
     
     def send_parameter_get_by_index_request(self, index: int) -> bool:
@@ -308,30 +282,12 @@ class UnifiedNetworkClient(QtCore.QObject):
             logger.error("Not connected - cannot send parameter request")
             return False
         
-        # Pause telemetry if streaming (should already be paused from count request)
-        was_streaming = False
-        if self.is_streaming:
-            was_streaming = True
-            if not self.stop_telemetry():
-                logger.error("Failed to pause telemetry for parameter operation")
-                return False
-            QtCore.QThread.msleep(50)
-        
         try:
             # Encode GET_BY_INDEX request
             request_bytes = self._param_encoder.encode_get_by_index_request(index)
             
-            # Send request
+            # Send request (server will respond while telemetry continues)
             self._socket.sendall(request_bytes)
-            
-            # Mark parameter operation pending
-            self._state = NetworkState.PARAMETER_OPERATION
-            self._pending_param_operation = {
-                'type': 'get_by_index_request',
-                'index': index,
-                'was_streaming': was_streaming,
-                'start_time': QtCore.QTime.currentTime()
-            }
             
             logger.debug(f"Sent parameter GET_BY_INDEX request for index {index}")
             return True
@@ -340,11 +296,6 @@ class UnifiedNetworkClient(QtCore.QObject):
             error_msg = f"Failed to send parameter GET_BY_INDEX request: {e}"
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
-            
-            # Resume telemetry if it was streaming
-            if was_streaming:
-                self.start_telemetry()
-            
             return False
     
     def send_parameter_set_request(self, component: str, name: str, value: float) -> bool:
@@ -359,35 +310,15 @@ class UnifiedNetworkClient(QtCore.QObject):
             True if request sent successfully, False otherwise
         """
         if not self.connected:
-            logger.error(f"Not connected (state={self._state}) - cannot send parameter request")
+            logger.error(f"Not connected - cannot send parameter request")
             return False
-        
-        # Pause telemetry if streaming
-        was_streaming = False
-        if self.is_streaming:
-            was_streaming = True
-            if not self.stop_telemetry():
-                logger.error("Failed to pause telemetry for parameter operation")
-                return False
-            QtCore.QThread.msleep(50)
         
         try:
             # Encode SET request
             request_bytes = self._param_encoder.encode_set_request(component, name, value)
             
-            # Send request
+            # Send request (server will respond while telemetry continues)
             self._socket.sendall(request_bytes)
-            
-            # Mark parameter operation pending
-            self._state = NetworkState.PARAMETER_OPERATION
-            self._pending_param_operation = {
-                'type': 'set_request',
-                'component': component,
-                'name': name,
-                'value': value,
-                'was_streaming': was_streaming,
-                'start_time': QtCore.QTime.currentTime()
-            }
             
             logger.debug(f"Sent parameter SET request for {component}.{name} = {value}")
             return True
@@ -396,11 +327,6 @@ class UnifiedNetworkClient(QtCore.QObject):
             error_msg = f"Failed to send parameter SET request: {e}"
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
-            
-            # Resume telemetry if it was streaming
-            if was_streaming:
-                self.start_telemetry()
-            
             return False
     
     def _poll_socket(self) -> None:
@@ -434,21 +360,23 @@ class UnifiedNetworkClient(QtCore.QObject):
             self.disconnect()
     
     def _process_receive_buffer(self) -> None:
-        """Process packets in receive buffer."""
+        """Process packets in receive buffer.
+        
+        Stateless processing - displays whatever arrives from server.
+        Server manages telemetry state and packet sequencing.
+        """
         while len(self._recv_buffer) >= 16:  # Minimum header size
             # Peek at packet type from header
             packet_type = self._recv_buffer[0]
             
-            # Route based on current state and packet type
-            if self._state == NetworkState.PARAMETER_OPERATION:
-                # Expecting parameter response
-                self._process_parameter_response(packet_type)
-            elif self._state == NetworkState.TELEMETRY_STREAMING:
-                # Expecting telemetry packet
+            # Route based on packet type
+            if packet_type in [0x01, 0x02]:  # Telemetry packets
                 self._process_telemetry_packet()
+            elif packet_type in [0x41, 0x47, 0x49]:  # Parameter response packets
+                self._process_parameter_response(packet_type)
             else:
-                # Unexpected data in IDLE state - discard
-                logger.warning(f"Unexpected data in IDLE state, packet_type=0x{packet_type:02x}")
+                # Unknown packet type - log and discard
+                logger.warning(f"Unknown packet type 0x{packet_type:02x}, clearing buffer")
                 self._recv_buffer.clear()
                 break
     
@@ -468,13 +396,17 @@ class UnifiedNetworkClient(QtCore.QObject):
                 # Update statistics
                 self._packets_received += 1
                 
-                # Check for lost packets
+                # Check for sequence gaps (but don't report as "lost" since server
+                # intentionally skips telemetry cycles when sending parameter responses)
                 if self._last_sequence >= 0:
                     expected_seq = (self._last_sequence + 1) & 0xFFFFFFFF
                     if packet.header.sequence_number != expected_seq:
-                        lost = (packet.header.sequence_number - expected_seq) & 0xFFFFFFFF
-                        self._packets_lost += lost
-                        logger.warning(f"Lost {lost} packets (seq {self._last_sequence} -> {packet.header.sequence_number})")
+                        gap = (packet.header.sequence_number - expected_seq) & 0xFFFFFFFF
+                        # Update loss counter but don't log warning
+                        # These are intentional skips, not actual packet loss
+                        self._packets_lost += gap
+                        if self.verbose:
+                            logger.debug(f"Sequence gap of {gap} (expected {expected_seq}, got {packet.header.sequence_number}) - likely parameter response")
                 
                 self._last_sequence = packet.header.sequence_number
                 
@@ -494,18 +426,10 @@ class UnifiedNetworkClient(QtCore.QObject):
         Args:
             packet_type: Packet type byte from header
         """
-        if not self._pending_param_operation:
-            logger.warning("Received parameter response but no operation pending")
-            self._recv_buffer.clear()
-            return
-        
-        op_type = self._pending_param_operation['type']
-        was_streaming = self._pending_param_operation.get('was_streaming', False)
-        
         try:
             response_data = None
             
-            if op_type == 'count_request' and packet_type == 0x47:  # COUNT_RESPONSE
+            if packet_type == 0x47:  # COUNT_RESPONSE
                 total_params = self._param_decoder.decode_count_response(bytes(self._recv_buffer))
                 if total_params is not None:
                     response_data = {
@@ -514,17 +438,16 @@ class UnifiedNetworkClient(QtCore.QObject):
                     }
                     self._recv_buffer.clear()
             
-            elif op_type == 'get_by_index_request' and packet_type == 0x49:  # GET_BY_INDEX_RESPONSE
+            elif packet_type == 0x49:  # GET_BY_INDEX_RESPONSE
                 response = self._param_decoder.decode_get_by_index_response(bytes(self._recv_buffer))
                 if response:
                     response_data = {
                         'type': 'get_by_index_response',
-                        'index': self._pending_param_operation.get('index'),
                         'metadata': response
                     }
                     self._recv_buffer.clear()
             
-            elif op_type == 'set_request' and packet_type == 0x41:  # SET_RESPONSE
+            elif packet_type == 0x41:  # SET_RESPONSE
                 response = self._param_decoder.decode_set_response(bytes(self._recv_buffer))
                 if response:
                     response_data = {
@@ -539,40 +462,18 @@ class UnifiedNetworkClient(QtCore.QObject):
                     self._recv_buffer.clear()
             
             if response_data:
-                # Clear pending operation
-                self._pending_param_operation = None
-                
-                # Return to appropriate state
-                if was_streaming:
-                    # Resume telemetry
-                    self.start_telemetry()
-                else:
-                    self._state = NetworkState.IDLE
-                
-                # Emit signal
+                # Emit signal to UI
                 self.parameter_response_received.emit(response_data)
             else:
                 # Not enough data yet, or decode failed
                 if len(self._recv_buffer) > 1024:
                     # Too much buffered data - something is wrong
-                    logger.error(f"Parameter response decode failed, clearing buffer (op_type={op_type}, packet_type=0x{packet_type:02x})")
+                    logger.error(f"Parameter response decode failed, clearing buffer (packet_type=0x{packet_type:02x})")
                     self._recv_buffer.clear()
-                    self._pending_param_operation = None
-                    
-                    if was_streaming:
-                        self.start_telemetry()
-                    else:
-                        self._state = NetworkState.IDLE
         
         except Exception as e:
             logger.error(f"Error processing parameter response: {e}")
             self._recv_buffer.clear()
-            self._pending_param_operation = None
-            
-            if was_streaming:
-                self.start_telemetry()
-            else:
-                self._state = NetworkState.IDLE
     
     def get_statistics(self) -> dict:
         """Get reception statistics.

@@ -9,6 +9,7 @@
 #include "sfc_embedded/fiber_optic_protocol.hpp"
 #include "sfc_embedded/network_command_parser.hpp"
 #include "sfc_embedded/network_telemetry_manager.hpp"
+#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
 #include "yeet/signal.hpp"
 
@@ -45,6 +46,48 @@ static inline yeet::application::sfc::integration::sfc_grid_side_control& get_gr
     return grid_side_control;
 }
 
+// ==================== MODEL REGISTRY ====================
+// Global parameter registry populated from all SFC component datamodels
+static inline yeet::model_registry& get_model_registry()
+{
+    static yeet::model_registry registry;
+    static bool initialized = false;
+
+    if (!initialized) {
+        // Register all component parameters with the model_registry
+        // This makes them accessible via the parameter configuration protocol
+
+        auto& control = get_grid_side_control();
+
+        // Register current_controller parameters
+        control.get_current_controller().register_datamodel(registry);
+
+        // Register grid_side_observer parameters
+        control.get_grid_side_observer().register_datamodel(registry);
+
+        // Register grid_side_modulator parameters
+        control.get_grid_side_modulator().register_datamodel(registry);
+
+        // Register grid_side_pulse_generator parameters
+        control.get_grid_side_pulse_generator().register_datamodel(registry);
+
+        // Register grid_measurements parameters
+        control.get_grid_measurements().register_datamodel(registry);
+
+        // Register dc_link_measurements parameters
+        control.get_dc_link_measurements().register_datamodel(registry);
+
+        // Register state_machine parameters
+        control.get_state_machine().register_datamodel(registry);
+
+        // Register operation_mode_monitor parameters
+        control.get_operation_mode_monitor().register_datamodel(registry);
+
+        initialized = true;
+    }
+    return registry;
+}
+
 // ==================== NETWORK TELEMETRY MANAGER ====================
 // Telemetry streaming manager for TCP/IP interface
 static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
@@ -53,9 +96,22 @@ static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_
     return manager;
 }
 
+// ==================== PARAMETER HANDLER ====================
+// Parameter configuration handler for TCP/IP interface
+static inline yeet::application::sfc::parameter_handler& get_parameter_handler()
+{
+    static yeet::application::sfc::parameter_handler handler(&get_model_registry());
+    return handler;
+}
+
 ARM_FUNCTION
 void yeet_embedded_init(void)
 {
+    // ==================== INITIALIZE PARAMETER HANDLER ====================
+    // Force initialization of model registry and parameter handler on startup
+    // This ensures parameters are registered before first network request
+    (void)get_parameter_handler();
+
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, false);
@@ -111,6 +167,12 @@ void yeet_embedded_init(void)
         yeet::control::six_pulse_generator::reference_type::line);
     get_grid_side_control().grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // ==================== INITIALIZE PARAMETER SYSTEM ====================
+    // Force initialization of model registry and parameter handler
+    // This ensures all component parameters are registered before network requests arrive
+    get_model_registry();     // Trigger lazy initialization of parameter registry
+    get_parameter_handler();  // Initialize parameter protocol handler
 }
 
 ARM_FUNCTION
@@ -360,68 +422,227 @@ void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     //   - Diagnostic data requests
     //   - Parameter tuning
     //   - Event logging
-
-    // ==================== COMMAND PROTOCOL ====================
-    // Simple text-based protocol:
-    //   "START\n"  - Begin streaming telemetry data
-    //   "STOP\n"   - Stop streaming telemetry data
     //
-    // ==================== TELEMETRY PACKET FORMAT ====================
-    // Binary format using network_telemetry protocol (see network_telemetry_protocol.md):
-    //   [Header: 16 bytes] - Packet type, version, flags, timestamp, sequence
-    //   [Payload: Variable] - Selected signal groups (measurements, observer, modulator, etc.)
-    //
-    // Packet size: 44-108 bytes depending on selected groups
-    // Transmission rate: Decimated to 100 Hz (every 10th call)
-    // Bandwidth: ~86 kbps (full packet at 100 Hz)
+    // Architecture:
+    //   - Persistent internal state tracks if telemetry is started/stopped
+    //   - START/STOP commands update this state
+    //   - Parameter requests are always handled (regardless of telemetry state)
+    //   - Telemetry packets only transmitted when started AND no parameter response pending
 
-    // ==================== COMMAND PROCESSING ====================
-    // Parse incoming network commands and dispatch to handlers
+    // Persistent state: Is telemetry streaming enabled?
+    static bool telemetry_started = false;
+
+    // ==================== PACKET TYPE DETECTION ====================
+    // Determine if incoming data is:
+    //   1. Text command (telemetry START/STOP)
+    //   2. Binary parameter protocol packet
+    //
+    // Parameter packets have 16-byte header with packet_type in byte 0
+
+    using namespace yeet::application::sfc;
+    using namespace yeet::application::sfc::telemetry;
+
+    // ==================== PACKET VALIDATION ====================
+    // Validate outgoing packets before transmission to detect buffer corruption
+    // Checks packet_type and protocol_version fields in header (bytes 0-1)
+    auto validate_outgoing_packet = [](const std::uint8_t* buffer, std::uint16_t length) -> bool {
+        if (length < 2) {
+            return false;  // Packet too short to have header
+        }
+
+        const std::uint8_t packet_type_byte = buffer[0];
+        const std::uint8_t protocol_version = buffer[1];
+
+        // Valid packet types (must match network_telemetry.hpp):
+        // - 0x01-0x02: telemetry (grid/machine)
+        // - 0x10: system_status
+        // - 0x20: configuration
+        // - 0x30: command
+        // - 0x40-0x49: parameter protocol packets (SET, GET, COUNT, GET_BY_INDEX, etc.)
+        const bool valid_type = (packet_type_byte >= 0x01 && packet_type_byte <= 0x02) ||  // telemetry
+                                (packet_type_byte == 0x10) ||                              // system_status
+                                (packet_type_byte == 0x20) ||                              // configuration
+                                (packet_type_byte == 0x30) ||                              // command
+                                (packet_type_byte >= 0x40 && packet_type_byte <= 0x49);    // parameters
+
+        // Protocol version must be 0x01
+        const bool valid_version = (protocol_version == 0x01);
+
+        return valid_type && valid_version;
+    };
+
+    // ==================== COMMAND/PARAMETER PROCESSING ====================
     if (inputs != nullptr && inputs->network_rx.data_ready && inputs->network_rx.rx_length > 0) {
-        // Parse command from received buffer
-        auto cmd = yeet::application::sfc::network::command_parser::parse(
-            inputs->network_rx.rx_buffer, inputs->network_rx.rx_length);
+        // Check if this is a binary parameter protocol packet (has header with packet_type)
+        if (inputs->network_rx.rx_length >= sizeof(telemetry_packet_header)) {
+            const auto* header = reinterpret_cast<const telemetry_packet_header*>(inputs->network_rx.rx_buffer);
 
-        // Handle parsed command
-        if (cmd.is_valid()) {
-            switch (cmd.type) {
-                case yeet::application::sfc::network::command_type::start_telemetry:
-                    get_telemetry_manager().start();
+            // Dispatch based on packet type
+            switch (static_cast<packet_type>(header->packet_type)) {
+                case packet_type::parameter_count_request: {
+                    // Handle COUNT request
+                    parameter_count_response_packet response;
+                    if (get_parameter_handler().handle_count_request(response)) {
+                        if (outputs != nullptr) {
+                            std::memcpy(outputs->network_tx.tx_buffer, &response, sizeof(response));
+                            outputs->network_tx.tx_length = sizeof(response);
+                            outputs->network_tx.transmit_request = true;
+                            outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+                        }
+                    }
                     break;
+                }
+                case packet_type::parameter_get_by_index_request: {
+                    // Handle GET_BY_INDEX request
+                    // Accept either full struct (20 bytes: header + 4) or minimal (header + 2 index bytes)
+                    const std::size_t min_size = sizeof(telemetry_packet_header) + 2;  // header + index
+                    if (inputs->network_rx.rx_length >= min_size) {
+                        // Build a request struct locally (zero-initialize then copy available bytes)
+                        parameter_get_by_index_request_packet request{};
+                        std::memset(&request, 0, sizeof(request));
+                        const std::size_t copy_size = (inputs->network_rx.rx_length < sizeof(request))
+                                                          ? inputs->network_rx.rx_length
+                                                          : sizeof(request);
+                        std::memcpy(&request, inputs->network_rx.rx_buffer, copy_size);
 
-                case yeet::application::sfc::network::command_type::stop_telemetry:
-                    get_telemetry_manager().stop();
+                        parameter_get_by_index_response_packet response;
+                        if (get_parameter_handler().handle_get_by_index_request(request, response)) {
+                            if (outputs != nullptr) {
+                                std::memcpy(outputs->network_tx.tx_buffer, &response, sizeof(response));
+                                outputs->network_tx.tx_length = sizeof(response);
+                                outputs->network_tx.transmit_request = true;
+                                outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+                            }
+                        }
+                    }
                     break;
+                }
 
-                default:
-                    // Unknown command (should not reach here if parser is correct)
+                case packet_type::parameter_get_request: {
+                    // Handle GET request
+                    if (inputs->network_rx.rx_length >= sizeof(parameter_get_request_packet)) {
+                        const auto* request =
+                            reinterpret_cast<const parameter_get_request_packet*>(inputs->network_rx.rx_buffer);
+                        parameter_get_response_packet response;
+                        if (get_parameter_handler().handle_get_request(*request, response)) {
+                            if (outputs != nullptr) {
+                                std::memcpy(outputs->network_tx.tx_buffer, &response, sizeof(response));
+                                outputs->network_tx.tx_length = sizeof(response);
+                                outputs->network_tx.transmit_request = true;
+                                outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+                            }
+                        }
+                    }
                     break;
+                }
+
+                case packet_type::parameter_set_request: {
+                    // Handle SET request
+                    if (inputs->network_rx.rx_length >= sizeof(parameter_set_request_packet)) {
+                        const auto* request =
+                            reinterpret_cast<const parameter_set_request_packet*>(inputs->network_rx.rx_buffer);
+                        parameter_set_response_packet response;
+                        if (get_parameter_handler().handle_set_request(*request, response)) {
+                            if (outputs != nullptr) {
+                                std::memcpy(outputs->network_tx.tx_buffer, &response, sizeof(response));
+                                outputs->network_tx.tx_length = sizeof(response);
+                                outputs->network_tx.transmit_request = true;
+                                outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                default: {
+                    // Not a recognized parameter packet, try text command parsing
+                    auto cmd = yeet::application::sfc::network::command_parser::parse(
+                        inputs->network_rx.rx_buffer, inputs->network_rx.rx_length);
+
+                    if (cmd.is_valid()) {
+                        switch (cmd.type) {
+                            case yeet::application::sfc::network::command_type::start_telemetry:
+                                telemetry_started = true;
+                                get_telemetry_manager().start();
+                                break;
+
+                            case yeet::application::sfc::network::command_type::stop_telemetry:
+                                telemetry_started = false;
+                                get_telemetry_manager().stop();
+                                break;
+
+                            default:
+                                break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        else {
+            // Packet too small for header, try text command parsing
+            auto cmd = yeet::application::sfc::network::command_parser::parse(
+                inputs->network_rx.rx_buffer, inputs->network_rx.rx_length);
+
+            if (cmd.is_valid()) {
+                switch (cmd.type) {
+                    case yeet::application::sfc::network::command_type::start_telemetry:
+                        telemetry_started = true;
+                        get_telemetry_manager().start();
+                        break;
+
+                    case yeet::application::sfc::network::command_type::stop_telemetry:
+                        telemetry_started = false;
+                        get_telemetry_manager().stop();
+                        break;
+
+                    default:
+                        break;
+                }
             }
         }
     }
 
     // ==================== TELEMETRY TRANSMISSION ====================
     // Update telemetry manager and transmit packets when ready
+    // Only transmit telemetry if:
+    //   1. Telemetry is started (START command received)
+    //   2. No parameter response was sent this cycle
+    //   3. TCP connection is established
     if (outputs != nullptr && inputs != nullptr && inputs->network_rx.tcp_connected) {
-        // Update telemetry manager (handles decimation and packet building)
-        auto tx = get_telemetry_manager().update(outputs->network_tx.transmit_request);
+        // Only process telemetry if we didn't already queue a parameter response
+        if (!outputs->network_tx.transmit_request) {
+            // Only transmit if telemetry streaming is started
+            if (telemetry_started) {
+                // Update telemetry manager (handles decimation and packet building)
+                // Pass false since we've already checked that transmit_request is false
+                auto tx = get_telemetry_manager().update(false);
 
-        // Transmit packet if ready
-        if (tx.is_ready()) {
-            // Copy encoded packet to transmission buffer
-            std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
-            outputs->network_tx.tx_length = static_cast<uint16_t>(tx.size);
-            outputs->network_tx.transmit_request = true;
-            outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+                // Transmit packet if ready
+                if (tx.is_ready()) {
+                    // Validate packet before transmission
+                    if (validate_outgoing_packet(tx.data, tx.size)) {
+                        // Copy encoded packet to transmission buffer
+                        std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
+                        outputs->network_tx.tx_length = static_cast<uint16_t>(tx.size);
+                        outputs->network_tx.transmit_request = true;
+                        outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+                    }
+                    // If validation fails, discard corrupted packet (silent drop)
+                }
+            }
+            // If telemetry not started, do nothing (just listen for commands/parameters)
         }
         else {
-            // No transmission this cycle
-            outputs->network_tx.transmit_request = false;
-            outputs->network_tx.tx_length = 0;
+            // Parameter response is queued - tell telemetry manager to skip this cycle
+            // This prevents telemetry sequence number gaps (only if telemetry is started)
+            if (telemetry_started) {
+                get_telemetry_manager().update(true);
+            }
         }
     }
-    else if (outputs != nullptr) {
-        // Default: No transmission when not connected
+    else if (outputs != nullptr && !outputs->network_tx.transmit_request) {
+        // Default: No transmission when not connected and no parameter response pending
         outputs->network_tx.transmit_request = false;
         outputs->network_tx.tx_length = 0;
     }

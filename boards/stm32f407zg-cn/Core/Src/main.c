@@ -180,6 +180,35 @@ static uint8_t tcp_packet_buffer[1460];  // Max TCP MSS for SPI3 network
  */
 static uint8_t dip_switch_channel_number = 0;
 
+/**
+ * @brief Network I/O structures (static allocation for embedded)
+ * These buffers are reused across packet iterations to avoid stack overflow.
+ * Must be explicitly cleared before each use via Clear_Network_IO().
+ */
+static network_inputs_t network_inputs = {0};
+static network_outputs_t network_outputs = {0};
+
+/**
+ * @brief Clear network I/O structures to default state
+ * Call this before processing each packet to ensure clean state.
+ * Avoids stale data leakage between packet operations.
+ */
+static inline void Clear_Network_IO(network_inputs_t* inputs, network_outputs_t* outputs)
+{
+    // Clear input structure
+    inputs->network_rx.rx_length = 0;
+    inputs->network_rx.data_ready = false;
+    inputs->network_rx.tcp_connected = false;
+    inputs->network_rx.socket_id = 0;
+    // Note: rx_buffer is overwritten by W5200_Receive, no need to clear
+
+    // Clear output structure
+    outputs->network_tx.tx_length = 0;
+    outputs->network_tx.transmit_request = false;
+    outputs->network_tx.socket_id = 0;
+    // Note: tx_buffer is populated by yeet_network() before use
+}
+
 /* Task I/O Structure Instances --------------------------------------------- */
 
 /**
@@ -191,14 +220,7 @@ static uint8_t dip_switch_channel_number = 0;
 static task_inputs_t task_inputs = {0};
 static task_outputs_t task_outputs = {0};
 
-/**
- * @brief Network I/O structures (non-real-time)
- * Separate structures for network communication (called from main loop)
- */
-static network_inputs_t network_inputs = {0};
-static network_outputs_t network_outputs = {0};
-
-/* Application-Specific Functions ------------------------------------------- */
+/* Task Implementations ----------------------------------------------------- */
 
 /**
  * @brief  Initialize DIP switch GPIO pins (PA8, PB2, PF11)
@@ -711,99 +733,97 @@ static bool TCP_Server_Init(void)
  * @brief Handle SPI2 TCP server socket (192.168.2.x network)
  * @note Handles connection, data transfer, and reconnection logic
  *       Integrates with yeet_network() for application layer processing
+ *
+ * Architecture matches host_main.cpp for consistency:
+ * - Receive packet into fresh buffer
+ * - Call yeet_network() to process
+ * - Send response if generated
+ * - No state carried between iterations
  */
 static void TCP_Server_SPI2_Task(void)
 {
-    uint16_t rx_size;
-    uint16_t bytes_received;
-    uint8_t status;
-    bool sent;
+    uint16_t rx_size = 0;
+    uint16_t bytes_received = 0;
+    uint8_t status = 0;
 
     // Get socket status
     status = W5200_GetSocketStatus(&w5200_spi2, 0);
 
     // Handle different socket states
     if (status == W5200_SOCK_ESTABLISHED) {
-        // Update network input status
-        network_inputs.network_rx.tcp_connected = true;
-        network_inputs.network_rx.socket_id = 0;
+        // Process all pending packets in a loop to handle rapid-fire parameter requests
+        // Limit iterations to prevent blocking other tasks
+        const int max_packets_per_cycle = 20;
+        int packets_processed = 0;
 
-        // Default values when no RX data is present
-        network_inputs.network_rx.rx_length = 0;
-        network_inputs.network_rx.data_ready = false;
+        while (packets_processed < max_packets_per_cycle) {
+            // Check for received data
+            rx_size = W5200_GetRxSize(&w5200_spi2, 0);
 
-        // Connection established - check for received data
-        rx_size = W5200_GetRxSize(&w5200_spi2, 0);
+            if (rx_size == 0) {
+                // No more received packets, but still need to call yeet_network() for telemetry transmission
+                // Only do this once per cycle (when packets_processed == 0)
+                if (packets_processed == 0) {
+                    // Clear static network I/O structures
+                    Clear_Network_IO(&network_inputs, &network_outputs);
 
-        if (rx_size > 0) {
-            // Limit to buffer size (use network_inputs buffer directly)
+                    // Prepare network inputs with connection status but no received data
+                    network_inputs.network_rx.data_ready = false;
+                    network_inputs.network_rx.rx_length = 0;
+                    network_inputs.network_rx.tcp_connected = true;
+                    network_inputs.network_rx.socket_id = 0;
+
+                    // Execute shared network handler (will transmit telemetry if ready)
+                    yeet_network(&network_inputs, &network_outputs);
+
+                    // Send telemetry packet if generated
+                    if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+                        W5200_Send(&w5200_spi2, network_outputs.network_tx.socket_id,
+                            network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+                    }
+                }
+                break;
+            }
+
+            // Limit to buffer size
             if (rx_size > TASK_IO_NETWORK_MAX_PACKET_SIZE) {
                 rx_size = TASK_IO_NETWORK_MAX_PACKET_SIZE;
             }
 
-            // Receive data directly into network_inputs buffer
+            // Clear static network I/O structures before processing this packet
+            Clear_Network_IO(&network_inputs, &network_outputs);
+
+            // Receive packet directly into network_inputs buffer
             bytes_received = W5200_Receive(&w5200_spi2, 0, network_inputs.network_rx.rx_buffer, rx_size);
-            if (bytes_received > 0) {
-                // Populate network inputs for application layer
-                network_inputs.network_rx.rx_length = bytes_received;
-                network_inputs.network_rx.data_ready = true;
+
+            if (bytes_received == 0) {
+                // No data received (error or timeout)
+                break;
             }
-        }
 
-        // Attempt to transmit FIRST if there's a pending transmission from previous iteration
-        // This prevents overwriting the buffer with new data before old data is sent
-        if (network_outputs.network_tx.transmit_request) {
-            // Validate packet before sending (detect buffer corruption)
-            // Check that packet_type and protocol_version are still valid (bytes 0-1)
-            if (network_outputs.network_tx.tx_length >= 2) {
-                uint8_t packet_type = network_outputs.network_tx.tx_buffer[0];
-                uint8_t protocol_version = network_outputs.network_tx.tx_buffer[1];
+            packets_processed++;
 
-                // packet_type should be 0x01 (grid_side_telemetry) or 0x10 (system_status) or 0x20 (configuration)
-                // protocol_version should be 0x01
-                bool valid =
-                    (packet_type == 0x01 || packet_type == 0x10 || packet_type == 0x20) && (protocol_version == 0x01);
+            // Populate network inputs for this packet
+            network_inputs.network_rx.data_ready = true;
+            network_inputs.network_rx.rx_length = bytes_received;
+            network_inputs.network_rx.tcp_connected = true;
+            network_inputs.network_rx.socket_id = 0;
 
-                if (valid) {
-                    sent = W5200_Send(&w5200_spi2, network_outputs.network_tx.socket_id,
-                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-                    if (sent) {
-                        network_outputs.network_tx.transmit_request = false;
-                    }
-                }
-                else {
-                    // Buffer corrupted! Discard packet and clear flag
-                    network_outputs.network_tx.transmit_request = false;
-                    network_outputs.network_tx.tx_length = 0;
-                }
-            }
-            else {
-                // Invalid length, discard
-                network_outputs.network_tx.transmit_request = false;
-                network_outputs.network_tx.tx_length = 0;
-            }
-            // If send fails (e.g., TX buffer full), keep transmit_request true
-            // and skip building new packet this iteration to avoid buffer corruption
-        }
-
-        // ALWAYS clear data_ready flag to prevent repeated processing of same RX data
-        // even if we skip calling yeet_network() due to pending transmission
-        bool had_new_data = network_inputs.network_rx.data_ready;
-        network_inputs.network_rx.data_ready = false;
-
-        // Only call application network handler if no pending transmission
-        // This prevents buffer corruption when previous packet is still pending
-        if (!network_outputs.network_tx.transmit_request) {
-            // Restore data_ready flag only for this call (if we're processing it)
-            network_inputs.network_rx.data_ready = had_new_data;
+            // Call shared network handler to process packet and generate response
             yeet_network(&network_inputs, &network_outputs);
-            // Clear again after processing
-            network_inputs.network_rx.data_ready = false;
+
+            // Send response if generated
+            bool const is_tx_valid =
+                network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0;
+
+            if (is_tx_valid) {
+                W5200_Send(&w5200_spi2, network_outputs.network_tx.socket_id, network_outputs.network_tx.tx_buffer,
+                    network_outputs.network_tx.tx_length);
+            }
         }
     }
     else if (status == W5200_SOCK_CLOSE_WAIT) {
         // Client requested disconnect
-        network_inputs.network_rx.tcp_connected = false;
         W5200_SocketDisconnect(&w5200_spi2, 0);
         W5200_SocketClose(&w5200_spi2, 0);
         // Reopen and listen again
@@ -812,16 +832,10 @@ static void TCP_Server_SPI2_Task(void)
     }
     else if (status == W5200_SOCK_CLOSED) {
         // Socket closed unexpectedly, reopen
-        network_inputs.network_rx.tcp_connected = false;
         W5200_SocketOpen(&w5200_spi2, 0);
         W5200_SocketListen(&w5200_spi2, 0);
     }
-    else {
-        // Other states (INIT, LISTEN, etc.) - not connected
-        network_inputs.network_rx.tcp_connected = false;
-        network_outputs.network_tx.transmit_request = false;
-        network_outputs.network_tx.tx_length = 0;
-    }
+    // Other states (INIT, LISTEN, etc.) - just wait
 }
 #endif  // ENABLE_W5200_SPI2
 

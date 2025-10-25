@@ -41,7 +41,7 @@ SETTINGS_DIR = get_settings_dir_path()
                     <use_label>False</use_label>
                     <appearance><![CDATA[Flat]]></appearance>
                     <state>Scope</state>
-                    <layout></layout>
+                    <layout>None</layout>
                     <virtual_signals_definitions>
                     </virtual_signals_definitions>
                     <presets>
@@ -49,7 +49,7 @@ SETTINGS_DIR = get_settings_dir_path()
                         <active_scope_preset><![CDATA[Default]]></active_scope_preset>
                         <capture name="Default">
                             <time_interval>0.01</time_interval>
-                            <sample_rate>2000000</sample_rate>
+                            <sample_rate>2000000.0</sample_rate>
                             <background_color>white</background_color>
                             <layout>Vertical</layout>
                             <legend>True</legend>
@@ -79,15 +79,15 @@ SETTINGS_DIR = get_settings_dir_path()
                             <layout>Grid</layout>
                             <legend>True</legend>
                             <show_viewports>4</show_viewports>
-                            <decimation>2</decimation>
-                            <time_base>0.002</time_base>
+                            <decimation>21</decimation>
+                            <time_base>0.02</time_base>
                             <analog_signals>
                                 <analog>
                                     <channel>0</channel>
                                     <name><![CDATA[grid_pulse_t1]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>0</row>
                                     <viewports>
@@ -99,7 +99,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t2]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>1</row>
                                     <viewports>
@@ -111,7 +111,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t3]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>2</row>
                                     <viewports>
@@ -123,7 +123,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t4]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>3</row>
                                     <viewports>
@@ -135,7 +135,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t5]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>4</row>
                                     <viewports>
@@ -147,7 +147,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t6]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>5</row>
                                     <viewports>
@@ -159,7 +159,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_dc_link]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>6</row>
                                     <viewports>
@@ -171,11 +171,10 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_grid_a]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>7</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
@@ -183,11 +182,10 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_grid_b]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>8</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
@@ -195,11 +193,10 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_grid_c]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>9</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
@@ -207,7 +204,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_grid_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>10</row>
                                     <viewports>
@@ -219,7 +216,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_grid_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>11</row>
                                     <viewports>
@@ -231,11 +228,59 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_grid_side_ca]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>12</row>
                                     <viewports>
                                         <num_viewport>1</num_viewport>
+                                   </viewports>
+                               </analog>
+                                <analog>
+                                    <channel>13</channel>
+                                    <name><![CDATA[grid_a1]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>Auto Range</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>13</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
+                                   </viewports>
+                               </analog>
+                                <analog>
+                                    <channel>14</channel>
+                                    <name><![CDATA[grid_a2]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>1</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>14</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
+                                   </viewports>
+                               </analog>
+                                <analog>
+                                    <channel>15</channel>
+                                    <name><![CDATA[grid_a3]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>1</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>15</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
+                                   </viewports>
+                               </analog>
+                                <analog>
+                                    <channel>16</channel>
+                                    <name><![CDATA[grid_a4]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>1</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>16</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             </analog_signals>
@@ -245,17 +290,17 @@ SETTINGS_DIR = get_settings_dir_path()
                                 <device>0</device>
                                 <is_force>False</is_force>
                                 <type>Analog</type>
-                                <source>current_grid_a</source>
+                                <source>grid_pulse_t1</source>
                                 <edge>Rising edge</edge>
-                                <treshold>182.36</treshold>
-                                <offset>46.9</offset>
+                                <treshold>0.34</treshold>
+                                <offset>31.75</offset>
                                 <useFirstTrigger>False</useFirstTrigger>
                             </trigger>
                         </scope>
                         </presets>
                     <capture>
                         <time_interval>0.01</time_interval>
-                        <sample_rate>2000000</sample_rate>
+                        <sample_rate>2000000.0</sample_rate>
                         <background_color>white</background_color>
                         <layout>Vertical</layout>
                         <legend>True</legend>
@@ -273,17 +318,17 @@ SETTINGS_DIR = get_settings_dir_path()
                          </digital_signals>
                     </capture>
                     <scope>
-                        <time_base>0.002 </time_base>
+                        <time_base>0.02 </time_base>
                         <background_color>black</background_color>
                         <layout>Grid</layout>
                         <legend>True</legend>
                         <trigger>
                             <mode>Auto</mode>
                             <type>Analog</type>
-                            <source>current_grid_a</source>
+                            <source>grid_pulse_t1</source>
                             <edge>Rising edge</edge>
-                            <treshold>182.36</treshold>
-                            <offset>46.9</offset>
+                            <treshold>0.34</treshold>
+                            <offset>31.75</offset>
                         </trigger>
                          <analog_signals>
                             <analog>
@@ -291,7 +336,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t1]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>0</row>
                                     <viewports>
@@ -303,7 +348,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t2]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>1</row>
                                     <viewports>
@@ -315,7 +360,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t3]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>2</row>
                                     <viewports>
@@ -327,7 +372,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t4]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>3</row>
                                     <viewports>
@@ -339,7 +384,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t5]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>4</row>
                                     <viewports>
@@ -351,7 +396,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[grid_pulse_t6]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>5</row>
                                     <viewports>
@@ -363,7 +408,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_dc_link]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>6</row>
                                     <viewports>
@@ -375,11 +420,10 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_grid_a]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>7</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
@@ -387,11 +431,10 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_grid_b]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>8</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
@@ -399,11 +442,10 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[current_grid_c]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>9</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
@@ -411,7 +453,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_grid_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>10</row>
                                     <viewports>
@@ -423,7 +465,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_grid_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>11</row>
                                     <viewports>
@@ -435,11 +477,59 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_grid_side_ca]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>12</row>
                                     <viewports>
                                         <num_viewport>1</num_viewport>
+                                   </viewports>
+                               </analog>
+                            <analog>
+                                    <channel>13</channel>
+                                    <name><![CDATA[grid_a1]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>Auto Range</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>13</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
+                                   </viewports>
+                               </analog>
+                            <analog>
+                                    <channel>14</channel>
+                                    <name><![CDATA[grid_a2]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>1</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>14</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
+                                   </viewports>
+                               </analog>
+                            <analog>
+                                    <channel>15</channel>
+                                    <name><![CDATA[grid_a3]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>1</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>15</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
+                                   </viewports>
+                               </analog>
+                            <analog>
+                                    <channel>16</channel>
+                                    <name><![CDATA[grid_a4]]></name>
+                                    <is_locked>False</is_locked>
+                                    <vertical_scale>1</vertical_scale>
+                                    <vertical_offset>0</vertical_offset>
+                                    <coupling>False</coupling>
+                                    <row>16</row>
+                                    <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                         </analog_signals>

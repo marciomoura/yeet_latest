@@ -60,11 +60,19 @@ static constexpr std::size_t max_packet_size = 1024;
  * Identifies which controller side generated the packet and what data it contains.
  */
 enum class packet_type : std::uint8_t {
-    grid_side_telemetry = 0x01,    /**< Grid-side control telemetry */
-    machine_side_telemetry = 0x02, /**< Machine-side control telemetry */
-    system_status = 0x10,          /**< System health and diagnostics */
-    configuration = 0x20,          /**< Configuration parameters */
-    command = 0x30                 /**< Command from host to controller */
+    grid_side_telemetry = 0x01,            /**< Grid-side control telemetry */
+    machine_side_telemetry = 0x02,         /**< Machine-side control telemetry */
+    system_status = 0x10,                  /**< System health and diagnostics */
+    configuration = 0x20,                  /**< Configuration parameters */
+    command = 0x30,                        /**< Command from host to controller */
+    parameter_set_request = 0x40,          /**< Host → Controller: Set parameter */
+    parameter_set_response = 0x41,         /**< Controller → Host: Confirm/reject SET */
+    parameter_get_request = 0x42,          /**< Host → Controller: Query parameter value */
+    parameter_get_response = 0x43,         /**< Controller → Host: Parameter value */
+    parameter_count_request = 0x46,        /**< Host → Controller: Get parameter count */
+    parameter_count_response = 0x47,       /**< Controller → Host: Total parameter count */
+    parameter_get_by_index_request = 0x48, /**< Host → Controller: Get parameter by index */
+    parameter_get_by_index_response = 0x49 /**< Controller → Host: Parameter metadata by index */
 };
 
 /* ============================================================================

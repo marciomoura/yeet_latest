@@ -52,7 +52,8 @@ if(NOT YEET_SFC_HOST_BUILD)
                     src/network_telemetry.cpp
                     src/network_telemetry_builder.cpp
                     src/network_command_parser.cpp
-                    src/network_telemetry_manager.cpp)
+                    src/network_telemetry_manager.cpp
+                    src/parameter_handler.cpp)
 
         target_include_directories(
             yeet_sfc_embedded_grid
@@ -217,7 +218,8 @@ if(YEET_SFC_HOST_BUILD)
                 src/network_telemetry.cpp
                 src/network_telemetry_builder.cpp
                 src/network_command_parser.cpp
-                src/network_telemetry_manager.cpp)
+                src/network_telemetry_manager.cpp
+                src/parameter_handler.cpp)
 
     target_include_directories(sfc_host_simulator
                                PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

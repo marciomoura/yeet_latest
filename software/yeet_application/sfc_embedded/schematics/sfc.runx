@@ -95,7 +95,7 @@
             <analog_channel>
                 <number>5</number>
                 <device>0</device>
-                <scale>200.0</scale>
+                <scale>120.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
                 <ao_limiting_enabled>True</ao_limiting_enabled>
@@ -110,7 +110,7 @@
             <analog_channel>
                 <number>6</number>
                 <device>0</device>
-                <scale>200.0</scale>
+                <scale>120.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
                 <ao_limiting_enabled>True</ao_limiting_enabled>
@@ -125,7 +125,7 @@
             <analog_channel>
                 <number>7</number>
                 <device>0</device>
-                <scale>200.0</scale>
+                <scale>120.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
                 <ao_limiting_enabled>True</ao_limiting_enabled>
