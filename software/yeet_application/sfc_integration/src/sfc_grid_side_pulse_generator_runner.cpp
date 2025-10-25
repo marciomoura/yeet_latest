@@ -8,6 +8,13 @@ sfc_grid_side_pulse_generator_runner::sfc_grid_side_pulse_generator_runner()
 {
 }
 
+void sfc_grid_side_pulse_generator_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_grid_side_pulse_generator_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_grid_side_pulse_generator_runner::initialize()
 {
     set_parameters();
