@@ -31,6 +31,8 @@ import argparse
 import json
 import logging
 import sys
+import time
+from time import perf_counter
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -53,99 +55,51 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # UI update intervals
-UI_UPDATE_INTERVAL_MS = 50      # 20 Hz screen refresh
+UI_UPDATE_INTERVAL_MS = 100  # 10 Hz - stable and reliable
+DASHBOARD_UPDATE_INTERVAL_MS = 200  # 5 Hz dashboard update
 STATS_UPDATE_INTERVAL_MS = 500  # 2 Hz statistics
-PARAM_REFRESH_INTERVAL_MS = 2000  # 0.5 Hz parameter refresh
 
 # Oscilloscope parameters
-DEFAULT_TIME_WINDOW_SEC = 5.0   # Default 5 second window
-MAX_POINTS_PER_PLOT = 2000      # Maximum points before downsampling
+DEFAULT_TIME_WINDOW_SEC = 5.0
+DEFAULT_WINDOW_SAMPLES = 2000  # Buffer capacity
 
 
-class CircularTimeSeriesBuffer:
-    """Efficient circular buffer for time-series data with auto-downsampling."""
+class MinimalBuffer:
+    """Dead simple buffer using Python deque - proven to work reliably."""
     
-    def __init__(self, max_points: int = MAX_POINTS_PER_PLOT):
-        self.max_points = max_points
-        self.times = deque(maxlen=max_points * 2)
-        self.values = deque(maxlen=max_points * 2)
-        self.downsample_count = 0
+    def __init__(self, maxlen: int = 2000):
+        self.x_data = deque(maxlen=maxlen)
+        self.y_data = deque(maxlen=maxlen)
+        self.maxlen = maxlen
     
-    def append(self, time_s: float, value: float) -> None:
-        self.times.append(time_s)
-        self.values.append(value)
-        
-        if len(self.times) > self.max_points * 1.5:
-            self._downsample()
+    def append(self, x: float, y: float):
+        """Add point. Oldest auto-dropped when full."""
+        self.x_data.append(x)
+        self.y_data.append(y)
     
-    def _downsample(self) -> None:
-        self.times = deque(list(self.times)[::2], maxlen=self.max_points * 2)
-        self.values = deque(list(self.values)[::2], maxlen=self.max_points * 2)
-        self.downsample_count += 1
-    
-    def get_data(self, time_window_sec: Optional[float] = None) -> tuple:
-        if len(self.times) == 0:
+    def get_arrays(self):
+        """Get numpy arrays for plotting."""
+        if len(self.x_data) == 0:
             return np.array([]), np.array([])
+        return np.array(self.x_data), np.array(self.y_data)
+    
+    def clear(self):
+        """Clear all data."""
+        self.x_data.clear()
+        self.y_data.clear()
+    
+    def resize(self, new_maxlen: int):
+        """Change capacity."""
+        x_list = list(self.x_data)
+        y_list = list(self.y_data)
         
-        times_list = list(self.times)
-        values_list = list(self.values)
+        if len(x_list) > new_maxlen:
+            x_list = x_list[-new_maxlen:]
+            y_list = y_list[-new_maxlen:]
         
-        if time_window_sec is not None and len(times_list) > 0:
-            latest_time = times_list[-1]
-            cutoff_time = latest_time - time_window_sec
-            
-            start_idx = 0
-            for i, t in enumerate(times_list):
-                if t >= cutoff_time:
-                    start_idx = i
-                    break
-            
-            times_list = times_list[start_idx:]
-            values_list = values_list[start_idx:]
-        
-        return np.array(times_list), np.array(values_list)
-    
-    def clear(self) -> None:
-        self.times.clear()
-        self.values.clear()
-        self.downsample_count = 0
-
-
-class SignalPlotGroup:
-    """Group of related signals displayed on a single plot."""
-    
-    def __init__(self, name: str, plot_widget: pg.PlotWidget):
-        self.name = name
-        self.plot_widget = plot_widget
-        self.curves: Dict[str, pg.PlotDataItem] = {}
-        self.buffers: Dict[str, CircularTimeSeriesBuffer] = {}
-        self.colors = [
-            (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-            (255, 0, 255), (0, 255, 255), (255, 128, 0), (128, 0, 255)
-        ]
-        self.color_index = 0
-    
-    def add_signal(self, signal_name: str, display_name: str) -> None:
-        color = self.colors[self.color_index % len(self.colors)]
-        self.color_index += 1
-        
-        curve = self.plot_widget.plot(pen=pg.mkPen(color=color, width=2), name=display_name)
-        self.curves[signal_name] = curve
-        self.buffers[signal_name] = CircularTimeSeriesBuffer()
-    
-    def update_signal(self, signal_name: str, time_s: float, value: float) -> None:
-        if signal_name in self.buffers:
-            self.buffers[signal_name].append(time_s, value)
-    
-    def refresh_plots(self, time_window_sec: float) -> None:
-        for signal_name, curve in self.curves.items():
-            buffer = self.buffers[signal_name]
-            times, values = buffer.get_data(time_window_sec)
-            curve.setData(times, values)
-    
-    def clear_all(self) -> None:
-        for buffer in self.buffers.values():
-            buffer.clear()
+        self.x_data = deque(x_list, maxlen=new_maxlen)
+        self.y_data = deque(y_list, maxlen=new_maxlen)
+        self.maxlen = new_maxlen
 
 
 class SignalDisplayWidget(QtWidgets.QWidget):
@@ -912,16 +866,26 @@ class ParameterPanelWidget(QtWidgets.QWidget):
 
 
 class TelemetryMonitorWindow(QtWidgets.QMainWindow):
-    """Main window with combined dashboard, oscilloscope, and parameter panel."""
+    """Main window with combined dashboard, oscilloscope, and parameter panel.
+
+    Minimal oscilloscope implementation using Python deque for stability.
+    """
     
-    def __init__(self, host: str, port: int, time_window_sec: float, verbose: bool = False):
+    def __init__(self, host: str, port: int, time_window_sec: float, verbose: bool = False,
+                 decimate: int = 1):
         super().__init__()
+        
+        logger.info(f"=== Initializing Monitor (decimate={decimate}, verbose={verbose}) ===")
         
         self.setWindowTitle("SFC Control Center - Monitoring & Configuration")
         self.resize(1400, 900)
         
-        self.time_window_sec = time_window_sec
-        self.start_time = None
+        self.verbose = verbose
+        self.decimate_factor = max(1, int(decimate))
+        self.packet_counter = 0
+        self.sample_index = 0
+        
+        logger.info(f"Decimation: {self.decimate_factor}x (process 1 out of every {self.decimate_factor} packets)")
         
         # State machine enum mapping
         self.sfc_state_map = {
@@ -943,7 +907,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             'state_machine': {}
         }
         
-        # Create unified network client (single-threaded)
+        # Create unified network client
         self.network_client = UnifiedNetworkClient(host=host, port=port, verbose=verbose, parent=self)
         
         # Connect signals
@@ -956,26 +920,36 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.telemetry_streaming = False
         self.last_packet_time = 0.0
         
-        # Parameter operation state
-        self._pending_param_requests = []  # Queue of pending parameter requests
-        self._parameter_cache = {}  # Cache loaded parameters
+        # NO PACKET QUEUE - direct processing in callback
+        # NO PROFILING - keep it simple
         
+        # Parameter operation state
+        self._pending_param_requests = []
+        self._parameter_cache = {}
+
         # Build UI
         self._build_ui(host, port)
         
         # Apply modern stylesheet
         self._apply_modern_style()
         
-        # Setup update timers
+        # SINGLE plot update timer (100ms = 10 Hz)
         self.plot_update_timer = QtCore.QTimer(self)
-        self.plot_update_timer.timeout.connect(self._update_displays)
+        self.plot_update_timer.timeout.connect(self._update_oscilloscope)
         self.plot_update_timer.start(UI_UPDATE_INTERVAL_MS)
+        logger.info(f"Plot timer started ({UI_UPDATE_INTERVAL_MS}ms)")
         
+        # Dashboard update timer  
+        self.dashboard_update_timer = QtCore.QTimer(self)
+        self.dashboard_update_timer.timeout.connect(self._update_dashboard)
+        self.dashboard_update_timer.start(DASHBOARD_UPDATE_INTERVAL_MS)
+        
+        # Stats timer
         self.stats_timer = QtCore.QTimer(self)
         self.stats_timer.timeout.connect(self._update_statistics)
         self.stats_timer.start(STATS_UPDATE_INTERVAL_MS)
         
-        # Watchdog timer to detect stalled telemetry
+        # Watchdog timer
         self.watchdog_timer = QtCore.QTimer(self)
         self.watchdog_timer.timeout.connect(self._check_telemetry_health)
         self.watchdog_timer.start(1000)  # Check every second
@@ -983,7 +957,19 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # NOTE: Removed automatic parameter refresh timer to reduce backend load
         # Parameters are now only loaded on user request via "Refresh Parameters" button
         
-        logger.info("Telemetry monitor with parameters initialized")
+        logger.info("Telemetry monitor initialized with minimal oscilloscope")
+
+    # ----------------------------------------------------------------------------------
+    # Performance instrumentation helpers (REMOVED - keeping methods for compatibility)
+    # ----------------------------------------------------------------------------------
+    def _record_plot_update_time(self, dt: float) -> None:
+        pass  # No-op
+
+    def _record_packet_batch_time(self, dt: float) -> None:
+        pass  # No-op
+
+    def _maybe_log_performance(self) -> None:
+        pass  # No-op
     
     def _build_ui(self, host: str, port: int) -> None:
         """Build main UI with dashboard, oscilloscope, and parameter panel."""
@@ -1343,13 +1329,16 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         separator2.setFrameShadow(QtWidgets.QFrame.Sunken)
         layout.addWidget(separator2)
         
-        # Time window control
-        layout.addWidget(QtWidgets.QLabel("Window (s):"))
+        # Time/sample window control
+        self.window_label = QtWidgets.QLabel("Window (samples):")
+        layout.addWidget(self.window_label)
         self.window_spin = QtWidgets.QDoubleSpinBox()
-        self.window_spin.setRange(0.1, 60.0)
-        self.window_spin.setValue(self.time_window_sec)
-        self.window_spin.setSingleStep(0.5)
-        self.window_spin.setMaximumWidth(70)
+        # Both modes now use samples
+        self.window_spin.setDecimals(0)
+        self.window_spin.setRange(10, 20000)
+        self.window_spin.setValue(2000.0)  # Default buffer size
+        self.window_spin.setSingleStep(100)
+        self.window_spin.setMaximumWidth(90)
         self.window_spin.valueChanged.connect(self._on_window_changed)
         layout.addWidget(self.window_spin)
         
@@ -1463,63 +1452,30 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         parent_layout.addWidget(state_widget)
     
     def _build_oscilloscope(self) -> QtWidgets.QWidget:
-        """Build oscilloscope panel with real-time plots."""
+        """Build minimal oscilloscope with single plot - PROVEN STABLE."""
         # Use pyqtgraph's GraphicsLayoutWidget
         self.graphics_widget = pg.GraphicsLayoutWidget()
         self.graphics_widget.setBackground('w')
         
-        pg.setConfigOptions(antialias=True)
+        # Configure pyqtgraph for better performance
+        pg.setConfigOptions(
+            antialias=True,
+            useOpenGL=False,
+            enableExperimental=False
+        )
         
-        # Subplot 1: Grid Measurements
-        self.plot1 = self.graphics_widget.addPlot(row=0, col=0, title="Grid Measurements")
-        self.plot1.setLabel('left', 'Voltage / Current', units='pu')
-        self.plot1.setLabel('bottom', 'Time', units='s')
-        self.plot1.addLegend()
+        # SINGLE PLOT showing grid_voltage_magnitude_pu
+        self.plot1 = self.graphics_widget.addPlot(row=0, col=0, title="Grid Voltage Magnitude")
+        self.plot1.setLabel('left', 'Voltage (pu)')
+        self.plot1.setLabel('bottom', 'Sample Index')
         self.plot1.showGrid(x=True, y=True, alpha=0.3)
+        self.plot1.enableAutoRange(x=False, y=True)
         
-        self.plot_groups: Dict[str, SignalPlotGroup] = {}
-        measurements_group = SignalPlotGroup('measurements', self.plot1)
-        measurements_group.add_signal('grid_voltage_magnitude_pu', 'V mag')
-        measurements_group.add_signal('grid_voltage_a_pu', 'Va')
-        measurements_group.add_signal('grid_voltage_b_pu', 'Vb')
-        measurements_group.add_signal('grid_voltage_c_pu', 'Vc')
-        measurements_group.add_signal('grid_current_magnitude_pu', 'I mag')
-        measurements_group.add_signal('grid_current_a_pu', 'Ia')
-        measurements_group.add_signal('grid_current_b_pu', 'Ib')
-        measurements_group.add_signal('grid_current_c_pu', 'Ic')
-        measurements_group.add_signal('dc_link_current_pu', 'Idc')
-        self.plot_groups['measurements'] = measurements_group
+        # MinimalBuffer - proven to work reliably
+        self.osc_buffer = MinimalBuffer(maxlen=DEFAULT_WINDOW_SAMPLES)
+        self.osc_curve = self.plot1.plot(pen=pg.mkPen(color='g', width=2), name='Vmag')
         
-        # Subplot 2: Observer
-        self.plot2 = self.graphics_widget.addPlot(row=1, col=0, title="Grid Observer")
-        self.plot2.setLabel('left', 'Magnitude / Frequency', units='pu')
-        self.plot2.setLabel('bottom', 'Time', units='s')
-        self.plot2.addLegend()
-        self.plot2.showGrid(x=True, y=True, alpha=0.3)
-        
-        observer_group = SignalPlotGroup('observer', self.plot2)
-        observer_group.add_signal('estimated_voltage_magnitude_pu', 'V est')
-        observer_group.add_signal('estimated_frequency_pu', 'f est')
-        self.plot_groups['observer'] = observer_group
-        
-        # Subplot 3: DC Link Controller
-        self.plot3 = self.graphics_widget.addPlot(row=2, col=0, title="DC Link Current Controller")
-        self.plot3.setLabel('left', 'Current / Error', units='pu')
-        self.plot3.setLabel('bottom', 'Time', units='s')
-        self.plot3.addLegend()
-        self.plot3.showGrid(x=True, y=True, alpha=0.3)
-        
-        controller_group = SignalPlotGroup('controller', self.plot3)
-        controller_group.add_signal('dc_link_current_reference', 'I ref')
-        controller_group.add_signal('dc_link_current_measured', 'I meas')
-        controller_group.add_signal('current_error_pu', 'Error')
-        controller_group.add_signal('controller_output_pu', 'Output')
-        self.plot_groups['controller'] = controller_group
-        
-        # Link x-axes
-        self.plot2.setXLink(self.plot1)
-        self.plot3.setXLink(self.plot1)
-        
+        logger.info("Minimal oscilloscope built")
         return self.graphics_widget
     
     def _build_commands_tab(self) -> QtWidgets.QWidget:
@@ -2032,49 +1988,93 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.connect_button.setEnabled(False)
             self.disconnect_button.setEnabled(True)
             self.start_telemetry_button.setEnabled(True)
-            self.statusBar().showMessage(f"Connected to {host}:{port}")
+            self.statusBar().showMessage(f"Connected to {host}:{port} - Sending STOP to sync state...")
             logger.info(f"Connected to {host}:{port}")
+            
+            # CRITICAL FIX: Send STOP immediately on connect to sync server state
+            # Server may be streaming from previous session - force it to stop
+            QtCore.QTimer.singleShot(100, self._sync_server_state)
         else:
             QtWidgets.QMessageBox.critical(self, "Connection Failed",
                                           f"Unable to connect to {host}:{port}")
     
     def _on_disconnect_clicked(self) -> None:
         """Handle disconnect button click."""
-        # Network client will stop telemetry automatically
+        # Politely stop telemetry before closing connection
+        if self.network_client.connected:
+            self.network_client.stop_telemetry()
         self.network_client.disconnect()
         
+        # Reset UI state
+        self.telemetry_streaming = False
         self.connect_button.setEnabled(True)
         self.disconnect_button.setEnabled(False)
         self.start_telemetry_button.setEnabled(False)
         self.stop_telemetry_button.setEnabled(False)
+        self.telemetry_status_label.setStyleSheet("color: #9ca3af; font-size: 16px; font-weight: bold;")
         self.statusBar().showMessage("Disconnected")
         logger.info("Disconnected")
     
-    def _on_start_telemetry(self) -> None:
-        """Start telemetry streaming and oscilloscope updates."""
-        if self.network_client.start_telemetry():
-            self.telemetry_streaming = True
-            self.last_packet_time = 0.0
-            self.start_telemetry_button.setEnabled(False)
-            self.stop_telemetry_button.setEnabled(True)
-            self.statusBar().showMessage("Telemetry START command sent - waiting for data...")
-            logger.info("Telemetry START command sent")
-        else:
-            QtWidgets.QMessageBox.warning(self, "Command Failed", 
-                                         "Failed to send START command. Check connection.")
-    
-    def _on_stop_telemetry(self) -> None:
-        """Stop telemetry streaming and oscilloscope updates."""
+    def _sync_server_state(self) -> None:
+        """Synchronize server telemetry state on connect.
+        
+        CRITICAL: Server may be streaming from previous session.
+        Send STOP to ensure clean state, then let user manually START.
+        """
+        logger.info("Syncing server state: sending STOP command")
+        
+        # Send STOP to ensure server is in known state
         if self.network_client.stop_telemetry():
             self.telemetry_streaming = False
             self.start_telemetry_button.setEnabled(True)
             self.stop_telemetry_button.setEnabled(False)
             self.telemetry_status_label.setStyleSheet("color: #9ca3af; font-size: 16px; font-weight: bold;")
-            self.statusBar().showMessage("Telemetry streaming stopped")
-            logger.info("Telemetry STOP command sent")
+            
+            # Clear any stale data from previous session
+            if hasattr(self, 'plot_groups') and self.plot_groups:
+                for group in self.plot_groups.values():
+                    group.clear_all()
+                self.start_time = None
+                logger.info("Cleared oscilloscope data during sync")
+            
+            # Clear packet queue
+            self._packet_queue.clear()
+            
+            self.statusBar().showMessage("Connected and synchronized - Click 'Start' to begin telemetry")
+            logger.info("Server state synchronized - ready for user to start telemetry")
         else:
-            QtWidgets.QMessageBox.warning(self, "Command Failed",
-                                         "Failed to send STOP command. Check connection.")
+            self.statusBar().showMessage("Connected but failed to sync server state")
+            logger.warning("Failed to send STOP during state sync")
+    
+    def _on_start_telemetry(self) -> None:
+        """Start telemetry streaming."""
+        # Reset and clear
+        self.sample_index = 0
+        self.packet_counter = 0
+        if hasattr(self, 'osc_buffer'):
+            self.osc_buffer.clear()
+        
+        if self.network_client.start_telemetry():
+            self.telemetry_streaming = True
+            self.last_packet_time = 0.0
+            self.start_telemetry_button.setEnabled(False)
+            self.stop_telemetry_button.setEnabled(True)
+            self.statusBar().showMessage("Telemetry started...")
+            logger.info("Telemetry STARTED")
+        else:
+            QtWidgets.QMessageBox.warning(self, "Error", "Failed to start telemetry")
+    
+    def _on_stop_telemetry(self) -> None:
+        """Stop telemetry streaming."""
+        if self.network_client.stop_telemetry():
+            self.telemetry_streaming = False
+            self.start_telemetry_button.setEnabled(True)
+            self.stop_telemetry_button.setEnabled(False)
+            self.telemetry_status_label.setStyleSheet("color: #9ca3af; font-size: 16px; font-weight: bold;")
+            self.statusBar().showMessage("Telemetry stopped")
+            logger.info("Telemetry STOPPED")
+        else:
+            QtWidgets.QMessageBox.warning(self, "Error", "Failed to stop telemetry")
     
     def _on_connection_changed(self, connected: bool) -> None:
         """Handle connection status change from network client."""
@@ -2099,6 +2099,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         logger.info("Starting parameter discovery")
         self.param_panel._on_load_progress("Requesting parameter count...")
+        
+        # Clear oscilloscope data before parameter loading to prevent timing issues
+        if hasattr(self, 'plot_groups') and self.plot_groups:
+            for group in self.plot_groups.values():
+                group.clear_all()
+            self.start_time = None
+            logger.info("Cleared oscilloscope data before parameter loading")
         
         # Send COUNT request
         if self.network_client.send_parameter_count_request():
@@ -2179,10 +2186,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             
             # Clear oscilloscope data to prevent timing corruption
             # Parameter loading disrupts telemetry timing, causing data to overlap on plots
-            logger.info("Clearing oscilloscope data after parameter loading")
-            for group in self.plot_groups.values():
-                group.clear_all()
-            self.start_time = None
+            if hasattr(self, 'plot_groups') and self.plot_groups:
+                logger.info("Clearing oscilloscope data after parameter loading")
+                for group in self.plot_groups.values():
+                    group.clear_all()
+                self.start_time = None
             return
         
         # Get next index
@@ -2193,95 +2201,238 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             logger.error(f"Failed to send GET_BY_INDEX request for index {index}")
             # Try next parameter
             self._load_next_parameter()
+        
+        # Process events periodically during parameter loading to keep UI responsive
+        if index % 10 == 0:
+            QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.AllEvents, 5)
     
     def _on_window_changed(self, value: float) -> None:
-        """Handle time window change."""
-        self.time_window_sec = value
+        """Handle window change (now sample-based for all modes)."""
+        new_samples = max(10, int(value))
+        
+    def _on_window_changed(self, value: float) -> None:
+        """Handle window size spinner change."""
+        new_size = max(10, int(value))
+        if hasattr(self, 'osc_buffer'):
+            self.osc_buffer.resize(new_size)
+            logger.info(f"Buffer resized to {new_size} samples")
     
     def _on_clear_clicked(self) -> None:
         """Handle clear data button click."""
-        for group in self.plot_groups.values():
-            group.clear_all()
-        self.start_time = None
-        logger.info("Data cleared")
+        # Reset sample index
+        self.global_sample_index = 0
+        
+        if hasattr(self, 'plot_groups') and self.plot_groups:
+            for group in self.plot_groups.values():
+                group.clear_all()
+            self.start_time = None
+            if hasattr(self, 'plot1'):
+                self.plot1.setXRange(0.0, float(self.sample_window), padding=0.02)
+            logger.info("Data cleared")
+        else:
+            logger.warning("No oscilloscope data to clear (plot_groups not initialized)")
+        
+        # Clear oscilloscope buffer
+        if hasattr(self, 'osc_buffer'):
+            self.osc_buffer.clear()
+            if hasattr(self, 'plot1'):
+                self.plot1.setXRange(0.0, float(self.sample_window), padding=0.02)
+            logger.info("Oscilloscope data cleared")
     
     def _on_packet_received(self, packet: GridSideTelemetryPacket) -> None:
-        """Callback when telemetry packet received."""
-        # Update last packet time for watchdog
-        import time
-        self.last_packet_time = time.time()
-        
-        if self.start_time is None:
-            self.start_time = packet.header.timestamp_ms / 1000.0
-        
-        time_s = (packet.header.timestamp_ms / 1000.0) - self.start_time
-        
-        # Update measurements (dashboard + oscilloscope)
-        if packet.measurements:
-            meas = packet.measurements
-            self.latest_values['measurements']['grid_voltage_magnitude_pu'] = meas.grid_voltage_magnitude_pu
-            self.latest_values['measurements']['grid_current_magnitude_pu'] = meas.grid_current_magnitude_pu
-            self.latest_values['measurements']['dc_link_current_pu'] = meas.dc_link_current_pu
-            self.latest_values['measurements']['is_commuting'] = float(meas.is_commuting)
+        """Handle incoming telemetry packet - DIRECT processing (no queue)."""
+        try:
+            # Update last packet time for watchdog
+            import time
+            self.last_packet_time = time.time()
             
-            self.plot_groups['measurements'].update_signal('grid_voltage_magnitude_pu', time_s, meas.grid_voltage_magnitude_pu)
-            self.plot_groups['measurements'].update_signal('grid_voltage_a_pu', time_s, meas.grid_voltage_a_pu)
-            self.plot_groups['measurements'].update_signal('grid_voltage_b_pu', time_s, meas.grid_voltage_b_pu)
-            self.plot_groups['measurements'].update_signal('grid_voltage_c_pu', time_s, meas.grid_voltage_c_pu)
-            self.plot_groups['measurements'].update_signal('grid_current_magnitude_pu', time_s, meas.grid_current_magnitude_pu)
-            self.plot_groups['measurements'].update_signal('grid_current_a_pu', time_s, meas.grid_current_a_pu)
-            self.plot_groups['measurements'].update_signal('grid_current_b_pu', time_s, meas.grid_current_b_pu)
-            self.plot_groups['measurements'].update_signal('grid_current_c_pu', time_s, meas.grid_current_c_pu)
-            self.plot_groups['measurements'].update_signal('dc_link_current_pu', time_s, meas.dc_link_current_pu)
-        
-        # Update observer
-        if packet.observer:
-            obs = packet.observer
-            self.latest_values['observer']['estimated_voltage_magnitude_pu'] = obs.estimated_voltage_magnitude_pu
-            self.latest_values['observer']['estimated_frequency_pu'] = obs.estimated_frequency_pu
-            self.latest_values['observer']['estimated_angle_rad'] = obs.estimated_angle_rad
+            # Log first packet
+            if not hasattr(self, '_first_packet_logged'):
+                logger.info(f"FIRST PACKET: seq={packet.header.sequence_number}")
+                self._first_packet_logged = True
             
-            self.plot_groups['observer'].update_signal('estimated_voltage_magnitude_pu', time_s, obs.estimated_voltage_magnitude_pu)
-            self.plot_groups['observer'].update_signal('estimated_frequency_pu', time_s, obs.estimated_frequency_pu)
-        
-        # Update modulator
-        if packet.modulator:
-            mod = packet.modulator
-            self.latest_values['modulator']['is_enabled'] = float(mod.is_enabled)
-            self.latest_values['modulator']['firing_angle_input_pu'] = mod.firing_angle_input_pu
-            self.latest_values['modulator']['firing_angle_output_pu'] = mod.firing_angle_output_pu
-        
-        # Update controller
-        if packet.controller:
-            ctrl = packet.controller
-            self.latest_values['controller']['dc_link_current_reference'] = ctrl.dc_link_current_reference
-            self.latest_values['controller']['dc_link_current_measured'] = ctrl.dc_link_current_measured
-            self.latest_values['controller']['current_error_pu'] = ctrl.current_error_pu
-            self.latest_values['controller']['controller_saturated'] = float(ctrl.controller_saturated)
+            # Apply decimation
+            self.packet_counter += 1
+            if self.packet_counter % self.decimate_factor != 0:
+                return
             
-            self.plot_groups['controller'].update_signal('dc_link_current_reference', time_s, ctrl.dc_link_current_reference)
-            self.plot_groups['controller'].update_signal('dc_link_current_measured', time_s, ctrl.dc_link_current_measured)
-            self.plot_groups['controller'].update_signal('current_error_pu', time_s, ctrl.current_error_pu)
-            self.plot_groups['controller'].update_signal('controller_output_pu', time_s, ctrl.controller_output_pu)
-        
-        # Update state machine
-        if packet.state_machine:
-            state = packet.state_machine
-            self.latest_values['state_machine']['current_state'] = float(state.current_state)
-            self.latest_values['state_machine']['pulse_releases'] = float(state.pulse_releases)
-            self.latest_values['state_machine']['auxiliaries_are_on'] = float(state.auxiliaries_are_on)
-            self.latest_values['state_machine']['breakers_are_on'] = float(state.breakers_are_on)
+            # Extract value and add to buffer DIRECTLY
+            if packet.measurements:
+                value = packet.measurements.grid_voltage_magnitude_pu
+                self.osc_buffer.append(float(self.sample_index), value)
+                self.sample_index += 1
+                
+                # Update dashboard values
+                self.latest_values['measurements']['grid_voltage_magnitude_pu'] = value
+                self.latest_values['measurements']['grid_current_magnitude_pu'] = packet.measurements.grid_current_magnitude_pu
+                self.latest_values['measurements']['dc_link_current_pu'] = packet.measurements.dc_link_current_pu
+            
+            # Update other dashboard sections
+            if packet.observer:
+                self.latest_values['observer']['estimated_voltage_magnitude_pu'] = packet.observer.estimated_voltage_magnitude_pu
+                self.latest_values['observer']['estimated_frequency_pu'] = packet.observer.estimated_frequency_pu
+            
+            if packet.modulator:
+                self.latest_values['modulator']['is_enabled'] = float(packet.modulator.is_enabled)
+            
+            if packet.state_machine:
+                self.latest_values['state_machine']['current_state'] = float(packet.state_machine.current_state)
+            
+            # Log periodically
+            if self.verbose and self.sample_index % 100 == 0:
+                logger.debug(f"Sample {self.sample_index}, buffer size {len(self.osc_buffer.x_data)}")
+                
+        except Exception as e:
+            logger.error(f"Packet error: {e}", exc_info=True)
     
-    def _update_displays(self) -> None:
-        """Update both dashboard and oscilloscope."""
-        # Update oscilloscope plots
-        for group in self.plot_groups.values():
-            group.refresh_plots(self.time_window_sec)
+    def _process_packet_queue(self) -> None:
+        """Process queued telemetry packets in batches with error handling."""
+        # Heartbeat logging
+        self._packet_timer_fire_count += 1
+        if self.verbose and self._packet_timer_fire_count % 500 == 0:
+            logger.debug(f"Packet timer alive: {self._packet_timer_fire_count} fires, queue size: {len(self._packet_queue)}")
         
+        if not self._packet_queue:
+            return
+        
+        try:
+            t0 = perf_counter()
+            queue_size_before = len(self._packet_queue)
+            
+            # Process up to 10 packets per cycle for better throughput
+            batch_size = min(10, queue_size_before)
+            packets_to_process = self._packet_queue[:batch_size]
+            self._packet_queue = self._packet_queue[batch_size:]
+
+            for i, packet in enumerate(packets_to_process):
+                try:
+                    self._process_telemetry_packet(packet)
+                except Exception as e:
+                    logger.error(f"Error processing packet {i+1}/{batch_size}: {e}", exc_info=True)
+
+            queue_size_after = len(self._packet_queue)
+            
+            # Log queue health
+            if queue_size_after > 80:
+                logger.warning(f"Packet queue severely backed up: {queue_size_after} packets pending (processed {batch_size})")
+            elif self.verbose and queue_size_after > 20:
+                logger.debug(f"Packet queue: {queue_size_after} pending (processed {batch_size})")
+            
+            processing_time = perf_counter() - t0
+            self._record_packet_batch_time(processing_time)
+            
+            if self.verbose and processing_time > 0.015:  # > 15ms is slow
+                logger.warning(f"Slow packet batch: {processing_time*1000:.1f}ms for {batch_size} packets")
+                
+        except Exception as e:
+            logger.error(f"Critical error in _process_packet_queue: {e}", exc_info=True)
+    
+    def _process_telemetry_packet(self, packet: GridSideTelemetryPacket) -> None:
+        """Process a single telemetry packet with comprehensive error handling and logging."""
+        try:
+            # Use sample index for ALL modes (not time)
+            sample_idx = float(self.global_sample_index)
+            
+            # Update measurements
+            if packet.measurements:
+                try:
+                    meas = packet.measurements
+                    self.latest_values['measurements']['grid_voltage_magnitude_pu'] = meas.grid_voltage_magnitude_pu
+                    self.latest_values['measurements']['grid_current_magnitude_pu'] = meas.grid_current_magnitude_pu
+                    self.latest_values['measurements']['dc_link_current_pu'] = meas.dc_link_current_pu
+                    self.latest_values['measurements']['is_commuting'] = float(meas.is_commuting)
+
+                    # Update oscilloscope with single signal
+                    if hasattr(self, 'osc_buffer'):
+                        self.osc_buffer.append(sample_idx, meas.grid_voltage_magnitude_pu)
+                except Exception as e:
+                    logger.error(f"Error processing measurements at sample {sample_idx}: {e}", exc_info=True)
+            
+            # Update observer
+            if packet.observer:
+                try:
+                    obs = packet.observer
+                    self.latest_values['observer']['estimated_voltage_magnitude_pu'] = obs.estimated_voltage_magnitude_pu
+                    self.latest_values['observer']['estimated_frequency_pu'] = obs.estimated_frequency_pu
+                    self.latest_values['observer']['estimated_angle_rad'] = obs.estimated_angle_rad
+                    if hasattr(self, 'plot_groups') and 'observer' in self.plot_groups:
+                        og = self.plot_groups['observer']
+                        og.update_signal('estimated_voltage_magnitude_pu', sample_idx, obs.estimated_voltage_magnitude_pu)
+                        og.update_signal('estimated_frequency_pu', sample_idx, obs.estimated_frequency_pu)
+                except Exception as e:
+                    logger.error(f"Error processing observer at sample {sample_idx}: {e}", exc_info=True)
+            
+            # Update modulator
+            if packet.modulator:
+                try:
+                    mod = packet.modulator
+                    self.latest_values['modulator']['is_enabled'] = float(mod.is_enabled)
+                    self.latest_values['modulator']['firing_angle_input_pu'] = mod.firing_angle_input_pu
+                    self.latest_values['modulator']['firing_angle_output_pu'] = mod.firing_angle_output_pu
+                except Exception as e:
+                    logger.error(f"Error processing modulator at sample {sample_idx}: {e}", exc_info=True)
+            
+            # Update controller
+            if packet.controller:
+                try:
+                    ctrl = packet.controller
+                    self.latest_values['controller']['dc_link_current_reference'] = ctrl.dc_link_current_reference
+                    self.latest_values['controller']['dc_link_current_measured'] = ctrl.dc_link_current_measured
+                    self.latest_values['controller']['current_error_pu'] = ctrl.current_error_pu
+                    self.latest_values['controller']['controller_saturated'] = float(ctrl.controller_saturated)
+                    if hasattr(self, 'plot_groups') and 'controller' in self.plot_groups:
+                        cg = self.plot_groups['controller']
+                        cg.update_signal('dc_link_current_reference', sample_idx, ctrl.dc_link_current_reference)
+                        cg.update_signal('dc_link_current_measured', sample_idx, ctrl.dc_link_current_measured)
+                        cg.update_signal('current_error_pu', sample_idx, ctrl.current_error_pu)
+                        cg.update_signal('controller_output_pu', sample_idx, ctrl.controller_output_pu)
+                except Exception as e:
+                    logger.error(f"Error processing controller at sample {sample_idx}: {e}", exc_info=True)
+            
+            # Update state machine
+            if packet.state_machine:
+                try:
+                    state = packet.state_machine
+                    self.latest_values['state_machine']['current_state'] = float(state.current_state)
+                    self.latest_values['state_machine']['pulse_releases'] = float(state.pulse_releases)
+                    self.latest_values['state_machine']['auxiliaries_are_on'] = float(state.auxiliaries_are_on)
+                    self.latest_values['state_machine']['breakers_are_on'] = float(state.breakers_are_on)
+                except Exception as e:
+                    logger.error(f"Error processing state machine at sample {sample_idx}: {e}", exc_info=True)
+            
+            # Increment sample counter for next packet
+            self.global_sample_index += 1
+            
+        except Exception as e:
+            logger.error(f"Critical error in _process_telemetry_packet: {e}", exc_info=True)
+    
+    def _update_oscilloscope(self) -> None:
+        """Update plot from buffer - MINIMAL and stable."""
+        try:
+            if len(self.osc_buffer.x_data) == 0:
+                return
+            
+            # Convert deque to arrays
+            x_data, y_data = self.osc_buffer.get_arrays()
+            
+            # Update curve
+            self.osc_curve.setData(x_data, y_data)
+            
+            # Auto-range to show recent data
+            if len(x_data) > 0:
+                latest = x_data[-1]
+                self.plot1.setXRange(max(0, latest - 1000), latest, padding=0)
+        
+        except Exception as e:
+            logger.error(f"Plot update error: {e}", exc_info=True)
+    
+    def _update_dashboard(self) -> None:
+        """Update dashboard displays (less frequent than oscilloscope)."""
         # Update dashboard displays
-        for group_name, group_widget in self.signal_group_widgets.items():
-            if group_name in self.latest_values:
-                group_widget.update_all_signals(self.latest_values[group_name])
+        if hasattr(self, 'signal_group_widgets'):
+            for group_name, group_widget in self.signal_group_widgets.items():
+                if group_name in self.latest_values:
+                    group_widget.update_all_signals(self.latest_values[group_name])
     
     def _update_statistics(self) -> None:
         """Update statistics display."""
@@ -2315,8 +2466,32 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Handle window close event."""
-        if self.network_client.connected:
-            self.network_client.disconnect()
+        logger.info("Window closing - stopping timers and disconnecting...")
+        
+        # Stop all timers first to prevent further processing
+        if hasattr(self, 'plot_update_timer'):
+            self.plot_update_timer.stop()
+        if hasattr(self, 'dashboard_update_timer'):
+            self.dashboard_update_timer.stop()
+        if hasattr(self, 'stats_timer'):
+            self.stats_timer.stop()
+        if hasattr(self, 'watchdog_timer'):
+            self.watchdog_timer.stop()
+        if hasattr(self, '_packet_process_timer'):
+            self._packet_process_timer.stop()
+        
+        # Clear packet queue to prevent processing during shutdown
+        if hasattr(self, '_packet_queue'):
+            self._packet_queue.clear()
+        
+        # Disconnect from network (non-blocking)
+        if hasattr(self, 'network_client') and self.network_client.connected:
+            try:
+                self.network_client.stop_telemetry()
+                # Set a short timeout for disconnect
+                self.network_client.disconnect()
+            except Exception as e:
+                logger.warning(f"Error during disconnect: {e}")
         
         logger.info("Telemetry monitor closed")
         event.accept()
@@ -2332,6 +2507,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--window', type=float, default=DEFAULT_TIME_WINDOW_SEC,
                        help='Oscilloscope time window in seconds')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser.add_argument('--decimate', type=int, default=1, 
+                       help='Process only 1 out of N packets (reduces CPU load for high-rate targets)')
     return parser.parse_args()
 
 
@@ -2346,7 +2523,8 @@ def main() -> int:
         host=args.host,
         port=args.port,
         time_window_sec=args.window,
-        verbose=args.verbose
+        verbose=args.verbose,
+        decimate=args.decimate
     )
     window.show()
     

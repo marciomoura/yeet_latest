@@ -100,10 +100,25 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Receive buffer
         self._recv_buffer = bytearray()
         
+        # Heartbeat counter for debugging
+        self._poll_count = 0
+        
+        # Resilience tracking
+        self._consecutive_errors = 0
+        self._max_consecutive_errors = 10  # Disconnect after 10 consecutive errors
+        self._last_packet_time = 0
+        self._packet_timeout_ms = 5000  # 5 seconds without packets = timeout
+        self._recv_buffer_max_size = 65536  # 64KB max buffer to prevent memory issues
+        
         # Qt timer for polling socket
         self._poll_timer = QtCore.QTimer(self)
         self._poll_timer.timeout.connect(self._poll_socket)
         self._poll_timer.setInterval(5)  # 5ms polling = 200Hz max
+        
+        # Qt timer for connection health check
+        self._health_timer = QtCore.QTimer(self)
+        self._health_timer.timeout.connect(self._check_connection_health)
+        self._health_timer.setInterval(1000)  # Check every second
         
         logger.info(f"UnifiedNetworkClient initialized for {host}:{port}")
     
@@ -133,18 +148,28 @@ class UnifiedNetworkClient(QtCore.QObject):
         
         try:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+            # Set socket options for better reliability
+            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            
             self._socket.settimeout(5.0)
             self._socket.connect((self.host, self.port))
             self._socket.setblocking(False)  # Non-blocking for polling
             
             self._state = NetworkState.CONNECTED
             self._recv_buffer.clear()
+            self._consecutive_errors = 0
+            self._last_packet_time = QtCore.QDateTime.currentMSecsSinceEpoch()
             
             logger.info(f"Connected to {self.host}:{self.port}")
             self.connected_changed.emit(True)
             
             # Start polling timer
             self._poll_timer.start()
+            
+            # Start health check timer
+            self._health_timer.start()
             
             return True
             
@@ -161,10 +186,14 @@ class UnifiedNetworkClient(QtCore.QObject):
             return
         
         # Send STOP command to be polite (but don't wait for response)
-        self._send_command('STOP')
+        try:
+            self._send_command('STOP')
+        except:
+            pass  # Ignore errors during shutdown
         
-        # Stop polling
+        # Stop timers
         self._poll_timer.stop()
+        self._health_timer.stop()
         
         # Close socket
         self._cleanup_socket()
@@ -334,6 +363,11 @@ class UnifiedNetworkClient(QtCore.QObject):
         if not self._socket:
             return
         
+        # Heartbeat logging every 1000 polls (~5 seconds at 5ms interval)
+        self._poll_count += 1
+        if self.verbose and self._poll_count % 1000 == 0:
+            logger.debug(f"Network polling active: {self._poll_count} polls, {self._packets_received} packets received")
+        
         try:
             # Read available data (non-blocking)
             data = self._socket.recv(4096)
@@ -341,11 +375,28 @@ class UnifiedNetworkClient(QtCore.QObject):
             if not data:
                 # Connection closed by remote
                 logger.warning("Connection closed by controller")
-                self.disconnect()
+                self._handle_connection_error("Connection closed by remote")
+                return
+            
+            # Log data reception
+            if self.verbose:
+                logger.debug(f"Received {len(data)} bytes from socket (buffer now {len(self._recv_buffer) + len(data)} bytes)")
+            
+            # Check buffer overflow
+            if len(self._recv_buffer) + len(data) > self._recv_buffer_max_size:
+                logger.error(f"Receive buffer overflow ({len(self._recv_buffer)} + {len(data)} > {self._recv_buffer_max_size}), clearing buffer")
+                self._recv_buffer.clear()
+                self._consecutive_errors += 1
                 return
             
             # Append to receive buffer
             self._recv_buffer.extend(data)
+            
+            # Update last packet time
+            self._last_packet_time = QtCore.QDateTime.currentMSecsSinceEpoch()
+            
+            # Reset error counter on successful receive
+            self._consecutive_errors = 0
             
             # Process packets in buffer
             self._process_receive_buffer()
@@ -353,11 +404,49 @@ class UnifiedNetworkClient(QtCore.QObject):
         except BlockingIOError:
             # No data available - normal for non-blocking socket
             pass
+        except ConnectionResetError as e:
+            logger.error(f"Connection reset by peer: {e}")
+            self._handle_connection_error("Connection reset")
+        except ConnectionAbortedError as e:
+            logger.error(f"Connection aborted: {e}")
+            self._handle_connection_error("Connection aborted")
+        except OSError as e:
+            # Socket error (could be EWOULDBLOCK, EAGAIN, or actual error)
+            if e.errno not in [10035, 10060]:  # Windows: WSAEWOULDBLOCK, WSAETIMEDOUT
+                logger.error(f"Socket OS error: {e}")
+                self._consecutive_errors += 1
+                if self._consecutive_errors >= self._max_consecutive_errors:
+                    self._handle_connection_error(f"Too many consecutive errors ({self._consecutive_errors})")
         except Exception as e:
             error_msg = f"Socket error during receive: {e}"
-            logger.error(error_msg)
-            self.error_occurred.emit(error_msg)
-            self.disconnect()
+            logger.error(error_msg, exc_info=True)
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= self._max_consecutive_errors:
+                self._handle_connection_error(f"Too many consecutive errors ({self._consecutive_errors})")
+    
+    def _check_connection_health(self) -> None:
+        """Check connection health periodically."""
+        if not self.connected:
+            return
+        
+        # Check if we've received data recently
+        current_time = QtCore.QDateTime.currentMSecsSinceEpoch()
+        time_since_last_packet = current_time - self._last_packet_time
+        
+        if time_since_last_packet > self._packet_timeout_ms:
+            logger.warning(f"No packets received for {time_since_last_packet}ms (timeout: {self._packet_timeout_ms}ms)")
+            self._handle_connection_error("Packet timeout")
+    
+    def _handle_connection_error(self, reason: str) -> None:
+        """Handle connection error and disconnect.
+        
+        Args:
+            reason: Error reason for logging
+        """
+        error_msg = f"Connection error: {reason}"
+        logger.error(error_msg)
+        self.error_occurred.emit(error_msg)
+        self.disconnect()
     
     def _process_receive_buffer(self) -> None:
         """Process packets in receive buffer.
@@ -365,36 +454,71 @@ class UnifiedNetworkClient(QtCore.QObject):
         Stateless processing - displays whatever arrives from server.
         Server manages telemetry state and packet sequencing.
         """
-        while len(self._recv_buffer) >= 16:  # Minimum header size
+        # Limit iterations to prevent infinite loop on malformed data
+        max_iterations = 100
+        iteration = 0
+        
+        while len(self._recv_buffer) >= 16 and iteration < max_iterations:  # Minimum header size
+            iteration += 1
+            
             # Peek at packet type from header
             packet_type = self._recv_buffer[0]
             
             # Route based on packet type
             if packet_type in [0x01, 0x02]:  # Telemetry packets
-                self._process_telemetry_packet()
+                consumed = self._process_telemetry_packet()
+                if not consumed:
+                    # Not enough data for complete packet
+                    break
             elif packet_type in [0x41, 0x47, 0x49]:  # Parameter response packets
-                self._process_parameter_response(packet_type)
+                consumed = self._process_parameter_response(packet_type)
+                if not consumed:
+                    # Not enough data for complete packet
+                    break
             else:
-                # Unknown packet type - log and discard
-                logger.warning(f"Unknown packet type 0x{packet_type:02x}, clearing buffer")
-                self._recv_buffer.clear()
+                # Unknown packet type - try to resync
+                logger.warning(f"Unknown packet type 0x{packet_type:02x} at buffer start, attempting resync")
+                
+                # Look for valid packet type in next bytes (limited search)
+                found_sync = False
+                for i in range(1, min(100, len(self._recv_buffer))):
+                    if self._recv_buffer[i] in [0x01, 0x02, 0x41, 0x47, 0x49]:
+                        logger.info(f"Found potential sync at offset {i}, discarding {i} bytes")
+                        del self._recv_buffer[:i]
+                        found_sync = True
+                        break
+                
+                if not found_sync:
+                    logger.error("Could not resync, clearing entire buffer")
+                    self._recv_buffer.clear()
+                    self._consecutive_errors += 1
                 break
+        
+        if iteration >= max_iterations:
+            logger.warning(f"Buffer processing hit max iterations ({max_iterations}), possible packet storm")
+            # Don't clear buffer, but stop processing for this poll cycle
     
-    def _process_telemetry_packet(self) -> None:
-        """Process telemetry packet from buffer."""
+    def _process_telemetry_packet(self) -> bool:
+        """Process telemetry packet from buffer.
+        
+        Returns:
+            True if packet was consumed (or should be removed), False if need more data
+        """
         try:
             # Try to decode telemetry packet
-            packet = self._telemetry_decoder.decode(bytes(self._recv_buffer))
+            result = self._telemetry_decoder.decode(bytes(self._recv_buffer))
             
-            if packet:
-                # Successfully decoded - remove from buffer
-                consumed_bytes = len(bytes(self._recv_buffer)) - len(self._recv_buffer)
-                # Note: decoder doesn't tell us how many bytes it consumed
-                # For now, assume entire buffer was the packet
-                self._recv_buffer.clear()
+            if result:
+                packet, bytes_consumed = result
+                
+                # Successfully decoded - remove consumed bytes from buffer
+                del self._recv_buffer[:bytes_consumed]
                 
                 # Update statistics
                 self._packets_received += 1
+                
+                if self.verbose and self._packets_received % 100 == 0:
+                    logger.debug(f"Received {self._packets_received} telemetry packets (seq={packet.header.sequence_number})")
                 
                 # Check for sequence gaps (but don't report as "lost" since server
                 # intentionally skips telemetry cycles when sending parameter responses)
@@ -410,70 +534,98 @@ class UnifiedNetworkClient(QtCore.QObject):
                 
                 self._last_sequence = packet.header.sequence_number
                 
+                # Reset error counter on successful decode
+                self._consecutive_errors = 0
+                
                 # Emit signal
                 self.telemetry_packet_received.emit(packet)
+                
+                return True
+            else:
+                # Need more data
+                return False
         
         except Exception as e:
             self._decode_errors += 1
-            if self.verbose:
-                logger.warning(f"Telemetry decode error: {e}")
-            # Clear buffer on decode error
-            self._recv_buffer.clear()
+            self._consecutive_errors += 1
+            logger.error(f"Telemetry decode error ({self._decode_errors} total): {e}", exc_info=True)
+            
+            # Try to recover by discarding one byte and continuing
+            if len(self._recv_buffer) > 0:
+                del self._recv_buffer[0]
+            
+            return True  # Consumed (discarded) data
     
-    def _process_parameter_response(self, packet_type: int) -> None:
+    def _process_parameter_response(self, packet_type: int) -> bool:
         """Process parameter response from buffer.
         
         Args:
             packet_type: Packet type byte from header
+            
+        Returns:
+            True if packet was consumed (or should be removed), False if need more data
         """
         try:
             response_data = None
+            bytes_consumed = 0
             
             if packet_type == 0x47:  # COUNT_RESPONSE
-                total_params = self._param_decoder.decode_count_response(bytes(self._recv_buffer))
-                if total_params is not None:
+                result = self._param_decoder.decode_count_response(bytes(self._recv_buffer))
+                if result:
+                    total_params, bytes_consumed = result
                     response_data = {
                         'type': 'count_response',
                         'total_parameters': total_params
                     }
-                    self._recv_buffer.clear()
+                    del self._recv_buffer[:bytes_consumed]
             
             elif packet_type == 0x49:  # GET_BY_INDEX_RESPONSE
-                response = self._param_decoder.decode_get_by_index_response(bytes(self._recv_buffer))
-                if response:
+                result = self._param_decoder.decode_get_by_index_response(bytes(self._recv_buffer))
+                if result:
+                    metadata, bytes_consumed = result
                     response_data = {
                         'type': 'get_by_index_response',
-                        'metadata': response
+                        'metadata': metadata
                     }
-                    self._recv_buffer.clear()
+                    del self._recv_buffer[:bytes_consumed]
             
             elif packet_type == 0x41:  # SET_RESPONSE
-                response = self._param_decoder.decode_set_response(bytes(self._recv_buffer))
-                if response:
+                result = self._param_decoder.decode_set_response(bytes(self._recv_buffer))
+                if result:
+                    response_dict, bytes_consumed = result
                     response_data = {
                         'type': 'set_response',
-                        'component': response['component'],
-                        'name': response['name'],
-                        'status': response['status'],
-                        'old_value': response['old_value'],
-                        'new_value': response['new_value'],
-                        'error_message': response['error_message']
+                        'component': response_dict['component'],
+                        'name': response_dict['name'],
+                        'status': response_dict['status'],
+                        'old_value': response_dict['old_value'],
+                        'new_value': response_dict['new_value'],
+                        'error_message': response_dict['error_message']
                     }
-                    self._recv_buffer.clear()
+                    del self._recv_buffer[:bytes_consumed]
             
             if response_data:
                 # Emit signal to UI
                 self.parameter_response_received.emit(response_data)
+                self._consecutive_errors = 0
+                return True
             else:
-                # Not enough data yet, or decode failed
+                # Not enough data yet
                 if len(self._recv_buffer) > 1024:
                     # Too much buffered data - something is wrong
-                    logger.error(f"Parameter response decode failed, clearing buffer (packet_type=0x{packet_type:02x})")
+                    logger.error(f"Parameter response decode failed with large buffer, clearing (packet_type=0x{packet_type:02x}, buffer_size={len(self._recv_buffer)})")
                     self._recv_buffer.clear()
+                    self._consecutive_errors += 1
+                    return True
+                return False  # Need more data
         
         except Exception as e:
-            logger.error(f"Error processing parameter response: {e}")
-            self._recv_buffer.clear()
+            logger.error(f"Error processing parameter response: {e}", exc_info=True)
+            self._consecutive_errors += 1
+            # Discard one byte and try to recover
+            if len(self._recv_buffer) > 0:
+                del self._recv_buffer[0]
+            return True
     
     def get_statistics(self) -> dict:
         """Get reception statistics.

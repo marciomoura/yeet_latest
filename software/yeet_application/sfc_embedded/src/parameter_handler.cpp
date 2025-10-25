@@ -13,14 +13,18 @@ parameter_handler::parameter_handler(const model_registry* registry)
     : registry_(registry), parameter_cache_{}, sequence_counter_(0)
 {
     if (!registry_) {
+#ifdef HOST_BUILD
         std::cout << "[PARAM] ERROR: model_registry pointer is null!" << std::endl;
+#endif
         return;
     }
 
     build_parameter_cache();
 
+#ifdef HOST_BUILD
     std::cout << "[PARAM] Initialized with " << parameter_cache_.size() << " parameters from model_registry"
               << std::endl;
+#endif
 }
 
 void parameter_handler::build_parameter_cache()
@@ -56,10 +60,12 @@ void parameter_handler::build_parameter_cache()
             parameter_cache_.push_back(std::move(entry));
         });
 
+#ifdef HOST_BUILD
     std::cout << "[PARAM] Built cache with " << parameter_cache_.size() << " parameters:" << std::endl;
     for (const auto& p : parameter_cache_) {
         std::cout << "[PARAM]   - " << p.component << "." << p.name << std::endl;
     }
+#endif
 }
 
 parameter_cache_entry* parameter_handler::find_parameter(const char* component, const char* name)
@@ -101,7 +107,9 @@ bool parameter_handler::handle_set_request(
         response.status = 1;  // NOT_FOUND
         std::snprintf(response.error_message, sizeof(response.error_message), "Parameter %s.%s not found",
             request.component, request.name);
+#ifdef HOST_BUILD
         std::cout << "[PARAM] SET FAILED: " << response.error_message << std::endl;
+#endif
         return true;
     }
 
@@ -114,7 +122,9 @@ bool parameter_handler::handle_set_request(
         response.status = 2;  // OUT_OF_RANGE
         std::snprintf(response.error_message, sizeof(response.error_message), "Value %.4f out of range [%.4f, %.4f]",
             request.value, param->min_value, param->max_value);
+#ifdef HOST_BUILD
         std::cout << "[PARAM] SET FAILED: " << response.error_message << std::endl;
+#endif
         return true;
     }
 
@@ -124,8 +134,10 @@ bool parameter_handler::handle_set_request(
     response.status = 0;  // SUCCESS
     std::snprintf(response.error_message, sizeof(response.error_message), "OK");
 
+#ifdef HOST_BUILD
     std::cout << "[PARAM] SET SUCCESS: " << param->component << "." << param->name << " = " << request.value << " (was "
               << response.old_value << ")" << std::endl;
+#endif
 
     return true;
 }
@@ -150,15 +162,19 @@ bool parameter_handler::handle_get_request(
     parameter_cache_entry* param = find_parameter(request.component, request.name);
 
     if (!param) {
+#ifdef HOST_BUILD
         std::cout << "[PARAM] GET FAILED: Parameter " << request.component << "." << request.name << " not found"
                   << std::endl;
+#endif
         return false;
     }
 
     // Return current value via low_level_access
     response.value = param->accessor.read<float>();
 
+#ifdef HOST_BUILD
     std::cout << "[PARAM] GET: " << param->component << "." << param->name << " = " << response.value << std::endl;
+#endif
 
     return true;
 }
@@ -178,7 +194,9 @@ bool parameter_handler::handle_count_request(parameter_count_response_packet& re
     // Count
     response.total_parameters = static_cast<std::uint16_t>(parameter_cache_.size());
 
+#ifdef HOST_BUILD
     std::cout << "[PARAM] COUNT: Returning " << response.total_parameters << " parameters" << std::endl;
+#endif
 
     return true;
 }
@@ -201,8 +219,10 @@ bool parameter_handler::handle_get_by_index_request(
         response.status = 1;  // INDEX_OUT_OF_RANGE
         response.parameter_index = request.parameter_index;
         response.total_parameters = static_cast<std::uint16_t>(parameter_cache_.size());
+#ifdef HOST_BUILD
         std::cout << "[PARAM] GET_BY_INDEX FAILED: Index " << request.parameter_index
                   << " out of range (max: " << parameter_cache_.size() - 1 << ")" << std::endl;
+#endif
         return true;
     }
 
@@ -231,8 +251,10 @@ bool parameter_handler::handle_get_by_index_request(
     response.total_parameters = static_cast<std::uint16_t>(parameter_cache_.size());
     response.status = 0;  // SUCCESS
 
+#ifdef HOST_BUILD
     std::cout << "[PARAM] GET_BY_INDEX: Returning parameter " << request.parameter_index << " (" << param.component
               << "." << param.name << " = " << response.current_value << ")" << std::endl;
+#endif
 
     return true;
 }

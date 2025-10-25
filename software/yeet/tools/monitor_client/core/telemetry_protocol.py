@@ -250,7 +250,7 @@ class TelemetryDecoder:
     CONTROLLER_SIZE = struct.calcsize(CONTROLLER_FORMAT)
     STATE_MACHINE_SIZE = struct.calcsize(STATE_MACHINE_FORMAT)
     
-    def decode(self, data: bytes, verbose: bool = False) -> Optional[GridSideTelemetryPacket]:
+    def decode(self, data: bytes, verbose: bool = False) -> Optional[tuple[GridSideTelemetryPacket, int]]:
         """Decode binary telemetry data into structured packet.
         
         Args:
@@ -258,11 +258,12 @@ class TelemetryDecoder:
             verbose: Enable detailed logging for debugging
             
         Returns:
-            GridSideTelemetryPacket if decode successful, None if invalid
+            Tuple of (GridSideTelemetryPacket, bytes_consumed) if decode successful, None if invalid
             
         Example:
-            packet = decoder.decode(raw_bytes)
-            if packet:
+            result = decoder.decode(raw_bytes)
+            if result:
+                packet, bytes_consumed = result
                 print(f"Timestamp: {packet.header.timestamp_ms} ms")
         """
         if len(data) < self.HEADER_SIZE:
@@ -473,7 +474,7 @@ class TelemetryDecoder:
         if verbose:
             print(f"[DECODE SUCCESS] Packet decoded successfully, total bytes consumed: {offset}")
             
-        return packet
+        return (packet, offset)
     
     def calculate_payload_size(self, flags: int) -> int:
         """Calculate expected payload size based on flags.
