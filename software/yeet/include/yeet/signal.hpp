@@ -1,9 +1,3 @@
-/**
- * @copyright Techperts AG.
- * @date 10-12-2024
- * @brief
- */
-
 #ifndef YEET_SIGNAL_HPP
 #define YEET_SIGNAL_HPP
 
@@ -81,14 +75,16 @@ public:
     mock_signal_input() = default;
 
     template <typename T>
-    static void write(signal_input<T>& input, T const& value) {
+    static void write(signal_input<T>& input, T const& value)
+    {
         mock_signal_input(input, value);
     }
 
 protected:
     // Mocking for easy simulation access
     template <typename T>
-    mock_signal_input(signal_input<T>& signal, T const& value) {
+    mock_signal_input(signal_input<T>& signal, T const& value)
+    {
         if (signal.empty()) {
             signal.connect(storage_type<T>(std::make_shared<T>()));
         }
@@ -99,7 +95,8 @@ protected:
 class signals_connector {
 public:
     template <typename T>
-    static void connect_output_to_input(signal_output<T>& output, signal_input<T>& input) {
+    static void connect_output_to_input(signal_output<T>& output, signal_input<T>& input)
+    {
         input.connect(output.get_storage());
     }
 };
@@ -107,7 +104,8 @@ public:
 class signal_registry {
 public:
     template <typename T>
-    void insert(const std::string& name, signal_output<T>& signal) {
+    void insert(const std::string& name, signal_output<T>& signal)
+    {
         _registry.insert(name, signal.get_low_level_access());
     }
 
