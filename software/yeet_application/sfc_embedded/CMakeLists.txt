@@ -53,6 +53,7 @@ if(NOT YEET_SFC_HOST_BUILD)
                     src/network_telemetry_builder.cpp
                     src/network_command_parser.cpp
                     src/network_telemetry_manager.cpp
+                    src/network_handler.cpp
                     src/parameter_handler.cpp)
 
         target_include_directories(
@@ -219,6 +220,7 @@ if(YEET_SFC_HOST_BUILD)
                 src/network_telemetry_builder.cpp
                 src/network_command_parser.cpp
                 src/network_telemetry_manager.cpp
+                src/network_handler.cpp
                 src/parameter_handler.cpp)
 
     target_include_directories(sfc_host_simulator
