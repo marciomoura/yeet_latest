@@ -110,6 +110,8 @@ public:
             "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
         entry.parameters.insert("current_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_magnitude_limit));
+        entry.parameters.insert(
+            "current_reference_rectifier_operation", _model_parameters->current_reference_rectifier_operation);
 
         registry.insert("current_controller", std::move(entry));
     }

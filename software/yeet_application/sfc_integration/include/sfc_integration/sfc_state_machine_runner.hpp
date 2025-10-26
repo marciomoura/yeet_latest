@@ -18,19 +18,21 @@ public:
     sfc_state_machine_runner()
         : base_application(sampling_time),
           _state_machine_inputs{
-              sfc::sfc_state_event("auxiliaries_are_on", [this]() { return _inputs.auxiliaries_are_on.read(); }),
-              sfc::sfc_state_event("breakers_are_on", [this]() { return _inputs.breakers_are_on.read(); }),
-              sfc::sfc_state_event("start_command", [this]() { return _inputs.start_command.read(); }),
-              sfc::sfc_state_event("stop_command", [this]() { return _inputs.stop_command.read(); }),
-              sfc::sfc_state_event("shutdown_request", [this]() { return _inputs.shutdown_request.read(); }),
+              sfc::sfc_state_event("auxiliaries_are_on", [this]() { return _outputs.auxiliaries_are_on.read(); }),
+              sfc::sfc_state_event("breakers_are_on", [this]() { return _outputs.breakers_are_on.read(); }),
+              sfc::sfc_state_event("start_command", [this]() { return _outputs.start_command.read(); }),
+              sfc::sfc_state_event("stop_command", [this]() { return _outputs.stop_command.read(); }),
+              sfc::sfc_state_event("shutdown_request", [this]() { return _outputs.shutdown_request.read(); }),
               sfc::sfc_state_event(
-                  "is_current_extinguished", [this]() { return _inputs.is_current_extinguished.read(); })}
+                  "is_current_extinguished", [this]() { return _outputs.is_current_extinguished.read(); })}
     {
     }
 
     void initialize() override;
     void run() override;
     void stop() override;
+
+    void register_datamodel(yeet::model_registry& registry) override;
 
 private:
     void set_parameters();

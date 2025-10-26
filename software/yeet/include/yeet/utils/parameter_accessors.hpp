@@ -69,4 +69,20 @@ inline low_level_access make_units_accessor(parameter<UnitT>& param) noexcept
         [](float f) -> UnitT { return UnitT{f}; });
 }
 
+/**
+ * @brief Creates low_level_access for boolean parameters
+ *
+ * Converts between bool and float using standard conventions:
+ * - bool to float: true -> 1.0f, false -> 0.0f
+ * - float to bool: value != 0.0f (non-zero is true, zero is false)
+ *
+ * @param param Reference to the parameter<bool> object
+ * @return low_level_access configured for boolean type
+ */
+inline low_level_access make_bool_accessor(parameter<bool>& param) noexcept
+{
+    return make_parameter_accessor(
+        param, [](bool v) -> float { return v ? 1.0f : 0.0f; }, [](float f) -> bool { return f != 0.0f; });
+}
+
 }  // namespace yeet::utils

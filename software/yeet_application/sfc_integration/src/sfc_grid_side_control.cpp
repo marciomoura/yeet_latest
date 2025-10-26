@@ -14,6 +14,21 @@ void sfc_grid_side_control::initialize()
     dc_link_measurements.initialize();
 }
 
+void sfc_grid_side_control::register_datamodel(yeet::model_registry& registry)
+{
+    // Register all component parameters with the model_registry
+    // This makes them accessible via the parameter configuration protocol
+
+    current_controller.register_datamodel(registry);
+    grid_side_observer.register_datamodel(registry);
+    grid_side_modulator.register_datamodel(registry);
+    grid_side_pulse_generator.register_datamodel(registry);
+    grid_measurements.register_datamodel(registry);
+    dc_link_measurements.register_datamodel(registry);
+    state_machine.register_datamodel(registry);
+    operation_mode_monitor.register_datamodel(registry);
+}
+
 void sfc_grid_side_control::update_10ms() { state_machine.run(); }
 
 void sfc_grid_side_control::update_1ms() { current_controller.run(); }

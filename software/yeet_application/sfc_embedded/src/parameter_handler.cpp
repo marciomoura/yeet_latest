@@ -40,7 +40,7 @@ void parameter_handler::build_parameter_cache()
             entry.name = name;
 
             // Generate display name from component.name
-            entry.display_name = component + "." + name;
+            entry.display_name = name;
 
             // TODO: Extract unit from type metadata when available
             entry.unit = "";  // Could parse from type string later

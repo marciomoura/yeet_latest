@@ -80,12 +80,12 @@ void grid_side_telemetry_builder::populate_state_machine(state_machine_group& gr
     // State machine outputs
     group.current_state = static_cast<std::uint8_t>(state_machine.get_outputs().current_state_id.read());
     group.pulse_releases = state_machine.get_outputs().pulse_releases.read();
-    group.auxiliaries_are_on = state_machine.get_inputs().auxiliaries_are_on.read();
-    group.breakers_are_on = state_machine.get_inputs().breakers_are_on.read();
-    group.start_command = state_machine.get_inputs().start_command.read();
-    group.stop_command = state_machine.get_inputs().stop_command.read();
-    group.is_current_extinguished = state_machine.get_inputs().is_current_extinguished.read();
-    group.is_shutdown_requested = state_machine.get_outputs().is_shutdown_requested.read();
+    group.auxiliaries_are_on = state_machine.get_outputs().auxiliaries_are_on.read();
+    group.breakers_are_on = state_machine.get_outputs().breakers_are_on.read();
+    group.start_command = state_machine.get_outputs().start_command.read();
+    group.stop_command = state_machine.get_outputs().stop_command.read();
+    group.is_current_extinguished = state_machine.get_outputs().is_current_extinguished.read();
+    group.is_shutdown_requested = state_machine.get_outputs().shutdown_request.read();
 }
 
 grid_side_telemetry_packet grid_side_telemetry_builder::build_packet(
