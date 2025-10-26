@@ -140,10 +140,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         self.verbose = verbose
         self.decimate_factor = max(1, decimate)
+        self.decimation_mode = "Skip"  # "Skip" or "Average"
         self.packet_counter = 0
         self.sample_index = 0
         self.window_size = window_size
         self.layout_mode = "1xN"  # "1xN" for vertical stack or "2x2" for grid
+        
+        # Averaging accumulators for decimation
+        self.avg_voltage = 0.0
+        self.avg_current_a = 0.0
+        self.avg_current_b = 0.0
+        self.avg_current_c = 0.0
+        self.avg_observer_voltage = 0.0
+        self.avg_observer_freq = 0.0
+        self.avg_dclink_ref = 0.0
+        self.avg_dclink_measured = 0.0
+        self.avg_count = 0  # Counter for averaging
         
         # Simple deque buffers - large size to accommodate any window size
         # Assuming ~10kHz sample rate, 10000 samples = 1 second of data at max decimation
@@ -218,13 +230,31 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
-        self.window_size_spinbox.setRange(100, 10000)
+        self.window_size_spinbox.setRange(10, 10000)
         self.window_size_spinbox.setSingleStep(100)
         self.window_size_spinbox.setValue(window_size)
         self.window_size_spinbox.setToolTip("Number of samples to display on X-axis")
         self.window_size_spinbox.valueChanged.connect(self._on_window_size_changed)
         telem_layout.addWidget(self.window_size_spinbox)
         telem_layout.addWidget(QtWidgets.QLabel("samples"))
+        
+        # Decimation control
+        telem_layout.addWidget(QtWidgets.QLabel("  |  Decimation:"))
+        self.decimation_spinbox = QtWidgets.QSpinBox()
+        self.decimation_spinbox.setRange(1, 100)
+        self.decimation_spinbox.setSingleStep(1)
+        self.decimation_spinbox.setValue(decimate)
+        self.decimation_spinbox.setToolTip("Process 1 out of N packets (skip or average)")
+        self.decimation_spinbox.valueChanged.connect(self._on_decimation_changed)
+        telem_layout.addWidget(self.decimation_spinbox)
+        
+        # Decimation mode selector
+        self.decimation_mode_combo = QtWidgets.QComboBox()
+        self.decimation_mode_combo.addItem("Skip")
+        self.decimation_mode_combo.addItem("Average")
+        self.decimation_mode_combo.setToolTip("Decimation mode: Skip packets or Average them")
+        self.decimation_mode_combo.currentTextChanged.connect(self._on_decimation_mode_changed)
+        telem_layout.addWidget(self.decimation_mode_combo)
         
         # Layout mode toggle
         telem_layout.addWidget(QtWidgets.QLabel("  |  Layout:"))
@@ -302,8 +332,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.dashboard_timer = QtCore.QTimer(self)
         self.dashboard_timer.timeout.connect(self._update_dashboard)
         self.dashboard_timer.start(200)
-        
-        logger.info("Monitor with parameters initialized")
     
     def _build_parameter_panel(self) -> QtWidgets.QWidget:
         """Build parameter configuration panel."""
@@ -403,9 +431,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.observer_plot.setXLink(self.voltage_plot)
         self.dclink_plot.setXLink(self.voltage_plot)
         
-        # Enable auto-range on Y-axis only (X-axis is manually controlled via zoom/pan)
+        # Override wheel events on viewboxes to adjust window size instead of zooming
         for plot in [self.voltage_plot, self.current_plot, self.observer_plot, self.dclink_plot]:
-            plot.enableAutoRange(axis='y', enable=True)
+            plot.setMouseEnabled(x=False, y=False)  # Disable mouse zoom/pan
+            vb = plot.getViewBox()
+            vb.wheelEvent = self._create_wheel_handler(vb.wheelEvent)
         
         # Organize plots based on initial layout mode
         self._reorganize_subplot_layout()
@@ -417,6 +447,28 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         container_layout.addWidget(self.plots_container)
         
         return container_widget
+    
+    def _create_wheel_handler(self, original_wheel_event):
+        """Create a wheel event handler that adjusts window size."""
+        def wheel_event(ev):
+            # Get wheel delta
+            delta = ev.angleDelta().y() if hasattr(ev, 'angleDelta') else (ev.delta() if hasattr(ev, 'delta') else 0)
+            
+            # Adjust window size
+            current_size = self.window_size_spinbox.value()
+            step = 10
+            
+            if delta > 0:
+                # Zoom in - decrease window size
+                new_size = max(self.window_size_spinbox.minimum(), current_size - step)
+            else:
+                # Zoom out - increase window size
+                new_size = min(self.window_size_spinbox.maximum(), current_size + step)
+            
+            self.window_size_spinbox.setValue(new_size)
+            ev.accept()  # Accept the event so it doesn't propagate
+        
+        return wheel_event
     
     def _reorganize_subplot_layout(self):
         """Reorganize subplots based on current layout mode and visible views."""
@@ -570,6 +622,16 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.dclink_buffer.clear()
         self.sample_index = 0
         self.packet_counter = 0
+        # Reset averaging accumulators
+        self.avg_voltage = 0.0
+        self.avg_current_a = 0.0
+        self.avg_current_b = 0.0
+        self.avg_current_c = 0.0
+        self.avg_observer_voltage = 0.0
+        self.avg_observer_freq = 0.0
+        self.avg_dclink_ref = 0.0
+        self.avg_dclink_measured = 0.0
+        self.avg_count = 0
         if self.network_client.start_telemetry():
             self.start_btn.setEnabled(False)
             self.stop_btn.setEnabled(True)
@@ -600,6 +662,28 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         """Handle window size change at runtime."""
         self.window_size = value
         logger.info(f"Window size changed to {value} samples")
+    
+    def _on_decimation_changed(self, value: int):
+        """Handle decimation factor change at runtime."""
+        self.decimate_factor = max(1, value)
+        # Reset averaging accumulators
+        self.avg_count = 0
+        logger.info(f"Decimation factor changed to {self.decimate_factor} ({self.decimation_mode} mode)")
+    
+    def _on_decimation_mode_changed(self, mode: str):
+        """Handle decimation mode change at runtime."""
+        self.decimation_mode = mode
+        # Reset averaging accumulators when switching modes
+        self.avg_count = 0
+        self.avg_voltage = 0.0
+        self.avg_current_a = 0.0
+        self.avg_current_b = 0.0
+        self.avg_current_c = 0.0
+        self.avg_observer_voltage = 0.0
+        self.avg_observer_freq = 0.0
+        self.avg_dclink_ref = 0.0
+        self.avg_dclink_measured = 0.0
+        logger.info(f"Decimation mode changed to {mode} (factor: {self.decimate_factor})")
     
     def _on_toggle_layout_mode(self):
         """Toggle between 1xN and 2x2 layout modes."""
@@ -735,28 +819,78 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         try:
             self.packet_counter += 1
             
-            # Decimation
-            if self.packet_counter % self.decimate_factor != 0:
-                return
-            
-            # Store for dashboard
+            # Store for dashboard (always update)
             self.latest_packet = packet
             
-            # Extract values and store with sample index
-            if packet.measurements:
-                meas = packet.measurements
-                self.voltage_buffer.append((self.sample_index, meas.grid_voltage_magnitude_pu))
-                self.current_buffer.append((self.sample_index, meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
+            if self.decimation_mode == "Skip":
+                # Skip mode: only process every Nth packet
+                if self.packet_counter % self.decimate_factor != 0:
+                    return
+                
+                # Extract values and store with sample index
+                if packet.measurements:
+                    meas = packet.measurements
+                    self.voltage_buffer.append((self.sample_index, meas.grid_voltage_magnitude_pu))
+                    self.current_buffer.append((self.sample_index, meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
+                
+                if packet.observer:
+                    obs = packet.observer
+                    self.observer_buffer.append((self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
+                
+                if packet.controller:
+                    ctrl = packet.controller
+                    self.dclink_buffer.append((self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
+                
+                self.sample_index += 1
             
-            if packet.observer:
-                obs = packet.observer
-                self.observer_buffer.append((self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
-            
-            if packet.controller:
-                ctrl = packet.controller
-                self.dclink_buffer.append((self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
-            
-            self.sample_index += 1
+            else:  # Average mode
+                # Accumulate values for averaging
+                if packet.measurements:
+                    meas = packet.measurements
+                    self.avg_voltage += meas.grid_voltage_magnitude_pu
+                    self.avg_current_a += meas.grid_current_a_pu
+                    self.avg_current_b += meas.grid_current_b_pu
+                    self.avg_current_c += meas.grid_current_c_pu
+                
+                if packet.observer:
+                    obs = packet.observer
+                    self.avg_observer_voltage += obs.estimated_voltage_magnitude_pu
+                    self.avg_observer_freq += obs.estimated_frequency_pu
+                
+                if packet.controller:
+                    ctrl = packet.controller
+                    self.avg_dclink_ref += ctrl.dc_link_current_reference
+                    self.avg_dclink_measured += ctrl.dc_link_current_measured
+                
+                self.avg_count += 1
+                
+                # Check if we've accumulated enough samples
+                if self.avg_count >= self.decimate_factor:
+                    # Store averaged values
+                    self.voltage_buffer.append((self.sample_index, self.avg_voltage / self.avg_count))
+                    self.current_buffer.append((self.sample_index, 
+                                              self.avg_current_a / self.avg_count,
+                                              self.avg_current_b / self.avg_count,
+                                              self.avg_current_c / self.avg_count))
+                    self.observer_buffer.append((self.sample_index,
+                                               self.avg_observer_voltage / self.avg_count,
+                                               self.avg_observer_freq / self.avg_count))
+                    self.dclink_buffer.append((self.sample_index,
+                                             self.avg_dclink_ref / self.avg_count,
+                                             self.avg_dclink_measured / self.avg_count))
+                    
+                    # Reset accumulators
+                    self.avg_voltage = 0.0
+                    self.avg_current_a = 0.0
+                    self.avg_current_b = 0.0
+                    self.avg_current_c = 0.0
+                    self.avg_observer_voltage = 0.0
+                    self.avg_observer_freq = 0.0
+                    self.avg_dclink_ref = 0.0
+                    self.avg_dclink_measured = 0.0
+                    self.avg_count = 0
+                    
+                    self.sample_index += 1
         
         except Exception as e:
             logger.error(f"Packet error: {e}", exc_info=True)

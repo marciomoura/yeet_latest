@@ -107,7 +107,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._consecutive_errors = 0
         self._max_consecutive_errors = 10  # Disconnect after 10 consecutive errors
         self._last_packet_time = 0
-        self._packet_timeout_ms = 5000  # 5 seconds without packets = timeout
+        self._packet_timeout_ms = 10000  # 10 seconds without packets = timeout
         self._packet_timeout_enabled = True  # Can be disabled during parameter loading
         self._telemetry_streaming = False  # Track if telemetry should be streaming
         self._recv_buffer_max_size = 65536  # 64KB max buffer to prevent memory issues
