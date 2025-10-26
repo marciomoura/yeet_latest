@@ -193,6 +193,28 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         telem_layout.addWidget(self.start_btn)
         telem_layout.addWidget(self.stop_btn)
         telem_layout.addWidget(self.clear_btn)
+        
+        # Panel toggle buttons
+        telem_layout.addWidget(QtWidgets.QLabel("  |  Panels:"))
+        
+        self.toggle_params_btn = QtWidgets.QPushButton("Hide Params")
+        self.toggle_params_btn.setMaximumWidth(120)
+        self.toggle_params_btn.clicked.connect(self._on_toggle_params_only)
+        self.toggle_params_btn.setToolTip("Toggle parameters panel")
+        telem_layout.addWidget(self.toggle_params_btn)
+        
+        self.toggle_telemetry_btn = QtWidgets.QPushButton("Hide Telemetry")
+        self.toggle_telemetry_btn.setMaximumWidth(120)
+        self.toggle_telemetry_btn.clicked.connect(self._on_toggle_telemetry_only)
+        self.toggle_telemetry_btn.setToolTip("Toggle telemetry panel")
+        telem_layout.addWidget(self.toggle_telemetry_btn)
+        
+        self.toggle_all_panels_btn = QtWidgets.QPushButton("Hide All")
+        self.toggle_all_panels_btn.setMaximumWidth(90)
+        self.toggle_all_panels_btn.clicked.connect(self._on_toggle_all_panels)
+        self.toggle_all_panels_btn.setToolTip("Toggle both panels simultaneously")
+        telem_layout.addWidget(self.toggle_all_panels_btn)
+        
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
         self.window_size_spinbox.setRange(100, 10000)
@@ -207,20 +229,52 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         telem_layout.addWidget(self.status_label)
         main_layout.addLayout(telem_layout)
         
+        # Oscilloscope view configuration
+        view_layout = QtWidgets.QHBoxLayout()
+        view_layout.addWidget(QtWidgets.QLabel("Oscilloscope Views:"))
+        
+        # Create view toggle buttons for grid-side components
+        # Set visible=True for views you want enabled by default
+        self.view_configs = {
+            'measurements': {'button': None, 'visible': True},
+            'observer': {'button': None, 'visible': True},
+            'current_controller': {'button': None, 'visible': True},
+            'modulator': {'button': None, 'visible': False},
+            'operation_mode_monitor': {'button': None, 'visible': False},
+            'state_machine': {'button': None, 'visible': False},
+        }
+        
+        for view_name in self.view_configs.keys():
+            btn = QtWidgets.QPushButton(f"{'Hide' if self.view_configs[view_name]['visible'] else 'Show'} {view_name.replace('_', ' ').title()}")
+            btn.setMaximumWidth(140)
+            btn.clicked.connect(lambda checked, v=view_name: self._on_toggle_view(v))
+            btn.setToolTip(f"Toggle {view_name} oscilloscope view")
+            view_layout.addWidget(btn)
+            self.view_configs[view_name]['button'] = btn
+        
+        view_layout.addStretch()
+        main_layout.addLayout(view_layout)
+        
         # Main content: parameters (left), plots (center), telemetry (right)
         content_layout = QtWidgets.QHBoxLayout()
         
         # Left: Parameter panel (20% width)
-        param_panel = self._build_parameter_panel()
-        content_layout.addWidget(param_panel, 20)
+        self.param_panel = self._build_parameter_panel()
+        content_layout.addWidget(self.param_panel, 20)
         
         # Center: Four plots in 2x2 grid (60% width)
         plots_widget = self._build_plots()
         content_layout.addWidget(plots_widget, 60)
         
         # Right: Telemetry dashboard (20% width)
-        telemetry_panel = self._build_telemetry_panel()
-        content_layout.addWidget(telemetry_panel, 20)
+        self.telemetry_panel = self._build_telemetry_panel()
+        content_layout.addWidget(self.telemetry_panel, 20)
+        
+        # Store layout reference for toggling
+        self.content_layout = content_layout
+        self.panels_visible = True
+        self.params_visible = True
+        self.telemetry_visible = True
         
         main_layout.addLayout(content_layout, 1)
         
@@ -274,12 +328,29 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         return panel
     
     def _build_plots(self) -> QtWidgets.QWidget:
-        """Build four plots in 2x2 grid."""
-        plots_widget = QtWidgets.QWidget()
-        plots_layout = QtWidgets.QGridLayout(plots_widget)
-        plots_layout.setSpacing(5)
+        """Build plots with dynamic ordering based on user clicks."""
+        self.plots_container = QtWidgets.QWidget()
+        self.plots_layout = QtWidgets.QVBoxLayout(self.plots_container)
+        self.plots_layout.setSpacing(5)
+        self.plots_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Plot 1: Grid Voltage (top-left)
+        # Track visible views in order of activation
+        # Initialize with views that should be visible by default
+        self.visible_views_order = [view for view, config in self.view_configs.items() if config['visible']]
+        
+        # Store plot groups by view type for reference
+        self.plot_groups = {
+            'measurements': [],
+            'observer': [],
+            'current_controller': [],
+            'modulator': [],
+            'operation_mode_monitor': [],
+            'state_machine': [],
+        }
+        
+        # Create all plot widgets (hidden initially, shown on demand)
+        
+        # Plot 1: Grid Voltage - measurements view
         self.voltage_plot = pg.PlotWidget()
         self.voltage_plot.setBackground('#1e1e1e')
         self.voltage_plot.setLabel('left', 'Grid Voltage (pu)', color='#ffffff')
@@ -289,9 +360,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.voltage_plot.getAxis('bottom').setTextPen('#ffffff')
         self.voltage_plot.addLegend()
         self.voltage_curve = self.voltage_plot.plot(pen=pg.mkPen(color='g', width=2), name='Voltage')
-        plots_layout.addWidget(self.voltage_plot, 0, 0)
+        self.voltage_plot.setMinimumHeight(200)
+        self.voltage_plot.hide()
+        self.plot_groups['measurements'].append(self.voltage_plot)
         
-        # Plot 2: Grid Phase Currents (top-right)
+        # Plot 2: Grid Phase Currents - measurements view
         self.current_plot = pg.PlotWidget()
         self.current_plot.setBackground('#1e1e1e')
         self.current_plot.setLabel('left', 'Grid Current (pu)', color='#ffffff')
@@ -303,9 +376,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.current_curve_a = self.current_plot.plot(pen=pg.mkPen('r', width=2), name='Phase A')
         self.current_curve_b = self.current_plot.plot(pen=pg.mkPen('g', width=2), name='Phase B')
         self.current_curve_c = self.current_plot.plot(pen=pg.mkPen('b', width=2), name='Phase C')
-        plots_layout.addWidget(self.current_plot, 0, 1)
+        self.current_plot.setMinimumHeight(200)
+        self.current_plot.hide()
+        self.plot_groups['measurements'].append(self.current_plot)
         
-        # Plot 3: Observer (bottom-left)
+        # Plot 3: Observer - observer view
         self.observer_plot = pg.PlotWidget()
         self.observer_plot.setBackground('#1e1e1e')
         self.observer_plot.setLabel('left', 'Observer', color='#ffffff')
@@ -316,9 +391,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.observer_plot.addLegend()
         self.observer_voltage_curve = self.observer_plot.plot(pen=pg.mkPen('c', width=2), name='V Est (pu)')
         self.observer_freq_curve = self.observer_plot.plot(pen=pg.mkPen('m', width=2), name='Freq (pu)')
-        plots_layout.addWidget(self.observer_plot, 1, 0)
+        self.observer_plot.setMinimumHeight(200)
+        self.observer_plot.hide()
+        self.plot_groups['observer'].append(self.observer_plot)
         
-        # Plot 4: DC Link Control (bottom-right)
+        # Plot 4: DC Link Control - current_controller view
         self.dclink_plot = pg.PlotWidget()
         self.dclink_plot.setBackground('#1e1e1e')
         self.dclink_plot.setLabel('left', 'DC Link Current (pu)', color='#ffffff')
@@ -329,9 +406,14 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.dclink_plot.addLegend()
         self.dclink_ref_curve = self.dclink_plot.plot(pen=pg.mkPen('y', width=2), name='Reference')
         self.dclink_measured_curve = self.dclink_plot.plot(pen=pg.mkPen('w', width=2), name='Measured')
-        plots_layout.addWidget(self.dclink_plot, 1, 1)
+        self.dclink_plot.setMinimumHeight(200)
+        self.dclink_plot.hide()
+        self.plot_groups['current_controller'].append(self.dclink_plot)
         
-        return plots_widget
+        # Display default views
+        self._rebuild_plots_layout()
+        
+        return self.plots_container
     
     def _build_telemetry_panel(self) -> QtWidgets.QWidget:
         """Build telemetry dashboard panel."""
@@ -487,6 +569,140 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         """Handle window size change at runtime."""
         self.window_size = value
         logger.info(f"Window size changed to {value} samples")
+    
+    def _on_toggle_view(self, view_name: str):
+        """Toggle visibility of plots for a specific view."""
+        if view_name not in self.view_configs:
+            logger.warning(f"Unknown view: {view_name}")
+            return
+        
+        # Toggle visibility
+        self.view_configs[view_name]['visible'] = not self.view_configs[view_name]['visible']
+        
+        # Update button text
+        btn = self.view_configs[view_name]['button']
+        display_name = view_name.replace('_', ' ').title()
+        
+        if self.view_configs[view_name]['visible']:
+            btn.setText(f"Hide {display_name}")
+            logger.info(f"{display_name} view shown")
+            # Add view to visible list in order
+            if view_name not in self.visible_views_order:
+                self.visible_views_order.append(view_name)
+        else:
+            btn.setText(f"Show {display_name}")
+            logger.info(f"{display_name} view hidden")
+            # Remove view from visible list
+            if view_name in self.visible_views_order:
+                self.visible_views_order.remove(view_name)
+        
+        # Rebuild layout with plots in order
+        self._rebuild_plots_layout()
+    
+    def _rebuild_plots_layout(self):
+        """Rebuild the plots layout based on visible views order."""
+        # Clear current layout completely
+        while self.plots_layout.count() > 0:
+            item = self.plots_layout.takeAt(0)
+            if item.widget():
+                item.widget().hide()
+            elif item.spacerItem():
+                # Remove spacer items as well
+                pass
+        
+        # Add plots for visible views in order (at top, no stretch before)
+        for view_name in self.visible_views_order:
+            for plot in self.plot_groups.get(view_name, []):
+                self.plots_layout.addWidget(plot)
+                plot.show()
+        
+        # Add stretch at end to push plots to top
+        self.plots_layout.addStretch()
+        
+        # Force layout update
+        self.plots_container.layout().update()
+    
+    def _on_toggle_params_only(self):
+        """Toggle visibility of parameters panel only."""
+        self.params_visible = not self.params_visible
+        
+        if self.params_visible:
+            self.param_panel.show()
+            self.toggle_params_btn.setText("Hide Params")
+            logger.info("Parameters panel shown")
+        else:
+            self.param_panel.hide()
+            self.toggle_params_btn.setText("Show Params")
+            logger.info("Parameters panel hidden")
+        
+        # Update "Hide All" button text based on visibility state
+        self._update_all_panels_button_text()
+    
+    def _on_toggle_telemetry_only(self):
+        """Toggle visibility of telemetry panel only."""
+        self.telemetry_visible = not self.telemetry_visible
+        
+        if self.telemetry_visible:
+            self.telemetry_panel.show()
+            self.toggle_telemetry_btn.setText("Hide Telemetry")
+            logger.info("Telemetry panel shown")
+        else:
+            self.telemetry_panel.hide()
+            self.toggle_telemetry_btn.setText("Show Telemetry")
+            logger.info("Telemetry panel hidden")
+        
+        # Update "Hide All" button text based on visibility state
+        self._update_all_panels_button_text()
+    
+    def _on_toggle_all_panels(self):
+        """Toggle visibility of both panels simultaneously."""
+        # If both are visible, hide both. Otherwise, show both.
+        should_show = not (self.params_visible and self.telemetry_visible)
+        
+        self.params_visible = should_show
+        self.telemetry_visible = should_show
+        
+        if should_show:
+            self.param_panel.show()
+            self.telemetry_panel.show()
+            self.toggle_params_btn.setText("Hide Params")
+            self.toggle_telemetry_btn.setText("Hide Telemetry")
+            self.toggle_all_panels_btn.setText("Hide All")
+            logger.info("All panels shown")
+        else:
+            self.param_panel.hide()
+            self.telemetry_panel.hide()
+            self.toggle_params_btn.setText("Show Params")
+            self.toggle_telemetry_btn.setText("Show Telemetry")
+            self.toggle_all_panels_btn.setText("Show All")
+            logger.info("All panels hidden - maximizing plot area")
+    
+    def _update_all_panels_button_text(self):
+        """Update the 'Hide All' button text based on current panel visibility."""
+        if self.params_visible and self.telemetry_visible:
+            self.toggle_all_panels_btn.setText("Hide All")
+        elif not self.params_visible and not self.telemetry_visible:
+            self.toggle_all_panels_btn.setText("Show All")
+        else:
+            # Mixed state - show partial indicator
+            self.toggle_all_panels_btn.setText("Show All" if self.params_visible or self.telemetry_visible else "Hide All")
+    
+    def _on_toggle_panels(self):
+        """Toggle visibility of parameters and telemetry panels."""
+        self.panels_visible = not self.panels_visible
+        
+        if self.panels_visible:
+            # Show both panels
+            self.param_panel.show()
+            self.telemetry_panel.show()
+            self.minimize_panels_btn.setText("Hide Panels")
+            logger.info("Panels shown")
+        else:
+            # Hide both panels to maximize plot area
+            self.param_panel.hide()
+            self.telemetry_panel.hide()
+            self.minimize_panels_btn.setText("Show Panels")
+            logger.info("Panels hidden - maximizing plot area")
     
     def _on_packet(self, packet: GridSideTelemetryPacket):
         """Handle incoming telemetry packet."""
