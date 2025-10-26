@@ -107,7 +107,7 @@ class ParameterEditDialog(QtWidgets.QDialog):
 class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     """Minimal telemetry monitor with parameters, plots, and dashboard."""
     
-    def __init__(self, host: str, port: int, verbose: bool = False, decimate: int = 1, window_size: int = 2):
+    def __init__(self, host: str, port: int, verbose: bool = False, decimate: int = 0, window_size: int = 2):
         super().__init__()
         
         logger.info(f"=== Monitor with Parameters (verbose={verbose}, decimate={decimate}, window={window_size}) ===")
@@ -142,15 +142,16 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.decimate_factor = max(1, decimate)
         self.packet_counter = 0
         self.sample_index = 0
-        self.start_time = None  # Time when telemetry started (in seconds)
         self.window_size = window_size
         self.layout_mode = "1xN"  # "1xN" for vertical stack or "2x2" for grid
         
-        # Simple deque buffers
-        self.voltage_buffer = deque(maxlen=2000)
-        self.current_buffer = deque(maxlen=2000)
-        self.observer_buffer = deque(maxlen=2000)
-        self.dclink_buffer = deque(maxlen=2000)
+        # Simple deque buffers - large size to accommodate any window size
+        # Assuming ~10kHz sample rate, 10000 samples = 1 second of data at max decimation
+        # This allows windows up to 300 seconds
+        self.voltage_buffer = deque(maxlen=10000)
+        self.current_buffer = deque(maxlen=10000)
+        self.observer_buffer = deque(maxlen=10000)
+        self.dclink_buffer = deque(maxlen=10000)
         
         # Latest telemetry for dashboard
         self.latest_packet = None
@@ -217,13 +218,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
-        self.window_size_spinbox.setRange(1, 300)
-        self.window_size_spinbox.setSingleStep(5)
+        self.window_size_spinbox.setRange(100, 10000)
+        self.window_size_spinbox.setSingleStep(100)
         self.window_size_spinbox.setValue(window_size)
-        self.window_size_spinbox.setToolTip("Time window in seconds to display on X-axis")
+        self.window_size_spinbox.setToolTip("Number of samples to display on X-axis")
         self.window_size_spinbox.valueChanged.connect(self._on_window_size_changed)
         telem_layout.addWidget(self.window_size_spinbox)
-        telem_layout.addWidget(QtWidgets.QLabel("seconds"))
+        telem_layout.addWidget(QtWidgets.QLabel("samples"))
         
         # Layout mode toggle
         telem_layout.addWidget(QtWidgets.QLabel("  |  Layout:"))
@@ -336,87 +337,114 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         return panel
     
     def _build_plots(self) -> QtWidgets.QWidget:
-        """Build plots with dynamic ordering based on user clicks."""
-        self.plots_container = QtWidgets.QWidget()
+        """Build plots as subplots in a single graphics widget."""
+        self.plots_container = pg.GraphicsLayoutWidget()
+        self.plots_container.setBackground('#1e1e1e')
         
         # Track visible views in order of activation
         # Initialize with views that should be visible by default
         self.visible_views_order = [view for view, config in self.view_configs.items() if config['visible']]
         
-        # Store plot groups by view type for reference
+        # Store plot references by view type for reference
+        # Note: These will be stored as (row, col) tuples for subplot positioning
         self.plot_groups = {
-            'measurements': [],
-            'observer': [],
-            'current_controller': [],
-            'modulator': [],
-            'operation_mode_monitor': [],
-            'state_machine': [],
+            'measurements': {},  # Will store {'voltage': plot_item, 'current': plot_item}
+            'observer': {},
+            'current_controller': {},
+            'modulator': {},
+            'operation_mode_monitor': {},
+            'state_machine': {},
         }
         
+        # Create all plot items (subplots)
+        
         # Plot 1: Grid Voltage - measurements view
-        self.voltage_plot = pg.PlotWidget()
-        self.voltage_plot.setBackground('#1e1e1e')
-        self.voltage_plot.setLabel('left', 'Grid Voltage (pu)', color='#ffffff')
-        self.voltage_plot.setLabel('bottom', 'Time (s)', color='#ffffff')
+        self.voltage_plot = self.plots_container.addPlot(title="Grid Voltage (pu)")
+        self.voltage_plot.setLabel('left', 'Magnitude (pu)', color='#ffffff')
+        self.voltage_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
         self.voltage_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.voltage_plot.getAxis('left').setTextPen('#ffffff')
-        self.voltage_plot.getAxis('bottom').setTextPen('#ffffff')
-        self.voltage_plot.addLegend()
         self.voltage_curve = self.voltage_plot.plot(pen=pg.mkPen(color='g', width=2), name='Voltage')
-        self.voltage_plot.setMinimumHeight(200)
-        self.voltage_plot.hide()
-        self.plot_groups['measurements'].append(self.voltage_plot)
+        self.voltage_plot.addLegend()
+        self.plot_groups['measurements']['voltage'] = self.voltage_plot
         
         # Plot 2: Grid Phase Currents - measurements view
-        self.current_plot = pg.PlotWidget()
-        self.current_plot.setBackground('#1e1e1e')
-        self.current_plot.setLabel('left', 'Grid Current (pu)', color='#ffffff')
-        self.current_plot.setLabel('bottom', 'Time (s)', color='#ffffff')
+        self.current_plot = self.plots_container.addPlot(title="Grid Current (pu)")
+        self.current_plot.setLabel('left', 'Current (pu)', color='#ffffff')
+        self.current_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
         self.current_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.current_plot.getAxis('left').setTextPen('#ffffff')
-        self.current_plot.getAxis('bottom').setTextPen('#ffffff')
-        self.current_plot.addLegend()
         self.current_curve_a = self.current_plot.plot(pen=pg.mkPen('r', width=2), name='Phase A')
         self.current_curve_b = self.current_plot.plot(pen=pg.mkPen('g', width=2), name='Phase B')
         self.current_curve_c = self.current_plot.plot(pen=pg.mkPen('b', width=2), name='Phase C')
-        self.current_plot.setMinimumHeight(200)
-        self.current_plot.hide()
-        self.plot_groups['measurements'].append(self.current_plot)
+        self.current_plot.addLegend()
+        self.plot_groups['measurements']['current'] = self.current_plot
         
         # Plot 3: Observer - observer view
-        self.observer_plot = pg.PlotWidget()
-        self.observer_plot.setBackground('#1e1e1e')
+        self.observer_plot = self.plots_container.addPlot(title="Observer")
         self.observer_plot.setLabel('left', 'Observer', color='#ffffff')
-        self.observer_plot.setLabel('bottom', 'Time (s)', color='#ffffff')
+        self.observer_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
         self.observer_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.observer_plot.getAxis('left').setTextPen('#ffffff')
-        self.observer_plot.getAxis('bottom').setTextPen('#ffffff')
-        self.observer_plot.addLegend()
         self.observer_voltage_curve = self.observer_plot.plot(pen=pg.mkPen('c', width=2), name='V Est (pu)')
         self.observer_freq_curve = self.observer_plot.plot(pen=pg.mkPen('m', width=2), name='Freq (pu)')
-        self.observer_plot.setMinimumHeight(200)
-        self.observer_plot.hide()
-        self.plot_groups['observer'].append(self.observer_plot)
+        self.observer_plot.addLegend()
+        self.plot_groups['observer']['voltage_freq'] = self.observer_plot
         
         # Plot 4: DC Link Control - current_controller view
-        self.dclink_plot = pg.PlotWidget()
-        self.dclink_plot.setBackground('#1e1e1e')
-        self.dclink_plot.setLabel('left', 'DC Link Current (pu)', color='#ffffff')
-        self.dclink_plot.setLabel('bottom', 'Time (s)', color='#ffffff')
+        self.dclink_plot = self.plots_container.addPlot(title="DC Link Control")
+        self.dclink_plot.setLabel('left', 'Current (pu)', color='#ffffff')
+        self.dclink_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
         self.dclink_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.dclink_plot.getAxis('left').setTextPen('#ffffff')
-        self.dclink_plot.getAxis('bottom').setTextPen('#ffffff')
-        self.dclink_plot.addLegend()
         self.dclink_ref_curve = self.dclink_plot.plot(pen=pg.mkPen('y', width=2), name='Reference')
         self.dclink_measured_curve = self.dclink_plot.plot(pen=pg.mkPen('w', width=2), name='Measured')
-        self.dclink_plot.setMinimumHeight(200)
-        self.dclink_plot.hide()
-        self.plot_groups['current_controller'].append(self.dclink_plot)
+        self.dclink_plot.addLegend()
+        self.plot_groups['current_controller']['dclink'] = self.dclink_plot
         
-        # Display default views
-        self._rebuild_plots_layout()
+        # Link x-axes of all plots so zooming/panning is synchronized
+        self.current_plot.setXLink(self.voltage_plot)
+        self.observer_plot.setXLink(self.voltage_plot)
+        self.dclink_plot.setXLink(self.voltage_plot)
         
-        return self.plots_container
+        # Enable auto-range on Y-axis only (X-axis is manually controlled via zoom/pan)
+        for plot in [self.voltage_plot, self.current_plot, self.observer_plot, self.dclink_plot]:
+            plot.enableAutoRange(axis='y', enable=True)
+        
+        # Organize plots based on initial layout mode
+        self._reorganize_subplot_layout()
+        
+        # Wrap in a QWidget for compatibility
+        container_widget = QtWidgets.QWidget()
+        container_layout = QtWidgets.QVBoxLayout(container_widget)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.addWidget(self.plots_container)
+        
+        return container_widget
+    
+    def _reorganize_subplot_layout(self):
+        """Reorganize subplots based on current layout mode and visible views."""
+        # Clear all subplots from the graphics layout
+        self.plots_container.clear()
+        
+        # Collect visible plots in order
+        visible_plots = []
+        plot_titles = []
+        for view_name in self.visible_views_order:
+            for plot_key, plot_item in self.plot_groups.get(view_name, {}).items():
+                visible_plots.append(plot_item)
+                plot_titles.append(plot_item.titleLabel.text if hasattr(plot_item, 'titleLabel') else view_name)
+        
+        if not visible_plots:
+            return  # Nothing to display
+        
+        # Add plots back to container in appropriate layout
+        if self.layout_mode == "1xN":
+            # Vertical stack: 1 column, N rows
+            for i, plot in enumerate(visible_plots):
+                self.plots_container.addItem(plot, row=i, col=0)
+        else:  # 2x2
+            # Grid layout: 2 columns
+            for i, plot in enumerate(visible_plots):
+                row = i // 2
+                col = i % 2
+                self.plots_container.addItem(plot, row=row, col=col)
     
     def _build_telemetry_panel(self) -> QtWidgets.QWidget:
         """Build telemetry dashboard panel."""
@@ -542,7 +570,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.dclink_buffer.clear()
         self.sample_index = 0
         self.packet_counter = 0
-        self.start_time = time.time()  # Record start time
         if self.network_client.start_telemetry():
             self.start_btn.setEnabled(False)
             self.stop_btn.setEnabled(True)
@@ -618,70 +645,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self._rebuild_plots_layout()
     
     def _rebuild_plots_layout(self):
-        """Rebuild the plots layout based on layout mode (1xN vertical or 2x2 grid)."""
-        # Remove and delete old layout properly
-        old_layout = self.plots_container.layout()
-        if old_layout:
-            # Remove all items and widgets
-            while old_layout.count() > 0:
-                item = old_layout.takeAt(0)
-                if item.widget():
-                    item.widget().setParent(None)  # Remove widget from layout
-            # Delete the old layout
-            QtWidgets.QWidget().setLayout(old_layout)  # Transfer ownership to temporary widget
-        
-        # Create new layout based on mode
-        if self.layout_mode == "1xN":
-            self._rebuild_plots_1xN_layout()
-        else:  # 2x2
-            self._rebuild_plots_2x2_layout()
-    
-    def _rebuild_plots_1xN_layout(self):
-        """Rebuild layout as 1xN vertical stack."""
-        # Create new vertical layout
-        new_layout = QtWidgets.QVBoxLayout()
-        new_layout.setSpacing(5)
-        new_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Add plots for visible views in order
-        for view_name in self.visible_views_order:
-            for plot in self.plot_groups.get(view_name, []):
-                new_layout.addWidget(plot)
-                plot.show()
-        
-        # Add stretch at end to push plots to top
-        new_layout.addStretch()
-        
-        # Set the layout
-        self.plots_container.setLayout(new_layout)
-    
-    def _rebuild_plots_2x2_layout(self):
-        """Rebuild layout as 2x2 grid."""
-        # Create new grid layout
-        new_layout = QtWidgets.QGridLayout()
-        new_layout.setSpacing(5)
-        new_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Collect all plots to display
-        all_plots = []
-        for view_name in self.visible_views_order:
-            for plot in self.plot_groups.get(view_name, []):
-                all_plots.append(plot)
-        
-        # Add plots to grid: row 0, row 1, etc. (2 columns each)
-        row = 0
-        for i, plot in enumerate(all_plots):
-            row = i // 2
-            col = i % 2
-            new_layout.addWidget(plot, row, col)
-            plot.show()
-        
-        # Add stretch to fill remaining space if there are plots
-        if all_plots:
-            new_layout.setRowStretch(row + 1, 1)
-        
-        # Set the layout
-        self.plots_container.setLayout(new_layout)
+        """Rebuild the plots layout - calls reorganize to update subplot layout."""
+        self._reorganize_subplot_layout()
     
     def _on_toggle_params_only(self):
         """Toggle visibility of parameters panel only."""
@@ -774,28 +739,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             if self.packet_counter % self.decimate_factor != 0:
                 return
             
-            # Calculate elapsed time in seconds
-            if self.start_time is not None:
-                elapsed_time = time.time() - self.start_time
-            else:
-                elapsed_time = 0.0
-            
             # Store for dashboard
             self.latest_packet = packet
             
-            # Extract values
+            # Extract values and store with sample index
             if packet.measurements:
                 meas = packet.measurements
-                self.voltage_buffer.append((elapsed_time, meas.grid_voltage_magnitude_pu))
-                self.current_buffer.append((elapsed_time, meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
+                self.voltage_buffer.append((self.sample_index, meas.grid_voltage_magnitude_pu))
+                self.current_buffer.append((self.sample_index, meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
             
             if packet.observer:
                 obs = packet.observer
-                self.observer_buffer.append((elapsed_time, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
+                self.observer_buffer.append((self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
             
             if packet.controller:
                 ctrl = packet.controller
-                self.dclink_buffer.append((elapsed_time, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
+                self.dclink_buffer.append((self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
             
             self.sample_index += 1
         
@@ -1043,10 +1002,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 self.voltage_curve.setData(x_data, y_data)
                 if len(x_data) > 0:
                     latest = x_data[-1]
-                    earliest = x_data[0]
-                    # Show window_size seconds, but if total data is less than window, show all from earliest
-                    x_min = max(earliest, latest - self.window_size)
-                    self.voltage_plot.setXRange(x_min, latest, padding=0)
+                    self.voltage_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
             
             # Currents
             if len(self.current_buffer) > 0:
@@ -1059,10 +1015,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 self.current_curve_c.setData(x_data, y_data_c)
                 if len(x_data) > 0:
                     latest = x_data[-1]
-                    earliest = x_data[0]
-                    # Show window_size seconds, but if total data is less than window, show all from earliest
-                    x_min = max(earliest, latest - self.window_size)
-                    self.current_plot.setXRange(x_min, latest, padding=0)
+                    self.current_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
             
             # Observer
             if len(self.observer_buffer) > 0:
@@ -1073,10 +1026,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 self.observer_freq_curve.setData(x_data, y_freq)
                 if len(x_data) > 0:
                     latest = x_data[-1]
-                    earliest = x_data[0]
-                    # Show window_size seconds, but if total data is less than window, show all from earliest
-                    x_min = max(earliest, latest - self.window_size)
-                    self.observer_plot.setXRange(x_min, latest, padding=0)
+                    self.observer_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
             
             # DC Link
             if len(self.dclink_buffer) > 0:
@@ -1087,10 +1037,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 self.dclink_measured_curve.setData(x_data, y_meas)
                 if len(x_data) > 0:
                     latest = x_data[-1]
-                    earliest = x_data[0]
-                    # Show window_size seconds, but if total data is less than window, show all from earliest
-                    x_min = max(earliest, latest - self.window_size)
-                    self.dclink_plot.setXRange(x_min, latest, padding=0)
+                    self.dclink_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
         
         except Exception as e:
             logger.error(f"Plot error: {e}", exc_info=True)
@@ -1169,7 +1116,7 @@ def main():
     parser.add_argument('--port', type=int, default=7000)
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--decimate', type=int, default=1, help='Process 1 out of N packets')
-    parser.add_argument('--window', type=int, default=2, help='Time window in seconds to display on X-axis')
+    parser.add_argument('--window', type=int, default=1000, help='Number of samples to display on X-axis')
     args = parser.parse_args()
     
     app = QtWidgets.QApplication(sys.argv)
