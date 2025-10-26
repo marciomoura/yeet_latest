@@ -108,6 +108,8 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._max_consecutive_errors = 10  # Disconnect after 10 consecutive errors
         self._last_packet_time = 0
         self._packet_timeout_ms = 5000  # 5 seconds without packets = timeout
+        self._packet_timeout_enabled = True  # Can be disabled during parameter loading
+        self._telemetry_streaming = False  # Track if telemetry should be streaming
         self._recv_buffer_max_size = 65536  # 64KB max buffer to prevent memory issues
         
         # Qt timer for polling socket
@@ -198,7 +200,9 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Close socket
         self._cleanup_socket()
         
+        # Reset state
         self._state = NetworkState.DISCONNECTED
+        self._telemetry_streaming = False  # Reset streaming flag
         logger.info("Disconnected")
         self.connected_changed.emit(False)
     
@@ -227,6 +231,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         if self._send_command('START'):
             self._packets_received = 0
             self._last_sequence = -1
+            self._telemetry_streaming = True  # Expect telemetry packets
             logger.info("Sent START telemetry command to server")
             return True
         
@@ -246,6 +251,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         
         # Send STOP command (server will manage state)
         if self._send_command('STOP'):
+            self._telemetry_streaming = False  # No longer expecting telemetry packets
             logger.info("Sent STOP telemetry command to server")
             return True
         
@@ -429,6 +435,15 @@ class UnifiedNetworkClient(QtCore.QObject):
         if not self.connected:
             return
         
+        # Skip timeout check if disabled (e.g., during parameter loading)
+        if not self._packet_timeout_enabled:
+            return
+        
+        # Only apply timeout when telemetry is actively streaming
+        # When stopped, connection stays open but no packets are expected
+        if not self._telemetry_streaming:
+            return
+        
         # Check if we've received data recently
         current_time = QtCore.QDateTime.currentMSecsSinceEpoch()
         time_since_last_packet = current_time - self._last_packet_time
@@ -436,6 +451,22 @@ class UnifiedNetworkClient(QtCore.QObject):
         if time_since_last_packet > self._packet_timeout_ms:
             logger.warning(f"No packets received for {time_since_last_packet}ms (timeout: {self._packet_timeout_ms}ms)")
             self._handle_connection_error("Packet timeout")
+    
+    def set_packet_timeout_enabled(self, enabled: bool) -> None:
+        """Enable or disable packet timeout check.
+        
+        Useful for disabling timeout during long operations like parameter loading.
+        
+        Args:
+            enabled: True to enable timeout check, False to disable
+        """
+        self._packet_timeout_enabled = enabled
+        if enabled:
+            # Reset timer when re-enabling
+            self._last_packet_time = QtCore.QDateTime.currentMSecsSinceEpoch()
+            logger.debug("Packet timeout check enabled")
+        else:
+            logger.debug("Packet timeout check disabled")
     
     def _handle_connection_error(self, reason: str) -> None:
         """Handle connection error and disconnect.

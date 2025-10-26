@@ -1,40 +1,28 @@
 #!/usr/bin/env python3
-"""
-Monitor Client Launcher
-========================
+"""Launch SFC monitor with parameter configuration support.
 
-Convenience launcher for the monitor client application.
+This monitor includes:
+- Left panel: Parameter list with load button and double-click editing
+- Center: Four oscilloscope plots (voltage, currents, observer, DC link)
+- Right panel: Real-time telemetry dashboard
 
 Usage:
-    python monitor.py [options]
-
-Options:
-    --host HOST          MCU IP address (default: 192.168.2.100)
-    --port PORT          MCU telemetry port (default: 7000)
-    --window SECONDS     Time window in seconds (default: 5.0)
-    --verbose           Enable verbose logging
-
-Examples:
-    # Launch with default settings
-    python monitor.py
-
-    # Connect to different host
-    python monitor.py --host 192.168.1.100
-
-    # Enable verbose logging
-    python monitor.py --verbose
-
-    # Custom time window
-    python monitor.py --window 10.0
+    python monitor_with_parameters.py --host 192.168.2.100 --port 7000
+    python monitor_with_parameters.py --decimate 10 --window 500
 """
 
 import sys
-from pathlib import Path
+import logging
 
-# Add current directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%H:%M:%S'
+)
 
+# Import and run
 from monitor_client.ui.main_window import main
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())
