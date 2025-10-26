@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/adc_value.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
@@ -81,39 +82,16 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // frequency_t parameters - convert to/from Hz
-        auto& voltage_lpf_param = _model_parameters->voltage_lpf_cutoff_frequency;
         entry.parameters.insert("voltage_lpf_cutoff_frequency",
-            low_level_access([&voltage_lpf_param]() -> float { return static_cast<float>(voltage_lpf_param.read()); },
-                [&voltage_lpf_param](float value_hz) { voltage_lpf_param.write(frequency_t{value_hz}); }));
-
-        auto& current_lpf_param = _model_parameters->current_lpf_cutoff_frequency;
+            yeet::utils::make_units_accessor(_model_parameters->voltage_lpf_cutoff_frequency));
         entry.parameters.insert("current_lpf_cutoff_frequency",
-            low_level_access([&current_lpf_param]() -> float { return static_cast<float>(current_lpf_param.read()); },
-                [&current_lpf_param](float value_hz) { current_lpf_param.write(frequency_t{value_hz}); }));
-
-        auto& voltage_mag_lpf_param = _model_parameters->voltage_magnitude_lpf_cutoff_frequency;
+            yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         entry.parameters.insert("voltage_magnitude_lpf_cutoff_frequency",
-            low_level_access(
-                [&voltage_mag_lpf_param]() -> float { return static_cast<float>(voltage_mag_lpf_param.read()); },
-                [&voltage_mag_lpf_param](float value_hz) { voltage_mag_lpf_param.write(frequency_t{value_hz}); }));
-
-        // voltage_pu_t parameters - convert to/from per-unit
-        auto& comm_start_threshold_param = _model_parameters->commutation_start_threshold;
+            yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
         entry.parameters.insert("commutation_start_threshold",
-            low_level_access([&comm_start_threshold_param]()
-                                 -> float { return static_cast<float>(comm_start_threshold_param.read()); },
-                [&comm_start_threshold_param](
-                    float value_pu) { comm_start_threshold_param.write(voltage_pu_t{value_pu}); }));
-
-        auto& comm_end_threshold_param = _model_parameters->commutation_end_threshold;
+            yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
         entry.parameters.insert("commutation_end_threshold",
-            low_level_access(
-                [&comm_end_threshold_param]() -> float { return static_cast<float>(comm_end_threshold_param.read()); },
-                [&comm_end_threshold_param](
-                    float value_pu) { comm_end_threshold_param.write(voltage_pu_t{value_pu}); }));
-
-        // int and real_t parameters - use default accessor
+            yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
         entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
         entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
         entry.parameters.insert("current_adc_bits", _model_parameters->current_adc_bits);
@@ -201,36 +179,18 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // frequency_t parameters - convert to/from Hz
-        auto& voltage_lpf_param = _model_parameters->voltage_lpf_cutoff_frequency;
         entry.parameters.insert("voltage_lpf_cutoff_frequency",
-            low_level_access([&voltage_lpf_param]() -> float { return static_cast<float>(voltage_lpf_param.read()); },
-                [&voltage_lpf_param](float value_hz) { voltage_lpf_param.write(frequency_t{value_hz}); }));
-
-        auto& current_lpf_param = _model_parameters->current_lpf_cutoff_frequency;
+            yeet::utils::make_units_accessor(_model_parameters->voltage_lpf_cutoff_frequency));
         entry.parameters.insert("current_lpf_cutoff_frequency",
-            low_level_access([&current_lpf_param]() -> float { return static_cast<float>(current_lpf_param.read()); },
-                [&current_lpf_param](float value_hz) { current_lpf_param.write(frequency_t{value_hz}); }));
-
-        auto& voltage_mag_lpf_param = _model_parameters->voltage_magnitude_lpf_cutoff_frequency;
+            yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         entry.parameters.insert("voltage_magnitude_lpf_cutoff_frequency",
-            low_level_access(
-                [&voltage_mag_lpf_param]() -> float { return static_cast<float>(voltage_mag_lpf_param.read()); },
-                [&voltage_mag_lpf_param](float value_hz) { voltage_mag_lpf_param.write(frequency_t{value_hz}); }));
+            yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
 
         // voltage_pu_t parameters - convert to/from per-unit
-        auto& comm_start_threshold_param = _model_parameters->commutation_start_threshold;
         entry.parameters.insert("commutation_start_threshold",
-            low_level_access([&comm_start_threshold_param]()
-                                 -> float { return static_cast<float>(comm_start_threshold_param.read()); },
-                [&comm_start_threshold_param](
-                    float value_pu) { comm_start_threshold_param.write(voltage_pu_t{value_pu}); }));
-
-        auto& comm_end_threshold_param = _model_parameters->commutation_end_threshold;
+            yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
         entry.parameters.insert("commutation_end_threshold",
-            low_level_access(
-                [&comm_end_threshold_param]() -> float { return static_cast<float>(comm_end_threshold_param.read()); },
-                [&comm_end_threshold_param](
-                    float value_pu) { comm_end_threshold_param.write(voltage_pu_t{value_pu}); }));
+            yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
 
         // int and real_t parameters - use default accessor
         entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);

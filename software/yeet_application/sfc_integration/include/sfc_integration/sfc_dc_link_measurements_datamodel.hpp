@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
@@ -57,26 +58,10 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Register parameters - frequency_t type needs conversion to float (Hz)
-        auto& filter_cutoff_param = _model_parameters->filter_cutoff_frequency;
-        entry.parameters.insert("filter_cutoff_frequency",
-            low_level_access(
-                // Read: frequency_t -> float (Hz)
-                [&filter_cutoff_param]() -> float { return static_cast<float>(filter_cutoff_param.read()); },
-                // Write: float (Hz) -> frequency_t
-                [&filter_cutoff_param](float value_hz) { filter_cutoff_param.write(frequency_t{value_hz}); }));
-
-        auto& heavy_filter_cutoff_param = _model_parameters->heavy_filter_cutoff_frequency;
         entry.parameters.insert(
-            "heavy_filter_cutoff_frequency", low_level_access(
-                                                 // Read: frequency_t -> float (Hz)
-                                                 [&heavy_filter_cutoff_param]() -> float {
-                                                     return static_cast<float>(heavy_filter_cutoff_param.read());
-                                                 },
-                                                 // Write: float (Hz) -> frequency_t
-                                                 [&heavy_filter_cutoff_param](float value_hz) {
-                                                     heavy_filter_cutoff_param.write(frequency_t{value_hz});
-                                                 }));
+            "filter_cutoff_frequency", yeet::utils::make_units_accessor(_model_parameters->filter_cutoff_frequency));
+        entry.parameters.insert("heavy_filter_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->heavy_filter_cutoff_frequency));
 
         registry.insert("dc_link_measurements", std::move(entry));
     }

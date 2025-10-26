@@ -92,7 +92,7 @@ All components developed for "yeet_control" must strictly adhere to the followin
 ### 0. Prioritize Reuse Before Creating
 - **Search First**: Before implementing a new component, thoroughly search the existing `yeet_control` library to see if a suitable component already exists. Reusing and composing existing components is highly preferred over creating redundant logic.
 - **Contribute Back**: If you find a generic control function that is not present in `yeet_control`, it should be developed there, not within the application layer. The `yeet_control` library is intended to be a collection of reusable components that can be used across various applications.
-
+- **Documentation**: Only add new documentation if explicitly requested by me. Otherwise, assume that documentation is not required for existing components. The same is valid for analysis checks, tutorials, and examples. Do not create these unless I specifically ask for them!
 ### 1. Genericity and Reusability is Paramount
 - **Use Standard Electrical Frames**: For algorithms operating on three-phase or two-phase electrical quantities, you MUST use the `abc`, `alphabeta`, and `dq` classes defined in `software/yeet_control/include/yeet_control/reference_frame.hpp`. This ensures consistency and interoperability between components.
 - **Self-Contained**: Components must be self-contained and have no dependencies on theyeet_applicationlayer. They are foundational blocks.

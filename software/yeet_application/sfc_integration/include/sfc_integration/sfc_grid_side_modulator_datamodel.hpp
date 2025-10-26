@@ -5,6 +5,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/units.hpp"
 
@@ -95,31 +96,10 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // angle_wrapped parameter - convert to/from radians
-        auto& force_commutation_angle_param = _model_parameters->force_commutation_angle;
-        entry.parameters.insert("force_commutation_angle",
-            low_level_access(
-                // Read: angle_wrapped -> float (radians)
-                [&force_commutation_angle_param]() -> float {
-                    return static_cast<float>(force_commutation_angle_param.read().get_radians());
-                },
-                // Write: float (radians) -> angle_wrapped
-                [&force_commutation_angle_param](float value_rad) {
-                    force_commutation_angle_param.write(angle_wrapped::from_radians(angle_t{value_rad}));
-                }));
-
-        // duration_t parameter - extract value in seconds
-        auto& commutation_timeout_param = _model_parameters->commutation_timeout;
         entry.parameters.insert(
-            "commutation_timeout", low_level_access(
-                                       // Read: duration_t -> float (seconds)
-                                       [&commutation_timeout_param]() -> float {
-                                           return static_cast<float>(commutation_timeout_param.read().value());
-                                       },
-                                       // Write: float (seconds) -> duration_t
-                                       [&commutation_timeout_param](float value_seconds) {
-                                           commutation_timeout_param.write(duration_t{value_seconds});
-                                       }));
+            "force_commutation_angle", yeet::utils::make_units_accessor(_model_parameters->force_commutation_angle));
+        entry.parameters.insert(
+            "commutation_timeout", yeet::utils::make_units_accessor(_model_parameters->commutation_timeout));
 
         registry.insert("grid_side_modulator", std::move(entry));
     }

@@ -115,6 +115,19 @@ public:
     constexpr operator angle_t() const noexcept { return uint32_to_radians(_value); }
 
     /**
+     * @brief Converts the angle to float (radians)
+     *
+     * Enables static_cast<float>(angle_wrapped_value) for convenient float conversion.
+     * The returned value represents the angle in radians, wrapped to [0, 2π].
+     *
+     * @return The angle in radians as a float, wrapped to the [0, 2π] range
+     */
+    constexpr explicit operator real_t() const noexcept
+    {
+        return static_cast<real_t>(uint32_to_radians(_value).value());
+    }
+
+    /**
      * @brief Gets the angle value in radians
      *
      * This method allows the angle object to be used as a function object.

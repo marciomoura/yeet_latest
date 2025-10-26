@@ -4,6 +4,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/units.hpp"
 
@@ -57,7 +58,14 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {}
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        // Note: Array parameters are not registered as they require custom serialization
+
+        registry.insert("machine_side_controller", std::move(entry));
+    }
 
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }

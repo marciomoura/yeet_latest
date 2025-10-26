@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
@@ -132,28 +133,17 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("grid_voltage", _model_outputs->grid_voltage);
-        // entry.signal_registry.insert("grid_current", _model_outputs->grid_current);
-        // entry.signal_registry.insert("dc_link_voltage", _model_outputs->dc_link_voltage);
-        // entry.signal_registry.insert("dc_link_current", _model_outputs->dc_link_current);
-        // entry.signal_registry.insert("machine_voltage", _model_outputs->machine_voltage);
-        // entry.signal_registry.insert("machine_current", _model_outputs->machine_current);
-        // entry.signal_registry.insert("rotor_position_mechanical", _model_outputs->rotor_position_mechanical);
-        // entry.signal_registry.insert("rotor_speed_mechanical", _model_outputs->rotor_speed_mechanical);
-        // entry.signal_registry.insert("electromagnetic_torque", _model_outputs->electromagnetic_torque);
-        // entry.signal_registry.insert("grid_current_thd", _model_outputs->grid_current_thd);
-        // entry.signal_registry.insert("power_factor", _model_outputs->power_factor);
-        // entry.signal_registry.insert("active_power_pu", _model_outputs->active_power_pu);
+        entry.parameters.insert("initial_speed", _model_parameters->initial_speed);
+        // Note: Enum parameters (operation_mode, voltage_control_mode) are not registered as they require custom
+        // serialization
+        entry.parameters.insert(
+            "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
+        entry.parameters.insert(
+            "motor_damping_factor", yeet::utils::make_units_accessor(_model_parameters->motor_damping_factor));
 
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("operation_mode", _model_parameters->operation_mode);
-        // entry.parameter_registry.insert("motor_inertia_constant", _model_parameters->motor_inertia_constant);
-        // entry.parameter_registry.insert("motor_damping_factor", _model_parameters->motor_damping_factor);
-
-        // registry.insert("sfc_plant_model", std::move(entry));
+        registry.insert("plant_model", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

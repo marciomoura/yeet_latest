@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
@@ -89,7 +90,22 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(yeet::model_registry& registry) {}
+    void register_data_model(yeet::model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameters.insert("kp", _model_parameters->kp);
+        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
+        entry.parameters.insert(
+            "nominal_frequency", yeet::utils::make_units_accessor(_model_parameters->nominal_frequency));
+        entry.parameters.insert(
+            "initial_frequency", yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
+        entry.parameters.insert(
+            "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
+        entry.parameters.insert("commutation_detection_threshold", _model_parameters->commutation_detection_threshold);
+
+        registry.insert("machine_side_observer", std::move(entry));
+    }
 
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }

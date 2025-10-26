@@ -4,6 +4,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -86,24 +87,11 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // Implementation would register all signals and parameters with the system registry
-        // Currently commented out to match the pattern from speed controller datamodel
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // State machine has no tunable parameters, only status outputs
 
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("pulse_releases", _model_outputs->pulse_releases);
-        // entry.signal_registry.insert("current_state_id", _model_outputs->current_state_id);
-        // entry.signal_registry.insert("has_transitioned", _model_outputs->has_transitioned);
-        // entry.signal_registry.insert("is_idle", _model_outputs->is_idle);
-        // entry.signal_registry.insert("is_auxiliaries_on", _model_outputs->is_auxiliaries_on);
-        // entry.signal_registry.insert("is_breakers_off", _model_outputs->is_breakers_off);
-        // entry.signal_registry.insert("is_breakers_on", _model_outputs->is_breakers_on);
-        // entry.signal_registry.insert("is_operation_off", _model_outputs->is_operation_off);
-        // entry.signal_registry.insert("is_operation_on", _model_outputs->is_operation_on);
-        // entry.signal_registry.insert("is_shutdown_requested", _model_outputs->is_shutdown_requested);
-
-        // registry.insert("sfc_state_machine", std::move(entry));
+        registry.insert("state_machine", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

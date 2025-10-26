@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/constants.hpp"
 #include "yeet_control/units.hpp"
 
@@ -100,32 +101,17 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("current_reference", _model_outputs->current_reference);
-        // entry.signal_registry.insert("speed_error", _model_outputs->speed_error);
-        // entry.signal_registry.insert("pi_output", _model_outputs->pi_output);
-        // entry.signal_registry.insert("is_saturated", _model_outputs->is_saturated);
-        // entry.signal_registry.insert("is_active", _model_outputs->is_active);
-        // entry.signal_registry.insert("speed_reference_limited", _model_outputs->speed_reference_limited);
-        // entry.signal_registry.insert("estimated_torque", _model_outputs->estimated_torque);
+        entry.parameters.insert("kp", _model_parameters->kp);
+        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
+        entry.parameters.insert("torque_reference_magnitude_limit",
+            yeet::utils::make_units_accessor(_model_parameters->torque_reference_magnitude_limit));
+        entry.parameters.insert("initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
+        entry.parameters.insert(
+            "feedforward_inertia", yeet::utils::make_units_accessor(_model_parameters->feedforward_inertia));
 
-        // // Register parameters in parameter registry
-        // entry.parameter_registry.insert("pi_proportional_gain", _model_parameters->pi_proportional_gain);
-        // entry.parameter_registry.insert("pi_integral_gain", _model_parameters->pi_integral_gain);
-        // entry.parameter_registry.insert("speed_reference_rate_limit", _model_parameters->speed_reference_rate_limit);
-        // entry.parameter_registry.insert("speed_reference_magnitude_limit",
-        //                                 _model_parameters->speed_reference_magnitude_limit);
-        // entry.parameter_registry.insert("max_current_reference", _model_parameters->max_current_reference);
-        // entry.parameter_registry.insert("min_current_reference", _model_parameters->min_current_reference);
-        // entry.parameter_registry.insert("anti_windup_gain", _model_parameters->anti_windup_gain);
-        // entry.parameter_registry.insert("speed_error_deadband", _model_parameters->speed_error_deadband);
-        // entry.parameter_registry.insert("speed_reference_filter_time_constant",
-        //                                 _model_parameters->speed_reference_filter_time_constant);
-        // entry.parameter_registry.insert("torque_to_current_factor", _model_parameters->torque_to_current_factor);
-
-        // registry.insert("sfc_speed_controller", std::move(entry));
+        registry.insert("speed_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

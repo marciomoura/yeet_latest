@@ -12,6 +12,41 @@
 namespace yeet {
 
 //==============================================================================
+// Type Traits for Quantity Detection
+//==============================================================================
+
+namespace internal {
+/**
+ * @brief Helper trait to detect if a type is a quantity type.
+ *
+ * Detects types that have a value() method, which is characteristic of quantity types.
+ */
+template <typename T, typename = void>
+struct is_quantity : std::false_type {};
+
+template <typename T>
+struct is_quantity<T, std::void_t<decltype(std::declval<T>().value())>> : std::true_type {};
+}  // namespace internal
+
+/**
+ * @brief Variable template to check if a type is a quantity.
+ *
+ * This can be used in if constexpr statements and enable_if to detect quantity types.
+ * Returns true for any type that has a value() method (e.g., quantity<Dim, System>).
+ */
+template <typename T>
+inline constexpr bool is_quantity_v = internal::is_quantity<T>::value;
+
+/**
+ * @brief Helper to determine if epsilon comparison should be used for a type.
+ *
+ * Returns true for floating-point types and quantity types, which require
+ * epsilon-based comparisons to handle floating-point precision issues.
+ */
+template <typename T>
+inline constexpr bool use_epsilon_comparison_v = std::is_floating_point_v<T> || is_quantity_v<T>;
+
+//==============================================================================
 // R1.1: Dimensional Representation & R2.3: System Differentiation
 //==============================================================================
 

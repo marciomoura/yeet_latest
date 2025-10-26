@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -86,7 +87,20 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {}
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameters.insert(
+            "prefluxing_duration", yeet::utils::make_units_accessor(_model_parameters->prefluxing_duration));
+        entry.parameters.insert("field_established_timeout",
+            yeet::utils::make_units_accessor(_model_parameters->field_established_timeout));
+        entry.parameters.insert("excitation_ramp_down_time",
+            yeet::utils::make_units_accessor(_model_parameters->excitation_ramp_down_time));
+        // Note: Array parameters are not registered as they require custom serialization
+
+        registry.insert("excitation_controller", std::move(entry));
+    }
 
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }
