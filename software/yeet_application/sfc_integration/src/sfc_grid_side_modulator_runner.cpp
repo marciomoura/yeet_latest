@@ -26,7 +26,7 @@ void sfc_grid_side_modulator_runner::run()
 
     // Update the modulator logic
     _sfc_grid_side_modulator.update(_inputs.enable.read(), operating_mode, request_force_commutation,
-        dc_link_current_is_zero, firing_angle_from_main_pi);
+        dc_link_current_is_zero, firing_angle_from_main_pi, _inputs.request_extinguish_dc_current.read());
 
     // Write outputs to the datamodel
     _outputs.firing_angle = _sfc_grid_side_modulator.get_firing_angle_rad();

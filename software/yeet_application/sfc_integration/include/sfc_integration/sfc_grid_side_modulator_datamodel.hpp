@@ -30,6 +30,9 @@ public:
         /// Request signal from machine-side modulator to initiate forced commutation
         signal_input<bool> request_force_commutation;
 
+        /// Request signal to extinguish dc-link current
+        signal_input<bool> request_extinguish_dc_current;
+
         /// Signal from zero current detector indicating DC link current is zero
         signal_input<bool> dc_link_current_is_zero;
 
