@@ -320,7 +320,7 @@ class ParameterProtocolDecoder:
     HEADER_FORMAT = '<BBHIII'
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     
-    def decode_count_response(self, data: bytes) -> Optional[int]:
+    def decode_count_response(self, data: bytes) -> Optional[tuple[int, int]]:
         """Decode PARAM_COUNT_RESPONSE packet.
         
         Returns total number of parameters available on controller.
@@ -329,9 +329,10 @@ class ParameterProtocolDecoder:
             data: Binary response data
         
         Returns:
-            Total parameter count, or None if decode failed
+            Tuple of (total_parameter_count, bytes_consumed), or None if decode failed
         """
-        if len(data) < self.HEADER_SIZE + 4:
+        expected_size = self.HEADER_SIZE + 4
+        if len(data) < expected_size:
             return None
         
         # Decode header
@@ -345,9 +346,9 @@ class ParameterProtocolDecoder:
         # Decode payload: total_parameters (uint16) + padding (uint16)
         total_params, _ = struct.unpack('<HH', data[self.HEADER_SIZE:self.HEADER_SIZE+4])
         
-        return total_params
+        return (total_params, expected_size)
     
-    def decode_get_by_index_response(self, data: bytes) -> Optional[ParameterMetadata]:
+    def decode_get_by_index_response(self, data: bytes) -> Optional[tuple[ParameterMetadata, int]]:
         """Decode PARAM_GET_BY_INDEX_RESPONSE packet.
         
         Returns metadata for a single parameter at the requested index.
@@ -356,9 +357,11 @@ class ParameterProtocolDecoder:
             data: Binary response data
         
         Returns:
-            ParameterMetadata object, or None if decode failed
+            Tuple of (ParameterMetadata, bytes_consumed), or None if decode failed
         """
-        if len(data) < self.HEADER_SIZE:
+        # Calculate expected size: header + payload (64+64+64+16+4+16+128+4+4 = 364 bytes)
+        expected_size = self.HEADER_SIZE + 364
+        if len(data) < expected_size:
             return None
         
         # Decode header
@@ -402,7 +405,7 @@ class ParameterProtocolDecoder:
         if status != 0:  # 0 = SUCCESS
             return None  # Index out of range or other error
         
-        return ParameterMetadata(
+        metadata = ParameterMetadata(
             component=component,
             name=name,
             display_name=display_name,
@@ -416,6 +419,8 @@ class ParameterProtocolDecoder:
             parameter_index=param_idx,
             total_parameters=total_params
         )
+        
+        return (metadata, expected_size)
     
     def decode_list_response(self, data: bytes) -> Optional[ParameterMetadata]:
         """Decode PARAM_LIST_RESPONSE packet.
@@ -534,16 +539,19 @@ class ParameterProtocolDecoder:
             value=value
         )
     
-    def decode_set_response(self, data: bytes) -> Optional[dict]:
+    def decode_set_response(self, data: bytes) -> Optional[tuple[dict, int]]:
         """Decode PARAM_SET_RESPONSE packet.
         
         Args:
             data: Binary response data
         
         Returns:
-            Dictionary with status, component, name, old_value, new_value, error_message
+            Tuple of (response_dict, bytes_consumed) where response_dict contains
+            status, component, name, old_value, new_value, error_message
         """
-        if len(data) < self.HEADER_SIZE:
+        # Calculate expected size: header + payload (64+64+8+4+128 = 268 bytes)
+        expected_size = self.HEADER_SIZE + 268
+        if len(data) < expected_size:
             return None
         
         # Decode header
@@ -571,7 +579,7 @@ class ParameterProtocolDecoder:
         
         error_msg = self._decode_string(data[offset:offset+128])
         
-        return {
+        response_dict = {
             'status': ParameterSetStatus(status),
             'component': component,
             'name': name,
@@ -579,6 +587,8 @@ class ParameterProtocolDecoder:
             'new_value': new_val,
             'error_message': error_msg
         }
+        
+        return (response_dict, expected_size)
     
     @staticmethod
     def _decode_string(data: bytes) -> str:

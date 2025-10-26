@@ -22,6 +22,7 @@ build*
 flash
 __pycache__
 .ccache*
+*.bak
 
 # Ignore vendor directory (FetchContent downloads here)
 vendor/
