@@ -30,12 +30,7 @@ void sfc_operation_mode_monitor_runner::run()
     // Update the detectors with the latest inputs
     _mode_detector.update(enable, _inputs.measured_speed_pu.read());
 
-    if (enable) {
-        _discontinuous_conduction_detector.update(_inputs.dc_link_current_pu.read());
-    }
-    else {
-        _discontinuous_conduction_detector.reset();
-    }
+    _discontinuous_conduction_detector.update(_inputs.dc_link_current_pu.read());
 
     // Write the results to the output signals
     _outputs.operating_mode = _mode_detector.get_operating_mode();

@@ -68,12 +68,11 @@ public:
      * @brief Digital inputs from supervisory controller (state machine commands)
      */
     struct digital_inputs_t {
-        signal_input<bool>& auxiliaries_are_on;       ///< Auxiliary systems ready (cooling, oil)
-        signal_input<bool>& breakers_are_on;          ///< Grid breakers closed
-        signal_input<bool>& start_command;            ///< Start operation command
-        signal_input<bool>& stop_command;             ///< Stop operation command
-        signal_input<bool>& shutdown_request;         ///< Emergency shutdown request
-        signal_input<bool>& is_current_extinguished;  ///< DC link current is zero (safety interlock)
+        signal_input<bool>& auxiliaries_are_on;  ///< Auxiliary systems ready (cooling, oil)
+        signal_input<bool>& breakers_are_on;     ///< Grid breakers closed
+        signal_input<bool>& start_command;       ///< Start operation command
+        signal_input<bool>& stop_command;        ///< Stop operation command
+        signal_input<bool>& shutdown_request;    ///< Emergency shutdown request
     } digital_inputs;
 
     /**

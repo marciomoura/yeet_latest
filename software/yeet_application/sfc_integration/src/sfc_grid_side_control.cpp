@@ -77,6 +77,10 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         operation_mode_monitor.get_outputs().is_current_zero, grid_side_modulator.get_inputs().dc_link_current_is_zero);
 
+    // Operation mode → State Machine (Zero-current feedback for shutdown confirmation)
+    signals_connector::connect_output_to_input(
+        operation_mode_monitor.get_outputs().is_current_zero, state_machine.get_inputs().is_current_extinguished);
+
     // Observer → Current controller
     signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
         current_controller.get_inputs().grid_side_voltage_magnitude);

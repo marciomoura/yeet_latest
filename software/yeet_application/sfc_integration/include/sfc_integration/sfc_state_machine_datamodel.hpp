@@ -110,7 +110,7 @@ public:
         parameter<bool> override_value_shutdown_request{false};
 
         /// Enable override for is_current_extinguished input
-        parameter<bool> override_enable_is_current_extinguished{true};
+        parameter<bool> override_enable_is_current_extinguished{false};
         /// Override value for is_current_extinguished (when override enabled)
         parameter<bool> override_value_is_current_extinguished{false};
     };

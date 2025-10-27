@@ -30,8 +30,7 @@ sfc_grid_side_control_io::sfc_grid_side_control_io(sfc_grid_side_measurements_ru
           .breakers_are_on = state_machine.get_inputs().breakers_are_on,
           .start_command = state_machine.get_inputs().start_command,
           .stop_command = state_machine.get_inputs().stop_command,
-          .shutdown_request = state_machine.get_inputs().shutdown_request,
-          .is_current_extinguished = state_machine.get_inputs().is_current_extinguished},
+          .shutdown_request = state_machine.get_inputs().shutdown_request},
 
       // Machine-side inputs → Various components
       machine_side_inputs{.measured_speed_pu = operation_mode_monitor.get_inputs().measured_speed_pu,

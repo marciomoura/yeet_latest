@@ -101,7 +101,6 @@ void yeet_embedded_init(void)
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, false);
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.is_current_extinguished, true);
 
     // ==================== INITIALIZE ANALOG INPUTS ====================
     // Initialize ADC inputs with zero values (will be updated from hardware in 200µs task)
@@ -274,7 +273,6 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, true);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.is_current_extinguished, false);
 #endif
     }
 
