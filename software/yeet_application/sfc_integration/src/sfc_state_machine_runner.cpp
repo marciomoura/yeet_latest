@@ -58,6 +58,7 @@ void sfc_state_machine_runner::run()
     _outputs.current_state_id = current_state;
     _outputs.has_transitioned = _sfc_state_machine.has_transitioned();
     _outputs.freeze_integrator = state_outputs.freeze_integrator;
+    _outputs.request_extinguish_dc_current = state_outputs.request_extinguish_dc_current;
 }
 
 void sfc_state_machine_runner::stop()

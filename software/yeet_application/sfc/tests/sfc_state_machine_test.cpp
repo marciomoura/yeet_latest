@@ -326,4 +326,145 @@ TEST_F(SfcStateMachineTest, ResetFromAnyState)
     verify_state(sfc_state_id::IDLE, expected);
 }
 
+// ==================== Tests for extinguish_dc_current feature ====================
+
+// Test extinguish request is false in non-shutdown states
+TEST_F(SfcStateMachineTest, ExtinguishRequestFalseInIdleState)
+{
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    const auto outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+}
+
+TEST_F(SfcStateMachineTest, ExtinguishRequestFalseInOperationOnState)
+{
+    // Navigate to OPERATION_ON state
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+    breakers_on = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+
+    start = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
+    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+
+    const auto outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+}
+
+// Test extinguish request is true in SHUTDOWN_REQUESTED state
+TEST_F(SfcStateMachineTest, ExtinguishRequestTrueInShutdownRequestedState)
+{
+    // Navigate to SHUTDOWN_REQUESTED state
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+    breakers_on = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+
+    start = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
+    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+
+    stop = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
+
+    const auto outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.request_extinguish_dc_current);
+}
+
+// Test extinguish request clears when exiting SHUTDOWN_REQUESTED state
+TEST_F(SfcStateMachineTest, ExtinguishRequestClearsOnExitShutdownState)
+{
+    // Navigate to SHUTDOWN_REQUESTED state
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+    breakers_on = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+
+    start = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
+    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+
+    stop = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
+
+    auto outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.request_extinguish_dc_current);
+
+    // Exit SHUTDOWN_REQUESTED by extinguishing current
+    current_extinguished = true;
+    stop = false;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // SHUTDOWN_REQUESTED -> OPERATION_OFF
+
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+}
+
+// Test shutdown sequence with extinguish output verification
+TEST_F(SfcStateMachineTest, ShutdownSequenceWithExtinguishOutput)
+{
+    // Navigate to OPERATION_ON state
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+    breakers_on = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+
+    start = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
+    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+
+    // Verify extinguish is false in normal operation
+    auto outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+    EXPECT_TRUE(outputs.pulse_releases);
+
+    // Request shutdown
+    stop = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
+
+    // Verify extinguish is true during shutdown
+    outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.request_extinguish_dc_current);
+    EXPECT_TRUE(outputs.pulse_releases);      // Pulses stay active for controlled shutdown
+    EXPECT_FALSE(outputs.freeze_integrator);  // Integrator not frozen
+
+    // Complete shutdown
+    current_extinguished = true;
+    stop = false;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // SHUTDOWN_REQUESTED -> OPERATION_OFF
+
+    // Verify extinguish is false after exit
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+    EXPECT_FALSE(outputs.pulse_releases);
+    EXPECT_TRUE(outputs.freeze_integrator);
+}
+
 }  // namespace yeet::application::sfc

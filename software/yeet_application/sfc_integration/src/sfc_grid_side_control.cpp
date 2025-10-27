@@ -64,8 +64,8 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         state_machine.get_outputs().pulse_releases, grid_side_modulator.get_inputs().enable);
 
-    signals_connector::connect_output_to_input(
-        state_machine.get_outputs()., grid_side_modulator.get_inputs().request_extinguish_dc_current);
+    signals_connector::connect_output_to_input(state_machine.get_outputs().request_extinguish_dc_current,
+        grid_side_modulator.get_inputs().request_extinguish_dc_current);
 
     // Operation mode monitor inputs
     signals_connector::connect_output_to_input(

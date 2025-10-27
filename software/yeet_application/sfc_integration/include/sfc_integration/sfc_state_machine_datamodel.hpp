@@ -47,6 +47,7 @@ public:
         /// True when system is ready for active converter operation
         signal_output<bool> pulse_releases;
         signal_output<bool> freeze_integrator;
+        signal_output<bool> request_extinguish_dc_current;
 
         /// Current state identifier for monitoring and diagnostics
         /// Indicates which operational state the SFC system is currently in

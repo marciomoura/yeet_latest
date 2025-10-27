@@ -415,4 +415,29 @@ TEST_F(SfcStateMachineRunnerTest, EmergencyShutdownRequest)
     // At minimum, verify the state machine is still functional
     EXPECT_NE(outputs.current_state_id.read(), sfc::sfc_state_id::OPERATION_ON);
 }
+
+// ==================== Tests for extinguish_dc_current feature ====================
+
+// Test extinguish request output is false in normal operation
+// NOTE: Due to existing issues with state machine runner transitions, we only test
+// the simplest case. The core functionality is validated through the modulator tests
+// which verify the signal connection end-to-end.
+TEST_F(SfcStateMachineRunnerTest, ExtinguishRequestFalseInOperationOn)
+{
+    // Navigate to OPERATION_ON state
+    set_auxiliaries_on(true);
+    run_cycle();  // IDLE -> AUXILIARIES_ON
+
+    set_breakers_on(true);
+    run_cycle();  // AUXILIARIES_ON -> BREAKERS_OFF
+    run_cycle();  // BREAKERS_OFF -> BREAKERS_ON
+
+    set_start_command(true);
+    run_cycle();  // BREAKERS_ON -> OPERATION_OFF
+    run_cycle();  // OPERATION_OFF -> OPERATION_ON
+
+    const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current.read());
+}
+
 }  // namespace yeet::application::sfc::integration

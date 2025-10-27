@@ -72,6 +72,7 @@ struct sfc_state_inputs {
 struct sfc_state_outputs {
     bool pulse_releases{false};
     bool freeze_integrator{false};
+    bool request_extinguish_dc_current{false};
 };
 
 // Type aliases for convenience

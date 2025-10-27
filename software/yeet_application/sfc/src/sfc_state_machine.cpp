@@ -208,8 +208,9 @@ sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
 {
     sfc_state_outputs outputs{};
 
-    outputs.pulse_releases = true;      // Keep pulses active for controlled shutdown
-    outputs.freeze_integrator = false;  // Do not freeze integrator during shutdown
+    outputs.pulse_releases = true;                 // Keep pulses active for controlled shutdown
+    outputs.freeze_integrator = true;              // Freeze integrator during shutdown
+    outputs.request_extinguish_dc_current = true;  // Request extinguish current mode
 
     return outputs;
 }
