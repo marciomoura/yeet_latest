@@ -83,29 +83,30 @@ public:
         // ==================== Digital Input Overrides ====================
         // These parameters allow forcing digital inputs during testing/commissioning
         // When override_enable is true, the override_value is used instead of hardware input
+        // Default: All overrides DISABLED to use actual input signals
 
         /// Enable override for auxiliaries_are_on input
-        parameter<bool> override_enable_auxiliaries_are_on{true};
+        parameter<bool> override_enable_auxiliaries_are_on{false};
         /// Override value for auxiliaries_are_on (when override enabled)
         parameter<bool> override_value_auxiliaries_are_on{false};
 
         /// Enable override for breakers_are_on input
-        parameter<bool> override_enable_breakers_are_on{true};
+        parameter<bool> override_enable_breakers_are_on{false};
         /// Override value for breakers_are_on (when override enabled)
         parameter<bool> override_value_breakers_are_on{false};
 
         /// Enable override for start_command input
-        parameter<bool> override_enable_start_command{true};
+        parameter<bool> override_enable_start_command{false};
         /// Override value for start_command (when override enabled)
         parameter<bool> override_value_start_command{false};
 
         /// Enable override for stop_command input
-        parameter<bool> override_enable_stop_command{true};
+        parameter<bool> override_enable_stop_command{false};
         /// Override value for stop_command (when override enabled)
         parameter<bool> override_value_stop_command{false};
 
         /// Enable override for shutdown_request input
-        parameter<bool> override_enable_shutdown_request{true};
+        parameter<bool> override_enable_shutdown_request{false};
         /// Override value for shutdown_request (when override enabled)
         parameter<bool> override_value_shutdown_request{false};
 

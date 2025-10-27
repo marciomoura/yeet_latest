@@ -74,7 +74,7 @@ sfc_state_outputs auxiliaries_on_state::get_outputs() const noexcept
 sfc_state_type* breakers_off_state::update(const sfc_state_inputs& inputs) noexcept
 {
     if (!inputs.auxiliaries_are_on_event.is_true()) {
-        return _auxiliaries_on_state;
+        return _idle_state;
     }
 
     // Transition to BREAKERS_ON once breakers are closed
@@ -209,7 +209,7 @@ sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
     sfc_state_outputs outputs{};
 
     outputs.pulse_releases = true;                 // Keep pulses active for controlled shutdown
-    outputs.freeze_integrator = true;              // Freeze integrator during shutdown
+    outputs.freeze_integrator = false;             // Do not freeze integrator during shutdown
     outputs.request_extinguish_dc_current = true;  // Request extinguish current mode
 
     return outputs;

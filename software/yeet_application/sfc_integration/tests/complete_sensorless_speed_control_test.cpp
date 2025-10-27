@@ -589,6 +589,8 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
         system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read());
+
     bool success = true;
 
     // ==================== Activate Profile 1 with Boost Monitoring ====================

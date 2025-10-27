@@ -13,6 +13,7 @@ protected:
 
         // Reset all input signals to false
         reset_all_inputs();
+        disable_all_overrides();
 
         // Initialize the runner
         _runner->initialize();
@@ -34,6 +35,19 @@ protected:
         mock_signal_input::write(inputs.stop_command, false);
         mock_signal_input::write(inputs.shutdown_request, false);
         mock_signal_input::write(inputs.is_current_extinguished, false);
+    }
+
+    void disable_all_overrides()
+    {
+        auto& parameters = _runner->get_parameters();
+
+        // Override is now disabled by default, but we can explicitly set it to be safe
+        parameters.override_enable_auxiliaries_are_on.write(false);
+        parameters.override_enable_breakers_are_on.write(false);
+        parameters.override_enable_start_command.write(false);
+        parameters.override_enable_stop_command.write(false);
+        parameters.override_enable_shutdown_request.write(false);
+        parameters.override_enable_is_current_extinguished.write(false);
     }
 
     void run_cycle() { _runner->run(); }
@@ -376,11 +390,15 @@ TEST_F(SfcStateMachineRunnerTest, StatePersistence)
     verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
     verify_transition_occurred();
 
+    run_cycle();
+    verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
+    verify_transition_occurred();
+
     // Run multiple cycles without changing inputs - should remain in same state
     // After the first cycle, transitions should be false
     for (int i = 0; i < 5; ++i) {
         run_cycle();
-        verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
+        verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
         if (i > 0) {  // Only check after the second cycle to avoid transition artifacts
             verify_no_transition();
         }
