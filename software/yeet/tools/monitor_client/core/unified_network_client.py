@@ -495,32 +495,70 @@ class UnifiedNetworkClient(QtCore.QObject):
             # Peek at packet type from header
             packet_type = self._recv_buffer[0]
             
-            # Route based on packet type
+            # Try telemetry first (most common packet type)
             if packet_type in [0x01, 0x02]:  # Telemetry packets
                 consumed = self._process_telemetry_packet()
-                if not consumed:
+                if consumed:
+                    continue  # Successfully processed, check for next packet
+                else:
                     # Not enough data for complete packet
                     break
+            
+            # Try parameter packets
             elif packet_type in [0x41, 0x47, 0x49]:  # Parameter response packets
                 consumed = self._process_parameter_response(packet_type)
-                if not consumed:
+                if consumed:
+                    continue  # Successfully processed, check for next packet
+                else:
                     # Not enough data for complete packet
                     break
+            
+            # Unknown packet type - could be corrupted data or mid-packet
             else:
-                # Unknown packet type - try to resync
+                # Before giving up, try decoding as telemetry anyway (in case packet_type byte is valid but not recognized)
+                consumed = self._process_telemetry_packet()
+                if consumed:
+                    if self.verbose:
+                        logger.debug(f"Packet type 0x{packet_type:02x} was actually valid telemetry")
+                    continue
+                
+                # Also try as parameter packet
+                if packet_type <= 0xFF:  # Valid byte range
+                    consumed = self._process_parameter_response(packet_type)
+                    if consumed:
+                        if self.verbose:
+                            logger.debug(f"Packet type 0x{packet_type:02x} was actually valid parameter response")
+                        continue
+                
+                # Truly unknown packet type - try to resync
                 logger.warning(f"Unknown packet type 0x{packet_type:02x} at buffer start, attempting resync")
                 
                 # Look for valid packet type in next bytes (limited search)
+                # Only look for confirmed packet types with proper header validation
                 found_sync = False
                 for i in range(1, min(100, len(self._recv_buffer))):
-                    if self._recv_buffer[i] in [0x01, 0x02, 0x41, 0x47, 0x49]:
-                        logger.info(f"Found potential sync at offset {i}, discarding {i} bytes")
-                        del self._recv_buffer[:i]
-                        found_sync = True
-                        break
+                    test_byte = self._recv_buffer[i]
+                    if test_byte in [0x01, 0x02, 0x41, 0x47, 0x49]:
+                        # Found potential packet type - verify by checking if next bytes could be valid header
+                        if i + 16 <= len(self._recv_buffer):  # Have enough for header
+                            # Quick validation: check protocol version (should be 1)
+                            if test_byte in [0x01, 0x02] and self._recv_buffer[i+1] == 0x01:
+                                logger.info(f"Found potential telemetry sync at offset {i}, discarding {i} bytes")
+                                del self._recv_buffer[:i]
+                                found_sync = True
+                                break
+                            elif test_byte in [0x41, 0x47, 0x49]:
+                                logger.info(f"Found potential parameter sync at offset {i}, discarding {i} bytes")
+                                del self._recv_buffer[:i]
+                                found_sync = True
+                                break
                 
                 if not found_sync:
-                    logger.error("Could not resync, clearing entire buffer")
+                    logger.error(f"Could not resync, clearing entire buffer ({len(self._recv_buffer)} bytes)")
+                    if len(self._recv_buffer) >= 32:
+                        hex_data = bytes(self._recv_buffer[:32]).hex()
+                        logger.error(f"Buffer start (hex): {hex_data}")
+                        logger.error(f"Buffer start (ASCII): {repr(bytes(self._recv_buffer[:32]))}")
                     self._recv_buffer.clear()
                     self._consecutive_errors += 1
                 break

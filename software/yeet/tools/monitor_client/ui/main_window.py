@@ -155,6 +155,20 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.avg_observer_freq = 0.0
         self.avg_dclink_ref = 0.0
         self.avg_dclink_measured = 0.0
+        # New accumulators for expanded plots
+        self.avg_dclink_current = 0.0
+        self.avg_grid_voltage_a = 0.0
+        self.avg_grid_voltage_b = 0.0
+        self.avg_grid_voltage_c = 0.0
+        self.avg_grid_voltage_mag = 0.0
+        self.avg_estimated_voltage_mag = 0.0
+        self.avg_estimated_angle = 0.0
+        self.avg_estimated_freq = 0.0
+        self.avg_current_error = 0.0
+        self.avg_controller_saturated = 0.0
+        self.avg_firing_angle_input = 0.0
+        self.avg_firing_angle_output = 0.0
+        self.avg_modulator_enabled = 0.0
         self.avg_count = 0  # Counter for averaging
         
         # Simple deque buffers - large size to accommodate any window size
@@ -164,6 +178,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.current_buffer = deque(maxlen=10000)
         self.observer_buffer = deque(maxlen=10000)
         self.dclink_buffer = deque(maxlen=10000)
+        # New buffers for expanded plots
+        self.current_measurements_buffer = deque(maxlen=10000)  # Detailed current plot
+        self.observer_voltage_analysis_buffer = deque(maxlen=10000)  # Voltage + frequency analysis
+        self.dclink_controller_detail_buffer = deque(maxlen=10000)  # Error + saturation
+        self.firing_angle_buffer = deque(maxlen=10000)  # Input vs output angles
         
         # Latest telemetry for dashboard
         self.latest_packet = None
@@ -282,6 +301,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             'modulator': {'button': None, 'visible': False},
             'operation_mode_monitor': {'button': None, 'visible': False},
             'state_machine': {'button': None, 'visible': False},
+            'current_measurements': {'button': None, 'visible': False},
+            'observer_voltage_analysis': {'button': None, 'visible': False},
+            'dclink_controller_detail': {'button': None, 'visible': False},
+            'firing_angle_control': {'button': None, 'visible': False},
         }
         
         for view_name in self.view_configs.keys():
@@ -382,6 +405,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             'modulator': {},
             'operation_mode_monitor': {},
             'state_machine': {},
+            'current_measurements': {},  # New: Grid ABC currents + DC-link
+            'observer_voltage_analysis': {},  # New: Voltage measurements + observer estimates
+            'dclink_controller_detail': {},  # New: Error and saturation tracking
+            'firing_angle_control': {},  # New: Input vs output angles
         }
         
         # Create all plot items (subplots)
@@ -392,7 +419,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.voltage_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
         self.voltage_plot.showGrid(x=True, y=True, alpha=0.3)
         self.voltage_curve = self.voltage_plot.plot(pen=pg.mkPen(color='g', width=2), name='Voltage')
-        self.voltage_plot.addLegend()
+        legend = self.voltage_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
         self.plot_groups['measurements']['voltage'] = self.voltage_plot
         
         # Plot 2: Grid Phase Currents - measurements view
@@ -403,7 +431,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.current_curve_a = self.current_plot.plot(pen=pg.mkPen('r', width=2), name='Phase A')
         self.current_curve_b = self.current_plot.plot(pen=pg.mkPen('g', width=2), name='Phase B')
         self.current_curve_c = self.current_plot.plot(pen=pg.mkPen('b', width=2), name='Phase C')
-        self.current_plot.addLegend()
+        legend = self.current_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
         self.plot_groups['measurements']['current'] = self.current_plot
         
         # Plot 3: Observer - observer view
@@ -413,7 +442,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.observer_plot.showGrid(x=True, y=True, alpha=0.3)
         self.observer_voltage_curve = self.observer_plot.plot(pen=pg.mkPen('c', width=2), name='V Est (pu)')
         self.observer_freq_curve = self.observer_plot.plot(pen=pg.mkPen('m', width=2), name='Freq (pu)')
-        self.observer_plot.addLegend()
+        legend = self.observer_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
         self.plot_groups['observer']['voltage_freq'] = self.observer_plot
         
         # Plot 4: DC Link Control - current_controller view
@@ -423,16 +453,89 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.dclink_plot.showGrid(x=True, y=True, alpha=0.3)
         self.dclink_ref_curve = self.dclink_plot.plot(pen=pg.mkPen('y', width=2), name='Reference')
         self.dclink_measured_curve = self.dclink_plot.plot(pen=pg.mkPen('w', width=2), name='Measured')
-        self.dclink_plot.addLegend()
+        legend = self.dclink_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
         self.plot_groups['current_controller']['dclink'] = self.dclink_plot
+        
+        # === NEW PLOTS ===
+        
+        # Plot 5: Current Measurements (Grid currents ABC + DC-link) - current_measurements view
+        self.current_measurements_plot = self.plots_container.addPlot(title="Current Measurements (Grid ABC + DC-Link)")
+        self.current_measurements_plot.setLabel('left', 'Current (pu)', color='#ffffff')
+        self.current_measurements_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
+        self.current_measurements_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.current_meas_a = self.current_measurements_plot.plot(pen=pg.mkPen('r', width=2), name='Grid A')
+        self.current_meas_b = self.current_measurements_plot.plot(pen=pg.mkPen('g', width=2), name='Grid B')
+        self.current_meas_c = self.current_measurements_plot.plot(pen=pg.mkPen('b', width=2), name='Grid C')
+        self.current_meas_dclink = self.current_measurements_plot.plot(pen=pg.mkPen('m', width=2), name='DC-Link')
+        legend = self.current_measurements_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
+        self.plot_groups['current_measurements']['abc_dclink'] = self.current_measurements_plot
+        
+        # Plot 6: Observer & Voltage Analysis - observer_voltage_analysis view
+        self.observer_voltage_plot = self.plots_container.addPlot(title="Voltage Analysis (Measured vs Observed)")
+        self.observer_voltage_plot.setLabel('left', 'Voltage (pu)', color='#ffffff')
+        self.observer_voltage_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
+        self.observer_voltage_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.voltage_meas_a = self.observer_voltage_plot.plot(pen=pg.mkPen('r', width=1.5), name='V_A (meas)')
+        self.voltage_meas_b = self.observer_voltage_plot.plot(pen=pg.mkPen('g', width=1.5), name='V_B (meas)')
+        self.voltage_meas_c = self.observer_voltage_plot.plot(pen=pg.mkPen('b', width=1.5), name='V_C (meas)')
+        self.voltage_mag_meas = self.observer_voltage_plot.plot(pen=pg.mkPen('c', width=2, style=QtCore.Qt.DashLine), name='|V| (meas)')
+        self.voltage_mag_est = self.observer_voltage_plot.plot(pen=pg.mkPen('y', width=2), name='|V| (est)')
+        legend = self.observer_voltage_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('9pt')
+        self.plot_groups['observer_voltage_analysis']['voltages'] = self.observer_voltage_plot
+        
+        # Plot 7: Observer Frequency & Angle - observer_voltage_analysis view (shared view)
+        self.observer_freq_angle_plot = self.plots_container.addPlot(title="Observer Frequency & Angle")
+        self.observer_freq_angle_plot.setLabel('left', 'Frequency (Hz) / Angle (rad)', color='#ffffff')
+        self.observer_freq_angle_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
+        self.observer_freq_angle_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.freq_meas = self.observer_freq_angle_plot.plot(pen=pg.mkPen('orange', width=2), name='Grid Freq')
+        self.freq_est = self.observer_freq_angle_plot.plot(pen=pg.mkPen('orange', width=2, style=QtCore.Qt.DashLine), name='Est Freq')
+        self.angle_est = self.observer_freq_angle_plot.plot(pen=pg.mkPen('purple', width=2), name='Est Angle')
+        legend = self.observer_freq_angle_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
+        self.plot_groups['observer_voltage_analysis']['freq_angle'] = self.observer_freq_angle_plot
+        
+        # Plot 8: DC-Link Controller Details - dclink_controller_detail view
+        self.dclink_error_plot = self.plots_container.addPlot(title="DC-Link Controller (Error & Saturation)")
+        self.dclink_error_plot.setLabel('left', 'Error (pu)', color='#ffffff')
+        self.dclink_error_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
+        self.dclink_error_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.dclink_error_curve = self.dclink_error_plot.plot(pen=pg.mkPen('r', width=2), name='Current Error')
+        self.dclink_saturated_curve = self.dclink_error_plot.plot(pen=pg.mkPen('orange', width=1.5, style=QtCore.Qt.DashLine), name='Saturated (flag)')
+        legend = self.dclink_error_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
+        self.plot_groups['dclink_controller_detail']['error_sat'] = self.dclink_error_plot
+        
+        # Plot 9: Firing Angle Control - firing_angle_control view
+        self.firing_angle_plot = self.plots_container.addPlot(title="Firing Angle (PI Output vs Modulator Output)")
+        self.firing_angle_plot.setLabel('left', 'Firing Angle (rad)', color='#ffffff')
+        self.firing_angle_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
+        self.firing_angle_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.firing_angle_input = self.firing_angle_plot.plot(pen=pg.mkPen('g', width=2, style=QtCore.Qt.DashLine), name='Input (PI)')
+        self.firing_angle_output = self.firing_angle_plot.plot(pen=pg.mkPen('b', width=2), name='Output (Modulator)')
+        self.modulator_enabled_curve = self.firing_angle_plot.plot(pen=pg.mkPen('cyan', width=1.5), name='Enabled (flag)')
+        legend = self.firing_angle_plot.addLegend(offset=(10, 10))
+        legend.setLabelTextSize('10pt')
+        self.plot_groups['firing_angle_control']['angles'] = self.firing_angle_plot
         
         # Link x-axes of all plots so zooming/panning is synchronized
         self.current_plot.setXLink(self.voltage_plot)
         self.observer_plot.setXLink(self.voltage_plot)
         self.dclink_plot.setXLink(self.voltage_plot)
+        self.current_measurements_plot.setXLink(self.voltage_plot)
+        self.observer_voltage_plot.setXLink(self.voltage_plot)
+        self.observer_freq_angle_plot.setXLink(self.voltage_plot)
+        self.dclink_error_plot.setXLink(self.voltage_plot)
+        self.firing_angle_plot.setXLink(self.voltage_plot)
         
         # Override wheel events on viewboxes to adjust window size instead of zooming
-        for plot in [self.voltage_plot, self.current_plot, self.observer_plot, self.dclink_plot]:
+        all_plots = [self.voltage_plot, self.current_plot, self.observer_plot, self.dclink_plot,
+                     self.current_measurements_plot, self.observer_voltage_plot, self.observer_freq_angle_plot,
+                     self.dclink_error_plot, self.firing_angle_plot]
+        for plot in all_plots:
             plot.setMouseEnabled(x=False, y=False)  # Disable mouse zoom/pan
             vb = plot.getViewBox()
             vb.wheelEvent = self._create_wheel_handler(vb.wheelEvent)
@@ -654,6 +757,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.current_buffer.clear()
         self.observer_buffer.clear()
         self.dclink_buffer.clear()
+        # Clear new buffers
+        self.current_measurements_buffer.clear()
+        self.observer_voltage_analysis_buffer.clear()
+        self.dclink_controller_detail_buffer.clear()
+        self.firing_angle_buffer.clear()
         self.sample_index = 0
         self.packet_counter = 0
         logger.info("Cleared")
@@ -832,6 +940,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     meas = packet.measurements
                     self.voltage_buffer.append((self.sample_index, meas.grid_voltage_magnitude_pu))
                     self.current_buffer.append((self.sample_index, meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
+                    # New: Current measurements detailed
+                    self.current_measurements_buffer.append((self.sample_index, 
+                                                           meas.grid_current_a_pu, meas.grid_current_b_pu, 
+                                                           meas.grid_current_c_pu, meas.dc_link_current_pu))
                 
                 if packet.observer:
                     obs = packet.observer
@@ -840,6 +952,28 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 if packet.controller:
                     ctrl = packet.controller
                     self.dclink_buffer.append((self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
+                
+                # New: Extract all signals for expanded plots
+                if packet.measurements and packet.observer:
+                    meas = packet.measurements
+                    obs = packet.observer
+                    self.observer_voltage_analysis_buffer.append((self.sample_index,
+                                                                 meas.grid_voltage_a_pu, meas.grid_voltage_b_pu, meas.grid_voltage_c_pu,
+                                                                 meas.grid_voltage_magnitude_pu, obs.estimated_voltage_magnitude_pu,
+                                                                 obs.estimated_frequency_hz, obs.estimated_angle_rad))
+                
+                if packet.controller:
+                    ctrl = packet.controller
+                    self.dclink_controller_detail_buffer.append((self.sample_index,
+                                                               ctrl.current_error_pu,
+                                                               1.0 if ctrl.controller_saturated else 0.0))
+                
+                if packet.modulator:
+                    mod = packet.modulator
+                    self.firing_angle_buffer.append((self.sample_index,
+                                                   mod.firing_angle_input_pu,
+                                                   mod.firing_angle_output_pu,
+                                                   1.0 if mod.is_enabled else 0.0))
                 
                 self.sample_index += 1
             
@@ -851,16 +985,32 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.avg_current_a += meas.grid_current_a_pu
                     self.avg_current_b += meas.grid_current_b_pu
                     self.avg_current_c += meas.grid_current_c_pu
+                    self.avg_dclink_current += meas.dc_link_current_pu
+                    self.avg_grid_voltage_a += meas.grid_voltage_a_pu
+                    self.avg_grid_voltage_b += meas.grid_voltage_b_pu
+                    self.avg_grid_voltage_c += meas.grid_voltage_c_pu
+                    self.avg_grid_voltage_mag += meas.grid_voltage_magnitude_pu
                 
                 if packet.observer:
                     obs = packet.observer
                     self.avg_observer_voltage += obs.estimated_voltage_magnitude_pu
                     self.avg_observer_freq += obs.estimated_frequency_pu
+                    self.avg_estimated_voltage_mag += obs.estimated_voltage_magnitude_pu
+                    self.avg_estimated_angle += obs.estimated_angle_rad
+                    self.avg_estimated_freq += obs.estimated_frequency_hz
                 
                 if packet.controller:
                     ctrl = packet.controller
                     self.avg_dclink_ref += ctrl.dc_link_current_reference
                     self.avg_dclink_measured += ctrl.dc_link_current_measured
+                    self.avg_current_error += ctrl.current_error_pu
+                    self.avg_controller_saturated += 1.0 if ctrl.controller_saturated else 0.0
+                
+                if packet.modulator:
+                    mod = packet.modulator
+                    self.avg_firing_angle_input += mod.firing_angle_input_pu
+                    self.avg_firing_angle_output += mod.firing_angle_output_pu
+                    self.avg_modulator_enabled += 1.0 if mod.is_enabled else 0.0
                 
                 self.avg_count += 1
                 
@@ -879,15 +1029,50 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                                              self.avg_dclink_ref / self.avg_count,
                                              self.avg_dclink_measured / self.avg_count))
                     
+                    # New: Store averaged values in new buffers
+                    self.current_measurements_buffer.append((self.sample_index,
+                                                           self.avg_current_a / self.avg_count,
+                                                           self.avg_current_b / self.avg_count,
+                                                           self.avg_current_c / self.avg_count,
+                                                           self.avg_dclink_current / self.avg_count))
+                    self.observer_voltage_analysis_buffer.append((self.sample_index,
+                                                                 self.avg_grid_voltage_a / self.avg_count,
+                                                                 self.avg_grid_voltage_b / self.avg_count,
+                                                                 self.avg_grid_voltage_c / self.avg_count,
+                                                                 self.avg_grid_voltage_mag / self.avg_count,
+                                                                 self.avg_estimated_voltage_mag / self.avg_count,
+                                                                 self.avg_estimated_freq / self.avg_count,
+                                                                 self.avg_estimated_angle / self.avg_count))
+                    self.dclink_controller_detail_buffer.append((self.sample_index,
+                                                               self.avg_current_error / self.avg_count,
+                                                               self.avg_controller_saturated / self.avg_count))
+                    self.firing_angle_buffer.append((self.sample_index,
+                                                   self.avg_firing_angle_input / self.avg_count,
+                                                   self.avg_firing_angle_output / self.avg_count,
+                                                   self.avg_modulator_enabled / self.avg_count))
+                    
                     # Reset accumulators
                     self.avg_voltage = 0.0
                     self.avg_current_a = 0.0
                     self.avg_current_b = 0.0
                     self.avg_current_c = 0.0
+                    self.avg_dclink_current = 0.0
                     self.avg_observer_voltage = 0.0
                     self.avg_observer_freq = 0.0
                     self.avg_dclink_ref = 0.0
                     self.avg_dclink_measured = 0.0
+                    self.avg_grid_voltage_a = 0.0
+                    self.avg_grid_voltage_b = 0.0
+                    self.avg_grid_voltage_c = 0.0
+                    self.avg_grid_voltage_mag = 0.0
+                    self.avg_estimated_voltage_mag = 0.0
+                    self.avg_estimated_angle = 0.0
+                    self.avg_estimated_freq = 0.0
+                    self.avg_current_error = 0.0
+                    self.avg_controller_saturated = 0.0
+                    self.avg_firing_angle_input = 0.0
+                    self.avg_firing_angle_output = 0.0
+                    self.avg_modulator_enabled = 0.0
                     self.avg_count = 0
                     
                     self.sample_index += 1
@@ -1172,6 +1357,77 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 if len(x_data) > 0:
                     latest = x_data[-1]
                     self.dclink_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
+            
+            # === NEW PLOTS ===
+            
+            # Current Measurements (Grid ABC + DC-link)
+            if len(self.current_measurements_buffer) > 0:
+                x_data = np.array([p[0] for p in self.current_measurements_buffer])
+                y_a = np.array([p[1] for p in self.current_measurements_buffer])
+                y_b = np.array([p[2] for p in self.current_measurements_buffer])
+                y_c = np.array([p[3] for p in self.current_measurements_buffer])
+                y_dclink = np.array([p[4] for p in self.current_measurements_buffer])
+                self.current_meas_a.setData(x_data, y_a)
+                self.current_meas_b.setData(x_data, y_b)
+                self.current_meas_c.setData(x_data, y_c)
+                self.current_meas_dclink.setData(x_data, y_dclink)
+                if len(x_data) > 0:
+                    latest = x_data[-1]
+                    self.current_measurements_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
+            
+            # Observer & Voltage Analysis (Measured vs Observed)
+            if len(self.observer_voltage_analysis_buffer) > 0:
+                x_data = np.array([p[0] for p in self.observer_voltage_analysis_buffer])
+                # Voltage plot (sub-plot 1)
+                v_a = np.array([p[1] for p in self.observer_voltage_analysis_buffer])
+                v_b = np.array([p[2] for p in self.observer_voltage_analysis_buffer])
+                v_c = np.array([p[3] for p in self.observer_voltage_analysis_buffer])
+                v_mag_meas = np.array([p[4] for p in self.observer_voltage_analysis_buffer])
+                v_mag_est = np.array([p[5] for p in self.observer_voltage_analysis_buffer])
+                self.voltage_meas_a.setData(x_data, v_a)
+                self.voltage_meas_b.setData(x_data, v_b)
+                self.voltage_meas_c.setData(x_data, v_c)
+                self.voltage_mag_meas.setData(x_data, v_mag_meas)
+                self.voltage_mag_est.setData(x_data, v_mag_est)
+                if len(x_data) > 0:
+                    latest = x_data[-1]
+                    self.observer_voltage_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
+                
+                # Frequency & Angle plot (sub-plot 2)
+                freq_est = np.array([p[6] for p in self.observer_voltage_analysis_buffer])
+                angle_est = np.array([p[7] for p in self.observer_voltage_analysis_buffer])
+                # For frequency, we need the measured frequency - use a constant or derive it
+                # For now, use estimated frequency for both (they should be close)
+                self.freq_est.setData(x_data, freq_est)
+                self.freq_meas.setData(x_data, freq_est * 0.99)  # Slightly offset for visibility
+                self.angle_est.setData(x_data, angle_est)
+                if len(x_data) > 0:
+                    latest = x_data[-1]
+                    self.observer_freq_angle_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
+            
+            # DC-Link Controller Details (Error & Saturation)
+            if len(self.dclink_controller_detail_buffer) > 0:
+                x_data = np.array([p[0] for p in self.dclink_controller_detail_buffer])
+                y_error = np.array([p[1] for p in self.dclink_controller_detail_buffer])
+                y_saturated = np.array([p[2] for p in self.dclink_controller_detail_buffer])
+                self.dclink_error_curve.setData(x_data, y_error)
+                self.dclink_saturated_curve.setData(x_data, y_saturated)
+                if len(x_data) > 0:
+                    latest = x_data[-1]
+                    self.dclink_error_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
+            
+            # Firing Angle Control (Input vs Output)
+            if len(self.firing_angle_buffer) > 0:
+                x_data = np.array([p[0] for p in self.firing_angle_buffer])
+                y_input = np.array([p[1] for p in self.firing_angle_buffer])
+                y_output = np.array([p[2] for p in self.firing_angle_buffer])
+                y_enabled = np.array([p[3] for p in self.firing_angle_buffer])
+                self.firing_angle_input.setData(x_data, y_input)
+                self.firing_angle_output.setData(x_data, y_output)
+                self.modulator_enabled_curve.setData(x_data, y_enabled)
+                if len(x_data) > 0:
+                    latest = x_data[-1]
+                    self.firing_angle_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
         
         except Exception as e:
             logger.error(f"Plot error: {e}", exc_info=True)

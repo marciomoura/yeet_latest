@@ -224,14 +224,14 @@ bool host_tcp_server::send_data(const std::uint8_t* data, std::size_t len)
         return false;
     }
 
-    // #ifdef HOST_BUILD
-    //  Debug: print first 32 bytes being sent
-    // printf("[SEND] Sending %zu bytes. First 32: ", len);
-    // for (size_t i = 0; i < 32 && i < len; i++) {
-    // printf("%02x ", data[i]);
-    // }
-    // printf("\n");
-    // #endif
+#ifdef HOST_BUILD
+    // Debug: print first 32 bytes being sent
+    printf("[SEND] Sending %zu bytes. First 32: ", len);
+    for (size_t i = 0; i < 32 && i < len; i++) {
+        printf("%02x ", data[i]);
+    }
+    printf("\n");
+#endif
 
     std::size_t total_sent = 0;
 
