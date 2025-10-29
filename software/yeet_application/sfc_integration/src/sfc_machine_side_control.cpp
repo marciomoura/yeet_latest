@@ -39,6 +39,22 @@ void sfc_machine_side_control::update_200us()
     machine_side_pulse_generator.run();
 }
 
+void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry)
+{
+    // Register all component parameters with the model_registry
+    // This makes them accessible via the parameter configuration protocol
+
+    excitation_controller.register_datamodel(registry);
+    speed_generator.register_datamodel(registry);
+    speed_controller.register_datamodel(registry);
+    torque_controller.register_datamodel(registry);
+    machine_side_controller.register_datamodel(registry);
+    machine_side_observer.register_datamodel(registry);
+    machine_side_modulator.register_datamodel(registry);
+    machine_side_pulse_generator.register_datamodel(registry);
+    machine_measurements.register_datamodel(registry);
+}
+
 void sfc_machine_side_control::connect_internal_signals()
 {
     // ==================== Excitation Controller Connections ====================

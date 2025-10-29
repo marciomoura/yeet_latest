@@ -41,7 +41,7 @@ telemetry_transmission telemetry_manager::update(bool previous_tx_pending) noexc
     auto packet = _builder.build_packet(_timestamp_ms);
 
     // Encode packet to binary buffer
-    std::size_t encoded_size = telemetry::encode_grid_side_telemetry(packet, _packet_buffer);
+    std::size_t encoded_size = telemetry::encode_telemetry_packet(packet, _packet_buffer);
 
     if (encoded_size > 0) {
         // Increment timestamp (approximately 10 ms per call if called at 1 kHz with decimation=10)

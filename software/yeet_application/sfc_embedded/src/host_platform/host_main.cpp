@@ -12,7 +12,10 @@
  * - Uses host_tcp_server for telemetry (replaces W5200)
  * - Uses host_timing_loop for 100 Hz control cycle (replaces FreeRTOS)
  * - Uses host_io_mocks for ADC/DIO (replaces hardware peripherals)
- * - Executes actual grid_side_tasks.cpp control code (95%+ reuse)
+ * - Executes actual grid_side_tasks.cpp or machine_side_tasks.cpp control code (95%+ reuse)
+ *
+ * Compilation:
+ * - Define MACHINE_SIDE_HOST to compile for machine-side control (default: grid-side)
  *
  * Command Line:
  *   sfc_host_simulator [--port PORT] [--frequency HZ] [--verbose]
@@ -29,7 +32,12 @@
 #include <cstring>
 #include <iostream>
 
+#ifdef MACHINE_SIDE_HOST
+#include "sfc_embedded/machine_side_tasks.hpp"
+#else
 #include "sfc_embedded/grid_side_tasks.hpp"
+#endif
+
 #include "sfc_embedded/host_platform/host_io_mocks.hpp"
 #include "sfc_embedded/host_platform/host_tcp_server.hpp"
 #include "sfc_embedded/host_platform/host_timing.hpp"
@@ -100,6 +108,11 @@ int main(int argc, char* argv[])
 
     std::cout << "======================================" << std::endl;
     std::cout << "  SFC Host Simulator" << std::endl;
+#ifdef MACHINE_SIDE_HOST
+    std::cout << "  (Machine-Side Control)" << std::endl;
+#else
+    std::cout << "  (Grid-Side Control)" << std::endl;
+#endif
     std::cout << "======================================" << std::endl;
     std::cout << "Telemetry port:    " << cfg.port << std::endl;
     std::cout << "Control frequency: " << cfg.frequency_hz << " Hz" << std::endl;
@@ -124,7 +137,11 @@ int main(int argc, char* argv[])
     std::cout << "[INIT] Initializing timing loop..." << std::endl;
     host_timing_loop control_loop(cfg.frequency_hz);
 
+#ifdef MACHINE_SIDE_HOST
+    std::cout << "[INIT] Initializing SFC machine-side control..." << std::endl;
+#else
     std::cout << "[INIT] Initializing SFC grid-side control..." << std::endl;
+#endif
     yeet_embedded_init();
 
     std::cout << "[READY] Starting control loop at " << cfg.frequency_hz << " Hz" << std::endl;

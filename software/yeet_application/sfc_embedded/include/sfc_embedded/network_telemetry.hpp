@@ -11,6 +11,7 @@
  * - Extensible: add signals by extending indices, no protocol changes
  * - Bandwidth efficient: transmit only populated signals
  * - Type-safe C++17 implementation with std::array
+ * - Generic packet class supports both grid-side and machine-side via packet_type parameter
  *
  * Protocol Structure:
  * - Header: Packet type, version, signal count, timestamp, sequence number (16 bytes)
@@ -20,16 +21,19 @@
  *
  * Example Usage:
  * @code
- * // Create and populate telemetry packet
- * grid_side_telemetry_packet packet;
- * packet.push_signal(grid_voltage_pu);
- * packet.push_signal(dc_current_pu);
- * packet.push_signal(estimated_frequency_hz);
- * packet.finalize(get_time_ms());
+ * // Create telemetry packet
+ * telemetry_packet_t packet;
+ * packet.push_signal(signal_1);
+ * packet.push_signal(signal_2);
+ * packet.finalize(get_time_ms(), sequence_num);
  *
  * // Encode and transmit
- * auto encoded = packet.encode();
- * tcp_send(encoded.data(), encoded.size());
+ * std::array<std::uint8_t, max_packet_size> buffer;
+ * auto size = encode_telemetry_packet(packet, buffer.data());
+ * tcp_send(buffer.data(), size);
+ *
+ * // The packet type is determined when finalize() is called,
+ * // or can be controlled via template parameter.
  * @endcode
  */
 
@@ -108,27 +112,43 @@ struct telemetry_packet_header {
 static_assert(sizeof(telemetry_packet_header) == 16, "Header must be 16 bytes");
 
 /* ============================================================================
- * Telemetry Packet Structure
+ * Telemetry Packet Structure (Generic)
  * ============================================================================ */
 
 /**
- * @brief Grid-side telemetry packet with variable-length signal array
+ * @brief Generic telemetry packet with variable-length signal array
+ *
+ * A truly generic packet structure that works with any packet type.
+ * The packet type is determined at runtime when finalize() is called,
+ * making this a single implementation for all controller types.
  *
  * Simple, extensible packet structure:
- * - Header contains metadata (timestamp, signal count, etc.)
+ * - Header contains metadata (timestamp, signal count, packet type)
  * - Payload is a variable-length array of float signals
  * - Only signals that are pushed are transmitted
  * - Signal indices map to documented semantic meanings
  *
+ * The same packet class is used for grid-side, machine-side, or any
+ * other telemetry source. No templates, no type aliases needed.
+ *
  * Usage:
  * @code
- * grid_side_telemetry_packet packet;
- * packet.push_signal(voltage_pu);
- * packet.push_signal(current_pu);
- * packet.finalize(timestamp_ms, sequence_num);
+ * // Create packet and push signals
+ * telemetry_packet packet;
+ * packet.push_signal(value1);
+ * packet.push_signal(value2);
+ * packet.push_signal(value3);
+ *
+ * // Finalize sets the packet type and other header fields
+ * packet.finalize(packet_type::grid_side_telemetry, timestamp_ms, sequence_num);
+ *
+ * // Encode and transmit
+ * std::array<std::uint8_t, max_packet_size> buffer;
+ * size_t encoded_size = encode_telemetry_packet(packet, buffer.data());
+ * network_send(buffer.data(), encoded_size);
  * @endcode
  */
-class grid_side_telemetry_packet {
+class telemetry_packet {
 public:
     /**
      * @brief Packet header structure (16 bytes fixed)
@@ -146,7 +166,7 @@ public:
     /**
      * @brief Default constructor - initializes empty packet
      */
-    grid_side_telemetry_packet() noexcept : _header{}, _signal_count(0), _signals{} {}
+    telemetry_packet() noexcept : _header{}, _signal_count(0), _signals{} {}
 
     /**
      * @brief Push a signal value into the packet
@@ -196,12 +216,13 @@ public:
      * Sets header fields and prepares packet for encoding.
      * Call this after all signals have been pushed.
      *
+     * @param type Packet type (grid_side_telemetry, machine_side_telemetry, etc.)
      * @param timestamp_ms Current system timestamp
      * @param sequence_number Packet sequence number
      */
-    void finalize(std::uint32_t timestamp_ms, std::uint32_t sequence_number) noexcept
+    void finalize(packet_type type, std::uint32_t timestamp_ms, std::uint32_t sequence_number) noexcept
     {
-        _header.packet_type = static_cast<std::uint8_t>(packet_type::grid_side_telemetry);
+        _header.packet_type = static_cast<std::uint8_t>(type);
         _header.protocol_version = telemetry::protocol_version;
         _header.signal_count = _signal_count;
         _header.timestamp_ms = timestamp_ms;
@@ -249,14 +270,15 @@ private:
 };
 
 /* ============================================================================
- * Encoding Functions
+ * Encoding Functions (Generic)
  * ============================================================================ */
 
 /**
- * @brief Encode grid-side telemetry packet to binary buffer
+ * @brief Encode telemetry packet to binary buffer (generic for all packet types)
  *
  * Serializes header + signal array + CRC32 to a byte buffer for transmission.
  * Only encodes the signals that were pushed (based on signal_count).
+ * Works with any telemetry packet type (grid-side, machine-side, etc.).
  *
  * The CRC32 is calculated over the entire packet (header + signals) using
  * the IEEE 802.3 polynomial, matching Python's zlib.crc32() implementation.
@@ -267,17 +289,16 @@ private:
  *
  * Example:
  * @code
- * grid_side_telemetry_packet packet;
- * // ... populate signals ...
- * packet.finalize(get_time_ms(), seq_num);
+ * telemetry_packet packet;
+ * packet.push_signal(voltage_pu);
+ * packet.finalize(packet_type::grid_side_telemetry, get_time_ms(), seq_num);
  *
  * std::array<std::uint8_t, max_packet_size> buffer;
- * size_t size = encode_grid_side_telemetry(packet, buffer.data());
+ * size_t size = encode_telemetry_packet(packet, buffer.data());
  * tcp_send(buffer.data(), size);
  * @endcode
  */
-std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet, std::uint8_t* buffer) noexcept;
-
+std::size_t encode_telemetry_packet(const telemetry_packet& packet, std::uint8_t* buffer) noexcept;
 /**
  * @brief Encode synchronization frame (magic number 0xDEADBEEF)
  *

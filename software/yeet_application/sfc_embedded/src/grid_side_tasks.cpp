@@ -7,6 +7,7 @@
 
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/fiber_optic_protocol.hpp"
+#include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
 #include "sfc_embedded/network_handler.hpp"
 #include "sfc_embedded/network_telemetry_manager.hpp"
 #include "sfc_embedded/parameter_handler.hpp"
@@ -62,11 +63,19 @@ static inline yeet::model_registry& get_model_registry()
     return registry;
 }
 
+// ==================== GRID-SIDE TELEMETRY BUILDER ====================
+// Builder for grid-side telemetry packets
+static inline yeet::application::sfc::telemetry::grid_side_telemetry_builder& get_grid_side_telemetry_builder()
+{
+    static yeet::application::sfc::telemetry::grid_side_telemetry_builder builder(get_grid_side_control());
+    return builder;
+}
+
 // ==================== NETWORK TELEMETRY MANAGER ====================
 // Telemetry streaming manager for TCP/IP interface
 static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
 {
-    static yeet::application::sfc::network::telemetry_manager manager(get_grid_side_control(), 10);
+    static yeet::application::sfc::network::telemetry_manager manager(get_grid_side_telemetry_builder(), 10);
     return manager;
 }
 

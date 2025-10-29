@@ -7,6 +7,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
 
@@ -90,8 +91,12 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // Note: Implementation commented out due to compilation issues with signal registry
-        // TODO: Fix signal registry insert method compatibility
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameters.insert("forced_commutation_firing_angle",
+            yeet::utils::make_units_accessor(_model_parameters->forced_commutation_firing_angle));
+
+        registry.insert("machine_side_modulator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -2,6 +2,13 @@
 
 namespace yeet::application::sfc::integration {
 
+void sfc_excitation_controller_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_excitation_controller_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_excitation_controller_runner::initialize()
 {
     _sfc_excitation_controller.reset();

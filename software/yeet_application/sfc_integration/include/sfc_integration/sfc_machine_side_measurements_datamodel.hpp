@@ -1,7 +1,9 @@
 #pragma once
 
+#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/adc_value.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"  // for pulses
@@ -77,6 +79,33 @@ public:
         assert(_model_parameters != nullptr);
     }
 
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        // frequency_t parameters - convert to/from Hz
+        entry.parameters.insert("voltage_lpf_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_lpf_cutoff_frequency));
+        entry.parameters.insert("current_lpf_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
+        entry.parameters.insert("voltage_magnitude_lpf_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
+
+        // voltage_pu_t parameters - convert to/from per-unit
+        entry.parameters.insert("commutation_start_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
+        entry.parameters.insert("commutation_end_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
+
+        // int and real_t parameters - use default accessor
+        entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
+        entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
+        entry.parameters.insert("voltage_transducer_gain", _model_parameters->voltage_transducer_gain);
+        entry.parameters.insert("pt_ratio", _model_parameters->pt_ratio);
+
+        registry.insert("machine_side_measurements_ideal", std::move(entry));
+    }
+
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }
     parameters* get_parameters() { return _model_parameters; }
@@ -137,6 +166,33 @@ public:
         assert(_model_inputs != nullptr);
         assert(_model_outputs != nullptr);
         assert(_model_parameters != nullptr);
+    }
+
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        // frequency_t parameters - convert to/from Hz
+        entry.parameters.insert("voltage_lpf_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_lpf_cutoff_frequency));
+        entry.parameters.insert("current_lpf_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
+        entry.parameters.insert("voltage_magnitude_lpf_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
+
+        // voltage_pu_t parameters - convert to/from per-unit
+        entry.parameters.insert("commutation_start_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
+        entry.parameters.insert("commutation_end_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
+
+        // int and real_t parameters - use default accessor
+        entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
+        entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
+        entry.parameters.insert("voltage_transducer_gain", _model_parameters->voltage_transducer_gain);
+        entry.parameters.insert("pt_ratio", _model_parameters->pt_ratio);
+
+        registry.insert("machine_side_measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

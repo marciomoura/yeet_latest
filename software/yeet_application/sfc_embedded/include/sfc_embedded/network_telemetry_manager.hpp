@@ -24,7 +24,6 @@
 
 #include "sfc_embedded/network_telemetry.hpp"
 #include "sfc_embedded/network_telemetry_builder.hpp"
-#include "sfc_integration/sfc_grid_side_control.hpp"
 
 namespace yeet::application::sfc::network {
 
@@ -49,21 +48,25 @@ struct telemetry_transmission {
  *
  * Manages telemetry packet construction and transmission scheduling.
  * Handles rate control, packet building, and state management.
+ *
+ * The manager accepts any telemetry_builder implementation (grid-side, machine-side, etc.)
+ * allowing it to work with different control systems without modification.
  */
 class telemetry_manager {
 public:
     /**
      * @brief Construct telemetry manager
-     * @param control Reference to grid-side control system
+     * @param builder Telemetry builder instance (must outlive this manager)
      * @param decimation_factor Transmission rate divisor (default: 10 = 100 Hz from 1 kHz)
      *
      * Example:
      * @code
-     * telemetry_manager manager(control, 10);  // 100 Hz transmission
+     * grid_side_telemetry_builder builder(control);
+     * telemetry_manager manager(builder, 10);  // 100 Hz transmission
      * @endcode
      */
-    explicit telemetry_manager(const integration::sfc_grid_side_control& control, std::uint32_t decimation_factor = 10)
-        : _control(control), _builder(control), _decimation_factor(decimation_factor)
+    explicit telemetry_manager(telemetry::telemetry_builder& builder, std::uint32_t decimation_factor = 10) noexcept
+        : _builder(builder), _decimation_factor(decimation_factor)
     {
     }
 
@@ -123,12 +126,11 @@ public:
     [[nodiscard]] constexpr std::uint32_t get_decimation_factor() const noexcept { return _decimation_factor; }
 
 private:
-    const integration::sfc_grid_side_control& _control; /**< Reference to control system */
-    telemetry::grid_side_telemetry_builder _builder;    /**< Telemetry packet builder (maintains sequence number) */
-    bool _is_streaming = false;                         /**< Streaming active flag */
-    std::uint32_t _timestamp_ms = 0;                    /**< System timestamp in milliseconds */
-    std::uint32_t _decimation_counter = 0;              /**< Counter for rate control */
-    std::uint32_t _decimation_factor = 10;              /**< Transmit every Nth call */
+    telemetry::telemetry_builder& _builder; /**< Telemetry packet builder interface */
+    bool _is_streaming = false;             /**< Streaming active flag */
+    std::uint32_t _timestamp_ms = 0;        /**< System timestamp in milliseconds */
+    std::uint32_t _decimation_counter = 0;  /**< Counter for rate control */
+    std::uint32_t _decimation_factor = 10;  /**< Transmit every Nth call */
 
     // Internal buffer for encoded packet (allocated on stack of this object)
     alignas(std::uint32_t) std::uint8_t _packet_buffer[telemetry::max_packet_size];

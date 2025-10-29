@@ -80,6 +80,17 @@ public:
      */
     void update_200us();
 
+    /**
+     * @brief Register all component datamodels with the model registry
+     *
+     * This registers all parameters from grid-side components (current controller,
+     * observer, modulator, pulse generator, measurements, state machine, operation mode monitor)
+     * with the provided registry, making them accessible via parameter configuration protocol.
+     *
+     * @param registry The model registry to populate with component parameters
+     */
+    void register_datamodel(yeet::model_registry& registry);
+
     // ==================== Component Access ====================
 
     sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }

@@ -31,6 +31,7 @@ public:
 
     sfc_soft_starter_speed_generator_runner() : base_application(sampling_time), _speed_generator(sampling_time) {}
 
+    void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
     void run() override;
     void stop() override;

@@ -2,6 +2,13 @@
 
 namespace yeet::application::sfc::integration {
 
+void sfc_machine_side_pulse_generator_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_machine_side_pulse_generator_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 sfc_machine_side_pulse_generator_runner::sfc_machine_side_pulse_generator_runner()
     : base_application(sampling_time),
       _pulse_generator(control::six_pulse_generator::reference_type::phase, angle_wrapped::from_degrees(30.0))

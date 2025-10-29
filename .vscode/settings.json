@@ -118,6 +118,12 @@
         "USART_T.C": "cpp",
         "GPIO_improved.C": "cpp",
         "tasks.C": "cpp",
-        "stm32f4xx.h": "c"
+        "stm32f4xx.h": "c",
+        "GPIO.C": "cpp",
+        "USARTx.C": "cpp",
+        "TIM.C": "cpp",
+        "bitset": "cpp",
+        "csignal": "cpp",
+        "netfwd": "cpp"
     }
 }

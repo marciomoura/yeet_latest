@@ -35,6 +35,46 @@
             }
         },
         {
+            "name": "host-gcc-grid",
+            "displayName": "Host Simulator (Grid-Side)",
+            "description": "Host simulator build for grid-side control using GCC",
+            "inherits": "host-gcc",
+            "cacheVariables": {
+                "YEET_SFC_HOST_BUILD": "ON",
+                "YEET_SFC_HOST_SIDE": "GRID"
+            }
+        },
+        {
+            "name": "host-gcc-machine",
+            "displayName": "Host Simulator (Machine-Side)",
+            "description": "Host simulator build for machine-side control using GCC",
+            "inherits": "host-gcc",
+            "cacheVariables": {
+                "YEET_SFC_HOST_BUILD": "ON",
+                "YEET_SFC_HOST_SIDE": "MACHINE"
+            }
+        },
+        {
+            "name": "host-clang-grid",
+            "displayName": "Host Simulator (Grid-Side) - Clang",
+            "description": "Host simulator build for grid-side control using Clang",
+            "inherits": "host-clang",
+            "cacheVariables": {
+                "YEET_SFC_HOST_BUILD": "ON",
+                "YEET_SFC_HOST_SIDE": "GRID"
+            }
+        },
+        {
+            "name": "host-clang-machine",
+            "displayName": "Host Simulator (Machine-Side) - Clang",
+            "description": "Host simulator build for machine-side control using Clang",
+            "inherits": "host-clang",
+            "cacheVariables": {
+                "YEET_SFC_HOST_BUILD": "ON",
+                "YEET_SFC_HOST_SIDE": "MACHINE"
+            }
+        },
+        {
             "name": "embedded-base",
             "hidden": true,
             "description": "Base configuration for embedded builds",
@@ -127,6 +167,78 @@
             "name": "host-clang-relwithdebinfo",
             "displayName": "Host Clang - RelWithDebInfo",
             "configurePreset": "host-clang",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "host-gcc-grid-debug",
+            "displayName": "Host Simulator Grid-Side - Debug",
+            "configurePreset": "host-gcc-grid",
+            "configuration": "Debug"
+        },
+        {
+            "name": "host-gcc-grid-release",
+            "displayName": "Host Simulator Grid-Side - Release",
+            "configurePreset": "host-gcc-grid",
+            "configuration": "Release"
+        },
+        {
+            "name": "host-gcc-grid-relwithdebinfo",
+            "displayName": "Host Simulator Grid-Side - RelWithDebInfo",
+            "configurePreset": "host-gcc-grid",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "host-gcc-machine-debug",
+            "displayName": "Host Simulator Machine-Side - Debug",
+            "configurePreset": "host-gcc-machine",
+            "configuration": "Debug"
+        },
+        {
+            "name": "host-gcc-machine-release",
+            "displayName": "Host Simulator Machine-Side - Release",
+            "configurePreset": "host-gcc-machine",
+            "configuration": "Release"
+        },
+        {
+            "name": "host-gcc-machine-relwithdebinfo",
+            "displayName": "Host Simulator Machine-Side - RelWithDebInfo",
+            "configurePreset": "host-gcc-machine",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "host-clang-grid-debug",
+            "displayName": "Host Simulator Grid-Side - Clang Debug",
+            "configurePreset": "host-clang-grid",
+            "configuration": "Debug"
+        },
+        {
+            "name": "host-clang-grid-release",
+            "displayName": "Host Simulator Grid-Side - Clang Release",
+            "configurePreset": "host-clang-grid",
+            "configuration": "Release"
+        },
+        {
+            "name": "host-clang-grid-relwithdebinfo",
+            "displayName": "Host Simulator Grid-Side - Clang RelWithDebInfo",
+            "configurePreset": "host-clang-grid",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "host-clang-machine-debug",
+            "displayName": "Host Simulator Machine-Side - Clang Debug",
+            "configurePreset": "host-clang-machine",
+            "configuration": "Debug"
+        },
+        {
+            "name": "host-clang-machine-release",
+            "displayName": "Host Simulator Machine-Side - Clang Release",
+            "configurePreset": "host-clang-machine",
+            "configuration": "Release"
+        },
+        {
+            "name": "host-clang-machine-relwithdebinfo",
+            "displayName": "Host Simulator Machine-Side - Clang RelWithDebInfo",
+            "configurePreset": "host-clang-machine",
             "configuration": "RelWithDebInfo"
         },
         {

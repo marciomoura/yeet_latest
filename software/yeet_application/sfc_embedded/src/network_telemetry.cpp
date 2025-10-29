@@ -40,7 +40,13 @@ std::uint32_t calculate_crc32(const std::uint8_t* data, std::size_t length) noex
 
 }  // anonymous namespace
 
-std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet, std::uint8_t* buffer) noexcept
+/**
+ * @brief Generic implementation for encoding telemetry packets
+ *
+ * This implementation works for all packet types (grid-side, machine-side, etc.).
+ * The packet type is already determined when finalize() was called.
+ */
+std::size_t encode_telemetry_packet(const telemetry_packet& packet, std::uint8_t* buffer) noexcept
 {
     std::size_t offset = 0;
 

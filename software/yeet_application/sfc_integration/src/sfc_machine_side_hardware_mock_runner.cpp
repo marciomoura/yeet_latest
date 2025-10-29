@@ -2,6 +2,13 @@
 
 namespace yeet::application::sfc::integration {
 
+void sfc_machine_side_hardware_mock_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_machine_side_hardware_mock_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 sfc_machine_side_hardware_mock_runner::sfc_machine_side_hardware_mock_runner(duration_t sampling_period)
     : base_application(sampling_period), _hardware_mock(sampling_period)
 {

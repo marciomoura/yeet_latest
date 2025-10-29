@@ -120,7 +120,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Qt timer for polling socket
         self._poll_timer = QtCore.QTimer(self)
         self._poll_timer.timeout.connect(self._poll_socket)
-        self._poll_timer.setInterval(0)  # 1ms polling = 1000Hz max
+        self._poll_timer.setInterval(1)  # 1ms polling = 1000Hz max
         
         # Qt timer for connection health check
         self._health_timer = QtCore.QTimer(self)
@@ -130,7 +130,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Qt timer for deferred packet processing (separate from polling)
         self._process_timer = QtCore.QTimer(self)
         self._process_timer.timeout.connect(self._process_receive_buffer_deferred)
-        self._process_timer.setInterval(0)  # 1ms - very frequent but doesn't block polling
+        self._process_timer.setInterval(1)  # 1ms - very frequent but doesn't block polling
         
         # Flag to control processing
         self._processing_enabled = True
