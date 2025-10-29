@@ -303,29 +303,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # Oscilloscope view configuration
         view_layout = QtWidgets.QHBoxLayout()
         view_layout.addWidget(QtWidgets.QLabel("Oscilloscope Views:"))
-        
-        # Create view toggle buttons for grid-side components
-        # Set visible=True for views you want enabled by default
-        self.view_configs = {
-            'measurements': {'button': None, 'visible': True},
-            'observer': {'button': None, 'visible': True},
-            'current_controller': {'button': None, 'visible': True},
-            'modulator': {'button': None, 'visible': False},
-            'operation_mode_monitor': {'button': None, 'visible': False},
-            'state_machine': {'button': None, 'visible': False},
-            'current_measurements': {'button': None, 'visible': False},
-            'observer_voltage_analysis': {'button': None, 'visible': False},
-            'dclink_controller_detail': {'button': None, 'visible': False},
-            'firing_angle_control': {'button': None, 'visible': False},
-        }
-        
-        for view_name in self.view_configs.keys():
-            btn = QtWidgets.QPushButton(f"{'Hide' if self.view_configs[view_name]['visible'] else 'Show'} {view_name.replace('_', ' ').title()}")
-            btn.clicked.connect(lambda checked, v=view_name: self._on_toggle_view(v))
-            btn.setToolTip(f"Toggle {view_name} oscilloscope view")
-            view_layout.addWidget(btn)
-            self.view_configs[view_name]['button'] = btn
-        
         view_layout.addStretch()
         main_layout.addLayout(view_layout)
         
@@ -705,29 +682,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         # Update oscilloscope layout
         self.oscilloscope.set_layout_mode(self.layout_mode)
-    
-    def _on_toggle_view(self, view_name: str):
-        """Toggle visibility of plots for a specific view."""
-        if view_name not in self.view_configs:
-            logger.warning(f"Unknown view: {view_name}")
-            return
-        
-        # Toggle visibility
-        self.view_configs[view_name]['visible'] = not self.view_configs[view_name]['visible']
-        
-        # Update button text
-        btn = self.view_configs[view_name]['button']
-        display_name = view_name.replace('_', ' ').title()
-        
-        if self.view_configs[view_name]['visible']:
-            btn.setText(f"Hide {display_name}")
-            logger.info(f"{display_name} view shown")
-        else:
-            btn.setText(f"Show {display_name}")
-            logger.info(f"{display_name} view hidden")
-        
-        # Update oscilloscope view visibility
-        self.oscilloscope.toggle_view_group(view_name, self.view_configs[view_name]['visible'])
     
     def _on_toggle_params_only(self):
         """Toggle visibility of parameters panel only."""

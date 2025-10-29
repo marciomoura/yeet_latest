@@ -81,14 +81,22 @@ class OscilloscopeWidget(QtWidgets.QWidget):
     
     def _init_ui(self):
         """Initialize widget layout and create plots container."""
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create toolbar for view toggles
+        self.view_button_layout = QtWidgets.QHBoxLayout()
+        self.view_button_layout.setContentsMargins(5, 5, 5, 5)
+        self.view_button_layout.setSpacing(5)
+        self.view_buttons: Dict[str, QtWidgets.QPushButton] = {}
+        
+        main_layout.addLayout(self.view_button_layout)
         
         self.plots_container = pg.GraphicsLayoutWidget()
         self.plots_container.setBackground('#1e1e1e')
-        layout.addWidget(self.plots_container)
+        main_layout.addWidget(self.plots_container)
         
-        self.setLayout(layout)
+        self.setLayout(main_layout)
     
     def create_standard_plots(self):
         """Create the standard plot set for telemetry monitoring.
@@ -136,30 +144,6 @@ class OscilloscopeWidget(QtWidgets.QWidget):
                     ]
                 }
             },
-            'current_measurements': {
-                'abc_dclink': {
-                    'title': 'Current Measurements (Grid ABC + DC-Link)',
-                    'y_label': 'Current (pu)',
-                    'signals': [
-                        {'name': 'Grid A', 'color': 'r', 'index': 1},
-                        {'name': 'Grid B', 'color': 'g', 'index': 2},
-                        {'name': 'Grid C', 'color': 'b', 'index': 3},
-                        {'name': 'DC Link', 'color': 'w', 'index': 4}
-                    ]
-                }
-            },
-            'observer_voltage_analysis': {
-                'voltages': {
-                    'title': 'Voltage Analysis (Measured vs Observed)',
-                    'y_label': 'Voltage (pu)',
-                    'signals': [
-                        {'name': 'Grid A', 'color': 'r', 'index': 1},
-                        {'name': 'Grid B', 'color': 'g', 'index': 2},
-                        {'name': 'Grid C', 'color': 'b', 'index': 3},
-                        {'name': 'Est. Voltage', 'color': 'c', 'index': 4}
-                    ]
-                }
-            },
             'modulator': {
                 'firing_angle_control': {
                     'title': 'Firing Angle Control',
@@ -168,27 +152,6 @@ class OscilloscopeWidget(QtWidgets.QWidget):
                         {'name': 'Input', 'color': 'y', 'index': 1},
                         {'name': 'Output', 'color': 'w', 'index': 2},
                         {'name': 'Enabled', 'color': 'c', 'index': 3}
-                    ]
-                }
-            },
-            'operation_mode_monitor': {
-                'controller_status': {
-                    'title': 'Current Controller',
-                    'y_label': 'Status',
-                    'signals': [
-                        {'name': 'Error', 'color': 'r', 'index': 1},
-                        {'name': 'Output', 'color': 'g', 'index': 2},
-                        {'name': 'Saturated', 'color': 'y', 'index': 3}
-                    ]
-                }
-            },
-            'state_machine': {
-                'state_monitoring': {
-                    'title': 'State Machine & Pulses',
-                    'y_label': 'State/Flag',
-                    'signals': [
-                        {'name': 'Current State', 'color': 'c', 'index': 1},
-                        {'name': 'Pulse Releases', 'color': 'm', 'index': 2}
                     ]
                 }
             }
@@ -205,6 +168,9 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             
             for plot_name, plot_config in group_plots.items():
                 self._create_plot(group_name, plot_name, plot_config)
+        
+        # Create view toggle buttons for each defined group
+        self._create_view_buttons()
         
         # Initial layout organization
         self._reorganize_subplot_layout()
@@ -256,6 +222,75 @@ class OscilloscopeWidget(QtWidgets.QWidget):
         
         # Store in layout map (will be populated by _reorganize_subplot_layout)
         self._plot_layout_map[len(self._plot_layout_map)] = buffer_key
+    
+    def _create_view_buttons(self):
+        """Create view toggle buttons for each defined plot group.
+        
+        Only creates buttons for groups that have signal definitions (i.e., are in plot_definitions).
+        Buttons appear in the toolbar at the top of the oscilloscope widget.
+        """
+        # Add label first
+        label = QtWidgets.QLabel("Oscilloscope Views:")
+        label.setStyleSheet("color: #ffffff; font-size: 10pt; margin-right: 10px;")
+        self.view_button_layout.addWidget(label)
+        
+        # Create a button for each view group (in order of plot_definitions)
+        for group_name in self.plot_groups.keys():
+            is_visible = self.view_configs[group_name].get('visible', False)
+            btn_text = f"{'Hide' if is_visible else 'Show'} {group_name.replace('_', ' ').title()}"
+            
+            btn = QtWidgets.QPushButton(btn_text)
+            btn.setMaximumWidth(150)
+            btn.setCheckable(True)
+            btn.setChecked(is_visible)
+            btn.setToolTip(f"Toggle visibility of {group_name} oscilloscope view")
+            btn.clicked.connect(lambda checked, g=group_name: self._on_view_button_clicked(g))
+            
+            self.view_buttons[group_name] = btn
+            self.view_button_layout.addWidget(btn)
+        
+        # Add separator
+        separator = QtWidgets.QLabel("|")
+        separator.setStyleSheet("color: #666666;")
+        self.view_button_layout.addWidget(separator)
+        
+        # Add "Hide All" button
+        hide_all_btn = QtWidgets.QPushButton("Hide All")
+        hide_all_btn.setMaximumWidth(80)
+        hide_all_btn.setToolTip("Hide all oscilloscope views")
+        hide_all_btn.clicked.connect(self._on_hide_all_clicked)
+        self.view_button_layout.addWidget(hide_all_btn)
+        
+        # Add stretch to push buttons to the left
+        self.view_button_layout.addStretch()
+    
+    def _on_view_button_clicked(self, group_name: str):
+        """Handle view toggle button click.
+        
+        Args:
+            group_name: Name of the view group to toggle
+        """
+        if group_name in self.view_configs:
+            current_visible = self.view_configs[group_name].get('visible', False)
+            new_visible = not current_visible
+            self.toggle_view_group(group_name, new_visible)
+            
+            # Update button text and state
+            btn = self.view_buttons.get(group_name)
+            if btn:
+                btn.setText(f"{'Hide' if new_visible else 'Show'} {group_name.replace('_', ' ').title()}")
+                btn.setChecked(new_visible)
+    
+    def _on_hide_all_clicked(self):
+        """Handle Hide All button click - hide all view groups."""
+        for group_name in self.plot_groups.keys():
+            self.toggle_view_group(group_name, False)
+            
+            # Update button text and state
+            btn = self.view_buttons.get(group_name)
+            if btn:
+                btn.setText(f"Show {group_name.replace('_', ' ').title()}")
+                btn.setChecked(False)
     
     def add_sample_to_buffer(self, buffer_name: str, sample: Tuple):
         """Add a data sample to the named buffer.
