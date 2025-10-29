@@ -62,7 +62,32 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Note: Array parameters are not registered as they require custom serialization
+        // Register DC current lookup table entries individually
+        auto& dc_current_table = _model_parameters->dc_current_pu_lookup_table;
+        for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
+            std::string param_name = "dc_current_pu_lookup_table[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                low_level_access([&dc_current_table,
+                                     i]() -> float { return static_cast<float>(dc_current_table.read()[i].value()); },
+                    [&dc_current_table, i](float value) {
+                        auto table = dc_current_table.read();
+                        table[i] = current_pu_t(value);
+                        dc_current_table.write(table);
+                    }));
+        }
+
+        // Register firing angle lookup table entries individually
+        auto& firing_angle_table = _model_parameters->firing_angle_lookup_table;
+        for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
+            std::string param_name = "firing_angle_lookup_table[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                low_level_access([&firing_angle_table, i]() -> float { return firing_angle_table.read()[i]; },
+                    [&firing_angle_table, i](float value) {
+                        auto table = firing_angle_table.read();
+                        table[i] = real_t(value);
+                        firing_angle_table.write(table);
+                    }));
+        }
 
         registry.insert("machine_side_controller", std::move(entry));
     }

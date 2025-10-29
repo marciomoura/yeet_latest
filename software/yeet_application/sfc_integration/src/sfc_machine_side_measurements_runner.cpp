@@ -4,6 +4,13 @@
 
 namespace yeet::application::sfc::integration {
 
+void sfc_machine_side_measurements_ideal_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_machine_side_measurements_ideal_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_machine_side_measurements_ideal_runner::initialize()
 {
     set_commutation_parameters();
@@ -124,6 +131,13 @@ void sfc_machine_side_measurements_runner::set_parameter_callback()
     _parameters.pt_ratio.register_callback([&]() { _measurements.configure_pt_ratio(_parameters.pt_ratio.read()); });
     _parameters.voltage_transducer_gain.register_callback(
         [&]() { _measurements.configure_voltage_transducer_gain(_parameters.voltage_transducer_gain.read()); });
+}
+
+void sfc_machine_side_measurements_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_machine_side_measurements_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
 }
 
 void sfc_machine_side_measurements_runner::set_measurement_conversion_parameters()

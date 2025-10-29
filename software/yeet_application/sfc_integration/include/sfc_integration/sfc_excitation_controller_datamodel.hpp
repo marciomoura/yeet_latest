@@ -97,7 +97,32 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->field_established_timeout));
         entry.parameters.insert("excitation_ramp_down_time",
             yeet::utils::make_units_accessor(_model_parameters->excitation_ramp_down_time));
-        // Note: Array parameters are not registered as they require custom serialization
+
+        // Register speed axis lookup table entries individually
+        auto& speed_axis = _model_parameters->speed_axis_pu;
+        for (std::size_t i = 0; i < 6; ++i) {
+            std::string param_name = "speed_axis_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(
+                param_name, low_level_access([&speed_axis, i]() -> float { return speed_axis.read()[i]; },
+                                [&speed_axis, i](float value) {
+                                    auto table = speed_axis.read();
+                                    table[i] = real_t(value);
+                                    speed_axis.write(table);
+                                }));
+        }
+
+        // Register excitation voltage axis lookup table entries individually
+        auto& excitation_voltage_axis = _model_parameters->excitation_voltage_axis_pu;
+        for (std::size_t i = 0; i < 6; ++i) {
+            std::string param_name = "excitation_voltage_axis_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                low_level_access([&excitation_voltage_axis, i]() -> float { return excitation_voltage_axis.read()[i]; },
+                    [&excitation_voltage_axis, i](float value) {
+                        auto table = excitation_voltage_axis.read();
+                        table[i] = real_t(value);
+                        excitation_voltage_axis.write(table);
+                    }));
+        }
 
         registry.insert("excitation_controller", std::move(entry));
     }

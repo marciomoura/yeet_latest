@@ -1,7 +1,9 @@
 #pragma once
 
+#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/adc_value.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
@@ -60,6 +62,20 @@ public:
     sfc_machine_side_hardware_mock_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
         : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
     {
+    }
+
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameters.insert("voltage_adc_gain", _model_parameters->voltage_adc_gain);
+        entry.parameters.insert(
+            "voltage_adc_cutoff_freq", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_cutoff_freq));
+        entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
+        entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
+        entry.parameters.insert("pt_ratio", _model_parameters->pt_ratio);
+
+        registry.insert("machine_side_hardware_mock", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

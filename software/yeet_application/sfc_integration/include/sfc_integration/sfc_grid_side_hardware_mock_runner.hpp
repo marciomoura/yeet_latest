@@ -25,6 +25,7 @@ public:
      */
     explicit sfc_grid_side_hardware_mock_runner(duration_t sampling_period);
 
+    void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
     void run() override;
     void stop() override;

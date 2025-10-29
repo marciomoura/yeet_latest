@@ -26,6 +26,7 @@ public:
      */
     sfc_machine_side_pulse_generator_runner();
 
+    void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
     void run() override;
     void stop() override;

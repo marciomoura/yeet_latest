@@ -17,6 +17,7 @@ public:
 
     sfc_machine_side_controller_runner() : base_application(sampling_time), _firing_angle_filter(sampling_time) {}
 
+    void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
     void run() override;
     void stop() override;
