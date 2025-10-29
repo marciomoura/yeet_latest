@@ -45,6 +45,9 @@ public:
         /// Current control error (reference - measured)
         signal_output<current_pu_t> current_error;
 
+        /// Full current reference output
+        signal_output<current_pu_t> current_reference;
+
         /// PI controller output before limiting
         signal_output<angle_wrapped> pi_output;
 

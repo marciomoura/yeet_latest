@@ -26,10 +26,11 @@ void sfc_current_controller_runner::run()
     const voltage_pu_t reflected_machine_side_voltage_magnitude =
         _per_unit_system->reflect_machine_to_grid_voltage_pu(_inputs.machine_side_voltage_magnitude.read());
 
-    _sfc_current_controller.update(
-        _inputs.dc_link_current_reference.read() + _parameters.current_reference_rectifier_operation.read(),
-        _inputs.dc_link_current_measured.read(), _inputs.grid_side_voltage_magnitude.read(),
-        reflected_machine_side_voltage_magnitude);
+    const current_pu_t dc_link_current_reference_pu =
+        _inputs.dc_link_current_reference.read() + _parameters.current_reference_rectifier_operation.read();
+
+    _sfc_current_controller.update(dc_link_current_reference_pu, _inputs.dc_link_current_measured.read(),
+        _inputs.grid_side_voltage_magnitude.read(), reflected_machine_side_voltage_magnitude);
 
     _outputs.firing_angle.write(
         angle_wrapped::from_radians(_sfc_current_controller.get_firing_angle_reference_radians()));
@@ -38,7 +39,7 @@ void sfc_current_controller_runner::run()
     _outputs.current_controller_is_saturated.write(_sfc_current_controller.is_saturated());
     _outputs.pi_output.write(_sfc_current_controller.get_pi_output());
     _outputs.is_reference_current_limited.write(_sfc_current_controller.is_reference_current_limited());
-
+    _outputs.current_reference.write(dc_link_current_reference_pu);
     _outputs.is_current_measured_above_magnitude_limit.write(
         _sfc_current_controller.is_current_measured_above_magnitude_limit());
 

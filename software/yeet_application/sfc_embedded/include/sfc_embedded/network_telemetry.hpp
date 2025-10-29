@@ -167,6 +167,30 @@ public:
     }
 
     /**
+     * @brief Add a signal at a specific index in the packet
+     *
+     * Adds a signal at the specified index position. This allows
+     * explicit control over signal placement rather than sequential ordering.
+     * The signal count is automatically updated if needed.
+     *
+     * @param index Signal index (0-based position in payload)
+     * @param value Signal value to add
+     * @return true if signal was added, false if index is out of range
+     */
+    bool add_signal(std::uint16_t index, float value) noexcept
+    {
+        if (index >= max_signals) {
+            return false;
+        }
+        _signals[index] = value;
+        // Update signal count if this index extends beyond current count
+        if (index >= _signal_count) {
+            _signal_count = index + 1;
+        }
+        return true;
+    }
+
+    /**
      * @brief Finalize packet header before transmission
      *
      * Sets header fields and prepares packet for encoding.

@@ -301,7 +301,7 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
     yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.2f});
+        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.0f});
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude, yeet::voltage_pu_t{1.0f});
     yeet::mock_signal_input::write(

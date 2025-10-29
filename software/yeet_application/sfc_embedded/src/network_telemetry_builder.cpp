@@ -23,79 +23,79 @@ grid_side_telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32
 
     // === Grid Measurements Group ===
     // ABC frame measurements
-    packet.push_signal(static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read()));
-    packet.push_signal(static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().a()));
-    packet.push_signal(static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().b()));
-    packet.push_signal(static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().c()));
+    packet.add_signal(0, static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read()));
+    packet.add_signal(1, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().a()));
+    packet.add_signal(2, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().b()));
+    packet.add_signal(3, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().c()));
 
     const auto& grid_current = grid_meas.get_outputs().grid_current_abc.read();
-    packet.push_signal(static_cast<float>(grid_current.to_alphabeta().magnitude()));  // Grid current magnitude
-    packet.push_signal(static_cast<float>(grid_current.a()));
-    packet.push_signal(static_cast<float>(grid_current.b()));
-    packet.push_signal(static_cast<float>(grid_current.c()));
+    packet.add_signal(4, static_cast<float>(grid_current.to_alphabeta().magnitude()));  // Grid current magnitude
+    packet.add_signal(5, static_cast<float>(grid_current.a()));
+    packet.add_signal(6, static_cast<float>(grid_current.b()));
+    packet.add_signal(7, static_cast<float>(grid_current.c()));
 
-    packet.push_signal(static_cast<float>(dc_meas.get_outputs().dc_current_pu.read()));
-    packet.push_signal(grid_meas.get_outputs().is_commuting.read() ? 1.0f : 0.0f);
+    packet.add_signal(8, static_cast<float>(dc_meas.get_outputs().dc_current_pu.read()));
+    packet.add_signal(9, grid_meas.get_outputs().is_commuting.read() ? 1.0f : 0.0f);
 
     // Alpha-Beta frame and filtered measurements
     const auto& voltage_alphabeta = grid_meas.get_outputs().grid_voltage_alphabeta.read();
-    packet.push_signal(static_cast<float>(voltage_alphabeta.alpha()));
-    packet.push_signal(static_cast<float>(voltage_alphabeta.beta()));
-    packet.push_signal(static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read()));
-    packet.push_signal(static_cast<float>(grid_meas.get_outputs().grid_side_frequency.read()));
+    packet.add_signal(10, static_cast<float>(voltage_alphabeta.alpha()));
+    packet.add_signal(11, static_cast<float>(voltage_alphabeta.beta()));
+    packet.add_signal(12, static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read()));
+    packet.add_signal(13, static_cast<float>(grid_meas.get_outputs().grid_side_frequency.read()));
 
     // === Observer Group ===
-    packet.push_signal(static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
-    packet.push_signal(static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
-    packet.push_signal(static_cast<float>(observer.get_outputs().estimated_position.read().get_radians()));
-    packet.push_signal(static_cast<float>(observer.get_outputs().estimated_frequency.read()));
+    packet.add_signal(14, static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
+    packet.add_signal(15, static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
+    packet.add_signal(16, static_cast<float>(observer.get_outputs().estimated_position.read().get_radians()));
+    packet.add_signal(17, static_cast<float>(observer.get_outputs().estimated_frequency.read()));
 
     const auto& estimated_voltage_alphabeta = observer.get_outputs().filtered_voltage_alphabeta.read();
-    packet.push_signal(static_cast<float>(estimated_voltage_alphabeta.alpha()));
-    packet.push_signal(static_cast<float>(estimated_voltage_alphabeta.beta()));
+    packet.add_signal(18, static_cast<float>(estimated_voltage_alphabeta.alpha()));
+    packet.add_signal(19, static_cast<float>(estimated_voltage_alphabeta.beta()));
 
     // === Modulator Group ===
-    packet.push_signal(static_cast<float>(modulator.get_outputs().firing_angle.read().get_radians()));
-    packet.push_signal(modulator.get_inputs().enable.read() ? 1.0f : 0.0f);
-    packet.push_signal(modulator.get_outputs().force_commutation_acknowledged.read() ? 1.0f : 0.0f);
-    packet.push_signal(modulator.get_outputs().is_requesting_main_pi_reset.read() ? 1.0f : 0.0f);
+    packet.add_signal(20, static_cast<float>(modulator.get_outputs().firing_angle.read().get_radians()));
+    packet.add_signal(21, modulator.get_inputs().enable.read() ? 1.0f : 0.0f);
+    packet.add_signal(22, modulator.get_outputs().force_commutation_acknowledged.read() ? 1.0f : 0.0f);
+    packet.add_signal(23, modulator.get_outputs().is_requesting_main_pi_reset.read() ? 1.0f : 0.0f);
 
     // === Controller Group ===
-    packet.push_signal(static_cast<float>(controller.get_inputs().dc_link_current_reference.read()));
-    packet.push_signal(static_cast<float>(controller.get_inputs().dc_link_current_measured.read()));
-    packet.push_signal(static_cast<float>(controller.get_outputs().current_error.read()));
-    packet.push_signal(static_cast<float>(controller.get_outputs().pi_output.read().get_radians()));
+    packet.add_signal(24, static_cast<float>(controller.get_outputs().current_reference.read()));
+    packet.add_signal(25, static_cast<float>(controller.get_inputs().dc_link_current_measured.read()));
+    packet.add_signal(26, static_cast<float>(controller.get_outputs().current_error.read()));
+    packet.add_signal(27, static_cast<float>(controller.get_outputs().pi_output.read().get_radians()));
 
     const auto operating_mode = mode_monitor.get_outputs().operating_mode.read();
-    packet.push_signal((operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0.0f : 1.0f);
-    packet.push_signal(controller.get_outputs().current_controller_is_saturated.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().freeze_integrator.read() ? 1.0f : 0.0f);
+    packet.add_signal(28, (operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0.0f : 1.0f);
+    packet.add_signal(29, controller.get_outputs().current_controller_is_saturated.read() ? 1.0f : 0.0f);
+    packet.add_signal(30, state_machine.get_outputs().freeze_integrator.read() ? 1.0f : 0.0f);
 
     // === State Machine Group ===
-    packet.push_signal(static_cast<float>(state_machine.get_outputs().current_state_id.read()));
-    packet.push_signal(state_machine.get_outputs().pulse_releases.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().auxiliaries_are_on.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().breakers_are_on.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().start_command.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().stop_command.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().is_current_extinguished.read() ? 1.0f : 0.0f);
-    packet.push_signal(state_machine.get_outputs().shutdown_request.read() ? 1.0f : 0.0f);
+    packet.add_signal(31, static_cast<float>(state_machine.get_outputs().current_state_id.read()));
+    packet.add_signal(32, state_machine.get_outputs().pulse_releases.read() ? 1.0f : 0.0f);
+    packet.add_signal(33, state_machine.get_outputs().auxiliaries_are_on.read() ? 1.0f : 0.0f);
+    packet.add_signal(34, state_machine.get_outputs().breakers_are_on.read() ? 1.0f : 0.0f);
+    packet.add_signal(35, state_machine.get_outputs().start_command.read() ? 1.0f : 0.0f);
+    packet.add_signal(36, state_machine.get_outputs().stop_command.read() ? 1.0f : 0.0f);
+    packet.add_signal(37, state_machine.get_outputs().is_current_extinguished.read() ? 1.0f : 0.0f);
+    packet.add_signal(38, state_machine.get_outputs().shutdown_request.read() ? 1.0f : 0.0f);
 
     // === Operation Mode Monitor Group ===
-    packet.push_signal((operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0.0f : 1.0f);
-    packet.push_signal(mode_monitor.get_outputs().has_mode_changed.read() ? 1.0f : 0.0f);
-    packet.push_signal(mode_monitor.get_outputs().is_current_zero.read() ? 1.0f : 0.0f);
-    packet.push_signal(mode_monitor.get_outputs().is_discontinuous_mode.read() ? 1.0f : 0.0f);
+    packet.add_signal(39, (operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0.0f : 1.0f);
+    packet.add_signal(40, mode_monitor.get_outputs().has_mode_changed.read() ? 1.0f : 0.0f);
+    packet.add_signal(41, mode_monitor.get_outputs().is_current_zero.read() ? 1.0f : 0.0f);
+    packet.add_signal(42, mode_monitor.get_outputs().is_discontinuous_mode.read() ? 1.0f : 0.0f);
 
     // === Pulse Generator Group ===
     const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
-    packet.push_signal(firing_pulses.p1 ? 1.0f : 0.0f);
-    packet.push_signal(firing_pulses.p2 ? 1.0f : 0.0f);
-    packet.push_signal(firing_pulses.p3 ? 1.0f : 0.0f);
-    packet.push_signal(firing_pulses.p4 ? 1.0f : 0.0f);
-    packet.push_signal(firing_pulses.p5 ? 1.0f : 0.0f);
-    packet.push_signal(firing_pulses.p6 ? 1.0f : 0.0f);
-    packet.push_signal(pulse_generator.get_outputs().is_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(43, firing_pulses.p1 ? 1.0f : 0.0f);
+    packet.add_signal(44, firing_pulses.p2 ? 1.0f : 0.0f);
+    packet.add_signal(45, firing_pulses.p3 ? 1.0f : 0.0f);
+    packet.add_signal(46, firing_pulses.p4 ? 1.0f : 0.0f);
+    packet.add_signal(47, firing_pulses.p5 ? 1.0f : 0.0f);
+    packet.add_signal(48, firing_pulses.p6 ? 1.0f : 0.0f);
+    packet.add_signal(49, pulse_generator.get_outputs().is_active.read() ? 1.0f : 0.0f);
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(timestamp_ms, _sequence_number++);
