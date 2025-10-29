@@ -18,25 +18,25 @@ void sfc_machine_side_control::initialize()
 void sfc_machine_side_control::update_10ms()
 {
     // 10ms sampling: Execute in order: generator → controller → limiter
-    // speed_generator.run();    // 1. Generate speed reference + dynamic torque limits
-    // speed_controller.run();   // 2. Process speed error → torque reference
-    // torque_controller.run();  // 3. Apply limits + boost → current reference
+    speed_generator.run();    // 1. Generate speed reference + dynamic torque limits
+    speed_controller.run();   // 2. Process speed error → torque reference
+    torque_controller.run();  // 3. Apply limits + boost → current reference
 }
 
 void sfc_machine_side_control::update_1ms()
 {
     // 1ms sampling: Excitation controller, machine-side controller
-    // excitation_controller.run();
-    // machine_side_controller.run();
+    excitation_controller.run();
+    machine_side_controller.run();
 }
 
 void sfc_machine_side_control::update_200us()
 {
     // 200µs sampling: Measurements, observers, modulators
-    // machine_measurements.run();
-    // machine_side_observer.run();
-    // machine_side_modulator.run();
-    // machine_side_pulse_generator.run();
+    machine_measurements.run();
+    machine_side_observer.run();
+    machine_side_modulator.run();
+    machine_side_pulse_generator.run();
 }
 
 void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry)
