@@ -55,11 +55,8 @@ sfc_state_type* auxiliaries_on_state::update(const sfc_state_inputs& inputs) noe
         return _idle_state;
     }
 
-    if (inputs.breakers_are_on_event.is_true()) {
-        return _breakers_off_state;
-    }
-
-    return this;
+    // Transition to BREAKERS_OFF once auxiliaries are stable
+    return _breakers_off_state;
 }
 
 sfc_state_outputs auxiliaries_on_state::get_outputs() const noexcept
@@ -80,6 +77,7 @@ sfc_state_type* breakers_off_state::update(const sfc_state_inputs& inputs) noexc
         return _idle_state;
     }
 
+    // Transition to BREAKERS_ON once breakers are closed
     if (inputs.breakers_are_on_event.is_true()) {
         return _breakers_on_state;
     }
@@ -101,19 +99,16 @@ sfc_state_outputs breakers_off_state::get_outputs() const noexcept
 
 sfc_state_type* breakers_on_state::update(const sfc_state_inputs& inputs) noexcept
 {
-    if (!inputs.breakers_are_on_event.is_true()) {
-        return _breakers_off_state;
-    }
-
     if (!inputs.auxiliaries_are_on_event.is_true()) {
         return _breakers_off_state;
     }
 
-    if (inputs.start_command.is_true()) {
-        return _operation_off_state;
+    if (!inputs.breakers_are_on_event.is_true()) {
+        return _breakers_off_state;
     }
 
-    return this;
+    // Automatically transition to OPERATION_OFF once breakers are confirmed stable
+    return _operation_off_state;
 }
 
 sfc_state_outputs breakers_on_state::get_outputs() const noexcept
@@ -138,10 +133,12 @@ sfc_state_type* operation_off_state::update(const sfc_state_inputs& inputs) noex
         return _breakers_on_state;
     }
 
+    // If stop command is received, remain in OPERATION_OFF
     if (inputs.stop_command.is_true()) {
         return this;
     }
 
+    // Transition to OPERATION_ON once start command is maintained
     if (inputs.start_command.is_true()) {
         return _operation_on_state;
     }
@@ -211,8 +208,9 @@ sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
 {
     sfc_state_outputs outputs{};
 
-    outputs.pulse_releases = true;      // Keep pulses active for controlled shutdown
-    outputs.freeze_integrator = false;  // Do not freeze integrator during shutdown
+    outputs.pulse_releases = true;                 // Keep pulses active for controlled shutdown
+    outputs.freeze_integrator = false;             // Do not freeze integrator during shutdown
+    outputs.request_extinguish_dc_current = true;  // Request extinguish current mode
 
     return outputs;
 }

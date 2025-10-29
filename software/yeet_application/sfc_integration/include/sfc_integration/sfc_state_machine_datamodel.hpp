@@ -4,6 +4,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -46,6 +47,7 @@ public:
         /// True when system is ready for active converter operation
         signal_output<bool> pulse_releases;
         signal_output<bool> freeze_integrator;
+        signal_output<bool> request_extinguish_dc_current;
 
         /// Current state identifier for monitoring and diagnostics
         /// Indicates which operational state the SFC system is currently in
@@ -55,20 +57,64 @@ public:
         /// True when a state transition occurred in the last update cycle
         signal_output<bool> has_transitioned;
 
-        /// Individual state status flags for detailed monitoring
-        signal_output<bool> is_idle;
-        signal_output<bool> is_auxiliaries_on;
-        signal_output<bool> is_breakers_off;
-        signal_output<bool> is_breakers_on;
-        signal_output<bool> is_operation_off;
-        signal_output<bool> is_operation_on;
-        signal_output<bool> is_shutdown_requested;
+        /// Auxiliaries power systems are operational
+        signal_output<bool> auxiliaries_are_on;
+
+        /// Main circuit breakers are closed and energized
+        signal_output<bool> breakers_are_on;
+
+        /// Start command from operator or control system
+        signal_output<bool> start_command;
+
+        /// Stop command from operator or control system
+        signal_output<bool> stop_command;
+
+        /// Emergency shutdown request signal
+        signal_output<bool> shutdown_request;
+
+        /// Current has been extinguished (safe for breaker operations)
+        signal_output<bool> is_current_extinguished;
     };
 
     /**
      * @brief Configuration parameters for the state machine
      */
-    struct parameters {};
+    struct parameters {
+        // ==================== Digital Input Overrides ====================
+        // These parameters allow forcing digital inputs during testing/commissioning
+        // When override_enable is true, the override_value is used instead of hardware input
+        // Default: All overrides DISABLED to use actual input signals
+
+        /// Enable override for auxiliaries_are_on input
+        parameter<bool> override_enable_auxiliaries_are_on{false};
+        /// Override value for auxiliaries_are_on (when override enabled)
+        parameter<bool> override_value_auxiliaries_are_on{false};
+
+        /// Enable override for breakers_are_on input
+        parameter<bool> override_enable_breakers_are_on{false};
+        /// Override value for breakers_are_on (when override enabled)
+        parameter<bool> override_value_breakers_are_on{false};
+
+        /// Enable override for start_command input
+        parameter<bool> override_enable_start_command{false};
+        /// Override value for start_command (when override enabled)
+        parameter<bool> override_value_start_command{false};
+
+        /// Enable override for stop_command input
+        parameter<bool> override_enable_stop_command{false};
+        /// Override value for stop_command (when override enabled)
+        parameter<bool> override_value_stop_command{false};
+
+        /// Enable override for shutdown_request input
+        parameter<bool> override_enable_shutdown_request{false};
+        /// Override value for shutdown_request (when override enabled)
+        parameter<bool> override_value_shutdown_request{false};
+
+        /// Enable override for is_current_extinguished input
+        parameter<bool> override_enable_is_current_extinguished{false};
+        /// Override value for is_current_extinguished (when override enabled)
+        parameter<bool> override_value_is_current_extinguished{false};
+    };
 
 private:
     inputs* _model_inputs;
@@ -86,24 +132,40 @@ public:
 
     void register_data_model(model_registry& registry)
     {
-        // Implementation would register all signals and parameters with the system registry
-        // Currently commented out to match the pattern from speed controller datamodel
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        // Register digital input override parameters using boolean accessor
+        entry.parameters.insert("override_enable_auxiliaries_are_on",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_auxiliaries_are_on));
+        entry.parameters.insert("override_value_auxiliaries_are_on",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_auxiliaries_are_on));
 
-        // // Register outputs in signal registry
-        // entry.signal_registry.insert("pulse_releases", _model_outputs->pulse_releases);
-        // entry.signal_registry.insert("current_state_id", _model_outputs->current_state_id);
-        // entry.signal_registry.insert("has_transitioned", _model_outputs->has_transitioned);
-        // entry.signal_registry.insert("is_idle", _model_outputs->is_idle);
-        // entry.signal_registry.insert("is_auxiliaries_on", _model_outputs->is_auxiliaries_on);
-        // entry.signal_registry.insert("is_breakers_off", _model_outputs->is_breakers_off);
-        // entry.signal_registry.insert("is_breakers_on", _model_outputs->is_breakers_on);
-        // entry.signal_registry.insert("is_operation_off", _model_outputs->is_operation_off);
-        // entry.signal_registry.insert("is_operation_on", _model_outputs->is_operation_on);
-        // entry.signal_registry.insert("is_shutdown_requested", _model_outputs->is_shutdown_requested);
+        entry.parameters.insert("override_enable_breakers_are_on",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_breakers_are_on));
+        entry.parameters.insert("override_value_breakers_are_on",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_breakers_are_on));
 
-        // registry.insert("sfc_state_machine", std::move(entry));
+        entry.parameters.insert("override_enable_start_command",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_start_command));
+        entry.parameters.insert("override_value_start_command",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_start_command));
+
+        entry.parameters.insert("override_enable_stop_command",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_stop_command));
+        entry.parameters.insert("override_value_stop_command",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_stop_command));
+
+        entry.parameters.insert("override_enable_shutdown_request",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_shutdown_request));
+        entry.parameters.insert("override_value_shutdown_request",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_shutdown_request));
+
+        entry.parameters.insert("override_enable_is_current_extinguished",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_is_current_extinguished));
+        entry.parameters.insert("override_value_is_current_extinguished",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_is_current_extinguished));
+
+        registry.insert("state_machine", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -75,10 +75,11 @@ private:
      *
      * @param buffer Command data buffer
      * @param length Command data length
+     * @param outputs Network output data (may queue sync frame for START command)
      * @return true if command was recognized and processed
      * @return false if command was not recognized
      */
-    bool process_command(const std::uint8_t* buffer, std::uint16_t length);
+    bool process_command(const std::uint8_t* buffer, std::uint16_t length, network_outputs_t* outputs);
 
     /**
      * @brief Process incoming parameter protocol packets
@@ -116,7 +117,9 @@ private:
     yeet::application::sfc::parameter_handler& parameter_handler_;
 
     // Internal state
-    bool telemetry_started_;  ///< Is telemetry streaming currently active?
+    bool telemetry_started_;                                   ///< Is telemetry streaming currently active?
+    std::uint32_t sync_frame_counter_;                         ///< Counter for periodic sync frame transmission
+    static constexpr std::uint32_t SYNC_FRAME_INTERVAL = 100;  ///< Send sync frame every 100 telemetry packets
 };
 
 }  // namespace network

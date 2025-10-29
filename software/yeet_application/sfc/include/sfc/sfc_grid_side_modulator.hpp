@@ -10,8 +10,9 @@ namespace yeet::application::sfc {
  * @brief Operating states for the grid-side modulator.
  */
 enum class grid_side_modulator_state_t {
-    running,            ///< Normal operation - pass through PI controller angle and firing angle
-    forced_commutation  ///< Force commutation - apply deep inverting angle to bring current to zero
+    running,               ///< Normal operation - pass through PI controller angle and firing angle
+    forced_commutation,    ///< Force commutation - apply deep inverting angle to bring current to zero
+    extinguishing_current  ///< Current extinction mode - apply inverting angle for shutdown/trip
 };
 
 /**
@@ -40,15 +41,18 @@ public:
      * yeet_application_sfc pattern.
      *
      * @param enable System enable signal.
+     * @param operating_mode Current operating mode (natural or forced commutation).
      * @param request_force_commutation Signal from machine-side modulator requesting commutation.
      * @param dc_link_current_is_zero Signal indicating DC link current has reached zero.
      * @param firing_angle_from_main_pi Firing angle from external PI current controller.
+     * @param request_extinguish_current Priority request to extinguish current (shutdown/trip).
      */
     void update(bool enable,
         sfc_operating_mode_t operating_mode,
         bool request_force_commutation,
         bool dc_link_current_is_zero,
-        angle_t firing_angle_from_main_pi) noexcept;
+        angle_t firing_angle_from_main_pi,
+        bool request_extinguish_current) noexcept;
 
     /**
      * @brief Resets the modulator to initial state.
@@ -107,6 +111,16 @@ public:
      * @return True if pulses should be released, false otherwise.
      */
     bool get_pulse_release() const noexcept;
+
+    /**
+     * @brief Checks if the modulator is currently extinguishing current.
+     *
+     * This flag indicates that the modulator is in current extinction mode,
+     * typically triggered by a shutdown request or trip condition.
+     *
+     * @return True if currently extinguishing current, false otherwise.
+     */
+    bool get_is_extinguishing_current() const noexcept;
 
 private:
     /**

@@ -1,40 +1,20 @@
-#!/usr/bin/env python3
-"""Telemetry protocol decoder for SFC control system.
-
-This module defines the binary telemetry protocol structures and provides
-decoding functionality for real-time control data transmitted from the
-embedded grid-side and machine-side controllers.
-
-Protocol Structure:
-    - Header (16 bytes): type, version, flags, timestamp, sequence
-    - Payload (variable): signal groups indicated by flags
-
-Signal Groups:
-    - Measurements: Grid voltage, DC current
-    - Observer: Frequency and angle estimates
-    - Modulator: Firing angles and commutation status
-    - Controller: PI controller state
-    - State Machine: Current operating state
-
-Example Usage:
-    decoder = TelemetryDecoder()
-    packet = decoder.decode(raw_bytes)
-    if packet:
-        print(f"Grid voltage: {packet.measurements.grid_voltage_magnitude_pu:.3f} pu")
-        print(f"DC current: {packet.measurements.dc_link_current_pu:.3f} pu")
-"""
+﻿#!/usr/bin/env python3
+"""Telemetry protocol decoder for SFC control system."""
 
 import struct
+import zlib
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional
+from typing import Optional, List, Tuple
 
 
 # Protocol constants
 PROTOCOL_VERSION = 1
-MAX_PACKET_SIZE = 1460
+MAX_SIGNALS = 256
+MAX_PACKET_SIZE = 16 + (MAX_SIGNALS * 4)
+SYNC_MAGIC = 0xDEADBEEF  # Magic number for stream synchronization
 
-# Packet types
+
 class PacketType(IntEnum):
     """Telemetry packet type identifiers."""
     GRID_SIDE_TELEMETRY = 0x01
@@ -42,236 +22,334 @@ class PacketType(IntEnum):
     SYSTEM_STATUS = 0x10
     CONFIGURATION = 0x20
     COMMAND = 0x30
+    PARAMETER_SET_REQUEST = 0x40
+    PARAMETER_SET_RESPONSE = 0x41
+    PARAMETER_GET_REQUEST = 0x42
+    PARAMETER_GET_RESPONSE = 0x43
+    PARAMETER_COUNT_REQUEST = 0x46
+    PARAMETER_COUNT_RESPONSE = 0x47
+    PARAMETER_GET_BY_INDEX_REQUEST = 0x48
+    PARAMETER_GET_BY_INDEX_RESPONSE = 0x49
 
 
-# Signal group flags (bit masks)
-class TelemetryFlags(IntEnum):
-    """Bit flags indicating which signal groups are present in packet."""
-    MEASUREMENTS = (1 << 0)      # Voltage/current measurements
-    OBSERVER = (1 << 1)          # Observer estimates (freq, angle)
-    MODULATOR = (1 << 2)         # Modulator outputs (firing angle)
-    CONTROLLER = (1 << 3)        # Controller state
-    STATE_MACHINE = (1 << 4)     # State machine status
-    PULSE_GENERATOR = (1 << 5)   # Pulse generator outputs
-    EXCITATION = (1 << 6)        # Excitation controller
-    SPEED_CONTROL = (1 << 7)     # Speed controller
-    DIAGNOSTICS = (1 << 8)       # Diagnostic counters
+class SignalIndex(IntEnum):
+    """Signal array indices matching C++ network_telemetry_builder.cpp."""
+    GRID_VOLTAGE_MAGNITUDE_FILTERED = 0
+    GRID_VOLTAGE_A = 1
+    GRID_VOLTAGE_B = 2
+    GRID_VOLTAGE_C = 3
+    GRID_CURRENT_MAGNITUDE = 4
+    GRID_CURRENT_A = 5
+    GRID_CURRENT_B = 6
+    GRID_CURRENT_C = 7
+    DC_LINK_CURRENT = 8
+    IS_COMMUTING = 9
+    GRID_VOLTAGE_ALPHA = 10
+    GRID_VOLTAGE_BETA = 11
+    GRID_VOLTAGE_MAGNITUDE_FILTERED_DUP = 12
+    GRID_SIDE_FREQUENCY = 13
+    ESTIMATED_VOLTAGE_MAGNITUDE = 14
+    ESTIMATED_FREQUENCY_PU = 15
+    ESTIMATED_ANGLE_RAD = 16
+    ESTIMATED_FREQUENCY_HZ = 17
+    ESTIMATED_VOLTAGE_ALPHA = 18
+    ESTIMATED_VOLTAGE_BETA = 19
+    FIRING_ANGLE_RAD = 20
+    MODULATOR_ENABLED = 21
+    FORCE_COMMUTATION_ACK = 22
+    IS_REQUESTING_PI_RESET = 23
+    DC_LINK_CURRENT_REFERENCE = 24
+    DC_LINK_CURRENT_MEASURED = 25
+    CURRENT_ERROR = 26
+    CONTROLLER_OUTPUT = 27
+    OPERATING_MODE = 28
+    CONTROLLER_SATURATED = 29
+    FREEZE_INTEGRATOR = 30
+    STATE_MACHINE_STATE = 31
+    PULSE_RELEASES = 32
+    AUXILIARIES_ON = 33
+    BREAKERS_ON = 34
+    START_COMMAND = 35
+    STOP_COMMAND = 36
+    CURRENT_EXTINGUISHED = 37
+    SHUTDOWN_REQUESTED = 38
+    OPERATION_MODE = 39
+    MODE_CHANGED = 40
+    CURRENT_ZERO = 41
+    DISCONTINUOUS_MODE = 42
+    FIRING_PULSE_1 = 43
+    FIRING_PULSE_2 = 44
+    FIRING_PULSE_3 = 45
+    FIRING_PULSE_4 = 46
+    FIRING_PULSE_5 = 47
+    FIRING_PULSE_6 = 48
+    PULSE_GENERATOR_ACTIVE = 49
 
 
 @dataclass
 class TelemetryPacketHeader:
-    """Common header for all telemetry packets (16 bytes).
-    
-    Attributes:
-        packet_type: Packet type identifier (PacketType enum)
-        protocol_version: Protocol version for compatibility checking
-        payload_length: Total payload size in bytes (after header)
-        flags: Bit flags indicating which signal groups are present
-        timestamp_ms: Controller timestamp in milliseconds
-        sequence_number: Incrementing sequence number (detect drops)
-    """
+    """Packet header for array-based telemetry (16 bytes)."""
     packet_type: int
     protocol_version: int
-    payload_length: int
-    flags: int
+    signal_count: int
     timestamp_ms: int
     sequence_number: int
-
-
-@dataclass
-class GridMeasurementsGroup:
-    """Grid and DC link measurement signals (per-unit).
-    
-    Size: 40 bytes (9 floats + 1 bool with padding)
-    Flag: MEASUREMENTS
-    
-    Attributes:
-        grid_voltage_magnitude_pu: Grid voltage magnitude [pu]
-        grid_voltage_a_pu: Phase A voltage [pu]
-        grid_voltage_b_pu: Phase B voltage [pu]
-        grid_voltage_c_pu: Phase C voltage [pu]
-        grid_current_magnitude_pu: Grid current magnitude [pu]
-        grid_current_a_pu: Phase A current [pu]
-        grid_current_b_pu: Phase B current [pu]
-        grid_current_c_pu: Phase C current [pu]
-        dc_link_current_pu: DC link current [pu]
-        is_commuting: Thyristor commutation status
-    """
-    grid_voltage_magnitude_pu: float
-    grid_voltage_a_pu: float
-    grid_voltage_b_pu: float
-    grid_voltage_c_pu: float
-    grid_current_magnitude_pu: float
-    grid_current_a_pu: float
-    grid_current_b_pu: float
-    grid_current_c_pu: float
-    dc_link_current_pu: float
-    is_commuting: bool
-
-
-@dataclass
-class GridObserverGroup:
-    """Grid-side observer estimates.
-    
-    Size: 12 bytes (3 floats)
-    Flag: OBSERVER
-    
-    Attributes:
-        estimated_voltage_magnitude_pu: Estimated grid voltage magnitude [pu]
-        estimated_frequency_pu: Estimated grid frequency [pu]
-        estimated_angle_rad: Estimated grid angle [radians]
-    """
-    estimated_voltage_magnitude_pu: float
-    estimated_frequency_pu: float
-    estimated_angle_rad: float
-
-
-@dataclass
-class GridModulatorGroup:
-    """Grid-side modulator outputs.
-    
-    Size: 16 bytes (2 bools + 2 floats with padding)
-    Flag: MODULATOR
-    
-    Attributes:
-        is_enabled: Modulator enable status
-        firing_angle_input_pu: Commanded firing angle [pu]
-        firing_angle_output_pu: Actual firing angle (after limits) [pu]
-        force_commutation_ack: Force commutation acknowledgment flag
-    """
-    is_enabled: bool
-    firing_angle_input_pu: float
-    firing_angle_output_pu: float
-    force_commutation_ack: bool
-
-
-@dataclass
-class GridControllerGroup:
-    """Current controller state.
-    
-    Size: 20 bytes (4 floats + 4 uint8_t)
-    Flag: CONTROLLER
-    
-    Attributes:
-        dc_link_current_reference: Control reference [pu]
-        dc_link_current_measured: Control measured [pu]
-        current_error_pu: Control error [pu]
-        controller_output_pu: PI controller output [pu]
-        operating_mode: 0=forced, 1=natural commutation
-        controller_saturated: Saturation flag
-        freeze_integrator: Integrator freeze flag
-        reserved: Reserved byte
-    """
-    dc_link_current_reference: float
-    dc_link_current_measured: float
-    current_error_pu: float
-    controller_output_pu: float
-    operating_mode: int
-    controller_saturated: int
-    freeze_integrator: int
     reserved: int
 
 
 @dataclass
-class StateMachineGroup:
-    """State machine status.
-    
-    Size: 8 bytes (1 uint8_t + 7 bools, packed)
-    Flag: STATE_MACHINE
-    
-    Attributes:
-        current_state: Current state enum value
-        pulse_releases: Pulses enabled flag
-        auxiliaries_are_on: Auxiliaries status
-        breakers_are_on: Breakers status
-        start_command: Start command status
-        stop_command: Stop command status
-        is_current_extinguished: Current extinguished status
-        is_shutdown_requested: Shutdown requested flag
-    """
-    current_state: int
-    pulse_releases: bool
-    auxiliaries_are_on: bool
-    breakers_are_on: bool
-    start_command: bool
-    stop_command: bool
-    is_current_extinguished: bool
-    is_shutdown_requested: bool
+class GridMeasurements:
+    """Grid-side measurements."""
+    grid_voltage_magnitude_pu: float = 0.0
+    grid_voltage_a_pu: float = 0.0
+    grid_voltage_b_pu: float = 0.0
+    grid_voltage_c_pu: float = 0.0
+    grid_current_magnitude_pu: float = 0.0
+    grid_current_a_pu: float = 0.0
+    grid_current_b_pu: float = 0.0
+    grid_current_c_pu: float = 0.0
+    dc_link_current_pu: float = 0.0
+    is_commuting: bool = False
+    grid_voltage_alpha_pu: float = 0.0
+    grid_voltage_beta_pu: float = 0.0
+    grid_side_frequency_hz: float = 0.0
+
+
+@dataclass
+class ObserverData:
+    """Observer estimates."""
+    estimated_voltage_magnitude_pu: float = 0.0
+    estimated_frequency_pu: float = 0.0
+    estimated_angle_rad: float = 0.0
+    estimated_frequency_hz: float = 0.0
+    estimated_voltage_alpha_pu: float = 0.0
+    estimated_voltage_beta_pu: float = 0.0
+
+
+@dataclass
+class ModulatorData:
+    """Modulator control signals."""
+    is_enabled: bool = False
+    firing_angle_input_pu: float = 0.0
+    firing_angle_output_pu: float = 0.0
+    force_commutation_ack: bool = False
+    is_requesting_pi_reset: bool = False
+
+
+@dataclass
+class ControllerData:
+    """Current controller state."""
+    dc_link_current_reference: float = 0.0
+    dc_link_current_measured: float = 0.0
+    current_error_pu: float = 0.0
+    controller_output_pu: float = 0.0
+    operating_mode: bool = False
+    controller_saturated: bool = False
+    freeze_integrator: bool = False
+
+
+@dataclass
+class StateMachineData:
+    """State machine flags."""
+    current_state: int = 0
+    pulse_releases: bool = False
+    auxiliaries_are_on: bool = False
+    breakers_are_on: bool = False
+    start_command: bool = False
+    stop_command: bool = False
+    is_current_extinguished: bool = False
+    is_shutdown_requested: bool = False
+
+
+@dataclass
+class OperationModeMonitorData:
+    """Operation mode monitor."""
+    mode: int = 0
+    mode_changed: bool = False
+    current_zero: bool = False
+    discontinuous_mode: bool = False
+
+
+@dataclass
+class PulseGeneratorData:
+    """Pulse generator outputs."""
+    firing_pulse_1: bool = False
+    firing_pulse_2: bool = False
+    firing_pulse_3: bool = False
+    firing_pulse_4: bool = False
+    firing_pulse_5: bool = False
+    firing_pulse_6: bool = False
+    is_active: bool = False
+
 
 @dataclass
 class GridSideTelemetryPacket:
-    """Complete grid-side telemetry packet.
-    
-    Contains header plus all available signal groups.
-    Only groups indicated by header.flags are populated.
-    
-    Attributes:
-        header: Packet header with metadata
-        measurements: Grid and DC measurements (optional)
-        observer: Observer estimates (optional)
-        modulator: Modulator outputs (optional)
-        controller: Controller state (optional)
-        state_machine: State machine status (optional)
-    """
+    """Grid-side telemetry packet with variable-length signal array."""
     header: TelemetryPacketHeader
-    measurements: Optional[GridMeasurementsGroup] = None
-    observer: Optional[GridObserverGroup] = None
-    modulator: Optional[GridModulatorGroup] = None
-    controller: Optional[GridControllerGroup] = None
-    state_machine: Optional[StateMachineGroup] = None
+    signals: List[float]
+    
+    def get_signal(self, index: int, default: float = 0.0) -> float:
+        """Get signal by index with bounds checking."""
+        if 0 <= index < len(self.signals):
+            return self.signals[index]
+        return default
+    
+    def get_bool_signal(self, index: int, default: bool = False) -> bool:
+        """Get boolean signal (converts 1.0/0.0 to True/False)."""
+        return bool(self.get_signal(index, 1.0 if default else 0.0))
+    
+    @property
+    def measurements(self) -> GridMeasurements:
+        """Extract grid measurements from signal array."""
+        return GridMeasurements(
+            grid_voltage_magnitude_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED),
+            grid_voltage_a_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_A),
+            grid_voltage_b_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_B),
+            grid_voltage_c_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_C),
+            grid_current_magnitude_pu=self.get_signal(SignalIndex.GRID_CURRENT_MAGNITUDE),
+            grid_current_a_pu=self.get_signal(SignalIndex.GRID_CURRENT_A),
+            grid_current_b_pu=self.get_signal(SignalIndex.GRID_CURRENT_B),
+            grid_current_c_pu=self.get_signal(SignalIndex.GRID_CURRENT_C),
+            dc_link_current_pu=self.get_signal(SignalIndex.DC_LINK_CURRENT),
+            is_commuting=self.get_bool_signal(SignalIndex.IS_COMMUTING),
+            grid_voltage_alpha_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_ALPHA),
+            grid_voltage_beta_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_BETA),
+            grid_side_frequency_hz=self.get_signal(SignalIndex.GRID_SIDE_FREQUENCY),
+        )
+    
+    @property
+    def observer(self) -> ObserverData:
+        """Extract observer estimates from signal array."""
+        return ObserverData(
+            estimated_voltage_magnitude_pu=self.get_signal(SignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE),
+            estimated_frequency_pu=self.get_signal(SignalIndex.ESTIMATED_FREQUENCY_PU),
+            estimated_angle_rad=self.get_signal(SignalIndex.ESTIMATED_ANGLE_RAD),
+            estimated_frequency_hz=self.get_signal(SignalIndex.ESTIMATED_FREQUENCY_HZ),
+            estimated_voltage_alpha_pu=self.get_signal(SignalIndex.ESTIMATED_VOLTAGE_ALPHA),
+            estimated_voltage_beta_pu=self.get_signal(SignalIndex.ESTIMATED_VOLTAGE_BETA),
+        )
+    
+    @property
+    def modulator(self) -> ModulatorData:
+        """Extract modulator signals from signal array."""
+        return ModulatorData(
+            is_enabled=self.get_bool_signal(SignalIndex.MODULATOR_ENABLED),
+            firing_angle_input_pu=self.get_signal(SignalIndex.CONTROLLER_OUTPUT),
+            firing_angle_output_pu=self.get_signal(SignalIndex.FIRING_ANGLE_RAD),
+            force_commutation_ack=self.get_bool_signal(SignalIndex.FORCE_COMMUTATION_ACK),
+            is_requesting_pi_reset=self.get_bool_signal(SignalIndex.IS_REQUESTING_PI_RESET),
+        )
+    
+    @property
+    def controller(self) -> ControllerData:
+        """Extract controller state from signal array."""
+        return ControllerData(
+            dc_link_current_reference=self.get_signal(SignalIndex.DC_LINK_CURRENT_REFERENCE),
+            dc_link_current_measured=self.get_signal(SignalIndex.DC_LINK_CURRENT_MEASURED),
+            current_error_pu=self.get_signal(SignalIndex.CURRENT_ERROR),
+            controller_output_pu=self.get_signal(SignalIndex.CONTROLLER_OUTPUT),
+            operating_mode=self.get_bool_signal(SignalIndex.OPERATING_MODE),
+            controller_saturated=self.get_bool_signal(SignalIndex.CONTROLLER_SATURATED),
+            freeze_integrator=self.get_bool_signal(SignalIndex.FREEZE_INTEGRATOR),
+        )
+    
+    @property
+    def state_machine(self) -> StateMachineData:
+        """Extract state machine flags from signal array."""
+        return StateMachineData(
+            current_state=int(self.get_signal(SignalIndex.STATE_MACHINE_STATE)),
+            pulse_releases=self.get_bool_signal(SignalIndex.PULSE_RELEASES),
+            auxiliaries_are_on=self.get_bool_signal(SignalIndex.AUXILIARIES_ON),
+            breakers_are_on=self.get_bool_signal(SignalIndex.BREAKERS_ON),
+            start_command=self.get_bool_signal(SignalIndex.START_COMMAND),
+            stop_command=self.get_bool_signal(SignalIndex.STOP_COMMAND),
+            is_current_extinguished=self.get_bool_signal(SignalIndex.CURRENT_EXTINGUISHED),
+            is_shutdown_requested=self.get_bool_signal(SignalIndex.SHUTDOWN_REQUESTED),
+        )
+    
+    @property
+    def operation_mode_monitor(self) -> OperationModeMonitorData:
+        """Extract operation mode monitor from signal array."""
+        return OperationModeMonitorData(
+            mode=int(self.get_signal(SignalIndex.OPERATION_MODE)),
+            mode_changed=self.get_bool_signal(SignalIndex.MODE_CHANGED),
+            current_zero=self.get_bool_signal(SignalIndex.CURRENT_ZERO),
+            discontinuous_mode=self.get_bool_signal(SignalIndex.DISCONTINUOUS_MODE),
+        )
+    
+    @property
+    def pulse_generator(self) -> PulseGeneratorData:
+        """Extract pulse generator outputs from signal array."""
+        return PulseGeneratorData(
+            firing_pulse_1=self.get_bool_signal(SignalIndex.FIRING_PULSE_1),
+            firing_pulse_2=self.get_bool_signal(SignalIndex.FIRING_PULSE_2),
+            firing_pulse_3=self.get_bool_signal(SignalIndex.FIRING_PULSE_3),
+            firing_pulse_4=self.get_bool_signal(SignalIndex.FIRING_PULSE_4),
+            firing_pulse_5=self.get_bool_signal(SignalIndex.FIRING_PULSE_5),
+            firing_pulse_6=self.get_bool_signal(SignalIndex.FIRING_PULSE_6),
+            is_active=self.get_bool_signal(SignalIndex.PULSE_GENERATOR_ACTIVE),
+        )
 
 
 class TelemetryDecoder:
-    """Decoder for binary telemetry protocol.
+    """Decoder for array-based binary telemetry protocol."""
     
-    Parses binary data received from embedded controller and
-    creates structured packet objects with all signal data.
-    
-    Example:
-        decoder = TelemetryDecoder()
-        raw_data = receive_from_tcp()
-        packet = decoder.decode(raw_data)
-        if packet and packet.measurements:
-            voltage = packet.measurements.grid_voltage_magnitude_pu
-    """
-    
-    # Struct format strings (little-endian)
-    HEADER_FORMAT = '<BBHIII'            # 16 bytes (B+B+H+I+I+I = 1+1+2+4+4+4)
-    MEASUREMENTS_FORMAT = '<fffffffffBxxx'   # 40 bytes (9 floats + 1 bool + 3 padding bytes)
-    OBSERVER_FORMAT = '<fff'             # 12 bytes (3 floats)
-    MODULATOR_FORMAT = '<Bxxxffbxxx'     # 16 bytes (bool + 3 pad + 2 floats + bool + 3 pad)
-    CONTROLLER_FORMAT = '<ffffBBBB'      # 20 bytes (4 floats + 4 uint8)
-    STATE_MACHINE_FORMAT = '<BBBBBBBB'   # 8 bytes (1 uint8 + 7 bools)
-    
+    HEADER_FORMAT = '<BBHIII'
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
-    MEASUREMENTS_SIZE = struct.calcsize(MEASUREMENTS_FORMAT)
-    OBSERVER_SIZE = struct.calcsize(OBSERVER_FORMAT)
-    MODULATOR_SIZE = struct.calcsize(MODULATOR_FORMAT)
-    CONTROLLER_SIZE = struct.calcsize(CONTROLLER_FORMAT)
-    STATE_MACHINE_SIZE = struct.calcsize(STATE_MACHINE_FORMAT)
+    SIGNAL_SIZE = 4
+    CRC_SIZE = 4  # CRC32 = 4 bytes
+    SYNC_FRAME_SIZE = 4  # Sync magic number = 4 bytes
     
-    def decode(self, data: bytes, verbose: bool = False) -> Optional[tuple[GridSideTelemetryPacket, int]]:
-        """Decode binary telemetry data into structured packet.
+    def __init__(self, require_crc: bool = False):
+        """Initialize telemetry decoder.
         
         Args:
-            data: Raw binary data received from TCP socket
-            verbose: Enable detailed logging for debugging
+            require_crc: If True, require and validate CRC32 at end of packet.
+                         If False, support both CRC and non-CRC packets (for backward compatibility).
+        """
+        self.require_crc = require_crc
+    
+    @staticmethod
+    def is_sync_frame(data: bytes) -> bool:
+        """Check if data starts with sync magic number (0xDEADBEEF).
+        
+        Args:
+            data: Data buffer to check
             
         Returns:
-            Tuple of (GridSideTelemetryPacket, bytes_consumed) if decode successful, None if invalid
-            
-        Example:
-            result = decoder.decode(raw_bytes)
-            if result:
-                packet, bytes_consumed = result
-                print(f"Timestamp: {packet.header.timestamp_ms} ms")
+            True if first 4 bytes contain sync magic, False otherwise
         """
+        if len(data) < 4:
+            return False
+        
+        magic = struct.unpack('<I', data[:4])[0]
+        return magic == SYNC_MAGIC
+    
+    @staticmethod
+    def decode_sync_frame(data: bytes) -> tuple[int, bool]:
+        """Decode and validate sync frame.
+        
+        Args:
+            data: Data buffer containing sync frame
+            
+        Returns:
+            Tuple of (bytes_consumed, is_valid)
+        """
+        if len(data) < 4:
+            return (0, False)
+        
+        magic = struct.unpack('<I', data[:4])[0]
+        is_valid = (magic == SYNC_MAGIC)
+        return (4, is_valid)
+    
+    def decode(self, data: bytes, verbose: bool = False) -> Optional[Tuple[GridSideTelemetryPacket, int]]:
+        """Decode binary telemetry data into structured packet."""
         if len(data) < self.HEADER_SIZE:
             if verbose:
-                print(f"[DECODE ERROR] Data too short: {len(data)} bytes, expected >= {self.HEADER_SIZE} bytes")
+                hex_preview = data[:min(16, len(data))].hex() if len(data) > 0 else "(empty)"
+                print(f"[DECODE ERROR] Data too short: {len(data)} bytes, expected >= {self.HEADER_SIZE} bytes. Data (hex): {hex_preview}")
             return None
             
-        # Decode header
         try:
             header_data = struct.unpack(self.HEADER_FORMAT, data[:self.HEADER_SIZE])
         except struct.error as e:
@@ -283,224 +361,104 @@ class TelemetryDecoder:
         header = TelemetryPacketHeader(
             packet_type=header_data[0],
             protocol_version=header_data[1],
-            payload_length=header_data[2],
-            flags=header_data[3],
-            timestamp_ms=header_data[4],
-            sequence_number=header_data[5]
+            signal_count=header_data[2],
+            timestamp_ms=header_data[3],
+            sequence_number=header_data[4],
+            reserved=header_data[5]
         )
         
         if verbose:
             print(f"[DECODE] Header decoded successfully:")
             print(f"  packet_type: 0x{header.packet_type:02X} (expected 0x{PacketType.GRID_SIDE_TELEMETRY:02X})")
             print(f"  protocol_version: {header.protocol_version} (expected {PROTOCOL_VERSION})")
-            print(f"  payload_length: {header.payload_length} bytes")
-            print(f"  flags: 0x{header.flags:08X}")
+            print(f"  signal_count: {header.signal_count}")
             print(f"  timestamp_ms: {header.timestamp_ms}")
             print(f"  sequence_number: {header.sequence_number}")
-            print(f"  total_data_length: {len(data)} bytes")
         
-        # Validate header
-        if header.protocol_version != PROTOCOL_VERSION:
-            if verbose:
-                print(f"[DECODE ERROR] Protocol version mismatch: got {header.protocol_version}, expected {PROTOCOL_VERSION}")
-            return None
         if header.packet_type != PacketType.GRID_SIDE_TELEMETRY:
             if verbose:
                 print(f"[DECODE ERROR] Packet type mismatch: got 0x{header.packet_type:02X}, expected 0x{PacketType.GRID_SIDE_TELEMETRY:02X}")
             return None
-            
-        expected_size = self.HEADER_SIZE + header.payload_length
-        expected_from_flags = self.calculate_expected_size(header.flags)
-        if verbose:
-            print(f"[DECODE] Expected packet size (header hint): {expected_size} bytes (header {self.HEADER_SIZE} + payload {header.payload_length})")
-            if expected_size != expected_from_flags:
-                print(
-                    f"[DECODE WARNING] Header payload length ({header.payload_length}) differs from flag-derived payload ({expected_from_flags - self.HEADER_SIZE})"
-                )
-            print(f"[DECODE] Expected packet size (flags): {expected_from_flags} bytes")
-            print(f"[DECODE] Actual packet size: {len(data)} bytes")
-            if len(data) < expected_size:
-                print(f"[DECODE WARNING] Packet too short! Missing {expected_size - len(data)} bytes")
         
-        # Create packet with header
-        packet = GridSideTelemetryPacket(header=header)
+        if header.protocol_version != PROTOCOL_VERSION:
+            if verbose:
+                print(f"[DECODE ERROR] Protocol version mismatch: got {header.protocol_version}, expected {PROTOCOL_VERSION}")
+            return None
         
-        # Decode signal groups based on flags
+        if header.signal_count > MAX_SIGNALS or header.signal_count == 0:
+            if verbose:
+                print(f"[DECODE ERROR] Invalid signal count: {header.signal_count} (max: {MAX_SIGNALS})")
+            return None
+        
+        expected_payload_size = header.signal_count * self.SIGNAL_SIZE
+        expected_total_size_without_crc = self.HEADER_SIZE + expected_payload_size
+        expected_total_size_with_crc = expected_total_size_without_crc + self.CRC_SIZE
+        
+        # Determine if packet has CRC based on available data
+        has_crc = False
+        if len(data) >= expected_total_size_with_crc:
+            # Might have CRC - we'll verify it
+            has_crc = True
+            expected_total_size = expected_total_size_with_crc
+        else:
+            expected_total_size = expected_total_size_without_crc
+        
+        if self.require_crc and not has_crc:
+            if verbose:
+                print(f"[DECODE ERROR] CRC required but packet too short: have {len(data)} bytes, need {expected_total_size_with_crc} bytes")
+            return None
+        
+        if len(data) < expected_total_size:
+            if verbose:
+                print(f"[DECODE ERROR] Insufficient data: have {len(data)} bytes, need {expected_total_size} bytes")
+            return None
+        
+        signals = []
         offset = self.HEADER_SIZE
         
-        # Measurements group
-        if header.flags & TelemetryFlags.MEASUREMENTS:
-            if offset + self.MEASUREMENTS_SIZE > len(data):
+        for i in range(header.signal_count):
+            if offset + self.SIGNAL_SIZE > len(data):
                 if verbose:
-                    print(f"[DECODE ERROR] MEASUREMENTS group: insufficient data at offset {offset}, need {self.MEASUREMENTS_SIZE} bytes, have {len(data) - offset} bytes")
+                    print(f"[DECODE ERROR] Insufficient data for signal {i} at offset {offset}")
                 return None
-            try:
-                meas_data = struct.unpack(
-                    self.MEASUREMENTS_FORMAT,
-                    data[offset:offset + self.MEASUREMENTS_SIZE]
-                )
-            except struct.error as e:
-                if verbose:
-                    print(f"[DECODE ERROR] MEASUREMENTS group unpack failed: {e}")
-                return None
-                
-            packet.measurements = GridMeasurementsGroup(
-                grid_voltage_magnitude_pu=meas_data[0],
-                grid_voltage_a_pu=meas_data[1],
-                grid_voltage_b_pu=meas_data[2],
-                grid_voltage_c_pu=meas_data[3],
-                grid_current_magnitude_pu=meas_data[4],
-                grid_current_a_pu=meas_data[5],
-                grid_current_b_pu=meas_data[6],
-                grid_current_c_pu=meas_data[7],
-                dc_link_current_pu=meas_data[8],
-                is_commuting=bool(meas_data[9])
-            )
-            if verbose:
-                print(f"[DECODE] MEASUREMENTS decoded at offset {offset}: v_mag={meas_data[0]:.3f}, v_a={meas_data[1]:.3f}, v_b={meas_data[2]:.3f}, v_c={meas_data[3]:.3f}, i_mag={meas_data[4]:.3f}, i_a={meas_data[5]:.3f}, i_b={meas_data[6]:.3f}, i_c={meas_data[7]:.3f}, dc={meas_data[8]:.3f}, commuting={meas_data[9]}")
-            offset += self.MEASUREMENTS_SIZE
             
-        # Observer group
-        if header.flags & TelemetryFlags.OBSERVER:
-            if offset + self.OBSERVER_SIZE > len(data):
-                if verbose:
-                    print(f"[DECODE ERROR] OBSERVER group: insufficient data at offset {offset}, need {self.OBSERVER_SIZE} bytes, have {len(data) - offset} bytes")
-                return None
             try:
-                obs_data = struct.unpack(
-                    self.OBSERVER_FORMAT,
-                    data[offset:offset + self.OBSERVER_SIZE]
-                )
+                signal_value = struct.unpack('<f', data[offset:offset + self.SIGNAL_SIZE])[0]
+                signals.append(signal_value)
+                offset += self.SIGNAL_SIZE
             except struct.error as e:
                 if verbose:
-                    print(f"[DECODE ERROR] OBSERVER group unpack failed: {e}")
+                    print(f"[DECODE ERROR] Failed to unpack signal {i}: {e}")
                 return None
-                
-            packet.observer = GridObserverGroup(
-                estimated_voltage_magnitude_pu=obs_data[0],
-                estimated_frequency_pu=obs_data[1],
-                estimated_angle_rad=obs_data[2]
-            )
-            if verbose:
-                print(f"[DECODE] OBSERVER decoded at offset {offset}: voltage_mag={obs_data[0]:.3f}, freq={obs_data[1]:.3f}, angle={obs_data[2]:.3f}")
-            offset += self.OBSERVER_SIZE
+        
+        # Validate CRC if present
+        if has_crc:
+            # CRC is calculated over header + signals (everything except the CRC itself)
+            packet_data_for_crc = data[:offset]
+            received_crc = struct.unpack('<I', data[offset:offset + self.CRC_SIZE])[0]
+            calculated_crc = zlib.crc32(packet_data_for_crc) & 0xFFFFFFFF
             
-        # Modulator group
-        if header.flags & TelemetryFlags.MODULATOR:
-            if offset + self.MODULATOR_SIZE > len(data):
+            if received_crc != calculated_crc:
                 if verbose:
-                    print(f"[DECODE ERROR] MODULATOR group: insufficient data at offset {offset}, need {self.MODULATOR_SIZE} bytes, have {len(data) - offset} bytes")
+                    print(f"[DECODE ERROR] CRC mismatch: received=0x{received_crc:08X}, calculated=0x{calculated_crc:08X}")
+                    print(f"[DECODE ERROR] Packet corrupt or misaligned, rejecting")
                 return None
-            try:
-                mod_data = struct.unpack(
-                    self.MODULATOR_FORMAT,
-                    data[offset:offset + self.MODULATOR_SIZE]
-                )
-            except struct.error as e:
-                if verbose:
-                    print(f"[DECODE ERROR] MODULATOR group unpack failed: {e}")
-                return None
-                
-            packet.modulator = GridModulatorGroup(
-                is_enabled=bool(mod_data[0]),
-                firing_angle_input_pu=mod_data[1],
-                firing_angle_output_pu=mod_data[2],
-                force_commutation_ack=bool(mod_data[3])
-            )
-            if verbose:
-                print(f"[DECODE] MODULATOR decoded at offset {offset}: enabled={mod_data[0]}, input_angle={mod_data[1]:.3f}, output_angle={mod_data[2]:.3f}, force_comm={mod_data[3]}")
-            offset += self.MODULATOR_SIZE
             
-        # Controller group
-        if header.flags & TelemetryFlags.CONTROLLER:
-            if offset + self.CONTROLLER_SIZE > len(data):
-                if verbose:
-                    print(f"[DECODE ERROR] CONTROLLER group: insufficient data at offset {offset}, need {self.CONTROLLER_SIZE} bytes, have {len(data) - offset} bytes")
-                return None
-            try:
-                ctrl_data = struct.unpack(
-                    self.CONTROLLER_FORMAT,
-                    data[offset:offset + self.CONTROLLER_SIZE]
-                )
-            except struct.error as e:
-                if verbose:
-                    print(f"[DECODE ERROR] CONTROLLER group unpack failed: {e}")
-                return None
-                
-            packet.controller = GridControllerGroup(
-                dc_link_current_reference=ctrl_data[0],
-                dc_link_current_measured=ctrl_data[1],
-                current_error_pu=ctrl_data[2],
-                controller_output_pu=ctrl_data[3],
-                operating_mode=ctrl_data[4],
-                controller_saturated=ctrl_data[5],
-                freeze_integrator=ctrl_data[6],
-                reserved=ctrl_data[7]
-            )
             if verbose:
-                print(f"[DECODE] CONTROLLER decoded at offset {offset}: ref={ctrl_data[0]:.3f}, meas={ctrl_data[1]:.3f}, error={ctrl_data[2]:.3f}, output={ctrl_data[3]:.3f}, mode={ctrl_data[4]}")
-            offset += self.CONTROLLER_SIZE
+                print(f"[DECODE] CRC32 validated: 0x{calculated_crc:08X}")
             
-        # State machine group
-        if header.flags & TelemetryFlags.STATE_MACHINE:
-            if offset + self.STATE_MACHINE_SIZE > len(data):
-                if verbose:
-                    print(f"[DECODE ERROR] STATE_MACHINE group: insufficient data at offset {offset}, need {self.STATE_MACHINE_SIZE} bytes, have {len(data) - offset} bytes")
-                return None
-            try:
-                state_data = struct.unpack(
-                    self.STATE_MACHINE_FORMAT,
-                    data[offset:offset + self.STATE_MACHINE_SIZE]
-                )
-            except struct.error as e:
-                if verbose:
-                    print(f"[DECODE ERROR] STATE_MACHINE group unpack failed: {e}")
-                return None
-                
-            packet.state_machine = StateMachineGroup(
-                current_state=state_data[0],
-                pulse_releases=bool(state_data[1]),
-                auxiliaries_are_on=bool(state_data[2]),
-                breakers_are_on=bool(state_data[3]),
-                start_command=bool(state_data[4]),
-                stop_command=bool(state_data[5]),
-                is_current_extinguished=bool(state_data[6]),
-                is_shutdown_requested=bool(state_data[7])
-            )
-            if verbose:
-                print(f"[DECODE] STATE_MACHINE decoded at offset {offset}: state={state_data[0]}, pulses={state_data[1]}, aux_on={state_data[2]}, brk_on={state_data[3]}, start={state_data[4]}, stop={state_data[5]}, curr_ext={state_data[6]}, shutdown={state_data[7]}")
-            offset += self.STATE_MACHINE_SIZE
+            offset += self.CRC_SIZE
+        elif verbose:
+            print(f"[DECODE] No CRC present (legacy packet or backward compatibility mode)")
         
         if verbose:
-            print(f"[DECODE SUCCESS] Packet decoded successfully, total bytes consumed: {offset}")
-            
+            print(f"[DECODE SUCCESS] Decoded {len(signals)} signals, total bytes consumed: {offset}")
+            if len(signals) > 0:
+                print(f"[DECODE] First few signals: {signals[:min(10, len(signals))]}")
+        
+        packet = GridSideTelemetryPacket(
+            header=header,
+            signals=signals
+        )
+        
         return (packet, offset)
-    
-    def calculate_payload_size(self, flags: int) -> int:
-        """Calculate expected payload size based on flags.
-        
-        Args:
-            flags: Bit flags indicating which groups are present
-            
-        Returns:
-            Expected payload size in bytes
-        """
-        size = 0
-        
-        if flags & TelemetryFlags.MEASUREMENTS:
-            size += self.MEASUREMENTS_SIZE
-        if flags & TelemetryFlags.OBSERVER:
-            size += self.OBSERVER_SIZE
-        if flags & TelemetryFlags.MODULATOR:
-            size += self.MODULATOR_SIZE
-        if flags & TelemetryFlags.CONTROLLER:
-            size += self.CONTROLLER_SIZE
-        if flags & TelemetryFlags.STATE_MACHINE:
-            size += self.STATE_MACHINE_SIZE
-            
-        return size
-
-    def calculate_expected_size(self, flags: int) -> int:
-        """Calculate expected total packet size (header + payload)."""
-
-        return self.HEADER_SIZE + self.calculate_payload_size(flags)

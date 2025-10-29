@@ -31,7 +31,7 @@ namespace yeet::application::sfc::integration {
  */
 class plant_current_control_with_modulators_simulation_builder {
 public:
-    static constexpr std::string_view name = "PlantCurrentControlrWithModulators";
+    static constexpr std::string_view name = "PlantCurrentControllerWithModulators";
 
     plant_current_control_with_modulators_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
@@ -232,6 +232,11 @@ private:
             operation_mode_monitor.get_outputs().operating_mode, machine_side_modulator.get_inputs().operating_mode);
         signals_connector::connect_output_to_input(operation_mode_monitor.get_outputs().is_current_zero,
             grid_side_modulator.get_inputs().dc_link_current_is_zero);
+
+        // ==================== DC Current Extinguish Request ====================
+        // Note: In this simplified builder without state machine, extinguish is not used.
+        // Mock it to false to satisfy the input requirement.
+        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().request_extinguish_dc_current, false);
 
         // ==================== Pulse Generators → Plant ====================
         signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);

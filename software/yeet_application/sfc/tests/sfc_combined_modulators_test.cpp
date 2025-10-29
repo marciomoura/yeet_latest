@@ -53,7 +53,7 @@ protected:
         machine_modulator->update(enable, operating_mode, force_ack, rotor_position_rad, test_pi_angle);
 
         // Update grid-side modulator
-        grid_modulator->update(enable, operating_mode, force_request, dc_link_current_is_zero, test_pi_angle);
+        grid_modulator->update(enable, operating_mode, force_request, dc_link_current_is_zero, test_pi_angle, false);
     }
 };
 

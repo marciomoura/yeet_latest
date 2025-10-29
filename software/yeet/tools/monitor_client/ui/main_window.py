@@ -8,12 +8,14 @@ Architecture:
 - Python deque for data (automatic FIFO, no ring buffer math)
 - Direct packet processing (no queues, no deferred work)
 - Two timers: 100ms for plots, 200ms for dashboard
+- Optional data persistence for offline analysis and export
 """
 
 import sys
 import logging
 import time
 from collections import deque
+from pathlib import Path
 from typing import Optional, List, Dict
 
 import numpy as np
@@ -23,6 +25,8 @@ import pyqtgraph as pg
 from monitor_client.core.unified_network_client import UnifiedNetworkClient
 from monitor_client.core.telemetry_protocol import GridSideTelemetryPacket
 from monitor_client.core.parameter_protocol import ParameterMetadata
+from monitor_client.core.data_persistence import DataPersistence, TelemetrySample
+from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +150,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.window_size = window_size
         self.layout_mode = "1xN"  # "1xN" for vertical stack or "2x2" for grid
         
+        # Data persistence (optional - disabled by default for performance)
+        self.data_persistence = DataPersistence(enable_persistence=False)
+        self.enable_persistence = False
+        
         # Averaging accumulators for decimation
         self.avg_voltage = 0.0
         self.avg_current_a = 0.0
@@ -155,15 +163,25 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.avg_observer_freq = 0.0
         self.avg_dclink_ref = 0.0
         self.avg_dclink_measured = 0.0
+        # New accumulators for expanded plots
+        self.avg_dclink_current = 0.0
+        self.avg_grid_voltage_a = 0.0
+        self.avg_grid_voltage_b = 0.0
+        self.avg_grid_voltage_c = 0.0
+        self.avg_grid_voltage_mag = 0.0
+        self.avg_estimated_voltage_mag = 0.0
+        self.avg_estimated_angle = 0.0
+        self.avg_estimated_freq = 0.0
+        self.avg_current_error = 0.0
+        self.avg_controller_saturated = 0.0
+        self.avg_firing_angle_input = 0.0
+        self.avg_firing_angle_output = 0.0
+        self.avg_modulator_enabled = 0.0
         self.avg_count = 0  # Counter for averaging
         
-        # Simple deque buffers - large size to accommodate any window size
-        # Assuming ~10kHz sample rate, 10000 samples = 1 second of data at max decimation
-        # This allows windows up to 300 seconds
-        self.voltage_buffer = deque(maxlen=10000)
-        self.current_buffer = deque(maxlen=10000)
-        self.observer_buffer = deque(maxlen=10000)
-        self.dclink_buffer = deque(maxlen=10000)
+        # Create oscilloscope widget (manages all plots and buffers)
+        self.oscilloscope = OscilloscopeWidget(window_size=window_size, layout_mode=self.layout_mode)
+        self.oscilloscope.create_standard_plots()
         
         # Latest telemetry for dashboard
         self.latest_packet = None
@@ -209,6 +227,19 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         telem_layout.addWidget(self.start_btn)
         telem_layout.addWidget(self.stop_btn)
         telem_layout.addWidget(self.clear_btn)
+        
+        # Data persistence controls
+        telem_layout.addWidget(QtWidgets.QLabel("  |  Data:"))
+        self.persist_checkbox = QtWidgets.QCheckBox("Persist All Data")
+        self.persist_checkbox.setChecked(False)
+        self.persist_checkbox.setToolTip("Keep all samples in memory for export (uses more RAM)")
+        self.persist_checkbox.stateChanged.connect(self._on_toggle_persistence)
+        telem_layout.addWidget(self.persist_checkbox)
+        
+        self.export_btn = QtWidgets.QPushButton("Export CSV")
+        self.export_btn.setToolTip("Save data to CSV file for offline analysis")
+        self.export_btn.clicked.connect(self._on_export_data)
+        telem_layout.addWidget(self.export_btn)
         
         # Panel toggle buttons
         telem_layout.addWidget(QtWidgets.QLabel("  |  Panels:"))
@@ -272,25 +303,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # Oscilloscope view configuration
         view_layout = QtWidgets.QHBoxLayout()
         view_layout.addWidget(QtWidgets.QLabel("Oscilloscope Views:"))
-        
-        # Create view toggle buttons for grid-side components
-        # Set visible=True for views you want enabled by default
-        self.view_configs = {
-            'measurements': {'button': None, 'visible': True},
-            'observer': {'button': None, 'visible': True},
-            'current_controller': {'button': None, 'visible': True},
-            'modulator': {'button': None, 'visible': False},
-            'operation_mode_monitor': {'button': None, 'visible': False},
-            'state_machine': {'button': None, 'visible': False},
-        }
-        
-        for view_name in self.view_configs.keys():
-            btn = QtWidgets.QPushButton(f"{'Hide' if self.view_configs[view_name]['visible'] else 'Show'} {view_name.replace('_', ' ').title()}")
-            btn.clicked.connect(lambda checked, v=view_name: self._on_toggle_view(v))
-            btn.setToolTip(f"Toggle {view_name} oscilloscope view")
-            view_layout.addWidget(btn)
-            self.view_configs[view_name]['button'] = btn
-        
         view_layout.addStretch()
         main_layout.addLayout(view_layout)
         
@@ -365,138 +377,47 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         return panel
     
     def _build_plots(self) -> QtWidgets.QWidget:
-        """Build plots as subplots in a single graphics widget."""
-        self.plots_container = pg.GraphicsLayoutWidget()
-        self.plots_container.setBackground('#1e1e1e')
+        """Build plots using the OscilloscopeWidget.
         
-        # Track visible views in order of activation
-        # Initialize with views that should be visible by default
-        self.visible_views_order = [view for view, config in self.view_configs.items() if config['visible']]
+        The oscilloscope widget handles all plot creation, data buffering,
+        and rendering. We just wrap it and configure mouse handlers.
+        """
+        # Configure mouse event handler for window size adjustment
+        self.oscilloscope.configure_wheel_handler(self._create_wheel_handler)
+        self.oscilloscope.disable_mouse_interactions()
         
-        # Store plot references by view type for reference
-        # Note: These will be stored as (row, col) tuples for subplot positioning
-        self.plot_groups = {
-            'measurements': {},  # Will store {'voltage': plot_item, 'current': plot_item}
-            'observer': {},
-            'current_controller': {},
-            'modulator': {},
-            'operation_mode_monitor': {},
-            'state_machine': {},
-        }
-        
-        # Create all plot items (subplots)
-        
-        # Plot 1: Grid Voltage - measurements view
-        self.voltage_plot = self.plots_container.addPlot(title="Grid Voltage (pu)")
-        self.voltage_plot.setLabel('left', 'Magnitude (pu)', color='#ffffff')
-        self.voltage_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
-        self.voltage_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.voltage_curve = self.voltage_plot.plot(pen=pg.mkPen(color='g', width=2), name='Voltage')
-        self.voltage_plot.addLegend()
-        self.plot_groups['measurements']['voltage'] = self.voltage_plot
-        
-        # Plot 2: Grid Phase Currents - measurements view
-        self.current_plot = self.plots_container.addPlot(title="Grid Current (pu)")
-        self.current_plot.setLabel('left', 'Current (pu)', color='#ffffff')
-        self.current_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
-        self.current_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.current_curve_a = self.current_plot.plot(pen=pg.mkPen('r', width=2), name='Phase A')
-        self.current_curve_b = self.current_plot.plot(pen=pg.mkPen('g', width=2), name='Phase B')
-        self.current_curve_c = self.current_plot.plot(pen=pg.mkPen('b', width=2), name='Phase C')
-        self.current_plot.addLegend()
-        self.plot_groups['measurements']['current'] = self.current_plot
-        
-        # Plot 3: Observer - observer view
-        self.observer_plot = self.plots_container.addPlot(title="Observer")
-        self.observer_plot.setLabel('left', 'Observer', color='#ffffff')
-        self.observer_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
-        self.observer_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.observer_voltage_curve = self.observer_plot.plot(pen=pg.mkPen('c', width=2), name='V Est (pu)')
-        self.observer_freq_curve = self.observer_plot.plot(pen=pg.mkPen('m', width=2), name='Freq (pu)')
-        self.observer_plot.addLegend()
-        self.plot_groups['observer']['voltage_freq'] = self.observer_plot
-        
-        # Plot 4: DC Link Control - current_controller view
-        self.dclink_plot = self.plots_container.addPlot(title="DC Link Control")
-        self.dclink_plot.setLabel('left', 'Current (pu)', color='#ffffff')
-        self.dclink_plot.setLabel('bottom', 'Sample Index', color='#ffffff')
-        self.dclink_plot.showGrid(x=True, y=True, alpha=0.3)
-        self.dclink_ref_curve = self.dclink_plot.plot(pen=pg.mkPen('y', width=2), name='Reference')
-        self.dclink_measured_curve = self.dclink_plot.plot(pen=pg.mkPen('w', width=2), name='Measured')
-        self.dclink_plot.addLegend()
-        self.plot_groups['current_controller']['dclink'] = self.dclink_plot
-        
-        # Link x-axes of all plots so zooming/panning is synchronized
-        self.current_plot.setXLink(self.voltage_plot)
-        self.observer_plot.setXLink(self.voltage_plot)
-        self.dclink_plot.setXLink(self.voltage_plot)
-        
-        # Override wheel events on viewboxes to adjust window size instead of zooming
-        for plot in [self.voltage_plot, self.current_plot, self.observer_plot, self.dclink_plot]:
-            plot.setMouseEnabled(x=False, y=False)  # Disable mouse zoom/pan
-            vb = plot.getViewBox()
-            vb.wheelEvent = self._create_wheel_handler(vb.wheelEvent)
-        
-        # Organize plots based on initial layout mode
-        self._reorganize_subplot_layout()
-        
-        # Wrap in a QWidget for compatibility
+        # Wrap in a QWidget for compatibility with layout
         container_widget = QtWidgets.QWidget()
         container_layout = QtWidgets.QVBoxLayout(container_widget)
         container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.addWidget(self.plots_container)
+        container_layout.addWidget(self.oscilloscope)
         
         return container_widget
     
-    def _create_wheel_handler(self, original_wheel_event):
-        """Create a wheel event handler that adjusts window size."""
-        def wheel_event(ev):
-            # Get wheel delta
-            delta = ev.angleDelta().y() if hasattr(ev, 'angleDelta') else (ev.delta() if hasattr(ev, 'delta') else 0)
-            
-            # Adjust window size
-            current_size = self.window_size_spinbox.value()
-            step = 10
-            
-            if delta > 0:
-                # Zoom in - decrease window size
-                new_size = max(self.window_size_spinbox.minimum(), current_size - step)
-            else:
-                # Zoom out - increase window size
-                new_size = min(self.window_size_spinbox.maximum(), current_size + step)
-            
-            self.window_size_spinbox.setValue(new_size)
-            ev.accept()  # Accept the event so it doesn't propagate
+    def _create_wheel_handler(self, viewbox, event):
+        """Handle wheel event to adjust window size.
         
-        return wheel_event
+        Args:
+            viewbox: The viewbox where the wheel event occurred (ignored, just for compatibility)
+            event: The wheel event
+        """
+        # Get wheel delta
+        delta = event.angleDelta().y() if hasattr(event, 'angleDelta') else (event.delta() if hasattr(event, 'delta') else 0)
+        
+        # Adjust window size
+        current_size = self.window_size_spinbox.value()
+        step = 100
+        
+        if delta > 0:
+            # Zoom in - decrease window size
+            new_size = max(self.window_size_spinbox.minimum(), current_size - step)
+        else:
+            # Zoom out - increase window size
+            new_size = min(self.window_size_spinbox.maximum(), current_size + step)
+        
+        self.window_size_spinbox.setValue(new_size)
+        event.accept()  # Accept the event so it doesn't propagate
     
-    def _reorganize_subplot_layout(self):
-        """Reorganize subplots based on current layout mode and visible views."""
-        # Clear all subplots from the graphics layout
-        self.plots_container.clear()
-        
-        # Collect visible plots in order
-        visible_plots = []
-        plot_titles = []
-        for view_name in self.visible_views_order:
-            for plot_key, plot_item in self.plot_groups.get(view_name, {}).items():
-                visible_plots.append(plot_item)
-                plot_titles.append(plot_item.titleLabel.text if hasattr(plot_item, 'titleLabel') else view_name)
-        
-        if not visible_plots:
-            return  # Nothing to display
-        
-        # Add plots back to container in appropriate layout
-        if self.layout_mode == "1xN":
-            # Vertical stack: 1 column, N rows
-            for i, plot in enumerate(visible_plots):
-                self.plots_container.addItem(plot, row=i, col=0)
-        else:  # 2x2
-            # Grid layout: 2 columns
-            for i, plot in enumerate(visible_plots):
-                row = i // 2
-                col = i % 2
-                self.plots_container.addItem(plot, row=row, col=col)
     
     def _build_telemetry_panel(self) -> QtWidgets.QWidget:
         """Build telemetry dashboard panel."""
@@ -616,10 +537,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     # Telemetry handlers
     def _on_start(self):
         """Start telemetry."""
-        self.voltage_buffer.clear()
-        self.current_buffer.clear()
-        self.observer_buffer.clear()
-        self.dclink_buffer.clear()
+        self.oscilloscope.clear_buffers()
         self.sample_index = 0
         self.packet_counter = 0
         # Reset averaging accumulators
@@ -650,17 +568,83 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _on_clear(self):
         """Clear buffer and reset."""
-        self.voltage_buffer.clear()
-        self.current_buffer.clear()
-        self.observer_buffer.clear()
-        self.dclink_buffer.clear()
+        # Clear oscilloscope buffers
+        self.oscilloscope.clear_buffers()
         self.sample_index = 0
         self.packet_counter = 0
+        # Clear persistent data if enabled
+        if self.enable_persistence:
+            self.data_persistence.clear()
         logger.info("Cleared")
+    
+    def _on_toggle_persistence(self, state):
+        """Handle persistence toggle checkbox."""
+        self.enable_persistence = (state == QtCore.Qt.Checked)
+        if self.enable_persistence:
+            logger.info("Data persistence enabled - all samples will be kept in memory")
+        else:
+            logger.info("Data persistence disabled - using rolling 10k-sample window")
+    
+    def _on_export_data(self):
+        """Handle export data button - open file dialog and export."""
+        from pathlib import Path
+        from PyQt5.QtWidgets import QFileDialog
+        from datetime import datetime
+        
+        # Create default filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"telemetry_export_{timestamp}"
+        
+        # Open file dialog for CSV export
+        file_dialog = QFileDialog(self)
+        file_dialog.setDefaultSuffix("csv")
+        file_dialog.setAcceptMode(QFileDialog.AcceptSave)
+        filepath, _ = file_dialog.getSaveFileName(
+            self,
+            "Export Telemetry Data",
+            str(Path.home() / f"{default_name}.csv"),
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if filepath:
+            try:
+                # Prepare data buffers dict
+                data_buffers = {
+                    'timestamp_ms': list(self.observer_buffer['timestamp_ms']) if 'timestamp_ms' in self.observer_buffer else [],
+                    'voltage_magnitude': list(self.voltage_buffer) if self.voltage_buffer else [],
+                    'current_magnitude': list(self.current_buffer) if self.current_buffer else [],
+                    'dc_link_current': list(self.dclink_buffer) if self.dclink_buffer else [],
+                    'observer_voltage': list(self.observer_buffer) if isinstance(self.observer_buffer, deque) else list(self.observer_buffer.values())[0] if self.observer_buffer else [],
+                    'observer_frequency': list(self.observer_buffer) if isinstance(self.observer_buffer, deque) else [],
+                    'firing_angle': list(self.firing_angle_buffer) if self.firing_angle_buffer else [],
+                }
+                
+                # Export using data persistence module
+                self.data_persistence.export_csv(filepath, data_buffers)
+                logger.info(f"Data exported to: {filepath}")
+                
+                # Also export metadata
+                metadata_path = str(Path(filepath).with_suffix('.json'))
+                self.data_persistence.export_json(metadata_path)
+                logger.info(f"Metadata exported to: {metadata_path}")
+                
+                # Show confirmation dialog
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.information(
+                    self,
+                    "Export Successful",
+                    f"Data exported to:\n{filepath}\n\nMetadata saved to:\n{metadata_path}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to export data: {e}")
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "Export Failed", f"Error: {e}")
+    
     
     def _on_window_size_changed(self, value: int):
         """Handle window size change at runtime."""
         self.window_size = value
+        self.oscilloscope.set_window_size(value)
         logger.info(f"Window size changed to {value} samples")
     
     def _on_decimation_changed(self, value: int):
@@ -696,41 +680,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.layout_mode_btn.setText("1xN (Vertical)")
             logger.info("Switched to 1xN vertical layout")
         
-        # Rebuild layout with new mode
-        self._rebuild_plots_layout()
-    
-    def _on_toggle_view(self, view_name: str):
-        """Toggle visibility of plots for a specific view."""
-        if view_name not in self.view_configs:
-            logger.warning(f"Unknown view: {view_name}")
-            return
-        
-        # Toggle visibility
-        self.view_configs[view_name]['visible'] = not self.view_configs[view_name]['visible']
-        
-        # Update button text
-        btn = self.view_configs[view_name]['button']
-        display_name = view_name.replace('_', ' ').title()
-        
-        if self.view_configs[view_name]['visible']:
-            btn.setText(f"Hide {display_name}")
-            logger.info(f"{display_name} view shown")
-            # Add view to visible list in order
-            if view_name not in self.visible_views_order:
-                self.visible_views_order.append(view_name)
-        else:
-            btn.setText(f"Show {display_name}")
-            logger.info(f"{display_name} view hidden")
-            # Remove view from visible list
-            if view_name in self.visible_views_order:
-                self.visible_views_order.remove(view_name)
-        
-        # Rebuild layout with plots in order
-        self._rebuild_plots_layout()
-    
-    def _rebuild_plots_layout(self):
-        """Rebuild the plots layout - calls reorganize to update subplot layout."""
-        self._reorganize_subplot_layout()
+        # Update oscilloscope layout
+        self.oscilloscope.set_layout_mode(self.layout_mode)
     
     def _on_toggle_params_only(self):
         """Toggle visibility of parameters panel only."""
@@ -830,16 +781,55 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 # Extract values and store with sample index
                 if packet.measurements:
                     meas = packet.measurements
-                    self.voltage_buffer.append((self.sample_index, meas.grid_voltage_magnitude_pu))
-                    self.current_buffer.append((self.sample_index, meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
+                    self.oscilloscope.add_sample_to_buffer('measurements_voltage_and_current', 
+                                                           (self.sample_index, meas.grid_voltage_magnitude_pu,
+                                                            meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
+                    self.oscilloscope.add_sample_to_buffer('current_measurements_abc_dclink', (self.sample_index, 
+                                                           meas.grid_current_a_pu, meas.grid_current_b_pu, 
+                                                           meas.grid_current_c_pu, meas.dc_link_current_pu))
+                    
+                    # Store to persistent data if enabled
+                    if self.enable_persistence:
+                        sample = TelemetrySample(
+                            timestamp_ms=packet.header.timestamp_ms,
+                            sequence_number=packet.header.sequence_number,
+                            signal_count=packet.header.signal_count,
+                            signals=packet.signals,
+                        )
+                        self.data_persistence.add_sample(sample)
                 
                 if packet.observer:
                     obs = packet.observer
-                    self.observer_buffer.append((self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
                 
                 if packet.controller:
                     ctrl = packet.controller
-                    self.dclink_buffer.append((self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
+                    self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
+                
+                # New: Extract all signals for expanded plots
+                if packet.measurements and packet.observer:
+                    meas = packet.measurements
+                    obs = packet.observer
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_analysis_voltages', (self.sample_index,
+                                                                 meas.grid_voltage_a_pu, meas.grid_voltage_b_pu, meas.grid_voltage_c_pu,
+                                                                 meas.grid_voltage_magnitude_pu, obs.estimated_voltage_magnitude_pu))
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_analysis_freq_angle', (self.sample_index,
+                                                                 obs.estimated_frequency_hz, obs.estimated_angle_rad,
+                                                                 obs.estimated_frequency_pu))
+                
+                if packet.controller:
+                    ctrl = packet.controller
+                    self.oscilloscope.add_sample_to_buffer('operation_mode_monitor_controller_status', (self.sample_index,
+                                                               ctrl.current_error_pu,
+                                                               ctrl.controller_output_pu,
+                                                               1.0 if ctrl.controller_saturated else 0.0))
+                
+                if packet.modulator:
+                    mod = packet.modulator
+                    self.oscilloscope.add_sample_to_buffer('modulator_firing_angle_control', (self.sample_index,
+                                                   mod.firing_angle_input_pu,
+                                                   mod.firing_angle_output_pu,
+                                                   1.0 if mod.is_enabled else 0.0))
                 
                 self.sample_index += 1
             
@@ -851,43 +841,117 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.avg_current_a += meas.grid_current_a_pu
                     self.avg_current_b += meas.grid_current_b_pu
                     self.avg_current_c += meas.grid_current_c_pu
+                    self.avg_dclink_current += meas.dc_link_current_pu
+                    self.avg_grid_voltage_a += meas.grid_voltage_a_pu
+                    self.avg_grid_voltage_b += meas.grid_voltage_b_pu
+                    self.avg_grid_voltage_c += meas.grid_voltage_c_pu
+                    self.avg_grid_voltage_mag += meas.grid_voltage_magnitude_pu
                 
                 if packet.observer:
                     obs = packet.observer
                     self.avg_observer_voltage += obs.estimated_voltage_magnitude_pu
                     self.avg_observer_freq += obs.estimated_frequency_pu
+                    self.avg_estimated_voltage_mag += obs.estimated_voltage_magnitude_pu
+                    self.avg_estimated_angle += obs.estimated_angle_rad
+                    self.avg_estimated_freq += obs.estimated_frequency_hz
                 
                 if packet.controller:
                     ctrl = packet.controller
                     self.avg_dclink_ref += ctrl.dc_link_current_reference
                     self.avg_dclink_measured += ctrl.dc_link_current_measured
+                    self.avg_current_error += ctrl.current_error_pu
+                    self.avg_controller_saturated += 1.0 if ctrl.controller_saturated else 0.0
+                
+                if packet.modulator:
+                    mod = packet.modulator
+                    self.avg_firing_angle_input += mod.firing_angle_input_pu
+                    self.avg_firing_angle_output += mod.firing_angle_output_pu
+                    self.avg_modulator_enabled += 1.0 if mod.is_enabled else 0.0
                 
                 self.avg_count += 1
                 
                 # Check if we've accumulated enough samples
                 if self.avg_count >= self.decimate_factor:
                     # Store averaged values
-                    self.voltage_buffer.append((self.sample_index, self.avg_voltage / self.avg_count))
-                    self.current_buffer.append((self.sample_index, 
+                    self.oscilloscope.add_sample_to_buffer('measurements_voltage_and_current', (self.sample_index, 
+                                              self.avg_voltage / self.avg_count,
                                               self.avg_current_a / self.avg_count,
                                               self.avg_current_b / self.avg_count,
                                               self.avg_current_c / self.avg_count))
-                    self.observer_buffer.append((self.sample_index,
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index,
                                                self.avg_observer_voltage / self.avg_count,
                                                self.avg_observer_freq / self.avg_count))
-                    self.dclink_buffer.append((self.sample_index,
+                    self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index,
                                              self.avg_dclink_ref / self.avg_count,
                                              self.avg_dclink_measured / self.avg_count))
+                    
+                    # New: Store averaged values in new buffers
+                    self.oscilloscope.add_sample_to_buffer('current_measurements_abc_dclink', (self.sample_index,
+                                                           self.avg_current_a / self.avg_count,
+                                                           self.avg_current_b / self.avg_count,
+                                                           self.avg_current_c / self.avg_count,
+                                                           self.avg_dclink_current / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_analysis_voltages', (self.sample_index,
+                                                                 self.avg_grid_voltage_a / self.avg_count,
+                                                                 self.avg_grid_voltage_b / self.avg_count,
+                                                                 self.avg_grid_voltage_c / self.avg_count,
+                                                                 self.avg_grid_voltage_mag / self.avg_count,
+                                                                 self.avg_estimated_voltage_mag / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_analysis_freq_angle', (self.sample_index,
+                                                                 self.avg_estimated_freq / self.avg_count,
+                                                                 self.avg_estimated_angle / self.avg_count,
+                                                                 self.avg_observer_freq / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('operation_mode_monitor_controller_status', (self.sample_index,
+                                                               self.avg_current_error / self.avg_count,
+                                                               1.0,  # controller_output
+                                                               self.avg_controller_saturated / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('modulator_firing_angle_control', (self.sample_index,
+                                                   self.avg_firing_angle_input / self.avg_count,
+                                                   self.avg_firing_angle_output / self.avg_count,
+                                                   self.avg_modulator_enabled / self.avg_count))
+                    
+                    # Store to persistent data if enabled (averaged packet)
+                    if self.enable_persistence:
+                        averaged_signals = [0.0] * 256
+                        averaged_signals[0] = self.avg_grid_voltage_mag / self.avg_count
+                        averaged_signals[1] = self.avg_grid_voltage_a / self.avg_count
+                        averaged_signals[2] = self.avg_grid_voltage_b / self.avg_count
+                        averaged_signals[3] = self.avg_grid_voltage_c / self.avg_count
+                        averaged_signals[8] = self.avg_dclink_current / self.avg_count
+                        averaged_signals[13] = self.avg_estimated_voltage_mag / self.avg_count
+                        averaged_signals[17] = self.avg_estimated_freq / self.avg_count
+                        averaged_signals[20] = self.avg_firing_angle_output / self.avg_count
+                        
+                        sample = TelemetrySample(
+                            timestamp_ms=packet.header.timestamp_ms,
+                            sequence_number=packet.header.sequence_number,
+                            signal_count=self.avg_count,
+                            signals=averaged_signals,
+                        )
+                        self.data_persistence.add_sample(sample)
                     
                     # Reset accumulators
                     self.avg_voltage = 0.0
                     self.avg_current_a = 0.0
                     self.avg_current_b = 0.0
                     self.avg_current_c = 0.0
+                    self.avg_dclink_current = 0.0
                     self.avg_observer_voltage = 0.0
                     self.avg_observer_freq = 0.0
                     self.avg_dclink_ref = 0.0
                     self.avg_dclink_measured = 0.0
+                    self.avg_grid_voltage_a = 0.0
+                    self.avg_grid_voltage_b = 0.0
+                    self.avg_grid_voltage_c = 0.0
+                    self.avg_grid_voltage_mag = 0.0
+                    self.avg_estimated_voltage_mag = 0.0
+                    self.avg_estimated_angle = 0.0
+                    self.avg_estimated_freq = 0.0
+                    self.avg_current_error = 0.0
+                    self.avg_controller_saturated = 0.0
+                    self.avg_firing_angle_input = 0.0
+                    self.avg_firing_angle_output = 0.0
+                    self.avg_modulator_enabled = 0.0
                     self.avg_count = 0
                     
                     self.sample_index += 1
@@ -1127,52 +1191,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     # Plot updates
     def _update_plot(self):
-        """Update plots from buffers."""
-        try:
-            # Voltage
-            if len(self.voltage_buffer) > 0:
-                x_data = np.array([p[0] for p in self.voltage_buffer])
-                y_data = np.array([p[1] for p in self.voltage_buffer])
-                self.voltage_curve.setData(x_data, y_data)
-                if len(x_data) > 0:
-                    latest = x_data[-1]
-                    self.voltage_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
-            
-            # Currents
-            if len(self.current_buffer) > 0:
-                x_data = np.array([p[0] for p in self.current_buffer])
-                y_data_a = np.array([p[1] for p in self.current_buffer])
-                y_data_b = np.array([p[2] for p in self.current_buffer])
-                y_data_c = np.array([p[3] for p in self.current_buffer])
-                self.current_curve_a.setData(x_data, y_data_a)
-                self.current_curve_b.setData(x_data, y_data_b)
-                self.current_curve_c.setData(x_data, y_data_c)
-                if len(x_data) > 0:
-                    latest = x_data[-1]
-                    self.current_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
-            
-            # Observer
-            if len(self.observer_buffer) > 0:
-                x_data = np.array([p[0] for p in self.observer_buffer])
-                y_voltage = np.array([p[1] for p in self.observer_buffer])
-                y_freq = np.array([p[2] for p in self.observer_buffer])
-                self.observer_voltage_curve.setData(x_data, y_voltage)
-                self.observer_freq_curve.setData(x_data, y_freq)
-                if len(x_data) > 0:
-                    latest = x_data[-1]
-                    self.observer_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
-            
-            # DC Link
-            if len(self.dclink_buffer) > 0:
-                x_data = np.array([p[0] for p in self.dclink_buffer])
-                y_ref = np.array([p[1] for p in self.dclink_buffer])
-                y_meas = np.array([p[2] for p in self.dclink_buffer])
-                self.dclink_ref_curve.setData(x_data, y_ref)
-                self.dclink_measured_curve.setData(x_data, y_meas)
-                if len(x_data) > 0:
-                    latest = x_data[-1]
-                    self.dclink_plot.setXRange(max(0, latest - self.window_size), latest, padding=0)
+        """Update plots from buffers.
         
+        Delegates to the OscilloscopeWidget which handles all plot rendering.
+        """
+        try:
+            self.oscilloscope.update_plots()
         except Exception as e:
             logger.error(f"Plot error: {e}", exc_info=True)
     

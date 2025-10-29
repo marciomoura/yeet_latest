@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
 /**
@@ -121,7 +122,24 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry) {}
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameters.insert(
+            "absolute_min_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_min_torque));
+        entry.parameters.insert(
+            "absolute_max_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_max_torque));
+        entry.parameters.insert("torque_to_current_factor", _model_parameters->torque_to_current_factor);
+        entry.parameters.insert("torque_rate_limit", _model_parameters->torque_rate_limit);
+        entry.parameters.insert("enable_torque_rate_limiting", _model_parameters->enable_torque_rate_limiting);
+        entry.parameters.insert(
+            "breakaway_boost_torque", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_torque));
+        entry.parameters.insert(
+            "breakaway_boost_duration", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_duration));
+
+        registry.insert("torque_controller", std::move(entry));
+    }
 
     inputs* get_inputs() { return _model_inputs; }
     outputs* get_outputs() { return _model_outputs; }

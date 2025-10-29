@@ -222,24 +222,7 @@ int main(int argc, char* argv[])
                 int rx_len = telemetry_server.receive_data(rx_buffer, sizeof(rx_buffer));
 
                 if (rx_len <= 0) {
-                    // No more received packets, but still need to call yeet_network() for telemetry transmission
-                    // Only do this once per cycle (when packets_processed == 0)
-                    if (packets_processed == 0) {
-                        // Prepare network inputs with connection status but no received data
-                        network_inputs.network_rx.data_ready = false;
-                        network_inputs.network_rx.rx_length = 0;
-                        network_inputs.network_rx.tcp_connected = true;
-                        network_inputs.network_rx.socket_id = 0;
-
-                        // Execute shared network task (will transmit telemetry if ready)
-                        yeet_network(&network_inputs, &network_outputs);
-
-                        // Send telemetry packet if generated
-                        if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-                            telemetry_server.send_data(
-                                network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-                        }
-                    }
+                    // No more received packets - exit inner loop
                     break;
                 }
 
@@ -257,6 +240,35 @@ int main(int argc, char* argv[])
                 yeet_network(&network_inputs, &network_outputs);
 
                 // Send response if network task prepared one
+                if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+                    telemetry_server.send_data(
+                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+                }
+            }
+
+            // After processing all received packets in this cycle, always call yeet_network()
+            // with no input data to transmit pending telemetry
+            {
+                network_inputs_t network_inputs{};
+                network_outputs_t network_outputs{};
+
+                // Prepare network inputs with connection status but no received data
+                network_inputs.network_rx.data_ready = false;
+                network_inputs.network_rx.rx_length = 0;
+                network_inputs.network_rx.tcp_connected = true;
+                network_inputs.network_rx.socket_id = 0;
+
+                // Debug: print every 100 cycles
+                static int telemetry_call_count = 0;
+                if (++telemetry_call_count % 100 == 0) {
+                    std::cout << "[DEBUG] Calling yeet_network() for telemetry transmission (call "
+                              << telemetry_call_count << ")\n";
+                }
+
+                // Execute shared network task (will transmit telemetry if ready)
+                yeet_network(&network_inputs, &network_outputs);
+
+                // Send telemetry packet if generated
                 if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
                     telemetry_server.send_data(
                         network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);

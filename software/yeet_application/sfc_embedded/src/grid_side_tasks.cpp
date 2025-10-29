@@ -54,35 +54,9 @@ static inline yeet::model_registry& get_model_registry()
     static bool initialized = false;
 
     if (!initialized) {
-        // Register all component parameters with the model_registry
-        // This makes them accessible via the parameter configuration protocol
-
-        auto& control = get_grid_side_control();
-
-        // Register current_controller parameters
-        control.get_current_controller().register_datamodel(registry);
-
-        // Register grid_side_observer parameters
-        control.get_grid_side_observer().register_datamodel(registry);
-
-        // Register grid_side_modulator parameters
-        control.get_grid_side_modulator().register_datamodel(registry);
-
-        // Register grid_side_pulse_generator parameters
-        control.get_grid_side_pulse_generator().register_datamodel(registry);
-
-        // Register grid_measurements parameters
-        control.get_grid_measurements().register_datamodel(registry);
-
-        // Register dc_link_measurements parameters
-        control.get_dc_link_measurements().register_datamodel(registry);
-
-        // Register state_machine parameters
-        control.get_state_machine().register_datamodel(registry);
-
-        // Register operation_mode_monitor parameters
-        control.get_operation_mode_monitor().register_datamodel(registry);
-
+        // Register all grid-side component parameters with the model_registry
+        // This delegates to the control class which knows about all its components
+        get_grid_side_control().register_datamodel(registry);
         initialized = true;
     }
     return registry;
@@ -127,7 +101,6 @@ void yeet_embedded_init(void)
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, false);
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
     yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.is_current_extinguished, true);
 
     // ==================== INITIALIZE ANALOG INPUTS ====================
     // Initialize ADC inputs with zero values (will be updated from hardware in 200µs task)
@@ -300,7 +273,6 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, true);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.is_current_extinguished, false);
 #endif
     }
 
@@ -329,12 +301,18 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
     yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.2f});
+        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.0f});
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude, yeet::voltage_pu_t{1.0f});
     yeet::mock_signal_input::write(
         get_grid_side_control().get_io().machine_side_inputs.request_force_commutation, false);
 #endif
+
+    // ==================== EXECUTE CONTROL UPDATE ====================
+    // Digital input overrides are automatically applied within the state machine lambdas
+    // No separate apply_digital_input_overrides() call needed - the lambdas check
+    // override parameters directly when state machine reads inputs
+    // See sfc_state_machine_runner constructor for override logic
 
     // Execute 1 kHz control update (current controller)
     get_grid_side_control().update_1ms();

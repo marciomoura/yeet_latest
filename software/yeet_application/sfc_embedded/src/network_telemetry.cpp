@@ -5,87 +5,52 @@
 
 #include "sfc_embedded/network_telemetry.hpp"
 
-// Enable to print
-// #define PRINT_DEBUG
-
 #include <cstring>
-#ifdef PRINT_DEBUG
-#include <cstdio>
-#endif
 
 namespace yeet::application::sfc::telemetry {
 
-std::size_t calculate_payload_size(std::uint32_t flags) noexcept
+namespace {
+
+/**
+ * @brief Calculate CRC32 checksum using standard polynomial
+ *
+ * Implements CRC-32 (IEEE 802.3) algorithm for packet integrity validation.
+ * This matches Python's zlib.crc32() implementation.
+ *
+ * @param data Pointer to data buffer
+ * @param length Number of bytes to checksum
+ * @return 32-bit CRC checksum
+ */
+std::uint32_t calculate_crc32(const std::uint8_t* data, std::size_t length) noexcept
 {
-    std::size_t size = 0;
+    // CRC-32 (IEEE 802.3) polynomial: 0xEDB88320
+    static constexpr std::uint32_t polynomial = 0xEDB88320;
 
-    if (flags & telemetry_flags::measurements) {
-        size += sizeof(grid_measurements_group);
-    }
-    if (flags & telemetry_flags::observer) {
-        size += sizeof(grid_observer_group);
-    }
-    if (flags & telemetry_flags::modulator) {
-        size += sizeof(grid_modulator_group);
-    }
-    if (flags & telemetry_flags::controller) {
-        size += sizeof(grid_controller_group);
-    }
-    if (flags & telemetry_flags::state_machine) {
-        size += sizeof(state_machine_group);
+    std::uint32_t crc = 0xFFFFFFFF;  // Initial value
+
+    for (std::size_t i = 0; i < length; ++i) {
+        crc ^= data[i];
+        for (int j = 0; j < 8; ++j) {
+            crc = (crc >> 1) ^ (-(static_cast<int>(crc) & 1) & polynomial);
+        }
     }
 
-    return size;
+    return ~crc;  // Final XOR
 }
 
-bool validate_header(const telemetry_packet_header& header) noexcept
-{
-    // Check protocol version
-    if (header.protocol_version != protocol_version) {
-        return false;
-    }
-
-    // Check packet type is valid
-    if (header.packet_type != static_cast<std::uint8_t>(packet_type::grid_side_telemetry) &&
-        header.packet_type != static_cast<std::uint8_t>(packet_type::machine_side_telemetry) &&
-        header.packet_type != static_cast<std::uint8_t>(packet_type::system_status)) {
-        return false;
-    }
-
-    // Verify payload length matches flags
-    std::size_t expected_size = calculate_payload_size(header.flags);
-    if (header.payload_length != expected_size) {
-        return false;
-    }
-
-    return true;
-}
+}  // anonymous namespace
 
 std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet, std::uint8_t* buffer) noexcept
 {
     std::size_t offset = 0;
 
-    // Create a mutable copy of header to set fields
-    telemetry_packet_header header = packet.header;
-    header.packet_type = static_cast<std::uint8_t>(packet_type::grid_side_telemetry);
-    header.protocol_version = protocol_version;
-    header.payload_length = static_cast<std::uint16_t>(calculate_payload_size(header.flags));
+    // Encode header (16 bytes) - explicit byte-by-byte for portability
+    const auto& header = packet.get_header();
 
-#ifdef PRINT_DEBUG
-    // Debug: print header values
-    printf("[ENCODE] Header: type=%u, ver=%u, len=%u, flags=0x%08X, ts=%u, seq=%u\n", header.packet_type,
-        header.protocol_version, header.payload_length, header.flags, header.timestamp_ms, header.sequence_number);
-#endif
-
-    // Encode header (16 bytes) - explicit byte order (little-endian)
     buffer[offset++] = header.packet_type;
     buffer[offset++] = header.protocol_version;
-    buffer[offset++] = static_cast<std::uint8_t>(header.payload_length & 0xFF);
-    buffer[offset++] = static_cast<std::uint8_t>((header.payload_length >> 8) & 0xFF);
-    buffer[offset++] = static_cast<std::uint8_t>(header.flags & 0xFF);
-    buffer[offset++] = static_cast<std::uint8_t>((header.flags >> 8) & 0xFF);
-    buffer[offset++] = static_cast<std::uint8_t>((header.flags >> 16) & 0xFF);
-    buffer[offset++] = static_cast<std::uint8_t>((header.flags >> 24) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>(header.signal_count & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.signal_count >> 8) & 0xFF);
     buffer[offset++] = static_cast<std::uint8_t>(header.timestamp_ms & 0xFF);
     buffer[offset++] = static_cast<std::uint8_t>((header.timestamp_ms >> 8) & 0xFF);
     buffer[offset++] = static_cast<std::uint8_t>((header.timestamp_ms >> 16) & 0xFF);
@@ -94,96 +59,51 @@ std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet,
     buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 8) & 0xFF);
     buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 16) & 0xFF);
     buffer[offset++] = static_cast<std::uint8_t>((header.sequence_number >> 24) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>(header.reserved & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.reserved >> 8) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.reserved >> 16) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((header.reserved >> 24) & 0xFF);
 
-#ifdef PRINT_DEBUG
-    // Debug: print first 32 bytes of buffer
-    printf("[ENCODE] First 32 bytes: ");
-    for (int i = 0; i < 32 && i < static_cast<int>(offset + 16); i++) {
-        printf("%02x ", buffer[i]);
-    }
-    printf("\n");
-#endif
+    // Encode signal array (only the signals that were pushed)
+    const auto& signals = packet.get_signals();
+    const std::uint16_t signal_count = packet.get_signal_count();
 
-    // Encode signal groups (only if flag is set)
-    if (header.flags & telemetry_flags::measurements) {
-        std::memcpy(buffer + offset, &packet.measurements, sizeof(grid_measurements_group));
-        offset += sizeof(grid_measurements_group);
-    }
+    for (std::uint16_t i = 0; i < signal_count; ++i) {
+        // Encode float as 4 bytes (little-endian IEEE 754)
+        const float value = signals[i];
+        const std::uint32_t* value_ptr = reinterpret_cast<const std::uint32_t*>(&value);
+        const std::uint32_t raw = *value_ptr;
 
-    if (header.flags & telemetry_flags::observer) {
-        std::memcpy(buffer + offset, &packet.observer, sizeof(grid_observer_group));
-        offset += sizeof(grid_observer_group);
-    }
-
-    if (header.flags & telemetry_flags::modulator) {
-        std::memcpy(buffer + offset, &packet.modulator, sizeof(grid_modulator_group));
-        offset += sizeof(grid_modulator_group);
+        buffer[offset++] = static_cast<std::uint8_t>(raw & 0xFF);
+        buffer[offset++] = static_cast<std::uint8_t>((raw >> 8) & 0xFF);
+        buffer[offset++] = static_cast<std::uint8_t>((raw >> 16) & 0xFF);
+        buffer[offset++] = static_cast<std::uint8_t>((raw >> 24) & 0xFF);
     }
 
-    if (header.flags & telemetry_flags::controller) {
-        std::memcpy(buffer + offset, &packet.controller, sizeof(grid_controller_group));
-        offset += sizeof(grid_controller_group);
-    }
+    // Calculate CRC32 over header + signals (everything encoded so far)
+    const std::uint32_t crc = calculate_crc32(buffer, offset);
 
-    if (header.flags & telemetry_flags::state_machine) {
-        std::memcpy(buffer + offset, &packet.state_machine, sizeof(state_machine_group));
-        offset += sizeof(state_machine_group);
-    }
+    // Append CRC32 at end of packet (little-endian)
+    buffer[offset++] = static_cast<std::uint8_t>(crc & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((crc >> 8) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((crc >> 16) & 0xFF);
+    buffer[offset++] = static_cast<std::uint8_t>((crc >> 24) & 0xFF);
 
     return offset;
 }
 
-bool decode_grid_side_telemetry(
-    const std::uint8_t* buffer, std::size_t buffer_size, grid_side_telemetry_packet& packet) noexcept
+std::size_t encode_sync_frame(std::uint8_t* buffer) noexcept
 {
-    // Minimum size check (must have at least header)
-    if (buffer_size < sizeof(telemetry_packet_header)) {
-        return false;
-    }
+    // Encode sync magic number 0xDEADBEEF in little-endian
+    // This creates the byte sequence: 0xEF 0xBE 0xAD 0xDE
+    const std::uint32_t magic = sync_magic;
 
-    std::size_t offset = 0;
+    buffer[0] = static_cast<std::uint8_t>(magic & 0xFF);
+    buffer[1] = static_cast<std::uint8_t>((magic >> 8) & 0xFF);
+    buffer[2] = static_cast<std::uint8_t>((magic >> 16) & 0xFF);
+    buffer[3] = static_cast<std::uint8_t>((magic >> 24) & 0xFF);
 
-    // Decode header
-    std::memcpy(&packet.header, buffer + offset, sizeof(telemetry_packet_header));
-    offset += sizeof(telemetry_packet_header);
-
-    // Validate header
-    if (!validate_header(packet.header)) {
-        return false;
-    }
-
-    // Check total size matches
-    if (buffer_size < sizeof(telemetry_packet_header) + packet.header.payload_length) {
-        return false;
-    }
-
-    // Decode signal groups (only if flag is set)
-    if (packet.header.flags & telemetry_flags::measurements) {
-        std::memcpy(&packet.measurements, buffer + offset, sizeof(grid_measurements_group));
-        offset += sizeof(grid_measurements_group);
-    }
-
-    if (packet.header.flags & telemetry_flags::observer) {
-        std::memcpy(&packet.observer, buffer + offset, sizeof(grid_observer_group));
-        offset += sizeof(grid_observer_group);
-    }
-
-    if (packet.header.flags & telemetry_flags::modulator) {
-        std::memcpy(&packet.modulator, buffer + offset, sizeof(grid_modulator_group));
-        offset += sizeof(grid_modulator_group);
-    }
-
-    if (packet.header.flags & telemetry_flags::controller) {
-        std::memcpy(&packet.controller, buffer + offset, sizeof(grid_controller_group));
-        offset += sizeof(grid_controller_group);
-    }
-
-    if (packet.header.flags & telemetry_flags::state_machine) {
-        std::memcpy(&packet.state_machine, buffer + offset, sizeof(state_machine_group));
-        offset += sizeof(state_machine_group);
-    }
-
-    return true;
+    return 4;  // Sync frame is always 4 bytes
 }
 
 }  // namespace yeet::application::sfc::telemetry

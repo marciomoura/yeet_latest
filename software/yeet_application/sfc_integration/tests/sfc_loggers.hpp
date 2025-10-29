@@ -491,30 +491,25 @@ static inline void register_complete_state_machine_logger(
 
     register_minimal_state_machine_logger(simulator, state_machine);
 
+    // Log the combined input signals (hardware + overrides) that are actually fed to the state machine
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input auxiliaries_are_on",
+        [&]() { return state_machine.get_outputs().auxiliaries_are_on.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input breakers_are_on",
+        [&]() { return state_machine.get_outputs().breakers_are_on.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input auxiliaries_are_on", [&]() { return state_machine.get_inputs().auxiliaries_are_on.read(); }));
+        group + "combined_input start_command", [&]() { return state_machine.get_outputs().start_command.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input breakers_are_on", [&]() { return state_machine.get_inputs().breakers_are_on.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input shutdown_request", [&]() { return state_machine.get_inputs().shutdown_request.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input is_current_extinguished",
-        [&]() { return state_machine.get_inputs().is_current_extinguished.read(); }));
+        group + "combined_input stop_command", [&]() { return state_machine.get_outputs().stop_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input shutdown_request",
+        [&]() { return state_machine.get_outputs().shutdown_request.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input is_current_extinguished",
+        [&]() { return state_machine.get_outputs().is_current_extinguished.read(); }));
+
+    // State status outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output has_transitioned", [&]() { return state_machine.get_outputs().has_transitioned.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_idle", [&]() { return state_machine.get_outputs().is_idle.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_auxiliaries_on", [&]() { return state_machine.get_outputs().is_auxiliaries_on.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_breakers_off", [&]() { return state_machine.get_outputs().is_breakers_off.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_breakers_on", [&]() { return state_machine.get_outputs().is_breakers_on.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_operation_off", [&]() { return state_machine.get_outputs().is_operation_off.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_operation_on", [&]() { return state_machine.get_outputs().is_operation_on.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_shutdown_requested",
-        [&]() { return state_machine.get_outputs().is_shutdown_requested.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<sfc_state_id>(
+        group + "output current_state_id", [&]() { return state_machine.get_outputs().current_state_id.read(); }));
 }
 
 static inline void register_minimal_operation_mode_monitor_logger(

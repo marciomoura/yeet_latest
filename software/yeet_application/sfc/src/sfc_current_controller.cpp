@@ -5,6 +5,7 @@
 
 #include "sfc/sfc_per_unit_system.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/limit.hpp"
 
 namespace yeet::application::sfc {
 
@@ -50,6 +51,8 @@ void sfc_current_controller::reset()
     _current_reference_limited_pu = current_pu_t{0.0};
     _current_error_pu = current_pu_t{0.0};
     _pi_output = real_t{0.0};
+    _is_reference_current_limited = false;
+    _is_current_measured_above_magnitude_limit = false;
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
@@ -57,31 +60,36 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
     voltage_pu_t grid_side_voltage_magnitude,
     voltage_pu_t machine_side_voltage_magnitude)
 {
-    // Step 1: Saturate the incoming current reference to its absolute limits
-    const auto saturated_current_reference_pu =
-        std::clamp(dc_link_current_reference_pu, _dc_link_current_min_pu, _dc_link_current_max_pu);
+    // Step 1: Saturate the incoming current reference to its absolute limits and check if limited
+    const auto limit_result = yeet::control::limit<current_pu_t>::range_with_upper_limit_status(
+        dc_link_current_reference_pu, _dc_link_current_min_pu, _dc_link_current_max_pu);
+    _is_reference_current_limited = limit_result.was_limited;
 
-    _current_reference_limited_pu = saturated_current_reference_pu;
+    _current_reference_limited_pu = limit_result.value;
 
-    // Step 2: Calculate the error signal using the limited reference and store it
+    // Step 2: Check if measured current exceeds the magnitude limit
+    _is_current_measured_above_magnitude_limit =
+        yeet::control::limit<current_pu_t>::is_above_upper_limit(dc_link_current_measured, _dc_link_current_max_pu);
+
+    // Step 3: Calculate the error signal using the limited reference and store it
     _current_error_pu = _current_reference_limited_pu - dc_link_current_measured;
 
-    // Step 3: Update the PI controller to get the corrective control voltage and store it
+    // Step 4: Update the PI controller to get the corrective control voltage and store it
     _pi_output = _pi_controller.update(_current_error_pu.value());
 
-    // Step 4: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
+    // Step 5: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
     const voltage_pu_t compensated_control_voltage = voltage_pu_t{_pi_output} + machine_side_voltage_magnitude;
 
-    // Step 5: Linearize by normalizing with V_do to get cos(alpha) command
+    // Step 6: Linearize by normalizing with V_do to get cos(alpha) command
     // Avoid division by zero or small numbers for stability.
     const voltage_pu_t saturated_grid_side_voltage_magnitude = max(grid_side_voltage_magnitude, voltage_pu_t{0.2});
 
     _cos_alpha_unclamped = compensated_control_voltage / saturated_grid_side_voltage_magnitude;
 
-    // Step 6: Clamp the cosine of the firing angle based on pre-calculated limits
+    // Step 7: Clamp the cosine of the firing angle based on pre-calculated limits
     _cos_alpha_clamped = std::clamp(_cos_alpha_unclamped, _cos_alpha_min, _cos_alpha_max);
 
-    // Step 7: Compute the final angle and store it
+    // Step 8: Compute the final angle and store it
     _firing_angle_reference_radians = angle_t{std::acos(_cos_alpha_clamped)};
 }
 
@@ -117,6 +125,18 @@ bool sfc_current_controller::is_saturated() const
     // This provides accurate saturation detection by comparing the actual values
     constexpr real_t tolerance = 1e-10;
     return std::abs(_cos_alpha_clamped - _cos_alpha_unclamped) > tolerance;
+}
+
+bool sfc_current_controller::is_reference_current_limited() const
+{
+    // Return the stored boolean flag that was updated during the last update() call
+    return _is_reference_current_limited;
+}
+
+bool sfc_current_controller::is_current_measured_above_magnitude_limit() const
+{
+    // Return the stored boolean flag that was updated during the last update() call
+    return _is_current_measured_above_magnitude_limit;
 }
 
 }  // namespace yeet::application::sfc

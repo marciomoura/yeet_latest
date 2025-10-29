@@ -7,131 +7,100 @@
 
 namespace yeet::application::sfc::telemetry {
 
-void grid_side_telemetry_builder::populate_measurements(grid_measurements_group& group) const noexcept
+grid_side_telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timestamp_ms) noexcept
 {
+    grid_side_telemetry_packet packet;
+
+    // Extract control system components
     const auto& grid_meas = _control.get_grid_measurements();
     const auto& dc_meas = _control.get_dc_link_measurements();
-
-    // Grid voltage measurements
-    group.is_commuting = grid_meas.get_outputs().is_commuting.read();
-    group.grid_voltage_magnitude_pu =
-        static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read());
-    group.grid_voltage_a_pu = static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().a());
-    group.grid_voltage_b_pu = static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().b());
-    group.grid_voltage_c_pu = static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().c());
-
-    // Grid current measurements
-    const auto& grid_current = grid_meas.get_outputs().grid_current_abc.read();
-    group.grid_current_a_pu = static_cast<float>(grid_current.a());
-    group.grid_current_b_pu = static_cast<float>(grid_current.b());
-    group.grid_current_c_pu = static_cast<float>(grid_current.c());
-
-    // Calculate grid current magnitude from abc components
-    group.grid_current_magnitude_pu = grid_meas.get_outputs().grid_current_abc.read().to_alphabeta().magnitude();
-
-    // DC link measurements
-    group.dc_link_current_pu = static_cast<float>(dc_meas.get_outputs().dc_current_pu.read());
-}
-
-void grid_side_telemetry_builder::populate_observer(grid_observer_group& group) const noexcept
-{
     const auto& observer = _control.get_grid_side_observer();
-
-    group.estimated_voltage_magnitude_pu =
-        static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read());
-    group.estimated_frequency_pu = static_cast<float>(observer.get_outputs().estimated_frequency_pu.read());
-    group.estimated_angle_rad = static_cast<float>(observer.get_outputs().estimated_position.read().get_radians());
-}
-
-void grid_side_telemetry_builder::populate_modulator(grid_modulator_group& group) const noexcept
-{
     const auto& modulator = _control.get_grid_side_modulator();
-    // Firing angle (same value for reference and actual - no separate saturated output available)
-    group.is_enabled = modulator.get_inputs().enable.read();
-    group.firing_angle_input_pu = static_cast<float>(modulator.get_inputs().firing_angle.read().get_pu());
-    group.firing_angle_output_pu = static_cast<float>(modulator.get_outputs().firing_angle.read().get_pu());
-    group.force_commutation_ack = modulator.get_outputs().force_commutation_acknowledged.read();
-}
-
-void grid_side_telemetry_builder::populate_controller(grid_controller_group& group) const noexcept
-{
     const auto& controller = _control.get_current_controller();
     const auto& mode_monitor = _control.get_operation_mode_monitor();
-
-    group.dc_link_current_measured = controller.get_inputs().dc_link_current_measured.read();
-    group.dc_link_current_reference = controller.get_inputs().dc_link_current_reference.read();
-    // Controller outputs
-    group.current_error_pu = static_cast<float>(controller.get_outputs().current_error.read());
-    group.controller_output_pu = static_cast<float>(controller.get_outputs().pi_output.read().get_radians());
-
-    // Operating mode
-    const auto operating_mode = mode_monitor.get_outputs().operating_mode.read();
-    group.operating_mode = (operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0 : 1;
-
-    group.controller_saturated = controller.get_outputs().current_controller_is_saturated.read() ? 1 : 0;
-    group.freeze_integrator = _control.get_state_machine().get_outputs().freeze_integrator.read() ? 1 : 0;
-    group.reserved = 0;
-}
-
-void grid_side_telemetry_builder::populate_state_machine(state_machine_group& group) const noexcept
-{
     const auto& state_machine = _control.get_state_machine();
+    const auto& pulse_generator = _control.get_grid_side_pulse_generator();
 
-    // State machine outputs
-    group.current_state = static_cast<std::uint8_t>(state_machine.get_outputs().current_state_id.read());
-    group.pulse_releases = state_machine.get_outputs().pulse_releases.read();
-    group.auxiliaries_are_on = state_machine.get_inputs().auxiliaries_are_on.read();
-    group.breakers_are_on = state_machine.get_inputs().breakers_are_on.read();
-    group.start_command = state_machine.get_inputs().start_command.read();
-    group.stop_command = state_machine.get_inputs().stop_command.read();
-    group.is_current_extinguished = state_machine.get_inputs().is_current_extinguished.read();
-    group.is_shutdown_requested = state_machine.get_outputs().is_shutdown_requested.read();
-}
+    // === Grid Measurements Group ===
+    // ABC frame measurements
+    packet.add_signal(0, static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read()));
+    packet.add_signal(1, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().a()));
+    packet.add_signal(2, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().b()));
+    packet.add_signal(3, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().c()));
 
-grid_side_telemetry_packet grid_side_telemetry_builder::build_packet(
-    std::uint32_t timestamp_ms, std::uint32_t flags) noexcept
-{
-    grid_side_telemetry_packet packet{};
+    const auto& grid_current = grid_meas.get_outputs().grid_current_abc.read();
+    packet.add_signal(4, static_cast<float>(grid_current.to_alphabeta().magnitude()));  // Grid current magnitude
+    packet.add_signal(5, static_cast<float>(grid_current.a()));
+    packet.add_signal(6, static_cast<float>(grid_current.b()));
+    packet.add_signal(7, static_cast<float>(grid_current.c()));
 
-    // Populate header
-    packet.header.packet_type = static_cast<std::uint8_t>(packet_type::grid_side_telemetry);
-    packet.header.protocol_version = protocol_version;
-    packet.header.flags = flags;
-    packet.header.timestamp_ms = timestamp_ms;
-    packet.header.sequence_number = _sequence_number++;
-    packet.header.payload_length = static_cast<std::uint16_t>(calculate_payload_size(flags));
+    packet.add_signal(8, static_cast<float>(dc_meas.get_outputs().dc_current_pu.read()));
+    packet.add_signal(9, grid_meas.get_outputs().is_commuting.read() ? 1.0f : 0.0f);
 
-    // Populate requested signal groups
-    if (flags & telemetry_flags::measurements) {
-        populate_measurements(packet.measurements);
-    }
+    // Alpha-Beta frame and filtered measurements
+    const auto& voltage_alphabeta = grid_meas.get_outputs().grid_voltage_alphabeta.read();
+    packet.add_signal(10, static_cast<float>(voltage_alphabeta.alpha()));
+    packet.add_signal(11, static_cast<float>(voltage_alphabeta.beta()));
+    packet.add_signal(12, static_cast<float>(grid_meas.get_outputs().grid_voltage_magnitude_filtered.read()));
+    packet.add_signal(13, static_cast<float>(grid_meas.get_outputs().grid_side_frequency.read()));
 
-    if (flags & telemetry_flags::observer) {
-        populate_observer(packet.observer);
-    }
+    // === Observer Group ===
+    packet.add_signal(14, static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
+    packet.add_signal(15, static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
+    packet.add_signal(16, static_cast<float>(observer.get_outputs().estimated_position.read().get_radians()));
+    packet.add_signal(17, static_cast<float>(observer.get_outputs().estimated_frequency.read()));
 
-    if (flags & telemetry_flags::modulator) {
-        populate_modulator(packet.modulator);
-    }
+    const auto& estimated_voltage_alphabeta = observer.get_outputs().filtered_voltage_alphabeta.read();
+    packet.add_signal(18, static_cast<float>(estimated_voltage_alphabeta.alpha()));
+    packet.add_signal(19, static_cast<float>(estimated_voltage_alphabeta.beta()));
 
-    if (flags & telemetry_flags::controller) {
-        populate_controller(packet.controller);
-    }
+    // === Modulator Group ===
+    packet.add_signal(20, static_cast<float>(modulator.get_outputs().firing_angle.read().get_radians()));
+    packet.add_signal(21, modulator.get_inputs().enable.read() ? 1.0f : 0.0f);
+    packet.add_signal(22, modulator.get_outputs().force_commutation_acknowledged.read() ? 1.0f : 0.0f);
+    packet.add_signal(23, modulator.get_outputs().is_requesting_main_pi_reset.read() ? 1.0f : 0.0f);
 
-    if (flags & telemetry_flags::state_machine) {
-        populate_state_machine(packet.state_machine);
-    }
+    // === Controller Group ===
+    packet.add_signal(24, static_cast<float>(controller.get_outputs().current_reference.read()));
+    packet.add_signal(25, static_cast<float>(controller.get_inputs().dc_link_current_measured.read()));
+    packet.add_signal(26, static_cast<float>(controller.get_outputs().current_error.read()));
+    packet.add_signal(27, static_cast<float>(controller.get_outputs().pi_output.read().get_radians()));
+
+    const auto operating_mode = mode_monitor.get_outputs().operating_mode.read();
+    packet.add_signal(28, (operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0.0f : 1.0f);
+    packet.add_signal(29, controller.get_outputs().current_controller_is_saturated.read() ? 1.0f : 0.0f);
+    packet.add_signal(30, state_machine.get_outputs().freeze_integrator.read() ? 1.0f : 0.0f);
+
+    // === State Machine Group ===
+    packet.add_signal(31, static_cast<float>(state_machine.get_outputs().current_state_id.read()));
+    packet.add_signal(32, state_machine.get_outputs().pulse_releases.read() ? 1.0f : 0.0f);
+    packet.add_signal(33, state_machine.get_outputs().auxiliaries_are_on.read() ? 1.0f : 0.0f);
+    packet.add_signal(34, state_machine.get_outputs().breakers_are_on.read() ? 1.0f : 0.0f);
+    packet.add_signal(35, state_machine.get_outputs().start_command.read() ? 1.0f : 0.0f);
+    packet.add_signal(36, state_machine.get_outputs().stop_command.read() ? 1.0f : 0.0f);
+    packet.add_signal(37, state_machine.get_outputs().is_current_extinguished.read() ? 1.0f : 0.0f);
+    packet.add_signal(38, state_machine.get_outputs().shutdown_request.read() ? 1.0f : 0.0f);
+
+    // === Operation Mode Monitor Group ===
+    packet.add_signal(39, (operating_mode == sfc::sfc_operating_mode_t::forced_commutation) ? 0.0f : 1.0f);
+    packet.add_signal(40, mode_monitor.get_outputs().has_mode_changed.read() ? 1.0f : 0.0f);
+    packet.add_signal(41, mode_monitor.get_outputs().is_current_zero.read() ? 1.0f : 0.0f);
+    packet.add_signal(42, mode_monitor.get_outputs().is_discontinuous_mode.read() ? 1.0f : 0.0f);
+
+    // === Pulse Generator Group ===
+    const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
+    packet.add_signal(43, firing_pulses.p1 ? 1.0f : 0.0f);
+    packet.add_signal(44, firing_pulses.p2 ? 1.0f : 0.0f);
+    packet.add_signal(45, firing_pulses.p3 ? 1.0f : 0.0f);
+    packet.add_signal(46, firing_pulses.p4 ? 1.0f : 0.0f);
+    packet.add_signal(47, firing_pulses.p5 ? 1.0f : 0.0f);
+    packet.add_signal(48, firing_pulses.p6 ? 1.0f : 0.0f);
+    packet.add_signal(49, pulse_generator.get_outputs().is_active.read() ? 1.0f : 0.0f);
+
+    // Finalize packet with timestamp and sequence number
+    packet.finalize(timestamp_ms, _sequence_number++);
 
     return packet;
-}
-
-grid_side_telemetry_packet grid_side_telemetry_builder::build_full_packet(std::uint32_t timestamp_ms) noexcept
-{
-    // Build packet with all available signal groups
-    std::uint32_t flags = telemetry_flags::measurements | telemetry_flags::observer | telemetry_flags::modulator |
-                          telemetry_flags::controller | telemetry_flags::state_machine;
-
-    return build_packet(timestamp_ms, flags);
 }
 
 }  // namespace yeet::application::sfc::telemetry

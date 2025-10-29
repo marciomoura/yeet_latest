@@ -125,6 +125,18 @@ public:
      */
     bool is_saturated() const;
 
+    /**
+     * @brief Checks if the current reference was limited by the hard limit.
+     * @return True if the current reference exceeded the magnitude limit and was clamped, false otherwise.
+     */
+    bool is_reference_current_limited() const;
+
+    /**
+     * @brief Checks if the measured current exceeds the magnitude limit.
+     * @return True if the measured current is above the magnitude limit (max_current_pu), false otherwise.
+     */
+    bool is_current_measured_above_magnitude_limit() const;
+
 private:
     void recompute_internal_limits();
 
@@ -147,6 +159,8 @@ private:
     current_pu_t _current_reference_limited_pu{};
     current_pu_t _current_error_pu{};
     real_t _pi_output{};
+    bool _is_reference_current_limited{false};
+    bool _is_current_measured_above_magnitude_limit{false};
 };
 
 }  // namespace yeet::application::sfc

@@ -7,6 +7,13 @@ sfc_operation_mode_monitor_runner::sfc_operation_mode_monitor_runner()
 {
 }
 
+void sfc_operation_mode_monitor_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_operation_mode_monitor_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_operation_mode_monitor_runner::initialize()
 {
     set_parameters();
@@ -23,12 +30,7 @@ void sfc_operation_mode_monitor_runner::run()
     // Update the detectors with the latest inputs
     _mode_detector.update(enable, _inputs.measured_speed_pu.read());
 
-    if (enable) {
-        _discontinuous_conduction_detector.update(_inputs.dc_link_current_pu.read());
-    }
-    else {
-        _discontinuous_conduction_detector.reset();
-    }
+    _discontinuous_conduction_detector.update(_inputs.dc_link_current_pu.read());
 
     // Write the results to the output signals
     _outputs.operating_mode = _mode_detector.get_operating_mode();

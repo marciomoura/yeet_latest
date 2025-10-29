@@ -14,8 +14,27 @@ void sfc_grid_side_modulator::update(bool enable,
     sfc_operating_mode_t operating_mode,
     bool request_force_commutation,
     bool dc_link_current_is_zero,
-    angle_t firing_angle) noexcept
+    angle_t firing_angle,
+    bool request_extinguish_current) noexcept
 {
+    // PRIORITY 1: Handle extinguish current request (highest priority - shutdown/trip)
+    if (request_extinguish_current) {
+        _current_state = grid_side_modulator_state_t::extinguishing_current;
+        _current_firing_angle_rad = _force_commutation_angle_rad;  // Apply inverting angle
+        _force_commutation_acknowledged = false;
+        _main_pi_reset_requested = true;  // Assert PI reset during extinguish
+        _release_pulses = true;           // Keep pulses active for controlled shutdown
+        return;
+    }
+
+    // If we were extinguishing and request is now cleared, reset to running state
+    if (_current_state == grid_side_modulator_state_t::extinguishing_current) {
+        _current_state = grid_side_modulator_state_t::running;
+        _main_pi_reset_requested = false;
+        _force_commutation_acknowledged = false;
+    }
+
+    // PRIORITY 2: Handle disable
     if (!enable) {
         _current_state = grid_side_modulator_state_t::running;
         _current_firing_angle_rad = get_safe_default_angle();
@@ -148,5 +167,10 @@ angle_t sfc_grid_side_modulator::get_safe_default_angle() const noexcept
 }
 
 bool sfc_grid_side_modulator::get_pulse_release() const noexcept { return _release_pulses; }
+
+bool sfc_grid_side_modulator::get_is_extinguishing_current() const noexcept
+{
+    return _current_state == grid_side_modulator_state_t::extinguishing_current;
+}
 
 }  // namespace yeet::application::sfc

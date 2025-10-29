@@ -2,6 +2,13 @@
 
 namespace yeet::application::sfc::integration {
 
+void sfc_torque_controller_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_torque_controller_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_torque_controller_runner::initialize()
 {
     set_parameters();

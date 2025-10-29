@@ -1,8 +1,10 @@
 #pragma once
 
 #include "sfc/sfc_types.hpp"
+#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -74,6 +76,38 @@ private:
     inputs* _model_inputs;
     outputs* _model_outputs;
     parameters* _model_parameters;
+
+public:
+    sfc_operation_mode_monitor_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
+        : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
+    {
+        assert(_model_inputs != nullptr);
+        assert(_model_outputs != nullptr);
+        assert(_model_parameters != nullptr);
+    }
+
+    void register_data_model(model_registry& registry)
+    {
+        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        entry.parameters.insert(
+            "mode_handover_speed_pu", yeet::utils::make_units_accessor(_model_parameters->mode_handover_speed_pu));
+        entry.parameters.insert("mode_hysteresis_factor", _model_parameters->mode_hysteresis_factor);
+        entry.parameters.insert("zero_current_threshold_pu",
+            yeet::utils::make_units_accessor(_model_parameters->zero_current_threshold_pu));
+        entry.parameters.insert(
+            "is_zero_on_delay_s", yeet::utils::make_units_accessor(_model_parameters->is_zero_on_delay_s));
+        entry.parameters.insert(
+            "discontinuous_on_delay_s", yeet::utils::make_units_accessor(_model_parameters->discontinuous_on_delay_s));
+        entry.parameters.insert("discontinuous_off_delay_s",
+            yeet::utils::make_units_accessor(_model_parameters->discontinuous_off_delay_s));
+
+        registry.insert("operation_mode_monitor", std::move(entry));
+    }
+
+    inputs* get_inputs() { return _model_inputs; }
+    outputs* get_outputs() { return _model_outputs; }
+    parameters* get_parameters() { return _model_parameters; }
 };
 
 }  // namespace yeet::application::sfc::integration

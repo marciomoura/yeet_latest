@@ -50,6 +50,11 @@ public:
      */
     void stop() override;
 
+    /**
+     * @brief Registers the datamodel with the model registry
+     */
+    void register_datamodel(yeet::model_registry& registry) override;
+
 private:
     /**
      * @brief Applies all parameters from the datamodel to the components.

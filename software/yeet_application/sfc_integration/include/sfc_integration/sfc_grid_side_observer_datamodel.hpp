@@ -3,6 +3,7 @@
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
@@ -78,44 +79,14 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // Simple float/real_t parameter - use default accessor
         entry.parameters.insert("kp", _model_parameters->kp);
-
-        // duration_t parameter - extract value in seconds (SI unit)
-        auto& ti_param = _model_parameters->ti;
+        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
         entry.parameters.insert(
-            "ti", low_level_access(
-                      // Read: duration_t -> float (seconds)
-                      [&ti_param]() -> float { return static_cast<float>(ti_param.read().value()); },
-                      // Write: float (seconds) -> duration_t
-                      [&ti_param](float value_seconds) { ti_param.write(duration_t{value_seconds}); }));
-
-        // frequency_t parameters - convert to/from Hz
-        auto& nominal_freq_param = _model_parameters->nominal_frequency;
-        entry.parameters.insert("nominal_frequency",
-            low_level_access(
-                // Read: frequency_t -> float (Hz)
-                [&nominal_freq_param]() -> float { return static_cast<float>(nominal_freq_param.read()); },
-                // Write: float (Hz) -> frequency_t
-                [&nominal_freq_param](float value_hz) { nominal_freq_param.write(frequency_t{value_hz}); }));
-
-        // frequency_pu_t parameter
-        auto& initial_freq_param = _model_parameters->initial_frequency;
-        entry.parameters.insert("initial_frequency",
-            low_level_access(
-                // Read: frequency_pu_t -> float (per-unit)
-                [&initial_freq_param]() -> float { return static_cast<float>(initial_freq_param.read()); },
-                // Write: float (per-unit) -> frequency_pu_t
-                [&initial_freq_param](float value_pu) { initial_freq_param.write(frequency_pu_t{value_pu}); }));
-
-        auto& freq_filter_cutoff_param = _model_parameters->frequency_filter_cutoff;
-        entry.parameters.insert("frequency_filter_cutoff",
-            low_level_access(
-                // Read: frequency_t -> float (Hz)
-                [&freq_filter_cutoff_param]() -> float { return static_cast<float>(freq_filter_cutoff_param.read()); },
-                // Write: float (Hz) -> frequency_t
-                [&freq_filter_cutoff_param](
-                    float value_hz) { freq_filter_cutoff_param.write(frequency_t{value_hz}); }));
+            "nominal_frequency", yeet::utils::make_units_accessor(_model_parameters->nominal_frequency));
+        entry.parameters.insert(
+            "initial_frequency", yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
+        entry.parameters.insert(
+            "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
 
         registry.insert("grid_side_observer", std::move(entry));
     }

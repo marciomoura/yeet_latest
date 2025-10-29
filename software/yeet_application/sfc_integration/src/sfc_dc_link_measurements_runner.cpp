@@ -2,6 +2,13 @@
 
 namespace yeet::application::sfc::integration {
 
+void sfc_dc_link_measurements_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_dc_link_measurements_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_dc_link_measurements_runner::initialize()
 {
     set_parameters();

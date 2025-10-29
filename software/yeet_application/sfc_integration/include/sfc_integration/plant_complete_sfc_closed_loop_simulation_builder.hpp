@@ -242,8 +242,6 @@ private:
             stop_command, grid_side_control.get_io().digital_inputs.stop_command);
         signals_connector::connect_output_to_input(
             shutdown_request, grid_side_control.get_io().digital_inputs.shutdown_request);
-        signals_connector::connect_output_to_input(
-            is_current_extinguished, grid_side_control.get_io().digital_inputs.is_current_extinguished);
 
         // Enable speed control
         // machine_side_control.enable_speed_control.write(true);
