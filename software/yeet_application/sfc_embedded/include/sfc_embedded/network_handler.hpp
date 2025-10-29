@@ -75,10 +75,11 @@ private:
      *
      * @param buffer Command data buffer
      * @param length Command data length
+     * @param outputs Network output data (may queue sync frame for START command)
      * @return true if command was recognized and processed
      * @return false if command was not recognized
      */
-    bool process_command(const std::uint8_t* buffer, std::uint16_t length);
+    bool process_command(const std::uint8_t* buffer, std::uint16_t length, network_outputs_t* outputs);
 
     /**
      * @brief Process incoming parameter protocol packets

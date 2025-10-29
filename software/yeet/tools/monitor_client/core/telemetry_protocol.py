@@ -2,6 +2,7 @@
 """Telemetry protocol decoder for SFC control system."""
 
 import struct
+import zlib
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Optional, List, Tuple
@@ -11,6 +12,7 @@ from typing import Optional, List, Tuple
 PROTOCOL_VERSION = 1
 MAX_SIGNALS = 256
 MAX_PACKET_SIZE = 16 + (MAX_SIGNALS * 4)
+SYNC_MAGIC = 0xDEADBEEF  # Magic number for stream synchronization
 
 
 class PacketType(IntEnum):
@@ -295,6 +297,50 @@ class TelemetryDecoder:
     HEADER_FORMAT = '<BBHIII'
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     SIGNAL_SIZE = 4
+    CRC_SIZE = 4  # CRC32 = 4 bytes
+    SYNC_FRAME_SIZE = 4  # Sync magic number = 4 bytes
+    
+    def __init__(self, require_crc: bool = False):
+        """Initialize telemetry decoder.
+        
+        Args:
+            require_crc: If True, require and validate CRC32 at end of packet.
+                         If False, support both CRC and non-CRC packets (for backward compatibility).
+        """
+        self.require_crc = require_crc
+    
+    @staticmethod
+    def is_sync_frame(data: bytes) -> bool:
+        """Check if data starts with sync magic number (0xDEADBEEF).
+        
+        Args:
+            data: Data buffer to check
+            
+        Returns:
+            True if first 4 bytes contain sync magic, False otherwise
+        """
+        if len(data) < 4:
+            return False
+        
+        magic = struct.unpack('<I', data[:4])[0]
+        return magic == SYNC_MAGIC
+    
+    @staticmethod
+    def decode_sync_frame(data: bytes) -> tuple[int, bool]:
+        """Decode and validate sync frame.
+        
+        Args:
+            data: Data buffer containing sync frame
+            
+        Returns:
+            Tuple of (bytes_consumed, is_valid)
+        """
+        if len(data) < 4:
+            return (0, False)
+        
+        magic = struct.unpack('<I', data[:4])[0]
+        is_valid = (magic == SYNC_MAGIC)
+        return (4, is_valid)
     
     def decode(self, data: bytes, verbose: bool = False) -> Optional[Tuple[GridSideTelemetryPacket, int]]:
         """Decode binary telemetry data into structured packet."""
@@ -345,7 +391,22 @@ class TelemetryDecoder:
             return None
         
         expected_payload_size = header.signal_count * self.SIGNAL_SIZE
-        expected_total_size = self.HEADER_SIZE + expected_payload_size
+        expected_total_size_without_crc = self.HEADER_SIZE + expected_payload_size
+        expected_total_size_with_crc = expected_total_size_without_crc + self.CRC_SIZE
+        
+        # Determine if packet has CRC based on available data
+        has_crc = False
+        if len(data) >= expected_total_size_with_crc:
+            # Might have CRC - we'll verify it
+            has_crc = True
+            expected_total_size = expected_total_size_with_crc
+        else:
+            expected_total_size = expected_total_size_without_crc
+        
+        if self.require_crc and not has_crc:
+            if verbose:
+                print(f"[DECODE ERROR] CRC required but packet too short: have {len(data)} bytes, need {expected_total_size_with_crc} bytes")
+            return None
         
         if len(data) < expected_total_size:
             if verbose:
@@ -369,6 +430,26 @@ class TelemetryDecoder:
                 if verbose:
                     print(f"[DECODE ERROR] Failed to unpack signal {i}: {e}")
                 return None
+        
+        # Validate CRC if present
+        if has_crc:
+            # CRC is calculated over header + signals (everything except the CRC itself)
+            packet_data_for_crc = data[:offset]
+            received_crc = struct.unpack('<I', data[offset:offset + self.CRC_SIZE])[0]
+            calculated_crc = zlib.crc32(packet_data_for_crc) & 0xFFFFFFFF
+            
+            if received_crc != calculated_crc:
+                if verbose:
+                    print(f"[DECODE ERROR] CRC mismatch: received=0x{received_crc:08X}, calculated=0x{calculated_crc:08X}")
+                    print(f"[DECODE ERROR] Packet corrupt or misaligned, rejecting")
+                return None
+            
+            if verbose:
+                print(f"[DECODE] CRC32 validated: 0x{calculated_crc:08X}")
+            
+            offset += self.CRC_SIZE
+        elif verbose:
+            print(f"[DECODE] No CRC present (legacy packet or backward compatibility mode)")
         
         if verbose:
             print(f"[DECODE SUCCESS] Decoded {len(signals)} signals, total bytes consumed: {offset}")

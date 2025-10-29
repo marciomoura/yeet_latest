@@ -13,8 +13,9 @@
  * - Type-safe C++17 implementation with std::array
  *
  * Protocol Structure:
- * - Header: Packet type, version, signal count, timestamp, sequence number
- * - Payload: Variable-length array of float signals
+ * - Header: Packet type, version, signal count, timestamp, sequence number (16 bytes)
+ * - Payload: Variable-length array of float signals (N * 4 bytes)
+ * - CRC32: Integrity checksum over header + payload (4 bytes)
  * - Signal mapping: Documented index → semantic meaning
  *
  * Example Usage:
@@ -47,11 +48,17 @@ namespace yeet::application::sfc::telemetry {
 /** @brief Protocol version (increment when changing packet structure) */
 static constexpr std::uint8_t protocol_version = 1;
 
+/** @brief Synchronization magic number (0xDEADBEEF) sent at stream start */
+static constexpr std::uint32_t sync_magic = 0xDEADBEEF;
+
 /** @brief Maximum number of signals per packet */
 static constexpr std::size_t max_signals = 256;
 
-/** @brief Maximum encoded packet size (header + max signals) */
-static constexpr std::size_t max_packet_size = 16 + (max_signals * sizeof(float));
+/** @brief CRC32 size in bytes */
+static constexpr std::size_t crc_size = 4;
+
+/** @brief Maximum encoded packet size (header + max signals + CRC32) */
+static constexpr std::size_t max_packet_size = 16 + (max_signals * sizeof(float)) + crc_size;
 
 /* ============================================================================
  * Packet Type Enumeration
@@ -63,6 +70,7 @@ static constexpr std::size_t max_packet_size = 16 + (max_signals * sizeof(float)
  * Identifies which controller side generated the packet.
  */
 enum class packet_type : std::uint8_t {
+    sync_frame = 0x00,                     /**< Stream synchronization marker (magic: 0xDEADBEEF) */
     grid_side_telemetry = 0x01,            /**< Grid-side control telemetry */
     machine_side_telemetry = 0x02,         /**< Machine-side control telemetry */
     system_status = 0x10,                  /**< System health and diagnostics */
@@ -203,9 +211,12 @@ public:
     /**
      * @brief Calculate encoded size of this packet
      *
-     * @return Total bytes needed for transmission (header + signals)
+     * @return Total bytes needed for transmission (header + signals + CRC32)
      */
-    std::size_t get_encoded_size() const noexcept { return sizeof(header_t) + (_signal_count * sizeof(float)); }
+    std::size_t get_encoded_size() const noexcept
+    {
+        return sizeof(header_t) + (_signal_count * sizeof(float)) + crc_size;
+    }
 
 private:
     header_t _header;                        /**< Packet header (16 bytes) */
@@ -220,12 +231,15 @@ private:
 /**
  * @brief Encode grid-side telemetry packet to binary buffer
  *
- * Serializes header + signal array to a byte buffer for transmission.
+ * Serializes header + signal array + CRC32 to a byte buffer for transmission.
  * Only encodes the signals that were pushed (based on signal_count).
+ *
+ * The CRC32 is calculated over the entire packet (header + signals) using
+ * the IEEE 802.3 polynomial, matching Python's zlib.crc32() implementation.
  *
  * @param packet Source packet with populated data
  * @param buffer Destination buffer (min packet.get_encoded_size() bytes)
- * @return Number of bytes written to buffer
+ * @return Number of bytes written to buffer (includes header + signals + CRC32)
  *
  * Example:
  * @code
@@ -239,5 +253,30 @@ private:
  * @endcode
  */
 std::size_t encode_grid_side_telemetry(const grid_side_telemetry_packet& packet, std::uint8_t* buffer) noexcept;
+
+/**
+ * @brief Encode synchronization frame (magic number 0xDEADBEEF)
+ *
+ * Sends a distinctive marker at the beginning of telemetry streams to help
+ * the client resynchronize if it connects mid-stream. The sync frame is 4 bytes:
+ * 0xEF 0xBE 0xAD 0xDE (little-endian 0xDEADBEEF).
+ *
+ * This is sent once when START command is received, before any telemetry packets.
+ *
+ * @param buffer Destination buffer (min 4 bytes)
+ * @return Number of bytes written (always 4)
+ *
+ * Example:
+ * @code
+ * // When START command received
+ * std::uint8_t buffer[4];
+ * encode_sync_frame(buffer);
+ * tcp_send(buffer, 4);
+ *
+ * // Then start sending telemetry packets normally
+ * // Client will recognize 0xDEADBEEF and know stream has started
+ * @endcode
+ */
+std::size_t encode_sync_frame(std::uint8_t* buffer) noexcept;
 
 }  // namespace yeet::application::sfc::telemetry

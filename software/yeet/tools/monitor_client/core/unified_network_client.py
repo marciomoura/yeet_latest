@@ -87,7 +87,8 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._state = NetworkState.DISCONNECTED
         
         # Protocol handlers
-        self._telemetry_decoder = TelemetryDecoder()
+        # Enable CRC checking for telemetry - server now appends CRC32 to all packets
+        self._telemetry_decoder = TelemetryDecoder(require_crc=True)  # Enforce CRC validation
         self._param_encoder = ParameterProtocolEncoder()
         self._param_decoder = ParameterProtocolDecoder()
         
@@ -103,6 +104,10 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Heartbeat counter for debugging
         self._poll_count = 0
         
+        # Track consecutive empty polls to detect stalled connections
+        self._empty_poll_count = 0
+        self._max_empty_polls = 5000  # If 5000 polls (5s at 1ms rate) get no data while streaming, socket may be stalled
+        
         # Resilience tracking
         self._consecutive_errors = 0
         self._max_consecutive_errors = 10  # Disconnect after 10 consecutive errors
@@ -110,17 +115,25 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._packet_timeout_ms = 10000  # 10 seconds without packets = timeout
         self._packet_timeout_enabled = True  # Can be disabled during parameter loading
         self._telemetry_streaming = False  # Track if telemetry should be streaming
-        self._recv_buffer_max_size = 65536  # 64KB max buffer to prevent memory issues
+        self._recv_buffer_max_size = 500000  # 500KB max buffer
         
         # Qt timer for polling socket
         self._poll_timer = QtCore.QTimer(self)
         self._poll_timer.timeout.connect(self._poll_socket)
-        self._poll_timer.setInterval(5)  # 5ms polling = 200Hz max
+        self._poll_timer.setInterval(1)  # 1ms polling = 1000Hz max
         
         # Qt timer for connection health check
         self._health_timer = QtCore.QTimer(self)
         self._health_timer.timeout.connect(self._check_connection_health)
         self._health_timer.setInterval(1000)  # Check every second
+        
+        # Qt timer for deferred packet processing (separate from polling)
+        self._process_timer = QtCore.QTimer(self)
+        self._process_timer.timeout.connect(self._process_receive_buffer_deferred)
+        self._process_timer.setInterval(1)  # 1ms - very frequent but doesn't block polling
+        
+        # Flag to control processing
+        self._processing_enabled = True
         
         logger.info(f"UnifiedNetworkClient initialized for {host}:{port}")
     
@@ -173,6 +186,9 @@ class UnifiedNetworkClient(QtCore.QObject):
             # Start health check timer
             self._health_timer.start()
             
+            # Start deferred processing timer
+            self._process_timer.start()
+            
             return True
             
         except Exception as e:
@@ -196,6 +212,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Stop timers
         self._poll_timer.stop()
         self._health_timer.stop()
+        self._process_timer.stop()
         
         # Close socket
         self._cleanup_socket()
@@ -232,6 +249,7 @@ class UnifiedNetworkClient(QtCore.QObject):
             self._packets_received = 0
             self._last_sequence = -1
             self._telemetry_streaming = True  # Expect telemetry packets
+            self._empty_poll_count = 0  # Reset stall detector
             logger.info("Sent START telemetry command to server")
             return True
         
@@ -252,6 +270,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Send STOP command (server will manage state)
         if self._send_command('STOP'):
             self._telemetry_streaming = False  # No longer expecting telemetry packets
+            self._empty_poll_count = 0  # Reset stall detector
             logger.info("Sent STOP telemetry command to server")
             return True
         
@@ -384,6 +403,9 @@ class UnifiedNetworkClient(QtCore.QObject):
                 self._handle_connection_error("Connection closed by remote")
                 return
             
+            # Successfully received data - reset empty poll counter
+            self._empty_poll_count = 0
+            
             # Log data reception
             if self.verbose:
                 logger.debug(f"Received {len(data)} bytes from socket (buffer now {len(self._recv_buffer) + len(data)} bytes)")
@@ -404,11 +426,19 @@ class UnifiedNetworkClient(QtCore.QObject):
             # Reset error counter on successful receive
             self._consecutive_errors = 0
             
-            # Process packets in buffer
-            self._process_receive_buffer()
+            # DON'T process packets here - let deferred timer handle it
+            # This keeps _poll_socket() fast and responsive to incoming data
             
         except BlockingIOError:
             # No data available - normal for non-blocking socket
+            # But if telemetry is streaming and we get too many empty polls in a row,
+            # the socket may be stalled and need reconnection
+            if self._telemetry_streaming:
+                self._empty_poll_count += 1
+                if self._empty_poll_count > self._max_empty_polls:
+                    logger.error(f"Socket appears stalled: {self._empty_poll_count} consecutive empty polls while telemetry streaming")
+                    self._handle_connection_error("Socket stalled - no data")
+                    return
             pass
         except ConnectionResetError as e:
             logger.error(f"Connection reset by peer: {e}")
@@ -430,6 +460,118 @@ class UnifiedNetworkClient(QtCore.QObject):
             if self._consecutive_errors >= self._max_consecutive_errors:
                 self._handle_connection_error(f"Too many consecutive errors ({self._consecutive_errors})")
     
+    def _process_receive_buffer_deferred(self) -> None:
+        """Process packets from buffer on a separate timer (not during socket polling).
+        
+        This deferred approach prevents heavy packet processing from blocking
+        socket reads, which is critical for high-speed data streams.
+        """
+        if not self.connected or not self._processing_enabled:
+            return
+        
+        try:
+            # Process more packets per timer tick to handle high data rates
+            # With large window sizes (1800+ samples), UI updates are heavy,
+            # so we need aggressive packet processing to prevent buffer overflow
+            packets_processed = 0
+            max_packets_per_tick = 50  # Increased from 10 to handle bursts
+            
+            while (len(self._recv_buffer) >= 4 and  # Minimum size for sync frame or packet header
+                   packets_processed < max_packets_per_tick and
+                   self._processing_enabled):
+                
+                # Check for sync frame first (0xDEADBEEF = 0xEF 0xBE 0xAD 0xDE in little-endian)
+                if len(self._recv_buffer) >= 4 and self._telemetry_decoder.is_sync_frame(bytes(self._recv_buffer[:4])):
+                    if self.verbose:
+                        logger.info("Received sync frame (0xDEADBEEF) - stream synchronized")
+                    # Remove sync frame from buffer and continue processing
+                    del self._recv_buffer[:4]
+                    packets_processed += 1
+                    continue
+                
+                # Need at least 16 bytes for actual packets
+                if len(self._recv_buffer) < 16:
+                    break
+                
+                # Peek at packet type
+                packet_type = self._recv_buffer[0]
+                
+                # Try to process one packet
+                consumed = False
+                
+                if packet_type in [0x01, 0x02]:  # Telemetry packets
+                    consumed = self._process_telemetry_packet()
+                elif packet_type in [0x41, 0x47, 0x49]:  # Parameter response packets
+                    consumed = self._process_parameter_response(packet_type)
+                else:
+                    # Unknown packet type - try recovery
+                    consumed = self._attempt_packet_resync(packet_type)
+                
+                if consumed:
+                    packets_processed += 1
+                    continue
+                else:
+                    # Need more data for this packet
+                    break
+        
+        except Exception as e:
+            logger.error(f"Error in deferred buffer processing: {e}", exc_info=True)
+            self._consecutive_errors += 1
+    
+    def _attempt_packet_resync(self, packet_type: int) -> bool:
+        """Attempt to recover from unknown packet type by resyncing.
+        
+        Args:
+            packet_type: The unknown packet type byte
+            
+        Returns:
+            True if handled (packet discarded or found), False if need more data
+        """
+        # Try decoding as telemetry anyway
+        consumed = self._process_telemetry_packet()
+        if consumed:
+            if self.verbose:
+                logger.debug(f"Packet type 0x{packet_type:02x} was actually valid telemetry")
+            return True
+        
+        # Try as parameter packet
+        if packet_type <= 0xFF:
+            consumed = self._process_parameter_response(packet_type)
+            if consumed:
+                if self.verbose:
+                    logger.debug(f"Packet type 0x{packet_type:02x} was actually valid parameter response")
+                return True
+        
+        # Truly unknown - search for next valid sync point (limited search)
+        logger.warning(f"Unknown packet type 0x{packet_type:02x} at buffer start, attempting resync")
+        
+        found_sync = False
+        for i in range(1, min(100, len(self._recv_buffer))):
+            test_byte = self._recv_buffer[i]
+            if test_byte in [0x01, 0x02, 0x41, 0x47, 0x49]:
+                if i + 16 <= len(self._recv_buffer):
+                    if test_byte in [0x01, 0x02] and self._recv_buffer[i+1] == 0x01:
+                        logger.info(f"Found potential telemetry sync at offset {i}, discarding {i} bytes")
+                        del self._recv_buffer[:i]
+                        found_sync = True
+                        break
+                    elif test_byte in [0x41, 0x47, 0x49]:
+                        logger.info(f"Found potential parameter sync at offset {i}, discarding {i} bytes")
+                        del self._recv_buffer[:i]
+                        found_sync = True
+                        break
+        
+        if not found_sync:
+            logger.error(f"Could not resync, clearing entire buffer ({len(self._recv_buffer)} bytes)")
+            if len(self._recv_buffer) >= 32:
+                hex_data = bytes(self._recv_buffer[:32]).hex()
+                logger.error(f"Buffer start (hex): {hex_data}")
+                logger.error(f"Buffer start (ASCII): {repr(bytes(self._recv_buffer[:32]))}")
+            self._recv_buffer.clear()
+            self._consecutive_errors += 1
+        
+        return True  # Handled (cleared or resynced)
+    
     def _check_connection_health(self) -> None:
         """Check connection health periodically."""
         if not self.connected:
@@ -450,7 +592,24 @@ class UnifiedNetworkClient(QtCore.QObject):
         
         if time_since_last_packet > self._packet_timeout_ms:
             logger.warning(f"No packets received for {time_since_last_packet}ms (timeout: {self._packet_timeout_ms}ms)")
-            self._handle_connection_error("Packet timeout")
+            logger.info("Attempting automatic reconnection...")
+            
+            # Attempt automatic reconnection
+            self.disconnect()
+            
+            # Give socket time to clean up
+            QtCore.QTimer.singleShot(500, self._attempt_reconnect)
+    
+    def _attempt_reconnect(self) -> None:
+        """Attempt to reconnect to controller after timeout."""
+        logger.info(f"Reconnecting to {self.host}:{self.port}...")
+        if self.connect():
+            logger.info("Reconnection successful")
+            # Restart telemetry on successful reconnect
+            if not self.start_telemetry():
+                logger.error("Failed to restart telemetry after reconnect")
+        else:
+            logger.error("Reconnection failed, will retry on next timeout")
     
     def set_packet_timeout_enabled(self, enabled: bool) -> None:
         """Enable or disable packet timeout check.
@@ -478,94 +637,6 @@ class UnifiedNetworkClient(QtCore.QObject):
         logger.error(error_msg)
         self.error_occurred.emit(error_msg)
         self.disconnect()
-    
-    def _process_receive_buffer(self) -> None:
-        """Process packets in receive buffer.
-        
-        Stateless processing - displays whatever arrives from server.
-        Server manages telemetry state and packet sequencing.
-        """
-        # Limit iterations to prevent infinite loop on malformed data
-        max_iterations = 100
-        iteration = 0
-        
-        while len(self._recv_buffer) >= 16 and iteration < max_iterations:  # Minimum header size
-            iteration += 1
-            
-            # Peek at packet type from header
-            packet_type = self._recv_buffer[0]
-            
-            # Try telemetry first (most common packet type)
-            if packet_type in [0x01, 0x02]:  # Telemetry packets
-                consumed = self._process_telemetry_packet()
-                if consumed:
-                    continue  # Successfully processed, check for next packet
-                else:
-                    # Not enough data for complete packet
-                    break
-            
-            # Try parameter packets
-            elif packet_type in [0x41, 0x47, 0x49]:  # Parameter response packets
-                consumed = self._process_parameter_response(packet_type)
-                if consumed:
-                    continue  # Successfully processed, check for next packet
-                else:
-                    # Not enough data for complete packet
-                    break
-            
-            # Unknown packet type - could be corrupted data or mid-packet
-            else:
-                # Before giving up, try decoding as telemetry anyway (in case packet_type byte is valid but not recognized)
-                consumed = self._process_telemetry_packet()
-                if consumed:
-                    if self.verbose:
-                        logger.debug(f"Packet type 0x{packet_type:02x} was actually valid telemetry")
-                    continue
-                
-                # Also try as parameter packet
-                if packet_type <= 0xFF:  # Valid byte range
-                    consumed = self._process_parameter_response(packet_type)
-                    if consumed:
-                        if self.verbose:
-                            logger.debug(f"Packet type 0x{packet_type:02x} was actually valid parameter response")
-                        continue
-                
-                # Truly unknown packet type - try to resync
-                logger.warning(f"Unknown packet type 0x{packet_type:02x} at buffer start, attempting resync")
-                
-                # Look for valid packet type in next bytes (limited search)
-                # Only look for confirmed packet types with proper header validation
-                found_sync = False
-                for i in range(1, min(100, len(self._recv_buffer))):
-                    test_byte = self._recv_buffer[i]
-                    if test_byte in [0x01, 0x02, 0x41, 0x47, 0x49]:
-                        # Found potential packet type - verify by checking if next bytes could be valid header
-                        if i + 16 <= len(self._recv_buffer):  # Have enough for header
-                            # Quick validation: check protocol version (should be 1)
-                            if test_byte in [0x01, 0x02] and self._recv_buffer[i+1] == 0x01:
-                                logger.info(f"Found potential telemetry sync at offset {i}, discarding {i} bytes")
-                                del self._recv_buffer[:i]
-                                found_sync = True
-                                break
-                            elif test_byte in [0x41, 0x47, 0x49]:
-                                logger.info(f"Found potential parameter sync at offset {i}, discarding {i} bytes")
-                                del self._recv_buffer[:i]
-                                found_sync = True
-                                break
-                
-                if not found_sync:
-                    logger.error(f"Could not resync, clearing entire buffer ({len(self._recv_buffer)} bytes)")
-                    if len(self._recv_buffer) >= 32:
-                        hex_data = bytes(self._recv_buffer[:32]).hex()
-                        logger.error(f"Buffer start (hex): {hex_data}")
-                        logger.error(f"Buffer start (ASCII): {repr(bytes(self._recv_buffer[:32]))}")
-                    self._recv_buffer.clear()
-                    self._consecutive_errors += 1
-                break
-        
-        if iteration >= max_iterations:
-            logger.warning(f"Buffer processing hit max iterations ({max_iterations}), possible packet storm")
-            # Don't clear buffer, but stop processing for this poll cycle
     
     def _process_telemetry_packet(self) -> bool:
         """Process telemetry packet from buffer.
