@@ -115,22 +115,22 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._packet_timeout_ms = 10000  # 10 seconds without packets = timeout
         self._packet_timeout_enabled = True  # Can be disabled during parameter loading
         self._telemetry_streaming = False  # Track if telemetry should be streaming
-        self._recv_buffer_max_size = 500000  # 500KB max buffer
+        self._recv_buffer_max_size = 100000  # 100KB max buffer
         
         # Qt timer for polling socket
         self._poll_timer = QtCore.QTimer(self)
         self._poll_timer.timeout.connect(self._poll_socket)
-        self._poll_timer.setInterval(1)  # 1ms polling = 1000Hz max
+        self._poll_timer.setInterval(0)  # 1ms polling = 1000Hz max
         
         # Qt timer for connection health check
         self._health_timer = QtCore.QTimer(self)
         self._health_timer.timeout.connect(self._check_connection_health)
-        self._health_timer.setInterval(1000)  # Check every second
+        self._health_timer.setInterval(500)  # Check every 500ms
         
         # Qt timer for deferred packet processing (separate from polling)
         self._process_timer = QtCore.QTimer(self)
         self._process_timer.timeout.connect(self._process_receive_buffer_deferred)
-        self._process_timer.setInterval(1)  # 1ms - very frequent but doesn't block polling
+        self._process_timer.setInterval(0)  # 1ms - very frequent but doesn't block polling
         
         # Flag to control processing
         self._processing_enabled = True

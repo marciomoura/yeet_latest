@@ -117,7 +117,9 @@ private:
     yeet::application::sfc::parameter_handler& parameter_handler_;
 
     // Internal state
-    bool telemetry_started_;  ///< Is telemetry streaming currently active?
+    bool telemetry_started_;                                   ///< Is telemetry streaming currently active?
+    std::uint32_t sync_frame_counter_;                         ///< Counter for periodic sync frame transmission
+    static constexpr std::uint32_t SYNC_FRAME_INTERVAL = 100;  ///< Send sync frame every 100 telemetry packets
 };
 
 }  // namespace network
