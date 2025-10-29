@@ -1,15 +1,15 @@
 /**
- * @file network_telemetry_builder.cpp
- * @brief Implementation of telemetry packet builders
+ * @file grid_side_telemetry_builder.cpp
+ * @brief Implementation of grid-side telemetry packet builder
  */
 
-#include "sfc_embedded/network_telemetry_builder.hpp"
+#include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
 
 namespace yeet::application::sfc::telemetry {
 
-grid_side_telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timestamp_ms) noexcept
+telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timestamp_ms) noexcept
 {
-    grid_side_telemetry_packet packet;
+    telemetry_packet packet;
 
     // Extract control system components
     const auto& grid_meas = _control.get_grid_measurements();
@@ -98,7 +98,7 @@ grid_side_telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32
     packet.add_signal(49, pulse_generator.get_outputs().is_active.read() ? 1.0f : 0.0f);
 
     // Finalize packet with timestamp and sequence number
-    packet.finalize(timestamp_ms, _sequence_number++);
+    packet.finalize(packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
 
     return packet;
 }

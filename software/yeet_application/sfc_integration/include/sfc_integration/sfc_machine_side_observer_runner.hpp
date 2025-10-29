@@ -19,6 +19,7 @@ public:
         initialize();
     }
 
+    void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
     void run() override;
     void stop() override;

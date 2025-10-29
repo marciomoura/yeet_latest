@@ -6,6 +6,10 @@
 
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/fiber_optic_protocol.hpp"
+#include "sfc_embedded/machine_side_network_telemetry_builder.hpp"
+#include "sfc_embedded/network_handler.hpp"
+#include "sfc_embedded/network_telemetry_manager.hpp"
+#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
 #include "yeet/signal.hpp"
 
@@ -40,6 +44,54 @@ static inline yeet::application::sfc::integration::sfc_machine_side_control& get
     return machine_side_control;
 }
 
+// ==================== MODEL REGISTRY ====================
+// Global parameter registry populated from all SFC component datamodels
+static inline yeet::model_registry& get_model_registry()
+{
+    static yeet::model_registry registry;
+    static bool initialized = false;
+
+    if (!initialized) {
+        // Register all machine-side component parameters with the model_registry
+        // This delegates to the control class which knows about all its components
+        get_machine_side_control().register_datamodel(registry);
+        initialized = true;
+    }
+    return registry;
+}
+
+// ==================== MACHINE-SIDE TELEMETRY BUILDER ====================
+// Builder for machine-side telemetry packets
+static inline yeet::application::sfc::telemetry::machine_side_telemetry_builder& get_machine_side_telemetry_builder()
+{
+    static yeet::application::sfc::telemetry::machine_side_telemetry_builder builder(get_machine_side_control());
+    return builder;
+}
+
+// ==================== NETWORK TELEMETRY MANAGER ====================
+// Telemetry streaming manager for TCP/IP interface
+static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
+{
+    static yeet::application::sfc::network::telemetry_manager manager(get_machine_side_telemetry_builder(), 10);
+    return manager;
+}
+
+// ==================== PARAMETER HANDLER ====================
+// Parameter configuration handler for TCP/IP interface
+static inline yeet::application::sfc::parameter_handler& get_parameter_handler()
+{
+    static yeet::application::sfc::parameter_handler handler(&get_model_registry());
+    return handler;
+}
+
+// ==================== NETWORK HANDLER ====================
+// Network protocol handler that manages telemetry streaming and parameter requests
+static inline yeet::application::sfc::network::network_handler& get_network_handler()
+{
+    static yeet::application::sfc::network::network_handler handler(get_telemetry_manager(), get_parameter_handler());
+    return handler;
+}
+
 // Execution counters for diagnostics
 static volatile std::uint32_t counter_task1 = 0;
 static volatile std::uint32_t counter_task2 = 0;
@@ -48,6 +100,11 @@ static volatile std::uint32_t counter_task3 = 0;
 ARM_FUNCTION
 void yeet_embedded_init(void)
 {
+    // ==================== INITIALIZE PARAMETER HANDLER ====================
+    // Force initialization of model registry and parameter handler on startup
+    // This ensures parameters are registered before first network request
+    (void)get_parameter_handler();
+
     // ==================== INITIALIZE ANALOG INPUTS ====================
     // Initialize ADC inputs with zero values (will be updated from hardware in 200µs task)
     yeet::mock_signal_input::write(
@@ -264,49 +321,15 @@ void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     // NON-REAL-TIME NETWORK COMMUNICATION TASK
     // Called from: Main loop (not time-critical)
     // Purpose: Handle TCP/IP and UDP communication for:
-    //   - HMI/SCADA supervisory control (speed reference, start/stop)
+    //   - HMI/SCADA supervisory control
+    //   - Real-time telemetry streaming (measurements, observers, controllers)
     //   - Configuration updates
     //   - Diagnostic data requests
     //   - Parameter tuning
-    //   - Event logging and telemetry
-
-    // Process incoming network data
-    if (inputs != nullptr && inputs->network_rx.data_ready) {
-        // TODO: Parse received network packet
-        // Examples for machine side:
-        //   - Speed reference commands from HMI
-        //   - Start/stop/emergency stop commands
-        //   - Configuration updates (PI gains, limits)
-        //   - Diagnostic requests
-        //
-        // const uint8_t* rx_data = inputs->network_rx.rx_buffer;
-        // uint16_t rx_len = inputs->network_rx.rx_length;
-        // bool connected = inputs->network_rx.tcp_connected;
-        //
-        // if (rx_len > 0) {
-        //     parse_supervisory_command(rx_data, rx_len);
-        //     // Update speed reference, control mode, etc.
-        // }
-    }
-
-    // Prepare network response or periodic telemetry
-    if (outputs != nullptr) {
-        // TODO: Encode status/diagnostic data for transmission
-        // Examples for machine side:
-        //   - Current speed, torque, and motor status
-        //   - Response to configuration command
-        //   - Periodic telemetry data
-        //   - Fault/event notifications
-        //
-        // uint8_t* tx_data = outputs->network_tx.tx_buffer;
-        // outputs->network_tx.tx_length = encode_machine_status(tx_data);
-        // outputs->network_tx.transmit_request = true;
-        // outputs->network_tx.socket_id = 0;
-
-        // Default: No transmission
-        outputs->network_tx.transmit_request = false;
-        outputs->network_tx.tx_length = 0;
-    }
+    //   - Event logging
+    //
+    // Delegate to network_handler for all packet processing and state management
+    get_network_handler().process(inputs, outputs);
 }
 
 }  // extern "C"

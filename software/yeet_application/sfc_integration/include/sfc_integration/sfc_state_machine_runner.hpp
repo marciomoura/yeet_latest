@@ -28,11 +28,10 @@ public:
     {
     }
 
+    void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
     void run() override;
     void stop() override;
-
-    void register_datamodel(yeet::model_registry& registry) override;
 
 private:
     void set_parameters();

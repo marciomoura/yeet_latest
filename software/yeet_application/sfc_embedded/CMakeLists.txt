@@ -50,7 +50,7 @@ if(NOT YEET_SFC_HOST_BUILD)
             PRIVATE src/grid_side_tasks.cpp
                     src/fiber_optic_protocol.cpp
                     src/network_telemetry.cpp
-                    src/network_telemetry_builder.cpp
+                    src/grid_side_telemetry_builder.cpp
                     src/network_command_parser.cpp
                     src/network_telemetry_manager.cpp
                     src/network_handler.cpp
@@ -95,8 +95,16 @@ if(NOT YEET_SFC_HOST_BUILD)
         add_library(yeet_sfc_embedded_machine STATIC)
 
         target_sources(
-            yeet_sfc_embedded_machine PRIVATE src/machine_side_tasks.cpp
-                                              src/fiber_optic_protocol.cpp)
+            yeet_sfc_embedded_machine
+            PRIVATE src/machine_side_tasks.cpp
+                    src/fiber_optic_protocol.cpp
+                    src/network_telemetry.cpp
+                    src/network_telemetry_builder.cpp
+                    src/machine_side_telemetry_builder.cpp
+                    src/network_command_parser.cpp
+                    src/network_telemetry_manager.cpp
+                    src/network_handler.cpp
+                    src/parameter_handler.cpp)
 
         target_include_directories(
             yeet_sfc_embedded_machine
@@ -203,6 +211,36 @@ endif() # NOT YEET_SFC_HOST_BUILD
 if(YEET_SFC_HOST_BUILD)
     message(STATUS "yeet sfc_embedded: Building HOST SIMULATOR 💻")
 
+    # Determine which control side to build
+    set(YEET_SFC_HOST_SIDE
+        "GRID"
+        CACHE STRING "Select which side for host simulator: GRID or MACHINE")
+    set_property(CACHE YEET_SFC_HOST_SIDE PROPERTY STRINGS "GRID" "MACHINE")
+
+    if(NOT
+       YEET_SFC_HOST_SIDE
+       MATCHES
+       "^(GRID|MACHINE)$")
+        message(FATAL_ERROR "YEET_SFC_HOST_SIDE must be GRID or MACHINE")
+    endif()
+
+    # Determine which control sources to include
+    if(YEET_SFC_HOST_SIDE STREQUAL "MACHINE")
+        set(CONTROL_SOURCES src/machine_side_tasks.cpp)
+        set(HOST_SIDE_DEF MACHINE_SIDE_HOST)
+        message(
+            STATUS
+                "yeet sfc_embedded: Host simulator configured for MACHINE-SIDE control"
+        )
+    else()
+        set(CONTROL_SOURCES src/grid_side_tasks.cpp)
+        set(HOST_SIDE_DEF "")
+        message(
+            STATUS
+                "yeet sfc_embedded: Host simulator configured for GRID-SIDE control"
+        )
+    endif()
+
     # Host simulator executable
     add_executable(sfc_host_simulator)
 
@@ -214,10 +252,11 @@ if(YEET_SFC_HOST_BUILD)
                 src/host_platform/host_timing.cpp
                 src/host_platform/host_io_mocks.cpp
                 # Actual embedded control code (conditionally compiled)
-                src/grid_side_tasks.cpp
+                ${CONTROL_SOURCES}
                 src/fiber_optic_protocol.cpp
                 src/network_telemetry.cpp
-                src/network_telemetry_builder.cpp
+                src/grid_side_telemetry_builder.cpp
+                src/machine_side_telemetry_builder.cpp
                 src/network_command_parser.cpp
                 src/network_telemetry_manager.cpp
                 src/network_handler.cpp
@@ -233,9 +272,8 @@ if(YEET_SFC_HOST_BUILD)
     # Host-specific compile definitions
     target_compile_definitions(
         sfc_host_simulator
-        PRIVATE HOST_BUILD YEET_EMBEDDED_GRID_SIDE # Default to grid side for
-                                                   # now
-    )
+        PRIVATE HOST_BUILD YEET_EMBEDDED_${YEET_SFC_HOST_SIDE}_SIDE
+                ${HOST_SIDE_DEF})
 
     # Platform-specific linking
     if(WIN32)

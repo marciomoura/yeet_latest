@@ -7,7 +7,8 @@
  *
  * The builder encapsulates signal extraction and packet population logic,
  * providing a clean interface to push signals from datamodel outputs into
- * the telemetry packet buffer.
+ * the telemetry packet buffer. Both grid-side and machine-side builders
+ * use the same generic interface with type-safe packet templates.
  */
 
 #pragma once
@@ -19,47 +20,32 @@
 namespace yeet::application::sfc::telemetry {
 
 /**
- * @brief Builder for grid-side telemetry packets
+ * @brief Interface for telemetry packet builders
  *
- * Extracts data from grid-side control system and populates telemetry packets.
- * Provides a simple interface to build packets by pushing signals sequentially.
- *
- * The builder maintains internal state (sequence number) and provides helper
- * methods to extract signals from control system outputs and push them into
- * the packet buffer.
+ * Pure virtual interface that all telemetry builders must implement.
+ * Allows telemetry_manager to work with any telemetry source without
+ * knowing the concrete type (grid-side, machine-side, etc.).
  *
  * Usage:
  * @code
- * grid_side_telemetry_builder builder(control);
- * auto packet = builder.build_packet(get_time_ms());
- * // Packet contains all signals from control system
+ * telemetry_builder* builder = &my_grid_side_builder;
+ * auto packet = builder->build_packet(timestamp_ms);
  * @endcode
  */
-class grid_side_telemetry_builder {
+class telemetry_builder {
 public:
-    /**
-     * @brief Construct builder with reference to grid-side control
-     * @param control Grid-side control system to extract data from
-     */
-    explicit grid_side_telemetry_builder(const integration::sfc_grid_side_control& control)
-        : _control(control), _sequence_number(0)
-    {
-    }
+    virtual ~telemetry_builder() = default;
 
     /**
      * @brief Build telemetry packet with all available signals
      *
-     * Extracts all signals from control system and populates packet.
-     * This method handles all signal extraction and packet finalization.
+     * Pure virtual method that must be implemented by concrete builders.
+     * Extracts signals from control system and populates packet.
      *
      * @param timestamp_ms Current system time in milliseconds
      * @return Complete telemetry packet ready for encoding
      */
-    grid_side_telemetry_packet build_packet(std::uint32_t timestamp_ms) noexcept;
-
-private:
-    const integration::sfc_grid_side_control& _control;
-    std::uint32_t _sequence_number;
+    [[nodiscard]] virtual telemetry_packet build_packet(std::uint32_t timestamp_ms) noexcept = 0;
 };
 
 }  // namespace yeet::application::sfc::telemetry
