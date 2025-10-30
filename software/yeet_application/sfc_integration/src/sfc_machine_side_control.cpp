@@ -45,7 +45,7 @@ void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry
     // This makes them accessible via the parameter configuration protocol
 
     // Register per-unit system parameters first (fundamental base quantities)
-    pu_system_datamodel.register_datamodel(registry, _per_unit_system);
+    pu_system_datamodel.register_datamodel(registry, per_unit_system);
 
     excitation_controller.register_datamodel(registry);
     speed_generator.register_datamodel(registry);

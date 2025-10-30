@@ -34,9 +34,8 @@ public:
      * @brief Construct machine-side control with per-unit system
      * @param per_unit_system Shared per-unit system for scaling
      */
-    explicit sfc_machine_side_control(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
-        : _per_unit_system(per_unit_system),
-          excitation_controller(),
+    explicit sfc_machine_side_control()
+        : excitation_controller(),
           speed_generator(),
           speed_controller(),
           torque_controller(),
@@ -44,7 +43,7 @@ public:
           machine_side_observer(),
           machine_side_modulator(),
           machine_side_pulse_generator(),
-          machine_measurements(_per_unit_system),
+          machine_measurements(per_unit_system),
           io(machine_measurements,
               excitation_controller,
               speed_generator,
@@ -252,7 +251,18 @@ public:
 
     // ==================== Public Component Access for Direct Signal Connections ====================
 
-    std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
+    std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system{// Standard per-unit system for SFC applications
+        // Grid side: 2090V RMS, 50Hz, DC link: 1044A, Machine: 1980V RMS, 2950kW
+        std::make_shared<yeet::application::sfc::sfc_per_unit_system>(
+            yeet::voltage_t(2090.0),  // Grid line-to-line voltage (V RMS)
+            yeet::frequency_t(50.0),  // Grid frequency (Hz)
+            yeet::current_t(1044.0),  // DC link current base (A)
+            yeet::power_t(2950e3),    // Rated power (W)
+            yeet::voltage_t(1980.0),  // Machine line-to-line voltage (V RMS)
+            yeet::frequency_t(50.0),  // Machine base frequency (Hz)
+            2                         // Number of pole pairs
+            )};
+
     sfc_per_unit_system_datamodel pu_system_datamodel;
 
     // Machine-side control components (made public for intermediate integration)

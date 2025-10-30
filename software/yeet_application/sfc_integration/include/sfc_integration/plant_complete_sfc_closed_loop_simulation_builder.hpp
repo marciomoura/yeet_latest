@@ -40,12 +40,15 @@ public:
 
     plant_complete_sfc_closed_loop_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
-          grid_side_control{_per_unit_system},
-          machine_side_control{_per_unit_system},
+          grid_side_control{},
+          machine_side_control{},
           plant{_per_unit_system},
           grid_side_hardware_mock{duration_t{10e-6}},
           machine_side_hardware_mock{duration_t{10e-6}}
     {
+        *grid_side_control.per_unit_system = *_per_unit_system;
+        *machine_side_control.per_unit_system = *_per_unit_system;
+
         // Stage parameters for hardware mocks (ADC + transducers)
         plant_hardware::stage_grid_side_hardware_mock_parameters(grid_side_hardware_mock);
         plant_hardware::stage_machine_side_hardware_mock_parameters(machine_side_hardware_mock);
