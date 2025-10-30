@@ -144,7 +144,11 @@ public:
     signal_output<bool> exciter_ready;
     signal_output<bool> excitation_start_command;
     signal_output<bool> excitation_stop_command;
-    // signal_output<bool> enable_speed_control;
+
+    // Speed controller cascade inputs from grid-side
+    signal_output<bool> enable_speed_control;         // From grid-side pulse_releases
+    signal_output<bool> freeze_integrator;            // From grid-side machine-side outputs
+    signal_output<bool> modulator_freeze_integrator;  // From grid-side modulator pi reset
 
     // Cascaded control signals from grid side
     // signal_output<bool> freeze_integrator;

@@ -75,16 +75,17 @@ void sfc_machine_side_control::connect_internal_signals()
     // Speed controller inputs
     // Note: speed_reference_pu is now sourced exclusively from speed_generator (below)
     // For manual testing without speed_generator, connect external speed_reference_pu signal here
-    // signals_connector::connect_output_to_input(speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
-    //    signals_connector::connect_output_to_input(
-    //        enable_speed_control, speed_controller.get_inputs().enable_speed_control);
-    //  signals_connector::connect_output_to_input(freeze_integrator, speed_controller.get_inputs().freeze_integrator);
-    // signals_connector::connect_output_to_input(
-    //    current_controller_is_saturated, speed_controller.get_inputs().current_controller_is_saturated);
 
     // Observer feedback to speed controller
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
+
+    // Speed controller cascade inputs from grid-side (external connections)
+    signals_connector::connect_output_to_input(
+        enable_speed_control, speed_controller.get_inputs().enable_speed_control);
+    signals_connector::connect_output_to_input(freeze_integrator, speed_controller.get_inputs().freeze_integrator);
+    signals_connector::connect_output_to_input(
+        modulator_freeze_integrator, speed_controller.get_inputs().modulator_freeze_integrator);
 
     // ==================== Speed Generator Connections ====================
 
