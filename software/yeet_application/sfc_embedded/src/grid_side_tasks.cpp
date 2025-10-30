@@ -25,25 +25,9 @@
 
 extern "C" {
 
-inline std::shared_ptr<yeet::application::sfc::sfc_per_unit_system> create_per_unit_system()
-{
-    // Standard per-unit system for SFC applications
-    // Grid side: 2090V RMS, 50Hz, DC link: 1044A, Machine: 1980V RMS, 2950kW
-    return std::make_shared<yeet::application::sfc::sfc_per_unit_system>(
-        yeet::voltage_t(2090.0),  // Grid line-to-line voltage (V RMS)
-        yeet::frequency_t(50.0),  // Grid frequency (Hz)
-        yeet::current_t(1044.0),  // DC link current base (A)
-        yeet::power_t(2950e3),    // Rated power (W)
-        yeet::voltage_t(1980.0),  // Machine line-to-line voltage (V RMS)
-        yeet::frequency_t(50.0),  // Machine base frequency (Hz)
-        2                         // Number of pole pairs
-    );
-}
-
 static inline yeet::application::sfc::integration::sfc_grid_side_control& get_grid_side_control()
 {
-    static auto per_unit_system = create_per_unit_system();
-    static yeet::application::sfc::integration::sfc_grid_side_control grid_side_control(per_unit_system);
+    static yeet::application::sfc::integration::sfc_grid_side_control grid_side_control;
     return grid_side_control;
 }
 

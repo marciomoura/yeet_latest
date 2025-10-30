@@ -34,9 +34,8 @@ public:
      * @brief Construct machine-side control with per-unit system
      * @param per_unit_system Shared per-unit system for scaling
      */
-    explicit sfc_machine_side_control(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
-        : _per_unit_system(per_unit_system),
-          excitation_controller(),
+    explicit sfc_machine_side_control()
+        : excitation_controller(),
           speed_generator(),
           speed_controller(),
           torque_controller(),
@@ -44,7 +43,7 @@ public:
           machine_side_observer(),
           machine_side_modulator(),
           machine_side_pulse_generator(),
-          machine_measurements(_per_unit_system),
+          machine_measurements(per_unit_system),
           io(machine_measurements,
               excitation_controller,
               speed_generator,
@@ -126,52 +125,26 @@ public:
 
     /**
      * @brief Get I/O interface for external connections
+     *
+     * The I/O interface provides a unified facade for all external signal routing:
+     * - analog_inputs: ADC measurements from hardware
+     * - digital_inputs: Supervisory commands (exciter, speed profiles)
+     * - grid_side_inputs: Cross-coupled signals from grid-side control
+     * - pulse_outputs: Thyristor firing pulses
+     * - grid_side_outputs: Cross-coupled signals to grid-side control
+     *
+     * This ensures a single, type-safe point of external connection.
      */
     sfc_machine_side_control_io& get_io() { return io; }
     const sfc_machine_side_control_io& get_io() const { return io; }
 
-    // ==================== External Input Signals (DEPRECATED - Use io interface) ====================
-
-    // Speed generator profile commands (semantic names for turbine starting sequence)
-    signal_output<bool> run_creep_speed;     // Execute Profile 1: Creep speed for maintenance (~5% rated)
-    signal_output<bool> run_purge_accel;     // Execute Profile 2: Purge acceleration (~20% rated)
-    signal_output<bool> run_ignition_accel;  // Execute Profile 3: Ignition acceleration (~55% rated)
-    signal_output<bool> run_assist_accel;    // Execute Profile 4: Assist to self-sustaining (~95% rated)
-    signal_output<bool> hold_speed;          // Hold current speed setpoint
-    signal_output<bool> decelerate;          // Controlled deceleration to zero
-    signal_output<bool> idle;                // Idle mode (zero torque/speed outputs)
-
-    // Excitation control inputs
-    signal_output<bool> exciter_ready;
-    signal_output<bool> excitation_start_command;
-    signal_output<bool> excitation_stop_command;
-
-    // Speed controller cascade inputs from grid-side
-    signal_output<bool> enable_speed_control;         // From grid-side pulse_releases
-    signal_output<bool> freeze_integrator;            // From grid-side machine-side outputs
-    signal_output<bool> modulator_freeze_integrator;  // From grid-side modulator pi reset
-
-    // Cascaded control signals from grid side
-    // signal_output<bool> freeze_integrator;
-    // signal_output<bool> current_controller_is_saturated;
-    // signal_output<bool> pulse_releases;
-
-    // Operating mode from grid side
-    // signal_output<sfc_operating_mode_t> operating_mode;
-
-    // DC link current for machine controller lookup
-    // signal_output<current_pu_t> dc_link_current_pu;
-
-    // Force commutation acknowledgment from grid side
-    // signal_output<bool> force_commutation_acknowledged;
-
-    // Machine-side voltage magnitude for current controller feedforward
-    // signal_output<voltage_pu_t> machine_side_voltage_magnitude;
-
     // ==================== External Output Signals ====================
+    // NOTE: Prefer accessing outputs through get_io() interface for consistency.
+    // Direct getters below are provided for advanced/diagnostic use only.
 
     /**
      * @brief Get excitation voltage setpoint from excitation controller
+     * Prefer: get_io().grid_side_outputs (for cross-coupling to grid side)
      */
     const signal_output<voltage_pu_t>& get_excitation_voltage_setpoint() const
     {
@@ -198,6 +171,7 @@ public:
 
     /**
      * @brief Get machine-side firing pulses for plant model
+     * Prefer: get_io().pulse_outputs.firing_pulses
      */
     const signal_output<control::six_pulse_generator::pulses>& get_firing_pulses() const
     {
@@ -208,6 +182,7 @@ public:
 
     /**
      * @brief Get estimated machine speed from observer
+     * Prefer: get_io().grid_side_outputs.measured_speed_pu
      */
     const signal_output<speed_pu_t>& get_estimated_speed() const
     {
@@ -224,6 +199,7 @@ public:
 
     /**
      * @brief Get force commutation request for grid side
+     * Prefer: get_io().grid_side_outputs.request_force_commutation
      */
     const signal_output<bool>& get_request_force_commutation() const
     {
@@ -234,6 +210,7 @@ public:
 
     /**
      * @brief Get current reference from torque controller
+     * Prefer: get_io().grid_side_outputs.current_reference
      */
     const signal_output<current_pu_t>& get_current_reference() const
     {
@@ -242,6 +219,7 @@ public:
 
     /**
      * @brief Get estimated voltage magnitude from observer
+     * Prefer: get_io().grid_side_outputs.machine_voltage_magnitude
      */
     const signal_output<voltage_pu_t>& get_estimated_voltage_magnitude() const
     {
@@ -252,7 +230,18 @@ public:
 
     // ==================== Public Component Access for Direct Signal Connections ====================
 
-    std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
+    std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system{// Standard per-unit system for SFC applications
+        // Grid side: 2090V RMS, 50Hz, DC link: 1044A, Machine: 1980V RMS, 2950kW
+        std::make_shared<yeet::application::sfc::sfc_per_unit_system>(
+            yeet::voltage_t(2090.0),  // Grid line-to-line voltage (V RMS)
+            yeet::frequency_t(50.0),  // Grid frequency (Hz)
+            yeet::current_t(1044.0),  // DC link current base (A)
+            yeet::power_t(2950e3),    // Rated power (W)
+            yeet::voltage_t(1980.0),  // Machine line-to-line voltage (V RMS)
+            yeet::frequency_t(50.0),  // Machine base frequency (Hz)
+            2                         // Number of pole pairs
+            )};
+
     sfc_per_unit_system_datamodel pu_system_datamodel;
 
     // Machine-side control components (made public for intermediate integration)

@@ -40,12 +40,15 @@ public:
 
     plant_complete_sfc_closed_loop_simulation_builder()
         : _per_unit_system{create_per_unit_system()},
-          grid_side_control{_per_unit_system},
-          machine_side_control{_per_unit_system},
+          grid_side_control{},
+          machine_side_control{},
           plant{_per_unit_system},
           grid_side_hardware_mock{duration_t{10e-6}},
           machine_side_hardware_mock{duration_t{10e-6}}
     {
+        *grid_side_control.per_unit_system = *_per_unit_system;
+        *machine_side_control.per_unit_system = *_per_unit_system;
+
         // Stage parameters for hardware mocks (ADC + transducers)
         plant_hardware::stage_grid_side_hardware_mock_parameters(grid_side_hardware_mock);
         plant_hardware::stage_machine_side_hardware_mock_parameters(machine_side_hardware_mock);
@@ -77,35 +80,24 @@ public:
         // so we cannot write() directly anymore. Instead, inputs come from the simulation command
         // signals (auxiliaries_are_on, breakers_are_on, etc.) which are connected in connect_all_components().
 
-        // Mock excitation control inputs
-        machine_side_control.exciter_ready.write(true);  // Exciter is ready (perfect exciter)
-        machine_side_control.excitation_start_command.write(true);
-        machine_side_control.excitation_stop_command.write(false);
+        // For machine-side control, we need to access the internal bridge signals via mock_signal_input
+        // These are internal signals used for routing commands from tests to the control components
+
+        // Mock excitation control inputs via internal signals
+        yeet::mock_signal_input::write(
+            machine_side_control.get_io().digital_inputs.exciter_ready, true);  // Exciter is ready (perfect exciter)
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.excitation_start_command, true);
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.excitation_stop_command, false);
 
         // Speed generator profile commands (all false by default, set manually in tests)
-        machine_side_control.run_creep_speed.write(false);
-        machine_side_control.run_purge_accel.write(false);
-        machine_side_control.run_ignition_accel.write(false);
-        machine_side_control.run_assist_accel.write(false);
-        machine_side_control.hold_speed.write(false);
-        machine_side_control.decelerate.write(false);
-        machine_side_control.idle.write(true);  // Start in idle mode by default
-
-        // Note: Torque controller dynamic limits now managed by speed generator
-        // Old mock values removed - speed generator provides these outputs based on active profile
-
-        // Grid-side control inputs now connected via I/O interface in connect_all_components():
-        // - measured_speed_pu (connected from machine-side observer)
-        // - pulse_releases (connected from grid-side state machine)
-        // - operating_mode (connected from operation mode monitor)
-        // - dc_link_current_pu (connected from dc link measurements)
-        // - force_commutation_acknowledged (connected from grid-side modulator)
-        // - request_force_commutation (connected from machine-side modulator)
-        // - freeze_integrator (connected from state machine)
-        // - current_controller_is_saturated (connected from current controller)
-
-        // Only mock the machine voltage magnitude if not available from measurements
-        // machine_side_control.machine_side_voltage_magnitude.write(voltage_pu_t{0.0});
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_creep_speed, false);
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_purge_accel, false);
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_ignition_accel, false);
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_assist_accel, false);
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.hold_speed, false);
+        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.decelerate, false);
+        yeet::mock_signal_input::write(
+            machine_side_control.get_io().digital_inputs.idle, true);  // Start in idle mode by default
 
         // Mock plant inputs
         load_torque_pu.write(torque_pu_t{0.0});
