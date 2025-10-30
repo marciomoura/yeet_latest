@@ -20,6 +20,8 @@ import numpy as np
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 
+from monitor_client.config import get_grid_side_plots, get_default_visible_groups
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,67 +103,17 @@ class OscilloscopeWidget(QtWidgets.QWidget):
     def create_standard_plots(self):
         """Create the standard plot set for telemetry monitoring.
         
-        Plots:
-        - Measurements: Voltage (magnitude), Current (phase A/B/C)
-        - Observer: Estimated voltage and frequency
-        - DC Link: Reference and measured currents
-        - Current Measurements: Detailed ABC + DC-link
-        - Observer Voltage Analysis: Measured vs observed voltages
-        - Observer Frequency & Angle: Frequency and phase angle
+        Loads grid-side plot definitions from configuration module.
         """
-        
-        # Define plot structure: group -> plot_name -> config
-        plot_definitions = {
-            'measurements': {
-                'voltage_and_current': {
-                    'title': 'Grid Measurements',
-                    'y_label': 'Magnitude (pu)',
-                    'signals': [
-                        {'name': 'Voltage', 'color': 'g', 'index': 1},
-                        {'name': 'Current A', 'color': 'r', 'index': 2},
-                        {'name': 'Current B', 'color': 'c', 'index': 3},
-                        {'name': 'Current C', 'color': 'm', 'index': 4}
-                    ]
-                }
-            },
-            'observer': {
-                'voltage_freq': {
-                    'title': 'Observer',
-                    'y_label': 'Observer',
-                    'signals': [
-                        {'name': 'V Est (pu)', 'color': 'c', 'index': 1},
-                        {'name': 'Freq (pu)', 'color': 'm', 'index': 2}
-                    ]
-                }
-            },
-            'current_controller': {
-                'dclink': {
-                    'title': 'DC Link Control',
-                    'y_label': 'Current (pu)',
-                    'signals': [
-                        {'name': 'Reference', 'color': 'y', 'index': 1},
-                        {'name': 'Measured', 'color': 'w', 'index': 2}
-                    ]
-                }
-            },
-            'modulator': {
-                'firing_angle_control': {
-                    'title': 'Firing Angle Control',
-                    'y_label': 'Angle (rad)',
-                    'signals': [
-                        {'name': 'Input', 'color': 'y', 'index': 1},
-                        {'name': 'Output', 'color': 'w', 'index': 2},
-                        {'name': 'Enabled', 'color': 'c', 'index': 3}
-                    ]
-                }
-            }
-        }
+        # Get plot definitions from config
+        plot_definitions = get_grid_side_plots()
+        default_visible = get_default_visible_groups('grid')
         
         # Create plots from definitions
         self.visible_views_order = []
         for group_name, group_plots in plot_definitions.items():
             self.plot_groups[group_name] = {}
-            self.view_configs[group_name] = {'visible': group_name in ['measurements', 'observer', 'current_controller']}
+            self.view_configs[group_name] = {'visible': group_name in default_visible}
             
             if self.view_configs[group_name]['visible']:
                 self.visible_views_order.append(group_name)
@@ -414,32 +366,39 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             
             # Clear the layout safely - handle potential tracking issues in pyqtgraph
             try:
-                self.plots_container.clear()
-            except (ValueError, RuntimeError, AttributeError) as e:
-                # If clear() fails, try removing items individually
-                logger.debug(f"Layout clear() failed, attempting manual removal: {e}")
+                # Try to remove items individually first (safer than clear())
+                items_to_remove = []
+                for group_plots in self.plot_groups.values():
+                    for plot_item in group_plots.values():
+                        items_to_remove.append(plot_item)
+                
+                for plot_item in items_to_remove:
+                    try:
+                        self.plots_container.removeItem(plot_item)
+                    except (ValueError, RuntimeError, KeyError, AttributeError):
+                        # Item may not be in layout, continue
+                        pass
+                
+                # Now try clear() to reset internal state
                 try:
-                    # Get list of items currently in layout (GraphicsLayout stores items internally)
-                    # We'll iterate through plot groups and try to remove each plot
-                    for group_plots in self.plot_groups.values():
-                        for plot_item in group_plots.values():
-                            try:
-                                self.plots_container.removeItem(plot_item)
-                            except (ValueError, RuntimeError):
-                                # Item may not be in layout, continue
-                                pass
-                except Exception as e2:
-                    logger.warning(f"Manual layout clearing also failed: {e2}")
+                    self.plots_container.clear()
+                except (ValueError, RuntimeError, KeyError, AttributeError) as e:
+                    logger.debug(f"plots_container.clear() failed after removeItem: {e}")
+                    
+            except Exception as e:
+                logger.warning(f"Layout clearing failed: {e}")
             
             self.plots_container.setBackground('#1e1e1e')
             
             # Recreate plots in new layout
             if self.layout_mode == "1xN":
                 # Vertical stack: one plot per row
-                for row, group_name in enumerate(self.visible_views_order):
+                row = 0
+                for group_name in self.visible_views_order:
                     if group_name in self.plot_groups:
                         for plot_name, plot_item in self.plot_groups[group_name].items():
                             self.plots_container.addItem(plot_item, row=row, col=0)
+                            row += 1
             
             elif self.layout_mode == "2x2":
                 # 2x2 grid layout

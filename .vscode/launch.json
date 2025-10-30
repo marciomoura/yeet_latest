@@ -2,7 +2,45 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) sfc host simulator",
+            "name": "(gdb) sfc grid-side host simulator",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-host/bin/Debug/sfc_grid_side_host_simulator.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) sfc machine-side host simulator",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-host/bin/Debug/sfc_machine_side_host_simulator.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) sfc host simulator (legacy)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build-host/bin/Debug/sfc_host_simulator.exe",

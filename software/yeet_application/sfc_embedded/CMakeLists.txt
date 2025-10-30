@@ -207,52 +207,22 @@ if(NOT YEET_SFC_HOST_BUILD)
     message(STATUS "yeet sfc_embedded: Linked with ${EMBEDDED_LIBRARY}")
 endif() # NOT YEET_SFC_HOST_BUILD
 
-# ==================== Host Simulator Target ====================
+# ==================== Host Simulator Targets ====================
 if(YEET_SFC_HOST_BUILD)
-    message(STATUS "yeet sfc_embedded: Building HOST SIMULATOR 💻")
+    message(STATUS "yeet sfc_embedded: Building HOST SIMULATORS 💻")
 
-    # Determine which control side to build
-    set(YEET_SFC_HOST_SIDE
-        "GRID"
-        CACHE STRING "Select which side for host simulator: GRID or MACHINE")
-    set_property(CACHE YEET_SFC_HOST_SIDE PROPERTY STRINGS "GRID" "MACHINE")
-
-    if(NOT
-       YEET_SFC_HOST_SIDE
-       MATCHES
-       "^(GRID|MACHINE)$")
-        message(FATAL_ERROR "YEET_SFC_HOST_SIDE must be GRID or MACHINE")
-    endif()
-
-    # Determine which control sources to include
-    if(YEET_SFC_HOST_SIDE STREQUAL "MACHINE")
-        set(CONTROL_SOURCES src/machine_side_tasks.cpp)
-        set(HOST_SIDE_DEF MACHINE_SIDE_HOST)
-        message(
-            STATUS
-                "yeet sfc_embedded: Host simulator configured for MACHINE-SIDE control"
-        )
-    else()
-        set(CONTROL_SOURCES src/grid_side_tasks.cpp)
-        set(HOST_SIDE_DEF "")
-        message(
-            STATUS
-                "yeet sfc_embedded: Host simulator configured for GRID-SIDE control"
-        )
-    endif()
-
-    # Host simulator executable
-    add_executable(sfc_host_simulator)
+    # ==================== Grid-Side Host Simulator ====================
+    add_executable(sfc_grid_side_host_simulator)
 
     target_sources(
-        sfc_host_simulator
+        sfc_grid_side_host_simulator
         PRIVATE # Host platform layer
                 src/host_platform/host_main.cpp
                 src/host_platform/host_tcp_server.cpp
                 src/host_platform/host_timing.cpp
                 src/host_platform/host_io_mocks.cpp
-                # Actual embedded control code (conditionally compiled)
-                ${CONTROL_SOURCES}
+                # Grid-side control code
+                src/grid_side_tasks.cpp
                 src/fiber_optic_protocol.cpp
                 src/network_telemetry.cpp
                 src/grid_side_telemetry_builder.cpp
@@ -262,29 +232,74 @@ if(YEET_SFC_HOST_BUILD)
                 src/network_handler.cpp
                 src/parameter_handler.cpp)
 
-    target_include_directories(sfc_host_simulator
+    target_include_directories(sfc_grid_side_host_simulator
                                PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
     target_link_libraries(
-        sfc_host_simulator PRIVATE yeet::yeet_control
-                                   yeet::yeet_application_sfc_integration)
+        sfc_grid_side_host_simulator
+        PRIVATE yeet::yeet_control yeet::yeet_application_sfc_integration)
 
-    # Host-specific compile definitions
-    target_compile_definitions(
-        sfc_host_simulator
-        PRIVATE HOST_BUILD YEET_EMBEDDED_${YEET_SFC_HOST_SIDE}_SIDE
-                ${HOST_SIDE_DEF})
+    target_compile_definitions(sfc_grid_side_host_simulator
+                               PRIVATE HOST_BUILD YEET_EMBEDDED_GRID_SIDE)
 
-    # Platform-specific linking
     if(WIN32)
-        # Windows: Link Winsock2
-        target_link_libraries(sfc_host_simulator PRIVATE ws2_32)
+        target_link_libraries(sfc_grid_side_host_simulator PRIVATE ws2_32)
     else()
-        # Linux: Link pthread for threading
-        target_link_libraries(sfc_host_simulator PRIVATE pthread)
+        target_link_libraries(sfc_grid_side_host_simulator PRIVATE pthread)
     endif()
 
-    message(STATUS "yeet sfc_embedded: Host simulator executable created ✅")
+    message(
+        STATUS "  - Grid-side host simulator: sfc_grid_side_host_simulator ✅")
+
+    # ==================== Machine-Side Host Simulator ====================
+    add_executable(sfc_machine_side_host_simulator)
+
+    target_sources(
+        sfc_machine_side_host_simulator
+        PRIVATE # Host platform layer
+                src/host_platform/host_main.cpp
+                src/host_platform/host_tcp_server.cpp
+                src/host_platform/host_timing.cpp
+                src/host_platform/host_io_mocks.cpp
+                # Machine-side control code
+                src/machine_side_tasks.cpp
+                src/fiber_optic_protocol.cpp
+                src/network_telemetry.cpp
+                src/grid_side_telemetry_builder.cpp
+                src/machine_side_telemetry_builder.cpp
+                src/network_command_parser.cpp
+                src/network_telemetry_manager.cpp
+                src/network_handler.cpp
+                src/parameter_handler.cpp)
+
+    target_include_directories(sfc_machine_side_host_simulator
+                               PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+    target_link_libraries(
+        sfc_machine_side_host_simulator
+        PRIVATE yeet::yeet_control yeet::yeet_application_sfc_integration)
+
+    target_compile_definitions(sfc_machine_side_host_simulator
+                               PRIVATE HOST_BUILD YEET_EMBEDDED_MACHINE_SIDE)
+
+    if(WIN32)
+        target_link_libraries(sfc_machine_side_host_simulator PRIVATE ws2_32)
+    else()
+        target_link_libraries(sfc_machine_side_host_simulator PRIVATE pthread)
+    endif()
+
+    message(
+        STATUS
+            "  - Machine-side host simulator: sfc_machine_side_host_simulator ✅"
+    )
+    message(STATUS "yeet sfc_embedded: Host simulator executables created ✅")
     message(STATUS "  Platform: ${CMAKE_SYSTEM_NAME}")
-    message(STATUS "  Usage: ./sfc_host_simulator --port 7000 --frequency 100")
+    message(
+        STATUS
+            "  Usage: ./sfc_grid_side_host_simulator --port 7000 --frequency 100"
+    )
+    message(
+        STATUS
+            "  Usage: ./sfc_machine_side_host_simulator --port 7001 --frequency 100"
+    )
 endif()

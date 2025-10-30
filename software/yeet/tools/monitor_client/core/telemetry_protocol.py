@@ -5,7 +5,7 @@ import struct
 import zlib
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 
 # Protocol constants
@@ -32,8 +32,8 @@ class PacketType(IntEnum):
     PARAMETER_GET_BY_INDEX_RESPONSE = 0x49
 
 
-class SignalIndex(IntEnum):
-    """Signal array indices matching C++ network_telemetry_builder.cpp."""
+class GridSignalIndex(IntEnum):
+    """Signal array indices for GRID_SIDE_TELEMETRY matching C++ grid_side_telemetry_builder.cpp."""
     GRID_VOLTAGE_MAGNITUDE_FILTERED = 0
     GRID_VOLTAGE_A = 1
     GRID_VOLTAGE_B = 2
@@ -84,6 +84,81 @@ class SignalIndex(IntEnum):
     FIRING_PULSE_5 = 47
     FIRING_PULSE_6 = 48
     PULSE_GENERATOR_ACTIVE = 49
+
+
+class MachineSignalIndex(IntEnum):
+    """Signal array indices for MACHINE_SIDE_TELEMETRY matching C++ machine_side_telemetry_builder.cpp."""
+    # Machine Measurements Group (0-9)
+    MACHINE_VOLTAGE_MAGNITUDE_FILTERED = 0
+    MACHINE_VOLTAGE_A = 1
+    MACHINE_VOLTAGE_B = 2
+    MACHINE_VOLTAGE_C = 3
+    MACHINE_SIDE_SPEED = 4
+    MACHINE_VOLTAGE_MAGNITUDE = 5
+    IS_COMMUTING = 6
+    MACHINE_VOLTAGE_ALPHA = 7
+    MACHINE_VOLTAGE_BETA = 8
+    MACHINE_VOLTAGE_MAGNITUDE_FILTERED_2 = 9
+    
+    # Observer Group (10-14)
+    ESTIMATED_VOLTAGE_MAGNITUDE = 10
+    ESTIMATED_FREQUENCY_PU = 11
+    ESTIMATED_ANGLE_RAD = 12
+    ESTIMATED_FREQUENCY_HZ = 13
+    ESTIMATED_VOLTAGE_ALPHA = 14
+    
+    # Modulator Group (15-19)
+    FIRING_ANGLE_RAD = 15
+    MODULATOR_ENABLED = 16
+    RELEASE_PULSES = 17
+    REQUEST_FORCE_COMMUTATION = 18
+    CURRENT_ROTOR_SECTOR = 19
+    
+    # Machine-Side Controller Group (20-24)
+    CONTROLLER_FIRING_ANGLE = 20
+    CONTROLLER_MACHINE_SPEED = 21
+    CONTROLLER_DC_LINK_CURRENT = 22
+    CONTROLLER_RESERVED_1 = 23
+    CONTROLLER_RESERVED_2 = 24
+    
+    # Torque Controller Group (25-29)
+    TORQUE_CURRENT_REFERENCE = 25
+    TORQUE_BASE_REFERENCE = 26
+    TORQUE_TOTAL_REFERENCE = 27
+    TORQUE_LIMITED_REFERENCE = 28
+    TORQUE_IS_SATURATED = 29
+    
+    # Speed Controller Group (30-34)
+    SPEED_TORQUE_REFERENCE = 30
+    SPEED_MEASURED_SPEED_PU = 31
+    SPEED_ERROR = 32
+    SPEED_PI_OUTPUT = 33
+    SPEED_IS_SATURATED = 34
+    
+    # Speed Generator Group (35-39)
+    GENERATOR_SPEED_REFERENCE = 35
+    GENERATOR_TORQUE_LIMIT_MAX = 36
+    GENERATOR_TORQUE_LIMIT_MIN = 37
+    GENERATOR_IS_PROFILE_COMPLETE = 38
+    GENERATOR_IS_BREAKAWAY_BOOST_ACTIVE = 39
+    
+    # Excitation Controller Group (40-44)
+    EXCITATION_VOLTAGE_SETPOINT = 40
+    EXCITATION_ENABLE = 41
+    EXCITATION_IS_FIELD_ESTABLISHED = 42
+    EXCITATION_IS_RUNNING = 43
+    EXCITATION_RESERVED = 44
+    
+    # Pulse Generator Group (45-49)
+    PULSE_P1 = 45
+    PULSE_P2 = 46
+    PULSE_P3 = 47
+    PULSE_P4 = 48
+    PULSE_P5 = 49
+
+
+# For backward compatibility
+SignalIndex = GridSignalIndex
 
 
 @dataclass
@@ -182,6 +257,68 @@ class PulseGeneratorData:
     is_active: bool = False
 
 
+# Machine-side specific data classes
+@dataclass
+class MachineMeasurements:
+    """Machine-side measurements."""
+    machine_voltage_magnitude_filtered_pu: float = 0.0
+    machine_voltage_a_pu: float = 0.0
+    machine_voltage_b_pu: float = 0.0
+    machine_voltage_c_pu: float = 0.0
+    machine_side_speed: float = 0.0
+    machine_voltage_magnitude: float = 0.0
+    is_commuting: bool = False
+    machine_voltage_alpha_pu: float = 0.0
+    machine_voltage_beta_pu: float = 0.0
+
+
+@dataclass
+class MachineControllerData:
+    """Machine-side controller data."""
+    controller_firing_angle: float = 0.0
+    controller_machine_speed: float = 0.0
+    controller_dc_link_current: float = 0.0
+
+
+@dataclass
+class TorqueControllerData:
+    """Torque controller data."""
+    torque_current_reference_pu: float = 0.0
+    torque_base_reference: float = 0.0
+    torque_total_reference: float = 0.0
+    torque_limited_reference: float = 0.0
+    torque_is_saturated: bool = False
+
+
+@dataclass
+class SpeedControllerData:
+    """Speed controller data."""
+    speed_torque_reference: float = 0.0
+    speed_measured_speed_pu: float = 0.0
+    speed_error: float = 0.0
+    speed_pi_output: float = 0.0
+    speed_is_saturated: bool = False
+
+
+@dataclass
+class SpeedGeneratorData:
+    """Speed generator data."""
+    generator_speed_reference_pu: float = 0.0
+    generator_torque_limit_max_pu: float = 0.0
+    generator_torque_limit_min_pu: float = 0.0
+    generator_is_profile_complete: bool = False
+    generator_is_breakaway_boost_active: bool = False
+
+
+@dataclass
+class ExcitationControllerData:
+    """Excitation controller data."""
+    excitation_voltage_setpoint_pu: float = 0.0
+    excitation_enable: bool = False
+    excitation_is_field_established: bool = False
+    excitation_is_running: bool = False
+
+
 @dataclass
 class GridSideTelemetryPacket:
     """Grid-side telemetry packet with variable-length signal array."""
@@ -202,92 +339,235 @@ class GridSideTelemetryPacket:
     def measurements(self) -> GridMeasurements:
         """Extract grid measurements from signal array."""
         return GridMeasurements(
-            grid_voltage_magnitude_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED),
-            grid_voltage_a_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_A),
-            grid_voltage_b_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_B),
-            grid_voltage_c_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_C),
-            grid_current_magnitude_pu=self.get_signal(SignalIndex.GRID_CURRENT_MAGNITUDE),
-            grid_current_a_pu=self.get_signal(SignalIndex.GRID_CURRENT_A),
-            grid_current_b_pu=self.get_signal(SignalIndex.GRID_CURRENT_B),
-            grid_current_c_pu=self.get_signal(SignalIndex.GRID_CURRENT_C),
-            dc_link_current_pu=self.get_signal(SignalIndex.DC_LINK_CURRENT),
-            is_commuting=self.get_bool_signal(SignalIndex.IS_COMMUTING),
-            grid_voltage_alpha_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_ALPHA),
-            grid_voltage_beta_pu=self.get_signal(SignalIndex.GRID_VOLTAGE_BETA),
-            grid_side_frequency_hz=self.get_signal(SignalIndex.GRID_SIDE_FREQUENCY),
+            grid_voltage_magnitude_pu=self.get_signal(GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED),
+            grid_voltage_a_pu=self.get_signal(GridSignalIndex.GRID_VOLTAGE_A),
+            grid_voltage_b_pu=self.get_signal(GridSignalIndex.GRID_VOLTAGE_B),
+            grid_voltage_c_pu=self.get_signal(GridSignalIndex.GRID_VOLTAGE_C),
+            grid_current_magnitude_pu=self.get_signal(GridSignalIndex.GRID_CURRENT_MAGNITUDE),
+            grid_current_a_pu=self.get_signal(GridSignalIndex.GRID_CURRENT_A),
+            grid_current_b_pu=self.get_signal(GridSignalIndex.GRID_CURRENT_B),
+            grid_current_c_pu=self.get_signal(GridSignalIndex.GRID_CURRENT_C),
+            dc_link_current_pu=self.get_signal(GridSignalIndex.DC_LINK_CURRENT),
+            is_commuting=self.get_bool_signal(GridSignalIndex.IS_COMMUTING),
+            grid_voltage_alpha_pu=self.get_signal(GridSignalIndex.GRID_VOLTAGE_ALPHA),
+            grid_voltage_beta_pu=self.get_signal(GridSignalIndex.GRID_VOLTAGE_BETA),
+            grid_side_frequency_hz=self.get_signal(GridSignalIndex.GRID_SIDE_FREQUENCY),
         )
     
     @property
     def observer(self) -> ObserverData:
         """Extract observer estimates from signal array."""
         return ObserverData(
-            estimated_voltage_magnitude_pu=self.get_signal(SignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE),
-            estimated_frequency_pu=self.get_signal(SignalIndex.ESTIMATED_FREQUENCY_PU),
-            estimated_angle_rad=self.get_signal(SignalIndex.ESTIMATED_ANGLE_RAD),
-            estimated_frequency_hz=self.get_signal(SignalIndex.ESTIMATED_FREQUENCY_HZ),
-            estimated_voltage_alpha_pu=self.get_signal(SignalIndex.ESTIMATED_VOLTAGE_ALPHA),
-            estimated_voltage_beta_pu=self.get_signal(SignalIndex.ESTIMATED_VOLTAGE_BETA),
+            estimated_voltage_magnitude_pu=self.get_signal(GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE),
+            estimated_frequency_pu=self.get_signal(GridSignalIndex.ESTIMATED_FREQUENCY_PU),
+            estimated_angle_rad=self.get_signal(GridSignalIndex.ESTIMATED_ANGLE_RAD),
+            estimated_frequency_hz=self.get_signal(GridSignalIndex.ESTIMATED_FREQUENCY_HZ),
+            estimated_voltage_alpha_pu=self.get_signal(GridSignalIndex.ESTIMATED_VOLTAGE_ALPHA),
+            estimated_voltage_beta_pu=self.get_signal(GridSignalIndex.ESTIMATED_VOLTAGE_BETA),
         )
     
     @property
     def modulator(self) -> ModulatorData:
         """Extract modulator signals from signal array."""
         return ModulatorData(
-            is_enabled=self.get_bool_signal(SignalIndex.MODULATOR_ENABLED),
-            firing_angle_input_pu=self.get_signal(SignalIndex.CONTROLLER_OUTPUT),
-            firing_angle_output_pu=self.get_signal(SignalIndex.FIRING_ANGLE_RAD),
-            force_commutation_ack=self.get_bool_signal(SignalIndex.FORCE_COMMUTATION_ACK),
-            is_requesting_pi_reset=self.get_bool_signal(SignalIndex.IS_REQUESTING_PI_RESET),
+            is_enabled=self.get_bool_signal(GridSignalIndex.MODULATOR_ENABLED),
+            firing_angle_input_pu=self.get_signal(GridSignalIndex.CONTROLLER_OUTPUT),
+            firing_angle_output_pu=self.get_signal(GridSignalIndex.FIRING_ANGLE_RAD),
+            force_commutation_ack=self.get_bool_signal(GridSignalIndex.FORCE_COMMUTATION_ACK),
+            is_requesting_pi_reset=self.get_bool_signal(GridSignalIndex.IS_REQUESTING_PI_RESET),
         )
     
     @property
     def controller(self) -> ControllerData:
         """Extract controller state from signal array."""
         return ControllerData(
-            dc_link_current_reference=self.get_signal(SignalIndex.DC_LINK_CURRENT_REFERENCE),
-            dc_link_current_measured=self.get_signal(SignalIndex.DC_LINK_CURRENT_MEASURED),
-            current_error_pu=self.get_signal(SignalIndex.CURRENT_ERROR),
-            controller_output_pu=self.get_signal(SignalIndex.CONTROLLER_OUTPUT),
-            operating_mode=self.get_bool_signal(SignalIndex.OPERATING_MODE),
-            controller_saturated=self.get_bool_signal(SignalIndex.CONTROLLER_SATURATED),
-            freeze_integrator=self.get_bool_signal(SignalIndex.FREEZE_INTEGRATOR),
+            dc_link_current_reference=self.get_signal(GridSignalIndex.DC_LINK_CURRENT_REFERENCE),
+            dc_link_current_measured=self.get_signal(GridSignalIndex.DC_LINK_CURRENT_MEASURED),
+            current_error_pu=self.get_signal(GridSignalIndex.CURRENT_ERROR),
+            controller_output_pu=self.get_signal(GridSignalIndex.CONTROLLER_OUTPUT),
+            operating_mode=self.get_bool_signal(GridSignalIndex.OPERATING_MODE),
+            controller_saturated=self.get_bool_signal(GridSignalIndex.CONTROLLER_SATURATED),
+            freeze_integrator=self.get_bool_signal(GridSignalIndex.FREEZE_INTEGRATOR),
         )
     
     @property
     def state_machine(self) -> StateMachineData:
         """Extract state machine flags from signal array."""
         return StateMachineData(
-            current_state=int(self.get_signal(SignalIndex.STATE_MACHINE_STATE)),
-            pulse_releases=self.get_bool_signal(SignalIndex.PULSE_RELEASES),
-            auxiliaries_are_on=self.get_bool_signal(SignalIndex.AUXILIARIES_ON),
-            breakers_are_on=self.get_bool_signal(SignalIndex.BREAKERS_ON),
-            start_command=self.get_bool_signal(SignalIndex.START_COMMAND),
-            stop_command=self.get_bool_signal(SignalIndex.STOP_COMMAND),
-            is_current_extinguished=self.get_bool_signal(SignalIndex.CURRENT_EXTINGUISHED),
-            is_shutdown_requested=self.get_bool_signal(SignalIndex.SHUTDOWN_REQUESTED),
+            current_state=int(self.get_signal(GridSignalIndex.STATE_MACHINE_STATE)),
+            pulse_releases=self.get_bool_signal(GridSignalIndex.PULSE_RELEASES),
+            auxiliaries_are_on=self.get_bool_signal(GridSignalIndex.AUXILIARIES_ON),
+            breakers_are_on=self.get_bool_signal(GridSignalIndex.BREAKERS_ON),
+            start_command=self.get_bool_signal(GridSignalIndex.START_COMMAND),
+            stop_command=self.get_bool_signal(GridSignalIndex.STOP_COMMAND),
+            is_current_extinguished=self.get_bool_signal(GridSignalIndex.CURRENT_EXTINGUISHED),
+            is_shutdown_requested=self.get_bool_signal(GridSignalIndex.SHUTDOWN_REQUESTED),
         )
     
     @property
     def operation_mode_monitor(self) -> OperationModeMonitorData:
         """Extract operation mode monitor from signal array."""
         return OperationModeMonitorData(
-            mode=int(self.get_signal(SignalIndex.OPERATION_MODE)),
-            mode_changed=self.get_bool_signal(SignalIndex.MODE_CHANGED),
-            current_zero=self.get_bool_signal(SignalIndex.CURRENT_ZERO),
-            discontinuous_mode=self.get_bool_signal(SignalIndex.DISCONTINUOUS_MODE),
+            mode=int(self.get_signal(GridSignalIndex.OPERATION_MODE)),
+            mode_changed=self.get_bool_signal(GridSignalIndex.MODE_CHANGED),
+            current_zero=self.get_bool_signal(GridSignalIndex.CURRENT_ZERO),
+            discontinuous_mode=self.get_bool_signal(GridSignalIndex.DISCONTINUOUS_MODE),
         )
     
     @property
     def pulse_generator(self) -> PulseGeneratorData:
         """Extract pulse generator outputs from signal array."""
         return PulseGeneratorData(
-            firing_pulse_1=self.get_bool_signal(SignalIndex.FIRING_PULSE_1),
-            firing_pulse_2=self.get_bool_signal(SignalIndex.FIRING_PULSE_2),
-            firing_pulse_3=self.get_bool_signal(SignalIndex.FIRING_PULSE_3),
-            firing_pulse_4=self.get_bool_signal(SignalIndex.FIRING_PULSE_4),
-            firing_pulse_5=self.get_bool_signal(SignalIndex.FIRING_PULSE_5),
-            firing_pulse_6=self.get_bool_signal(SignalIndex.FIRING_PULSE_6),
-            is_active=self.get_bool_signal(SignalIndex.PULSE_GENERATOR_ACTIVE),
+            firing_pulse_1=self.get_bool_signal(GridSignalIndex.FIRING_PULSE_1),
+            firing_pulse_2=self.get_bool_signal(GridSignalIndex.FIRING_PULSE_2),
+            firing_pulse_3=self.get_bool_signal(GridSignalIndex.FIRING_PULSE_3),
+            firing_pulse_4=self.get_bool_signal(GridSignalIndex.FIRING_PULSE_4),
+            firing_pulse_5=self.get_bool_signal(GridSignalIndex.FIRING_PULSE_5),
+            firing_pulse_6=self.get_bool_signal(GridSignalIndex.FIRING_PULSE_6),
+            is_active=self.get_bool_signal(GridSignalIndex.PULSE_GENERATOR_ACTIVE),
+        )
+
+
+@dataclass
+class MachineSideTelemetryPacket:
+    """Machine-side telemetry packet with variable-length signal array."""
+    header: TelemetryPacketHeader
+    signals: List[float]
+    
+    def get_signal(self, index: int, default: float = 0.0) -> float:
+        """Get signal by index with bounds checking."""
+        if 0 <= index < len(self.signals):
+            return self.signals[index]
+        return default
+    
+    def get_bool_signal(self, index: int, default: bool = False) -> bool:
+        """Get boolean signal (converts 1.0/0.0 to True/False)."""
+        return bool(self.get_signal(index, 1.0 if default else 0.0))
+    
+    @property
+    def measurements(self) -> MachineMeasurements:
+        """Extract machine measurements from signal array."""
+        return MachineMeasurements(
+            machine_voltage_magnitude_filtered_pu=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED),
+            machine_voltage_a_pu=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_A),
+            machine_voltage_b_pu=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_B),
+            machine_voltage_c_pu=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_C),
+            machine_side_speed=self.get_signal(MachineSignalIndex.MACHINE_SIDE_SPEED),
+            machine_voltage_magnitude=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE),
+            is_commuting=self.get_bool_signal(MachineSignalIndex.IS_COMMUTING),
+            machine_voltage_alpha_pu=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_ALPHA),
+            machine_voltage_beta_pu=self.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_BETA),
+        )
+    
+    @property
+    def observer(self) -> ObserverData:
+        """Extract machine observer estimates from signal array."""
+        return ObserverData(
+            estimated_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE),
+            estimated_frequency_pu=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU),
+            estimated_angle_rad=self.get_signal(MachineSignalIndex.ESTIMATED_ANGLE_RAD),
+            estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ),
+            estimated_voltage_alpha_pu=self.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_ALPHA),
+            estimated_voltage_beta_pu=self.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_ALPHA),
+        )
+    
+    @property
+    def modulator(self) -> ModulatorData:
+        """Extract machine modulator signals from signal array."""
+        return ModulatorData(
+            is_enabled=self.get_bool_signal(MachineSignalIndex.MODULATOR_ENABLED),
+            firing_angle_input_pu=self.get_signal(MachineSignalIndex.CURRENT_ROTOR_SECTOR),
+            firing_angle_output_pu=self.get_signal(MachineSignalIndex.FIRING_ANGLE_RAD),
+            force_commutation_ack=self.get_bool_signal(MachineSignalIndex.REQUEST_FORCE_COMMUTATION),
+            is_requesting_pi_reset=self.get_bool_signal(MachineSignalIndex.RELEASE_PULSES),
+        )
+    
+    @property
+    def controller(self) -> MachineControllerData:
+        """Extract machine controller state from signal array."""
+        return MachineControllerData(
+            controller_firing_angle=self.get_signal(MachineSignalIndex.CONTROLLER_FIRING_ANGLE),
+            controller_machine_speed=self.get_signal(MachineSignalIndex.CONTROLLER_MACHINE_SPEED),
+            controller_dc_link_current=self.get_signal(MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT),
+        )
+    
+    @property
+    def torque_controller(self) -> TorqueControllerData:
+        """Extract torque controller state from signal array."""
+        return TorqueControllerData(
+            torque_current_reference_pu=self.get_signal(MachineSignalIndex.TORQUE_CURRENT_REFERENCE),
+            torque_base_reference=self.get_signal(MachineSignalIndex.TORQUE_BASE_REFERENCE),
+            torque_total_reference=self.get_signal(MachineSignalIndex.TORQUE_TOTAL_REFERENCE),
+            torque_limited_reference=self.get_signal(MachineSignalIndex.TORQUE_LIMITED_REFERENCE),
+            torque_is_saturated=self.get_bool_signal(MachineSignalIndex.TORQUE_IS_SATURATED),
+        )
+    
+    @property
+    def speed_controller(self) -> SpeedControllerData:
+        """Extract speed controller state from signal array."""
+        return SpeedControllerData(
+            speed_torque_reference=self.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE),
+            speed_measured_speed_pu=self.get_signal(MachineSignalIndex.SPEED_MEASURED_SPEED_PU),
+            speed_error=self.get_signal(MachineSignalIndex.SPEED_ERROR),
+            speed_pi_output=self.get_signal(MachineSignalIndex.SPEED_PI_OUTPUT),
+            speed_is_saturated=self.get_bool_signal(MachineSignalIndex.SPEED_IS_SATURATED),
+        )
+    
+    @property
+    def speed_generator(self) -> SpeedGeneratorData:
+        """Extract speed generator state from signal array."""
+        return SpeedGeneratorData(
+            generator_speed_reference_pu=self.get_signal(MachineSignalIndex.GENERATOR_SPEED_REFERENCE),
+            generator_torque_limit_max_pu=self.get_signal(MachineSignalIndex.GENERATOR_TORQUE_LIMIT_MAX),
+            generator_torque_limit_min_pu=self.get_signal(MachineSignalIndex.GENERATOR_TORQUE_LIMIT_MIN),
+            generator_is_profile_complete=self.get_bool_signal(MachineSignalIndex.GENERATOR_IS_PROFILE_COMPLETE),
+            generator_is_breakaway_boost_active=self.get_bool_signal(MachineSignalIndex.GENERATOR_IS_BREAKAWAY_BOOST_ACTIVE),
+        )
+    
+    @property
+    def excitation_controller(self) -> ExcitationControllerData:
+        """Extract excitation controller state from signal array."""
+        return ExcitationControllerData(
+            excitation_voltage_setpoint_pu=self.get_signal(MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT),
+            excitation_enable=self.get_bool_signal(MachineSignalIndex.EXCITATION_ENABLE),
+            excitation_is_field_established=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED),
+            excitation_is_running=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_RUNNING),
+        )
+    
+    @property
+    def state_machine(self) -> StateMachineData:
+        """Extract machine state machine flags from signal array (empty for machine side)."""
+        return StateMachineData(
+            current_state=0,
+            pulse_releases=False,
+            auxiliaries_are_on=False,
+            breakers_are_on=False,
+            start_command=False,
+            stop_command=False,
+            is_current_extinguished=False,
+            is_shutdown_requested=False,
+        )
+    
+    @property
+    def operation_mode_monitor(self) -> OperationModeMonitorData:
+        """Extract machine operation mode monitor (not applicable, return defaults)."""
+        return OperationModeMonitorData(
+            mode=0,
+            mode_changed=False,
+            current_zero=False,
+            discontinuous_mode=False,
+        )
+    
+    @property
+    def pulse_generator(self) -> PulseGeneratorData:
+        """Extract machine pulse generator outputs from signal array."""
+        return PulseGeneratorData(
+            firing_pulse_1=self.get_bool_signal(MachineSignalIndex.PULSE_P1),
+            firing_pulse_2=self.get_bool_signal(MachineSignalIndex.PULSE_P2),
+            firing_pulse_3=self.get_bool_signal(MachineSignalIndex.PULSE_P3),
+            firing_pulse_4=self.get_bool_signal(MachineSignalIndex.PULSE_P4),
+            firing_pulse_5=self.get_bool_signal(MachineSignalIndex.PULSE_P5),
+            firing_pulse_6=False,  # Not available on machine side (only 5 pulses)
         )
 
 
@@ -342,8 +622,8 @@ class TelemetryDecoder:
         is_valid = (magic == SYNC_MAGIC)
         return (4, is_valid)
     
-    def decode(self, data: bytes, verbose: bool = False) -> Optional[Tuple[GridSideTelemetryPacket, int]]:
-        """Decode binary telemetry data into structured packet."""
+    def decode(self, data: bytes, verbose: bool = False) -> Optional[Tuple[Union[GridSideTelemetryPacket, MachineSideTelemetryPacket], int]]:
+        """Decode binary telemetry data into structured packet (grid or machine side)."""
         if len(data) < self.HEADER_SIZE:
             if verbose:
                 hex_preview = data[:min(16, len(data))].hex() if len(data) > 0 else "(empty)"
@@ -369,15 +649,16 @@ class TelemetryDecoder:
         
         if verbose:
             print(f"[DECODE] Header decoded successfully:")
-            print(f"  packet_type: 0x{header.packet_type:02X} (expected 0x{PacketType.GRID_SIDE_TELEMETRY:02X})")
+            print(f"  packet_type: 0x{header.packet_type:02X} (GRID=0x{PacketType.GRID_SIDE_TELEMETRY:02X}, MACHINE=0x{PacketType.MACHINE_SIDE_TELEMETRY:02X})")
             print(f"  protocol_version: {header.protocol_version} (expected {PROTOCOL_VERSION})")
             print(f"  signal_count: {header.signal_count}")
             print(f"  timestamp_ms: {header.timestamp_ms}")
             print(f"  sequence_number: {header.sequence_number}")
         
-        if header.packet_type != PacketType.GRID_SIDE_TELEMETRY:
+        # Determine packet type (support both grid and machine side)
+        if header.packet_type not in (PacketType.GRID_SIDE_TELEMETRY, PacketType.MACHINE_SIDE_TELEMETRY):
             if verbose:
-                print(f"[DECODE ERROR] Packet type mismatch: got 0x{header.packet_type:02X}, expected 0x{PacketType.GRID_SIDE_TELEMETRY:02X}")
+                print(f"[DECODE ERROR] Unsupported packet type: 0x{header.packet_type:02X}")
             return None
         
         if header.protocol_version != PROTOCOL_VERSION:
@@ -456,9 +737,16 @@ class TelemetryDecoder:
             if len(signals) > 0:
                 print(f"[DECODE] First few signals: {signals[:min(10, len(signals))]}")
         
-        packet = GridSideTelemetryPacket(
-            header=header,
-            signals=signals
-        )
+        # Create appropriate packet type
+        if header.packet_type == PacketType.GRID_SIDE_TELEMETRY:
+            packet: Union[GridSideTelemetryPacket, MachineSideTelemetryPacket] = GridSideTelemetryPacket(
+                header=header,
+                signals=signals
+            )
+        else:  # MACHINE_SIDE_TELEMETRY
+            packet = MachineSideTelemetryPacket(
+                header=header,
+                signals=signals
+            )
         
         return (packet, offset)

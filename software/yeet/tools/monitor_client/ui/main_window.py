@@ -14,6 +14,7 @@ Architecture:
 import sys
 import logging
 import time
+import traceback
 from collections import deque
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -23,10 +24,12 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 
 from monitor_client.core.unified_network_client import UnifiedNetworkClient
-from monitor_client.core.telemetry_protocol import GridSideTelemetryPacket
+from monitor_client.core.telemetry_protocol import GridSideTelemetryPacket, MachineSideTelemetryPacket
 from monitor_client.core.parameter_protocol import ParameterMetadata
 from monitor_client.core.data_persistence import DataPersistence, TelemetrySample
 from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
+from monitor_client.ui.telemetry_panel import GridSideTelemetryPanel, MachineSideTelemetryPanel
+from monitor_client.config import get_machine_side_plots, get_default_visible_groups
 
 logger = logging.getLogger(__name__)
 
@@ -111,12 +114,13 @@ class ParameterEditDialog(QtWidgets.QDialog):
 class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     """Minimal telemetry monitor with parameters, plots, and dashboard."""
     
-    def __init__(self, host: str, port: int, verbose: bool = False, decimate: int = 0, window_size: int = 2):
+    def __init__(self, host: str, port: int, target: str = 'grid', verbose: bool = False, decimate: int = 0, window_size: int = 2):
         super().__init__()
         
-        logger.info(f"=== Monitor with Parameters (verbose={verbose}, decimate={decimate}, window={window_size}) ===")
+        logger.info(f"=== Monitor with Parameters (target={target}, verbose={verbose}, decimate={decimate}, window={window_size}) ===")
         
-        self.setWindowTitle("SFC Monitor - Parameters + Telemetry")
+        self.target_side = target  # 'grid' or 'machine'
+        self.setWindowTitle(f"SFC Monitor - Parameters + Telemetry [{target.upper()}]")
         self.resize(1800, 1000)
         
         # Apply dark theme
@@ -180,8 +184,14 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.avg_count = 0  # Counter for averaging
         
         # Create oscilloscope widget (manages all plots and buffers)
+        # Note: Grid-side and machine-side have different plot sets
         self.oscilloscope = OscilloscopeWidget(window_size=window_size, layout_mode=self.layout_mode)
-        self.oscilloscope.create_standard_plots()
+        
+        if self.target_side == 'grid':
+            self.oscilloscope.create_standard_plots()
+        else:
+            # For machine-side, create machine-specific plots
+            self._create_machine_side_plots()
         
         # Latest telemetry for dashboard
         self.latest_packet = None
@@ -317,8 +327,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         plots_widget = self._build_plots()
         content_layout.addWidget(plots_widget, 60)
         
-        # Right: Telemetry dashboard (20% width)
-        self.telemetry_panel = self._build_telemetry_panel()
+        # Right: Telemetry dashboard (20% width) - choose based on target
+        if target == 'grid':
+            self.telemetry_panel = GridSideTelemetryPanel(parent=self)
+        else:
+            self.telemetry_panel = MachineSideTelemetryPanel(parent=self)
+        
         content_layout.addWidget(self.telemetry_panel, 20)
         
         # Store layout reference for toggling
@@ -377,22 +391,90 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         return panel
     
     def _build_plots(self) -> QtWidgets.QWidget:
-        """Build plots using the OscilloscopeWidget.
+        """Build plots using the OscilloscopeWidget for grid-side and machine-side.
         
         The oscilloscope widget handles all plot creation, data buffering,
-        and rendering. We just wrap it and configure mouse handlers.
+        and rendering. Grid-side shows grid-specific plots, machine-side shows
+        machine-specific plots (measurements, observer, speed control, torque control).
         """
-        # Configure mouse event handler for window size adjustment
-        self.oscilloscope.configure_wheel_handler(self._create_wheel_handler)
-        self.oscilloscope.disable_mouse_interactions()
-        
-        # Wrap in a QWidget for compatibility with layout
         container_widget = QtWidgets.QWidget()
         container_layout = QtWidgets.QVBoxLayout(container_widget)
         container_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Configure mouse event handler for window size adjustment
+        self.oscilloscope.configure_wheel_handler(self._create_wheel_handler)
+        self.oscilloscope.disable_mouse_interactions()
         container_layout.addWidget(self.oscilloscope)
         
         return container_widget
+    
+    def _create_machine_side_plots(self):
+        """Create machine-side oscilloscope plots for monitoring key components.
+        
+        Machine plots include:
+        - Measurements: Voltage (mag, A, B, C), speed, commutation
+        - Observer: Estimated voltage, frequency, angle
+        - Speed Controller: Torque ref, measured speed, error, PI output
+        - Torque Controller: Current refs, references, saturation
+        - Speed Generator: Speed reference, torque limits
+        - Modulator: Firing angles, enabled state
+        - Excitation: Voltage setpoint, field state, running
+        """
+        # Clear any existing state from grid-side plots
+        self.oscilloscope.plot_groups.clear()
+        self.oscilloscope.plot_curves.clear()
+        self.oscilloscope.buffers.clear()
+        self.oscilloscope.view_configs.clear()
+        self.oscilloscope.visible_views_order = []
+        self.oscilloscope._plot_layout_map.clear()
+        
+        # Recreate the plots_container to avoid pyqtgraph internal state corruption
+        old_container = self.oscilloscope.plots_container
+        self.oscilloscope.plots_container = pg.GraphicsLayoutWidget()
+        self.oscilloscope.plots_container.setBackground('#1e1e1e')
+        
+        # Replace the widget in the layout
+        layout = self.oscilloscope.layout()
+        layout.replaceWidget(old_container, self.oscilloscope.plots_container)
+        old_container.deleteLater()
+        
+        # Reset view buttons
+        for button in list(self.oscilloscope.view_buttons.values()):
+            self.oscilloscope.view_button_layout.removeWidget(button)
+            button.deleteLater()
+        self.oscilloscope.view_buttons.clear()
+        
+        # Clear all items from view button layout
+        while self.oscilloscope.view_button_layout.count():
+            item = self.oscilloscope.view_button_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Load plot definitions from configuration
+        plot_definitions = get_machine_side_plots()
+        default_visible = get_default_visible_groups('machine')
+        
+        # Create plots from definitions (following grid-side pattern)
+        self.oscilloscope.visible_views_order = []
+        for group_name, group_plots in plot_definitions.items():
+            self.oscilloscope.plot_groups[group_name] = {}
+            self.oscilloscope.view_configs[group_name] = {
+                'visible': group_name in default_visible
+            }
+            
+            if self.oscilloscope.view_configs[group_name]['visible']:
+                self.oscilloscope.visible_views_order.append(group_name)
+            
+            for plot_name, plot_config in group_plots.items():
+                self.oscilloscope._create_plot(group_name, plot_name, plot_config)
+        
+        # Create view toggle buttons for each defined group
+        self.oscilloscope._create_view_buttons()
+        
+        # Initial layout organization - defer this to avoid layout state issues
+        # The layout will be properly organized on first data update
+        # This avoids the "Cell already taken" error from pyqtgraph
+        QtCore.QTimer.singleShot(0, self.oscilloscope._reorganize_subplot_layout)
     
     def _create_wheel_handler(self, viewbox, event):
         """Handle wheel event to adjust window size.
@@ -419,91 +501,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         event.accept()  # Accept the event so it doesn't propagate
     
     
-    def _build_telemetry_panel(self) -> QtWidgets.QWidget:
-        """Build telemetry dashboard panel."""
-        panel = QtWidgets.QWidget()
-        panel.setMaximumWidth(400)
-        
-        # Scrollable area
-        scroll = QtWidgets.QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        
-        # Content widget
-        content = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(content)
-        layout.setSpacing(10)
-        
-        # Header
-        header = QtWidgets.QLabel("TELEMETRY")
-        header.setStyleSheet("color: #00ffff; font-size: 14pt; font-weight: bold;")
-        layout.addWidget(header)
-        
-        # Store labels for updates
-        self.telem_labels: Dict[str, QtWidgets.QLabel] = {}
-        
-        # State Machine
-        self._add_telemetry_section(layout, "State Machine", [
-            "current_state", "pulse_releases", "auxiliaries_are_on", "breakers_are_on",
-            "start_command", "stop_command", "is_current_extinguished", "is_shutdown_requested"
-        ])
-
-        # Grid Measurements
-        self._add_telemetry_section(layout, "Grid Measurements", [
-            "grid_voltage_magnitude_pu", "grid_voltage_a_pu", "grid_voltage_b_pu", "grid_voltage_c_pu",
-            "grid_current_magnitude_pu", "grid_current_a_pu", "grid_current_b_pu", "grid_current_c_pu",
-            "dc_link_current_pu", "is_commuting"
-        ])
-        
-        # Observer
-        self._add_telemetry_section(layout, "Observer", [
-            "estimated_voltage_magnitude_pu", "estimated_frequency_pu", "estimated_angle_rad"
-        ])
-        
-        # Controller
-        self._add_telemetry_section(layout, "Controller", [
-            "dc_link_current_reference", "dc_link_current_measured", 
-            "current_error_pu", "controller_output_pu",
-            "operating_mode", "controller_saturated", "freeze_integrator"
-        ])
-        
-        # Modulator
-        self._add_telemetry_section(layout, "Modulator", [
-            "is_enabled", "firing_angle_input_pu", "firing_angle_output_pu", "force_commutation_ack"
-        ])
-        
-        layout.addStretch()
-        scroll.setWidget(content)
-        
-        # Wrap in layout
-        panel_layout = QtWidgets.QVBoxLayout(panel)
-        panel_layout.setContentsMargins(0, 0, 0, 0)
-        panel_layout.addWidget(scroll)
-        
-        return panel
-    
-    def _add_telemetry_section(self, layout: QtWidgets.QVBoxLayout, title: str, fields: List[str]):
-        """Add a telemetry section with fields."""
-        section_label = QtWidgets.QLabel(title)
-        section_label.setStyleSheet("color: #ffff00; font-weight: bold; font-size: 11pt; margin-top: 10px;")
-        layout.addWidget(section_label)
-        
-        for field in fields:
-            field_layout = QtWidgets.QHBoxLayout()
-            field_layout.setSpacing(5)
-            
-            name_label = QtWidgets.QLabel(field + ":")
-            name_label.setStyleSheet("color: #d0d0d0; font-size: 9pt;")
-            name_label.setMinimumWidth(200)
-            field_layout.addWidget(name_label)
-            
-            value_label = QtWidgets.QLabel("---")
-            value_label.setStyleSheet("color: #ffffff; font-family: 'Courier New'; font-size: 9pt;")
-            value_label.setAlignment(QtCore.Qt.AlignRight)
-            field_layout.addWidget(value_label)
-            
-            self.telem_labels[field] = value_label
-            layout.addLayout(field_layout)
     
     # Connection handlers
     def _on_connect(self):
@@ -537,7 +534,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     # Telemetry handlers
     def _on_start(self):
         """Start telemetry."""
-        self.oscilloscope.clear_buffers()
+        if self.oscilloscope is not None:
+            self.oscilloscope.clear_buffers()
         self.sample_index = 0
         self.packet_counter = 0
         # Reset averaging accumulators
@@ -568,8 +566,9 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _on_clear(self):
         """Clear buffer and reset."""
-        # Clear oscilloscope buffers
-        self.oscilloscope.clear_buffers()
+        # Clear oscilloscope buffers (grid-side only)
+        if self.oscilloscope is not None:
+            self.oscilloscope.clear_buffers()
         self.sample_index = 0
         self.packet_counter = 0
         # Clear persistent data if enabled
@@ -644,7 +643,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     def _on_window_size_changed(self, value: int):
         """Handle window size change at runtime."""
         self.window_size = value
-        self.oscilloscope.set_window_size(value)
+        if self.oscilloscope is not None:
+            self.oscilloscope.set_window_size(value)
         logger.info(f"Window size changed to {value} samples")
     
     def _on_decimation_changed(self, value: int):
@@ -680,8 +680,9 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.layout_mode_btn.setText("1xN (Vertical)")
             logger.info("Switched to 1xN vertical layout")
         
-        # Update oscilloscope layout
-        self.oscilloscope.set_layout_mode(self.layout_mode)
+        # Update oscilloscope layout (grid-side only)
+        if self.oscilloscope is not None:
+            self.oscilloscope.set_layout_mode(self.layout_mode)
     
     def _on_toggle_params_only(self):
         """Toggle visibility of parameters panel only."""
@@ -765,13 +766,29 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.minimize_panels_btn.setText("Show Panels")
             logger.info("Panels hidden - maximizing plot area")
     
-    def _on_packet(self, packet: GridSideTelemetryPacket):
-        """Handle incoming telemetry packet."""
+    def _on_packet(self, packet):
+        """Handle incoming telemetry packet (grid or machine side)."""
+        try:
+            # Dispatch based on packet type
+            if isinstance(packet, MachineSideTelemetryPacket):
+                self._on_machine_packet(packet)
+            else:
+                self._on_grid_packet(packet)
+        except Exception as e:
+            logger.error(f"Packet error: {e}")
+            logger.error(traceback.format_exc())
+    
+    def _on_grid_packet(self, packet: GridSideTelemetryPacket):
+        """Handle grid-side telemetry packet."""
         try:
             self.packet_counter += 1
             
             # Store for dashboard (always update)
             self.latest_packet = packet
+            
+            # Only process oscilloscope if it exists (grid-side only)
+            if self.oscilloscope is None:
+                return
             
             if self.decimation_mode == "Skip":
                 # Skip mode: only process every Nth packet
@@ -958,6 +975,125 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         except Exception as e:
             logger.error(f"Packet error: {e}", exc_info=True)
+    
+    def _on_machine_packet(self, packet: MachineSideTelemetryPacket):
+        """Handle machine-side telemetry packet.
+        
+        Extract machine measurements, observer data, and controller states
+        and populate oscilloscope buffers for real-time visualization.
+        """
+        try:
+            self.packet_counter += 1
+            
+            # Store for dashboard (always update)
+            self.latest_packet = packet
+            
+            # Persist data if enabled
+            if self.enable_persistence:
+                sample = TelemetrySample(
+                    timestamp_ms=packet.header.timestamp_ms,
+                    sequence_number=packet.header.sequence_number,
+                    signal_count=packet.header.signal_count,
+                    signals=packet.signals,
+                )
+                self.data_persistence.add_sample(sample)
+            
+            # Only update oscilloscope on decimated samples
+            if self.packet_counter % self.decimate_factor == 0 and self.oscilloscope is not None:
+                # Extract machine-side data
+                meas = packet.measurements
+                obs = packet.observer
+                mod = packet.modulator
+                ctrl = packet.controller  # This is MachineControllerData
+                torque = packet.torque_controller
+                speed = packet.speed_controller
+                gen = packet.speed_generator
+                exc = packet.excitation_controller
+                
+                # Machine Measurements - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'measurements_all_measurements',
+                    (self.sample_index,
+                     meas.machine_voltage_magnitude_filtered_pu,
+                     meas.machine_voltage_a_pu,
+                     meas.machine_voltage_b_pu,
+                     meas.machine_voltage_c_pu,
+                     meas.machine_side_speed,
+                     meas.machine_voltage_magnitude,
+                     float(meas.is_commuting))
+                )
+                
+                # Observer - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'observer_all_observer',
+                    (self.sample_index,
+                     obs.estimated_voltage_magnitude_pu,
+                     obs.estimated_frequency_pu,
+                     obs.estimated_frequency_hz,
+                     obs.estimated_angle_rad,
+                     obs.estimated_voltage_alpha_pu)
+                )
+                
+                # Speed Controller - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'speed_controller_all_speed_control',
+                    (self.sample_index,
+                     speed.speed_torque_reference,
+                     speed.speed_measured_speed_pu,
+                     speed.speed_error,
+                     speed.speed_pi_output,
+                     float(speed.speed_is_saturated))
+                )
+                
+                # Torque Controller - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'torque_controller_all_torque_control',
+                    (self.sample_index,
+                     torque.torque_current_reference_pu,
+                     torque.torque_base_reference,
+                     torque.torque_total_reference,
+                     torque.torque_limited_reference,
+                     float(torque.torque_is_saturated))
+                )
+                
+                # Speed Generator - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'speed_generator_all_speed_gen',
+                    (self.sample_index,
+                     gen.generator_speed_reference_pu,
+                     gen.generator_torque_limit_max_pu,
+                     gen.generator_torque_limit_min_pu,
+                     float(gen.generator_is_profile_complete),
+                     float(gen.generator_is_breakaway_boost_active))
+                )
+                
+                # Modulator - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'modulator_all_modulator',
+                    (self.sample_index,
+                     mod.firing_angle_input_pu,
+                     mod.firing_angle_output_pu,
+                     float(mod.is_enabled),
+                     float(mod.force_commutation_ack),
+                     0.0)  # rotor_sector not available in current packet structure
+                )
+                
+                # Excitation - All in one plot
+                self.oscilloscope.add_sample_to_buffer(
+                    'excitation_all_excitation',
+                    (self.sample_index,
+                     exc.excitation_voltage_setpoint_pu,
+                     float(exc.excitation_enable),
+                     float(exc.excitation_is_field_established),
+                     float(exc.excitation_is_running))
+                )
+                
+                # Trigger plot update
+                self.oscilloscope.update_plots()
+                self.sample_index += 1
+        
+        except Exception as e:
+            logger.error(f"Machine packet error: {e}", exc_info=True)
     
     # Parameter handlers
     def _on_load_parameters(self):
@@ -1194,91 +1330,198 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         """Update plots from buffers.
         
         Delegates to the OscilloscopeWidget which handles all plot rendering.
+        Only updates for grid-side (machine-side doesn't have oscilloscope).
         """
+        if self.oscilloscope is None:
+            return  # Machine-side: no oscilloscope
+        
         try:
             self.oscilloscope.update_plots()
         except Exception as e:
             logger.error(f"Plot error: {e}", exc_info=True)
     
     def _update_dashboard(self):
-        """Update telemetry dashboard."""
+        """Update telemetry dashboard using appropriate handler based on packet type."""
         if not self.latest_packet:
             return
         
         try:
             packet = self.latest_packet
             
-            # Measurements
-            if packet.measurements:
-                m = packet.measurements
-                self.telem_labels['grid_voltage_magnitude_pu'].setText(f"{m.grid_voltage_magnitude_pu:.4f}")
-                self.telem_labels['grid_voltage_a_pu'].setText(f"{m.grid_voltage_a_pu:.4f}")
-                self.telem_labels['grid_voltage_b_pu'].setText(f"{m.grid_voltage_b_pu:.4f}")
-                self.telem_labels['grid_voltage_c_pu'].setText(f"{m.grid_voltage_c_pu:.4f}")
-                self.telem_labels['grid_current_magnitude_pu'].setText(f"{m.grid_current_magnitude_pu:.4f}")
-                self.telem_labels['grid_current_a_pu'].setText(f"{m.grid_current_a_pu:.4f}")
-                self.telem_labels['grid_current_b_pu'].setText(f"{m.grid_current_b_pu:.4f}")
-                self.telem_labels['grid_current_c_pu'].setText(f"{m.grid_current_c_pu:.4f}")
-                self.telem_labels['dc_link_current_pu'].setText(f"{m.dc_link_current_pu:.4f}")
-                self.telem_labels['is_commuting'].setText("YES" if m.is_commuting else "NO")
-            
-            # Observer
-            if packet.observer:
-                o = packet.observer
-                self.telem_labels['estimated_voltage_magnitude_pu'].setText(f"{o.estimated_voltage_magnitude_pu:.4f}")
-                self.telem_labels['estimated_frequency_pu'].setText(f"{o.estimated_frequency_pu:.4f}")
-                self.telem_labels['estimated_angle_rad'].setText(f"{o.estimated_angle_rad:.4f}")
-            
-            # Controller
-            if packet.controller:
-                c = packet.controller
-                self.telem_labels['dc_link_current_reference'].setText(f"{c.dc_link_current_reference:.4f}")
-                self.telem_labels['dc_link_current_measured'].setText(f"{c.dc_link_current_measured:.4f}")
-                self.telem_labels['current_error_pu'].setText(f"{c.current_error_pu:.4f}")
-                self.telem_labels['controller_output_pu'].setText(f"{c.controller_output_pu:.4f}")
-                self.telem_labels['operating_mode'].setText("Forced" if c.operating_mode else "Natural")
-                self.telem_labels['controller_saturated'].setText("YES" if c.controller_saturated else "NO")
-                self.telem_labels['freeze_integrator'].setText("YES" if c.freeze_integrator else "NO")
-            
-            # Modulator
-            if packet.modulator:
-                mod = packet.modulator
-                self.telem_labels['is_enabled'].setText("YES" if mod.is_enabled else "NO")
-                self.telem_labels['firing_angle_input_pu'].setText(f"{mod.firing_angle_input_pu:.4f}")
-                self.telem_labels['firing_angle_output_pu'].setText(f"{mod.firing_angle_output_pu:.4f}")
-                self.telem_labels['force_commutation_ack'].setText("YES" if mod.force_commutation_ack else "NO")
-            
-            # State Machine
-            if packet.state_machine:
-                sm = packet.state_machine
-                state_names = ["IDLE", "AUXILIARIES_ON", "BREAKERS_OFF", "BREAKERS_ON", "OPERATION_OFF", "OPERATION_ON", "SHUTDOWN_REQUESTED"]
-                state_text = state_names[sm.current_state] if 0 <= sm.current_state < len(state_names) else f"UNKNOWN({sm.current_state})"
-                self.telem_labels['current_state'].setText(state_text)
-                self.telem_labels['pulse_releases'].setText("YES" if sm.pulse_releases else "NO")
-                self.telem_labels['auxiliaries_are_on'].setText("YES" if sm.auxiliaries_are_on else "NO")
-                self.telem_labels['breakers_are_on'].setText("YES" if sm.breakers_are_on else "NO")
-                self.telem_labels['start_command'].setText("YES" if sm.start_command else "NO")
-                self.telem_labels['stop_command'].setText("YES" if sm.stop_command else "NO")
-                self.telem_labels['is_current_extinguished'].setText("YES" if sm.is_current_extinguished else "NO")
-                self.telem_labels['is_shutdown_requested'].setText("YES" if sm.is_shutdown_requested else "NO")
+            # Dispatch to appropriate handler based on packet type
+            if isinstance(packet, GridSideTelemetryPacket):
+                self._update_grid_dashboard(packet)
+            elif isinstance(packet, MachineSideTelemetryPacket):
+                self._update_machine_dashboard(packet)
         
         except Exception as e:
             logger.error(f"Dashboard error: {e}", exc_info=True)
+    
+    def _update_grid_dashboard(self, packet: GridSideTelemetryPacket):
+        """Update grid-side telemetry dashboard.
+        
+        Args:
+            packet: Grid-side telemetry packet
+        """
+        # Measurements
+        if packet.measurements:
+            m = packet.measurements
+            self.telemetry_panel.update_signal('grid_voltage_magnitude_pu', m.grid_voltage_magnitude_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_voltage_a_pu', m.grid_voltage_a_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_voltage_b_pu', m.grid_voltage_b_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_voltage_c_pu', m.grid_voltage_c_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_current_magnitude_pu', m.grid_current_magnitude_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_current_a_pu', m.grid_current_a_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_current_b_pu', m.grid_current_b_pu, '.4f')
+            self.telemetry_panel.update_signal('grid_current_c_pu', m.grid_current_c_pu, '.4f')
+            self.telemetry_panel.update_signal('dc_link_current_pu', m.dc_link_current_pu, '.4f')
+            self.telemetry_panel.update_signal('is_commuting', m.is_commuting)
+        
+        # Observer
+        if packet.observer:
+            o = packet.observer
+            self.telemetry_panel.update_signal('estimated_voltage_magnitude_pu', o.estimated_voltage_magnitude_pu, '.4f')
+            self.telemetry_panel.update_signal('estimated_frequency_pu', o.estimated_frequency_pu, '.4f')
+            self.telemetry_panel.update_signal('estimated_angle_rad', o.estimated_angle_rad, '.4f')
+        
+        # Controller
+        if packet.controller:
+            c = packet.controller
+            self.telemetry_panel.update_signal('dc_link_current_reference', c.dc_link_current_reference, '.4f')
+            self.telemetry_panel.update_signal('dc_link_current_measured', c.dc_link_current_measured, '.4f')
+            self.telemetry_panel.update_signal('current_error_pu', c.current_error_pu, '.4f')
+            self.telemetry_panel.update_signal('controller_output_pu', c.controller_output_pu, '.4f')
+            self.telemetry_panel.update_signal('operating_mode', "Forced" if c.operating_mode else "Natural")
+            self.telemetry_panel.update_signal('controller_saturated', c.controller_saturated)
+            self.telemetry_panel.update_signal('freeze_integrator', c.freeze_integrator)
+        
+        # Modulator
+        if packet.modulator:
+            mod = packet.modulator
+            self.telemetry_panel.update_signal('is_enabled', mod.is_enabled)
+            self.telemetry_panel.update_signal('firing_angle_input_pu', mod.firing_angle_input_pu, '.4f')
+            self.telemetry_panel.update_signal('firing_angle_output_pu', mod.firing_angle_output_pu, '.4f')
+            self.telemetry_panel.update_signal('force_commutation_ack', mod.force_commutation_ack)
+        
+        # State Machine
+        if packet.state_machine:
+            sm = packet.state_machine
+            state_names = ["IDLE", "AUXILIARIES_ON", "BREAKERS_OFF", "BREAKERS_ON", "OPERATION_OFF", "OPERATION_ON", "SHUTDOWN_REQUESTED"]
+            state_text = state_names[sm.current_state] if 0 <= sm.current_state < len(state_names) else f"UNKNOWN({sm.current_state})"
+            self.telemetry_panel.update_signal('current_state', state_text)
+            self.telemetry_panel.update_signal('pulse_releases', sm.pulse_releases)
+            self.telemetry_panel.update_signal('auxiliaries_are_on', sm.auxiliaries_are_on)
+            self.telemetry_panel.update_signal('breakers_are_on', sm.breakers_are_on)
+            self.telemetry_panel.update_signal('start_command', sm.start_command)
+            self.telemetry_panel.update_signal('stop_command', sm.stop_command)
+            self.telemetry_panel.update_signal('is_current_extinguished', sm.is_current_extinguished)
+            self.telemetry_panel.update_signal('is_shutdown_requested', sm.is_shutdown_requested)
+    
+    def _update_machine_dashboard(self, packet: MachineSideTelemetryPacket):
+        """Update machine-side telemetry dashboard.
+        
+        Args:
+            packet: Machine-side telemetry packet
+        """
+        # Machine Measurements
+        if packet.measurements:
+            m = packet.measurements
+            self.telemetry_panel.update_signal('machine_voltage_magnitude_filtered_pu', m.machine_voltage_magnitude_filtered_pu, '.4f')
+            self.telemetry_panel.update_signal('machine_voltage_a_pu', m.machine_voltage_a_pu, '.4f')
+            self.telemetry_panel.update_signal('machine_voltage_b_pu', m.machine_voltage_b_pu, '.4f')
+            self.telemetry_panel.update_signal('machine_voltage_c_pu', m.machine_voltage_c_pu, '.4f')
+            self.telemetry_panel.update_signal('machine_side_speed', m.machine_side_speed, '.4f')
+            self.telemetry_panel.update_signal('machine_voltage_magnitude', m.machine_voltage_magnitude, '.4f')
+            self.telemetry_panel.update_signal('is_commuting', m.is_commuting)
+        
+        # Observer
+        if packet.observer:
+            o = packet.observer
+            self.telemetry_panel.update_signal('estimated_voltage_magnitude_pu', o.estimated_voltage_magnitude_pu, '.4f')
+            self.telemetry_panel.update_signal('estimated_frequency_pu', o.estimated_frequency_pu, '.4f')
+            self.telemetry_panel.update_signal('estimated_angle_rad', o.estimated_angle_rad, '.4f')
+            self.telemetry_panel.update_signal('estimated_frequency_hz', o.estimated_frequency_hz, '.4f')
+            self.telemetry_panel.update_signal('estimated_voltage_alpha_pu', o.estimated_voltage_alpha_pu, '.4f')
+        
+        # Modulator
+        if packet.modulator:
+            mod = packet.modulator
+            self.telemetry_panel.update_signal('firing_angle_rad', mod.firing_angle_output_pu, '.4f')
+            self.telemetry_panel.update_signal('is_enabled', mod.is_enabled)
+            self.telemetry_panel.update_signal('release_pulses', mod.is_requesting_pi_reset)
+            self.telemetry_panel.update_signal('request_force_commutation', mod.force_commutation_ack)
+            self.telemetry_panel.update_signal('current_rotor_sector', mod.firing_angle_input_pu, '.4f')
+        
+        # Machine Controller
+        if packet.controller:
+            c = packet.controller
+            self.telemetry_panel.update_signal('controller_firing_angle', c.controller_firing_angle, '.4f')
+            self.telemetry_panel.update_signal('controller_machine_speed', c.controller_machine_speed, '.4f')
+            self.telemetry_panel.update_signal('controller_dc_link_current', c.controller_dc_link_current, '.4f')
+        
+        # Torque Controller
+        if packet.torque_controller:
+            tc = packet.torque_controller
+            self.telemetry_panel.update_signal('torque_current_reference_pu', tc.torque_current_reference_pu, '.4f')
+            self.telemetry_panel.update_signal('torque_base_reference', tc.torque_base_reference, '.4f')
+            self.telemetry_panel.update_signal('torque_total_reference', tc.torque_total_reference, '.4f')
+            self.telemetry_panel.update_signal('torque_limited_reference', tc.torque_limited_reference, '.4f')
+            self.telemetry_panel.update_signal('torque_is_saturated', tc.torque_is_saturated)
+        
+        # Speed Controller
+        if packet.speed_controller:
+            sc = packet.speed_controller
+            self.telemetry_panel.update_signal('speed_torque_reference', sc.speed_torque_reference, '.4f')
+            self.telemetry_panel.update_signal('speed_measured_speed_pu', sc.speed_measured_speed_pu, '.4f')
+            self.telemetry_panel.update_signal('speed_error', sc.speed_error, '.4f')
+            self.telemetry_panel.update_signal('speed_pi_output', sc.speed_pi_output, '.4f')
+            self.telemetry_panel.update_signal('speed_is_saturated', sc.speed_is_saturated)
+        
+        # Speed Generator
+        if packet.speed_generator:
+            sg = packet.speed_generator
+            self.telemetry_panel.update_signal('generator_speed_reference_pu', sg.generator_speed_reference_pu, '.4f')
+            self.telemetry_panel.update_signal('generator_torque_limit_max_pu', sg.generator_torque_limit_max_pu, '.4f')
+            self.telemetry_panel.update_signal('generator_torque_limit_min_pu', sg.generator_torque_limit_min_pu, '.4f')
+            self.telemetry_panel.update_signal('generator_is_profile_complete', sg.generator_is_profile_complete)
+            self.telemetry_panel.update_signal('generator_is_breakaway_boost_active', sg.generator_is_breakaway_boost_active)
+        
+        # Excitation Controller
+        if packet.excitation_controller:
+            ec = packet.excitation_controller
+            self.telemetry_panel.update_signal('excitation_voltage_setpoint_pu', ec.excitation_voltage_setpoint_pu, '.4f')
+            self.telemetry_panel.update_signal('excitation_enable', ec.excitation_enable)
+            self.telemetry_panel.update_signal('excitation_is_field_established', ec.excitation_is_field_established)
+            self.telemetry_panel.update_signal('excitation_is_running', ec.excitation_is_running)
+        
+        # Pulse Generator
+        if packet.pulse_generator:
+            pg = packet.pulse_generator
+            self.telemetry_panel.update_signal('pulse_p1', pg.firing_pulse_1)
+            self.telemetry_panel.update_signal('pulse_p2', pg.firing_pulse_2)
+            self.telemetry_panel.update_signal('pulse_p3', pg.firing_pulse_3)
+            self.telemetry_panel.update_signal('pulse_p4', pg.firing_pulse_4)
+            self.telemetry_panel.update_signal('pulse_p5', pg.firing_pulse_5)
 
 
 def main():
     """Entry point."""
     import argparse
     parser = argparse.ArgumentParser(description="SFC Monitor with Parameters")
-    parser.add_argument('--host', default='192.168.2.100')
-    parser.add_argument('--port', type=int, default=7000)
+    parser.add_argument('--host', default='192.168.2.100', help='MCU IP address')
+    parser.add_argument('--port', type=int, default=None, help='MCU telemetry port (auto-determined by --target if not specified)')
+    parser.add_argument('--target', choices=['grid', 'machine'], default='grid', help='Target side: grid (port 7000) or machine (port 7001) [default: grid]')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--decimate', type=int, default=1, help='Process 1 out of N packets')
     parser.add_argument('--window', type=int, default=1000, help='Number of samples to display on X-axis')
     args = parser.parse_args()
     
+    # Auto-determine port based on target if not explicitly specified
+    if args.port is None:
+        args.port = 7000 if args.target == 'grid' else 7001
+    
     app = QtWidgets.QApplication(sys.argv)
-    window = TelemetryMonitorWindow(args.host, args.port, args.verbose, args.decimate, args.window)
+    window = TelemetryMonitorWindow(args.host, args.port, args.target, args.verbose, args.decimate, args.window)
     window.show()
     return app.exec_()
 
