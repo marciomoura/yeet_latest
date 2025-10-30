@@ -2,6 +2,34 @@
 
 namespace yeet::application::sfc::integration {
 
+// ==================== Internal Bridge Signals ====================
+// These are internal-only signals used for routing commands from the IO interface to internal components.
+// They exist in the implementation file to avoid cluttering the public class interface.
+// External code should use get_io() interface instead.
+struct sfc_machine_side_internal_signals {
+    // Excitation control bridge signals
+    yeet::signal_output<bool> exciter_ready;
+    yeet::signal_output<bool> excitation_start_command;
+    yeet::signal_output<bool> excitation_stop_command;
+
+    // Speed generator profile selection bridge signals (turbine starting sequence)
+    yeet::signal_output<bool> run_creep_speed;     // Profile 1: Creep speed (~5% rated)
+    yeet::signal_output<bool> run_purge_accel;     // Profile 2: Purge acceleration (~20% rated)
+    yeet::signal_output<bool> run_ignition_accel;  // Profile 3: Ignition acceleration (~55% rated)
+    yeet::signal_output<bool> run_assist_accel;    // Profile 4: Assist to self-sustaining (~95% rated)
+    yeet::signal_output<bool> hold_speed;          // Hold current speed setpoint
+    yeet::signal_output<bool> decelerate;          // Controlled deceleration to zero
+    yeet::signal_output<bool> idle;                // Idle mode (zero torque/speed outputs)
+
+    // Speed controller cascade bridge signals from grid-side
+    yeet::signal_output<bool> enable_speed_control;         // From grid-side pulse_releases
+    yeet::signal_output<bool> freeze_integrator;            // From grid-side state machine
+    yeet::signal_output<bool> modulator_freeze_integrator;  // From grid-side modulator PI reset
+};
+
+// Global thread-local instance for signal routing within connect_internal_signals
+thread_local sfc_machine_side_internal_signals g_machine_side_internal_signals;
+
 void sfc_machine_side_control::initialize()
 {
     excitation_controller.initialize();
@@ -62,12 +90,13 @@ void sfc_machine_side_control::connect_internal_signals()
 {
     // ==================== Excitation Controller Connections ====================
 
-    // Excitation controller inputs from external signals
-    signals_connector::connect_output_to_input(exciter_ready, excitation_controller.get_inputs().exciter_ready);
+    // Excitation controller inputs from external signals via bridge signals
     signals_connector::connect_output_to_input(
-        excitation_start_command, excitation_controller.get_inputs().start_command);
+        g_machine_side_internal_signals.exciter_ready, excitation_controller.get_inputs().exciter_ready);
     signals_connector::connect_output_to_input(
-        excitation_stop_command, excitation_controller.get_inputs().stop_command);
+        g_machine_side_internal_signals.excitation_start_command, excitation_controller.get_inputs().start_command);
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.excitation_stop_command, excitation_controller.get_inputs().stop_command);
 
     // Excitation controller feedback: machine speed from observer
     signals_connector::connect_output_to_input(
@@ -83,12 +112,13 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
 
-    // Speed controller cascade inputs from grid-side (external connections)
+    // Speed controller cascade inputs from grid-side (external connections via bridge signals)
     signals_connector::connect_output_to_input(
-        enable_speed_control, speed_controller.get_inputs().enable_speed_control);
-    signals_connector::connect_output_to_input(freeze_integrator, speed_controller.get_inputs().freeze_integrator);
+        g_machine_side_internal_signals.enable_speed_control, speed_controller.get_inputs().enable_speed_control);
     signals_connector::connect_output_to_input(
-        modulator_freeze_integrator, speed_controller.get_inputs().modulator_freeze_integrator);
+        g_machine_side_internal_signals.freeze_integrator, speed_controller.get_inputs().freeze_integrator);
+    signals_connector::connect_output_to_input(g_machine_side_internal_signals.modulator_freeze_integrator,
+        speed_controller.get_inputs().modulator_freeze_integrator);
 
     // ==================== Speed Generator Connections ====================
 
@@ -108,14 +138,20 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed_pu);
 
-    // External Commands → Speed Generator (profile selection and control)
-    signals_connector::connect_output_to_input(run_creep_speed, speed_generator.get_inputs().run_profile_1);
-    signals_connector::connect_output_to_input(run_purge_accel, speed_generator.get_inputs().run_profile_2);
-    signals_connector::connect_output_to_input(run_ignition_accel, speed_generator.get_inputs().run_profile_3);
-    signals_connector::connect_output_to_input(run_assist_accel, speed_generator.get_inputs().run_profile_4);
-    signals_connector::connect_output_to_input(hold_speed, speed_generator.get_inputs().hold_speed);
-    signals_connector::connect_output_to_input(decelerate, speed_generator.get_inputs().decelerate);
-    signals_connector::connect_output_to_input(idle, speed_generator.get_inputs().idle);
+    // External Commands → Speed Generator (profile selection and control via bridge signals)
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.run_creep_speed, speed_generator.get_inputs().run_profile_1);
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.run_purge_accel, speed_generator.get_inputs().run_profile_2);
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.run_ignition_accel, speed_generator.get_inputs().run_profile_3);
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.run_assist_accel, speed_generator.get_inputs().run_profile_4);
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.hold_speed, speed_generator.get_inputs().hold_speed);
+    signals_connector::connect_output_to_input(
+        g_machine_side_internal_signals.decelerate, speed_generator.get_inputs().decelerate);
+    signals_connector::connect_output_to_input(g_machine_side_internal_signals.idle, speed_generator.get_inputs().idle);
 
     // ==================== Torque Controller Connections ====================
 

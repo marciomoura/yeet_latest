@@ -138,30 +138,6 @@ public:
     sfc_machine_side_control_io& get_io() { return io; }
     const sfc_machine_side_control_io& get_io() const { return io; }
 
-    // ==================== Internal Bridge Signals (For Signal Routing Only) ====================
-    // INTERNAL USE ONLY: These are bridge signals used in connect_internal_signals() to route
-    // signals from the IO interface to internal components. They are NOT external interfaces.
-    // External code should use the get_io() interface instead.
-
-    // Excitation control bridge signals
-    signal_output<bool> exciter_ready;
-    signal_output<bool> excitation_start_command;
-    signal_output<bool> excitation_stop_command;
-
-    // Speed generator profile selection bridge signals (turbine starting sequence)
-    signal_output<bool> run_creep_speed;     // Profile 1: Creep speed (~5% rated)
-    signal_output<bool> run_purge_accel;     // Profile 2: Purge acceleration (~20% rated)
-    signal_output<bool> run_ignition_accel;  // Profile 3: Ignition acceleration (~55% rated)
-    signal_output<bool> run_assist_accel;    // Profile 4: Assist to self-sustaining (~95% rated)
-    signal_output<bool> hold_speed;          // Hold current speed setpoint
-    signal_output<bool> decelerate;          // Controlled deceleration to zero
-    signal_output<bool> idle;                // Idle mode (zero torque/speed outputs)
-
-    // Speed controller cascade bridge signals from grid-side
-    signal_output<bool> enable_speed_control;         // From grid-side pulse_releases
-    signal_output<bool> freeze_integrator;            // From grid-side state machine
-    signal_output<bool> modulator_freeze_integrator;  // From grid-side modulator PI reset
-
     // ==================== External Output Signals ====================
     // NOTE: Prefer accessing outputs through get_io() interface for consistency.
     // Direct getters below are provided for advanced/diagnostic use only.
