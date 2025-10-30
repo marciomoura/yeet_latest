@@ -10,8 +10,8 @@
 #pragma once
 
 #include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
-#include "sfc_embedded/network_telemetry.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
+#include "yeet/network_telemetry.hpp"
 
 namespace yeet::application::sfc::telemetry {
 
@@ -32,7 +32,7 @@ namespace yeet::application::sfc::telemetry {
  * // Packet contains all signals from control system
  * @endcode
  */
-class machine_side_telemetry_builder : public telemetry_builder {
+class machine_side_telemetry_builder : public yeet::telemetry::telemetry_builder {
 public:
     /**
      * @brief Construct builder with reference to machine-side control
@@ -52,7 +52,7 @@ public:
      * @param timestamp_ms Current system time in milliseconds
      * @return Complete telemetry packet ready for encoding
      */
-    [[nodiscard]] telemetry_packet build_packet(std::uint32_t timestamp_ms) noexcept override;
+    [[nodiscard]] yeet::telemetry::telemetry_packet build_packet(std::uint32_t timestamp_ms) noexcept override;
 
 private:
     const integration::sfc_machine_side_control& _control;

@@ -18,11 +18,22 @@ target_sources(
            include/yeet/model_registry.hpp
            include/yeet/parameter.hpp
            include/yeet/signal.hpp
+           include/yeet/network_ios.hpp
+           include/yeet/network_telemetry.hpp
+           include/yeet/network_command_parser.hpp
+           include/yeet/network_telemetry_manager.hpp
+           include/yeet/network_handler.hpp
+           include/yeet/parameter_handler.hpp
            include/yeet/utils/low_level_access.hpp
            include/yeet/utils/low_level_access_registry.hpp
            include/yeet/utils/metadata.hpp
            include/yeet/utils/storage_type.hpp
-    PRIVATE src/parameter.cpp)
+    PRIVATE src/parameter.cpp
+            src/network_telemetry.cpp
+            src/network_command_parser.cpp
+            src/network_telemetry_manager.cpp
+            src/network_handler.cpp
+            src/parameter_handler.cpp)
 
 target_include_directories(
     ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include

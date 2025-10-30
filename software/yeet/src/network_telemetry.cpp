@@ -3,11 +3,11 @@
  * @brief Network telemetry protocol implementation
  */
 
-#include "sfc_embedded/network_telemetry.hpp"
+#include "yeet/network_telemetry.hpp"
 
 #include <cstring>
 
-namespace yeet::application::sfc::telemetry {
+namespace yeet::telemetry {
 
 namespace {
 
@@ -112,4 +112,4 @@ std::size_t encode_sync_frame(std::uint8_t* buffer) noexcept
     return 4;  // Sync frame is always 4 bytes
 }
 
-}  // namespace yeet::application::sfc::telemetry
+}  // namespace yeet::telemetry

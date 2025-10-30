@@ -3,25 +3,11 @@
 
 #include <cstdint>
 
-#include "sfc_embedded/task_io.h"
+#include "yeet/network_ios.hpp"
+#include "yeet/network_telemetry_manager.hpp"
+#include "yeet/parameter_handler.hpp"
 
-// Forward declare from yeet::application::sfc namespace
-namespace yeet {
-namespace application {
-namespace sfc {
-class parameter_handler;
-
-namespace network {
-class telemetry_manager;
-}  // namespace network
-}  // namespace sfc
-}  // namespace application
-}  // namespace yeet
-
-namespace yeet {
-namespace application {
-namespace sfc {
-namespace network {
+namespace yeet::telemetry {
 
 /**
  * @brief Network protocol handler for SFC embedded system
@@ -45,20 +31,20 @@ public:
      * @param telemetry_mgr Reference to telemetry manager
      * @param param_handler Reference to parameter handler
      */
-    network_handler(telemetry_manager& telemetry_mgr,
-        yeet::application::sfc::parameter_handler&
-            param_handler); /**
-                             * @brief Process incoming network packets and generate responses
-                             *
-                             * This is the main entry point for network communication. It:
-                             * 1. Detects packet type (command, parameter request, etc.)
-                             * 2. Routes to appropriate handler
-                             * 3. Manages telemetry streaming state
-                             * 4. Generates responses when needed
-                             *
-                             * @param inputs Network input data (received packets, connection status)
-                             * @param outputs Network output data (response packets to transmit)
-                             */
+    network_handler(telemetry_manager& telemetry_mgr, parameter_handler& param_handler);
+
+    /**
+     * @brief Process incoming network packets and generate responses
+     *
+     * This is the main entry point for network communication. It:
+     * 1. Detects packet type (command, parameter request, etc.)
+     * 2. Routes to appropriate handler
+     * 3. Manages telemetry streaming state
+     * 4. Generates responses when needed
+     *
+     * @param inputs Network input data (received packets, connection status)
+     * @param outputs Network output data (response packets to transmit)
+     */
     void process(const network_inputs_t* inputs, network_outputs_t* outputs);
 
     /**
@@ -114,7 +100,7 @@ private:
 
     // References to external managers
     telemetry_manager& telemetry_manager_;
-    yeet::application::sfc::parameter_handler& parameter_handler_;
+    parameter_handler& parameter_handler_;
 
     // Internal state
     bool telemetry_started_;                                   ///< Is telemetry streaming currently active?
@@ -122,9 +108,6 @@ private:
     static constexpr std::uint32_t SYNC_FRAME_INTERVAL = 100;  ///< Send sync frame every 100 telemetry packets
 };
 
-}  // namespace network
-}  // namespace sfc
-}  // namespace application
-}  // namespace yeet
+}  // namespace yeet::telemetry
 
 #endif  // SFC_EMBEDDED_NETWORK_HANDLER_HPP

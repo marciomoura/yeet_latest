@@ -3,11 +3,11 @@
  * @brief Implementation of telemetry streaming manager
  */
 
-#include "sfc_embedded/network_telemetry_manager.hpp"
+#include "yeet/network_telemetry_manager.hpp"
 
 #include <cstring>
 
-namespace yeet::application::sfc::network {
+namespace yeet::telemetry {
 
 void telemetry_manager::start() noexcept
 {
@@ -57,4 +57,4 @@ telemetry_transmission telemetry_manager::update(bool previous_tx_pending) noexc
     return {nullptr, 0};
 }
 
-}  // namespace yeet::application::sfc::network
+}  // namespace yeet::telemetry

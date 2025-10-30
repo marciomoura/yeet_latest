@@ -43,7 +43,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace yeet::application::sfc::telemetry {
+namespace yeet::telemetry {
 
 /* ============================================================================
  * Protocol Constants
@@ -324,4 +324,4 @@ std::size_t encode_telemetry_packet(const telemetry_packet& packet, std::uint8_t
  */
 std::size_t encode_sync_frame(std::uint8_t* buffer) noexcept;
 
-}  // namespace yeet::application::sfc::telemetry
+}  // namespace yeet::telemetry

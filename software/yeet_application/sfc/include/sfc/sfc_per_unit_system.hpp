@@ -95,6 +95,9 @@ public:
         calculate_base_values();
     }
 
+    sfc_per_unit_system(const sfc_per_unit_system&) = default;
+    sfc_per_unit_system& operator=(const sfc_per_unit_system&) = default;
+
     grid_side_bases const& get_grid_bases() const { return _grid_side; }
     dc_link_bases const& get_dc_link_bases() const { return _dc_link; }
     machine_side_bases const& get_machine_bases() const { return _machine_side; }

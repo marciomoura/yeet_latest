@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace yeet::application::sfc::network {
+namespace yeet::telemetry {
 
 /**
  * @brief Network command enumeration
@@ -107,4 +107,4 @@ private:
         const std::uint8_t* buffer, std::uint16_t length, const char* expected, std::uint16_t min_length) noexcept;
 };
 
-}  // namespace yeet::application::sfc::network
+}  // namespace yeet::telemetry

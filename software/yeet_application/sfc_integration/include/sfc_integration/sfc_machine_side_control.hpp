@@ -7,6 +7,7 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "sfc_integration/sfc_torque_controller_runner.hpp"
@@ -252,6 +253,7 @@ public:
     // ==================== Public Component Access for Direct Signal Connections ====================
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
+    sfc_per_unit_system_datamodel pu_system_datamodel;
 
     // Machine-side control components (made public for intermediate integration)
     sfc_excitation_controller_runner excitation_controller;

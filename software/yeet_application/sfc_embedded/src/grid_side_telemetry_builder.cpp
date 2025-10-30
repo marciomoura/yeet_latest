@@ -7,9 +7,9 @@
 
 namespace yeet::application::sfc::telemetry {
 
-telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timestamp_ms) noexcept
+yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timestamp_ms) noexcept
 {
-    telemetry_packet packet;
+    yeet::telemetry::telemetry_packet packet;
 
     // Extract control system components
     const auto& grid_meas = _control.get_grid_measurements();
@@ -98,7 +98,7 @@ telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timesta
     packet.add_signal(49, pulse_generator.get_outputs().is_active.read() ? 1.0f : 0.0f);
 
     // Finalize packet with timestamp and sequence number
-    packet.finalize(packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
+    packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
 
     return packet;
 }

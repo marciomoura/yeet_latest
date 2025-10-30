@@ -13,11 +13,9 @@
 
 #pragma once
 
-#include "sfc_embedded/network_telemetry.hpp"
-#include "sfc_integration/sfc_grid_side_control.hpp"
-#include "sfc_integration/sfc_machine_side_control.hpp"
+#include "network_telemetry.hpp"
 
-namespace yeet::application::sfc::telemetry {
+namespace yeet::telemetry {
 
 /**
  * @brief Interface for telemetry packet builders
@@ -45,7 +43,7 @@ public:
      * @param timestamp_ms Current system time in milliseconds
      * @return Complete telemetry packet ready for encoding
      */
-    [[nodiscard]] virtual telemetry_packet build_packet(std::uint32_t timestamp_ms) noexcept = 0;
+    [[nodiscard]] virtual telemetry::telemetry_packet build_packet(std::uint32_t timestamp_ms) noexcept = 0;
 };
 
-}  // namespace yeet::application::sfc::telemetry
+}  // namespace yeet::telemetry

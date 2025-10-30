@@ -66,7 +66,7 @@ inline low_level_access make_units_accessor(parameter<UnitT>& param) noexcept
 {
     return make_parameter_accessor(
         param, [](const UnitT& v) -> float { return static_cast<float>(v); },
-        [](float f) -> UnitT { return UnitT{f}; });
+        [](float f) -> UnitT { return static_cast<UnitT>(f); });
 }
 
 /**

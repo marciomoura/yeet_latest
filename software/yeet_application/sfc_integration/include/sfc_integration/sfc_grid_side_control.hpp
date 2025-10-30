@@ -8,6 +8,7 @@
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
+#include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_state_machine_runner.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
@@ -203,6 +204,7 @@ public:
     // ==================== Public Component Access for Direct Signal Connections ====================
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
+    sfc_per_unit_system_datamodel pu_system_datamodel;
 
     // Grid-side control components (made public for intermediate integration)
     sfc_state_machine_runner state_machine;

@@ -1,18 +1,12 @@
-#include "sfc_embedded/network_handler.hpp"
+#include "yeet/network_handler.hpp"
 
 #include <cstring>
 
-#include "sfc_embedded/network_command_parser.hpp"
-#include "sfc_embedded/network_telemetry_manager.hpp"
-#include "sfc_embedded/parameter_handler.hpp"
+#include "yeet/network_command_parser.hpp"
 
-namespace yeet {
-namespace application {
-namespace sfc {
-namespace network {
+namespace yeet::telemetry {
 
-network_handler::network_handler(
-    telemetry_manager& telemetry_mgr, yeet::application::sfc::parameter_handler& param_handler)
+network_handler::network_handler(telemetry_manager& telemetry_mgr, parameter_handler& param_handler)
     : telemetry_manager_(telemetry_mgr),
       parameter_handler_(param_handler),
       telemetry_started_(false),
@@ -54,11 +48,11 @@ void network_handler::process(const network_inputs_t* inputs, network_outputs_t*
 
 bool network_handler::process_command(const std::uint8_t* buffer, std::uint16_t length, network_outputs_t* outputs)
 {
-    auto cmd = command_parser::parse(buffer, length);
+    auto cmd = telemetry::command_parser::parse(buffer, length);
 
     if (cmd.is_valid()) {
         switch (cmd.type) {
-            case command_type::start_telemetry:
+            case telemetry::command_type::start_telemetry:
                 telemetry_started_ = true;
                 telemetry_manager_.start();
                 sync_frame_counter_ = 0;  // Reset counter for new stream
@@ -71,7 +65,7 @@ bool network_handler::process_command(const std::uint8_t* buffer, std::uint16_t 
                 }
                 return true;
 
-            case command_type::stop_telemetry:
+            case telemetry::command_type::stop_telemetry:
                 telemetry_started_ = false;
                 telemetry_manager_.stop();
                 sync_frame_counter_ = 0;  // Reset counter when stopping
@@ -87,18 +81,16 @@ bool network_handler::process_command(const std::uint8_t* buffer, std::uint16_t 
 
 bool network_handler::process_parameter_request(const network_inputs_t* inputs, network_outputs_t* outputs)
 {
-    using namespace yeet::application::sfc::telemetry;
-
     // Check if packet is large enough to have a header
-    if (inputs->network_rx.rx_length < sizeof(telemetry_packet_header)) {
+    if (inputs->network_rx.rx_length < sizeof(telemetry::telemetry_packet_header)) {
         return false;
     }
 
-    const auto* header = reinterpret_cast<const telemetry_packet_header*>(inputs->network_rx.rx_buffer);
+    const auto* header = reinterpret_cast<const telemetry::telemetry_packet_header*>(inputs->network_rx.rx_buffer);
 
     // Dispatch based on packet type
-    switch (static_cast<packet_type>(header->packet_type)) {
-        case packet_type::parameter_count_request: {
+    switch (static_cast<telemetry::packet_type>(header->packet_type)) {
+        case telemetry::packet_type::parameter_count_request: {
             parameter_count_response_packet response;
             if (parameter_handler_.handle_count_request(response)) {
                 if (outputs != nullptr) {
@@ -112,9 +104,9 @@ bool network_handler::process_parameter_request(const network_inputs_t* inputs, 
             break;
         }
 
-        case packet_type::parameter_get_by_index_request: {
+        case telemetry::packet_type::parameter_get_by_index_request: {
             // Accept either full struct (20 bytes: header + 4) or minimal (header + 2 index bytes)
-            const std::size_t min_size = sizeof(telemetry_packet_header) + 2;
+            const std::size_t min_size = sizeof(telemetry::telemetry_packet_header) + 2;
             if (inputs->network_rx.rx_length >= min_size) {
                 parameter_get_by_index_request_packet request{};
                 std::memset(&request, 0, sizeof(request));
@@ -136,7 +128,7 @@ bool network_handler::process_parameter_request(const network_inputs_t* inputs, 
             break;
         }
 
-        case packet_type::parameter_get_request: {
+        case telemetry::packet_type::parameter_get_request: {
             if (inputs->network_rx.rx_length >= sizeof(parameter_get_request_packet)) {
                 const auto* request =
                     reinterpret_cast<const parameter_get_request_packet*>(inputs->network_rx.rx_buffer);
@@ -154,7 +146,7 @@ bool network_handler::process_parameter_request(const network_inputs_t* inputs, 
             break;
         }
 
-        case packet_type::parameter_set_request: {
+        case telemetry::packet_type::parameter_set_request: {
             if (inputs->network_rx.rx_length >= sizeof(parameter_set_request_packet)) {
                 const auto* request =
                     reinterpret_cast<const parameter_set_request_packet*>(inputs->network_rx.rx_buffer);
@@ -205,7 +197,7 @@ void network_handler::process_telemetry(
                 sync_frame_counter_ = 0;
 
                 // Queue periodic sync frame
-                std::size_t sync_size = telemetry::encode_sync_frame(outputs->network_tx.tx_buffer);
+                std::size_t sync_size = encode_sync_frame(outputs->network_tx.tx_buffer);
                 outputs->network_tx.tx_length = sync_size;
                 outputs->network_tx.transmit_request = true;
                 outputs->network_tx.socket_id = (inputs != nullptr) ? inputs->network_rx.socket_id : 0;
@@ -272,7 +264,4 @@ bool network_handler::validate_outgoing_packet(const std::uint8_t* buffer, std::
     return valid_type && valid_version;
 }
 
-}  // namespace network
-}  // namespace sfc
-}  // namespace application
-}  // namespace yeet
+}  // namespace yeet::telemetry
