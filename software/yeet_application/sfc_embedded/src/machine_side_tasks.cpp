@@ -267,11 +267,15 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     }
 
     // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
-    // Map control system status to hardware digital outputs via I/O interface
+    // Map control system status to hardware digital outputs for HMI/supervisory system
     if (outputs != nullptr) {
-        // TODO: Add digital output mappings as needed for machine-side status
-        // Example: Speed controller active, at setpoint, faults, etc.
+        // Fiber link status from RX (direct pass-through)
         outputs->digital_outputs.signals[0] = inputs->fiber_optic_rx.link_ok;  // DO1: Fiber link status
+
+        // Machine-side control status outputs
+        // These could be used for HMI display, diagnostics, or interlocks
+        // Populated from get_io().digital_inputs/outputs as needed
+        // DO2-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
     }
 }
 
@@ -282,15 +286,34 @@ void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Configured rate: 10 ms (100 Hz)
     // Execution time budget: < 5 ms (50% of period)
     // Called from: TIM4_IRQHandler
-    // Priority: Lowest (speed controller)
+    // Priority: Lowest (speed controller, supervisory logic)
+    // Components: Speed controller, excitation controller, speed generator
 
-    // Optional: Use inputs for monitoring/diagnostics
-    (void)inputs;  // Suppress unused parameter warning
-
+    // ==================== SPEED CONTROLLER EXECUTION ====================
+    // Execute low-frequency speed regulation control
     get_machine_side_control().update_10ms();
 
-    // Optional: Update diagnostic outputs
-    (void)outputs;  // Suppress unused parameter warning
+    // ==================== OPTIONAL: ANALOG OUTPUTS → MONITORING/TESTING ====================
+    // Map control system signals to DAC outputs for monitoring and testing
+    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
+    if (outputs != nullptr) {
+        // Example DAC output mappings (customize based on your application):
+        // Channel A: Speed error or speed setpoint
+        // Channel B: Current reference
+        // Channel C: Excitation voltage
+        // Channel D: Reserved
+
+        // Note: These are for diagnostics/monitoring only
+        // The actual control signals are routed via get_io() interface
+        // outputs->analog_outputs.channels[0] = ...  // CH A
+        // outputs->analog_outputs.channels[1] = ...  // CH B
+        // outputs->analog_outputs.channels[2] = ...  // CH C
+        // outputs->analog_outputs.channels[3] = ...  // CH D
+        // outputs->analog_outputs.valid = true;
+    }
+
+    (void)inputs;   // Suppress unused parameter warning if inputs not needed
+    (void)outputs;  // Suppress unused parameter warning if outputs not needed
 }
 
 ARM_FUNCTION
