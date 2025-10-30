@@ -30,7 +30,7 @@ from typing import Callable, Optional, List
 
 from PyQt5 import QtCore
 
-from .telemetry_protocol import GridSideTelemetryPacket, TelemetryDecoder
+from .telemetry_protocol import GridSideTelemetryPacket, MachineSideTelemetryPacket, TelemetryDecoder
 from .parameter_protocol import (
     ParameterMetadata,
     ParameterValue,

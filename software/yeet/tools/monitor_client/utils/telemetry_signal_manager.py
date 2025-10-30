@@ -25,9 +25,9 @@ Example Usage:
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-from ..core.telemetry_protocol import GridSideTelemetryPacket, SignalIndex
+from ..core.telemetry_protocol import GridSideTelemetryPacket, MachineSideTelemetryPacket, GridSignalIndex, MachineSignalIndex
 
 
 @dataclass
@@ -193,12 +193,27 @@ class SignalManager:
         self.buffer_size = buffer_size
         self.groups: Dict[str, SignalGroup] = {}
         self._lock = threading.Lock()
-        self._initialize_signal_groups()
+        self.current_side = "grid"  # Track which side is currently initialized
+        self._initialize_grid_side_signal_groups()
     
-    def _initialize_signal_groups(self) -> None:
-        """Initialize all signal groups with their signals.
+    def switch_to_grid_side(self) -> None:
+        """Switch signal manager to grid-side configuration."""
+        if self.current_side != "grid":
+            self.clear_all()
+            self._initialize_grid_side_signal_groups()
+            self.current_side = "grid"
+    
+    def switch_to_machine_side(self) -> None:
+        """Switch signal manager to machine-side configuration."""
+        if self.current_side != "machine":
+            self.clear_all()
+            self._initialize_machine_side_signal_groups()
+            self.current_side = "machine"
+    
+    def _initialize_grid_side_signal_groups(self) -> None:
+        """Initialize all grid-side signal groups with their signals.
         
-        Signal indices match C++ network_telemetry_builder.cpp exactly.
+        Signal indices match C++ grid_side_telemetry_builder.cpp exactly.
         All 50 signals across 7 groups (indices 0-49).
         """
         
@@ -280,81 +295,341 @@ class SignalManager:
         pulse_generator.add_signal(SignalHistory('pulse_active', '', 'Pulse Active', self.buffer_size))
         self.groups['pulse_generator'] = pulse_generator
     
-    def update_from_packet(self, packet: GridSideTelemetryPacket) -> None:
-        """Update all signal histories from telemetry packet.
+    def _initialize_machine_side_signal_groups(self) -> None:
+        """Initialize all machine-side signal groups with their signals.
         
-        Extracts data from packet's signal array and appends to appropriate signal buffers.
-        Uses SignalIndex enum to map array indices to signal names.
+        Signal indices match C++ machine_side_telemetry_builder.cpp exactly.
+        All 50 signals across 8 groups (indices 0-49).
+        """
+        
+        # Machine Measurements group (indices 0-9)
+        measurements = SignalGroup('measurements', 'Machine Measurements & Commutation')
+        measurements.add_signal(SignalHistory('machine_voltage_magnitude_filtered_pu', 'pu', 'Machine Voltage Mag (Filtered)', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_a_pu', 'pu', 'Machine Voltage Phase A', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_b_pu', 'pu', 'Machine Voltage Phase B', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_c_pu', 'pu', 'Machine Voltage Phase C', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_side_speed', 'pu', 'Machine Side Speed', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_magnitude', 'pu', 'Machine Voltage Magnitude', self.buffer_size))
+        measurements.add_signal(SignalHistory('is_commuting', '', 'Is Commuting', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_alpha_pu', 'pu', 'Machine Voltage Alpha', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_beta_pu', 'pu', 'Machine Voltage Beta', self.buffer_size))
+        measurements.add_signal(SignalHistory('machine_voltage_magnitude_filtered_2', 'pu', 'Machine Voltage Mag (Filtered) #2', self.buffer_size))
+        self.groups['measurements'] = measurements
+        
+        # Observer group (indices 10-14)
+        observer = SignalGroup('observer', 'Machine Observer')
+        observer.add_signal(SignalHistory('estimated_voltage_magnitude_pu', 'pu', 'Est. Voltage Magnitude', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_frequency_pu', 'pu', 'Est. Frequency (pu)', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_angle_rad', 'rad', 'Est. Angle', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_frequency_hz', 'Hz', 'Est. Frequency (Hz)', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_voltage_alpha_pu', 'pu', 'Est. Voltage Alpha', self.buffer_size))
+        self.groups['observer'] = observer
+        
+        # Modulator group (indices 15-19)
+        modulator = SignalGroup('modulator', 'Machine-Side Modulator')
+        modulator.add_signal(SignalHistory('firing_angle_rad', 'rad', 'Firing Angle', self.buffer_size))
+        modulator.add_signal(SignalHistory('is_enabled', '', 'Is Enabled', self.buffer_size))
+        modulator.add_signal(SignalHistory('release_pulses', '', 'Release Pulses', self.buffer_size))
+        modulator.add_signal(SignalHistory('request_force_commutation', '', 'Request Force Commutation', self.buffer_size))
+        modulator.add_signal(SignalHistory('current_rotor_sector', '', 'Current Rotor Sector', self.buffer_size))
+        self.groups['modulator'] = modulator
+        
+        # Machine-Side Controller group (indices 20-24)
+        machine_controller = SignalGroup('machine_controller', 'Machine-Side Controller')
+        machine_controller.add_signal(SignalHistory('firing_angle', 'rad', 'Firing Angle', self.buffer_size))
+        machine_controller.add_signal(SignalHistory('machine_speed', 'pu', 'Machine Speed', self.buffer_size))
+        machine_controller.add_signal(SignalHistory('dc_link_current', 'pu', 'DC Link Current', self.buffer_size))
+        machine_controller.add_signal(SignalHistory('reserved_1', '', 'Reserved 1', self.buffer_size))
+        machine_controller.add_signal(SignalHistory('reserved_2', '', 'Reserved 2', self.buffer_size))
+        self.groups['machine_controller'] = machine_controller
+        
+        # Torque Controller group (indices 25-29)
+        torque_controller = SignalGroup('torque_controller', 'Torque Controller')
+        torque_controller.add_signal(SignalHistory('current_reference_pu', 'pu', 'Current Reference', self.buffer_size))
+        torque_controller.add_signal(SignalHistory('base_torque_reference', 'pu', 'Base Torque Reference', self.buffer_size))
+        torque_controller.add_signal(SignalHistory('total_torque_reference', 'pu', 'Total Torque Reference', self.buffer_size))
+        torque_controller.add_signal(SignalHistory('limited_torque_reference', 'pu', 'Limited Torque Reference', self.buffer_size))
+        torque_controller.add_signal(SignalHistory('is_saturated', '', 'Is Saturated', self.buffer_size))
+        self.groups['torque_controller'] = torque_controller
+        
+        # Speed Controller group (indices 30-34)
+        speed_controller = SignalGroup('speed_controller', 'Speed Controller')
+        speed_controller.add_signal(SignalHistory('torque_reference', 'pu', 'Torque Reference', self.buffer_size))
+        speed_controller.add_signal(SignalHistory('measured_speed_pu', 'pu', 'Measured Speed', self.buffer_size))
+        speed_controller.add_signal(SignalHistory('speed_error', 'pu', 'Speed Error', self.buffer_size))
+        speed_controller.add_signal(SignalHistory('pi_output', '', 'PI Output', self.buffer_size))
+        speed_controller.add_signal(SignalHistory('is_saturated', '', 'Is Saturated', self.buffer_size))
+        self.groups['speed_controller'] = speed_controller
+        
+        # Speed Generator group (indices 35-39)
+        speed_generator = SignalGroup('speed_generator', 'Speed Generator')
+        speed_generator.add_signal(SignalHistory('speed_reference_pu', 'pu', 'Speed Reference', self.buffer_size))
+        speed_generator.add_signal(SignalHistory('torque_limit_max_pu', 'pu', 'Max Torque Limit', self.buffer_size))
+        speed_generator.add_signal(SignalHistory('torque_limit_min_pu', 'pu', 'Min Torque Limit', self.buffer_size))
+        speed_generator.add_signal(SignalHistory('is_profile_complete', '', 'Profile Complete', self.buffer_size))
+        speed_generator.add_signal(SignalHistory('is_breakaway_boost_active', '', 'Breakaway Boost Active', self.buffer_size))
+        self.groups['speed_generator'] = speed_generator
+        
+        # Excitation Controller group (indices 40-44)
+        excitation_controller = SignalGroup('excitation_controller', 'Excitation Controller')
+        excitation_controller.add_signal(SignalHistory('excitation_voltage_setpoint_pu', 'pu', 'Excitation Voltage Setpoint', self.buffer_size))
+        excitation_controller.add_signal(SignalHistory('enable_excitation', '', 'Enable Excitation', self.buffer_size))
+        excitation_controller.add_signal(SignalHistory('is_field_established', '', 'Field Established', self.buffer_size))
+        excitation_controller.add_signal(SignalHistory('is_running', '', 'Is Running', self.buffer_size))
+        excitation_controller.add_signal(SignalHistory('reserved', '', 'Reserved', self.buffer_size))
+        self.groups['excitation_controller'] = excitation_controller
+        
+        # Pulse Generator group (indices 45-49)
+        pulse_generator = SignalGroup('pulse_generator', 'Pulse Generator')
+        pulse_generator.add_signal(SignalHistory('pulse_p1', '', 'Pulse P1 (T1)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p2', '', 'Pulse P2 (T2)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p3', '', 'Pulse P3 (T3)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p4', '', 'Pulse P4 (T4)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p5', '', 'Pulse P5 (T5)', self.buffer_size))
+        self.groups['pulse_generator'] = pulse_generator
+    
+    def update_from_packet(self, packet: Union[GridSideTelemetryPacket, MachineSideTelemetryPacket]) -> None:
+        """Update all signal histories from telemetry packet (grid or machine side).
+        
+        Auto-detects packet type and updates signals accordingly.
+        If side changes, automatically reinitializes signal groups.
         
         Args:
-            packet: Decoded telemetry packet with signal array (50 signals)
+            packet: Decoded telemetry packet (grid or machine side)
+        """
+        # Auto-detect side change
+        if isinstance(packet, GridSideTelemetryPacket):
+            self.switch_to_grid_side()
+            self._update_from_grid_packet(packet)
+        elif isinstance(packet, MachineSideTelemetryPacket):
+            self.switch_to_machine_side()
+            self._update_from_machine_packet(packet)
+    
+    def _update_from_grid_packet(self, packet: GridSideTelemetryPacket) -> None:
+        """Update signal histories from grid-side telemetry packet.
+        
+        Args:
+            packet: Grid-side telemetry packet
         """
         timestamp_ms = packet.header.timestamp_ms
         sequence = packet.header.sequence_number
         
         # Update measurements (indices 0-13)
-        self._append_signal('measurements', 'grid_voltage_magnitude_filtered_pu', packet.get_signal(SignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_voltage_a_pu', packet.get_signal(SignalIndex.GRID_VOLTAGE_A), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_voltage_b_pu', packet.get_signal(SignalIndex.GRID_VOLTAGE_B), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_voltage_c_pu', packet.get_signal(SignalIndex.GRID_VOLTAGE_C), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_current_magnitude_pu', packet.get_signal(SignalIndex.GRID_CURRENT_MAGNITUDE), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_current_a_pu', packet.get_signal(SignalIndex.GRID_CURRENT_A), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_current_b_pu', packet.get_signal(SignalIndex.GRID_CURRENT_B), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_current_c_pu', packet.get_signal(SignalIndex.GRID_CURRENT_C), timestamp_ms, sequence)
-        self._append_signal('measurements', 'dc_link_current_pu', packet.get_signal(SignalIndex.DC_LINK_CURRENT), timestamp_ms, sequence)
-        self._append_signal('measurements', 'is_commuting', float(packet.get_bool_signal(SignalIndex.IS_COMMUTING)), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_voltage_alpha_pu', packet.get_signal(SignalIndex.GRID_VOLTAGE_ALPHA), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_voltage_beta_pu', packet.get_signal(SignalIndex.GRID_VOLTAGE_BETA), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_voltage_magnitude_filtered_pu_2', packet.get_signal(SignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED_DUP), timestamp_ms, sequence)
-        self._append_signal('measurements', 'grid_side_frequency_pu', packet.get_signal(SignalIndex.GRID_SIDE_FREQUENCY), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_magnitude_filtered_pu', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_a_pu', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_A), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_b_pu', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_B), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_c_pu', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_C), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_current_magnitude_pu', packet.get_signal(GridSignalIndex.GRID_CURRENT_MAGNITUDE), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_current_a_pu', packet.get_signal(GridSignalIndex.GRID_CURRENT_A), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_current_b_pu', packet.get_signal(GridSignalIndex.GRID_CURRENT_B), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_current_c_pu', packet.get_signal(GridSignalIndex.GRID_CURRENT_C), timestamp_ms, sequence)
+        self._append_signal('measurements', 'dc_link_current_pu', packet.get_signal(GridSignalIndex.DC_LINK_CURRENT), timestamp_ms, sequence)
+        self._append_signal('measurements', 'is_commuting', float(packet.get_bool_signal(GridSignalIndex.IS_COMMUTING)), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_alpha_pu', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_ALPHA), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_beta_pu', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_BETA), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_voltage_magnitude_filtered_pu_2', packet.get_signal(GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED_DUP), timestamp_ms, sequence)
+        self._append_signal('measurements', 'grid_side_frequency_pu', packet.get_signal(GridSignalIndex.GRID_SIDE_FREQUENCY), timestamp_ms, sequence)
         
         # Update observer (indices 14-19)
-        self._append_signal('observer', 'estimated_voltage_magnitude_pu', packet.get_signal(SignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_frequency_pu', packet.get_signal(SignalIndex.ESTIMATED_FREQUENCY_PU), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_angle_rad', packet.get_signal(SignalIndex.ESTIMATED_ANGLE_RAD), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_frequency_hz', packet.get_signal(SignalIndex.ESTIMATED_FREQUENCY_HZ), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_voltage_alpha_pu', packet.get_signal(SignalIndex.ESTIMATED_VOLTAGE_ALPHA), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_voltage_beta_pu', packet.get_signal(SignalIndex.ESTIMATED_VOLTAGE_BETA), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_voltage_magnitude_pu', packet.get_signal(GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_frequency_pu', packet.get_signal(GridSignalIndex.ESTIMATED_FREQUENCY_PU), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_angle_rad', packet.get_signal(GridSignalIndex.ESTIMATED_ANGLE_RAD), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_frequency_hz', packet.get_signal(GridSignalIndex.ESTIMATED_FREQUENCY_HZ), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_voltage_alpha_pu', packet.get_signal(GridSignalIndex.ESTIMATED_VOLTAGE_ALPHA), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_voltage_beta_pu', packet.get_signal(GridSignalIndex.ESTIMATED_VOLTAGE_BETA), timestamp_ms, sequence)
         
         # Update modulator (indices 20-23)
-        self._append_signal('modulator', 'firing_angle_rad', packet.get_signal(SignalIndex.FIRING_ANGLE_RAD), timestamp_ms, sequence)
-        self._append_signal('modulator', 'is_enabled', float(packet.get_bool_signal(SignalIndex.MODULATOR_ENABLED)), timestamp_ms, sequence)
-        self._append_signal('modulator', 'force_commutation_ack', float(packet.get_bool_signal(SignalIndex.FORCE_COMMUTATION_ACK)), timestamp_ms, sequence)
-        self._append_signal('modulator', 'is_requesting_pi_reset', float(packet.get_bool_signal(SignalIndex.IS_REQUESTING_PI_RESET)), timestamp_ms, sequence)
+        self._append_signal('modulator', 'firing_angle_rad', packet.get_signal(GridSignalIndex.FIRING_ANGLE_RAD), timestamp_ms, sequence)
+        self._append_signal('modulator', 'is_enabled', float(packet.get_bool_signal(GridSignalIndex.MODULATOR_ENABLED)), timestamp_ms, sequence)
+        self._append_signal('modulator', 'force_commutation_ack', float(packet.get_bool_signal(GridSignalIndex.FORCE_COMMUTATION_ACK)), timestamp_ms, sequence)
+        self._append_signal('modulator', 'is_requesting_pi_reset', float(packet.get_bool_signal(GridSignalIndex.IS_REQUESTING_PI_RESET)), timestamp_ms, sequence)
         
         # Update controller (indices 24-30)
-        self._append_signal('controller', 'dc_link_current_reference_pu', packet.get_signal(SignalIndex.DC_LINK_CURRENT_REFERENCE), timestamp_ms, sequence)
-        self._append_signal('controller', 'dc_link_current_measured_pu', packet.get_signal(SignalIndex.DC_LINK_CURRENT_MEASURED), timestamp_ms, sequence)
-        self._append_signal('controller', 'current_error_pu', packet.get_signal(SignalIndex.CURRENT_ERROR), timestamp_ms, sequence)
-        self._append_signal('controller', 'controller_output_rad', packet.get_signal(SignalIndex.CONTROLLER_OUTPUT), timestamp_ms, sequence)
-        self._append_signal('controller', 'operating_mode', packet.get_signal(SignalIndex.OPERATING_MODE), timestamp_ms, sequence)
-        self._append_signal('controller', 'controller_saturated', float(packet.get_bool_signal(SignalIndex.CONTROLLER_SATURATED)), timestamp_ms, sequence)
-        self._append_signal('controller', 'freeze_integrator', float(packet.get_bool_signal(SignalIndex.FREEZE_INTEGRATOR)), timestamp_ms, sequence)
+        self._append_signal('controller', 'dc_link_current_reference_pu', packet.get_signal(GridSignalIndex.DC_LINK_CURRENT_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('controller', 'dc_link_current_measured_pu', packet.get_signal(GridSignalIndex.DC_LINK_CURRENT_MEASURED), timestamp_ms, sequence)
+        self._append_signal('controller', 'current_error_pu', packet.get_signal(GridSignalIndex.CURRENT_ERROR), timestamp_ms, sequence)
+        self._append_signal('controller', 'controller_output_rad', packet.get_signal(GridSignalIndex.CONTROLLER_OUTPUT), timestamp_ms, sequence)
+        self._append_signal('controller', 'operating_mode', packet.get_signal(GridSignalIndex.OPERATING_MODE), timestamp_ms, sequence)
+        self._append_signal('controller', 'controller_saturated', float(packet.get_bool_signal(GridSignalIndex.CONTROLLER_SATURATED)), timestamp_ms, sequence)
+        self._append_signal('controller', 'freeze_integrator', float(packet.get_bool_signal(GridSignalIndex.FREEZE_INTEGRATOR)), timestamp_ms, sequence)
         
         # Update state machine (indices 31-38)
-        self._append_signal('state_machine', 'current_state_id', packet.get_signal(SignalIndex.STATE_MACHINE_STATE), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'pulse_releases', float(packet.get_bool_signal(SignalIndex.PULSE_RELEASES)), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'auxiliaries_are_on', float(packet.get_bool_signal(SignalIndex.AUXILIARIES_ON)), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'breakers_are_on', float(packet.get_bool_signal(SignalIndex.BREAKERS_ON)), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'start_command', float(packet.get_bool_signal(SignalIndex.START_COMMAND)), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'stop_command', float(packet.get_bool_signal(SignalIndex.STOP_COMMAND)), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'is_current_extinguished', float(packet.get_bool_signal(SignalIndex.CURRENT_EXTINGUISHED)), timestamp_ms, sequence)
-        self._append_signal('state_machine', 'shutdown_request', float(packet.get_bool_signal(SignalIndex.SHUTDOWN_REQUESTED)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'current_state_id', packet.get_signal(GridSignalIndex.STATE_MACHINE_STATE), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'pulse_releases', float(packet.get_bool_signal(GridSignalIndex.PULSE_RELEASES)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'auxiliaries_are_on', float(packet.get_bool_signal(GridSignalIndex.AUXILIARIES_ON)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'breakers_are_on', float(packet.get_bool_signal(GridSignalIndex.BREAKERS_ON)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'start_command', float(packet.get_bool_signal(GridSignalIndex.START_COMMAND)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'stop_command', float(packet.get_bool_signal(GridSignalIndex.STOP_COMMAND)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'is_current_extinguished', float(packet.get_bool_signal(GridSignalIndex.CURRENT_EXTINGUISHED)), timestamp_ms, sequence)
+        self._append_signal('state_machine', 'shutdown_request', float(packet.get_bool_signal(GridSignalIndex.SHUTDOWN_REQUESTED)), timestamp_ms, sequence)
         
         # Update operation mode monitor (indices 39-42)
-        self._append_signal('operation_mode', 'current_mode', packet.get_signal(SignalIndex.OPERATION_MODE), timestamp_ms, sequence)
-        self._append_signal('operation_mode', 'has_mode_changed', float(packet.get_bool_signal(SignalIndex.MODE_CHANGED)), timestamp_ms, sequence)
-        self._append_signal('operation_mode', 'is_current_zero', float(packet.get_bool_signal(SignalIndex.CURRENT_ZERO)), timestamp_ms, sequence)
-        self._append_signal('operation_mode', 'is_discontinuous_mode', float(packet.get_bool_signal(SignalIndex.DISCONTINUOUS_MODE)), timestamp_ms, sequence)
+        self._append_signal('operation_mode', 'current_mode', packet.get_signal(GridSignalIndex.OPERATION_MODE), timestamp_ms, sequence)
+        self._append_signal('operation_mode', 'has_mode_changed', float(packet.get_bool_signal(GridSignalIndex.MODE_CHANGED)), timestamp_ms, sequence)
+        self._append_signal('operation_mode', 'is_current_zero', float(packet.get_bool_signal(GridSignalIndex.CURRENT_ZERO)), timestamp_ms, sequence)
+        self._append_signal('operation_mode', 'is_discontinuous_mode', float(packet.get_bool_signal(GridSignalIndex.DISCONTINUOUS_MODE)), timestamp_ms, sequence)
         
         # Update pulse generator (indices 43-49)
-        self._append_signal('pulse_generator', 'pulse_p1', float(packet.get_bool_signal(SignalIndex.FIRING_PULSE_1)), timestamp_ms, sequence)
-        self._append_signal('pulse_generator', 'pulse_p2', float(packet.get_bool_signal(SignalIndex.FIRING_PULSE_2)), timestamp_ms, sequence)
-        self._append_signal('pulse_generator', 'pulse_p3', float(packet.get_bool_signal(SignalIndex.FIRING_PULSE_3)), timestamp_ms, sequence)
-        self._append_signal('pulse_generator', 'pulse_p4', float(packet.get_bool_signal(SignalIndex.FIRING_PULSE_4)), timestamp_ms, sequence)
-        self._append_signal('pulse_generator', 'pulse_p5', float(packet.get_bool_signal(SignalIndex.FIRING_PULSE_5)), timestamp_ms, sequence)
-        self._append_signal('pulse_generator', 'pulse_p6', float(packet.get_bool_signal(SignalIndex.FIRING_PULSE_6)), timestamp_ms, sequence)
-        self._append_signal('pulse_generator', 'pulse_active', float(packet.get_bool_signal(SignalIndex.PULSE_GENERATOR_ACTIVE)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p1', float(packet.get_bool_signal(GridSignalIndex.FIRING_PULSE_1)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p2', float(packet.get_bool_signal(GridSignalIndex.FIRING_PULSE_2)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p3', float(packet.get_bool_signal(GridSignalIndex.FIRING_PULSE_3)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p4', float(packet.get_bool_signal(GridSignalIndex.FIRING_PULSE_4)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p5', float(packet.get_bool_signal(GridSignalIndex.FIRING_PULSE_5)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p6', float(packet.get_bool_signal(GridSignalIndex.FIRING_PULSE_6)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_active', float(packet.get_bool_signal(GridSignalIndex.PULSE_GENERATOR_ACTIVE)), timestamp_ms, sequence)
+    
+    def _update_from_machine_packet(self, packet: MachineSideTelemetryPacket) -> None:
+        """Update signal histories from machine-side telemetry packet.
+        
+        Args:
+            packet: Machine-side telemetry packet
+        """
+        timestamp_ms = packet.header.timestamp_ms
+        sequence = packet.header.sequence_number
+        
+        # Update measurements (indices 0-9)
+        self._append_signal('measurements', 'machine_voltage_magnitude_filtered_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_a_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_A), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_b_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_B), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_c_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_C), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_side_speed', packet.get_signal(MachineSignalIndex.MACHINE_SIDE_SPEED), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_magnitude', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE), timestamp_ms, sequence)
+        self._append_signal('measurements', 'is_commuting', float(packet.get_bool_signal(MachineSignalIndex.IS_COMMUTING)), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_alpha_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_ALPHA), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_beta_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_BETA), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_magnitude_filtered_2', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED_2), timestamp_ms, sequence)
+        
+        # Update observer (indices 10-14)
+        self._append_signal('observer', 'estimated_voltage_magnitude_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_frequency_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_angle_rad', packet.get_signal(MachineSignalIndex.ESTIMATED_ANGLE_RAD), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_frequency_hz', packet.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_voltage_alpha_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_ALPHA), timestamp_ms, sequence)
+        
+        # Update modulator (indices 15-19)
+        self._append_signal('modulator', 'firing_angle_rad', packet.get_signal(MachineSignalIndex.FIRING_ANGLE_RAD), timestamp_ms, sequence)
+        self._append_signal('modulator', 'is_enabled', float(packet.get_bool_signal(MachineSignalIndex.MODULATOR_ENABLED)), timestamp_ms, sequence)
+        self._append_signal('modulator', 'release_pulses', float(packet.get_bool_signal(MachineSignalIndex.RELEASE_PULSES)), timestamp_ms, sequence)
+        self._append_signal('modulator', 'request_force_commutation', float(packet.get_bool_signal(MachineSignalIndex.REQUEST_FORCE_COMMUTATION)), timestamp_ms, sequence)
+        self._append_signal('modulator', 'current_rotor_sector', packet.get_signal(MachineSignalIndex.CURRENT_ROTOR_SECTOR), timestamp_ms, sequence)
+        
+        # Update machine controller (indices 20-24)
+        self._append_signal('machine_controller', 'firing_angle', packet.get_signal(MachineSignalIndex.CONTROLLER_FIRING_ANGLE), timestamp_ms, sequence)
+        self._append_signal('machine_controller', 'machine_speed', packet.get_signal(MachineSignalIndex.CONTROLLER_MACHINE_SPEED), timestamp_ms, sequence)
+        self._append_signal('machine_controller', 'dc_link_current', packet.get_signal(MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT), timestamp_ms, sequence)
+        self._append_signal('machine_controller', 'reserved_1', packet.get_signal(MachineSignalIndex.CONTROLLER_RESERVED_1), timestamp_ms, sequence)
+        self._append_signal('machine_controller', 'reserved_2', packet.get_signal(MachineSignalIndex.CONTROLLER_RESERVED_2), timestamp_ms, sequence)
+        
+        # Update torque controller (indices 25-29)
+        self._append_signal('torque_controller', 'current_reference_pu', packet.get_signal(MachineSignalIndex.TORQUE_CURRENT_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('torque_controller', 'base_torque_reference', packet.get_signal(MachineSignalIndex.TORQUE_BASE_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('torque_controller', 'total_torque_reference', packet.get_signal(MachineSignalIndex.TORQUE_TOTAL_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('torque_controller', 'limited_torque_reference', packet.get_signal(MachineSignalIndex.TORQUE_LIMITED_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('torque_controller', 'is_saturated', float(packet.get_bool_signal(MachineSignalIndex.TORQUE_IS_SATURATED)), timestamp_ms, sequence)
+        
+        # Update speed controller (indices 30-34)
+        self._append_signal('speed_controller', 'torque_reference', packet.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('speed_controller', 'measured_speed_pu', packet.get_signal(MachineSignalIndex.SPEED_MEASURED_SPEED_PU), timestamp_ms, sequence)
+        self._append_signal('speed_controller', 'speed_error', packet.get_signal(MachineSignalIndex.SPEED_ERROR), timestamp_ms, sequence)
+        self._append_signal('speed_controller', 'pi_output', packet.get_signal(MachineSignalIndex.SPEED_PI_OUTPUT), timestamp_ms, sequence)
+        self._append_signal('speed_controller', 'is_saturated', float(packet.get_bool_signal(MachineSignalIndex.SPEED_IS_SATURATED)), timestamp_ms, sequence)
+        
+        # Update speed generator (indices 35-39)
+        self._append_signal('speed_generator', 'speed_reference_pu', packet.get_signal(MachineSignalIndex.GENERATOR_SPEED_REFERENCE), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'torque_limit_max_pu', packet.get_signal(MachineSignalIndex.GENERATOR_TORQUE_LIMIT_MAX), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'torque_limit_min_pu', packet.get_signal(MachineSignalIndex.GENERATOR_TORQUE_LIMIT_MIN), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'is_profile_complete', float(packet.get_bool_signal(MachineSignalIndex.GENERATOR_IS_PROFILE_COMPLETE)), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'is_breakaway_boost_active', float(packet.get_bool_signal(MachineSignalIndex.GENERATOR_IS_BREAKAWAY_BOOST_ACTIVE)), timestamp_ms, sequence)
+        
+        # Update excitation controller (indices 40-44)
+        self._append_signal('excitation_controller', 'excitation_voltage_setpoint_pu', packet.get_signal(MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT), timestamp_ms, sequence)
+        self._append_signal('excitation_controller', 'enable_excitation', float(packet.get_bool_signal(MachineSignalIndex.EXCITATION_ENABLE)), timestamp_ms, sequence)
+        self._append_signal('excitation_controller', 'is_field_established', float(packet.get_bool_signal(MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED)), timestamp_ms, sequence)
+        self._append_signal('excitation_controller', 'is_running', float(packet.get_bool_signal(MachineSignalIndex.EXCITATION_IS_RUNNING)), timestamp_ms, sequence)
+        self._append_signal('excitation_controller', 'reserved', packet.get_signal(MachineSignalIndex.EXCITATION_RESERVED), timestamp_ms, sequence)
+        
+        # Update pulse generator (indices 45-49)
+        self._append_signal('pulse_generator', 'pulse_p1', float(packet.get_bool_signal(MachineSignalIndex.PULSE_P1)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p2', float(packet.get_bool_signal(MachineSignalIndex.PULSE_P2)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p3', float(packet.get_bool_signal(MachineSignalIndex.PULSE_P3)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p4', float(packet.get_bool_signal(MachineSignalIndex.PULSE_P4)), timestamp_ms, sequence)
+        self._append_signal('pulse_generator', 'pulse_p5', float(packet.get_bool_signal(MachineSignalIndex.PULSE_P5)), timestamp_ms, sequence)
+        measurements = SignalGroup('measurements', 'Grid & DC Measurements')
+        measurements.add_signal(SignalHistory('grid_voltage_magnitude_filtered_pu', 'pu', 'Grid Voltage Mag (Filtered)', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_voltage_a_pu', 'pu', 'Grid Voltage Phase A', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_voltage_b_pu', 'pu', 'Grid Voltage Phase B', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_voltage_c_pu', 'pu', 'Grid Voltage Phase C', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_current_magnitude_pu', 'pu', 'Grid Current Magnitude', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_current_a_pu', 'pu', 'Grid Current Phase A', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_current_b_pu', 'pu', 'Grid Current Phase B', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_current_c_pu', 'pu', 'Grid Current Phase C', self.buffer_size))
+        measurements.add_signal(SignalHistory('dc_link_current_pu', 'pu', 'DC Link Current', self.buffer_size))
+        measurements.add_signal(SignalHistory('is_commuting', '', 'Is Commuting', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_voltage_alpha_pu', 'pu', 'Grid Voltage Alpha', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_voltage_beta_pu', 'pu', 'Grid Voltage Beta', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_voltage_magnitude_filtered_pu_2', 'pu', 'Grid Voltage Mag (Filtered) #2', self.buffer_size))
+        measurements.add_signal(SignalHistory('grid_side_frequency_pu', 'pu', 'Grid Side Frequency', self.buffer_size))
+        self.groups['measurements'] = measurements
+        
+        # Observer group (indices 14-19)
+        observer = SignalGroup('observer', 'Grid Observer')
+        observer.add_signal(SignalHistory('estimated_voltage_magnitude_pu', 'pu', 'Est. Voltage Magnitude', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_frequency_pu', 'pu', 'Est. Frequency (pu)', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_angle_rad', 'rad', 'Est. Angle', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_frequency_hz', 'Hz', 'Est. Frequency (Hz)', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_voltage_alpha_pu', 'pu', 'Est. Voltage Alpha', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_voltage_beta_pu', 'pu', 'Est. Voltage Beta', self.buffer_size))
+        self.groups['observer'] = observer
+        
+        # Modulator group (indices 20-23)
+        modulator = SignalGroup('modulator', 'Grid-Side Modulator')
+        modulator.add_signal(SignalHistory('firing_angle_rad', 'rad', 'Firing Angle', self.buffer_size))
+        modulator.add_signal(SignalHistory('is_enabled', '', 'Is Enabled', self.buffer_size))
+        modulator.add_signal(SignalHistory('force_commutation_ack', '', 'Force Commutation Ack', self.buffer_size))
+        modulator.add_signal(SignalHistory('is_requesting_pi_reset', '', 'Is Requesting PI Reset', self.buffer_size))
+        self.groups['modulator'] = modulator
+        
+        # Controller group (indices 24-30)
+        controller = SignalGroup('controller', 'Current Controller')
+        controller.add_signal(SignalHistory('dc_link_current_reference_pu', 'pu', 'DC Current Reference', self.buffer_size))
+        controller.add_signal(SignalHistory('dc_link_current_measured_pu', 'pu', 'DC Current Measured', self.buffer_size))
+        controller.add_signal(SignalHistory('current_error_pu', 'pu', 'Current Error', self.buffer_size))
+        controller.add_signal(SignalHistory('controller_output_rad', 'rad', 'Controller Output', self.buffer_size))
+        controller.add_signal(SignalHistory('operating_mode', '', 'Operating Mode', self.buffer_size))
+        controller.add_signal(SignalHistory('controller_saturated', '', 'Controller Saturated', self.buffer_size))
+        controller.add_signal(SignalHistory('freeze_integrator', '', 'Freeze Integrator', self.buffer_size))
+        self.groups['controller'] = controller
+        
+        # State machine group (indices 31-38)
+        state_machine = SignalGroup('state_machine', 'State Machine')
+        state_machine.add_signal(SignalHistory('current_state_id', '', 'Current State', self.buffer_size))
+        state_machine.add_signal(SignalHistory('pulse_releases', '', 'Pulse Releases', self.buffer_size))
+        state_machine.add_signal(SignalHistory('auxiliaries_are_on', '', 'Auxiliaries Are On', self.buffer_size))
+        state_machine.add_signal(SignalHistory('breakers_are_on', '', 'Breakers Are On', self.buffer_size))
+        state_machine.add_signal(SignalHistory('start_command', '', 'Start Command', self.buffer_size))
+        state_machine.add_signal(SignalHistory('stop_command', '', 'Stop Command', self.buffer_size))
+        state_machine.add_signal(SignalHistory('is_current_extinguished', '', 'Current Extinguished', self.buffer_size))
+        state_machine.add_signal(SignalHistory('shutdown_request', '', 'Shutdown Requested', self.buffer_size))
+        self.groups['state_machine'] = state_machine
+        
+        # Operation mode monitor group (indices 39-42)
+        operation_mode = SignalGroup('operation_mode', 'Operation Mode Monitor')
+        operation_mode.add_signal(SignalHistory('current_mode', '', 'Current Mode', self.buffer_size))
+        operation_mode.add_signal(SignalHistory('has_mode_changed', '', 'Mode Changed', self.buffer_size))
+        operation_mode.add_signal(SignalHistory('is_current_zero', '', 'Current Is Zero', self.buffer_size))
+        operation_mode.add_signal(SignalHistory('is_discontinuous_mode', '', 'Is Discontinuous Mode', self.buffer_size))
+        self.groups['operation_mode'] = operation_mode
+        
+        # Pulse generator group (indices 43-49)
+        pulse_generator = SignalGroup('pulse_generator', 'Pulse Generator')
+        pulse_generator.add_signal(SignalHistory('pulse_p1', '', 'Pulse P1 (T1)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p2', '', 'Pulse P2 (T2)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p3', '', 'Pulse P3 (T3)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p4', '', 'Pulse P4 (T4)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p5', '', 'Pulse P5 (T5)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_p6', '', 'Pulse P6 (T6)', self.buffer_size))
+        pulse_generator.add_signal(SignalHistory('pulse_active', '', 'Pulse Active', self.buffer_size))
+        self.groups['pulse_generator'] = pulse_generator
     
     def _append_signal(self, group_name: str, signal_name: str, value: float, timestamp_ms: int, sequence: int) -> None:
         """Append value to signal history (internal helper).

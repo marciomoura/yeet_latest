@@ -414,32 +414,39 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             
             # Clear the layout safely - handle potential tracking issues in pyqtgraph
             try:
-                self.plots_container.clear()
-            except (ValueError, RuntimeError, AttributeError) as e:
-                # If clear() fails, try removing items individually
-                logger.debug(f"Layout clear() failed, attempting manual removal: {e}")
+                # Try to remove items individually first (safer than clear())
+                items_to_remove = []
+                for group_plots in self.plot_groups.values():
+                    for plot_item in group_plots.values():
+                        items_to_remove.append(plot_item)
+                
+                for plot_item in items_to_remove:
+                    try:
+                        self.plots_container.removeItem(plot_item)
+                    except (ValueError, RuntimeError, KeyError, AttributeError):
+                        # Item may not be in layout, continue
+                        pass
+                
+                # Now try clear() to reset internal state
                 try:
-                    # Get list of items currently in layout (GraphicsLayout stores items internally)
-                    # We'll iterate through plot groups and try to remove each plot
-                    for group_plots in self.plot_groups.values():
-                        for plot_item in group_plots.values():
-                            try:
-                                self.plots_container.removeItem(plot_item)
-                            except (ValueError, RuntimeError):
-                                # Item may not be in layout, continue
-                                pass
-                except Exception as e2:
-                    logger.warning(f"Manual layout clearing also failed: {e2}")
+                    self.plots_container.clear()
+                except (ValueError, RuntimeError, KeyError, AttributeError) as e:
+                    logger.debug(f"plots_container.clear() failed after removeItem: {e}")
+                    
+            except Exception as e:
+                logger.warning(f"Layout clearing failed: {e}")
             
             self.plots_container.setBackground('#1e1e1e')
             
             # Recreate plots in new layout
             if self.layout_mode == "1xN":
                 # Vertical stack: one plot per row
-                for row, group_name in enumerate(self.visible_views_order):
+                row = 0
+                for group_name in self.visible_views_order:
                     if group_name in self.plot_groups:
                         for plot_name, plot_item in self.plot_groups[group_name].items():
                             self.plots_container.addItem(plot_item, row=row, col=0)
+                            row += 1
             
             elif self.layout_mode == "2x2":
                 # 2x2 grid layout
