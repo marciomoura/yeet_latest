@@ -3,11 +3,11 @@
  * @brief Implementation of parameter handler using model_registry
  */
 
-#include "sfc_embedded/parameter_handler.hpp"
+#include "yeet/parameter_handler.hpp"
 
 #include <iostream>
 
-namespace yeet::application::sfc {
+namespace yeet::telemetry {
 
 parameter_handler::parameter_handler(const model_registry* registry)
     : registry_(registry), parameter_cache_{}, sequence_counter_(0)
@@ -259,4 +259,4 @@ bool parameter_handler::handle_get_by_index_request(
     return true;
 }
 
-}  // namespace yeet::application::sfc
+}  // namespace yeet::telemetry

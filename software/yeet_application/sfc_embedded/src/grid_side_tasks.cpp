@@ -8,10 +8,10 @@
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/fiber_optic_protocol.hpp"
 #include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
-#include "sfc_embedded/network_handler.hpp"
-#include "sfc_embedded/network_telemetry_manager.hpp"
-#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
+#include "yeet/network_handler.hpp"
+#include "yeet/network_telemetry_manager.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 
 // Ensure functions are compiled with Thumb interworking
@@ -73,25 +73,25 @@ static inline yeet::application::sfc::telemetry::grid_side_telemetry_builder& ge
 
 // ==================== NETWORK TELEMETRY MANAGER ====================
 // Telemetry streaming manager for TCP/IP interface
-static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
+static inline yeet::telemetry::telemetry_manager& get_telemetry_manager()
 {
-    static yeet::application::sfc::network::telemetry_manager manager(get_grid_side_telemetry_builder(), 10);
+    static yeet::telemetry::telemetry_manager manager(get_grid_side_telemetry_builder(), 10);
     return manager;
 }
 
 // ==================== PARAMETER HANDLER ====================
 // Parameter configuration handler for TCP/IP interface
-static inline yeet::application::sfc::parameter_handler& get_parameter_handler()
+static inline yeet::telemetry::parameter_handler& get_parameter_handler()
 {
-    static yeet::application::sfc::parameter_handler handler(&get_model_registry());
+    static yeet::telemetry::parameter_handler handler(&get_model_registry());
     return handler;
 }
 
 // ==================== NETWORK HANDLER ====================
 // Network protocol handler that manages telemetry streaming and parameter requests
-static inline yeet::application::sfc::network::network_handler& get_network_handler()
+static inline yeet::telemetry::network_handler& get_network_handler()
 {
-    static yeet::application::sfc::network::network_handler handler(get_telemetry_manager(), get_parameter_handler());
+    static yeet::telemetry::network_handler handler(get_telemetry_manager(), get_parameter_handler());
     return handler;
 }
 

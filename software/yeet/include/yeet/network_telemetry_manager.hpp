@@ -22,10 +22,10 @@
 
 #include <cstdint>
 
-#include "sfc_embedded/network_telemetry.hpp"
-#include "sfc_embedded/network_telemetry_builder.hpp"
+#include "yeet/network_telemetry.hpp"
+#include "yeet/network_telemetry_builder.hpp"
 
-namespace yeet::application::sfc::network {
+namespace yeet::telemetry {
 
 /**
  * @brief Telemetry packet ready for transmission
@@ -136,4 +136,4 @@ private:
     alignas(std::uint32_t) std::uint8_t _packet_buffer[telemetry::max_packet_size];
 };
 
-}  // namespace yeet::application::sfc::network
+}  // namespace yeet::telemetry

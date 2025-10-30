@@ -47,14 +47,8 @@ if(NOT YEET_SFC_HOST_BUILD)
 
         target_sources(
             yeet_sfc_embedded_grid
-            PRIVATE src/grid_side_tasks.cpp
-                    src/fiber_optic_protocol.cpp
-                    src/network_telemetry.cpp
-                    src/grid_side_telemetry_builder.cpp
-                    src/network_command_parser.cpp
-                    src/network_telemetry_manager.cpp
-                    src/network_handler.cpp
-                    src/parameter_handler.cpp)
+            PRIVATE src/grid_side_tasks.cpp src/fiber_optic_protocol.cpp
+                    src/grid_side_telemetry_builder.cpp)
 
         target_include_directories(
             yeet_sfc_embedded_grid
@@ -96,15 +90,8 @@ if(NOT YEET_SFC_HOST_BUILD)
 
         target_sources(
             yeet_sfc_embedded_machine
-            PRIVATE src/machine_side_tasks.cpp
-                    src/fiber_optic_protocol.cpp
-                    src/network_telemetry.cpp
-                    src/network_telemetry_builder.cpp
-                    src/machine_side_telemetry_builder.cpp
-                    src/network_command_parser.cpp
-                    src/network_telemetry_manager.cpp
-                    src/network_handler.cpp
-                    src/parameter_handler.cpp)
+            PRIVATE src/machine_side_tasks.cpp src/fiber_optic_protocol.cpp
+                    src/machine_side_telemetry_builder.cpp)
 
         target_include_directories(
             yeet_sfc_embedded_machine
@@ -224,13 +211,8 @@ if(YEET_SFC_HOST_BUILD)
                 # Grid-side control code
                 src/grid_side_tasks.cpp
                 src/fiber_optic_protocol.cpp
-                src/network_telemetry.cpp
                 src/grid_side_telemetry_builder.cpp
-                src/machine_side_telemetry_builder.cpp
-                src/network_command_parser.cpp
-                src/network_telemetry_manager.cpp
-                src/network_handler.cpp
-                src/parameter_handler.cpp)
+                src/machine_side_telemetry_builder.cpp)
 
     target_include_directories(sfc_grid_side_host_simulator
                                PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -264,13 +246,8 @@ if(YEET_SFC_HOST_BUILD)
                 # Machine-side control code
                 src/machine_side_tasks.cpp
                 src/fiber_optic_protocol.cpp
-                src/network_telemetry.cpp
                 src/grid_side_telemetry_builder.cpp
-                src/machine_side_telemetry_builder.cpp
-                src/network_command_parser.cpp
-                src/network_telemetry_manager.cpp
-                src/network_handler.cpp
-                src/parameter_handler.cpp)
+                src/machine_side_telemetry_builder.cpp)
 
     target_include_directories(sfc_machine_side_host_simulator
                                PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -15,11 +15,11 @@
 #include <string>
 #include <vector>
 
-#include "network_telemetry.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet/network_telemetry.hpp"
 #include "yeet/utils/low_level_access.hpp"
 
-namespace yeet::application::sfc {
+namespace yeet::telemetry {
 
 /**
  * @brief Parameter value type enumeration
@@ -251,4 +251,4 @@ private:
     std::uint32_t sequence_counter_;
 };
 
-}  // namespace yeet::application::sfc
+}  // namespace yeet::telemetry

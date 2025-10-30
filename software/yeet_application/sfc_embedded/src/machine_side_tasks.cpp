@@ -7,10 +7,10 @@
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/fiber_optic_protocol.hpp"
 #include "sfc_embedded/machine_side_network_telemetry_builder.hpp"
-#include "sfc_embedded/network_handler.hpp"
-#include "sfc_embedded/network_telemetry_manager.hpp"
-#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
+#include "yeet/network_handler.hpp"
+#include "yeet/network_telemetry_manager.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 
 // Ensure functions are compiled with Thumb interworking
@@ -70,25 +70,25 @@ static inline yeet::application::sfc::telemetry::machine_side_telemetry_builder&
 
 // ==================== NETWORK TELEMETRY MANAGER ====================
 // Telemetry streaming manager for TCP/IP interface
-static inline yeet::application::sfc::network::telemetry_manager& get_telemetry_manager()
+static inline yeet::telemetry::telemetry_manager& get_telemetry_manager()
 {
-    static yeet::application::sfc::network::telemetry_manager manager(get_machine_side_telemetry_builder(), 10);
+    static yeet::telemetry::telemetry_manager manager(get_machine_side_telemetry_builder(), 10);
     return manager;
 }
 
 // ==================== PARAMETER HANDLER ====================
 // Parameter configuration handler for TCP/IP interface
-static inline yeet::application::sfc::parameter_handler& get_parameter_handler()
+static inline yeet::telemetry::parameter_handler& get_parameter_handler()
 {
-    static yeet::application::sfc::parameter_handler handler(&get_model_registry());
+    static yeet::telemetry::parameter_handler handler(&get_model_registry());
     return handler;
 }
 
 // ==================== NETWORK HANDLER ====================
 // Network protocol handler that manages telemetry streaming and parameter requests
-static inline yeet::application::sfc::network::network_handler& get_network_handler()
+static inline yeet::telemetry::network_handler& get_network_handler()
 {
-    static yeet::application::sfc::network::network_handler handler(get_telemetry_manager(), get_parameter_handler());
+    static yeet::telemetry::network_handler handler(get_telemetry_manager(), get_parameter_handler());
     return handler;
 }
 
@@ -154,8 +154,6 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Called from: TIM2_IRQHandler
     // Priority: Highest (measurements, observer, modulator, pulse generator)
 
-    counter_task1++;
-
     // ==================== ANALOG INPUTS → MEASUREMENTS ====================
     // Map hardware ADC channels to machine-side measurements via I/O interface
     // Based on sfc_io_definitions.md:
@@ -195,8 +193,6 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Execution time budget: < 500 µs (50% of period)
     // Called from: TIM3_IRQHandler
     // Priority: Medium (machine controller)
-
-    counter_task2++;
 
     // ==================== DIGITAL INPUTS → CONTROL COMMANDS ====================
     // Map hardware digital inputs to state machine control signals via I/O interface
@@ -303,8 +299,6 @@ void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Execution time budget: < 5 ms (50% of period)
     // Called from: TIM4_IRQHandler
     // Priority: Lowest (speed controller)
-
-    counter_task3++;
 
     // Optional: Use inputs for monitoring/diagnostics
     (void)inputs;  // Suppress unused parameter warning

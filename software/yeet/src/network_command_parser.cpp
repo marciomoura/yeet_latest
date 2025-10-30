@@ -3,9 +3,9 @@
  * @brief Implementation of network command parser
  */
 
-#include "sfc_embedded/network_command_parser.hpp"
+#include "yeet/network_command_parser.hpp"
 
-namespace yeet::application::sfc::network {
+namespace yeet::telemetry {
 
 parsed_command command_parser::parse(const std::uint8_t* buffer, std::uint16_t length) noexcept
 {
@@ -46,4 +46,4 @@ bool command_parser::match_command(
     return true;
 }
 
-}  // namespace yeet::application::sfc::network
+}  // namespace yeet::telemetry

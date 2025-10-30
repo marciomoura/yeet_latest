@@ -41,9 +41,9 @@
 #include "sfc_embedded/host_platform/host_io_mocks.hpp"
 #include "sfc_embedded/host_platform/host_tcp_server.hpp"
 #include "sfc_embedded/host_platform/host_timing.hpp"
-#include "sfc_embedded/network_telemetry.hpp"
-#include "sfc_embedded/parameter_handler.hpp"
 #include "sfc_embedded/task_io.h"
+#include "yeet/network_telemetry.hpp"
+#include "yeet/parameter_handler.hpp"
 
 namespace {
 // Global flag for graceful shutdown on Ctrl+C
