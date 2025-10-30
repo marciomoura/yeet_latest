@@ -20,6 +20,8 @@ import numpy as np
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 
+from monitor_client.config import get_grid_side_plots, get_default_visible_groups
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,67 +103,17 @@ class OscilloscopeWidget(QtWidgets.QWidget):
     def create_standard_plots(self):
         """Create the standard plot set for telemetry monitoring.
         
-        Plots:
-        - Measurements: Voltage (magnitude), Current (phase A/B/C)
-        - Observer: Estimated voltage and frequency
-        - DC Link: Reference and measured currents
-        - Current Measurements: Detailed ABC + DC-link
-        - Observer Voltage Analysis: Measured vs observed voltages
-        - Observer Frequency & Angle: Frequency and phase angle
+        Loads grid-side plot definitions from configuration module.
         """
-        
-        # Define plot structure: group -> plot_name -> config
-        plot_definitions = {
-            'measurements': {
-                'voltage_and_current': {
-                    'title': 'Grid Measurements',
-                    'y_label': 'Magnitude (pu)',
-                    'signals': [
-                        {'name': 'Voltage', 'color': 'g', 'index': 1},
-                        {'name': 'Current A', 'color': 'r', 'index': 2},
-                        {'name': 'Current B', 'color': 'c', 'index': 3},
-                        {'name': 'Current C', 'color': 'm', 'index': 4}
-                    ]
-                }
-            },
-            'observer': {
-                'voltage_freq': {
-                    'title': 'Observer',
-                    'y_label': 'Observer',
-                    'signals': [
-                        {'name': 'V Est (pu)', 'color': 'c', 'index': 1},
-                        {'name': 'Freq (pu)', 'color': 'm', 'index': 2}
-                    ]
-                }
-            },
-            'current_controller': {
-                'dclink': {
-                    'title': 'DC Link Control',
-                    'y_label': 'Current (pu)',
-                    'signals': [
-                        {'name': 'Reference', 'color': 'y', 'index': 1},
-                        {'name': 'Measured', 'color': 'w', 'index': 2}
-                    ]
-                }
-            },
-            'modulator': {
-                'firing_angle_control': {
-                    'title': 'Firing Angle Control',
-                    'y_label': 'Angle (rad)',
-                    'signals': [
-                        {'name': 'Input', 'color': 'y', 'index': 1},
-                        {'name': 'Output', 'color': 'w', 'index': 2},
-                        {'name': 'Enabled', 'color': 'c', 'index': 3}
-                    ]
-                }
-            }
-        }
+        # Get plot definitions from config
+        plot_definitions = get_grid_side_plots()
+        default_visible = get_default_visible_groups('grid')
         
         # Create plots from definitions
         self.visible_views_order = []
         for group_name, group_plots in plot_definitions.items():
             self.plot_groups[group_name] = {}
-            self.view_configs[group_name] = {'visible': group_name in ['measurements', 'observer', 'current_controller']}
+            self.view_configs[group_name] = {'visible': group_name in default_visible}
             
             if self.view_configs[group_name]['visible']:
                 self.visible_views_order.append(group_name)

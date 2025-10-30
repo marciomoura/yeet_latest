@@ -29,6 +29,7 @@ from monitor_client.core.parameter_protocol import ParameterMetadata
 from monitor_client.core.data_persistence import DataPersistence, TelemetrySample
 from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
 from monitor_client.ui.telemetry_panel import GridSideTelemetryPanel, MachineSideTelemetryPanel
+from monitor_client.config import get_machine_side_plots, get_default_visible_groups
 
 logger = logging.getLogger(__name__)
 
@@ -449,109 +450,16 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             if item.widget():
                 item.widget().deleteLater()
         
-        # Define plot structure for machine-side signals
-        # Each group now has ONE plot with all signals combined
-        plot_definitions = {
-            'measurements': {
-                'all_measurements': {
-                    'title': 'Machine Measurements',
-                    'y_label': 'Magnitude (pu) / Speed (rpm) / State',
-                    'signals': [
-                        {'name': 'V Filtered', 'color': 'g', 'index': 0},
-                        {'name': 'V_A', 'color': 'r', 'index': 1},
-                        {'name': 'V_B', 'color': 'c', 'index': 2},
-                        {'name': 'V_C', 'color': 'm', 'index': 3},
-                        {'name': 'Speed', 'color': 'y', 'index': 4},
-                        {'name': 'V Magnitude', 'color': '#00ff00', 'index': 5},
-                        {'name': 'Commuting', 'color': 'w', 'index': 6},
-                    ]
-                }
-            },
-            'observer': {
-                'all_observer': {
-                    'title': 'Observer Estimates',
-                    'y_label': 'Voltage (pu) / Frequency (pu/Hz) / Angle (rad)',
-                    'signals': [
-                        {'name': 'Est V Mag', 'color': 'g', 'index': 7},
-                        {'name': 'Freq (pu)', 'color': 'r', 'index': 8},
-                        {'name': 'Freq (Hz)', 'color': 'c', 'index': 9},
-                        {'name': 'Angle', 'color': 'm', 'index': 10},
-                        {'name': 'V Alpha', 'color': 'y', 'index': 11},
-                    ]
-                }
-            },
-            'speed_controller': {
-                'all_speed_control': {
-                    'title': 'Speed Controller',
-                    'y_label': 'Torque (pu) / Speed (rpm) / Error / Output',
-                    'signals': [
-                        {'name': 'Torque Ref', 'color': 'g', 'index': 12},
-                        {'name': 'Meas Speed', 'color': 'r', 'index': 13},
-                        {'name': 'Speed Error', 'color': 'c', 'index': 14},
-                        {'name': 'PI Output', 'color': 'm', 'index': 15},
-                        {'name': 'Saturated', 'color': 'y', 'index': 16},
-                    ]
-                }
-            },
-            'torque_controller': {
-                'all_torque_control': {
-                    'title': 'Torque Controller',
-                    'y_label': 'Current / Reference (pu)',
-                    'signals': [
-                        {'name': 'Current Ref', 'color': 'g', 'index': 17},
-                        {'name': 'Base Ref', 'color': 'r', 'index': 18},
-                        {'name': 'Total Ref', 'color': 'c', 'index': 19},
-                        {'name': 'Limited Ref', 'color': 'm', 'index': 20},
-                        {'name': 'Saturated', 'color': 'y', 'index': 21},
-                    ]
-                }
-            },
-            'speed_generator': {
-                'all_speed_gen': {
-                    'title': 'Speed Generator',
-                    'y_label': 'Speed (rpm) / Torque (pu) / State',
-                    'signals': [
-                        {'name': 'Speed Ref', 'color': 'g', 'index': 22},
-                        {'name': 'Torque Max', 'color': 'r', 'index': 23},
-                        {'name': 'Torque Min', 'color': 'c', 'index': 24},
-                        {'name': 'Profile Complete', 'color': 'm', 'index': 25},
-                        {'name': 'Breakaway Boost', 'color': 'y', 'index': 26},
-                    ]
-                }
-            },
-            'modulator': {
-                'all_modulator': {
-                    'title': 'Modulator',
-                    'y_label': 'Angle (deg) / State',
-                    'signals': [
-                        {'name': 'Firing In', 'color': 'g', 'index': 27},
-                        {'name': 'Firing Out', 'color': 'r', 'index': 28},
-                        {'name': 'Enabled', 'color': 'c', 'index': 29},
-                        {'name': 'Force Comm', 'color': 'm', 'index': 30},
-                        {'name': 'Rotor Sector', 'color': 'y', 'index': 31},
-                    ]
-                }
-            },
-            'excitation': {
-                'all_excitation': {
-                    'title': 'Excitation Controller',
-                    'y_label': 'Voltage (pu) / State',
-                    'signals': [
-                        {'name': 'V Setpoint', 'color': 'g', 'index': 32},
-                        {'name': 'Enable', 'color': 'r', 'index': 33},
-                        {'name': 'Field Est', 'color': 'c', 'index': 34},
-                        {'name': 'Running', 'color': 'm', 'index': 35},
-                    ]
-                }
-            }
-        }
+        # Load plot definitions from configuration
+        plot_definitions = get_machine_side_plots()
+        default_visible = get_default_visible_groups('machine')
         
         # Create plots from definitions (following grid-side pattern)
         self.oscilloscope.visible_views_order = []
         for group_name, group_plots in plot_definitions.items():
             self.oscilloscope.plot_groups[group_name] = {}
             self.oscilloscope.view_configs[group_name] = {
-                'visible': group_name in ['measurements', 'observer', 'speed_controller', 'torque_controller']
+                'visible': group_name in default_visible
             }
             
             if self.oscilloscope.view_configs[group_name]['visible']:
