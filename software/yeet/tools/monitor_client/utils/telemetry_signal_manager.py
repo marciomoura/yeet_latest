@@ -302,30 +302,25 @@ class SignalManager:
         All 50 signals across 8 groups (indices 0-49).
         """
         
-        # Machine Measurements group (indices 0-9)
+        # Machine Measurements group (indices 0-8)
         measurements = SignalGroup('measurements', 'Machine Measurements & Commutation')
         measurements.add_signal(SignalHistory('machine_voltage_magnitude_filtered_pu', 'pu', 'Machine Voltage Mag (Filtered)', self.buffer_size))
         measurements.add_signal(SignalHistory('machine_voltage_a_pu', 'pu', 'Machine Voltage Phase A', self.buffer_size))
         measurements.add_signal(SignalHistory('machine_voltage_b_pu', 'pu', 'Machine Voltage Phase B', self.buffer_size))
         measurements.add_signal(SignalHistory('machine_voltage_c_pu', 'pu', 'Machine Voltage Phase C', self.buffer_size))
-        measurements.add_signal(SignalHistory('machine_side_speed', 'pu', 'Machine Side Speed', self.buffer_size))
         measurements.add_signal(SignalHistory('machine_voltage_magnitude', 'pu', 'Machine Voltage Magnitude', self.buffer_size))
         measurements.add_signal(SignalHistory('is_commuting', '', 'Is Commuting', self.buffer_size))
-        measurements.add_signal(SignalHistory('machine_voltage_alpha_pu', 'pu', 'Machine Voltage Alpha', self.buffer_size))
-        measurements.add_signal(SignalHistory('machine_voltage_beta_pu', 'pu', 'Machine Voltage Beta', self.buffer_size))
-        measurements.add_signal(SignalHistory('machine_voltage_magnitude_filtered_2', 'pu', 'Machine Voltage Mag (Filtered) #2', self.buffer_size))
         self.groups['measurements'] = measurements
         
-        # Observer group (indices 10-14)
+        # Observer group (indices 9-12)
         observer = SignalGroup('observer', 'Machine Observer')
-        observer.add_signal(SignalHistory('estimated_voltage_magnitude_pu', 'pu', 'Est. Voltage Magnitude', self.buffer_size))
         observer.add_signal(SignalHistory('estimated_frequency_pu', 'pu', 'Est. Frequency (pu)', self.buffer_size))
-        observer.add_signal(SignalHistory('estimated_angle_rad', 'rad', 'Est. Angle', self.buffer_size))
-        observer.add_signal(SignalHistory('estimated_frequency_hz', 'Hz', 'Est. Frequency (Hz)', self.buffer_size))
-        observer.add_signal(SignalHistory('estimated_voltage_alpha_pu', 'pu', 'Est. Voltage Alpha', self.buffer_size))
+        observer.add_signal(SignalHistory('estimated_position_pu', 'pu', 'Est. Position (pu)', self.buffer_size))
+        observer.add_signal(SignalHistory('filtered_voltage_alpha_pu', 'pu', 'Filtered Voltage Alpha', self.buffer_size))
+        observer.add_signal(SignalHistory('filtered_voltage_beta_pu', 'pu', 'Filtered Voltage Beta', self.buffer_size))
         self.groups['observer'] = observer
         
-        # Modulator group (indices 15-19)
+        # Modulator group (indices 13-17)
         modulator = SignalGroup('modulator', 'Machine-Side Modulator')
         modulator.add_signal(SignalHistory('firing_angle_rad', 'rad', 'Firing Angle', self.buffer_size))
         modulator.add_signal(SignalHistory('is_enabled', '', 'Is Enabled', self.buffer_size))
@@ -334,16 +329,14 @@ class SignalManager:
         modulator.add_signal(SignalHistory('current_rotor_sector', '', 'Current Rotor Sector', self.buffer_size))
         self.groups['modulator'] = modulator
         
-        # Machine-Side Controller group (indices 20-24)
+        # Machine-Side Controller group (indices 18-20)
         machine_controller = SignalGroup('machine_controller', 'Machine-Side Controller')
         machine_controller.add_signal(SignalHistory('firing_angle', 'rad', 'Firing Angle', self.buffer_size))
-        machine_controller.add_signal(SignalHistory('machine_speed', 'pu', 'Machine Speed', self.buffer_size))
         machine_controller.add_signal(SignalHistory('dc_link_current', 'pu', 'DC Link Current', self.buffer_size))
-        machine_controller.add_signal(SignalHistory('reserved_1', '', 'Reserved 1', self.buffer_size))
-        machine_controller.add_signal(SignalHistory('reserved_2', '', 'Reserved 2', self.buffer_size))
+        machine_controller.add_signal(SignalHistory('machine_speed', 'pu', 'Machine Speed', self.buffer_size))
         self.groups['machine_controller'] = machine_controller
         
-        # Torque Controller group (indices 25-29)
+        # Torque Controller group (indices 21-33)
         torque_controller = SignalGroup('torque_controller', 'Torque Controller')
         torque_controller.add_signal(SignalHistory('current_reference_pu', 'pu', 'Current Reference', self.buffer_size))
         torque_controller.add_signal(SignalHistory('base_torque_reference', 'pu', 'Base Torque Reference', self.buffer_size))
@@ -352,16 +345,17 @@ class SignalManager:
         torque_controller.add_signal(SignalHistory('is_saturated', '', 'Is Saturated', self.buffer_size))
         self.groups['torque_controller'] = torque_controller
         
-        # Speed Controller group (indices 30-34)
+        # Speed Controller group (indices 34-39)
         speed_controller = SignalGroup('speed_controller', 'Speed Controller')
         speed_controller.add_signal(SignalHistory('torque_reference', 'pu', 'Torque Reference', self.buffer_size))
         speed_controller.add_signal(SignalHistory('measured_speed_pu', 'pu', 'Measured Speed', self.buffer_size))
         speed_controller.add_signal(SignalHistory('speed_error', 'pu', 'Speed Error', self.buffer_size))
         speed_controller.add_signal(SignalHistory('pi_output', '', 'PI Output', self.buffer_size))
+        speed_controller.add_signal(SignalHistory('is_active', '', 'Is Active', self.buffer_size))
         speed_controller.add_signal(SignalHistory('is_saturated', '', 'Is Saturated', self.buffer_size))
         self.groups['speed_controller'] = speed_controller
         
-        # Speed Generator group (indices 35-39)
+        # Speed Generator group (indices 40-44)
         speed_generator = SignalGroup('speed_generator', 'Speed Generator')
         speed_generator.add_signal(SignalHistory('speed_reference_pu', 'pu', 'Speed Reference', self.buffer_size))
         speed_generator.add_signal(SignalHistory('torque_limit_max_pu', 'pu', 'Max Torque Limit', self.buffer_size))
@@ -370,7 +364,7 @@ class SignalManager:
         speed_generator.add_signal(SignalHistory('is_breakaway_boost_active', '', 'Breakaway Boost Active', self.buffer_size))
         self.groups['speed_generator'] = speed_generator
         
-        # Excitation Controller group (indices 40-44)
+        # Excitation Controller group (indices 45-49)
         excitation_controller = SignalGroup('excitation_controller', 'Excitation Controller')
         excitation_controller.add_signal(SignalHistory('excitation_voltage_setpoint_pu', 'pu', 'Excitation Voltage Setpoint', self.buffer_size))
         excitation_controller.add_signal(SignalHistory('enable_excitation', '', 'Enable Excitation', self.buffer_size))
@@ -487,24 +481,19 @@ class SignalManager:
         timestamp_ms = packet.header.timestamp_ms
         sequence = packet.header.sequence_number
         
-        # Update measurements (indices 0-9)
+        # Update measurements (indices 0-8)
         self._append_signal('measurements', 'machine_voltage_magnitude_filtered_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_voltage_a_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_A), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_voltage_b_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_B), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_voltage_c_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_C), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_side_speed', packet.get_signal(MachineSignalIndex.MACHINE_SIDE_SPEED), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_a_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_ABC_A), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_b_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_ABC_B), timestamp_ms, sequence)
+        self._append_signal('measurements', 'machine_voltage_c_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_ABC_C), timestamp_ms, sequence)
         self._append_signal('measurements', 'machine_voltage_magnitude', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE), timestamp_ms, sequence)
         self._append_signal('measurements', 'is_commuting', float(packet.get_bool_signal(MachineSignalIndex.IS_COMMUTING)), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_voltage_alpha_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_ALPHA), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_voltage_beta_pu', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_BETA), timestamp_ms, sequence)
-        self._append_signal('measurements', 'machine_voltage_magnitude_filtered_2', packet.get_signal(MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED_2), timestamp_ms, sequence)
         
-        # Update observer (indices 10-14)
-        self._append_signal('observer', 'estimated_voltage_magnitude_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE), timestamp_ms, sequence)
+        # Update observer (indices 9-12)
         self._append_signal('observer', 'estimated_frequency_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_angle_rad', packet.get_signal(MachineSignalIndex.ESTIMATED_ANGLE_RAD), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_frequency_hz', packet.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ), timestamp_ms, sequence)
-        self._append_signal('observer', 'estimated_voltage_alpha_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_ALPHA), timestamp_ms, sequence)
+        self._append_signal('observer', 'estimated_position_pu', packet.get_signal(MachineSignalIndex.ESTIMATED_POSITION_PU), timestamp_ms, sequence)
+        self._append_signal('observer', 'filtered_voltage_alpha_pu', packet.get_signal(MachineSignalIndex.FILTERED_VOLTAGE_ALPHA), timestamp_ms, sequence)
+        self._append_signal('observer', 'filtered_voltage_beta_pu', packet.get_signal(MachineSignalIndex.FILTERED_VOLTAGE_BETA), timestamp_ms, sequence)
         
         # Update modulator (indices 15-19)
         self._append_signal('modulator', 'firing_angle_rad', packet.get_signal(MachineSignalIndex.FIRING_ANGLE_RAD), timestamp_ms, sequence)
@@ -513,36 +502,35 @@ class SignalManager:
         self._append_signal('modulator', 'request_force_commutation', float(packet.get_bool_signal(MachineSignalIndex.REQUEST_FORCE_COMMUTATION)), timestamp_ms, sequence)
         self._append_signal('modulator', 'current_rotor_sector', packet.get_signal(MachineSignalIndex.CURRENT_ROTOR_SECTOR), timestamp_ms, sequence)
         
-        # Update machine controller (indices 20-24)
+        # Update machine controller (indices 18-20)
         self._append_signal('machine_controller', 'firing_angle', packet.get_signal(MachineSignalIndex.CONTROLLER_FIRING_ANGLE), timestamp_ms, sequence)
-        self._append_signal('machine_controller', 'machine_speed', packet.get_signal(MachineSignalIndex.CONTROLLER_MACHINE_SPEED), timestamp_ms, sequence)
         self._append_signal('machine_controller', 'dc_link_current', packet.get_signal(MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT), timestamp_ms, sequence)
-        self._append_signal('machine_controller', 'reserved_1', packet.get_signal(MachineSignalIndex.CONTROLLER_RESERVED_1), timestamp_ms, sequence)
-        self._append_signal('machine_controller', 'reserved_2', packet.get_signal(MachineSignalIndex.CONTROLLER_RESERVED_2), timestamp_ms, sequence)
+        self._append_signal('machine_controller', 'machine_speed', packet.get_signal(MachineSignalIndex.CONTROLLER_MACHINE_SPEED), timestamp_ms, sequence)
         
-        # Update torque controller (indices 25-29)
+        # Update torque controller (indices 21-33)
         self._append_signal('torque_controller', 'current_reference_pu', packet.get_signal(MachineSignalIndex.TORQUE_CURRENT_REFERENCE), timestamp_ms, sequence)
         self._append_signal('torque_controller', 'base_torque_reference', packet.get_signal(MachineSignalIndex.TORQUE_BASE_REFERENCE), timestamp_ms, sequence)
         self._append_signal('torque_controller', 'total_torque_reference', packet.get_signal(MachineSignalIndex.TORQUE_TOTAL_REFERENCE), timestamp_ms, sequence)
         self._append_signal('torque_controller', 'limited_torque_reference', packet.get_signal(MachineSignalIndex.TORQUE_LIMITED_REFERENCE), timestamp_ms, sequence)
         self._append_signal('torque_controller', 'is_saturated', float(packet.get_bool_signal(MachineSignalIndex.TORQUE_IS_SATURATED)), timestamp_ms, sequence)
         
-        # Update speed controller (indices 30-34)
+        # Update speed controller (indices 34-39)
         self._append_signal('speed_controller', 'torque_reference', packet.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE), timestamp_ms, sequence)
         self._append_signal('speed_controller', 'measured_speed_pu', packet.get_signal(MachineSignalIndex.SPEED_MEASURED_SPEED_PU), timestamp_ms, sequence)
         self._append_signal('speed_controller', 'speed_error', packet.get_signal(MachineSignalIndex.SPEED_ERROR), timestamp_ms, sequence)
         self._append_signal('speed_controller', 'pi_output', packet.get_signal(MachineSignalIndex.SPEED_PI_OUTPUT), timestamp_ms, sequence)
+        self._append_signal('speed_controller', 'is_active', float(packet.get_bool_signal(MachineSignalIndex.SPEED_IS_ACTIVE)), timestamp_ms, sequence)
         self._append_signal('speed_controller', 'is_saturated', float(packet.get_bool_signal(MachineSignalIndex.SPEED_IS_SATURATED)), timestamp_ms, sequence)
         
-        # Update speed generator (indices 35-39)
-        self._append_signal('speed_generator', 'speed_reference_pu', packet.get_signal(MachineSignalIndex.GENERATOR_SPEED_REFERENCE), timestamp_ms, sequence)
-        self._append_signal('speed_generator', 'torque_limit_max_pu', packet.get_signal(MachineSignalIndex.GENERATOR_TORQUE_LIMIT_MAX), timestamp_ms, sequence)
-        self._append_signal('speed_generator', 'torque_limit_min_pu', packet.get_signal(MachineSignalIndex.GENERATOR_TORQUE_LIMIT_MIN), timestamp_ms, sequence)
-        self._append_signal('speed_generator', 'is_profile_complete', float(packet.get_bool_signal(MachineSignalIndex.GENERATOR_IS_PROFILE_COMPLETE)), timestamp_ms, sequence)
-        self._append_signal('speed_generator', 'is_breakaway_boost_active', float(packet.get_bool_signal(MachineSignalIndex.GENERATOR_IS_BREAKAWAY_BOOST_ACTIVE)), timestamp_ms, sequence)
+        # Update speed generator (indices 40-44)
+        self._append_signal('speed_generator', 'speed_reference_pu', packet.get_signal(MachineSignalIndex.SPEED_REF_PU), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'torque_limit_max_pu', packet.get_signal(MachineSignalIndex.SPEED_TORQUE_LIMIT_MAX_PU), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'torque_limit_min_pu', packet.get_signal(MachineSignalIndex.SPEED_TORQUE_LIMIT_MIN_PU), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'is_profile_complete', float(packet.get_bool_signal(MachineSignalIndex.SPEED_IS_PROFILE_COMPLETE)), timestamp_ms, sequence)
+        self._append_signal('speed_generator', 'is_breakaway_boost_active', float(packet.get_bool_signal(MachineSignalIndex.SPEED_IS_BREAKAWAY_BOOST_ACTIVE)), timestamp_ms, sequence)
         
-        # Update excitation controller (indices 40-44)
-        self._append_signal('excitation_controller', 'excitation_voltage_setpoint_pu', packet.get_signal(MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT), timestamp_ms, sequence)
+        # Update excitation controller (indices 45-49)
+        self._append_signal('excitation_controller', 'excitation_voltage_setpoint_pu', packet.get_signal(MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT_PU), timestamp_ms, sequence)
         self._append_signal('excitation_controller', 'enable_excitation', float(packet.get_bool_signal(MachineSignalIndex.EXCITATION_ENABLE)), timestamp_ms, sequence)
         self._append_signal('excitation_controller', 'is_field_established', float(packet.get_bool_signal(MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED)), timestamp_ms, sequence)
         self._append_signal('excitation_controller', 'is_running', float(packet.get_bool_signal(MachineSignalIndex.EXCITATION_IS_RUNNING)), timestamp_ms, sequence)

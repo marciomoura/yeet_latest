@@ -16,6 +16,15 @@ from typing import Dict, List, Optional
 
 from PyQt5 import QtWidgets, QtCore
 
+from ..config.grid_side_telemetry_definitions import (
+    get_grid_side_telemetry,
+    get_default_visible_sections as get_grid_default_sections
+)
+from ..config.machine_side_telemetry_definitions import (
+    get_machine_side_telemetry,
+    get_default_visible_sections as get_machine_default_sections
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -228,45 +237,22 @@ class GridSideTelemetryPanel(TelemetryPanel):
     
     def __init__(self, parent=None):
         """Initialize grid-side telemetry panel."""
-        super().__init__(parent, max_width=400)
+        super().__init__(parent, max_width=500)
         self._setup_grid_layout()
     
     def _setup_grid_layout(self):
-        """Setup standard grid-side telemetry layout."""
+        """Setup standard grid-side telemetry layout using definitions."""
         self.add_header("TELEMETRY - GRID SIDE")
         
-        # State Machine
-        self.add_section("State Machine", [
-            "current_state", "pulse_releases", "auxiliaries_are_on", "breakers_are_on",
-            "start_command", "stop_command", "is_current_extinguished", "is_shutdown_requested"
-        ])
+        # Load grid-side definitions
+        definitions = get_grid_side_telemetry()
         
-        # Grid Measurements
-        self.add_section("Grid Measurements", [
-            "grid_voltage_magnitude_pu", "grid_voltage_a_pu", "grid_voltage_b_pu", "grid_voltage_c_pu",
-            "grid_current_magnitude_pu", "grid_current_a_pu", "grid_current_b_pu", "grid_current_c_pu",
-            "dc_link_current_pu", "is_commuting"
-        ])
-        
-        # Observer
-        self.add_section("Observer", [
-            "estimated_voltage_magnitude_pu", "estimated_frequency_pu", "estimated_angle_rad"
-        ])
-        
-        # Controller
-        self.add_section("Controller", [
-            "dc_link_current_reference", "dc_link_current_measured",
-            "current_error_pu", "controller_output_pu",
-            "operating_mode", "controller_saturated", "freeze_integrator"
-        ])
-        
-        # Modulator
-        self.add_section("Modulator", [
-            "is_enabled", "firing_angle_input_pu", "firing_angle_output_pu", "force_commutation_ack"
-        ])
-        
-        # Add stretch at end
-        self.content_layout.addStretch()
+        # Add each section
+        for section_key, section_data in definitions.items():
+            # Convert section_key from snake_case to Title Case
+            section_title = section_key.replace('_', ' ').title()
+            fields = [item['name'] for item in section_data['fields']]
+            self.add_section(section_title, fields)
 
 
 class MachineSideTelemetryPanel(TelemetryPanel):
@@ -274,65 +260,19 @@ class MachineSideTelemetryPanel(TelemetryPanel):
     
     def __init__(self, parent=None):
         """Initialize machine-side telemetry panel."""
-        super().__init__(parent, max_width=400)
+        super().__init__(parent, max_width=500)
         self._setup_machine_layout()
     
     def _setup_machine_layout(self):
-        """Setup standard machine-side telemetry layout."""
+        """Setup standard machine-side telemetry layout using definitions."""
         self.add_header("TELEMETRY - MACHINE SIDE")
         
-        # Machine Measurements
-        self.add_section("Machine Measurements", [
-            "machine_voltage_magnitude_filtered_pu", "machine_voltage_a_pu", "machine_voltage_b_pu", "machine_voltage_c_pu",
-            "machine_side_speed", "machine_voltage_magnitude", "is_commuting"
-        ])
+        # Load machine-side definitions
+        definitions = get_machine_side_telemetry()
         
-        # Observer
-        self.add_section("Observer", [
-            "estimated_voltage_magnitude_pu", "estimated_frequency_pu", "estimated_angle_rad",
-            "estimated_frequency_hz", "estimated_voltage_alpha_pu"
-        ])
-        
-        # Modulator
-        self.add_section("Modulator", [
-            "firing_angle_rad", "is_enabled", "release_pulses",
-            "request_force_commutation", "current_rotor_sector"
-        ])
-        
-        # Machine Controller
-        self.add_section("Machine Controller", [
-            "controller_firing_angle", "controller_machine_speed", "controller_dc_link_current"
-        ])
-        
-        # Torque Controller
-        self.add_section("Torque Controller", [
-            "torque_current_reference_pu", "torque_base_reference", "torque_total_reference",
-            "torque_limited_reference", "torque_is_saturated"
-        ])
-        
-        # Speed Controller
-        self.add_section("Speed Controller", [
-            "speed_torque_reference", "speed_measured_speed_pu", "speed_error",
-            "speed_pi_output", "speed_is_saturated"
-        ])
-        
-        # Speed Generator
-        self.add_section("Speed Generator", [
-            "generator_speed_reference_pu", "generator_torque_limit_max_pu",
-            "generator_torque_limit_min_pu", "generator_is_profile_complete",
-            "generator_is_breakaway_boost_active"
-        ])
-        
-        # Excitation Controller
-        self.add_section("Excitation Controller", [
-            "excitation_voltage_setpoint_pu", "excitation_enable",
-            "excitation_is_field_established", "excitation_is_running"
-        ])
-        
-        # Pulse Generator
-        self.add_section("Pulse Generator", [
-            "pulse_p1", "pulse_p2", "pulse_p3", "pulse_p4", "pulse_p5"
-        ])
-        
-        # Add stretch at end
-        self.content_layout.addStretch()
+        # Add each section
+        for section_key, section_data in definitions.items():
+            # Convert section_key from snake_case to Title Case
+            section_title = section_key.replace('_', ' ').title()
+            fields = [item['name'] for item in section_data['fields']]
+            self.add_section(section_title, fields)
