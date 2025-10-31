@@ -243,35 +243,33 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     //   DI7-DI16: System status and interlocks
     if (inputs != nullptr && inputs->digital_inputs.valid) {
         // State machine command inputs (active-high logic)
-        bool auxiliaries_on = inputs->digital_inputs.signals[0];        // DI1: Auxiliary systems ready
-        bool breakers_on = inputs->digital_inputs.signals[1];           // DI2: Grid breakers closed
-        bool start_cmd = inputs->digital_inputs.signals[2];             // DI3: Start command
-        bool stop_cmd = inputs->digital_inputs.signals[3];              // DI4: Stop command
-        bool shutdown_req = inputs->digital_inputs.signals[4];          // DI5: Emergency shutdown
-        bool current_extinguished = inputs->digital_inputs.signals[5];  // DI6: DC link current is zero
+        // bool auxiliaries_on = inputs->digital_inputs.signals[0];        // DI1: Auxiliary systems ready
+        // bool breakers_on = inputs->digital_inputs.signals[1];           // DI2: Grid breakers closed
+        // bool start_cmd = inputs->digital_inputs.signals[2];             // DI3: Start command
+        // bool stop_cmd = inputs->digital_inputs.signals[3];              // DI4: Stop command
+        // bool shutdown_req = inputs->digital_inputs.signals[4];          // DI5: Emergency shutdown
+        // bool current_extinguished = inputs->digital_inputs.signals[5];  // DI6: DC link current is zero
 
-#ifndef RECTIFIER_MODE
+        // #ifndef RECTIFIER_MODE
         // Write digital input values directly to I/O interface
-        yeet::mock_signal_input::write(
-            get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, auxiliaries_on);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, breakers_on);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, start_cmd);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, stop_cmd);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, shutdown_req);
-        yeet::mock_signal_input::write(
-            get_grid_side_control().get_io().digital_inputs.is_current_extinguished, current_extinguished);
-#else
+        // yeet::mock_signal_input::write(
+        // get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, auxiliaries_on);
+        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, breakers_on);
+        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, start_cmd);
+        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, stop_cmd);
+        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request,
+        // shutdown_req); #else
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, true);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, true);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, true);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
         yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
-#endif
+        // #endif
     }
 
     // Process fiber-optic RX data from machine-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
-#ifndef RECTIFIER_MODE
+    // #ifndef RECTIFIER_MODE
     if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Decode Machine → Grid protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
@@ -290,16 +288,18 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
                 rx_msg->force_commutation_request);
         }
     }
-#else
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.0f});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude, yeet::voltage_pu_t{1.0f});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.request_force_commutation, false);
-#endif
+    //     // #else
+    //     yeet::mock_signal_input::write(
+    //         get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
+    //     yeet::mock_signal_input::write(
+    //         get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference,
+    //         yeet::current_pu_t{0.0f});
+    //     yeet::mock_signal_input::write(
+    //         get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude,
+    //         yeet::voltage_pu_t{1.0f});
+    //     yeet::mock_signal_input::write(
+    //         get_grid_side_control().get_io().machine_side_inputs.request_force_commutation, false);
+    // #endif
 
     // ==================== EXECUTE CONTROL UPDATE ====================
     // Digital input overrides are automatically applied within the state machine lambdas
@@ -345,39 +345,39 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
     // Map control system status to hardware digital outputs via I/O interface
     // Based on typical HMI and system monitoring requirements
-    if (outputs != nullptr) {
-        // Read status signals from I/O interface digital outputs
-        const bool pulse_releases = get_grid_side_control().get_io().digital_outputs.pulse_releases.read();
-        const bool is_current_zero = get_grid_side_control().get_io().digital_outputs.is_current_zero.read();
-        const bool current_saturated =
-            get_grid_side_control().get_io().digital_outputs.current_controller_saturated.read();
-        const auto operating_mode = get_grid_side_control().get_io().digital_outputs.operating_mode.read();
+    // if (outputs != nullptr) {
+    // Read status signals from I/O interface digital outputs
+    // const bool pulse_releases = get_grid_side_control().get_io().digital_outputs.pulse_releases.read();
+    // const bool is_current_zero = get_grid_side_control().get_io().digital_outputs.is_current_zero.read();
+    // const bool current_saturated =
+    //     get_grid_side_control().get_io().digital_outputs.current_controller_saturated.read();
+    // const auto operating_mode = get_grid_side_control().get_io().digital_outputs.operating_mode.read();
 
-        // Status output mapping:
-        // outputs->digital_outputs.signals[0] = pulse_releases;     // DO1: System running
-        // outputs->digital_outputs.signals[1] = is_current_zero;    // DO2: Current zero status
-        // outputs->digital_outputs.signals[2] = current_saturated;  // DO3: Controller saturation
-        // outputs->digital_outputs.signals[3] =
-        //     (operating_mode ==
-        //         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);  // DO4: Forced commutation mode
-        // outputs->digital_outputs.signals[4] =
-        //     (operating_mode ==
-        //         yeet::application::sfc::sfc_operating_mode_t::natural_commutation);  // DO5: Natural commutation mode
-        // outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
+    // Status output mapping:
+    // outputs->digital_outputs.signals[0] = pulse_releases;     // DO1: System running
+    // outputs->digital_outputs.signals[1] = is_current_zero;    // DO2: Current zero status
+    // outputs->digital_outputs.signals[2] = current_saturated;  // DO3: Controller saturation
+    // outputs->digital_outputs.signals[3] =
+    //     (operating_mode ==
+    //         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);  // DO4: Forced commutation mode
+    // outputs->digital_outputs.signals[4] =
+    //     (operating_mode ==
+    //         yeet::application::sfc::sfc_operating_mode_t::natural_commutation);  // DO5: Natural commutation mode
+    // outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
 
-        for (auto& n : outputs->digital_outputs.signals) {
-            n = true;
-        }
+    // for (auto& n : outputs->digital_outputs.signals) {
+    //     n = true;
+    // }
 
-        // outputs->digital_outputs.signals[0] = true;  // DO1: System running
-        // outputs->digital_outputs.signals[1] = true;  // DO2: Current zero status
-        // outputs->digital_outputs.signals[2] = true;  // DO3: Controller saturation
-        // outputs->digital_outputs.signals[3] = true;  // DO4: Forced commutation mode
-        // outputs->digital_outputs.signals[4] = true;
-        // outputs->digital_outputs.signals[5] = true;  // DO6: Fiber link status
+    // outputs->digital_outputs.signals[0] = true;  // DO1: System running
+    // outputs->digital_outputs.signals[1] = true;  // DO2: Current zero status
+    // outputs->digital_outputs.signals[2] = true;  // DO3: Controller saturation
+    // outputs->digital_outputs.signals[3] = true;  // DO4: Forced commutation mode
+    // outputs->digital_outputs.signals[4] = true;
+    // outputs->digital_outputs.signals[5] = true;  // DO6: Fiber link status
 
-        // Additional outputs (DO7-DO17) available for application-specific status
-    }
+    // Additional outputs (DO7-DO17) available for application-specific status
+    // }
 }
 
 ARM_FUNCTION

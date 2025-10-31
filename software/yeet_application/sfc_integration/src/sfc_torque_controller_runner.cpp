@@ -17,18 +17,35 @@ void sfc_torque_controller_runner::initialize()
 
 void sfc_torque_controller_runner::run()
 {
+    // Override torque reference if enabled
+    if (_parameters.override_torque_reference.read()) {
+        const torque_pu_t torque_reference = _parameters.forced_torque_reference.read();
+
+        // Write output signals
+        _outputs.current_reference.write(current_pu_t{torque_reference});
+        _outputs.base_torque_reference.write(torque_reference);
+        _outputs.total_torque_reference.write(torque_reference);
+        _outputs.limited_torque_reference.write(torque_reference);
+        _outputs.is_saturated.write(false);
+        _outputs.downstream_saturation.write(false);
+        _outputs.composite_saturation.write(false);
+        _outputs.is_breakaway_boost_active.write(false);
+        _outputs.is_active.write(true);
+        return;
+    }
+
     // Read input signals
-    const auto torque_ref = _inputs.torque_reference_from_speed_controller.read();
-    const auto dynamic_max_limit = _inputs.dynamic_max_torque_limit.read();
-    const auto dynamic_min_limit = _inputs.dynamic_min_torque_limit.read();
-    const auto enable_boost = _inputs.enable_breakaway_boost.read();
-    const auto downstream_saturated = _inputs.current_controller_is_saturated.read();
+    const torque_pu_t torque_reference = _inputs.torque_reference_from_speed_controller.read();
+    const torque_pu_t dynamic_max_limit = _inputs.dynamic_max_torque_limit.read();
+    const torque_pu_t dynamic_min_limit = _inputs.dynamic_min_torque_limit.read();
+    const bool enable_boost = _inputs.enable_breakaway_boost.read();
+    const bool downstream_saturated = _inputs.current_controller_is_saturated.read();
 
     // Update downstream saturation feedback (must be done before update())
     _sfc_torque_controller.set_downstream_saturation(downstream_saturated);
 
     // Execute torque controller
-    _sfc_torque_controller.update(torque_ref, dynamic_max_limit, dynamic_min_limit, enable_boost);
+    _sfc_torque_controller.update(torque_reference, dynamic_max_limit, dynamic_min_limit, enable_boost);
 
     // Write output signals
     _outputs.current_reference.write(_sfc_torque_controller.get_current_reference());

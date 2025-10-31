@@ -1,10 +1,13 @@
 #pragma once
 
-#include <cstdint>
+#include <stdbool.h>
+#include <stdint.h>
 
+#ifdef __cplusplus
 namespace yeet::telemetry {
+#endif
 
-static constexpr int MAX_NETWORK_TX_BUFFER_SIZE = 1460;
+#define MAX_NETWORK_TX_BUFFER_SIZE 1460
 
 /**
  * @brief Network input structure (non-real-time communication)
@@ -73,4 +76,6 @@ typedef struct {
 
 } network_outputs_t;
 
+#ifdef __cplusplus
 }  // namespace yeet::telemetry
+#endif

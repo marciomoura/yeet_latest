@@ -80,6 +80,11 @@ public:
      * @brief Configuration parameters for the torque controller
      */
     struct parameters {
+        parameter<bool> override_torque_reference = false;
+
+        /// Overrides normal control operation for testing or specific control modes
+        parameter<torque_pu_t> forced_torque_reference = torque_pu_t{0.0};
+
         /// Absolute minimum torque limit [pu]
         /// Hard limit representing physical machine capability
         parameter<torque_pu_t> absolute_min_torque = torque_pu_t{-1.2};
@@ -126,6 +131,10 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameters.insert("override_torque_reference",
+            yeet::utils::make_units_accessor(_model_parameters->override_torque_reference));
+        entry.parameters.insert(
+            "forced_torque_reference", yeet::utils::make_units_accessor(_model_parameters->forced_torque_reference));
         entry.parameters.insert(
             "absolute_min_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_min_torque));
         entry.parameters.insert(

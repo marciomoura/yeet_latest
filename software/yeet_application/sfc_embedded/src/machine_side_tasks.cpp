@@ -76,11 +76,6 @@ static inline yeet::telemetry::network_handler& get_network_handler()
     return handler;
 }
 
-// Execution counters for diagnostics
-static volatile std::uint32_t counter_task1 = 0;
-static volatile std::uint32_t counter_task2 = 0;
-static volatile std::uint32_t counter_task3 = 0;
-
 ARM_FUNCTION
 void yeet_embedded_init(void)
 {
@@ -147,9 +142,9 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Write ADC values directly to I/O interface analog inputs
     if (inputs != nullptr && inputs->analog_inputs.valid) {
         yeet::mock_signal_input::write(get_machine_side_control().get_io().analog_inputs.v_ab_counts,
-            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[0])});
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().analog_inputs.v_bc_counts,
             yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
+        yeet::mock_signal_input::write(get_machine_side_control().get_io().analog_inputs.v_bc_counts,
+            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});
     }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
@@ -251,14 +246,16 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     if (outputs != nullptr) {
         // Prepare Machine → Grid protocol message
         yeet::application::sfc::fiber_optic::machine_to_grid_message tx_msg{
-            .measured_speed_pu =
-                static_cast<float>(get_machine_side_control().get_io().grid_side_outputs.measured_speed_pu.read()),
-            .dc_link_current_reference_pu =
-                static_cast<float>(get_machine_side_control().get_io().grid_side_outputs.current_reference.read()),
-            .machine_voltage_magnitude_pu = static_cast<float>(
-                get_machine_side_control().get_io().grid_side_outputs.machine_voltage_magnitude.read()),
+            .measured_speed_pu = static_cast<float>(
+                get_machine_side_control().get_machine_side_observer().get_outputs().estimated_speed.read()),
+            .dc_link_current_reference_pu = static_cast<float>(
+                get_machine_side_control().get_torque_controller().get_outputs().current_reference.read()),
+            .machine_voltage_magnitude_pu = static_cast<float>(get_machine_side_control()
+                    .get_machine_side_observer()
+                    .get_outputs()
+                    .estimated_voltage_magnitude.read()),
             .force_commutation_request =
-                get_machine_side_control().get_io().grid_side_outputs.request_force_commutation.read()};
+                get_machine_side_control().get_machine_side_modulator().get_outputs().request_force_commutation.read()};
 
         // Encode and transmit
         outputs->fiber_optic_tx.payload_length =
@@ -275,7 +272,7 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Machine-side control status outputs
         // These could be used for HMI display, diagnostics, or interlocks
         // Populated from get_io().digital_inputs/outputs as needed
-        // DO2-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
+        // DO3-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
     }
 }
 
