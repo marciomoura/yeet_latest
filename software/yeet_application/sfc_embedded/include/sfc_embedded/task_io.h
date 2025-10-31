@@ -193,8 +193,10 @@ typedef struct {
 
 } task_outputs_t;
 
+#ifdef __cplusplus
 using network_inputs_t = yeet::telemetry::network_inputs_t;
 using network_outputs_t = yeet::telemetry::network_outputs_t;
+#endif
 
 #ifdef __cplusplus
 }

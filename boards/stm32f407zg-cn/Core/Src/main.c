@@ -563,17 +563,27 @@ static void Update_System_LEDs()
 {
     // RUN LED - blinks during normal operation (handled by application or periodic toggle)
     // Application can toggle this LED in 10ms task for heartbeat
-    // For now, leave it at initialized state (ON)
+    // Set to ON and let application layer manage blinking in task_10ms
     FSMC_GPIO_SetLED_Run(&fsmc_gpio_instance, 1);
 
     // FAULT LED - indicates hardware or system errors
-    bool fault_condition = !system_status.fsmc_gpio_ok || !system_status.adc_ok || !system_status.dac_ok ||
-                           !system_status.fpga_ok || !system_status.fiber_optic_ok || !system_status.network_ok;
+    // Combined conditions: hardware failures OR fiber optic communication timeout
+    bool hardware_fault = !system_status.fsmc_gpio_ok || !system_status.adc_ok || !system_status.dac_ok ||
+                          !system_status.fpga_ok || !system_status.fiber_optic_ok || !system_status.network_ok;
+
+    // Fiber optic communication fault detection
+    // FAULT LED turns ON if communication timeout detected OR stability not yet achieved
+    bool fiber_optic_fault = fiber_status.communication_timeout || !fiber_status.communication_stable;
+
+    // Combined fault condition: hardware failures OR fiber optic communication issues
+    bool fault_condition = hardware_fault || fiber_optic_fault;
+
+    // Apply the calculated fault condition to the FAULT LED
     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, fault_condition ? 1 : 0);
 
     // ALARM LED - indicates warning conditions (can be controlled by application)
-    // For now, keep it off
-    FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, 0);
+    // For now, keep it off (will be controlled by application layer if needed)
+    FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, fiber_optic_fault ? 1 : 0);
 
     // Write LED states to hardware
     FSMC_GPIO_WriteLEDs(&fsmc_gpio_instance);
