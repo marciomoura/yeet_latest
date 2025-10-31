@@ -208,9 +208,10 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Decode Grid → Machine protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            get_machine_side_control().external_ios.update_grid_side_control_inputs(rx_msg->mode,
-                yeet::current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->force_commutation_acknowledged,
-                rx_msg->is_current_zero, rx_msg->current_controller_is_saturated, rx_msg->pulse_releases);
+            // TODO...
+            // get_machine_side_control().external_ios.update_fiber_optics_inputs(rx_msg->mode,
+            //     yeet::current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->force_commutation_acknowledged,
+            //     rx_msg->is_current_zero, rx_msg->current_controller_is_saturated, rx_msg->pulse_releases);
         }
     }
 

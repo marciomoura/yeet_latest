@@ -20,6 +20,10 @@ void sfc_speed_controller_runner::initialize()
 
 void sfc_speed_controller_runner::run()
 {
+    const bool freeze_integrator = _inputs.current_controller_is_saturated.read();
+    // _inputs.freeze_integrator.read() ||  ||
+    //    _inputs.modulator_freeze_integrator.read();
+
     if (!_inputs.enable_speed_control.read()) {
         _outputs.is_active.write(false);
         // TODO: How to initialize properly when re-enabling speed control?
@@ -27,9 +31,7 @@ void sfc_speed_controller_runner::run()
     }
     else {
         _outputs.is_active.write(true);
-        _sfc_speed_controller.freeze_integrator(_inputs.freeze_integrator.read() ||
-                                                _inputs.current_controller_is_saturated.read() ||
-                                                _inputs.modulator_freeze_integrator.read());
+        _sfc_speed_controller.freeze_integrator(freeze_integrator);
         _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
     }
 
@@ -37,7 +39,7 @@ void sfc_speed_controller_runner::run()
     _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
     _outputs.speed_error = _outputs.speed_reference_limited.read() - _inputs.measured_speed_pu.read();
     _outputs.pi_output = _sfc_speed_controller.get_pi_output();
-    _outputs.is_saturated = _sfc_speed_controller.is_saturated();
+    _outputs.is_saturated = freeze_integrator;  //_sfc_speed_controller.is_saturated();
 }
 
 void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }

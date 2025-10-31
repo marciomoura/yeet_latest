@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "sfc/sfc_per_unit_system.hpp"
+#include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_types.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/signal.hpp"
@@ -66,8 +67,12 @@ public:
         parameter<bool> force_commutation_acknowledged{false};       ///< Acknowledgement of forced commutation
         parameter<bool> is_current_zero{false};                      ///< Indicator that machine current is zero
         parameter<bool> current_controller_is_saturated{false};      ///< Indicator that current controller is saturated
-        parameter<bool> pulse_releases{true};                        ///< Current controller saturation flag
-        parameter<current_pu_t> dc_link_current{current_pu_t{0.4}};  ///< DC link current in per-unit
+        parameter<bool> pulse_releases{false};                       ///< Current controller saturation flag
+        parameter<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current in per-unit
+        parameter<bool> freeze_integrator{false};                    ///< Freeze speed controller integrator
+        parameter<bool> is_requesting_main_pi_reset{false};          ///< Grid modulator requesting main PI reset
+        parameter<yeet::application::sfc::sfc_state_id> current_state_id{
+            yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine current state ID
     };
 
     /**
@@ -88,21 +93,27 @@ public:
         yeet::signal_output<bool> idle;                // Idle mode (zero torque/speed outputs)
     };
 
-    struct control_inputs {
+    struct analog_inputs {
         signal_output<control::adc_counts> v_ab_counts{};  ///< Machine voltage AB differential (ADC counts)
         signal_output<control::adc_counts> v_bc_counts{};  ///< Machine voltage BC differential (ADC counts)
+    };
 
-        ///< These are comming from the fiber optics...
+    // Fiber-optics inputs from the grid-side controller
+    struct fiber_optics_inputs {
         signal_output<sfc_operating_mode_t> operating_mode{
             sfc_operating_mode_t::natural_commutation};              ///< SFC operating mode
         signal_output<bool> force_commutation_acknowledged{false};   ///< Acknowledgement of forced commutation
         signal_output<bool> is_current_zero{false};                  ///< Indicator that machine current is zero
         signal_output<bool> current_controller_is_saturated{false};  ///< Indicator that current controller is saturated
-        signal_output<bool> pulse_releases{true};                    ///< Current controller saturation flag
-        signal_output<current_pu_t> dc_link_current{current_pu_t{0.4}};  ///< DC link current in per-unit
+        signal_output<bool> pulse_releases{false};                   ///< Pulse releases enable from grid-side
+        signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current in per-unit
+        signal_output<bool> freeze_integrator{false};                    ///< Freeze speed controller integrator
+        signal_output<bool> is_requesting_main_pi_reset{false};          ///< Grid modulator requesting main PI reset
+        signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
+            yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine current state ID
     };
 
-    struct control_outputs {
+    struct thyristor_control_output {
         signal_input<control::six_pulse_generator::pulses> firing_pulses;
     };
 
@@ -114,12 +125,14 @@ public:
      */
     const parameters& get_parameters() const { return _parameters; }
     const outputs& get_outputs() const { return _outputs; }
-    const control_outputs& get_control_outputs() const { return _control_outputs; }
-    const control_inputs& get_control_inputs() const { return _control_inputs; }
+    const analog_inputs& get_analog_inputs() const { return _analog_inputs; }
+    const fiber_optics_inputs& get_fiber_optics_inputs() const { return _fiber_optics_inputs; }
+
     parameters& get_parameters() { return _parameters; }
     outputs& get_outputs() { return _outputs; }
-    control_outputs& get_control_outputs() { return _control_outputs; }
-    control_inputs& get_control_inputs() { return _control_inputs; }
+    analog_inputs& get_analog_inputs() { return _analog_inputs; }
+    fiber_optics_inputs& get_fiber_optics_inputs() { return _fiber_optics_inputs; }
+    thyristor_control_output& get_thyristor_control_output() { return _thyristor_output; }
 
     /**
      * @brief Register datamodel with model registry
@@ -157,50 +170,40 @@ public:
 
     void update_analog_inputs(std::int16_t v_ab_counts, std::int16_t v_bc_counts)
     {
-        _control_inputs.v_ab_counts.write(control::adc_counts{v_ab_counts});
-        _control_inputs.v_bc_counts.write(control::adc_counts{v_bc_counts});
+        _analog_inputs.v_ab_counts.write(control::adc_counts{v_ab_counts});
+        _analog_inputs.v_bc_counts.write(control::adc_counts{v_bc_counts});
     }
 
-    control::six_pulse_generator::pulses get_thyristor_pulse_outputs() const
-    {
-        return _control_outputs.firing_pulses.read();
-    }
-
-    void update_grid_side_control_inputs(sfc_operating_mode_t operating_mode,
+    void update_fiber_optics_inputs(sfc_operating_mode_t operating_mode,
         current_pu_t dc_link_current,
         bool force_commutation_acknowledged,
         bool is_current_zero,
         bool current_controller_is_saturated,
-        bool pulse_releases)
+        bool pulse_releases,
+        bool freeze_integrator,
+        bool is_requesting_main_pi_reset,
+        yeet::application::sfc::sfc_state_id current_state_id)
     {
-        // _control_inputs.operating_mode.write(operating_mode);
-        // _control_inputs.dc_link_current.write(dc_link_current);
-        // _control_inputs.is_current_zero.write(is_current_zero);
-        // _control_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
-        // _control_inputs.current_controller_is_saturated.write(current_controller_is_saturated);
-        // _control_inputs.pulse_releases.write(pulse_releases);
-
-        // _control_inputs.operating_mode.write();
-        _control_inputs.dc_link_current.write(current_pu_t{0.4f});
-        _control_inputs.is_current_zero.write(false);
-        _control_inputs.force_commutation_acknowledged.write(false);
-        _control_inputs.current_controller_is_saturated.write(false);
-        _control_inputs.pulse_releases.write(true);
+        const bool fiber_optics_overrides_written = write_fiber_optics_input_overrides();
+        if (!fiber_optics_overrides_written) {
+            _fiber_optics_inputs.operating_mode.write(operating_mode);
+            _fiber_optics_inputs.dc_link_current.write(dc_link_current);
+            _fiber_optics_inputs.is_current_zero.write(is_current_zero);
+            _fiber_optics_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
+            _fiber_optics_inputs.current_controller_is_saturated.write(current_controller_is_saturated);
+            _fiber_optics_inputs.pulse_releases.write(pulse_releases);
+            _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
+            _fiber_optics_inputs.is_requesting_main_pi_reset.write(is_requesting_main_pi_reset);
+            _fiber_optics_inputs.current_state_id.write(current_state_id);
+        }
     }
 
-    void update_digital_inputs(bool exciter_ready,
-        bool excitation_start_command,
-        bool excitation_stop_command,
-        bool run_creep_speed,
-        bool run_purge_accel,
-        bool run_ignition_accel,
-        bool run_assist_accel,
-        bool hold_speed,
-        bool decelerate,
-        bool idle,
-        bool enable_speed_control,
-        bool freeze_integrator,
-        bool modulator_freeze_integrator)
+    control::six_pulse_generator::pulses get_thyristor_pulse_outputs() const
+    {
+        return _thyristor_output.firing_pulses.read();
+    }
+
+    void update_excitation_inputs(bool exciter_ready, bool excitation_start_command, bool excitation_stop_command)
     {
         const bool excitation_overrides_written = write_excitation_overrides();
         if (!excitation_overrides_written) {
@@ -208,7 +211,16 @@ public:
             _outputs.excitation_start_command.write(excitation_start_command);
             _outputs.excitation_stop_command.write(excitation_stop_command);
         }
+    }
 
+    void update_speed_generator_inputs(bool run_creep_speed,
+        bool run_purge_accel,
+        bool run_ignition_accel,
+        bool run_assist_accel,
+        bool hold_speed,
+        bool decelerate,
+        bool idle)
+    {
         const bool speed_generator_overrides_written = write_speed_generator_overrides();
         if (!speed_generator_overrides_written) {
             _outputs.run_creep_speed.write(run_creep_speed);
@@ -219,13 +231,6 @@ public:
             _outputs.decelerate.write(decelerate);
             _outputs.idle.write(idle);
         }
-
-        // const bool grid_side_inputs_overrides_written = write_grid_side_input_overrides();
-        // if (!grid_side_inputs_overrides_written) {
-        //     _control_inputs.pulse_releases.write(enable_speed_control);
-        //     _control_inputs..write(freeze_integrator);
-        //     _control_inputs.modulator_freeze_integrator.write(modulator_freeze_integrator);
-        // }
     }
 
 private:
@@ -263,18 +268,22 @@ private:
             return false;
         }
 
-        _control_inputs.force_commutation_acknowledged.write(_parameters.force_commutation_acknowledged.read());
-        _control_inputs.is_current_zero.write(_parameters.is_current_zero.read());
-        _control_inputs.current_controller_is_saturated.write(_parameters.current_controller_is_saturated.read());
-        _control_inputs.pulse_releases.write(_parameters.pulse_releases.read());
-        _control_inputs.dc_link_current.write(_parameters.dc_link_current.read());
+        _fiber_optics_inputs.force_commutation_acknowledged.write(_parameters.force_commutation_acknowledged.read());
+        _fiber_optics_inputs.is_current_zero.write(_parameters.is_current_zero.read());
+        _fiber_optics_inputs.current_controller_is_saturated.write(_parameters.current_controller_is_saturated.read());
+        _fiber_optics_inputs.pulse_releases.write(_parameters.pulse_releases.read());
+        _fiber_optics_inputs.dc_link_current.write(_parameters.dc_link_current.read());
+        _fiber_optics_inputs.freeze_integrator.write(_parameters.freeze_integrator.read());
+        _fiber_optics_inputs.is_requesting_main_pi_reset.write(_parameters.is_requesting_main_pi_reset.read());
+        _fiber_optics_inputs.current_state_id.write(_parameters.current_state_id.read());
         return true;
     }
 
     parameters _parameters;  ///< Per-unit system base quantity parameters
     outputs _outputs;
-    control_outputs _control_outputs;  ///< Control output signals
-    control_inputs _control_inputs;    ///< Control input signals
+    analog_inputs _analog_inputs;
+    fiber_optics_inputs _fiber_optics_inputs;
+    thyristor_control_output _thyristor_output;
 };
 
 }  // namespace yeet::application::sfc::integration

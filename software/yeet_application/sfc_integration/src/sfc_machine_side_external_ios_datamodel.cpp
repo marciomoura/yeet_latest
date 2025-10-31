@@ -40,6 +40,10 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
         yeet::utils::make_units_accessor(_parameters.current_controller_is_saturated));
     entry.parameters.insert("fo_pulse_releases", yeet::utils::make_units_accessor(_parameters.pulse_releases));
     entry.parameters.insert("fo_dc_link_current", yeet::utils::make_units_accessor(_parameters.dc_link_current));
+    entry.parameters.insert("fo_freeze_integrator", yeet::utils::make_units_accessor(_parameters.freeze_integrator));
+    entry.parameters.insert(
+        "fo_is_requesting_main_pi_reset", yeet::utils::make_units_accessor(_parameters.is_requesting_main_pi_reset));
+    entry.parameters.insert("fo_current_state_id", yeet::utils::make_units_accessor(_parameters.current_state_id));
 
     // Register the entry with the model registry
     registry.insert("machine_side_external_ios", std::move(entry));

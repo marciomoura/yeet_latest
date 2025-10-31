@@ -15,6 +15,33 @@ void sfc_machine_side_control::initialize()
     machine_measurements.initialize();
 }
 
+// 2. Connect pulse releases from grid-side state machine to machine-side modulator enable
+// signals_connector::connect_output_to_input(grid_side_control.get_io().digital_outputs.pulse_releases,
+//     machine_side_control.machine_side_modulator.get_inputs().enable);
+
+// signals_connector::connect_output_to_input(
+//     grid_side_control.get_io().machine_side_outputs.force_commutation_acknowledged,
+//     machine_side_control.machine_side_modulator.get_inputs().force_commutation_acknowledged);
+
+// // 8. Freeze integrator cascading from grid-side to machine-side via I/O interface
+// signals_connector::connect_output_to_input(grid_side_control.get_io().machine_side_outputs.freeze_integrator,
+//     machine_side_control.speed_controller.get_inputs().freeze_integrator);
+
+// signals_connector::connect_output_to_input(
+//     grid_side_control.grid_side_modulator.get_outputs().is_requesting_main_pi_reset,
+//     machine_side_control.speed_controller.get_inputs().modulator_freeze_integrator);
+
+// 8b. Current state ID from grid-side state machine to machine-side speed generator
+// signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().current_state_id,
+//     machine_side_control.speed_generator.get_inputs().current_state_id);
+
+// 9. Current controller saturation to torque controller for composite saturation handling
+// signals_connector::connect_output_to_input(
+//     grid_side_control.get_io().digital_outputs.current_controller_saturated,
+//     machine_side_control.torque_controller.get_inputs().current_controller_is_saturated);
+//     signals_connector::connect_output_to_input(grid_side_control.get_io().digital_outputs.pulse_releases,
+//     machine_side_control.speed_controller.get_inputs().enable_speed_control);
+
 void sfc_machine_side_control::update_10ms()
 {
     // Apply external input overrides from datamodel (reads override flags and writes to outputs)
@@ -75,14 +102,14 @@ void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry
 
 void sfc_machine_side_control::connect_internal_signals()
 {
-    signals_connector::connect_output_to_input(external_ios.get_control_inputs().current_controller_is_saturated,
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().current_controller_is_saturated,
         torque_controller.get_inputs().current_controller_is_saturated);
-    signals_connector::connect_output_to_input(external_ios.get_control_inputs().force_commutation_acknowledged,
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().force_commutation_acknowledged,
         machine_side_modulator.get_inputs().force_commutation_acknowledged);
     signals_connector::connect_output_to_input(
-        external_ios.get_control_inputs().operating_mode, machine_side_modulator.get_inputs().operating_mode);
+        external_ios.get_fiber_optics_inputs().operating_mode, machine_side_modulator.get_inputs().operating_mode);
     signals_connector::connect_output_to_input(
-        external_ios.get_control_inputs().dc_link_current, machine_side_controller.get_inputs().dc_link_current);
+        external_ios.get_fiber_optics_inputs().dc_link_current, machine_side_controller.get_inputs().dc_link_current);
 
     // ==================== Excitation Controller Connections ====================
 
@@ -100,9 +127,9 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // Machine measurements analog inputs
     signals_connector::connect_output_to_input(
-        external_ios.get_control_inputs().v_ab_counts, machine_measurements.get_inputs().v_ab_counts);
+        external_ios.get_analog_inputs().v_ab_counts, machine_measurements.get_inputs().v_ab_counts);
     signals_connector::connect_output_to_input(
-        external_ios.get_control_inputs().v_bc_counts, machine_measurements.get_inputs().v_bc_counts);
+        external_ios.get_analog_inputs().v_bc_counts, machine_measurements.get_inputs().v_bc_counts);
 
     // ==================== Speed Controller Connections ====================
 
@@ -116,17 +143,17 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // Speed controller cascade inputs from grid-side (external connections via bridge signals)
     signals_connector::connect_output_to_input(
-        external_ios.get_control_inputs().pulse_releases, speed_controller.get_inputs().enable_speed_control);
+        external_ios.get_fiber_optics_inputs().pulse_releases, speed_controller.get_inputs().enable_speed_control);
 
-    signals_connector::connect_output_to_input(external_ios.get_control_inputs().current_controller_is_saturated,
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().current_controller_is_saturated,
         speed_controller.get_inputs().current_controller_is_saturated);
 
-    // Freeze integrator when force commutation is requested
-    // WHEN DO WE FREEZE THE SPEED CONTROLLER ???
-    // WHEN TO FREEZE THE INTEGRATOR AND WHEN TO FREEZE THE MODULATOR?
-    signals_connector::connect_output_to_input(external_ios.get_control_inputs().current_controller_is_saturated,
-        speed_controller.get_inputs().freeze_integrator);
-    signals_connector::connect_output_to_input(machine_side_modulator.get_outputs().request_force_commutation,
+    // Freeze integrator from grid-side (cascade control)
+    signals_connector::connect_output_to_input(
+        external_ios.get_fiber_optics_inputs().freeze_integrator, speed_controller.get_inputs().freeze_integrator);
+
+    // Grid-side modulator requesting PI reset
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().is_requesting_main_pi_reset,
         speed_controller.get_inputs().modulator_freeze_integrator);
 
     // ==================== Speed Generator Connections ====================
@@ -147,6 +174,10 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed_pu);
 
+    // Grid-side state machine state ID → Speed Generator (for profile state awareness)
+    signals_connector::connect_output_to_input(
+        external_ios.get_fiber_optics_inputs().current_state_id, speed_generator.get_inputs().current_state_id);
+
     // External Commands → Speed Generator (profile selection and control via bridge signals)
     signals_connector::connect_output_to_input(
         external_ios.get_outputs().run_creep_speed, speed_generator.get_inputs().run_profile_1);
@@ -163,6 +194,8 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(external_ios.get_outputs().idle, speed_generator.get_inputs().idle);
 
     // ==================== Torque Controller Connections ====================
+    signals_connector::connect_output_to_input(torque_controller.get_outputs().composite_saturation,
+        speed_controller.get_inputs().current_controller_is_saturated);
 
     // Speed Controller → Torque Controller (cascade)
     signals_connector::connect_output_to_input(speed_controller.get_outputs().torque_reference,
@@ -180,7 +213,7 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // Machine-side modulator inputs
     signals_connector::connect_output_to_input(
-        external_ios.get_control_inputs().pulse_releases, machine_side_modulator.get_inputs().enable);
+        external_ios.get_fiber_optics_inputs().pulse_releases, machine_side_modulator.get_inputs().enable);
 
     signals_connector::connect_output_to_input(
         machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
@@ -215,8 +248,8 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
 
     // Internal feedback: Pulse generator → External IO
-    signals_connector::connect_output_to_input(
-        machine_side_pulse_generator.get_outputs().firing_pulses, external_ios.get_control_outputs().firing_pulses);
+    signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
+        external_ios.get_thyristor_control_output().firing_pulses);
 
     // Observer → Measurements (for sensorless operation - estimated angle/frequency)
     signals_connector::connect_output_to_input(

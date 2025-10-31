@@ -20,6 +20,16 @@ public:
         // Register all applications with the simulator
         system.register_applications(simulator);
 
+        // Register test input update lambda (10ms - same rate as speed controller and excitation)
+        // This simulates external digital inputs being transferred to the control system
+        simulator.register_lambda_runner(10e-3, [&]() {
+            system.machine_side_control.external_ios.update_excitation_inputs(
+                _exciter_ready, _excitation_start_command, _excitation_stop_command);
+
+            system.machine_side_control.external_ios.update_speed_generator_inputs(_run_creep_speed, _run_purge_accel,
+                _run_ignition_accel, _run_assist_accel, _hold_speed, _decelerate, _idle);
+        });
+
         // Initialize the system - allocates plant model and all components
         initialize();
 
@@ -94,27 +104,21 @@ public:
     }
 
     // Speed profile command helpers using datamodel override parameters
-    void set_idle(bool idle) { system.machine_side_control.external_ios.get_parameters().idle.write(idle); }
+    void set_idle(bool idle) { _idle = idle; }
 
-    void set_run_creep_speed(bool run)
-    {
-        system.machine_side_control.external_ios.get_parameters().run_creep_speed.write(run);
-    }
+    void set_run_creep_speed(bool run) { _run_creep_speed = run; }
 
-    void set_run_purge_accel(bool run)
-    {
-        system.machine_side_control.external_ios.get_parameters().run_purge_accel.write(run);
-    }
+    void set_run_purge_accel(bool run) { _run_purge_accel = run; }
 
-    void set_run_ignition_accel(bool run)
-    {
-        system.machine_side_control.external_ios.get_parameters().run_ignition_accel.write(run);
-    }
+    void set_run_ignition_accel(bool run) { _run_ignition_accel = run; }
 
-    void set_run_assist_accel(bool run)
-    {
-        system.machine_side_control.external_ios.get_parameters().run_assist_accel.write(run);
-    }
+    void set_run_assist_accel(bool run) { _run_assist_accel = run; }
+
+    void set_exciter_ready(bool ready) { _exciter_ready = ready; }
+
+    void set_excitation_start_command(bool start) { _excitation_start_command = start; }
+
+    void set_excitation_stop_command(bool stop) { _excitation_stop_command = stop; }
 
     // Complete startup sequence following state machine logic
     void execute_startup_sequence()
@@ -156,6 +160,20 @@ public:
 
     // Test simulator
     yeet::simulator simulator = yeet::make_gtest_simulator();
+
+    // Speed generator profile commands (simulates external digital inputs)
+    bool _idle = true;
+    bool _run_creep_speed = false;
+    bool _run_purge_accel = false;
+    bool _run_ignition_accel = false;
+    bool _run_assist_accel = false;
+    bool _hold_speed = false;
+    bool _decelerate = false;
+
+    // Excitation control commands (simulates external digital inputs)
+    bool _exciter_ready = true;
+    bool _excitation_start_command = true;
+    bool _excitation_stop_command = false;
 };
 
 // Test gas turbine soft-start sequence using speed generator profiles
