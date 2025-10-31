@@ -298,8 +298,29 @@ class OscilloscopeWidget(QtWidgets.QWidget):
                     curves = self.plot_curves.get(buffer_key, [])
                     for curve_idx, curve in enumerate(curves):
                         # Data index = curve_idx + 1 (since index 0 is X data)
-                        y_data = np.array([p[curve_idx + 1] for p in buffer])
-                        curve.setData(x_data, y_data)
+                        try:
+                            # Check if buffer samples have enough elements
+                            required_idx = curve_idx + 1
+                            
+                            # Filter out samples that don't have enough data
+                            valid_samples = [p for p in buffer if len(p) > required_idx]
+                            
+                            if not valid_samples:
+                                continue
+                            
+                            y_data = np.array([p[required_idx] for p in valid_samples])
+                            
+                            # Use only the x_data that corresponds to valid samples
+                            if len(valid_samples) < len(buffer):
+                                # Some samples were filtered, need matching x_data
+                                valid_x_data = np.array([p[0] for p in valid_samples])
+                                curve.setData(valid_x_data, y_data)
+                            else:
+                                curve.setData(x_data, y_data)
+                        
+                        except (IndexError, ValueError) as e:
+                            logger.debug(f"Curve {curve_idx} in {buffer_key}: {e}")
+                            continue
                     
                     # Update X-axis range to show sliding window
                     if len(x_data) > 0:
