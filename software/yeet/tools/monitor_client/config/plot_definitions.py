@@ -143,8 +143,9 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Speed Controller',
                 'y_label': 'Torque Ref (pu) / Speed (pu) / Error / Output',
                 'signals': [
-                    {'name': 'Torque Reference', 'color': 'g', 'index': 34},
+                    {'name': 'Speed Reference', 'color': 'g', 'index': 40},
                     {'name': 'Measured Speed (pu)', 'color': 'r', 'index': 35},
+                    {'name': 'Torque Reference', 'color': 'b', 'index': 34},
                     {'name': 'Speed Error', 'color': 'c', 'index': 36},
                     {'name': 'PI Output', 'color': 'm', 'index': 37},
                     {'name': 'Is Active', 'color': 'y', 'index': 38},
