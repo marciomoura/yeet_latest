@@ -80,24 +80,47 @@ public:
         // so we cannot write() directly anymore. Instead, inputs come from the simulation command
         // signals (auxiliaries_are_on, breakers_are_on, etc.) which are connected in connect_all_components().
 
-        // For machine-side control, we need to access the internal bridge signals via mock_signal_input
-        // These are internal signals used for routing commands from tests to the control components
+        // For machine-side control, use the external_ios datamodel's override parameters instead of direct mocks.
+        // This allows tests to set override flags and values, delegating the signal routing to the datamodel.
 
-        // Mock excitation control inputs via internal signals
-        yeet::mock_signal_input::write(
-            machine_side_control.get_io().digital_inputs.exciter_ready, true);  // Exciter is ready (perfect exciter)
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.excitation_start_command, true);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.excitation_stop_command, false);
+        // Configure excitation control via datamodel overrides
+        machine_side_control.external_ios.get_parameters().override_excitation_inputs.write(true);
+        machine_side_control.external_ios.get_parameters().exciter_ready.write(
+            true);  // Exciter is ready (perfect exciter)
+        machine_side_control.external_ios.get_parameters().excitation_start_command.write(true);
+        machine_side_control.external_ios.get_parameters().excitation_stop_command.write(false);
 
-        // Speed generator profile commands (all false by default, set manually in tests)
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_creep_speed, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_purge_accel, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_ignition_accel, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_assist_accel, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.hold_speed, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.decelerate, false);
-        yeet::mock_signal_input::write(
-            machine_side_control.get_io().digital_inputs.idle, true);  // Start in idle mode by default
+        // Speed generator profile commands via datamodel (all false by default, set manually in tests)
+        machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(true);
+        machine_side_control.external_ios.get_parameters().run_creep_speed.write(false);
+        machine_side_control.external_ios.get_parameters().run_purge_accel.write(false);
+        machine_side_control.external_ios.get_parameters().run_ignition_accel.write(false);
+        machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
+        machine_side_control.external_ios.get_parameters().hold_speed.write(false);
+        machine_side_control.external_ios.get_parameters().decelerate.write(false);
+        machine_side_control.external_ios.get_parameters().idle.write(true);  // Start in idle mode by default
+
+        // Grid-side inputs via datamodel
+        // machine_side_control.external_ios.get_parameters().override_grid_side_inputs.write(true);
+        // machine_side_control.external_ios.get_parameters().enable_speed_control.write(true);
+        // machine_side_control.external_ios.get_parameters().freeze_integrator.write(false);
+        // machine_side_control.external_ios.get_parameters().modulator_freeze_integrator.write(false);
+
+        // Apply initial datamodel update to write override signals to outputs
+        machine_side_control.external_ios.update_digital_inputs(true,  // exciter_ready
+            true,                                                      // excitation_start_command
+            false,                                                     // excitation_stop_command
+            false,                                                     // run_creep_speed
+            false,                                                     // run_purge_accel
+            false,                                                     // run_ignition_accel
+            false,                                                     // run_assist_accel
+            false,                                                     // hold_speed
+            false,                                                     // decelerate
+            true,                                                      // idle
+            true,                                                      // enable_speed_control
+            false,                                                     // freeze_integrator
+            false                                                      // modulator_freeze_integrator
+        );
 
         // Mock plant inputs
         load_torque_pu.write(torque_pu_t{0.0});

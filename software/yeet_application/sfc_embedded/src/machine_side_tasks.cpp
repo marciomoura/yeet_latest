@@ -84,41 +84,35 @@ void yeet_embedded_init(void)
     // This ensures parameters are registered before first network request
     (void)get_parameter_handler();
 
-    // ==================== INITIALIZE ANALOG INPUTS ====================
-    // Initialize ADC inputs with zero values (will be updated from hardware in 200µs task)
-    yeet::mock_signal_input::write(
-        get_machine_side_control().get_io().analog_inputs.v_ab_counts, yeet::control::adc_counts{0});
-    yeet::mock_signal_input::write(
-        get_machine_side_control().get_io().analog_inputs.v_bc_counts, yeet::control::adc_counts{0});
-
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.exciter_ready, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.excitation_start_command, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.excitation_stop_command, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_creep_speed, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_purge_accel, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_ignition_accel, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_assist_accel, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.hold_speed, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.decelerate, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.idle, true);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.exciter_ready, false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.excitation_start_command,
+    // false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.excitation_stop_command,
+    // false); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_creep_speed,
+    // false); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_purge_accel,
+    // false); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_ignition_accel,
+    // false); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_assist_accel,
+    // false); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.hold_speed, false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.decelerate, false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.idle, true);
 
     // ==================== INITIALIZE GRID-SIDE INPUTS ====================
     // Initialize cross-coupled inputs from grid-side controller with safe default values
     // In production, these come from fiber-optic communication interface
-    yeet::mock_signal_input::write(
-        get_machine_side_control().get_io().grid_side_inputs.dc_link_current_measured, yeet::current_pu_t{0.0});
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.operating_mode,
-        yeet::application::sfc::sfc_operating_mode_t::natural_commutation);
-    yeet::mock_signal_input::write(
-        get_machine_side_control().get_io().grid_side_inputs.force_commutation_acknowledged, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.freeze_integrator, false);
-    yeet::mock_signal_input::write(
-        get_machine_side_control().get_io().grid_side_inputs.current_controller_saturated, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.pulse_releases, false);
-    yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.current_state_id,
-        yeet::application::sfc::sfc_state_id::IDLE);
+    // yeet::mock_signal_input::write(
+    //     get_machine_side_control().get_io().grid_side_inputs.dc_link_current_measured, yeet::current_pu_t{0.0});
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.operating_mode,
+    //     yeet::application::sfc::sfc_operating_mode_t::natural_commutation);
+    // yeet::mock_signal_input::write(
+    //     get_machine_side_control().get_io().grid_side_inputs.force_commutation_acknowledged, false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.freeze_integrator, false);
+    // yeet::mock_signal_input::write(
+    //     get_machine_side_control().get_io().grid_side_inputs.current_controller_saturated, false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.pulse_releases, false);
+    // yeet::mock_signal_input::write(get_machine_side_control().get_io().grid_side_inputs.current_state_id,
+    //     yeet::application::sfc::sfc_state_id::IDLE);
 
     // Initialize machine-side control subsystem
     get_machine_side_control().initialize();
@@ -141,10 +135,9 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
 
     // Write ADC values directly to I/O interface analog inputs
     if (inputs != nullptr && inputs->analog_inputs.valid) {
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().analog_inputs.v_ab_counts,
-            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().analog_inputs.v_bc_counts,
-            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});
+        get_machine_side_control().external_ios.update_analog_inputs(
+            static_cast<int16_t>(inputs->analog_inputs.channels[1]),
+            static_cast<int16_t>(inputs->analog_inputs.channels[2]));
     }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
@@ -153,7 +146,7 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from machine-side I/O interface and map to hardware PWM channels
     if (outputs != nullptr) {
-        const auto& firing_pulses = get_machine_side_control().get_io().pulse_outputs.firing_pulses.read();
+        const auto firing_pulses = get_machine_side_control().external_ios.get_thyristor_pulse_outputs();
 
         outputs->thyristor_pulses.a_plus = firing_pulses.p1;   // T1 (A+) → p1
         outputs->thyristor_pulses.b_minus = firing_pulses.p2;  // T2 (B-) → p2
@@ -191,19 +184,22 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         bool idle_cmd = inputs->digital_inputs.signals[9];        // DI10: Idle mode
 
         // Write digital input values directly to I/O interface
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.exciter_ready, exciter_ready);
-        yeet::mock_signal_input::write(
-            get_machine_side_control().get_io().digital_inputs.excitation_start_command, excitation_start);
-        yeet::mock_signal_input::write(
-            get_machine_side_control().get_io().digital_inputs.excitation_stop_command, excitation_stop);
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_creep_speed, run_creep);
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_purge_accel, run_purge);
-        yeet::mock_signal_input::write(
-            get_machine_side_control().get_io().digital_inputs.run_ignition_accel, run_ignition);
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_assist_accel, run_assist);
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.hold_speed, hold_speed_cmd);
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.decelerate, decelerate_cmd);
-        yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.idle, idle_cmd);
+        // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.exciter_ready,
+        // exciter_ready); yeet::mock_signal_input::write(
+        //     get_machine_side_control().get_io().digital_inputs.excitation_start_command, excitation_start);
+        // yeet::mock_signal_input::write(
+        //     get_machine_side_control().get_io().digital_inputs.excitation_stop_command, excitation_stop);
+        // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_creep_speed,
+        // run_creep);
+        // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_purge_accel,
+        // run_purge); yeet::mock_signal_input::write(
+        //     get_machine_side_control().get_io().digital_inputs.run_ignition_accel, run_ignition);
+        // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.run_assist_accel,
+        // run_assist); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.hold_speed,
+        // hold_speed_cmd);
+        // yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.decelerate,
+        // decelerate_cmd); yeet::mock_signal_input::write(get_machine_side_control().get_io().digital_inputs.idle,
+        // idle_cmd);
     }
 
     // Process fiber-optic RX data from grid-side controller
@@ -212,28 +208,9 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Decode Grid → Machine protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // Map fiber-optic protocol enum to SFC operating mode
-            yeet::application::sfc::sfc_operating_mode_t operating_mode;
-            if (rx_msg->mode == yeet::application::sfc::fiber_optic::operating_mode::forced_commutation) {
-                operating_mode = yeet::application::sfc::sfc_operating_mode_t::forced_commutation;
-            }
-            else if (rx_msg->mode == yeet::application::sfc::fiber_optic::operating_mode::natural_commutation) {
-                operating_mode = yeet::application::sfc::sfc_operating_mode_t::natural_commutation;
-            }
-            else {
-                operating_mode = yeet::application::sfc::sfc_operating_mode_t::forced_commutation;  // Safe default
-            }
-
-            // Write grid-side cross-coupled signals directly to I/O interface
-            yeet::mock_signal_input::write(
-                get_machine_side_control().get_io().grid_side_inputs.operating_mode, operating_mode);
-            yeet::mock_signal_input::write(
-                get_machine_side_control().get_io().grid_side_inputs.force_commutation_acknowledged,
-                rx_msg->force_commutation_acknowledged);
-            yeet::mock_signal_input::write(
-                get_machine_side_control().get_io().grid_side_inputs.pulse_releases, rx_msg->pulse_releases);
-
-            // Note: is_current_zero decoded but not currently used by machine-side
+            get_machine_side_control().external_ios.update_grid_side_control_inputs(rx_msg->mode,
+                yeet::current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->force_commutation_acknowledged,
+                rx_msg->is_current_zero, rx_msg->current_controller_is_saturated, rx_msg->pulse_releases);
         }
     }
 

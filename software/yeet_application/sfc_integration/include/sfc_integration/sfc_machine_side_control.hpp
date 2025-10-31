@@ -3,6 +3,7 @@
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_control_io.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
+#include "sfc_integration/sfc_machine_side_external_ios_datamodel.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
@@ -43,16 +44,7 @@ public:
           machine_side_observer(),
           machine_side_modulator(),
           machine_side_pulse_generator(),
-          machine_measurements(per_unit_system),
-          io(machine_measurements,
-              excitation_controller,
-              speed_generator,
-              speed_controller,
-              torque_controller,
-              machine_side_controller,
-              machine_side_observer,
-              machine_side_modulator,
-              machine_side_pulse_generator)
+          machine_measurements(per_unit_system)
     {
         connect_internal_signals();
     }
@@ -135,8 +127,8 @@ public:
      *
      * This ensures a single, type-safe point of external connection.
      */
-    sfc_machine_side_control_io& get_io() { return io; }
-    const sfc_machine_side_control_io& get_io() const { return io; }
+    // sfc_machine_side_control_io& get_io() { return io; }
+    // const sfc_machine_side_control_io& get_io() const { return io; }
 
     // ==================== External Output Signals ====================
     // NOTE: Prefer accessing outputs through get_io() interface for consistency.
@@ -256,7 +248,7 @@ public:
     sfc_machine_side_measurements_runner machine_measurements;
 
     // I/O interface for external connections (must be last as it references all components)
-    sfc_machine_side_control_io io;
+    sfc_machine_side_external_ios_datamodel external_ios;
 
 private:
     /**

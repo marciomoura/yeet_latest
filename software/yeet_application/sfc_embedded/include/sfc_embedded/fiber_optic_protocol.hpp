@@ -28,6 +28,8 @@
 #include <cstring>
 #include <optional>
 
+#include "sfc/sfc_types.hpp"
+
 namespace yeet::application::sfc::fiber_optic {
 
 /* ============================================================================
@@ -35,10 +37,10 @@ namespace yeet::application::sfc::fiber_optic {
  * ============================================================================ */
 
 /** @brief Maximum payload size for fiber-optic packets (uint32_t words) */
-static constexpr std::size_t max_payload_words = 4;
+static constexpr std::size_t max_payload_words = 5;
 
 /** @brief Grid → Machine payload length (uint32_t words) */
-static constexpr std::size_t grid_to_machine_payload_length = 1;
+static constexpr std::size_t grid_to_machine_payload_length = 2;
 
 /** @brief Machine → Grid payload length (uint32_t words) */
 static constexpr std::size_t machine_to_grid_payload_length = 4;
@@ -48,50 +50,47 @@ static constexpr std::size_t machine_to_grid_payload_length = 4;
  * ============================================================================ */
 
 /**
- * @brief Operating mode enumeration
- *
- * Represents the current commutation mode of the converter system.
- * Values are encoded in bits 0-7 of the packed status word.
- */
-enum class operating_mode : std::uint8_t {
-    forced_commutation = 0,  /**< Forced commutation (low speed) */
-    natural_commutation = 1, /**< Natural load commutation (normal operation) */
-    synchronization = 2,     /**< Synchronization mode (future use) */
-    fault = 3                /**< Fault state (future use) */
-};
-
-/**
  * @brief Grid → Machine decoded message
  *
  * Contains all signals transmitted from grid-side to machine-side controller.
  */
 struct grid_to_machine_message {
-    operating_mode mode{operating_mode::forced_commutation}; /**< Current operating mode */
-    bool is_current_zero{false};                             /**< DC link current is zero */
-    bool force_commutation_acknowledged{false};              /**< Force commutation request acknowledged */
-    bool pulse_releases{false};                              /**< Thyristor pulses are enabled */
+    yeet::application::sfc::sfc_operating_mode_t mode{
+        yeet::application::sfc::sfc_operating_mode_t::natural_commutation}; /**< Current operating mode */
+    float dc_link_current_pu{0.0f};                                         /**< DC link current measurement [pu] */
+    bool is_current_zero{false};                                            /**< DC link current is zero */
+    bool current_controller_is_saturated{false};                            /**< Current controller is saturated */
+    bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
+    bool pulse_releases{false};                 /**< Thyristor pulses are enabled */
 };
 
 /**
  * @brief Encode Grid → Machine message into packed uint32_t payload
  *
- * Packs all grid-side status and control signals into a single uint32_t word
- * for transmission over fiber-optic link. Uses bit-packing to minimize bandwidth:
- * - Bits 0-7:   Operating mode (enum, 0-255)
- * - Bit 8:      Is current zero
- * - Bit 9:      Force commutation acknowledged
- * - Bit 10:     Pulse releases
- * - Bits 11-31: Reserved for future use
+ * Packs all grid-side status and control signals into 2 uint32_t words
+ * for transmission over fiber-optic link:
+ * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
+ * - Word 1: Packed control flags
+ *   - Bits 0-7:   Operating mode (enum, 0-255)
+ *   - Bit 8:      Is current zero
+ *   - Bit 9:      Current controller is saturated
+ *   - Bit 10:     Force commutation acknowledged
+ *   - Bit 11:     Pulse releases
+ *   - Bits 12-31: Reserved for future use
  *
  * @param[in]  msg      Message structure to encode
- * @param[out] payload  Array to receive encoded data (min 1 word)
- * @return Number of uint32_t words written to payload (always 1)
+ * @param[out] payload  Array to receive encoded data (min 2 words)
+ * @return Number of uint32_t words written to payload (always 2)
+ *
+ * @note Float values are transmitted as IEEE 754 bit patterns using bit_cast
  *
  * Example:
  * @code
  * grid_to_machine_message msg{
  *     .mode = operating_mode::natural_commutation,
+ *     .dc_link_current_pu = 0.75f,
  *     .is_current_zero = false,
+ *     .current_controller_is_saturated = false,
  *     .force_commutation_acknowledged = true,
  *     .pulse_releases = true
  * };
@@ -104,21 +103,26 @@ struct grid_to_machine_message {
 /**
  * @brief Decode Grid → Machine message from packed uint32_t payload
  *
- * Unpacks grid-side status and control signals from a single uint32_t word
- * received over fiber-optic link. Extracts bit-packed fields:
- * - Bits 0-7:   Operating mode (enum)
- * - Bit 8:      Is current zero
- * - Bit 9:      Force commutation acknowledged
- * - Bit 10:     Pulse releases
+ * Unpacks grid-side status and control signals from 2 uint32_t words
+ * received over fiber-optic link:
+ * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
+ * - Word 1: Packed control flags
+ *   - Bits 0-7:   Operating mode (enum)
+ *   - Bit 8:      Is current zero
+ *   - Bit 9:      Current controller is saturated
+ *   - Bit 10:     Force commutation acknowledged
+ *   - Bit 11:     Pulse releases
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
  * @return Decoded message if successful, std::nullopt if payload_length insufficient
  *
+ * @note Float values are reconstructed from IEEE 754 bit patterns using bit_cast
+ *
  * Example:
  * @code
  * if (auto msg = decode_grid_to_machine(rx_payload, rx_length)) {
- *     // Use decoded msg->mode, msg->pulse_releases, etc.
+ *     // Use decoded msg->mode, msg->dc_link_current_pu, msg->pulse_releases, etc.
  * }
  * @endcode
  */
@@ -202,12 +206,13 @@ struct machine_to_grid_message {
  * ============================================================================ */
 
 namespace detail {
-// Grid → Machine bit field layout (Word 0)
+// Grid → Machine bit field layout (Word 1)
 static constexpr std::uint32_t g2m_operating_mode_mask = 0x000000FFU;  // Bits 0-7
 static constexpr std::uint8_t g2m_operating_mode_shift = 0;
-static constexpr std::uint32_t g2m_is_current_zero_bit = (1U << 8);  // Bit 8
-static constexpr std::uint32_t g2m_force_comm_ack_bit = (1U << 9);   // Bit 9
-static constexpr std::uint32_t g2m_pulse_releases_bit = (1U << 10);  // Bit 10
+static constexpr std::uint32_t g2m_is_current_zero_bit = (1U << 8);               // Bit 8
+static constexpr std::uint32_t g2m_current_controller_saturated_bit = (1U << 9);  // Bit 9
+static constexpr std::uint32_t g2m_force_comm_ack_bit = (1U << 10);               // Bit 10
+static constexpr std::uint32_t g2m_pulse_releases_bit = (1U << 11);               // Bit 11
 
 // Machine → Grid bit field layout (Word 3)
 static constexpr std::uint32_t m2g_force_comm_req_bit = (1U << 0);  // Bit 0
