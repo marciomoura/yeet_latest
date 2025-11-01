@@ -116,7 +116,7 @@ public:
         /// Acceleration time for Profile 2 [s]
         parameter<duration_t> profile_2_acceleration_time = duration_t{120.0};
         /// Maximum torque limit during Profile 2 [pu]
-        parameter<torque_pu_t> profile_2_torque_limit_max = torque_pu_t{0.50};
+        parameter<torque_pu_t> profile_2_torque_limit_max = torque_pu_t{0.8};
         /// Minimum torque limit during Profile 2 [pu]
         parameter<torque_pu_t> profile_2_torque_limit_min = torque_pu_t{-0.20};
         /// Initial torque boost for Profile 2 [pu]
@@ -132,7 +132,7 @@ public:
         /// Acceleration time for Profile 3 [s]
         parameter<duration_t> profile_3_acceleration_time = duration_t{180.0};
         /// Maximum torque limit during Profile 3 [pu]
-        parameter<torque_pu_t> profile_3_torque_limit_max = torque_pu_t{0.65};
+        parameter<torque_pu_t> profile_3_torque_limit_max = torque_pu_t{0.8};
         /// Minimum torque limit during Profile 3 [pu]
         parameter<torque_pu_t> profile_3_torque_limit_min = torque_pu_t{-0.30};
         /// Initial torque boost for Profile 3 [pu]

@@ -609,7 +609,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
     // Configure Profile 1 with faster acceleration and explicit boost settings
     system.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time = duration_t{15.0f};
     system.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost = torque_pu_t{0.20f};
-    system.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration = duration_t{2.0f};
+    system.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration = duration_t{5.0f};
 
     // High load simulating static friction
     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.20f));
