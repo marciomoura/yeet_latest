@@ -136,8 +136,8 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Write ADC values directly to I/O interface analog inputs
     if (inputs != nullptr && inputs->analog_inputs.valid) {
         get_machine_side_control().external_ios.update_analog_inputs(
-            static_cast<int16_t>(inputs->analog_inputs.channels[1]),
-            static_cast<int16_t>(inputs->analog_inputs.channels[2]));
+            yeet::control::adc_counts{static_cast<std::int32_t>(inputs->analog_inputs.channels[1])},
+            yeet::control::adc_counts{static_cast<std::int32_t>(inputs->analog_inputs.channels[2])});
     }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)

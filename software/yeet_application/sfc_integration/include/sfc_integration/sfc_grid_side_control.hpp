@@ -3,6 +3,7 @@
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_control_io.hpp"
+#include "sfc_integration/sfc_grid_side_external_ios_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
@@ -27,10 +28,9 @@ namespace yeet::application::sfc::integration {
  * - Measurement processing for grid and DC link
  * - Operation mode monitoring
  *
- * I/O Interface:
- * - Access inputs via `get_io().analog_inputs`, `get_io().digital_inputs`, etc.
- * - Access outputs via `get_io().pulse_outputs`, `get_io().digital_outputs`, etc.
- * - Works identically in simulation and embedded environments
+ * Signal Interface:
+ * All external signals are accessed through the `get_external_ios()` datamodel interface,
+ * which provides abstraction for digital inputs, analog inputs, and fiber-optic signals.
  */
 class sfc_grid_side_control {
 public:
@@ -97,17 +97,43 @@ public:
      */
     void update_200us();
 
-    // ==================== I/O Interface Access ====================
+    // ==================== External I/O Interface ====================
 
     /**
-     * @brief Get I/O interface for external signal connections
+     * @brief DEPRECATED: Get I/O interface for external signal connections
      *
-     * This is the primary interface for both embedded and simulation environments.
-     * - Embedded: ADC/DI write to io.analog_inputs/digital_inputs, read io.pulse_outputs/digital_outputs
-     * - Simulation: Plant writes to io.analog_inputs, reads io.pulse_outputs
+     * This method is maintained for backward compatibility with embedded implementations.
+     * Simulation code should use get_external_ios() instead for cleaner abstractions.
+     *
+     * This provides direct access to the internal I/O struct used for ADC/DI connections.
+     * In embedded systems, this interface is used for hardware signal routing.
+     *
+     * @deprecated Simulation should use get_external_ios() datamodel interface
      */
     sfc_grid_side_control_io& get_io() { return io; }
     const sfc_grid_side_control_io& get_io() const { return io; }
+
+    /**
+     * @brief Get external I/O datamodel for parameter-based signal injection
+     *
+     * This provides the abstraction layer for all external signals:
+     * - Supervisory digital inputs (auxiliary commands, state machine commands)
+     * - ADC analog inputs (voltage/current measurements)
+     * - Fiber-optics outputs to machine-side (operating mode, current controller saturation, etc.)
+     * - Fiber-optics inputs from machine-side (speed, current reference, voltage, etc.)
+     *
+     * **Simulation Usage:**
+     * Plant builder calls update_*() methods to push signals through this datamodel.
+     * Machine-side reads from get_fiber_optics_outputs_to_machine().
+     *
+     * **Test Usage:**
+     * Tests can enable override flags and set parameter values to inject mock signals
+     * without modifying plant builder or component logic.
+     *
+     * @see sfc_grid_side_external_ios_datamodel
+     */
+    sfc_grid_side_external_ios_datamodel& get_external_ios() { return external_ios; }
+    const sfc_grid_side_external_ios_datamodel& get_external_ios() const { return external_ios; }
 
     // ==================== Component Access (for advanced configuration/debugging) ====================
 
@@ -159,6 +185,11 @@ public:
     /**
      * @brief Get grid-side firing pulses for plant model
      */
+    signal_output<control::six_pulse_generator::pulses>& get_firing_pulses()
+    {
+        return grid_side_pulse_generator.get_outputs().firing_pulses;
+    }
+
     const signal_output<control::six_pulse_generator::pulses>& get_firing_pulses() const
     {
         return const_cast<sfc_grid_side_pulse_generator_runner&>(grid_side_pulse_generator).get_outputs().firing_pulses;
@@ -215,6 +246,9 @@ public:
             )};
 
     sfc_per_unit_system_datamodel pu_system_datamodel;
+
+    // Grid-side external I/O datamodel (abstraction layer for all external signals)
+    sfc_grid_side_external_ios_datamodel external_ios;
 
     // Grid-side control components (made public for intermediate integration)
     sfc_state_machine_runner state_machine;

@@ -21,6 +21,7 @@ set(PLANT_SIMULATION_HEADERS
 set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_current_controller_datamodel.hpp
     include/sfc_integration/sfc_current_controller_runner.hpp
+    include/sfc_integration/sfc_grid_side_external_ios_datamodel.hpp
     include/sfc_integration/sfc_machine_side_external_ios_datamodel.hpp
     include/sfc_integration/sfc_dc_link_measurements_datamodel.hpp
     include/sfc_integration/sfc_dc_link_measurements_runner.hpp
@@ -72,6 +73,7 @@ set(SFC_CORE_SOURCES
     src/sfc_excitation_controller_runner.cpp
     src/sfc_grid_side_control.cpp
     src/sfc_grid_side_control_io.cpp
+    src/sfc_grid_side_external_ios_datamodel.cpp
     src/sfc_grid_side_hardware_mock_runner.cpp
     src/sfc_grid_side_measurements_runner.cpp
     src/sfc_grid_side_modulator_runner.cpp
