@@ -2,7 +2,6 @@
 
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
-#include "sfc_integration/sfc_grid_side_control_io.hpp"
 #include "sfc_integration/sfc_grid_side_external_ios_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
@@ -46,15 +45,7 @@ public:
           grid_side_pulse_generator(),
           grid_measurements(per_unit_system),
           dc_link_measurements(per_unit_system),
-          operation_mode_monitor(),
-          io(grid_measurements,
-              dc_link_measurements,
-              state_machine,
-              operation_mode_monitor,
-              current_controller,
-              grid_side_modulator,
-              grid_side_pulse_generator,
-              grid_side_observer)
+          operation_mode_monitor()
     {
         connect_internal_signals();
     }
@@ -98,20 +89,6 @@ public:
     void update_200us();
 
     // ==================== External I/O Interface ====================
-
-    /**
-     * @brief DEPRECATED: Get I/O interface for external signal connections
-     *
-     * This method is maintained for backward compatibility with embedded implementations.
-     * Simulation code should use get_external_ios() instead for cleaner abstractions.
-     *
-     * This provides direct access to the internal I/O struct used for ADC/DI connections.
-     * In embedded systems, this interface is used for hardware signal routing.
-     *
-     * @deprecated Simulation should use get_external_ios() datamodel interface
-     */
-    sfc_grid_side_control_io& get_io() { return io; }
-    const sfc_grid_side_control_io& get_io() const { return io; }
 
     /**
      * @brief Get external I/O datamodel for parameter-based signal injection
@@ -259,9 +236,6 @@ public:
     sfc_grid_side_measurements_runner grid_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_operation_mode_monitor_runner operation_mode_monitor;
-
-    // I/O interface for external connections (must be last as it references all components)
-    sfc_grid_side_control_io io;
 
 private:
     /**

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
-#include "sfc_integration/sfc_machine_side_control_io.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_external_ios_datamodel.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"

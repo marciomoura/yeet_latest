@@ -72,7 +72,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(30, state_machine.get_outputs().freeze_integrator.read() ? 1.0f : 0.0f);
 
     // === State Machine Group ===
-    packet.add_signal(31, static_cast<float>(state_machine.get_outputs().current_state_id.read()));
+    packet.add_signal(31, static_cast<float>(static_cast<int>(state_machine.get_outputs().current_state_id.read())));
     packet.add_signal(32, state_machine.get_outputs().pulse_releases.read() ? 1.0f : 0.0f);
     packet.add_signal(33, state_machine.get_outputs().auxiliaries_are_on.read() ? 1.0f : 0.0f);
     packet.add_signal(34, state_machine.get_outputs().breakers_are_on.read() ? 1.0f : 0.0f);
