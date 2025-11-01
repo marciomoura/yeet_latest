@@ -37,33 +37,34 @@ void sfc_machine_side_external_ios_datamodel::register_callbacks()
     _parameters.dc_link_current.register_callback(fiber_optics_inputs_callback);
 }
 
-void sfc_machine_side_external_ios_datamodel::update_analog_inputs(std::int16_t v_ab_counts, std::int16_t v_bc_counts)
+void sfc_machine_side_external_ios_datamodel::update_analog_inputs(
+    yeet::control::adc_counts v_ab_counts, yeet::control::adc_counts v_bc_counts)
 {
-    _analog_inputs.v_ab_counts.write(control::adc_counts{v_ab_counts});
-    _analog_inputs.v_bc_counts.write(control::adc_counts{v_bc_counts});
+    _analog_inputs.v_ab_counts.write(v_ab_counts);
+    _analog_inputs.v_bc_counts.write(v_bc_counts);
 }
 
 void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_operating_mode_t operating_mode,
-    current_pu_t dc_link_current,
+    yeet::application::sfc::sfc_state_id current_state_id,
     bool force_commutation_acknowledged,
     bool is_current_zero,
     bool current_controller_is_saturated,
     bool pulse_releases,
+    current_pu_t dc_link_current,
     bool freeze_integrator,
-    bool is_requesting_main_pi_reset,
-    yeet::application::sfc::sfc_state_id current_state_id)
+    bool is_requesting_main_pi_reset)
 {
     const bool fiber_optics_overrides_written = write_fiber_optics_input_overrides();
     if (!fiber_optics_overrides_written) {
         _fiber_optics_inputs.operating_mode.write(operating_mode);
-        _fiber_optics_inputs.dc_link_current.write(dc_link_current);
-        _fiber_optics_inputs.is_current_zero.write(is_current_zero);
+        _fiber_optics_inputs.current_state_id.write(current_state_id);
         _fiber_optics_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
+        _fiber_optics_inputs.is_current_zero.write(is_current_zero);
         _fiber_optics_inputs.current_controller_is_saturated.write(current_controller_is_saturated);
         _fiber_optics_inputs.pulse_releases.write(pulse_releases);
+        _fiber_optics_inputs.dc_link_current.write(dc_link_current);
         _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
         _fiber_optics_inputs.is_requesting_main_pi_reset.write(is_requesting_main_pi_reset);
-        _fiber_optics_inputs.current_state_id.write(current_state_id);
     }
 }
 
@@ -77,9 +78,9 @@ void sfc_machine_side_external_ios_datamodel::update_excitation_inputs(
 {
     const bool excitation_overrides_written = write_excitation_overrides();
     if (!excitation_overrides_written) {
-        _outputs.exciter_ready.write(exciter_ready);
-        _outputs.excitation_start_command.write(excitation_start_command);
-        _outputs.excitation_stop_command.write(excitation_stop_command);
+        _excitation_outputs.exciter_ready.write(exciter_ready);
+        _excitation_outputs.excitation_start_command.write(excitation_start_command);
+        _excitation_outputs.excitation_stop_command.write(excitation_stop_command);
     }
 }
 
@@ -93,13 +94,13 @@ void sfc_machine_side_external_ios_datamodel::update_speed_generator_inputs(bool
 {
     const bool speed_generator_overrides_written = write_speed_generator_overrides();
     if (!speed_generator_overrides_written) {
-        _outputs.run_creep_speed.write(run_creep_speed);
-        _outputs.run_purge_accel.write(run_purge_accel);
-        _outputs.run_ignition_accel.write(run_ignition_accel);
-        _outputs.run_assist_accel.write(run_assist_accel);
-        _outputs.hold_speed.write(hold_speed);
-        _outputs.decelerate.write(decelerate);
-        _outputs.idle.write(idle);
+        _speed_generator_outputs.run_creep_speed.write(run_creep_speed);
+        _speed_generator_outputs.run_purge_accel.write(run_purge_accel);
+        _speed_generator_outputs.run_ignition_accel.write(run_ignition_accel);
+        _speed_generator_outputs.run_assist_accel.write(run_assist_accel);
+        _speed_generator_outputs.hold_speed.write(hold_speed);
+        _speed_generator_outputs.decelerate.write(decelerate);
+        _speed_generator_outputs.idle.write(idle);
     }
 }
 
@@ -109,9 +110,9 @@ bool sfc_machine_side_external_ios_datamodel::write_excitation_overrides()
         return false;
     }
 
-    _outputs.exciter_ready.write(_parameters.exciter_ready.read());
-    _outputs.excitation_start_command.write(_parameters.excitation_start_command.read());
-    _outputs.excitation_stop_command.write(_parameters.excitation_stop_command.read());
+    _excitation_outputs.exciter_ready.write(_parameters.exciter_ready.read());
+    _excitation_outputs.excitation_start_command.write(_parameters.excitation_start_command.read());
+    _excitation_outputs.excitation_stop_command.write(_parameters.excitation_stop_command.read());
     return true;
 }
 
@@ -121,13 +122,13 @@ bool sfc_machine_side_external_ios_datamodel::write_speed_generator_overrides()
         return false;
     }
 
-    _outputs.run_creep_speed.write(_parameters.run_creep_speed.read());
-    _outputs.run_purge_accel.write(_parameters.run_purge_accel.read());
-    _outputs.run_ignition_accel.write(_parameters.run_ignition_accel.read());
-    _outputs.run_assist_accel.write(_parameters.run_assist_accel.read());
-    _outputs.hold_speed.write(_parameters.hold_speed.read());
-    _outputs.decelerate.write(_parameters.decelerate.read());
-    _outputs.idle.write(_parameters.idle.read());
+    _speed_generator_outputs.run_creep_speed.write(_parameters.run_creep_speed.read());
+    _speed_generator_outputs.run_purge_accel.write(_parameters.run_purge_accel.read());
+    _speed_generator_outputs.run_ignition_accel.write(_parameters.run_ignition_accel.read());
+    _speed_generator_outputs.run_assist_accel.write(_parameters.run_assist_accel.read());
+    _speed_generator_outputs.hold_speed.write(_parameters.hold_speed.read());
+    _speed_generator_outputs.decelerate.write(_parameters.decelerate.read());
+    _speed_generator_outputs.idle.write(_parameters.idle.read());
     return true;
 }
 

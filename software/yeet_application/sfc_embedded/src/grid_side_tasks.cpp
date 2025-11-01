@@ -259,11 +259,10 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, stop_cmd);
         // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request,
         // shutdown_req); #else
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, true);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, true);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, true);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
-        yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
+        // NOTE: Digital inputs are now managed through external_ios datamodel
+        // In embedded, supervisory signals come from hardware and are routed via ADC/DI task
+        // These mock writes are for simulation/testing only - not applicable in embedded context
+        // The actual hardware flow: Hardware ADC/DI → ADC runner → measurements → control
         // #endif
     }
 
@@ -274,18 +273,12 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Decode Machine → Grid protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // Write machine-side cross-coupled signals directly to I/O interface
-            yeet::mock_signal_input::write(get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu,
-                yeet::speed_pu_t{rx_msg->measured_speed_pu});
-            yeet::mock_signal_input::write(
-                get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference,
-                yeet::current_pu_t{rx_msg->dc_link_current_reference_pu});
-            yeet::mock_signal_input::write(
-                get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude,
-                yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu});
-            yeet::mock_signal_input::write(
-                get_grid_side_control().get_io().machine_side_inputs.request_force_commutation,
-                rx_msg->force_commutation_request);
+            // NOTE: In embedded, fiber-optic signals should update the external_ios datamodel
+            // via direct parameter writes or a dedicated update method. For now, these are injected
+            // via the 1ms loop's cross-coupling mechanism in plant builder (simulation).
+            // In embedded real hardware, the fiber-optic receiver would directly write to
+            // external_ios parameters or call an update method to inject received signals.
+            // TODO: Add fiber_optic_rx input handling to external_ios datamodel for embedded systems
         }
     }
     //     // #else
@@ -317,16 +310,14 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Prepare Grid → Machine protocol message
         yeet::application::sfc::fiber_optic::grid_to_machine_message tx_msg;
 
-        // Read from I/O interface machine-side outputs
-        tx_msg.mode = get_grid_side_control().get_io().machine_side_outputs.operating_mode.read();
-        tx_msg.is_current_zero = get_grid_side_control().get_io().machine_side_outputs.is_current_zero.read();
-        tx_msg.force_commutation_acknowledged =
-            get_grid_side_control().get_io().machine_side_outputs.force_commutation_acknowledged.read();
-        tx_msg.pulse_releases = get_grid_side_control().get_io().digital_outputs.pulse_releases.read();
+        // Read from control class outputs directly (these are sent via fiber-optics to machine-side)
+        tx_msg.mode = get_grid_side_control().get_operating_mode().read();
+        tx_msg.is_current_zero = get_grid_side_control().get_is_current_zero().read();
+        tx_msg.force_commutation_acknowledged = get_grid_side_control().get_force_commutation_acknowledged().read();
+        tx_msg.pulse_releases = get_grid_side_control().get_pulse_releases().read();
         tx_msg.dc_link_current_pu =
             get_grid_side_control().dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
-        tx_msg.current_controller_is_saturated =
-            get_grid_side_control().current_controller.get_outputs().current_controller_is_saturated.read();
+        tx_msg.current_controller_is_saturated = get_grid_side_control().get_current_controller_is_saturated().read();
 
         // Encode and transmit
         outputs->fiber_optic_tx.payload_length =
