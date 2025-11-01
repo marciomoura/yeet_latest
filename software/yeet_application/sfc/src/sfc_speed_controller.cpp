@@ -9,7 +9,13 @@ sfc_speed_controller::sfc_speed_controller(duration_t sampling_time)
       _pi_controller(sampling_time.value()),
       _speed_ref_derivative(sampling_time.value(), 0.0f)
 {
+    // Enable internal anti-windup: stops integration when PI output hits torque limits
     _pi_controller.enable_integrator_clamping(true);
+
+    // Optional: Enable back-calculation anti-windup for faster recovery from saturation
+    // Typical value: kc = 1/Ti, but this is set automatically when using configure_with_ti
+    // _pi_controller.set_antiwindup_gain(1.0);
+
     _pi_controller.configure_with_ti(3.0, 1.0);
 }
 

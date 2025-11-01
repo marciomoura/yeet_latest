@@ -20,16 +20,25 @@ void sfc_speed_controller_runner::initialize()
 
 void sfc_speed_controller_runner::run()
 {
+    // CRITICAL: Use composite saturation from torque controller, which includes
+    // both torque-level and current-level saturation
+    const bool downstream_saturated = _inputs.current_controller_is_saturated.read();
+
+    // CRITICAL: Also freeze during external events
+    const bool external_freeze_requested =
+        _inputs.freeze_integrator.read() || _inputs.modulator_freeze_integrator.read();
+
+    // Combine: freeze if EITHER downstream is saturated OR external freeze requested
+    const bool freeze_integrator = downstream_saturated || external_freeze_requested;
+
     if (!_inputs.enable_speed_control.read()) {
         _outputs.is_active.write(false);
-        // TODO: How to initialize properly when re-enabling speed control?
-        // _sfc_speed_controller.reset(_inputs.speed_reference_pu.read());
+        // When re-enabling, reset to current measured speed to prevent bump
+        _sfc_speed_controller.reset(_inputs.measured_speed_pu.read());
     }
     else {
         _outputs.is_active.write(true);
-        _sfc_speed_controller.freeze_integrator(_inputs.freeze_integrator.read() ||
-                                                _inputs.current_controller_is_saturated.read() ||
-                                                _inputs.modulator_freeze_integrator.read());
+        _sfc_speed_controller.freeze_integrator(freeze_integrator);
         _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
     }
 
@@ -37,6 +46,8 @@ void sfc_speed_controller_runner::run()
     _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
     _outputs.speed_error = _outputs.speed_reference_limited.read() - _inputs.measured_speed_pu.read();
     _outputs.pi_output = _sfc_speed_controller.get_pi_output();
+
+    // FIXED: Report actual PI controller saturation, not freeze status
     _outputs.is_saturated = _sfc_speed_controller.is_saturated();
 }
 

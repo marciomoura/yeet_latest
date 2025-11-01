@@ -20,6 +20,16 @@ public:
         // Register all applications with the simulator
         system.register_applications(simulator);
 
+        // Register test input update lambda (10ms - same rate as speed controller and excitation)
+        // This simulates external digital inputs being transferred to the control system
+        simulator.register_lambda_runner(10e-3, [&]() {
+            system.machine_side_control.external_ios.update_excitation_inputs(
+                _exciter_ready, _excitation_start_command, _excitation_stop_command);
+
+            system.machine_side_control.external_ios.update_speed_generator_inputs(_run_creep_speed, _run_purge_accel,
+                _run_ignition_accel, _run_assist_accel, _hold_speed, _decelerate, _idle);
+        });
+
         // Initialize the system - allocates plant model and all components
         initialize();
 
@@ -93,6 +103,23 @@ public:
             system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
     }
 
+    // Speed profile command helpers using datamodel override parameters
+    void set_idle(bool idle) { _idle = idle; }
+
+    void set_run_creep_speed(bool run) { _run_creep_speed = run; }
+
+    void set_run_purge_accel(bool run) { _run_purge_accel = run; }
+
+    void set_run_ignition_accel(bool run) { _run_ignition_accel = run; }
+
+    void set_run_assist_accel(bool run) { _run_assist_accel = run; }
+
+    void set_exciter_ready(bool ready) { _exciter_ready = ready; }
+
+    void set_excitation_start_command(bool start) { _excitation_start_command = start; }
+
+    void set_excitation_stop_command(bool stop) { _excitation_stop_command = stop; }
+
     // Complete startup sequence following state machine logic
     void execute_startup_sequence()
     {
@@ -133,6 +160,20 @@ public:
 
     // Test simulator
     yeet::simulator simulator = yeet::make_gtest_simulator();
+
+    // Speed generator profile commands (simulates external digital inputs)
+    bool _idle = true;
+    bool _run_creep_speed = false;
+    bool _run_purge_accel = false;
+    bool _run_ignition_accel = false;
+    bool _run_assist_accel = false;
+    bool _hold_speed = false;
+    bool _decelerate = false;
+
+    // Excitation control commands (simulates external digital inputs)
+    bool _exciter_ready = true;
+    bool _excitation_start_command = true;
+    bool _excitation_stop_command = false;
 };
 
 // Test gas turbine soft-start sequence using speed generator profiles
@@ -179,10 +220,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     // ==================== Profile 1: Creep Speed (~5% rated) ====================
     // Purpose: Initial rotation, oil circulation, pre-warming
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.idle, false);
+    set_idle(false);
     success &= simulator.simulate_for(0.1);  // Allow edge detection to process idle=false
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_creep_speed, true);
+    set_run_creep_speed(true);
     success &= simulator.simulate_for(0.1);  // Allow edge detection to process rising edge
 
     // Allow acceleration to complete (30s acceleration time + 5s settling + 0.2s from above)
@@ -200,10 +241,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     // ==================== Profile 2: Purge Acceleration (~20% rated) ====================
     // Purpose: Combustion chamber ventilation to clear residual fuel vapors
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_creep_speed, false);
+    set_run_creep_speed(false);
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_purge_accel, true);
+    set_run_purge_accel(true);
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
     // Allow acceleration to complete (120s acceleration time + 5s settling + 0.1s from above)
@@ -221,10 +262,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     // ==================== Profile 3: Ignition Acceleration (~55% rated) ====================
     // Purpose: Reach speed for fuel ignition and flame stabilization
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_purge_accel, false);
+    set_run_purge_accel(false);
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_ignition_accel, true);
+    set_run_ignition_accel(true);
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
     // Increase load as turbine begins to generate power
@@ -245,10 +286,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     // ==================== Profile 4: Assist to Self-Sustaining (~95% rated) ====================
     // Purpose: Accelerate to self-sustaining speed where turbine can maintain rotation
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_ignition_accel, false);
+    set_run_ignition_accel(false);
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_assist_accel, true);
+    set_run_assist_accel(true);
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
     // Further increase load as turbine approaches full power
@@ -345,10 +386,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
     bool success = true;
 
     // ==================== Profile 1: Creep Speed (0 → 0.05 pu) ====================
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.idle, false);
+    set_idle(false);
     success &= simulator.simulate_for(0.1);
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_creep_speed, true);
+    set_run_creep_speed(true);
     success &= simulator.simulate_for(0.1);
 
     // Wait for profile completion (20s acceleration + 3s settling)
@@ -365,10 +406,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
     speed_tracking_checker->deactivate();
 
     // ==================== Profile 3: Ignition Acceleration (0.05 → 0.55 pu) ====================
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_creep_speed, false);
+    set_run_creep_speed(false);
     success &= simulator.simulate_for(0.05);
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_ignition_accel, true);
+    set_run_ignition_accel(true);
     success &= simulator.simulate_for(0.05);
 
     // Increase load as speed increases (simulates turbine power generation)
@@ -464,10 +505,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     bool success = true;
 
     // ==================== Activate Profile 2 (Purge) ====================
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.idle, false);
+    set_idle(false);
     success &= simulator.simulate_for(0.1);
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_purge_accel, true);
+    set_run_purge_accel(true);
     success &= simulator.simulate_for(0.1);
 
     // Allow acceleration to ~0.15 pu (Profile accelerates from 0.01 to 0.20 = 0.19 pu delta)
@@ -594,10 +635,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
     bool success = true;
 
     // ==================== Activate Profile 1 with Boost Monitoring ====================
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.idle, false);
+    set_idle(false);
     success &= simulator.simulate_for(0.1);
 
-    yeet::mock_signal_input::write(system.machine_side_control.get_io().digital_inputs.run_creep_speed, true);
+    set_run_creep_speed(true);
     success &= simulator.simulate_for(0.1);
 
     // ==================== Phase 1: Boost Active (First ~2 seconds) ====================

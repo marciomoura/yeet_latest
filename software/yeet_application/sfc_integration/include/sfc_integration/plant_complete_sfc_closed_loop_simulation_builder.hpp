@@ -80,24 +80,51 @@ public:
         // so we cannot write() directly anymore. Instead, inputs come from the simulation command
         // signals (auxiliaries_are_on, breakers_are_on, etc.) which are connected in connect_all_components().
 
-        // For machine-side control, we need to access the internal bridge signals via mock_signal_input
-        // These are internal signals used for routing commands from tests to the control components
+        // For machine-side control, use the external_ios datamodel's override parameters instead of direct mocks.
+        // This allows tests to set override flags and values, delegating the signal routing to the datamodel.
 
-        // Mock excitation control inputs via internal signals
-        yeet::mock_signal_input::write(
-            machine_side_control.get_io().digital_inputs.exciter_ready, true);  // Exciter is ready (perfect exciter)
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.excitation_start_command, true);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.excitation_stop_command, false);
+        // Configure excitation control via datamodel overrides
+        machine_side_control.external_ios.get_parameters().override_excitation_inputs.write(true);
+        machine_side_control.external_ios.get_parameters().exciter_ready.write(
+            true);  // Exciter is ready (perfect exciter)
+        machine_side_control.external_ios.get_parameters().excitation_start_command.write(true);
+        machine_side_control.external_ios.get_parameters().excitation_stop_command.write(false);
 
-        // Speed generator profile commands (all false by default, set manually in tests)
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_creep_speed, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_purge_accel, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_ignition_accel, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.run_assist_accel, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.hold_speed, false);
-        yeet::mock_signal_input::write(machine_side_control.get_io().digital_inputs.decelerate, false);
-        yeet::mock_signal_input::write(
-            machine_side_control.get_io().digital_inputs.idle, true);  // Start in idle mode by default
+        // Speed generator profile commands via datamodel (all false by default, set manually in tests)
+        machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(false);
+        machine_side_control.external_ios.get_parameters().run_creep_speed.write(false);
+        machine_side_control.external_ios.get_parameters().run_purge_accel.write(false);
+        machine_side_control.external_ios.get_parameters().run_ignition_accel.write(false);
+        machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
+        machine_side_control.external_ios.get_parameters().hold_speed.write(false);
+        machine_side_control.external_ios.get_parameters().decelerate.write(false);
+        machine_side_control.external_ios.get_parameters().idle.write(false);  // Start in idle mode by default
+
+        // Grid-side inputs via datamodel
+        // NOTE: Override disabled here so simulated grid-side data flows through to machine-side
+        // Tests can enable override and set parameters to test override functionality
+        machine_side_control.external_ios.get_parameters().override_fiber_optics_inputs.write(false);
+        machine_side_control.external_ios.get_parameters().pulse_releases.write(true);
+        machine_side_control.external_ios.get_parameters().current_controller_is_saturated.write(false);
+        machine_side_control.external_ios.get_parameters().is_current_zero.write(false);
+        machine_side_control.external_ios.get_parameters().force_commutation_acknowledged.write(false);
+        machine_side_control.external_ios.get_parameters().dc_link_current.write(current_pu_t{});
+
+        // Apply initial datamodel update to write override signals to outputs
+        // machine_side_control.external_ios.update_digital_inputs(true,  // exciter_ready
+        //     true,                                                      // excitation_start_command
+        //     false,                                                     // excitation_stop_command
+        //     false,                                                     // run_creep_speed
+        //     false,                                                     // run_purge_accel
+        //     false,                                                     // run_ignition_accel
+        //     false,                                                     // run_assist_accel
+        //     false,                                                     // hold_speed
+        //     false,                                                     // decelerate
+        //     true,                                                      // idle
+        //     true,                                                      // enable_speed_control
+        //     false,                                                     // freeze_integrator
+        //     false                                                      // modulator_freeze_integrator
+        // );
 
         // Mock plant inputs
         load_torque_pu.write(torque_pu_t{0.0});
@@ -124,14 +151,38 @@ public:
 
         // 200µs sampling (5 kHz): Measurements, observers, modulators, pulse generators
         simulation.register_lambda_runner(200e-6, [&]() {
+            // ==================== Machine-side analog measurements: Hardware mock → Machine-side analog_inputs
+            // ==================== Transfer machine-side ADC measurements to machine-side control via analog_inputs
+            // update This routes the hardware mock ADC counts to the machine measurements processing
+            machine_side_control.external_ios.update_analog_inputs(
+                static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_ab_counts.read().value),
+                static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_bc_counts.read().value));
+
             machine_side_control.update_200us();
             grid_side_control.update_200us();
         });
 
         // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor
         simulation.register_lambda_runner(1e-3, [&]() {
-            machine_side_control.update_1ms();
+            // Update grid-side FIRST so it produces the latest outputs
             grid_side_control.update_1ms();
+
+            // ==================== Cross-coupled inputs: Grid-side outputs → Machine-side fiber_optics_inputs
+            // ==================== Transfer grid-side control signals to machine-side via fiber_optics_inputs update
+            // This simulates the fiber-optic communication from grid-side to machine-side controller
+            machine_side_control.external_ios.update_fiber_optics_inputs(
+                grid_side_control.get_io().digital_outputs.operating_mode.read(),
+                grid_side_control.get_io().machine_side_outputs.dc_link_current_measured.read(),
+                grid_side_control.get_io().machine_side_outputs.force_commutation_acknowledged.read(),
+                grid_side_control.get_io().machine_side_outputs.is_current_zero.read(),
+                grid_side_control.get_io().digital_outputs.current_controller_saturated.read(),
+                grid_side_control.get_io().digital_outputs.pulse_releases.read(),
+                grid_side_control.get_freeze_integrator().read(),
+                grid_side_control.grid_side_modulator.get_outputs().is_requesting_main_pi_reset.read(),
+                grid_side_control.state_machine.get_outputs().current_state_id.read());
+
+            // Update machine-side with the fresh fiber-optic data
+            machine_side_control.update_1ms();
         });
 
         // 10ms sampling (100 Hz): State machine, speed controller
@@ -198,6 +249,8 @@ private:
             plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
+
+        // Machine-side does not measure current!
         // signals_connector::connect_output_to_input(plant.get_outputs().machine_current,
         // machine_side_hardware_mock.get_inputs().machine_current_measurements);
 
@@ -214,12 +267,6 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_hardware_mock.get_outputs().i_c_counts, grid_side_control.get_io().analog_inputs.i_c_counts);
 
-        // Machine side measurements from plant to machine side control internal components
-        signals_connector::connect_output_to_input(machine_side_hardware_mock.get_outputs().v_ab_counts,
-            machine_side_control.machine_measurements.get_inputs().v_ab_counts);
-        signals_connector::connect_output_to_input(machine_side_hardware_mock.get_outputs().v_bc_counts,
-            machine_side_control.machine_measurements.get_inputs().v_bc_counts);
-
         // ==================== External Inputs to Control Classes ====================
         // Connect external command signals to control class I/O interfaces
 
@@ -235,9 +282,6 @@ private:
         signals_connector::connect_output_to_input(
             shutdown_request, grid_side_control.get_io().digital_inputs.shutdown_request);
 
-        // Enable speed control
-        // machine_side_control.enable_speed_control.write(true);
-
         // ==================== Cross-Coupling Between Control Classes ====================
         // Connect outputs from one control class to inputs of the other
 
@@ -246,10 +290,6 @@ private:
         signals_connector::connect_output_to_input(
             machine_side_control.torque_controller.get_outputs().current_reference,
             grid_side_control.get_io().machine_side_inputs.dc_link_current_reference);
-
-        // 2. Connect pulse releases from grid-side state machine to machine-side modulator enable
-        signals_connector::connect_output_to_input(grid_side_control.get_io().digital_outputs.pulse_releases,
-            machine_side_control.machine_side_modulator.get_inputs().enable);
 
         // 3. Connect machine-side estimated speed to grid-side operation mode monitor via I/O interface
         signals_connector::connect_output_to_input(
@@ -262,49 +302,10 @@ private:
             machine_side_control.machine_side_observer.get_outputs().estimated_voltage_magnitude,
             grid_side_control.get_io().machine_side_inputs.machine_voltage_magnitude);
 
-        // 5. DC link current to machine-side controller for lookup table (from grid-side I/O output)
-        signals_connector::connect_output_to_input(
-            grid_side_control.get_io().machine_side_outputs.dc_link_current_measured,
-            machine_side_control.machine_side_controller.get_inputs().dc_link_current);
-
-        // 6. Operating mode from grid-side to machine-side (from grid-side I/O output)
-        signals_connector::connect_output_to_input(grid_side_control.get_io().machine_side_outputs.operating_mode,
-            machine_side_control.machine_side_modulator.get_inputs().operating_mode);
-
         // 7. Force commutation handshake
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_modulator.get_outputs().request_force_commutation,
             grid_side_control.get_io().machine_side_inputs.request_force_commutation);
-
-        signals_connector::connect_output_to_input(
-            grid_side_control.get_io().machine_side_outputs.force_commutation_acknowledged,
-            machine_side_control.machine_side_modulator.get_inputs().force_commutation_acknowledged);
-
-        // 8. Freeze integrator cascading from grid-side to machine-side via I/O interface
-        signals_connector::connect_output_to_input(grid_side_control.get_io().machine_side_outputs.freeze_integrator,
-            machine_side_control.speed_controller.get_inputs().freeze_integrator);
-
-        // 8b. Current state ID from grid-side state machine to machine-side speed generator
-        signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().current_state_id,
-            machine_side_control.speed_generator.get_inputs().current_state_id);
-
-        // 9. Current controller saturation to torque controller for composite saturation handling
-        signals_connector::connect_output_to_input(
-            grid_side_control.get_io().digital_outputs.current_controller_saturated,
-            machine_side_control.torque_controller.get_inputs().current_controller_is_saturated);
-
-        // 10. Torque controller composite saturation to speed controller for anti-windup
-        // This combines torque controller's own saturation with current controller saturation
-        signals_connector::connect_output_to_input(
-            machine_side_control.torque_controller.get_outputs().composite_saturation,
-            machine_side_control.speed_controller.get_inputs().current_controller_is_saturated);
-
-        signals_connector::connect_output_to_input(grid_side_control.get_io().digital_outputs.pulse_releases,
-            machine_side_control.speed_controller.get_inputs().enable_speed_control);
-
-        signals_connector::connect_output_to_input(
-            grid_side_control.grid_side_modulator.get_outputs().is_requesting_main_pi_reset,
-            machine_side_control.speed_controller.get_inputs().modulator_freeze_integrator);
 
         // ==================== Control Class Outputs to Plant ====================
         // Connect control class firing pulses to plant via I/O interface outputs

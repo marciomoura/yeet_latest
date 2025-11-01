@@ -116,7 +116,7 @@ public:
         /// Acceleration time for Profile 2 [s]
         parameter<duration_t> profile_2_acceleration_time = duration_t{120.0};
         /// Maximum torque limit during Profile 2 [pu]
-        parameter<torque_pu_t> profile_2_torque_limit_max = torque_pu_t{0.50};
+        parameter<torque_pu_t> profile_2_torque_limit_max = torque_pu_t{0.8};
         /// Minimum torque limit during Profile 2 [pu]
         parameter<torque_pu_t> profile_2_torque_limit_min = torque_pu_t{-0.20};
         /// Initial torque boost for Profile 2 [pu]
@@ -132,7 +132,7 @@ public:
         /// Acceleration time for Profile 3 [s]
         parameter<duration_t> profile_3_acceleration_time = duration_t{180.0};
         /// Maximum torque limit during Profile 3 [pu]
-        parameter<torque_pu_t> profile_3_torque_limit_max = torque_pu_t{0.65};
+        parameter<torque_pu_t> profile_3_torque_limit_max = torque_pu_t{0.8};
         /// Minimum torque limit during Profile 3 [pu]
         parameter<torque_pu_t> profile_3_torque_limit_min = torque_pu_t{-0.30};
         /// Initial torque boost for Profile 3 [pu]
@@ -169,6 +169,11 @@ public:
         parameter<torque_pu_t> max_torque_limit = torque_pu_t{1.2};
         /// Absolute minimum torque limit [pu]
         parameter<torque_pu_t> min_torque_limit = torque_pu_t{-1.2};
+
+        parameter<bool> override_speed_reference_generation = false;
+        parameter<torque_pu_t> override_min_torque_limit = torque_pu_t{-2.0};
+        parameter<torque_pu_t> override_max_torque_limit = torque_pu_t{2.0};
+        parameter<speed_pu_t> override_speed_reference = speed_pu_t{0.0};
     };
 
 private:
@@ -258,6 +263,16 @@ public:
             "max_torque_limit", yeet::utils::make_units_accessor(_model_parameters->max_torque_limit));
         entry.parameters.insert(
             "min_torque_limit", yeet::utils::make_units_accessor(_model_parameters->min_torque_limit));
+
+        // Register override parameters
+        entry.parameters.insert("override_speed_reference_generation",
+            yeet::utils::make_units_accessor(_model_parameters->override_speed_reference_generation));
+        entry.parameters.insert("override_min_torque_limit",
+            yeet::utils::make_units_accessor(_model_parameters->override_min_torque_limit));
+        entry.parameters.insert("override_max_torque_limit",
+            yeet::utils::make_units_accessor(_model_parameters->override_max_torque_limit));
+        entry.parameters.insert(
+            "override_speed_reference", yeet::utils::make_units_accessor(_model_parameters->override_speed_reference));
 
         registry.insert("soft_starter_speed_generator", std::move(entry));
     }

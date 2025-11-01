@@ -15,14 +15,19 @@ namespace yeet::application::sfc::fiber_optic {
 
 [[nodiscard]] std::uint8_t encode_grid_to_machine(const grid_to_machine_message& msg, std::uint32_t* payload) noexcept
 {
-    // Pack all status and control flags into a single uint32_t word
-    // Bit layout:
+    // Word 0: DC link current measurement [pu] (IEEE 754 float bits)
+    // Word 1: Packed control flags
     //   Bits 0-7:   Operating mode (enum, 0-255)
     //   Bit 8:      Is current zero
-    //   Bit 9:      Force commutation acknowledged
-    //   Bit 10:     Pulse releases
-    //   Bits 11-31: Reserved for future use
+    //   Bit 9:      Current controller is saturated
+    //   Bit 10:     Force commutation acknowledged
+    //   Bit 11:     Pulse releases
+    //   Bits 12-31: Reserved for future use
 
+    // Encode DC link current float value
+    std::memcpy(&payload[0], &msg.dc_link_current_pu, sizeof(float));
+
+    // Pack control flags into word 1
     std::uint32_t packed_flags = 0;
 
     // Encode operating mode (bits 0-7)
@@ -33,6 +38,9 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.is_current_zero) {
         packed_flags |= detail::g2m_is_current_zero_bit;
     }
+    if (msg.current_controller_is_saturated) {
+        packed_flags |= detail::g2m_current_controller_saturated_bit;
+    }
     if (msg.force_commutation_acknowledged) {
         packed_flags |= detail::g2m_force_comm_ack_bit;
     }
@@ -41,7 +49,7 @@ namespace yeet::application::sfc::fiber_optic {
     }
 
     // Write packed word to payload
-    payload[0] = packed_flags;
+    payload[1] = packed_flags;
 
     return grid_to_machine_payload_length;
 }
@@ -54,16 +62,21 @@ namespace yeet::application::sfc::fiber_optic {
         return std::nullopt;
     }
 
-    // Extract packed word
-    const std::uint32_t packed_flags = payload[0];
+    grid_to_machine_message msg;
+
+    // Decode DC link current float value
+    std::memcpy(&msg.dc_link_current_pu, &payload[0], sizeof(float));
+
+    // Extract packed word 1
+    const std::uint32_t packed_flags = payload[1];
 
     // Decode operating mode (bits 0-7)
-    grid_to_machine_message msg;
-    msg.mode = static_cast<operating_mode>(
+    msg.mode = static_cast<yeet::application::sfc::sfc_operating_mode_t>(
         (packed_flags >> detail::g2m_operating_mode_shift) & detail::g2m_operating_mode_mask);
 
     // Decode boolean flags
     msg.is_current_zero = (packed_flags & detail::g2m_is_current_zero_bit) != 0;
+    msg.current_controller_is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
     msg.force_commutation_acknowledged = (packed_flags & detail::g2m_force_comm_ack_bit) != 0;
     msg.pulse_releases = (packed_flags & detail::g2m_pulse_releases_bit) != 0;
 

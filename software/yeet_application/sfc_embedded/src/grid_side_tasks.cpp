@@ -318,23 +318,15 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         yeet::application::sfc::fiber_optic::grid_to_machine_message tx_msg;
 
         // Read from I/O interface machine-side outputs
-        const auto operating_mode = get_grid_side_control().get_io().machine_side_outputs.operating_mode.read();
-
-        // Map SFC operating mode to fiber-optic protocol enum
-        if (operating_mode == yeet::application::sfc::sfc_operating_mode_t::forced_commutation) {
-            tx_msg.mode = yeet::application::sfc::fiber_optic::operating_mode::forced_commutation;
-        }
-        else if (operating_mode == yeet::application::sfc::sfc_operating_mode_t::natural_commutation) {
-            tx_msg.mode = yeet::application::sfc::fiber_optic::operating_mode::natural_commutation;
-        }
-        else {
-            tx_msg.mode = yeet::application::sfc::fiber_optic::operating_mode::forced_commutation;  // Safe default
-        }
-
+        tx_msg.mode = get_grid_side_control().get_io().machine_side_outputs.operating_mode.read();
         tx_msg.is_current_zero = get_grid_side_control().get_io().machine_side_outputs.is_current_zero.read();
         tx_msg.force_commutation_acknowledged =
             get_grid_side_control().get_io().machine_side_outputs.force_commutation_acknowledged.read();
         tx_msg.pulse_releases = get_grid_side_control().get_io().digital_outputs.pulse_releases.read();
+        tx_msg.dc_link_current_pu =
+            get_grid_side_control().dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
+        tx_msg.current_controller_is_saturated =
+            get_grid_side_control().current_controller.get_outputs().current_controller_is_saturated.read();
 
         // Encode and transmit
         outputs->fiber_optic_tx.payload_length =
