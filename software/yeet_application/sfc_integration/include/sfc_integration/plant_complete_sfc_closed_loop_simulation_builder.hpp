@@ -75,15 +75,7 @@ public:
 
     void mock_inputs()
     {
-        // NOTE: Grid-side control inputs are now connected via I/O interface through signals_connector
-        // in connect_all_components(). The I/O interface uses direct references to signal_inputs,
-        // so we cannot write() directly anymore. Instead, inputs come from the simulation command
-        // signals (auxiliaries_are_on, breakers_are_on, etc.) which are connected in connect_all_components().
-
-        // For machine-side control, use the external_ios datamodel's override parameters instead of direct mocks.
-        // This allows tests to set override flags and values, delegating the signal routing to the datamodel.
-
-        // Configure excitation control via datamodel overrides
+        // Configure machine-side excitation control via datamodel overrides
         machine_side_control.external_ios.get_parameters().override_excitation_inputs.write(true);
         machine_side_control.external_ios.get_parameters().exciter_ready.write(
             true);  // Exciter is ready (perfect exciter)
@@ -98,33 +90,15 @@ public:
         machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
         machine_side_control.external_ios.get_parameters().hold_speed.write(false);
         machine_side_control.external_ios.get_parameters().decelerate.write(false);
-        machine_side_control.external_ios.get_parameters().idle.write(false);  // Start in idle mode by default
+        machine_side_control.external_ios.get_parameters().idle.write(false);
 
         // Grid-side inputs via datamodel
-        // NOTE: Override disabled here so simulated grid-side data flows through to machine-side
-        // Tests can enable override and set parameters to test override functionality
         machine_side_control.external_ios.get_parameters().override_fiber_optics_inputs.write(false);
         machine_side_control.external_ios.get_parameters().pulse_releases.write(true);
         machine_side_control.external_ios.get_parameters().current_controller_is_saturated.write(false);
         machine_side_control.external_ios.get_parameters().is_current_zero.write(false);
         machine_side_control.external_ios.get_parameters().force_commutation_acknowledged.write(false);
         machine_side_control.external_ios.get_parameters().dc_link_current.write(current_pu_t{});
-
-        // Apply initial datamodel update to write override signals to outputs
-        // machine_side_control.external_ios.update_digital_inputs(true,  // exciter_ready
-        //     true,                                                      // excitation_start_command
-        //     false,                                                     // excitation_stop_command
-        //     false,                                                     // run_creep_speed
-        //     false,                                                     // run_purge_accel
-        //     false,                                                     // run_ignition_accel
-        //     false,                                                     // run_assist_accel
-        //     false,                                                     // hold_speed
-        //     false,                                                     // decelerate
-        //     true,                                                      // idle
-        //     true,                                                      // enable_speed_control
-        //     false,                                                     // freeze_integrator
-        //     false                                                      // modulator_freeze_integrator
-        // );
 
         // Mock plant inputs
         load_torque_pu.write(torque_pu_t{0.0});
@@ -151,16 +125,12 @@ public:
 
         // 200µs sampling (5 kHz): Measurements, observers, modulators, pulse generators
         simulation.register_lambda_runner(200e-6, [&]() {
-            // ==================== Grid-side analog measurements: Hardware mock → Grid-side external_ios
-            // Transfer grid-side ADC measurements through external_ios datamodel
             grid_side_control.get_external_ios().update_analog_inputs(
                 grid_side_hardware_mock.get_outputs().v_ab_counts.read(),
                 grid_side_hardware_mock.get_outputs().v_bc_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_a_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_c_counts.read());
 
-            // ==================== Machine-side analog measurements: Hardware mock → Machine-side external_ios
-            // Transfer machine-side ADC measurements to machine-side control via external_ios
             machine_side_control.external_ios.update_analog_inputs(
                 yeet::control::adc_counts{
                     static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_ab_counts.read().value)},
@@ -173,13 +143,8 @@ public:
 
         // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor
         simulation.register_lambda_runner(1e-3, [&]() {
-            // ==================== Grid-side Update ====================
-            // Update grid-side control first to produce latest outputs
             grid_side_control.update_1ms();
 
-            // ==================== Grid-side Fiber-Optics Outputs → Machine-side Fiber-Optics Inputs
-            // ==================== Transfer grid-side control signals to machine-side via grid-side external_ios This
-            // simulates the fiber-optic communication from grid-side to machine-side controller
             grid_side_control.get_external_ios().update_fiber_optics_outputs_to_machine(
                 grid_side_control.get_operating_mode().read(),
                 grid_side_control.get_force_commutation_acknowledged().read(),
@@ -191,7 +156,6 @@ public:
                 grid_side_control.get_grid_side_modulator().get_outputs().is_requesting_main_pi_reset.read(),
                 grid_side_control.get_state_machine().get_outputs().current_state_id.read());
 
-            // Now machine-side reads from grid-side's external_ios datamodel
             machine_side_control.external_ios.update_fiber_optics_inputs(
                 grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().operating_mode.read(),
                 grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().current_state_id.read(),
@@ -209,12 +173,8 @@ public:
                     .get_fiber_optics_outputs_to_machine()
                     .is_requesting_main_pi_reset.read());
 
-            // ==================== Machine-side Update ====================
-            // Update machine-side with the fresh fiber-optic data
             machine_side_control.update_1ms();
 
-            // ==================== Machine-side Fiber-Optics Outputs → Grid-side Fiber-Optics Inputs
-            // ==================== Transfer machine-side control signals to grid-side via grid-side external_ios
             grid_side_control.get_external_ios().update_fiber_optics_inputs_from_machine(
                 machine_side_control.machine_side_observer.get_outputs().estimated_speed.read(),
                 machine_side_control.torque_controller.get_outputs().current_reference.read(),
@@ -278,8 +238,6 @@ private:
 
     void connect_all_components()
     {
-        // ==================== Plant Inputs to Hardware Mock Measurements ====================
-        // Connect plant inputs to hardware mock measurements
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
         signals_connector::connect_output_to_input(
@@ -287,45 +245,15 @@ private:
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
 
-        // ==================== External Supervisory Inputs to Grid-side External I/O ====================
-        // NOTE: Digital inputs are updated dynamically during simulation loops via update_digital_inputs()
-        // No need to establish static connections here - they are written by the update calls.
-        // The 1ms loop will push latest supervisory signals to external_ios via update calls.
-
-        // ==================== Cross-Coupling Between Control Classes (via External I/O Datamodels)
-        // ==================== NOTE: Fiber-optics signals are updated dynamically during the 1ms simulation loop The
-        // 1ms loop handles bidirectional signal flow:
-        // 1. Grid-side update, then push to external_ios
-        // 2. Machine-side reads from grid-side external_ios
-        // 3. Machine-side update, then push to grid-side external_ios
-        // No static connections needed here.
-
-        // ==================== Grid-side Internal Signal Routing (via I/O interface) ====================
-        // Grid-side internal components connect through the I/O interface for measurements
-        // These are established in grid-side control internal signal connections, not here
-
-        // ==================== Machine-side Internal Signal Routing (via I/O interface) ====================
-        // Machine-side internal components connect through the I/O interface for measurements
-        // These are established in machine-side control internal signal connections, not here
-
-        // ==================== Plant Model Outputs ====================
-        // Connect control class firing pulses to plant model
-
-        // Grid-side pulses
         signals_connector::connect_output_to_input(
             grid_side_control.get_firing_pulses(), plant.get_inputs().grid_side_firing_pulses);
 
-        // Machine-side pulses
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,
             plant.get_inputs().machine_side_firing_pulses);
 
-        // ==================== Additional Plant Inputs ====================
-        // Connect load torque to plant
         signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
 
-        // ==================== Excitation Control to Plant ====================
-        // Connect excitation voltage setpoint to plant model (external excitation control)
         signals_connector::connect_output_to_input(
             machine_side_control.excitation_controller.get_outputs().excitation_voltage_setpoint_pu,
             plant.get_inputs().excitation_voltage_setpoint_pu);
