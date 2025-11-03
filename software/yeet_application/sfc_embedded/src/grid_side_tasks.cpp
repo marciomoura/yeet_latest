@@ -5,8 +5,8 @@
 #include <cstring>
 #include <memory>
 
+#include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc/sfc_types.hpp"
-#include "sfc_embedded/fiber_optic_protocol.hpp"
 #include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
 #include "yeet/network_handler.hpp"
@@ -25,132 +25,60 @@
 
 extern "C" {
 
-static inline yeet::application::sfc::integration::sfc_grid_side_control& get_grid_side_control()
+// ==================== Network Telemetry/Parameter Infrastructure ====================
+// These are instantiated per control instance to support both embedded (static) and host (dynamic) usage
+
+grid_side_network_infrastructure::grid_side_network_infrastructure(
+    yeet::application::sfc::integration::sfc_grid_side_control& control)
+    : telemetry_builder(control),
+      telemetry_manager(telemetry_builder, 10),
+      parameter_handler(&registry),
+      network_handler(telemetry_manager, parameter_handler)
 {
-    static yeet::application::sfc::integration::sfc_grid_side_control grid_side_control;
-    return grid_side_control;
+    // Step 1: Register datamodel with registry
+    // This populates the registry with all control system parameters
+    control.register_datamodel(registry);
+
+    // Step 2: Rebuild parameter handler cache after datamodel registration
+    // The parameter_handler was constructed with empty registry, so we need to rebuild the cache
+    // now that the registry has been populated with actual parameters
+    parameter_handler.rebuild_parameter_cache();
 }
-
-// ==================== MODEL REGISTRY ====================
-// Global parameter registry populated from all SFC component datamodels
-static inline yeet::model_registry& get_model_registry()
-{
-    static yeet::model_registry registry;
-    static bool initialized = false;
-
-    if (!initialized) {
-        // Register all grid-side component parameters with the model_registry
-        // This delegates to the control class which knows about all its components
-        get_grid_side_control().register_datamodel(registry);
-        initialized = true;
-    }
-    return registry;
-}
-
-// ==================== GRID-SIDE TELEMETRY BUILDER ====================
-// Builder for grid-side telemetry packets
-static inline yeet::application::sfc::telemetry::grid_side_telemetry_builder& get_grid_side_telemetry_builder()
-{
-    static yeet::application::sfc::telemetry::grid_side_telemetry_builder builder(get_grid_side_control());
-    return builder;
-}
-
-// ==================== NETWORK TELEMETRY MANAGER ====================
-// Telemetry streaming manager for TCP/IP interface
-static inline yeet::telemetry::telemetry_manager& get_telemetry_manager()
-{
-    static yeet::telemetry::telemetry_manager manager(get_grid_side_telemetry_builder(), 10);
-    return manager;
-}
-
-// ==================== PARAMETER HANDLER ====================
-// Parameter configuration handler for TCP/IP interface
-static inline yeet::telemetry::parameter_handler& get_parameter_handler()
-{
-    static yeet::telemetry::parameter_handler handler(&get_model_registry());
-    return handler;
-}
-
-// ==================== NETWORK HANDLER ====================
-// Network protocol handler that manages telemetry streaming and parameter requests
-static inline yeet::telemetry::network_handler& get_network_handler()
-{
-    static yeet::telemetry::network_handler handler(get_telemetry_manager(), get_parameter_handler());
-    return handler;
-}
-
 ARM_FUNCTION
-void yeet_embedded_init(void)
+void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_control* control)
 {
-    // ==================== INITIALIZE PARAMETER HANDLER ====================
-    // Force initialization of model registry and parameter handler on startup
-    // This ensures parameters are registered before first network request
-    (void)get_parameter_handler();
-
     // ==================== INITIALIZE DIGITAL INPUTS ====================
-    // Set safe default values for supervisory controller inputs
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, false);
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, false);
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, false);
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, false);
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request, false);
-
-    // ==================== INITIALIZE ANALOG INPUTS ====================
-    // Initialize ADC inputs with zero values (will be updated from hardware in 200µs task)
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().analog_inputs.v_ab_counts, yeet::control::adc_counts{0});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().analog_inputs.v_bc_counts, yeet::control::adc_counts{0});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().analog_inputs.i_a_counts, yeet::control::adc_counts{0});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().analog_inputs.i_c_counts, yeet::control::adc_counts{0});
-
-    // ==================== INITIALIZE MACHINE-SIDE INPUTS ====================
-    // Initialize cross-coupled inputs from machine-side controller with safe default values
-    // In production, these come from fiber-optic communication interface
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{0.0});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference, yeet::current_pu_t{0.0});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude, yeet::voltage_pu_t{0.0});
-    yeet::mock_signal_input::write(
-        get_grid_side_control().get_io().machine_side_inputs.request_force_commutation, false);
-
-    // ==================== INITIALIZE INTERNAL CONTROLLER STATES ====================
-    // Ensure deterministic start: explicitly force all freeze inputs false prior to state machine activity
-    yeet::mock_signal_input::write(get_grid_side_control().current_controller.get_inputs().freeze_integrator, false);
-    yeet::mock_signal_input::write(
-        get_grid_side_control().current_controller.get_inputs().modulator_freeze_integrator, false);
-
-    // Force initial conditions...
-    get_grid_side_control().grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
+    // Set safe default values for supervisory controller inputs via external_ios datamodel
+    control->get_external_ios().get_digital_inputs().auxiliaries_are_on.write(false);
+    control->get_external_ios().get_digital_inputs().breakers_are_on.write(false);
+    control->get_external_ios().get_digital_inputs().start_command.write(false);
+    control->get_external_ios().get_digital_inputs().stop_command.write(false);
+    control->get_external_ios().get_digital_inputs().shutdown_request.write(false);
 
     // Initialize grid-side control subsystem
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
-    get_grid_side_control().initialize();
+    control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
+    control->initialize();
 
-    // Parametrize the software
-    get_grid_side_control().grid_measurements.get_parameters().voltage_transducer_gain.write(
-        yeet::real_t{1.0f / 300.0f});
-    get_grid_side_control().grid_measurements.get_parameters().current_transducer_gain.write(
-        yeet::real_t{1.0f / 120.0f});
+    // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
+    // control->grid_measurements.get_parameters().voltage_transducer_gain.write(
+    //     yeet::real_t{1.0f / 300.0f});
+    // control->grid_measurements.get_parameters().current_transducer_gain.write(
+    //     yeet::real_t{1.0f / 120.0f});
+    // control->grid_side_pulse_generator.get_parameters().reference_type.write(
+    //     yeet::control::six_pulse_generator::reference_type::line);
+    // control->grid_side_pulse_generator.get_parameters().pulse_width.write(
+    //     yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 
-    get_grid_side_control().grid_side_pulse_generator.get_parameters().reference_type.write(
-        yeet::control::six_pulse_generator::reference_type::line);
-    get_grid_side_control().grid_side_pulse_generator.get_parameters().pulse_width.write(
-        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
-
-    // ==================== INITIALIZE PARAMETER SYSTEM ====================
-    // Force initialization of model registry and parameter handler
-    // This ensures all component parameters are registered before network requests arrive
-    get_model_registry();     // Trigger lazy initialization of parameter registry
-    get_parameter_handler();  // Initialize parameter protocol handler
+    // IMPORTANT: For host simulation with plant model, measurement parameters are configured via
+    // plant_hardware::stage_grid_side_measurement_parameters() in the plant builder BEFORE calling this init.
+    // For production embedded builds, these parameters should be set here or via network configuration.
 }
 
 ARM_FUNCTION
-void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
+void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control* control,
+    const task_inputs_t* inputs,
+    task_outputs_t* outputs)
 {
     // HIGH-FREQUENCY CONTROL TASK
     // Configured rate: 200 µs (5 kHz)
@@ -166,19 +94,18 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     //   AI5 (X1-5): Grid current Ia (1A → 5V or 5A → 5V, ±7.5A range)
     //   AI7 (X1-7): Grid current Ic
 
-    // Write ADC values directly to I/O interface analog inputs
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.v_ab_counts,
-        yeet::control::adc_counts{
-            static_cast<int16_t>(inputs->analog_inputs.channels[1])});  // On hil this is channel 1
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.v_bc_counts,
+    // Write ADC values directly to external_ios interface analog inputs
+    control->get_external_ios().get_analog_inputs().v_ab_counts.write(yeet::control::adc_counts{
+        static_cast<int16_t>(inputs->analog_inputs.channels[1])});  // On hil this is channel 1
+    control->get_external_ios().get_analog_inputs().v_bc_counts.write(
         yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});  // On hil this is 2
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.i_a_counts,
+    control->get_external_ios().get_analog_inputs().i_a_counts.write(
         yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
-    yeet::mock_signal_input::write(get_grid_side_control().get_io().analog_inputs.i_c_counts,
+    control->get_external_ios().get_analog_inputs().i_c_counts.write(
         yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
-    get_grid_side_control().update_200us();
+    control->update_200us();
 
     // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
     // Map control system signals to DAC outputs for monitoring and testing
@@ -193,17 +120,14 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
         // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
         outputs->analog_outputs.channels[0] =
-            get_grid_side_control().grid_side_observer.get_outputs().estimated_position.read().get_pu().value();  // CH
-                                                                                                                  // A
+            control->grid_side_observer.get_outputs().estimated_position.read().get_pu().value();  // CH A
         outputs->analog_outputs.channels[1] =
-            get_grid_side_control().grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
+            control->grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
         outputs->analog_outputs.channels[2] =
-            get_grid_side_control().grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();  // CH C
-        outputs->analog_outputs.channels[3] = get_grid_side_control()
-                                                  .grid_measurements.get_outputs()
-                                                  .grid_voltage_alphabeta_filtered.read()
-                                                  .alpha();  // CH D
-        outputs->analog_outputs.valid = true;                // Signal to writer task that values are valid
+            control->grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();  // CH C
+        outputs->analog_outputs.channels[3] =
+            control->grid_measurements.get_outputs().grid_voltage_alphabeta_filtered.read().alpha();  // CH D
+        outputs->analog_outputs.valid = true;  // Signal to writer task that values are valid
     }
 
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
@@ -216,7 +140,7 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
     //   PWM5 (PB0) → c_plus  (Phase C positive arm, T5)
     //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
     if (outputs != nullptr) {
-        const auto& firing_pulses = get_grid_side_control().get_io().pulse_outputs.firing_pulses.read();
+        const auto& firing_pulses = control->get_firing_pulses().read();
 
         outputs->thyristor_pulses.a_plus = firing_pulses.p1;
         outputs->thyristor_pulses.b_minus = firing_pulses.p6;
@@ -228,7 +152,9 @@ void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
 }
 
 ARM_FUNCTION
-void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
+void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control* control,
+    const task_inputs_t* inputs,
+    task_outputs_t* outputs)
 {
     // MEDIUM-FREQUENCY CONTROL TASK
     // Configured rate: 1 ms (1 kHz)
@@ -251,14 +177,12 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // bool current_extinguished = inputs->digital_inputs.signals[5];  // DI6: DC link current is zero
 
         // #ifndef RECTIFIER_MODE
-        // Write digital input values directly to I/O interface
-        // yeet::mock_signal_input::write(
-        // get_grid_side_control().get_io().digital_inputs.auxiliaries_are_on, auxiliaries_on);
-        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.breakers_are_on, breakers_on);
-        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.start_command, start_cmd);
-        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.stop_command, stop_cmd);
-        // yeet::mock_signal_input::write(get_grid_side_control().get_io().digital_inputs.shutdown_request,
-        // shutdown_req); #else
+        // Write digital input values directly to external_ios interface
+        // get_grid_side_control().get_external_ios().get_digital_inputs().auxiliaries_are_on.write(auxiliaries_on);
+        // get_grid_side_control().get_external_ios().get_digital_inputs().breakers_are_on.write(breakers_on);
+        // get_grid_side_control().get_external_ios().get_digital_inputs().start_command.write(start_cmd);
+        // get_grid_side_control().get_external_ios().get_digital_inputs().stop_command.write(stop_cmd);
+        // get_grid_side_control().get_external_ios().get_digital_inputs().shutdown_request.write(shutdown_req); #else
         // NOTE: Digital inputs are now managed through external_ios datamodel
         // In embedded, supervisory signals come from hardware and are routed via ADC/DI task
         // These mock writes are for simulation/testing only - not applicable in embedded context
@@ -273,12 +197,10 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         // Decode Machine → Grid protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // NOTE: In embedded, fiber-optic signals should update the external_ios datamodel
-            // via direct parameter writes or a dedicated update method. For now, these are injected
-            // via the 1ms loop's cross-coupling mechanism in plant builder (simulation).
-            // In embedded real hardware, the fiber-optic receiver would directly write to
-            // external_ios parameters or call an update method to inject received signals.
-            // TODO: Add fiber_optic_rx input handling to external_ios datamodel for embedded systems
+            // Update fiber optics inputs using proper datamodel method (respects override flags)
+            control->external_ios.update_fiber_optics_inputs_from_machine(yeet::speed_pu_t{rx_msg->measured_speed_pu},
+                yeet::current_pu_t{rx_msg->dc_link_current_reference_pu},
+                yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu}, rx_msg->force_commutation_request);
         }
     }
     //     // #else
@@ -297,11 +219,8 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // ==================== EXECUTE CONTROL UPDATE ====================
     // Digital input overrides are automatically applied within the state machine lambdas
     // No separate apply_digital_input_overrides() call needed - the lambdas check
-    // override parameters directly when state machine reads inputs
-    // See sfc_state_machine_runner constructor for override logic
-
     // Execute 1 kHz control update (current controller)
-    get_grid_side_control().update_1ms();
+    control->update_1ms();
 
     // ==================== FIBER-OPTIC TX → MACHINE-SIDE CONTROLLER ====================
     // Prepare fiber-optic TX data to send to machine-side board via I/O interface outputs
@@ -311,13 +230,12 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
         yeet::application::sfc::fiber_optic::grid_to_machine_message tx_msg;
 
         // Read from control class outputs directly (these are sent via fiber-optics to machine-side)
-        tx_msg.mode = get_grid_side_control().get_operating_mode().read();
-        tx_msg.is_current_zero = get_grid_side_control().get_is_current_zero().read();
-        tx_msg.force_commutation_acknowledged = get_grid_side_control().get_force_commutation_acknowledged().read();
-        tx_msg.pulse_releases = get_grid_side_control().get_pulse_releases().read();
-        tx_msg.dc_link_current_pu =
-            get_grid_side_control().dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
-        tx_msg.current_controller_is_saturated = get_grid_side_control().get_current_controller_is_saturated().read();
+        tx_msg.mode = control->get_operating_mode().read();
+        tx_msg.is_current_zero = control->get_is_current_zero().read();
+        tx_msg.force_commutation_acknowledged = control->get_force_commutation_acknowledged().read();
+        tx_msg.pulse_releases = control->get_pulse_releases().read();
+        tx_msg.dc_link_current_pu = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
+        tx_msg.current_controller_is_saturated = control->get_current_controller_is_saturated().read();
 
         // Encode and transmit
         outputs->fiber_optic_tx.payload_length =
@@ -364,7 +282,9 @@ void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
 }
 
 ARM_FUNCTION
-void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
+void grid_task_10000us(yeet::application::sfc::integration::sfc_grid_side_control* control,
+    const task_inputs_t* inputs,
+    task_outputs_t* outputs)
 {
     // LOW-FREQUENCY MONITORING TASK
     // Configured rate: 10 ms (100 Hz)
@@ -375,14 +295,15 @@ void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
     // Optional: Use inputs for monitoring/diagnostics
     (void)inputs;  // Suppress unused parameter warning
 
-    get_grid_side_control().update_10ms();
+    control->update_10ms();
 
     // Optional: Update diagnostic outputs
     (void)outputs;  // Suppress unused parameter warning
 }
 
 ARM_FUNCTION
-void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
+void grid_network(
+    grid_side_network_infrastructure* infrastructure, const network_inputs_t* inputs, network_outputs_t* outputs)
 {
     // NON-REAL-TIME NETWORK COMMUNICATION TASK
     // Called from: Main loop (not time-critical)
@@ -395,7 +316,7 @@ void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     //   - Event logging
     //
     // Delegate to network_handler for all packet processing and state management
-    get_network_handler().process(inputs, outputs);
+    infrastructure->network_handler.process(inputs, outputs);
 }
 
 }  // extern "C"

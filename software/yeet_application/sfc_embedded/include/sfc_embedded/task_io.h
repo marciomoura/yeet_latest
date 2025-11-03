@@ -84,8 +84,8 @@ typedef struct {
      * @brief Analog input interface (ADC measurements)
      */
     struct {
-        uint16_t channels[TASK_IO_NUM_ANALOG_INPUTS]; /**< ADC channel values (raw counts) */
-        bool valid;                                   /**< true = ADC data is valid */
+        int16_t channels[TASK_IO_NUM_ANALOG_INPUTS]; /**< ADC channel values (raw signed counts) */
+        bool valid;                                  /**< true = ADC data is valid */
     } analog_inputs;
 
     /**

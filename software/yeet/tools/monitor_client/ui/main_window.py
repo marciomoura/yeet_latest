@@ -30,6 +30,8 @@ from monitor_client.core.data_persistence import DataPersistence, TelemetrySampl
 from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
 from monitor_client.ui.telemetry_panel import GridSideTelemetryPanel, MachineSideTelemetryPanel
 from monitor_client.config import get_machine_side_plots, get_default_visible_groups
+from monitor_client.config.telemetry_plot_mapper import TelemetryPlotMapper
+from monitor_client.utils.telemetry_buffer_mapper import TelemetryBufferMapper
 
 logger = logging.getLogger(__name__)
 
@@ -180,18 +182,29 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.avg_controller_saturated = 0.0
         self.avg_firing_angle_input = 0.0
         self.avg_firing_angle_output = 0.0
+        self.avg_operating_mode = 0.0
+        self.avg_request_extinguish_dc = 0.0
+        self.avg_request_force_commutation = 0.0
         self.avg_modulator_enabled = 0.0
+        self.avg_force_commutation_ack = 0.0
+        self.avg_is_requesting_pi_reset = 0.0
+        self.avg_modulator_state = 0.0
+        self.avg_firing_pulse_1 = 0.0
+        self.avg_firing_pulse_2 = 0.0
+        self.avg_firing_pulse_3 = 0.0
+        self.avg_firing_pulse_4 = 0.0
+        self.avg_firing_pulse_5 = 0.0
+        self.avg_firing_pulse_6 = 0.0
         self.avg_count = 0  # Counter for averaging
         
         # Create oscilloscope widget (manages all plots and buffers)
-        # Note: Grid-side and machine-side have different plot sets
+        # Uses plot definitions from plot_definitions.py based on target side
         self.oscilloscope = OscilloscopeWidget(window_size=window_size, layout_mode=self.layout_mode)
+        self.oscilloscope.create_plots_from_config(self.target_side)
         
-        if self.target_side == 'grid':
-            self.oscilloscope.create_standard_plots()
-        else:
-            # For machine-side, create machine-specific plots
-            self._create_machine_side_plots()
+        # Create automatic buffer mapper
+        self.buffer_mapper = TelemetryBufferMapper(target=self.target_side)
+        logger.info(f"Initialized buffer mapper for {self.target_side} with {len(self.buffer_mapper.mappings)} buffers")
         
         # Latest telemetry for dashboard
         self.latest_packet = None
@@ -271,7 +284,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
-        self.window_size_spinbox.setRange(10, 10000)
+        self.window_size_spinbox.setRange(10, 50000)
         self.window_size_spinbox.setSingleStep(100)
         self.window_size_spinbox.setValue(window_size)
         self.window_size_spinbox.setToolTip("Number of samples to display on X-axis")
@@ -408,74 +421,6 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         return container_widget
     
-    def _create_machine_side_plots(self):
-        """Create machine-side oscilloscope plots for monitoring key components.
-        
-        Machine plots include:
-        - Measurements: Voltage (mag, A, B, C), speed, commutation
-        - Observer: Estimated voltage, frequency, angle
-        - Speed Controller: Torque ref, measured speed, error, PI output
-        - Torque Controller: Current refs, references, saturation
-        - Speed Generator: Speed reference, torque limits
-        - Modulator: Firing angles, enabled state
-        - Excitation: Voltage setpoint, field state, running
-        """
-        # Clear any existing state from grid-side plots
-        self.oscilloscope.plot_groups.clear()
-        self.oscilloscope.plot_curves.clear()
-        self.oscilloscope.buffers.clear()
-        self.oscilloscope.view_configs.clear()
-        self.oscilloscope.visible_views_order = []
-        self.oscilloscope._plot_layout_map.clear()
-        
-        # Recreate the plots_container to avoid pyqtgraph internal state corruption
-        old_container = self.oscilloscope.plots_container
-        self.oscilloscope.plots_container = pg.GraphicsLayoutWidget()
-        self.oscilloscope.plots_container.setBackground('#1e1e1e')
-        
-        # Replace the widget in the layout
-        layout = self.oscilloscope.layout()
-        layout.replaceWidget(old_container, self.oscilloscope.plots_container)
-        old_container.deleteLater()
-        
-        # Reset view buttons
-        for button in list(self.oscilloscope.view_buttons.values()):
-            self.oscilloscope.view_button_layout.removeWidget(button)
-            button.deleteLater()
-        self.oscilloscope.view_buttons.clear()
-        
-        # Clear all items from view button layout
-        while self.oscilloscope.view_button_layout.count():
-            item = self.oscilloscope.view_button_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        
-        # Load plot definitions from configuration
-        plot_definitions = get_machine_side_plots()
-        default_visible = get_default_visible_groups('machine')
-        
-        # Create plots from definitions (following grid-side pattern)
-        self.oscilloscope.visible_views_order = []
-        for group_name, group_plots in plot_definitions.items():
-            self.oscilloscope.plot_groups[group_name] = {}
-            self.oscilloscope.view_configs[group_name] = {
-                'visible': group_name in default_visible
-            }
-            
-            if self.oscilloscope.view_configs[group_name]['visible']:
-                self.oscilloscope.visible_views_order.append(group_name)
-            
-            for plot_name, plot_config in group_plots.items():
-                self.oscilloscope._create_plot(group_name, plot_name, plot_config)
-        
-        # Create view toggle buttons for each defined group
-        self.oscilloscope._create_view_buttons()
-        
-        # Initial layout organization - defer this to avoid layout state issues
-        # The layout will be properly organized on first data update
-        # This avoids the "Cell already taken" error from pyqtgraph
-        QtCore.QTimer.singleShot(0, self.oscilloscope._reorganize_subplot_layout)
-    
     def _create_wheel_handler(self, viewbox, event):
         """Handle wheel event to adjust window size.
         
@@ -527,9 +472,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.status_label.setText("Connected - Ready")
         else:
             self.status_label.setText("Disconnected")
-            self.param_status_label.setText("Not loaded")
-            self.param_tree.clear()
-            self.parameters.clear()
+            # Keep parameters persisted when disconnected
+            # Only clear on window destruction or explicit reload
+            if self.parameters:
+                self.param_status_label.setText(f"Disconnected ({len(self.parameters)} params cached)")
+            else:
+                self.param_status_label.setText("Not loaded")
     
     # Telemetry handlers
     def _on_start(self):
@@ -795,58 +743,23 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 if self.packet_counter % self.decimate_factor != 0:
                     return
                 
-                # Extract values and store with sample index
-                if packet.measurements:
-                    meas = packet.measurements
-                    self.oscilloscope.add_sample_to_buffer('measurements_voltage_and_current', 
-                                                           (self.sample_index, meas.grid_voltage_magnitude_pu,
-                                                            meas.grid_current_a_pu, meas.grid_current_b_pu, meas.grid_current_c_pu))
-                    self.oscilloscope.add_sample_to_buffer('current_measurements_abc_dclink', (self.sample_index, 
-                                                           meas.grid_current_a_pu, meas.grid_current_b_pu, 
-                                                           meas.grid_current_c_pu, meas.dc_link_current_pu))
-                    
-                    # Store to persistent data if enabled
-                    if self.enable_persistence:
-                        sample = TelemetrySample(
-                            timestamp_ms=packet.header.timestamp_ms,
-                            sequence_number=packet.header.sequence_number,
-                            signal_count=packet.header.signal_count,
-                            signals=packet.signals,
-                        )
-                        self.data_persistence.add_sample(sample)
+                # Automatically map all signals to buffers using plot definitions
+                # This replaces all the manual buffer packing above
+                for buffer_name in self.buffer_mapper.get_all_buffer_names():
+                    buffer_tuple = self.buffer_mapper.map_signals_to_buffer(
+                        buffer_name, self.sample_index, packet.signals
+                    )
+                    self.oscilloscope.add_sample_to_buffer(buffer_name, buffer_tuple)
                 
-                if packet.observer:
-                    obs = packet.observer
-                    self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
-                
-                if packet.controller:
-                    ctrl = packet.controller
-                    self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
-                
-                # New: Extract all signals for expanded plots
-                if packet.measurements and packet.observer:
-                    meas = packet.measurements
-                    obs = packet.observer
-                    self.oscilloscope.add_sample_to_buffer('observer_voltage_analysis_voltages', (self.sample_index,
-                                                                 meas.grid_voltage_a_pu, meas.grid_voltage_b_pu, meas.grid_voltage_c_pu,
-                                                                 meas.grid_voltage_magnitude_pu, obs.estimated_voltage_magnitude_pu))
-                    self.oscilloscope.add_sample_to_buffer('observer_voltage_analysis_freq_angle', (self.sample_index,
-                                                                 obs.estimated_frequency_hz, obs.estimated_angle_rad,
-                                                                 obs.estimated_frequency_pu))
-                
-                if packet.controller:
-                    ctrl = packet.controller
-                    self.oscilloscope.add_sample_to_buffer('operation_mode_monitor_controller_status', (self.sample_index,
-                                                               ctrl.current_error_pu,
-                                                               ctrl.controller_output_pu,
-                                                               1.0 if ctrl.controller_saturated else 0.0))
-                
-                if packet.modulator:
-                    mod = packet.modulator
-                    self.oscilloscope.add_sample_to_buffer('modulator_firing_angle_control', (self.sample_index,
-                                                   mod.firing_angle_input_pu,
-                                                   mod.firing_angle_output_pu,
-                                                   1.0 if mod.is_enabled else 0.0))
+                # Store to persistent data if enabled
+                if self.enable_persistence:
+                    sample = TelemetrySample(
+                        timestamp_ms=packet.header.timestamp_ms,
+                        sequence_number=packet.header.sequence_number,
+                        signal_count=packet.header.signal_count,
+                        signals=packet.signals,
+                    )
+                    self.data_persistence.add_sample(sample)
                 
                 self.sample_index += 1
             
@@ -883,7 +796,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     mod = packet.modulator
                     self.avg_firing_angle_input += mod.firing_angle_input_pu
                     self.avg_firing_angle_output += mod.firing_angle_output_pu
+                    self.avg_operating_mode += float(mod.operating_mode)
+                    self.avg_request_extinguish_dc += 1.0 if mod.request_extinguish_dc else 0.0
+                    self.avg_request_force_commutation += 1.0 if mod.request_force_commutation else 0.0
                     self.avg_modulator_enabled += 1.0 if mod.is_enabled else 0.0
+                    self.avg_force_commutation_ack += 1.0 if mod.force_commutation_ack else 0.0
+                    self.avg_is_requesting_pi_reset += 1.0 if mod.is_requesting_pi_reset else 0.0
+                    self.avg_modulator_state += float(mod.modulator_state)
+                
+                if packet.pulse_generator:
+                    pulses = packet.pulse_generator
+                    self.avg_firing_pulse_1 += 1.0 if pulses.firing_pulse_1 else 0.0
+                    self.avg_firing_pulse_2 += 1.0 if pulses.firing_pulse_2 else 0.0
+                    self.avg_firing_pulse_3 += 1.0 if pulses.firing_pulse_3 else 0.0
+                    self.avg_firing_pulse_4 += 1.0 if pulses.firing_pulse_4 else 0.0
+                    self.avg_firing_pulse_5 += 1.0 if pulses.firing_pulse_5 else 0.0
+                    self.avg_firing_pulse_6 += 1.0 if pulses.firing_pulse_6 else 0.0
                 
                 self.avg_count += 1
                 
@@ -897,10 +825,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                                               self.avg_current_c / self.avg_count))
                     self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index,
                                                self.avg_observer_voltage / self.avg_count,
-                                               self.avg_observer_freq / self.avg_count))
-                    self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index,
+                                               self.avg_observer_freq / self.avg_count,
+                                               self.avg_estimated_angle / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('controller_dclink', (self.sample_index,
                                              self.avg_dclink_ref / self.avg_count,
-                                             self.avg_dclink_measured / self.avg_count))
+                                             self.avg_dclink_measured / self.avg_count,
+                                             self.avg_current_error / self.avg_count))
                     
                     # New: Store averaged values in new buffers
                     self.oscilloscope.add_sample_to_buffer('current_measurements_abc_dclink', (self.sample_index,
@@ -925,7 +855,20 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.oscilloscope.add_sample_to_buffer('modulator_firing_angle_control', (self.sample_index,
                                                    self.avg_firing_angle_input / self.avg_count,
                                                    self.avg_firing_angle_output / self.avg_count,
-                                                   self.avg_modulator_enabled / self.avg_count))
+                                                   self.avg_operating_mode / self.avg_count,
+                                                   self.avg_request_extinguish_dc / self.avg_count,
+                                                   self.avg_request_force_commutation / self.avg_count,
+                                                   self.avg_modulator_enabled / self.avg_count,
+                                                   self.avg_force_commutation_ack / self.avg_count,
+                                                   self.avg_is_requesting_pi_reset / self.avg_count,
+                                                   self.avg_modulator_state / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('pulse_generator_firing_pulses', (self.sample_index,
+                                                   self.avg_firing_pulse_1 / self.avg_count,
+                                                   self.avg_firing_pulse_2 / self.avg_count,
+                                                   self.avg_firing_pulse_3 / self.avg_count,
+                                                   self.avg_firing_pulse_4 / self.avg_count,
+                                                   self.avg_firing_pulse_5 / self.avg_count,
+                                                   self.avg_firing_pulse_6 / self.avg_count))
                     
                     # Store to persistent data if enabled (averaged packet)
                     if self.enable_persistence:
@@ -968,7 +911,19 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.avg_controller_saturated = 0.0
                     self.avg_firing_angle_input = 0.0
                     self.avg_firing_angle_output = 0.0
+                    self.avg_operating_mode = 0.0
+                    self.avg_request_extinguish_dc = 0.0
+                    self.avg_request_force_commutation = 0.0
                     self.avg_modulator_enabled = 0.0
+                    self.avg_force_commutation_ack = 0.0
+                    self.avg_is_requesting_pi_reset = 0.0
+                    self.avg_modulator_state = 0.0
+                    self.avg_firing_pulse_1 = 0.0
+                    self.avg_firing_pulse_2 = 0.0
+                    self.avg_firing_pulse_3 = 0.0
+                    self.avg_firing_pulse_4 = 0.0
+                    self.avg_firing_pulse_5 = 0.0
+                    self.avg_firing_pulse_6 = 0.0
                     self.avg_count = 0
                     
                     self.sample_index += 1
@@ -977,10 +932,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             logger.error(f"Packet error: {e}", exc_info=True)
     
     def _on_machine_packet(self, packet: MachineSideTelemetryPacket):
-        """Handle machine-side telemetry packet.
+        """Handle machine-side telemetry packet using unified plot mappers.
         
         Extract machine measurements, observer data, and controller states
         and populate oscilloscope buffers for real-time visualization.
+        Uses TelemetryPlotMapper to automatically extract data based on plot definitions.
         """
         try:
             self.packet_counter += 1
@@ -1000,126 +956,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             
             # Only update oscilloscope on decimated samples
             if self.packet_counter % self.decimate_factor == 0 and self.oscilloscope is not None:
-                # Extract machine-side data
-                meas = packet.measurements
-                obs = packet.observer
-                mod = packet.modulator
-                ctrl = packet.controller  # This is MachineControllerData
-                torque = packet.torque_controller
-                speed = packet.speed_controller
-                gen = packet.speed_generator
-                exc = packet.excitation_controller
+                # Get unified plot configuration with mappers
+                plot_config = TelemetryPlotMapper.get_machine_side_plots()
                 
-                # Machine Measurements - Voltage measurements (indices 0-5)
-                # Buffer key format: group_name_plot_name
-                self.oscilloscope.add_sample_to_buffer(
-                    'measurements_voltage_measurements',
-                    (self.sample_index,
-                     meas.machine_voltage_abc_a_pu,
-                     meas.machine_voltage_abc_b_pu,
-                     meas.machine_voltage_abc_c_pu,
-                     meas.machine_voltage_unmasked_a_pu,
-                     meas.machine_voltage_unmasked_b_pu,
-                     meas.machine_voltage_unmasked_c_pu)
-                )
-                
-                # Machine Measurements - Voltage magnitudes (indices 6-8)
-                self.oscilloscope.add_sample_to_buffer(
-                    'measurements_voltage_magnitudes',
-                    (self.sample_index,
-                     meas.machine_voltage_magnitude_pu,
-                     meas.machine_voltage_magnitude_filtered_pu,
-                     float(meas.is_commuting))
-                )
-                
-                # Observer - All estimates (indices 9-12)
-                self.oscilloscope.add_sample_to_buffer(
-                    'observer_observer_estimates',
-                    (self.sample_index,
-                     obs.estimated_frequency_pu,
-                     obs.estimated_position_pu,
-                     obs.filtered_voltage_alpha_pu,
-                     obs.filtered_voltage_beta_pu)
-                )
-                
-                # Modulator - Control signals (indices 13-17)
-                self.oscilloscope.add_sample_to_buffer(
-                    'modulator_modulator_control',
-                    (self.sample_index,
-                     mod.firing_angle_rad,
-                     float(mod.is_enabled),
-                     float(mod.release_pulses),
-                     float(mod.request_force_commutation),
-                     mod.current_rotor_sector)
-                )
-                
-                # Machine Controller - Outputs (indices 18-20)
-                self.oscilloscope.add_sample_to_buffer(
-                    'machine_controller_controller_outputs',
-                    (self.sample_index,
-                     ctrl.firing_angle_rad,
-                     ctrl.dc_link_current_pu,
-                     ctrl.machine_speed_pu)
-                )
-                
-                # Torque Controller - Control inputs (indices 21-25)
-                self.oscilloscope.add_sample_to_buffer(
-                    'torque_controller_torque_control',
-                    (self.sample_index,
-                     torque.base_torque_reference_pu,  # Index 21 in C++ is base torque from speed controller
-                     torque.limited_torque_reference_pu,  # Max limit
-                     torque.limited_torque_reference_pu,  # Min limit (reusing for now)
-                     0.0,  # Breakaway boost enabled (placeholder)
-                     float(torque.is_saturated))  # Current controller saturated
-                )
-                
-                # Torque Controller - Outputs (indices 26-33)
-                self.oscilloscope.add_sample_to_buffer(
-                    'torque_controller_torque_outputs',
-                    (self.sample_index,
-                     torque.current_reference_pu,
-                     torque.base_torque_reference_pu,
-                     torque.total_torque_reference_pu,
-                     torque.limited_torque_reference_pu,
-                     float(torque.is_saturated),
-                     float(torque.is_active),
-                     0.0,  # Breakaway boost active (placeholder)
-                     0.0)  # Downstream saturated (placeholder)
-                )
-                
-                # Speed Controller - All signals (indices 34-39)
-                self.oscilloscope.add_sample_to_buffer(
-                    'speed_controller_speed_control',
-                    (self.sample_index,
-                     speed.torque_reference_pu,
-                     speed.measured_speed_pu,
-                     speed.speed_error_pu,
-                     speed.pi_output_pu,
-                     float(speed.is_active),
-                     float(speed.is_saturated))
-                )
-                
-                # Speed Generator - Outputs (indices 40-44)
-                self.oscilloscope.add_sample_to_buffer(
-                    'speed_generator_speed_gen_outputs',
-                    (self.sample_index,
-                     gen.speed_ref_pu,
-                     gen.torque_limit_max_pu,
-                     gen.torque_limit_min_pu,
-                     float(gen.is_profile_complete),
-                     float(gen.is_breakaway_boost_active))
-                )
-                
-                # Excitation - Control signals (indices 45-49)
-                self.oscilloscope.add_sample_to_buffer(
-                    'excitation_excitation_control',
-                    (self.sample_index,
-                     exc.voltage_setpoint_pu,
-                     float(exc.enable),
-                     float(exc.is_field_established),
-                     float(exc.is_running),
-                     exc.reserved)
-                )
+                # Extract and add data for each plot group
+                for group_name, plots_dict in plot_config.items():
+                    for plot_name, plot_config_obj in plots_dict.items():
+                        # Skip if no mapper defined
+                        if plot_config_obj.mapper is None:
+                            continue
+                        
+                        # Call mapper to extract data from packet
+                        buffer_key = f"{group_name}_{plot_name}"
+                        data_tuple = plot_config_obj.mapper(self.sample_index, packet)
+                        
+                        # Add to oscilloscope buffer
+                        self.oscilloscope.add_sample_to_buffer(buffer_key, data_tuple)
                 
                 self.sample_index += 1
         

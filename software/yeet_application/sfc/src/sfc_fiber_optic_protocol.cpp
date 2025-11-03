@@ -3,7 +3,7 @@
  * @brief Fiber-optic communication protocol encoding/decoding implementation
  */
 
-#include "sfc_embedded/fiber_optic_protocol.hpp"
+#include "sfc/sfc_fiber_optic_protocol.hpp"
 
 #include <cstring>  // for memcpy (until C++20 bit_cast is available)
 
@@ -16,13 +16,16 @@ namespace yeet::application::sfc::fiber_optic {
 [[nodiscard]] std::uint8_t encode_grid_to_machine(const grid_to_machine_message& msg, std::uint32_t* payload) noexcept
 {
     // Word 0: DC link current measurement [pu] (IEEE 754 float bits)
-    // Word 1: Packed control flags
+    // Word 1: Packed control flags and state
     //   Bits 0-7:   Operating mode (enum, 0-255)
     //   Bit 8:      Is current zero
     //   Bit 9:      Current controller is saturated
     //   Bit 10:     Force commutation acknowledged
     //   Bit 11:     Pulse releases
-    //   Bits 12-31: Reserved for future use
+    //   Bits 12-18: State machine state ID (0-127)
+    //   Bit 19:     Freeze integrator
+    //   Bit 20:     Is requesting main PI reset
+    //   Bits 21-31: Reserved for future use
 
     // Encode DC link current float value
     std::memcpy(&payload[0], &msg.dc_link_current_pu, sizeof(float));
@@ -46,6 +49,17 @@ namespace yeet::application::sfc::fiber_optic {
     }
     if (msg.pulse_releases) {
         packed_flags |= detail::g2m_pulse_releases_bit;
+    }
+
+    // Encode state ID (bits 12-18)
+    packed_flags |= (static_cast<std::uint32_t>(msg.state_id) & 0x7FU) << detail::g2m_state_id_shift;
+
+    // Encode sync control flags
+    if (msg.freeze_integrator) {
+        packed_flags |= detail::g2m_freeze_integrator_bit;
+    }
+    if (msg.is_requesting_main_pi_reset) {
+        packed_flags |= detail::g2m_is_requesting_main_pi_reset_bit;
     }
 
     // Write packed word to payload
@@ -79,6 +93,13 @@ namespace yeet::application::sfc::fiber_optic {
     msg.current_controller_is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
     msg.force_commutation_acknowledged = (packed_flags & detail::g2m_force_comm_ack_bit) != 0;
     msg.pulse_releases = (packed_flags & detail::g2m_pulse_releases_bit) != 0;
+
+    // Decode state ID (bits 12-18)
+    msg.state_id = static_cast<std::uint8_t>((packed_flags >> detail::g2m_state_id_shift) & 0x7FU);
+
+    // Decode sync control flags
+    msg.freeze_integrator = (packed_flags & detail::g2m_freeze_integrator_bit) != 0;
+    msg.is_requesting_main_pi_reset = (packed_flags & detail::g2m_is_requesting_main_pi_reset_bit) != 0;
 
     return msg;
 }

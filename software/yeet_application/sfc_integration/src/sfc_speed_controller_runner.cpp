@@ -34,7 +34,7 @@ void sfc_speed_controller_runner::run()
     if (!_inputs.enable_speed_control.read()) {
         _outputs.is_active.write(false);
         // When re-enabling, reset to current measured speed to prevent bump
-        _sfc_speed_controller.reset(_inputs.measured_speed_pu.read());
+        // _sfc_speed_controller.reset(_inputs.measured_speed_pu.read());
     }
     else {
         _outputs.is_active.write(true);

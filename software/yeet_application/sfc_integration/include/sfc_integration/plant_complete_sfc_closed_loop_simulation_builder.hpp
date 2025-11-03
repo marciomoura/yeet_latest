@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string_view>
 
 #include "sfc_integration/sfc_grid_side_control.hpp"
@@ -116,6 +117,40 @@ public:
 
     void register_applications(yeet::simulator& simulation)
     {
+        // ==================== Complete Signal Flow Architecture ====================
+        // The simulation executes at three distinct sampling rates with a clear feedback loop:
+        //
+        // PLANT SAMPLING (fastest, e.g., 10µs):
+        //   Plant dynamics → Grid/Machine Hardware Mocks (ADC simulation + scaling)
+        //
+        // 200µs SAMPLING (5 kHz) - Measurement & Observation:
+        //   Hardware Mock outputs → Measurement runners (voltage/current reconstruction)
+        //   Measurements → Grid/Machine observers (speed/position estimation, filtering)
+        //   Observers → Modulators & pulse generators (continuous updates)
+        //
+        // 1ms SAMPLING (1 kHz) - High-Speed Control & Fiber-Optic Cross-Link:
+        //   Measurements → Current controllers (firing angle calculation)
+        //   Fiber-optic TX: Encode local state (mode, currents, sync signals)
+        //   Fiber-optic RX: Decode peer state (speed, voltage, state machine sync)
+        //   Machine-side controller → current reference generation
+        //
+        // 10ms SAMPLING (100 Hz) - Low-Speed Control & Coordination:
+        //   State machine (grid-side): Sequencing, fault detection, mode transitions
+        //   Speed controller (machine-side): Ramp generation, acceleration profiles
+        //   Torque limiter: Dynamic current limit calculation
+        //
+        // CLOSED LOOP FEEDBACK:
+        //   Plant outputs (voltage, current) → Measurements (via mocks)
+        //   Measurements → Controllers (cascade: speed → torque → current → firing angle)
+        //   Controllers → Firing pulses → Plant power converters
+        //   → Back to plant dynamics
+        //
+        // CROSS-COMMUNICATION:
+        //   Grid ↔ Machine via fiber-optic protocol at 1ms:
+        //   - Grid sends: mode, DC current, status flags, state ID, integrator freeze, PI reset request
+        //   - Machine sends: speed estimate, current reference, voltage magnitude, force comm request
+        //   - Keeps both controllers synchronized for stable LCI operation
+
         // Plant model runs at its own sampling time
         simulation.register_lambda_runner(plant.get_sampling_time(), [&]() {
             plant.run();
@@ -124,67 +159,125 @@ public:
         });
 
         // 200µs sampling (5 kHz): Measurements, observers, modulators, pulse generators
+        // This is the fastest control loop - handles real-time measurement processing
         simulation.register_lambda_runner(200e-6, [&]() {
+            // ========== MEASUREMENT ACQUISITION (Mock ADCs + Transducers) ==========
+            // Hardware mocks simulate the physical ADC converters and transducers
+            // They receive real plant quantities and convert them to ADC counts
+            // This step simulates: transformer scaling, ADC quantization, measurement delays
+
+            // Grid-side measurements: Voltage (V_ab, V_bc) and current (I_a, I_c) in ADC counts
+            // These are fed to the measurement runner for reconstruction in per-unit
             grid_side_control.get_external_ios().update_analog_inputs(
                 grid_side_hardware_mock.get_outputs().v_ab_counts.read(),
                 grid_side_hardware_mock.get_outputs().v_bc_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_a_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_c_counts.read());
 
-            machine_side_control.external_ios.update_analog_inputs(
-                yeet::control::adc_counts{
-                    static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_ab_counts.read().value)},
-                yeet::control::adc_counts{
-                    static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_bc_counts.read().value)});
+            // Machine-side measurements: Voltage (V_ab, V_bc) in ADC counts
+            // The plant provides 3-phase voltage, mocks convert to ADC counts
+            auto debug_ab = machine_side_hardware_mock.get_outputs().v_ab_counts.read();
+            auto debug_bc = machine_side_hardware_mock.get_outputs().v_bc_counts.read();
+            machine_side_control.external_ios.update_analog_inputs(debug_ab, debug_bc);
+
+            // ========== SIGNAL PROCESSING & OBSERVATION ==========
+            // Measurement runners process raw ADC counts:
+            //   - Reconstruct 3-phase voltages/currents from two measurements
+            //   - Apply inverse transformer scaling to get primary-side quantities
+            //   - Filter and condition signals
+            //
+            // Observers estimate non-measurable states:
+            //   - Machine-side observer: Speed (rpm) and position (electrical angle)
+            //     Uses voltage/current measurements and model equations
+            //   - Grid-side observer: Phase angle and frequency tracking
+            //
+            // Output of this stage feeds the 1ms control loop with quality measurements
 
             machine_side_control.update_200us();
             grid_side_control.update_200us();
         });
 
-        // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor
+        // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor, fiber-optic exchange
+        // High-speed inner control loop: Regulates DC link current (grid-side) and machine current (machine-side)
         simulation.register_lambda_runner(1e-3, [&]() {
+            // ========== GRID-SIDE CONTROL UPDATE ==========
+            // Grid-side current controller:
+            //   Input: Measured grid current, current reference (from higher-level speed control)
+            //   Calculates: Firing angle to regulate DC link current
+            //   Output: Firing pulses for grid-side thyristor bridge
             grid_side_control.update_1ms();
 
-            grid_side_control.get_external_ios().update_fiber_optics_outputs_to_machine(
-                grid_side_control.get_operating_mode().read(),
-                grid_side_control.get_force_commutation_acknowledged().read(),
-                grid_side_control.get_is_current_zero().read(),
-                grid_side_control.get_current_controller_is_saturated().read(),
-                grid_side_control.get_pulse_releases().read(),
-                grid_side_control.get_dc_link_measurements().get_outputs().dc_current_pu.read(),
-                grid_side_control.get_freeze_integrator().read(),
-                grid_side_control.get_grid_side_modulator().get_outputs().is_requesting_main_pi_reset.read(),
-                grid_side_control.get_state_machine().get_outputs().current_state_id.read());
+            // ========== FIBER-OPTIC CROSS-LINK: GRID → MACHINE ==========
+            // Grid sends its state to machine-side for synchronization
+            // Encodes 9 signals: mode, DC current, status flags (5), state ID, integrator freeze, PI reset
+            grid_side_control.encode_fiber_optic_tx_to_machine();
 
-            machine_side_control.external_ios.update_fiber_optics_inputs(
-                grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().operating_mode.read(),
-                grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().current_state_id.read(),
-                grid_side_control.get_external_ios()
-                    .get_fiber_optics_outputs_to_machine()
-                    .force_commutation_acknowledged.read(),
-                grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().is_current_zero.read(),
-                grid_side_control.get_external_ios()
-                    .get_fiber_optics_outputs_to_machine()
-                    .current_controller_is_saturated.read(),
-                grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().pulse_releases.read(),
-                grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().dc_link_current.read(),
-                grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().freeze_integrator.read(),
-                grid_side_control.get_external_ios()
-                    .get_fiber_optics_outputs_to_machine()
-                    .is_requesting_main_pi_reset.read());
+            // Machine receives grid state:
+            //   - Operating mode: Determines machine control strategy
+            //   - State ID: Synchronizes with grid-side state machine sequencing
+            //   - Freeze integrator: When grid is frozen, machine must freeze too
+            //   - PI reset: When grid modulator resets its PI, machine must reset its PI
+            // This ensures tight synchronization between the two converters
+            machine_side_control.decode_fiber_optic_rx_from_grid(
+                grid_side_control.get_fiber_optic_tx_payload(), grid_side_control.get_fiber_optic_tx_length());
 
+            // ========== MACHINE-SIDE CONTROL UPDATE ==========
+            // Machine-side inner control loop:
+            //   Input: Machine measurements, speed reference (from 10ms speed controller), grid state
+            //   Calculates: Firing angle to regulate machine current per speed error
+            //   Output: Firing pulses for machine-side thyristor bridge
             machine_side_control.update_1ms();
 
-            grid_side_control.get_external_ios().update_fiber_optics_inputs_from_machine(
-                machine_side_control.machine_side_observer.get_outputs().estimated_speed.read(),
-                machine_side_control.torque_controller.get_outputs().current_reference.read(),
-                machine_side_control.machine_side_observer.get_outputs().estimated_voltage_magnitude.read(),
-                machine_side_control.machine_side_modulator.get_outputs().request_force_commutation.read());
+            // ========== FIBER-OPTIC CROSS-LINK: MACHINE → GRID ==========
+            // Machine sends its measurements and requests to grid
+            // Encodes 4 signals: speed estimate (float), current ref (float), voltage magnitude (float), force comm
+            // request
+            machine_side_control.encode_fiber_optic_tx_to_grid();
+
+            // Grid receives machine measurements:
+            //   - Speed: Feedback for checking if machine is up to speed
+            //   - Current reference: Tells grid the desired current magnitude
+            //   - Voltage magnitude: Available machine voltage (affects current control limits)
+            //   - Force comm request: Machine requests low-speed assist when load torque is high
+            grid_side_control.decode_fiber_optic_rx_from_machine(
+                machine_side_control.get_fiber_optic_tx_payload(), machine_side_control.get_fiber_optic_tx_length());
         });
 
         // 10ms sampling (100 Hz): State machine, speed controller
+        // Outer control loop: Manages high-level sequencing and speed regulation
         simulation.register_lambda_runner(10e-3, [&]() {
+            // ========== MACHINE-SIDE 10ms CONTROL ==========
+            // Speed controller (outer loop for machine-side inner current control):
+            //   Input: Measured speed (from 200µs observer)
+            //   Calculates: Speed error, ramps current reference through acceleration profiles
+            //   Prevents sudden current jumps, implements smooth speed profiles
+            //   Output: Current reference → sent to 1ms inner control loop
+            //
+            // State machine (low-speed sequencing):
+            //   May include: Creep speed, purge acceleration, ignition acceleration, assist acceleration
             machine_side_control.update_10ms();
+
+            // ========== GRID-SIDE 10ms CONTROL ==========
+            // State machine (main sequence orchestration):
+            //   Manages the complete starting sequence:
+            //   - Idle: Waiting for start command
+            //   - DC ramping: Slowly increases DC link voltage
+            //   - Synchronization: Waits for grid voltage to match machine back-EMF
+            //   - Running: Normal acceleration toward synchronous speed
+            //   - Synchronized: Running synchronized with grid
+            //   - Fault/Trip: Handles abnormal conditions
+            //
+            //   Coordinates with machine-side state (via fiber-optic sync signals)
+            //   For each state:
+            //   - Updates operating mode (sent to machine in next 1ms cycle)
+            //   - Determines if integrator should freeze (prevents integral windup)
+            //   - Requests PI reset if needed (resynchronization after faults)
+            //
+            // Operation mode monitor:
+            //   Watches the state machine and generates:
+            //   - pulse_releases: Gate enable/disable signal
+            //   - is_current_zero: Detection flag for transition decisions
+            //   - Communicates these to machine-side via fiber-optic protocol
             grid_side_control.update_10ms();
         });
     }
@@ -238,25 +331,50 @@ private:
 
     void connect_all_components()
     {
+        // ==================== Plant ↔ Hardware Mocks Connection ====================
+        // Hardware mocks simulate the ADC and transducer interfaces between plant and controllers
+        // Flow: Plant outputs → Hardware Mock inputs (scales primary quantities to ADC counts)
+        // Then: Hardware Mock outputs → Control inputs (ADC counts, subject to scaling)
+
+        // Grid-side hardware mock: Receives 3-phase grid voltage and current from plant
+        // Scales them according to transformer ratios and ADC resolution
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+
+        // Machine-side hardware mock: Receives 3-phase machine voltage from plant
+        // Scales according to transformer ratios and ADC resolution
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
 
+        // ==================== Control Outputs → Plant Inputs ====================
+        // Controllers generate firing pulses and excitation commands, which drive the power converters
+        // Flow: Control logic → Modulators → Pulse Generators → Plant power converters
+
+        // Grid-side firing pulses: Controls the grid-side 6-pulse thyristor converter
+        // Determines when grid-side thyristors are gated on/off
         signals_connector::connect_output_to_input(
             grid_side_control.get_firing_pulses(), plant.get_inputs().grid_side_firing_pulses);
 
+        // Machine-side firing pulses: Controls the machine-side 6-pulse thyristor converter
+        // Determines when machine-side thyristors are gated on/off
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,
             plant.get_inputs().machine_side_firing_pulses);
 
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
-
+        // Excitation voltage command: Controls the excitation system of the synchronous machine
+        // Modulates the machine field voltage for flux and torque control
         signals_connector::connect_output_to_input(
             machine_side_control.excitation_controller.get_outputs().excitation_voltage_setpoint_pu,
             plant.get_inputs().excitation_voltage_setpoint_pu);
+
+        // ==================== External Disturbances → Plant ====================
+        // External inputs to the plant model for testing and simulation scenarios
+
+        // Load torque: Applied load on the machine shaft
+        // Simulates the gas turbine load or other mechanical loads
+        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
     }
 };
 

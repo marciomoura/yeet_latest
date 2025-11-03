@@ -20,7 +20,7 @@ import numpy as np
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 
-from monitor_client.config import get_grid_side_plots, get_default_visible_groups
+from monitor_client.config import get_grid_side_plots, get_machine_side_plots, get_default_visible_groups
 
 
 logger = logging.getLogger(__name__)
@@ -100,14 +100,22 @@ class OscilloscopeWidget(QtWidgets.QWidget):
         
         self.setLayout(main_layout)
     
-    def create_standard_plots(self):
-        """Create the standard plot set for telemetry monitoring.
+    def create_plots_from_config(self, target: str = 'grid'):
+        """Create plots from configuration for the specified target.
         
-        Loads grid-side plot definitions from configuration module.
+        Args:
+            target: Either 'grid' or 'machine' to load the appropriate plot definitions
+        
+        Loads plot definitions from configuration module based on target.
+        This is the single entry point for creating all plots from plot_definitions.py.
         """
-        # Get plot definitions from config
-        plot_definitions = get_grid_side_plots()
-        default_visible = get_default_visible_groups('grid')
+        # Get plot definitions from config based on target
+        if target == 'machine':
+            plot_definitions = get_machine_side_plots()
+        else:
+            plot_definitions = get_grid_side_plots()
+        
+        default_visible = get_default_visible_groups(target)
         
         # Create plots from definitions
         self.visible_views_order = []
@@ -170,7 +178,7 @@ class OscilloscopeWidget(QtWidgets.QWidget):
         self.plot_curves[buffer_key] = curves
         
         # Create buffer
-        self.buffers[buffer_key] = deque(maxlen=10000)
+        self.buffers[buffer_key] = deque(maxlen=50000)
         
         # Store in layout map (will be populated by _reorganize_subplot_layout)
         self._plot_layout_map[len(self._plot_layout_map)] = buffer_key
@@ -252,7 +260,7 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             sample: Tuple of (sample_index, value1, value2, ...)
         """
         if buffer_name not in self.buffers:
-            self.buffers[buffer_name] = deque(maxlen=10000)
+            self.buffers[buffer_name] = deque(maxlen=50000)
         
         self.buffers[buffer_name].append(sample)
     

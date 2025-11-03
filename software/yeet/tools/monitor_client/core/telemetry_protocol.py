@@ -128,11 +128,15 @@ class GridSideTelemetryPacket:
     def modulator(self) -> GridModulatorData:
         """Extract modulator signals from signal array."""
         return GridModulatorData(
+            firing_angle_input_pu=self.get_signal(GridSignalIndex.FIRING_ANGLE_INPUT),
+            firing_angle_output_pu=self.get_signal(GridSignalIndex.FIRING_ANGLE_OUTPUT),
+            operating_mode=int(self.get_signal(GridSignalIndex.MODULATOR_OPERATING_MODE)),
+            request_extinguish_dc=self.get_bool_signal(GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC),
+            request_force_commutation=self.get_bool_signal(GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION),
             is_enabled=self.get_bool_signal(GridSignalIndex.MODULATOR_ENABLED),
-            firing_angle_input_pu=self.get_signal(GridSignalIndex.CONTROLLER_OUTPUT),
-            firing_angle_output_pu=self.get_signal(GridSignalIndex.FIRING_ANGLE_RAD),
             force_commutation_ack=self.get_bool_signal(GridSignalIndex.FORCE_COMMUTATION_ACK),
             is_requesting_pi_reset=self.get_bool_signal(GridSignalIndex.IS_REQUESTING_PI_RESET),
+            modulator_state=int(self.get_signal(GridSignalIndex.MODULATOR_STATE)),
         )
     
     @property
@@ -142,10 +146,10 @@ class GridSideTelemetryPacket:
             dc_link_current_reference=self.get_signal(GridSignalIndex.DC_LINK_CURRENT_REFERENCE),
             dc_link_current_measured=self.get_signal(GridSignalIndex.DC_LINK_CURRENT_MEASURED),
             current_error_pu=self.get_signal(GridSignalIndex.CURRENT_ERROR),
-            controller_output_pu=self.get_signal(GridSignalIndex.CONTROLLER_OUTPUT),
-            operating_mode=self.get_bool_signal(GridSignalIndex.OPERATING_MODE),
+            controller_output_pu=self.get_signal(GridSignalIndex.PI_OUTPUT),
+            operating_mode=self.get_bool_signal(GridSignalIndex.NATURAL_COMMUTATION_MODE),
             controller_saturated=self.get_bool_signal(GridSignalIndex.CONTROLLER_SATURATED),
-            freeze_integrator=self.get_bool_signal(GridSignalIndex.FREEZE_INTEGRATOR),
+            freeze_integrator=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_FREEZE_INTEGRATOR),
         )
     
     @property
@@ -265,8 +269,10 @@ class MachineSideTelemetryPacket:
     def speed_controller(self) -> SpeedControllerData:
         """Extract speed controller state from signal array."""
         return SpeedControllerData(
-            torque_reference_pu=self.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE),
+            speed_reference_pu=self.get_signal(MachineSignalIndex.SPEED_REFERENCE_PU),
             measured_speed_pu=self.get_signal(MachineSignalIndex.SPEED_MEASURED_SPEED_PU),
+            speed_reference_limited_pu=self.get_signal(MachineSignalIndex.SPEED_REFERENCE_LIMITED_PU),
+            torque_reference_pu=self.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE),
             speed_error_pu=self.get_signal(MachineSignalIndex.SPEED_ERROR),
             pi_output_pu=self.get_signal(MachineSignalIndex.SPEED_PI_OUTPUT),
             is_active=self.get_bool_signal(MachineSignalIndex.SPEED_IS_ACTIVE),
@@ -292,7 +298,6 @@ class MachineSideTelemetryPacket:
             enable=self.get_bool_signal(MachineSignalIndex.EXCITATION_ENABLE),
             is_field_established=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED),
             is_running=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_RUNNING),
-            reserved=self.get_signal(MachineSignalIndex.EXCITATION_RESERVED),
         )
     
     @property

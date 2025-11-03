@@ -60,27 +60,28 @@ class MachineSignalIndex(IntEnum):
     TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 32
     TORQUE_DOWNSTREAM_SATURATION = 33
     
-    # Speed Controller Group (34-39)
-    SPEED_TORQUE_REFERENCE = 34
+    # Speed Controller Group (34-41)
+    SPEED_REFERENCE_PU = 34
     SPEED_MEASURED_SPEED_PU = 35
-    SPEED_ERROR = 36
-    SPEED_PI_OUTPUT = 37
-    SPEED_IS_ACTIVE = 38
-    SPEED_IS_SATURATED = 39
+    SPEED_REFERENCE_LIMITED_PU = 36
+    SPEED_TORQUE_REFERENCE = 37
+    SPEED_ERROR = 38
+    SPEED_PI_OUTPUT = 39
+    SPEED_IS_ACTIVE = 40
+    SPEED_IS_SATURATED = 41
     
-    # Speed Generator Group (40-44)
-    SPEED_REF_PU = 40
-    SPEED_TORQUE_LIMIT_MAX_PU = 41
-    SPEED_TORQUE_LIMIT_MIN_PU = 42
-    SPEED_IS_PROFILE_COMPLETE = 43
-    SPEED_IS_BREAKAWAY_BOOST_ACTIVE = 44
+    # Speed Generator Group (42-46)
+    SPEED_REF_PU = 42
+    SPEED_TORQUE_LIMIT_MAX_PU = 43
+    SPEED_TORQUE_LIMIT_MIN_PU = 44
+    SPEED_IS_PROFILE_COMPLETE = 45
+    SPEED_IS_BREAKAWAY_BOOST_ACTIVE = 46
     
-    # Excitation Controller Group (45-49)
-    EXCITATION_VOLTAGE_SETPOINT_PU = 45
-    EXCITATION_ENABLE = 46
-    EXCITATION_IS_FIELD_ESTABLISHED = 47
-    EXCITATION_IS_RUNNING = 48
-    EXCITATION_RESERVED = 49
+    # Excitation Controller Group (47-50)
+    EXCITATION_VOLTAGE_SETPOINT_PU = 47
+    EXCITATION_ENABLE = 48
+    EXCITATION_IS_FIELD_ESTABLISHED = 49
+    EXCITATION_IS_RUNNING = 50
 
 
 @dataclass
@@ -149,9 +150,11 @@ class TorqueControllerOutputsData:
 
 @dataclass
 class SpeedControllerData:
-    """Speed controller state and outputs (34-39)."""
-    torque_reference_pu: float = 0.0
+    """Speed controller state and outputs (34-41)."""
+    speed_reference_pu: float = 0.0
     measured_speed_pu: float = 0.0
+    speed_reference_limited_pu: float = 0.0
+    torque_reference_pu: float = 0.0
     speed_error_pu: float = 0.0
     pi_output_pu: float = 0.0
     is_active: bool = False
@@ -160,7 +163,7 @@ class SpeedControllerData:
 
 @dataclass
 class SpeedGeneratorData:
-    """Speed generator configuration and state (40-44)."""
+    """Speed generator configuration and state (42-46)."""
     speed_ref_pu: float = 0.0
     torque_limit_max_pu: float = 0.0
     torque_limit_min_pu: float = 0.0
@@ -170,9 +173,8 @@ class SpeedGeneratorData:
 
 @dataclass
 class ExcitationControllerData:
-    """Excitation controller state and outputs (45-49)."""
+    """Excitation controller state and outputs (47-50)."""
     voltage_setpoint_pu: float = 0.0
     enable: bool = False
     is_field_established: bool = False
     is_running: bool = False
-    reserved: float = 0.0

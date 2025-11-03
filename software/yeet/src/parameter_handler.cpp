@@ -68,6 +68,22 @@ void parameter_handler::build_parameter_cache()
 #endif
 }
 
+void parameter_handler::rebuild_parameter_cache()
+{
+    if (!registry_) {
+#ifdef HOST_BUILD
+        std::cout << "[PARAM] ERROR: Cannot rebuild cache - model_registry pointer is null!" << std::endl;
+#endif
+        return;
+    }
+
+    build_parameter_cache();
+
+#ifdef HOST_BUILD
+    std::cout << "[PARAM] Rebuilt cache with " << parameter_cache_.size() << " parameters" << std::endl;
+#endif
+}
+
 parameter_cache_entry* parameter_handler::find_parameter(const char* component, const char* name)
 {
     for (auto& param : parameter_cache_) {

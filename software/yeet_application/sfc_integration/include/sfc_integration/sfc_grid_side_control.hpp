@@ -1,8 +1,10 @@
 #pragma once
 
+#include <array>
+
+#include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
-#include "sfc_integration/sfc_grid_side_control_io.hpp"
 #include "sfc_integration/sfc_grid_side_external_ios_datamodel.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
@@ -46,15 +48,7 @@ public:
           grid_side_pulse_generator(),
           grid_measurements(per_unit_system),
           dc_link_measurements(per_unit_system),
-          operation_mode_monitor(),
-          io(grid_measurements,
-              dc_link_measurements,
-              state_machine,
-              operation_mode_monitor,
-              current_controller,
-              grid_side_modulator,
-              grid_side_pulse_generator,
-              grid_side_observer)
+          operation_mode_monitor()
     {
         connect_internal_signals();
     }
@@ -97,21 +91,45 @@ public:
      */
     void update_200us();
 
-    // ==================== External I/O Interface ====================
+    /**
+     * @brief Encode grid-side signals into fiber-optic protocol for transmission to machine-side
+     *
+     * Collects operating mode, DC link current, and status flags, then encodes them
+     * into a 2-word (8 byte) fiber-optic message using the standardized protocol.
+     * The encoded payload is stored internally in _fiber_optic_tx_payload.
+     *
+     * @return Number of uint32_t words written (always 2)
+     */
+    std::uint8_t encode_fiber_optic_tx_to_machine();
 
     /**
-     * @brief DEPRECATED: Get I/O interface for external signal connections
+     * @brief Get the encoded fiber-optic TX payload for transmission to machine-side
      *
-     * This method is maintained for backward compatibility with embedded implementations.
-     * Simulation code should use get_external_ios() instead for cleaner abstractions.
-     *
-     * This provides direct access to the internal I/O struct used for ADC/DI connections.
-     * In embedded systems, this interface is used for hardware signal routing.
-     *
-     * @deprecated Simulation should use get_external_ios() datamodel interface
+     * @return Pointer to internal payload buffer (always 2 words for grid→machine)
      */
-    sfc_grid_side_control_io& get_io() { return io; }
-    const sfc_grid_side_control_io& get_io() const { return io; }
+    const std::uint32_t* get_fiber_optic_tx_payload() const { return _fiber_optic_tx_payload.data(); }
+
+    /**
+     * @brief Get the length of the encoded fiber-optic TX payload
+     *
+     * @return Number of uint32_t words (always 2)
+     */
+    std::uint8_t get_fiber_optic_tx_length() const { return _fiber_optic_tx_length; }
+
+    /**
+     * @brief Decode machine-side fiber-optic message and update internal signals
+     *
+     * Receives a 4-word (16 byte) fiber-optic message from machine-side, decodes it,
+     * and updates the external_ios with speed, current reference, voltage magnitude,
+     * and force commutation request.
+     *
+     * @param[in] payload Source buffer containing encoded message
+     * @param[in] payload_length Number of uint32_t words in payload
+     * @return true if decode successful and signals updated, false otherwise
+     */
+    bool decode_fiber_optic_rx_from_machine(const std::uint32_t* payload, std::uint8_t payload_length);
+
+    // ==================== External I/O Interface ====================
 
     /**
      * @brief Get external I/O datamodel for parameter-based signal injection
@@ -260,10 +278,11 @@ public:
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_operation_mode_monitor_runner operation_mode_monitor;
 
-    // I/O interface for external connections (must be last as it references all components)
-    sfc_grid_side_control_io io;
-
 private:
+    // Fiber-optic communication buffers (internal storage)
+    std::array<std::uint32_t, fiber_optic::max_payload_words> _fiber_optic_tx_payload{};
+    std::uint8_t _fiber_optic_tx_length{0};
+
     /**
      * @brief Connect internal signals between grid-side components
      */

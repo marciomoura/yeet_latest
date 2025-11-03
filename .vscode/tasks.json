@@ -142,6 +142,49 @@
             "detail": "Builds all targets in the project"
         },
         {
+            "label": "Build SFC Host Simulator",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                "build-host",
+                "sfc_host_simulator"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Builds the dual-controller host simulator"
+        },
+        {
+            "label": "Run SFC Host Simulator (Grid: 7000, Machine: 7001)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build-host/bin/Debug/sfc_host_simulator.exe",
+            "args": [
+                "--grid-port",
+                "7000",
+                "--machine-port",
+                "7001",
+                "--frequency",
+                "100",
+                "--verbose"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Runs the dual-controller host simulator with verbose logging",
+            "isBackground": false
+        },
+        {
             "label": "Yeet clean plots",
             "type": "shell",
             "command": "powershell",

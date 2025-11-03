@@ -11,9 +11,9 @@ Signal indices correspond to:
   - 13-17: Modulator (Firing angle, enable, pulses, commutation, sector)
   - 18-20: Machine Controller (Firing angle, DC current, speed)
   - 21-33: Torque Controller (References, limits, saturation, boost state)
-  - 34-39: Speed Controller (Torque ref, speed, error, PI output, saturation)
-  - 40-44: Speed Generator (Speed ref, torque limits, profile state)
-  - 45-49: Excitation Controller (Voltage setpoint, enable, field state, running)
+  - 34-41: Speed Controller (Speed/torque ref, limited speed ref, error, PI output, saturation)
+  - 42-46: Speed Generator (Speed ref, torque limits, profile state)
+  - 47-50: Excitation Controller (Voltage setpoint, enable, field state, running)
 """
 
 from typing import Dict, List, Any
@@ -91,30 +91,31 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
         },
         'speed_controller': {
             'fields': [
-                {'name': 'Torque Reference (pu)', 'index': 34, 'type': 'float'},
+                {'name': 'Speed Reference (pu)', 'index': 34, 'type': 'float'},
                 {'name': 'Measured Speed (pu)', 'index': 35, 'type': 'float'},
-                {'name': 'Speed Error (pu)', 'index': 36, 'type': 'float'},
-                {'name': 'PI Output (pu)', 'index': 37, 'type': 'float'},
-                {'name': 'Is Active', 'index': 38, 'type': 'bool'},
-                {'name': 'Is Saturated', 'index': 39, 'type': 'bool'},
+                {'name': 'Speed Reference Limited (pu)', 'index': 36, 'type': 'float'},
+                {'name': 'Torque Reference (pu)', 'index': 37, 'type': 'float'},
+                {'name': 'Speed Error (pu)', 'index': 38, 'type': 'float'},
+                {'name': 'PI Output (pu)', 'index': 39, 'type': 'float'},
+                {'name': 'Is Active', 'index': 40, 'type': 'bool'},
+                {'name': 'Is Saturated', 'index': 41, 'type': 'bool'},
             ]
         },
         'speed_generator': {
             'fields': [
-                {'name': 'Speed Ref (pu)', 'index': 40, 'type': 'float'},
-                {'name': 'Torque Limit Max (pu)', 'index': 41, 'type': 'float'},
-                {'name': 'Torque Limit Min (pu)', 'index': 42, 'type': 'float'},
-                {'name': 'Profile Complete', 'index': 43, 'type': 'bool'},
-                {'name': 'Breakaway Boost Active', 'index': 44, 'type': 'bool'},
+                {'name': 'Speed Ref (pu)', 'index': 42, 'type': 'float'},
+                {'name': 'Torque Limit Max (pu)', 'index': 43, 'type': 'float'},
+                {'name': 'Torque Limit Min (pu)', 'index': 44, 'type': 'float'},
+                {'name': 'Profile Complete', 'index': 45, 'type': 'bool'},
+                {'name': 'Breakaway Boost Active', 'index': 46, 'type': 'bool'},
             ]
         },
         'excitation_controller': {
             'fields': [
-                {'name': 'Excitation V Setpoint (pu)', 'index': 45, 'type': 'float'},
-                {'name': 'Enable Excitation', 'index': 46, 'type': 'bool'},
-                {'name': 'Field Established', 'index': 47, 'type': 'bool'},
-                {'name': 'Is Running', 'index': 48, 'type': 'bool'},
-                {'name': 'Reserved', 'index': 49, 'type': 'float'},
+                {'name': 'Excitation V Setpoint (pu)', 'index': 47, 'type': 'float'},
+                {'name': 'Enable Excitation', 'index': 48, 'type': 'bool'},
+                {'name': 'Field Established', 'index': 49, 'type': 'bool'},
+                {'name': 'Is Running', 'index': 50, 'type': 'bool'},
             ]
         }
     }

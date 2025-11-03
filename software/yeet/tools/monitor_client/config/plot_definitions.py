@@ -30,41 +30,64 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Grid Measurements',
                 'y_label': 'Magnitude (pu)',
                 'signals': [
-                    {'name': 'Voltage', 'color': 'g', 'index': 1},
-                    {'name': 'Current A', 'color': 'r', 'index': 2},
-                    {'name': 'Current B', 'color': 'c', 'index': 3},
-                    {'name': 'Current C', 'color': 'm', 'index': 4}
+                    {'name': 'Voltage Magnitude', 'color': 'g', 'index': 0},
+                    {'name': 'Current Magnitude', 'color': 'r', 'index': 4},
+                    {'name': 'Current A', 'color': 'c', 'index': 5},
+                    {'name': 'Current B', 'color': 'm', 'index': 6},
+                    {'name': 'Current C', 'color': 'y', 'index': 7},
                 ]
             }
         },
         'observer': {
             'voltage_freq': {
-                'title': 'Observer',
-                'y_label': 'Observer',
+                'title': 'Observer Estimates',
+                'y_label': 'Magnitude (pu) / Frequency (Hz) / Angle (rad)',
                 'signals': [
-                    {'name': 'V Est (pu)', 'color': 'c', 'index': 1},
-                    {'name': 'Freq (pu)', 'color': 'm', 'index': 2}
+                    {'name': 'Voltage Magnitude (pu)', 'color': 'g', 'index': 14},
+                    {'name': 'Frequency (Hz)', 'color': 'r', 'index': 17},
+                    {'name': 'Angle (rad)', 'color': 'c', 'index': 16}
                 ]
             }
         },
-        'current_controller': {
+        'controller': {
             'dclink': {
-                'title': 'DC Link Control',
+                'title': 'DC Link Current Control',
                 'y_label': 'Current (pu)',
                 'signals': [
-                    {'name': 'Reference', 'color': 'y', 'index': 1},
-                    {'name': 'Measured', 'color': 'w', 'index': 2}
+                    {'name': 'Reference', 'color': 'g', 'index': 29},
+                    {'name': 'Measured', 'color': 'r', 'index': 30},
+                    {'name': 'Error', 'color': 'c', 'index': 33},
                 ]
             }
         },
         'modulator': {
             'firing_angle_control': {
                 'title': 'Firing Angle Control',
-                'y_label': 'Angle (rad)',
+                'y_label': 'Angle (pu) / Mode / Requests / State',
                 'signals': [
-                    {'name': 'Input', 'color': 'y', 'index': 1},
-                    {'name': 'Output', 'color': 'w', 'index': 2},
-                    {'name': 'Enabled', 'color': 'c', 'index': 3}
+                    {'name': 'Firing Angle Input', 'color': 'g', 'index': 20},
+                    {'name': 'Firing Angle Output', 'color': 'r', 'index': 21},
+                    {'name': 'Operating Mode', 'color': 'c', 'index': 22},
+                    {'name': 'Request Extinguish DC', 'color': 'm', 'index': 23},
+                    {'name': 'Request Force Commutation', 'color': 'y', 'index': 24},
+                    {'name': 'Enable', 'color': 'w', 'index': 25},
+                    {'name': 'Force Commutation Ack', 'color': '#ff7f00', 'index': 26},
+                    {'name': 'PI Reset Request', 'color': '#ff00ff', 'index': 27},
+                    {'name': 'Modulator State', 'color': 'k', 'index': 28},
+                ]
+            }
+        },
+        'pulse_generator': {
+            'firing_pulses': {
+                'title': 'Firing Pulses',
+                'y_label': 'Pulse State',
+                'signals': [
+                    {'name': 'P1', 'color': 'r', 'index': 50},
+                    {'name': 'P2', 'color': 'g', 'index': 51},
+                    {'name': 'P3', 'color': 'c', 'index': 52},
+                    {'name': 'P4', 'color': 'm', 'index': 53},
+                    {'name': 'P5', 'color': 'y', 'index': 54},
+                    {'name': 'P6', 'color': 'w', 'index': 55}
                 ]
             }
         }
@@ -132,24 +155,25 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'Torque Reference (from Speed)', 'color': 'g', 'index': 21},
                     {'name': 'Current Controller Saturated', 'color': 'y', 'index': 25},
-                    {'name': 'Current Reference', 'color': 'g', 'index': 26},
+                    {'name': 'Current Reference', 'color': 'c', 'index': 26},
                     {'name': 'Limited Torque Ref', 'color': 'm', 'index': 29},
-                    {'name': 'Is Saturated', 'color': 'y', 'index': 30}
+                    {'name': 'Is Saturated', 'color': 'w', 'index': 30}
                 ]
             },
         },
         'speed_controller': {
             'speed_control': {
                 'title': 'Speed Controller',
-                'y_label': 'Torque Ref (pu) / Speed (pu) / Error / Output',
+                'y_label': 'Speed Ref (pu) / Measured Speed (pu) / Torque Ref (pu) / Error / PI Output',
                 'signals': [
-                    {'name': 'Speed Reference', 'color': 'g', 'index': 40},
-                    {'name': 'Measured Speed (pu)', 'color': 'r', 'index': 35},
-                    {'name': 'Torque Reference', 'color': 'b', 'index': 34},
-                    {'name': 'Speed Error', 'color': 'c', 'index': 36},
-                    {'name': 'PI Output', 'color': 'm', 'index': 37},
-                    {'name': 'Is Active', 'color': 'y', 'index': 38},
-                    {'name': 'Is Saturated', 'color': '#ff00ff', 'index': 39},
+                    {'name': 'Speed Reference', 'color': 'g', 'index': 34},
+                    {'name': 'Measured Speed', 'color': 'r', 'index': 35},
+                    {'name': 'Speed Ref Limited', 'color': 'c', 'index': 36},
+                    {'name': 'Torque Reference', 'color': 'm', 'index': 37},
+                    {'name': 'Speed Error', 'color': 'y', 'index': 38},
+                    {'name': 'PI Output', 'color': 'w', 'index': 39},
+                    {'name': 'Is Active', 'color': '#ff7f00', 'index': 40},
+                    {'name': 'Is Saturated', 'color': '#ff00ff', 'index': 41},
                 ]
             }
         },
@@ -158,11 +182,11 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Speed Generator',
                 'y_label': 'Speed Ref (pu) / Torque Limit (pu) / State',
                 'signals': [
-                    {'name': 'Speed Ref (pu)', 'color': 'g', 'index': 40},
-                    {'name': 'Torque Limit Max', 'color': 'r', 'index': 41},
-                    {'name': 'Torque Limit Min', 'color': 'c', 'index': 42},
-                    {'name': 'Profile Complete', 'color': 'm', 'index': 43},
-                    {'name': 'Breakaway Boost Active', 'color': 'y', 'index': 44},
+                    {'name': 'Speed Ref (pu)', 'color': 'g', 'index': 42},
+                    {'name': 'Torque Limit Max', 'color': 'r', 'index': 43},
+                    {'name': 'Torque Limit Min', 'color': 'c', 'index': 44},
+                    {'name': 'Profile Complete', 'color': 'm', 'index': 45},
+                    {'name': 'Breakaway Boost Active', 'color': 'y', 'index': 46},
                 ]
             }
         },
@@ -171,11 +195,10 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Excitation Controller',
                 'y_label': 'Voltage (pu) / State',
                 'signals': [
-                    {'name': 'Excitation V Setpoint', 'color': 'g', 'index': 45},
-                    {'name': 'Enable Excitation', 'color': 'r', 'index': 46},
-                    {'name': 'Field Established', 'color': 'c', 'index': 47},
-                    {'name': 'Is Running', 'color': 'm', 'index': 48},
-                    {'name': 'Reserved', 'color': 'y', 'index': 49},
+                    {'name': 'Excitation V Setpoint', 'color': 'g', 'index': 47},
+                    {'name': 'Enable Excitation', 'color': 'r', 'index': 48},
+                    {'name': 'Field Established', 'color': 'c', 'index': 49},
+                    {'name': 'Is Running', 'color': 'm', 'index': 50},
                 ]
             }
         }
