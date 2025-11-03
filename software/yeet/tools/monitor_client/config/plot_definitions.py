@@ -67,13 +67,13 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'Firing Angle Input', 'color': 'g', 'index': 20},
                     {'name': 'Firing Angle Output', 'color': 'r', 'index': 21},
-                    {'name': 'Operating Mode', 'color': 'b', 'index': 22},
-                    {'name': 'Request Extinguish DC', 'color': 'c', 'index': 23},
-                    {'name': 'Request Force Commutation', 'color': 'm', 'index': 24},
-                    {'name': 'Enable', 'color': 'y', 'index': 25},
-                    {'name': 'Force Commutation Ack', 'color': 'w', 'index': 26},
-                    {'name': 'PI Reset Request', 'color': '#ff7f00', 'index': 27},
-                    {'name': 'Modulator State', 'color': '#ff00ff', 'index': 28},
+                    {'name': 'Operating Mode', 'color': 'c', 'index': 22},
+                    {'name': 'Request Extinguish DC', 'color': 'm', 'index': 23},
+                    {'name': 'Request Force Commutation', 'color': 'y', 'index': 24},
+                    {'name': 'Enable', 'color': 'w', 'index': 25},
+                    {'name': 'Force Commutation Ack', 'color': '#ff7f00', 'index': 26},
+                    {'name': 'PI Reset Request', 'color': '#ff00ff', 'index': 27},
+                    {'name': 'Modulator State', 'color': 'k', 'index': 28},
                 ]
             }
         },
@@ -84,10 +84,12 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'P1', 'color': 'r', 'index': 50},
                     {'name': 'P2', 'color': 'g', 'index': 51},
-                    {'name': 'P3', 'color': 'b', 'index': 52},
-                    {'name': 'P4', 'color': 'c', 'index': 53},
-                    {'name': 'P5', 'color': 'm', 'index': 54},
-                    {'name': 'P6', 'color': 'y', 'index': 55},
+                    {'name': 'P3', 'color': 'c', 'index': 52},
+                    {'name': 'P4', 'color': 'm', 'index': 53},
+                    {'name': 'P5', 'color': 'y', 'index': 54},
+                    {'name': 'P6', 'color': 'w', 'index': 55},
+                    {'name': 'P7', 'color': 'w', 'index': 55},
+                    {'name': 'P8', 'color': 'w', 'index': 55}
                 ]
             }
         }
@@ -155,9 +157,9 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'Torque Reference (from Speed)', 'color': 'g', 'index': 21},
                     {'name': 'Current Controller Saturated', 'color': 'y', 'index': 25},
-                    {'name': 'Current Reference', 'color': 'g', 'index': 26},
+                    {'name': 'Current Reference', 'color': 'c', 'index': 26},
                     {'name': 'Limited Torque Ref', 'color': 'm', 'index': 29},
-                    {'name': 'Is Saturated', 'color': 'y', 'index': 30}
+                    {'name': 'Is Saturated', 'color': 'w', 'index': 30}
                 ]
             },
         },
@@ -168,11 +170,11 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'Speed Reference', 'color': 'g', 'index': 34},
                     {'name': 'Measured Speed', 'color': 'r', 'index': 35},
-                    {'name': 'Speed Ref Limited', 'color': 'b', 'index': 36},
-                    {'name': 'Torque Reference', 'color': 'c', 'index': 37},
-                    {'name': 'Speed Error', 'color': 'm', 'index': 38},
-                    {'name': 'PI Output', 'color': 'y', 'index': 39},
-                    {'name': 'Is Active', 'color': 'w', 'index': 40},
+                    {'name': 'Speed Ref Limited', 'color': 'c', 'index': 36},
+                    {'name': 'Torque Reference', 'color': 'm', 'index': 37},
+                    {'name': 'Speed Error', 'color': 'y', 'index': 38},
+                    {'name': 'PI Output', 'color': 'w', 'index': 39},
+                    {'name': 'Is Active', 'color': '#ff7f00', 'index': 40},
                     {'name': 'Is Saturated', 'color': '#ff00ff', 'index': 41},
                 ]
             }

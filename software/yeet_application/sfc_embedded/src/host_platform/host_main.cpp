@@ -323,6 +323,20 @@ int main(int argc, char* argv[])
     grid_side_network_infrastructure grid_network_infra(simulator_builder.grid_side_control);
     machine_side_network_infrastructure machine_network_infra(simulator_builder.machine_side_control);
 
+    // ==================== Telemetry Lambda Runner (1ms) ====================
+    std::cout << "[INIT] Registering telemetry lambda runner (1ms)..." << std::endl;
+    simulator.register_lambda_runner(50e-6, [&]() {
+        // TCP server processing
+        grid_telemetry_server.process();
+        machine_telemetry_server.process();
+
+        // Grid-side network communication
+        handle_grid_telemetry(grid_telemetry_server, grid_network_infra);
+
+        // Machine-side network communication
+        handle_machine_telemetry(machine_telemetry_server, machine_network_infra);
+    });
+
     // ==================== Plant Configuration (EXACT from LowSpeedStartupWithBreakawayBoostTest) ====================
     std::cout << "[CONFIG] Configuring plant for low-speed startup with breakaway boost..." << std::endl;
 
@@ -443,16 +457,6 @@ int main(int argc, char* argv[])
         // Runners execute at their own sampling rates (plant, 200µs, 1ms, 10ms)
         // No data logging or checkers - optimized for real-time host execution
         simulator.run_single_tick();
-
-        // ========== TCP SERVER PROCESSING ==========
-        grid_telemetry_server.process();
-        machine_telemetry_server.process();
-
-        // ========== GRID-SIDE NETWORK COMMUNICATION ==========
-        handle_grid_telemetry(grid_telemetry_server, grid_network_infra);
-
-        // ========== MACHINE-SIDE NETWORK COMMUNICATION ==========
-        handle_machine_telemetry(machine_telemetry_server, machine_network_infra);
 
         // Mark end of cycle for timing measurement
         control_loop.mark_cycle_end();

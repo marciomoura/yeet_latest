@@ -540,9 +540,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.status_label.setText("Connected - Ready")
         else:
             self.status_label.setText("Disconnected")
-            self.param_status_label.setText("Not loaded")
-            self.param_tree.clear()
-            self.parameters.clear()
+            # Keep parameters persisted when disconnected
+            # Only clear on window destruction or explicit reload
+            if self.parameters:
+                self.param_status_label.setText(f"Disconnected ({len(self.parameters)} params cached)")
+            else:
+                self.param_status_label.setText("Not loaded")
     
     # Telemetry handlers
     def _on_start(self):
