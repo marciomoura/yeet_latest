@@ -30,6 +30,7 @@ from monitor_client.core.data_persistence import DataPersistence, TelemetrySampl
 from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
 from monitor_client.ui.telemetry_panel import GridSideTelemetryPanel, MachineSideTelemetryPanel
 from monitor_client.config import get_machine_side_plots, get_default_visible_groups
+from monitor_client.config.telemetry_plot_mapper import TelemetryPlotMapper
 
 logger = logging.getLogger(__name__)
 
@@ -817,7 +818,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 
                 if packet.observer:
                     obs = packet.observer
-                    self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu))
+                    self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index, obs.estimated_voltage_magnitude_pu, obs.estimated_frequency_pu, obs.estimated_angle_rad))
                 
                 if packet.controller:
                     ctrl = packet.controller
@@ -897,7 +898,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                                               self.avg_current_c / self.avg_count))
                     self.oscilloscope.add_sample_to_buffer('observer_voltage_freq', (self.sample_index,
                                                self.avg_observer_voltage / self.avg_count,
-                                               self.avg_observer_freq / self.avg_count))
+                                               self.avg_observer_freq / self.avg_count,
+                                               self.avg_estimated_angle / self.avg_count))
                     self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index,
                                              self.avg_dclink_ref / self.avg_count,
                                              self.avg_dclink_measured / self.avg_count))
@@ -977,10 +979,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             logger.error(f"Packet error: {e}", exc_info=True)
     
     def _on_machine_packet(self, packet: MachineSideTelemetryPacket):
-        """Handle machine-side telemetry packet.
+        """Handle machine-side telemetry packet using unified plot mappers.
         
         Extract machine measurements, observer data, and controller states
         and populate oscilloscope buffers for real-time visualization.
+        Uses TelemetryPlotMapper to automatically extract data based on plot definitions.
         """
         try:
             self.packet_counter += 1
@@ -1000,126 +1003,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             
             # Only update oscilloscope on decimated samples
             if self.packet_counter % self.decimate_factor == 0 and self.oscilloscope is not None:
-                # Extract machine-side data
-                meas = packet.measurements
-                obs = packet.observer
-                mod = packet.modulator
-                ctrl = packet.controller  # This is MachineControllerData
-                torque = packet.torque_controller
-                speed = packet.speed_controller
-                gen = packet.speed_generator
-                exc = packet.excitation_controller
+                # Get unified plot configuration with mappers
+                plot_config = TelemetryPlotMapper.get_machine_side_plots()
                 
-                # Machine Measurements - Voltage measurements (indices 0-5)
-                # Buffer key format: group_name_plot_name
-                self.oscilloscope.add_sample_to_buffer(
-                    'measurements_voltage_measurements',
-                    (self.sample_index,
-                     meas.machine_voltage_abc_a_pu,
-                     meas.machine_voltage_abc_b_pu,
-                     meas.machine_voltage_abc_c_pu,
-                     meas.machine_voltage_unmasked_a_pu,
-                     meas.machine_voltage_unmasked_b_pu,
-                     meas.machine_voltage_unmasked_c_pu)
-                )
-                
-                # Machine Measurements - Voltage magnitudes (indices 6-8)
-                self.oscilloscope.add_sample_to_buffer(
-                    'measurements_voltage_magnitudes',
-                    (self.sample_index,
-                     meas.machine_voltage_magnitude_pu,
-                     meas.machine_voltage_magnitude_filtered_pu,
-                     float(meas.is_commuting))
-                )
-                
-                # Observer - All estimates (indices 9-12)
-                self.oscilloscope.add_sample_to_buffer(
-                    'observer_observer_estimates',
-                    (self.sample_index,
-                     obs.estimated_frequency_pu,
-                     obs.estimated_position_pu,
-                     obs.filtered_voltage_alpha_pu,
-                     obs.filtered_voltage_beta_pu)
-                )
-                
-                # Modulator - Control signals (indices 13-17)
-                self.oscilloscope.add_sample_to_buffer(
-                    'modulator_modulator_control',
-                    (self.sample_index,
-                     mod.firing_angle_rad,
-                     float(mod.is_enabled),
-                     float(mod.release_pulses),
-                     float(mod.request_force_commutation),
-                     mod.current_rotor_sector)
-                )
-                
-                # Machine Controller - Outputs (indices 18-20)
-                self.oscilloscope.add_sample_to_buffer(
-                    'machine_controller_controller_outputs',
-                    (self.sample_index,
-                     ctrl.firing_angle_rad,
-                     ctrl.dc_link_current_pu,
-                     ctrl.machine_speed_pu)
-                )
-                
-                # Torque Controller - Control inputs (indices 21-25)
-                self.oscilloscope.add_sample_to_buffer(
-                    'torque_controller_torque_control',
-                    (self.sample_index,
-                     torque.base_torque_reference_pu,  # Index 21 in C++ is base torque from speed controller
-                     torque.limited_torque_reference_pu,  # Max limit
-                     torque.limited_torque_reference_pu,  # Min limit (reusing for now)
-                     0.0,  # Breakaway boost enabled (placeholder)
-                     float(torque.is_saturated))  # Current controller saturated
-                )
-                
-                # Torque Controller - Outputs (indices 26-33)
-                self.oscilloscope.add_sample_to_buffer(
-                    'torque_controller_torque_outputs',
-                    (self.sample_index,
-                     torque.current_reference_pu,
-                     torque.base_torque_reference_pu,
-                     torque.total_torque_reference_pu,
-                     torque.limited_torque_reference_pu,
-                     float(torque.is_saturated),
-                     float(torque.is_active),
-                     0.0,  # Breakaway boost active (placeholder)
-                     0.0)  # Downstream saturated (placeholder)
-                )
-                
-                # Speed Controller - All signals (indices 34-39)
-                self.oscilloscope.add_sample_to_buffer(
-                    'speed_controller_speed_control',
-                    (self.sample_index,
-                     speed.torque_reference_pu,
-                     speed.measured_speed_pu,
-                     speed.speed_error_pu,
-                     speed.pi_output_pu,
-                     float(speed.is_active),
-                     float(speed.is_saturated))
-                )
-                
-                # Speed Generator - Outputs (indices 40-44)
-                self.oscilloscope.add_sample_to_buffer(
-                    'speed_generator_speed_gen_outputs',
-                    (self.sample_index,
-                     gen.speed_ref_pu,
-                     gen.torque_limit_max_pu,
-                     gen.torque_limit_min_pu,
-                     float(gen.is_profile_complete),
-                     float(gen.is_breakaway_boost_active))
-                )
-                
-                # Excitation - Control signals (indices 45-49)
-                self.oscilloscope.add_sample_to_buffer(
-                    'excitation_excitation_control',
-                    (self.sample_index,
-                     exc.voltage_setpoint_pu,
-                     float(exc.enable),
-                     float(exc.is_field_established),
-                     float(exc.is_running),
-                     exc.reserved)
-                )
+                # Extract and add data for each plot group
+                for group_name, plots_dict in plot_config.items():
+                    for plot_name, plot_config_obj in plots_dict.items():
+                        # Skip if no mapper defined
+                        if plot_config_obj.mapper is None:
+                            continue
+                        
+                        # Call mapper to extract data from packet
+                        buffer_key = f"{group_name}_{plot_name}"
+                        data_tuple = plot_config_obj.mapper(self.sample_index, packet)
+                        
+                        # Add to oscilloscope buffer
+                        self.oscilloscope.add_sample_to_buffer(buffer_key, data_tuple)
                 
                 self.sample_index += 1
         

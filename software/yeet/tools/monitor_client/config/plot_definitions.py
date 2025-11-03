@@ -30,10 +30,10 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Grid Measurements',
                 'y_label': 'Magnitude (pu)',
                 'signals': [
-                    {'name': 'Voltage', 'color': 'g', 'index': 1},
-                    {'name': 'Current A', 'color': 'r', 'index': 2},
-                    {'name': 'Current B', 'color': 'c', 'index': 3},
-                    {'name': 'Current C', 'color': 'm', 'index': 4}
+                    {'name': 'Voltage', 'color': 'g', 'index': 0},
+                    {'name': 'Current A', 'color': 'r', 'index': 5},
+                    {'name': 'Current B', 'color': 'c', 'index': 6},
+                    {'name': 'Current C', 'color': 'm', 'index': 7}
                 ]
             }
         },
@@ -42,8 +42,9 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Observer',
                 'y_label': 'Observer',
                 'signals': [
-                    {'name': 'V Est (pu)', 'color': 'c', 'index': 1},
-                    {'name': 'Freq (pu)', 'color': 'm', 'index': 2}
+                    {'name': 'voltage mag. (pu)', 'color': 'c', 'index': 14},
+                    {'name': 'frequency (pu)', 'color': 'm', 'index': 15},
+                    {'name': 'angle (pu)', 'color': 'g', 'index': 16}
                 ]
             }
         },
@@ -52,8 +53,8 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'DC Link Control',
                 'y_label': 'Current (pu)',
                 'signals': [
-                    {'name': 'Reference', 'color': 'y', 'index': 1},
-                    {'name': 'Measured', 'color': 'w', 'index': 2}
+                    {'name': 'Reference', 'color': 'y', 'index': 24},
+                    {'name': 'Measured', 'color': 'w', 'index': 25}
                 ]
             }
         },
@@ -62,9 +63,9 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Firing Angle Control',
                 'y_label': 'Angle (rad)',
                 'signals': [
-                    {'name': 'Input', 'color': 'y', 'index': 1},
-                    {'name': 'Output', 'color': 'w', 'index': 2},
-                    {'name': 'Enabled', 'color': 'c', 'index': 3}
+                    {'name': 'Input', 'color': 'y', 'index': 20},
+                    {'name': 'Output', 'color': 'w', 'index': 21},
+                    {'name': 'Enabled', 'color': 'c', 'index': 22}
                 ]
             }
         }
@@ -141,15 +142,16 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
         'speed_controller': {
             'speed_control': {
                 'title': 'Speed Controller',
-                'y_label': 'Torque Ref (pu) / Speed (pu) / Error / Output',
+                'y_label': 'Speed Ref (pu) / Measured Speed (pu) / Torque Ref (pu) / Error / PI Output',
                 'signals': [
-                    {'name': 'Speed Reference', 'color': 'g', 'index': 40},
-                    {'name': 'Measured Speed (pu)', 'color': 'r', 'index': 35},
-                    {'name': 'Torque Reference', 'color': 'b', 'index': 34},
-                    {'name': 'Speed Error', 'color': 'c', 'index': 36},
-                    {'name': 'PI Output', 'color': 'm', 'index': 37},
-                    {'name': 'Is Active', 'color': 'y', 'index': 38},
-                    {'name': 'Is Saturated', 'color': '#ff00ff', 'index': 39},
+                    {'name': 'Speed Reference', 'color': 'g', 'index': 34},
+                    {'name': 'Measured Speed', 'color': 'r', 'index': 35},
+                    {'name': 'Speed Ref Limited', 'color': 'b', 'index': 36},
+                    {'name': 'Torque Reference', 'color': 'c', 'index': 37},
+                    {'name': 'Speed Error', 'color': 'm', 'index': 38},
+                    {'name': 'PI Output', 'color': 'y', 'index': 39},
+                    {'name': 'Is Active', 'color': 'w', 'index': 40},
+                    {'name': 'Is Saturated', 'color': '#ff00ff', 'index': 41},
                 ]
             }
         },
@@ -158,11 +160,11 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Speed Generator',
                 'y_label': 'Speed Ref (pu) / Torque Limit (pu) / State',
                 'signals': [
-                    {'name': 'Speed Ref (pu)', 'color': 'g', 'index': 40},
-                    {'name': 'Torque Limit Max', 'color': 'r', 'index': 41},
-                    {'name': 'Torque Limit Min', 'color': 'c', 'index': 42},
-                    {'name': 'Profile Complete', 'color': 'm', 'index': 43},
-                    {'name': 'Breakaway Boost Active', 'color': 'y', 'index': 44},
+                    {'name': 'Speed Ref (pu)', 'color': 'g', 'index': 42},
+                    {'name': 'Torque Limit Max', 'color': 'r', 'index': 43},
+                    {'name': 'Torque Limit Min', 'color': 'c', 'index': 44},
+                    {'name': 'Profile Complete', 'color': 'm', 'index': 45},
+                    {'name': 'Breakaway Boost Active', 'color': 'y', 'index': 46},
                 ]
             }
         },
@@ -171,11 +173,10 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Excitation Controller',
                 'y_label': 'Voltage (pu) / State',
                 'signals': [
-                    {'name': 'Excitation V Setpoint', 'color': 'g', 'index': 45},
-                    {'name': 'Enable Excitation', 'color': 'r', 'index': 46},
-                    {'name': 'Field Established', 'color': 'c', 'index': 47},
-                    {'name': 'Is Running', 'color': 'm', 'index': 48},
-                    {'name': 'Reserved', 'color': 'y', 'index': 49},
+                    {'name': 'Excitation V Setpoint', 'color': 'g', 'index': 47},
+                    {'name': 'Enable Excitation', 'color': 'r', 'index': 48},
+                    {'name': 'Field Established', 'color': 'c', 'index': 49},
+                    {'name': 'Is Running', 'color': 'm', 'index': 50},
                 ]
             }
         }

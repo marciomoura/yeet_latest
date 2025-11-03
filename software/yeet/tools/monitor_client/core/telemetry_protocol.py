@@ -265,8 +265,10 @@ class MachineSideTelemetryPacket:
     def speed_controller(self) -> SpeedControllerData:
         """Extract speed controller state from signal array."""
         return SpeedControllerData(
-            torque_reference_pu=self.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE),
+            speed_reference_pu=self.get_signal(MachineSignalIndex.SPEED_REFERENCE_PU),
             measured_speed_pu=self.get_signal(MachineSignalIndex.SPEED_MEASURED_SPEED_PU),
+            speed_reference_limited_pu=self.get_signal(MachineSignalIndex.SPEED_REFERENCE_LIMITED_PU),
+            torque_reference_pu=self.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE),
             speed_error_pu=self.get_signal(MachineSignalIndex.SPEED_ERROR),
             pi_output_pu=self.get_signal(MachineSignalIndex.SPEED_PI_OUTPUT),
             is_active=self.get_bool_signal(MachineSignalIndex.SPEED_IS_ACTIVE),
@@ -292,7 +294,6 @@ class MachineSideTelemetryPacket:
             enable=self.get_bool_signal(MachineSignalIndex.EXCITATION_ENABLE),
             is_field_established=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED),
             is_running=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_RUNNING),
-            reserved=self.get_signal(MachineSignalIndex.EXCITATION_RESERVED),
         )
     
     @property

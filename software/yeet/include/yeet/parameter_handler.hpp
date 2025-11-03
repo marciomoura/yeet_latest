@@ -215,6 +215,14 @@ public:
      */
     std::uint16_t get_parameter_count() const { return static_cast<std::uint16_t>(parameter_cache_.size()); }
 
+    /**
+     * @brief Rebuild parameter cache from registry
+     *
+     * Call this after registering new datamodels to the registry.
+     * Clears existing cache and rebuilds from current registry state.
+     */
+    void rebuild_parameter_cache();
+
 private:
     /**
      * @brief Build parameter cache from model_registry

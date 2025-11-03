@@ -131,11 +131,11 @@ public:
                 grid_side_hardware_mock.get_outputs().i_a_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_c_counts.read());
 
-            machine_side_control.external_ios.update_analog_inputs(
-                yeet::control::adc_counts{
-                    static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_ab_counts.read().value)},
-                yeet::control::adc_counts{
-                    static_cast<std::int16_t>(machine_side_hardware_mock.get_outputs().v_bc_counts.read().value)});
+            // Debug: Check what we're reading from hardware mock
+            auto debug_ab = machine_side_hardware_mock.get_outputs().v_ab_counts.read();
+            auto debug_bc = machine_side_hardware_mock.get_outputs().v_bc_counts.read();
+
+            machine_side_control.external_ios.update_analog_inputs(debug_ab, debug_bc);
 
             machine_side_control.update_200us();
             grid_side_control.update_200us();

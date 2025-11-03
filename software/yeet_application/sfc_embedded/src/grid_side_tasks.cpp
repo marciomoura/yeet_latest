@@ -25,68 +25,28 @@
 
 extern "C" {
 
-static inline yeet::application::sfc::integration::sfc_grid_side_control& get_grid_side_control()
+// ==================== Network Telemetry/Parameter Infrastructure ====================
+// These are instantiated per control instance to support both embedded (static) and host (dynamic) usage
+
+grid_side_network_infrastructure::grid_side_network_infrastructure(
+    yeet::application::sfc::integration::sfc_grid_side_control& control)
+    : telemetry_builder(control),
+      telemetry_manager(telemetry_builder, 10),
+      parameter_handler(&registry),
+      network_handler(telemetry_manager, parameter_handler)
 {
-    static yeet::application::sfc::integration::sfc_grid_side_control grid_side_control;
-    return grid_side_control;
+    // Step 1: Register datamodel with registry
+    // This populates the registry with all control system parameters
+    control.register_datamodel(registry);
+
+    // Step 2: Rebuild parameter handler cache after datamodel registration
+    // The parameter_handler was constructed with empty registry, so we need to rebuild the cache
+    // now that the registry has been populated with actual parameters
+    parameter_handler.rebuild_parameter_cache();
 }
-
-// ==================== MODEL REGISTRY ====================
-// Global parameter registry populated from all SFC component datamodels
-static inline yeet::model_registry& get_model_registry()
-{
-    static yeet::model_registry registry;
-    static bool initialized = false;
-
-    if (!initialized) {
-        // Register all grid-side component parameters with the model_registry
-        // This delegates to the control class which knows about all its components
-        get_grid_side_control().register_datamodel(registry);
-        initialized = true;
-    }
-    return registry;
-}
-
-// ==================== GRID-SIDE TELEMETRY BUILDER ====================
-// Builder for grid-side telemetry packets
-static inline yeet::application::sfc::telemetry::grid_side_telemetry_builder& get_grid_side_telemetry_builder()
-{
-    static yeet::application::sfc::telemetry::grid_side_telemetry_builder builder(get_grid_side_control());
-    return builder;
-}
-
-// ==================== NETWORK TELEMETRY MANAGER ====================
-// Telemetry streaming manager for TCP/IP interface
-static inline yeet::telemetry::telemetry_manager& get_telemetry_manager()
-{
-    static yeet::telemetry::telemetry_manager manager(get_grid_side_telemetry_builder(), 10);
-    return manager;
-}
-
-// ==================== PARAMETER HANDLER ====================
-// Parameter configuration handler for TCP/IP interface
-static inline yeet::telemetry::parameter_handler& get_parameter_handler()
-{
-    static yeet::telemetry::parameter_handler handler(&get_model_registry());
-    return handler;
-}
-
-// ==================== NETWORK HANDLER ====================
-// Network protocol handler that manages telemetry streaming and parameter requests
-static inline yeet::telemetry::network_handler& get_network_handler()
-{
-    static yeet::telemetry::network_handler handler(get_telemetry_manager(), get_parameter_handler());
-    return handler;
-}
-
 ARM_FUNCTION
 void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_control* control)
 {
-    // ==================== INITIALIZE PARAMETER HANDLER ====================
-    // Force initialization of model registry and parameter handler on startup
-    // This ensures parameters are registered before first network request
-    (void)get_parameter_handler();
-
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs via external_ios datamodel
     control->get_external_ios().get_digital_inputs().auxiliaries_are_on.write(false);
@@ -101,25 +61,18 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->initialize();
 
     // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
-    // get_grid_side_control().grid_measurements.get_parameters().voltage_transducer_gain.write(
+    // control->grid_measurements.get_parameters().voltage_transducer_gain.write(
     //     yeet::real_t{1.0f / 300.0f});
-    // get_grid_side_control().grid_measurements.get_parameters().current_transducer_gain.write(
+    // control->grid_measurements.get_parameters().current_transducer_gain.write(
     //     yeet::real_t{1.0f / 120.0f});
-    // get_grid_side_control().grid_side_pulse_generator.get_parameters().reference_type.write(
+    // control->grid_side_pulse_generator.get_parameters().reference_type.write(
     //     yeet::control::six_pulse_generator::reference_type::line);
-    // get_grid_side_control().grid_side_pulse_generator.get_parameters().pulse_width.write(
+    // control->grid_side_pulse_generator.get_parameters().pulse_width.write(
     //     yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 
     // IMPORTANT: For host simulation with plant model, measurement parameters are configured via
     // plant_hardware::stage_grid_side_measurement_parameters() in the plant builder BEFORE calling this init.
-    // The static instance here will NOT have those parameters unless explicitly set.
     // For production embedded builds, these parameters should be set here or via network configuration.
-
-    // ==================== INITIALIZE PARAMETER SYSTEM ====================
-    // Force initialization of model registry and parameter handler
-    // This ensures all component parameters are registered before network requests arrive
-    get_model_registry();     // Trigger lazy initialization of parameter registry
-    get_parameter_handler();  // Initialize parameter protocol handler
 }
 
 ARM_FUNCTION
@@ -244,12 +197,10 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
         // Decode Machine → Grid protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // NOTE: In embedded, fiber-optic signals should update the external_ios datamodel
-            // via direct parameter writes or a dedicated update method. For now, these are injected
-            // via the 1ms loop's cross-coupling mechanism in plant builder (simulation).
-            // In embedded real hardware, the fiber-optic receiver would directly write to
-            // external_ios parameters or call an update method to inject received signals.
-            // TODO: Add fiber_optic_rx input handling to external_ios datamodel for embedded systems
+            // Update fiber optics inputs using proper datamodel method (respects override flags)
+            control->external_ios.update_fiber_optics_inputs_from_machine(yeet::speed_pu_t{rx_msg->measured_speed_pu},
+                yeet::current_pu_t{rx_msg->dc_link_current_reference_pu},
+                yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu}, rx_msg->force_commutation_request);
         }
     }
     //     // #else
@@ -285,9 +236,6 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
         tx_msg.pulse_releases = control->get_pulse_releases().read();
         tx_msg.dc_link_current_pu = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
         tx_msg.current_controller_is_saturated = control->get_current_controller_is_saturated().read();
-        tx_msg.dc_link_current_pu =
-            get_grid_side_control().dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
-        tx_msg.current_controller_is_saturated = get_grid_side_control().get_current_controller_is_saturated().read();
 
         // Encode and transmit
         outputs->fiber_optic_tx.payload_length =
@@ -354,7 +302,8 @@ void grid_task_10000us(yeet::application::sfc::integration::sfc_grid_side_contro
 }
 
 ARM_FUNCTION
-void grid_network(const network_inputs_t* inputs, network_outputs_t* outputs)
+void grid_network(
+    grid_side_network_infrastructure* infrastructure, const network_inputs_t* inputs, network_outputs_t* outputs)
 {
     // NON-REAL-TIME NETWORK COMMUNICATION TASK
     // Called from: Main loop (not time-critical)
@@ -367,7 +316,7 @@ void grid_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     //   - Event logging
     //
     // Delegate to network_handler for all packet processing and state management
-    get_network_handler().process(inputs, outputs);
+    infrastructure->network_handler.process(inputs, outputs);
 }
 
 }  // extern "C"

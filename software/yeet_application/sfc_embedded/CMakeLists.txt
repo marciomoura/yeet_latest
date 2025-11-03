@@ -208,7 +208,7 @@ if(YEET_SFC_HOST_BUILD)
     target_sources(
         sfc_host_simulator
         PRIVATE # Host platform layer
-                src/host_platform/host_main_with_plant.cpp
+                src/host_platform/host_main.cpp
                 src/host_platform/host_tcp_server.cpp
                 src/host_platform/host_timing.cpp
                 # Both grid-side and machine-side control code

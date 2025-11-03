@@ -22,68 +22,29 @@
 
 extern "C" {
 
-static inline yeet::application::sfc::integration::sfc_machine_side_control& get_machine_side_control()
-{
-    static yeet::application::sfc::integration::sfc_machine_side_control machine_side_control;
-    return machine_side_control;
-}
+// ==================== Network Telemetry/Parameter Infrastructure ====================
+// These are instantiated per control instance to support both embedded (static) and host (dynamic) usage
 
-// ==================== MODEL REGISTRY ====================
-// Global parameter registry populated from all SFC component datamodels
-static inline yeet::model_registry& get_model_registry()
+machine_side_network_infrastructure::machine_side_network_infrastructure(
+    yeet::application::sfc::integration::sfc_machine_side_control& control)
+    : telemetry_builder(control),
+      telemetry_manager(telemetry_builder, 10),
+      parameter_handler(&registry),
+      network_handler(telemetry_manager, parameter_handler)
 {
-    static yeet::model_registry registry;
-    static bool initialized = false;
+    // Step 1: Register datamodel with registry
+    // This populates the registry with all control system parameters
+    control.register_datamodel(registry);
 
-    if (!initialized) {
-        // Register all machine-side component parameters with the model_registry
-        // This delegates to the control class which knows about all its components
-        get_machine_side_control().register_datamodel(registry);
-        initialized = true;
-    }
-    return registry;
-}
-
-// ==================== MACHINE-SIDE TELEMETRY BUILDER ====================
-// Builder for machine-side telemetry packets
-static inline yeet::application::sfc::telemetry::machine_side_telemetry_builder& get_machine_side_telemetry_builder()
-{
-    static yeet::application::sfc::telemetry::machine_side_telemetry_builder builder(get_machine_side_control());
-    return builder;
-}
-
-// ==================== NETWORK TELEMETRY MANAGER ====================
-// Telemetry streaming manager for TCP/IP interface
-static inline yeet::telemetry::telemetry_manager& get_telemetry_manager()
-{
-    static yeet::telemetry::telemetry_manager manager(get_machine_side_telemetry_builder(), 10);
-    return manager;
-}
-
-// ==================== PARAMETER HANDLER ====================
-// Parameter configuration handler for TCP/IP interface
-static inline yeet::telemetry::parameter_handler& get_parameter_handler()
-{
-    static yeet::telemetry::parameter_handler handler(&get_model_registry());
-    return handler;
-}
-
-// ==================== NETWORK HANDLER ====================
-// Network protocol handler that manages telemetry streaming and parameter requests
-static inline yeet::telemetry::network_handler& get_network_handler()
-{
-    static yeet::telemetry::network_handler handler(get_telemetry_manager(), get_parameter_handler());
-    return handler;
+    // Step 2: Rebuild parameter handler cache after datamodel registration
+    // The parameter_handler was constructed with empty registry, so we need to rebuild the cache
+    // now that the registry has been populated with actual parameters
+    parameter_handler.rebuild_parameter_cache();
 }
 
 ARM_FUNCTION
 void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side_control* control)
 {
-    // ==================== INITIALIZE PARAMETER HANDLER ====================
-    // Force initialization of model registry and parameter handler on startup
-    // This ensures parameters are registered before first network request
-    (void)get_parameter_handler();
-
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs
     // yeet::mock_signal_input::write(control->get_io().digital_inputs.exciter_ready, false);
@@ -212,10 +173,16 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         // Decode Grid → Machine protocol message
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // TODO...
-            // control->external_ios.update_fiber_optics_inputs(rx_msg->mode,
-            //     yeet::current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->force_commutation_acknowledged,
-            //     rx_msg->is_current_zero, rx_msg->current_controller_is_saturated, rx_msg->pulse_releases);
+            // Update fiber optics inputs with decoded protocol data
+            // Note: Protocol transmits only 6 fields. Other fields (current_state_id, freeze_integrator,
+            // is_requesting_main_pi_reset) are not transmitted and use default values
+            control->external_ios.update_fiber_optics_inputs(rx_msg->mode,
+                yeet::application::sfc::sfc_state_id::IDLE,  // Not transmitted - use default
+                rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero,
+                rx_msg->current_controller_is_saturated, rx_msg->pulse_releases,
+                yeet::current_pu_t{rx_msg->dc_link_current_pu},
+                false,   // freeze_integrator - not transmitted
+                false);  // is_requesting_main_pi_reset - not transmitted
         }
     }
 
@@ -296,7 +263,8 @@ void machine_task_10000us(yeet::application::sfc::integration::sfc_machine_side_
 }
 
 ARM_FUNCTION
-void machine_network(const network_inputs_t* inputs, network_outputs_t* outputs)
+void machine_network(
+    machine_side_network_infrastructure* infrastructure, const network_inputs_t* inputs, network_outputs_t* outputs)
 {
     // NON-REAL-TIME NETWORK COMMUNICATION TASK
     // Called from: Main loop (not time-critical)
@@ -309,7 +277,7 @@ void machine_network(const network_inputs_t* inputs, network_outputs_t* outputs)
     //   - Event logging
     //
     // Delegate to network_handler for all packet processing and state management
-    get_network_handler().process(inputs, outputs);
+    infrastructure->network_handler.process(inputs, outputs);
 }
 
 }  // extern "C"

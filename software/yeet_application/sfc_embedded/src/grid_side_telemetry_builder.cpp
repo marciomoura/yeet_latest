@@ -47,7 +47,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     // === Observer Group ===
     packet.add_signal(14, static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
     packet.add_signal(15, static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
-    packet.add_signal(16, static_cast<float>(observer.get_outputs().estimated_position.read().get_radians()));
+    packet.add_signal(16, static_cast<float>(observer.get_outputs().estimated_position.read().get_pu()));
     packet.add_signal(17, static_cast<float>(observer.get_outputs().estimated_frequency.read()));
 
     const auto& estimated_voltage_alphabeta = observer.get_outputs().filtered_voltage_alphabeta.read();

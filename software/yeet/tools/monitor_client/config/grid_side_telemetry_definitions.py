@@ -53,7 +53,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
             'fields': [
                 {'name': 'Est Voltage Magnitude (pu)', 'index': 14, 'type': 'float'},
                 {'name': 'Est Frequency (pu)', 'index': 15, 'type': 'float'},
-                {'name': 'Est Angle (rad)', 'index': 16, 'type': 'float'},
+                {'name': 'Est Angle (pu)', 'index': 16, 'type': 'float'},
                 {'name': 'Est Frequency (Hz)', 'index': 17, 'type': 'float'},
                 {'name': 'Est Voltage Alpha (pu)', 'index': 18, 'type': 'float'},
                 {'name': 'Est Voltage Beta (pu)', 'index': 19, 'type': 'float'},

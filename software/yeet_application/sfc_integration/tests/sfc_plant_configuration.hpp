@@ -29,10 +29,10 @@ struct variable_speed_config {
     real_t voltage_offset{0.0f};
 
     /// Initial mechanical speed in per-unit
-    speed_pu_t initial_speed{1.0f};
+    speed_pu_t initial_speed{0.01f};
 
     /// Load torque in per-unit
-    torque_pu_t load_torque{0.3f};
+    torque_pu_t load_torque{0.2f};
 };
 
 /**

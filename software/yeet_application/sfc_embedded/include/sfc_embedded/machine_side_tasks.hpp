@@ -4,15 +4,26 @@
 #include "sfc_embedded/task_io.h"
 
 #ifdef __cplusplus
-namespace yeet {
-namespace application {
-namespace sfc {
-namespace integration {
-class sfc_machine_side_control;
-}
-}  // namespace sfc
-}  // namespace application
-}  // namespace yeet
+#include "sfc_embedded/machine_side_network_telemetry_builder.hpp"
+#include "sfc_integration/sfc_machine_side_control.hpp"
+#include "yeet/model_registry.hpp"
+#include "yeet/network_handler.hpp"
+#include "yeet/network_telemetry_manager.hpp"
+#include "yeet/parameter_handler.hpp"
+
+// Network Telemetry/Parameter Infrastructure
+// Instantiated per control instance to support both embedded (static) and host (dynamic) usage
+struct machine_side_network_infrastructure {
+    yeet::model_registry registry;
+    yeet::application::sfc::telemetry::machine_side_telemetry_builder telemetry_builder;
+    yeet::telemetry::telemetry_manager telemetry_manager;
+    yeet::telemetry::parameter_handler parameter_handler;
+    yeet::telemetry::network_handler network_handler;
+
+    // Two-phase initialization: first register datamodel, then construct handlers
+    // This ensures parameter_handler has access to populated registry
+    machine_side_network_infrastructure(yeet::application::sfc::integration::sfc_machine_side_control& control);
+};
 
 extern "C" {
 #endif
@@ -60,7 +71,14 @@ void machine_task_10000us(
     task_outputs_t* outputs);
 
 // Non-real-time network communication task (called from main loop)
-void machine_network(const network_inputs_t* inputs, network_outputs_t* outputs);
+void machine_network(
+#ifdef __cplusplus
+    machine_side_network_infrastructure* infrastructure,
+#else
+    void* infrastructure,
+#endif
+    const network_inputs_t* inputs,
+    network_outputs_t* outputs);
 
 // ==================== Backward Compatibility Wrappers ====================
 // For embedded builds with ONLY machine-side (no dual-controller), provide
@@ -105,7 +123,13 @@ static inline void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t
 }
 static inline void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
 {
-    machine_network(inputs, outputs);
+#ifdef __cplusplus
+    // For embedded, we need a static infrastructure instance
+    extern machine_side_network_infrastructure& get_machine_side_network_infrastructure();
+    machine_network(&get_machine_side_network_infrastructure(), inputs, outputs);
+#else
+    machine_network(0, inputs, outputs);
+#endif
 }
 #endif
 
