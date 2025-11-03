@@ -30,42 +30,64 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Grid Measurements',
                 'y_label': 'Magnitude (pu)',
                 'signals': [
-                    {'name': 'Voltage', 'color': 'g', 'index': 0},
-                    {'name': 'Current A', 'color': 'r', 'index': 5},
-                    {'name': 'Current B', 'color': 'c', 'index': 6},
-                    {'name': 'Current C', 'color': 'm', 'index': 7}
+                    {'name': 'Voltage Magnitude', 'color': 'g', 'index': 0},
+                    {'name': 'Current Magnitude', 'color': 'r', 'index': 4},
+                    {'name': 'Current A', 'color': 'c', 'index': 5},
+                    {'name': 'Current B', 'color': 'm', 'index': 6},
+                    {'name': 'Current C', 'color': 'y', 'index': 7},
                 ]
             }
         },
         'observer': {
             'voltage_freq': {
-                'title': 'Observer',
-                'y_label': 'Observer',
+                'title': 'Observer Estimates',
+                'y_label': 'Magnitude (pu) / Frequency (Hz) / Angle (rad)',
                 'signals': [
-                    {'name': 'voltage mag. (pu)', 'color': 'c', 'index': 14},
-                    {'name': 'frequency (pu)', 'color': 'm', 'index': 15},
-                    {'name': 'angle (pu)', 'color': 'g', 'index': 16}
+                    {'name': 'Voltage Magnitude (pu)', 'color': 'g', 'index': 14},
+                    {'name': 'Frequency (Hz)', 'color': 'r', 'index': 17},
+                    {'name': 'Angle (rad)', 'color': 'c', 'index': 16}
                 ]
             }
         },
-        'current_controller': {
+        'controller': {
             'dclink': {
-                'title': 'DC Link Control',
+                'title': 'DC Link Current Control',
                 'y_label': 'Current (pu)',
                 'signals': [
-                    {'name': 'Reference', 'color': 'y', 'index': 24},
-                    {'name': 'Measured', 'color': 'w', 'index': 25}
+                    {'name': 'Reference', 'color': 'g', 'index': 29},
+                    {'name': 'Measured', 'color': 'r', 'index': 30},
+                    {'name': 'Error', 'color': 'c', 'index': 33},
                 ]
             }
         },
         'modulator': {
             'firing_angle_control': {
                 'title': 'Firing Angle Control',
-                'y_label': 'Angle (rad)',
+                'y_label': 'Angle (pu) / Mode / Requests / State',
                 'signals': [
-                    {'name': 'Input', 'color': 'y', 'index': 20},
-                    {'name': 'Output', 'color': 'w', 'index': 21},
-                    {'name': 'Enabled', 'color': 'c', 'index': 22}
+                    {'name': 'Firing Angle Input', 'color': 'g', 'index': 20},
+                    {'name': 'Firing Angle Output', 'color': 'r', 'index': 21},
+                    {'name': 'Operating Mode', 'color': 'b', 'index': 22},
+                    {'name': 'Request Extinguish DC', 'color': 'c', 'index': 23},
+                    {'name': 'Request Force Commutation', 'color': 'm', 'index': 24},
+                    {'name': 'Enable', 'color': 'y', 'index': 25},
+                    {'name': 'Force Commutation Ack', 'color': 'w', 'index': 26},
+                    {'name': 'PI Reset Request', 'color': '#ff7f00', 'index': 27},
+                    {'name': 'Modulator State', 'color': '#ff00ff', 'index': 28},
+                ]
+            }
+        },
+        'pulse_generator': {
+            'firing_pulses': {
+                'title': 'Firing Pulses',
+                'y_label': 'Pulse State',
+                'signals': [
+                    {'name': 'P1', 'color': 'r', 'index': 50},
+                    {'name': 'P2', 'color': 'g', 'index': 51},
+                    {'name': 'P3', 'color': 'b', 'index': 52},
+                    {'name': 'P4', 'color': 'c', 'index': 53},
+                    {'name': 'P5', 'color': 'm', 'index': 54},
+                    {'name': 'P6', 'color': 'y', 'index': 55},
                 ]
             }
         }

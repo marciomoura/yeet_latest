@@ -49,7 +49,7 @@ public:
         signal_output<current_pu_t> current_reference;
 
         /// PI controller output before limiting
-        signal_output<angle_wrapped> pi_output;
+        signal_output<real_t> pi_output;
 
         /// Controller saturation status
         signal_output<bool> current_controller_is_saturated;

@@ -181,7 +181,19 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.avg_controller_saturated = 0.0
         self.avg_firing_angle_input = 0.0
         self.avg_firing_angle_output = 0.0
+        self.avg_operating_mode = 0.0
+        self.avg_request_extinguish_dc = 0.0
+        self.avg_request_force_commutation = 0.0
         self.avg_modulator_enabled = 0.0
+        self.avg_force_commutation_ack = 0.0
+        self.avg_is_requesting_pi_reset = 0.0
+        self.avg_modulator_state = 0.0
+        self.avg_firing_pulse_1 = 0.0
+        self.avg_firing_pulse_2 = 0.0
+        self.avg_firing_pulse_3 = 0.0
+        self.avg_firing_pulse_4 = 0.0
+        self.avg_firing_pulse_5 = 0.0
+        self.avg_firing_pulse_6 = 0.0
         self.avg_count = 0  # Counter for averaging
         
         # Create oscilloscope widget (manages all plots and buffers)
@@ -272,7 +284,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
-        self.window_size_spinbox.setRange(10, 10000)
+        self.window_size_spinbox.setRange(10, 50000)
         self.window_size_spinbox.setSingleStep(100)
         self.window_size_spinbox.setValue(window_size)
         self.window_size_spinbox.setToolTip("Number of samples to display on X-axis")
@@ -822,7 +834,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 
                 if packet.controller:
                     ctrl = packet.controller
-                    self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured))
+                    self.oscilloscope.add_sample_to_buffer('controller_dclink', (self.sample_index, ctrl.dc_link_current_reference, ctrl.dc_link_current_measured, ctrl.current_error_pu))
                 
                 # New: Extract all signals for expanded plots
                 if packet.measurements and packet.observer:
@@ -847,7 +859,23 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.oscilloscope.add_sample_to_buffer('modulator_firing_angle_control', (self.sample_index,
                                                    mod.firing_angle_input_pu,
                                                    mod.firing_angle_output_pu,
-                                                   1.0 if mod.is_enabled else 0.0))
+                                                   float(mod.operating_mode),
+                                                   1.0 if mod.request_extinguish_dc else 0.0,
+                                                   1.0 if mod.request_force_commutation else 0.0,
+                                                   1.0 if mod.is_enabled else 0.0,
+                                                   1.0 if mod.force_commutation_ack else 0.0,
+                                                   1.0 if mod.is_requesting_pi_reset else 0.0,
+                                                   float(mod.modulator_state)))
+                
+                if packet.pulse_generator:
+                    pulses = packet.pulse_generator
+                    self.oscilloscope.add_sample_to_buffer('pulse_generator_firing_pulses', (self.sample_index,
+                                                   1.0 if pulses.firing_pulse_1 else 0.0,
+                                                   1.0 if pulses.firing_pulse_2 else 0.0,
+                                                   1.0 if pulses.firing_pulse_3 else 0.0,
+                                                   1.0 if pulses.firing_pulse_4 else 0.0,
+                                                   1.0 if pulses.firing_pulse_5 else 0.0,
+                                                   1.0 if pulses.firing_pulse_6 else 0.0))
                 
                 self.sample_index += 1
             
@@ -884,7 +912,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     mod = packet.modulator
                     self.avg_firing_angle_input += mod.firing_angle_input_pu
                     self.avg_firing_angle_output += mod.firing_angle_output_pu
+                    self.avg_operating_mode += float(mod.operating_mode)
+                    self.avg_request_extinguish_dc += 1.0 if mod.request_extinguish_dc else 0.0
+                    self.avg_request_force_commutation += 1.0 if mod.request_force_commutation else 0.0
                     self.avg_modulator_enabled += 1.0 if mod.is_enabled else 0.0
+                    self.avg_force_commutation_ack += 1.0 if mod.force_commutation_ack else 0.0
+                    self.avg_is_requesting_pi_reset += 1.0 if mod.is_requesting_pi_reset else 0.0
+                    self.avg_modulator_state += float(mod.modulator_state)
+                
+                if packet.pulse_generator:
+                    pulses = packet.pulse_generator
+                    self.avg_firing_pulse_1 += 1.0 if pulses.firing_pulse_1 else 0.0
+                    self.avg_firing_pulse_2 += 1.0 if pulses.firing_pulse_2 else 0.0
+                    self.avg_firing_pulse_3 += 1.0 if pulses.firing_pulse_3 else 0.0
+                    self.avg_firing_pulse_4 += 1.0 if pulses.firing_pulse_4 else 0.0
+                    self.avg_firing_pulse_5 += 1.0 if pulses.firing_pulse_5 else 0.0
+                    self.avg_firing_pulse_6 += 1.0 if pulses.firing_pulse_6 else 0.0
                 
                 self.avg_count += 1
                 
@@ -900,9 +943,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                                                self.avg_observer_voltage / self.avg_count,
                                                self.avg_observer_freq / self.avg_count,
                                                self.avg_estimated_angle / self.avg_count))
-                    self.oscilloscope.add_sample_to_buffer('current_controller_dclink', (self.sample_index,
+                    self.oscilloscope.add_sample_to_buffer('controller_dclink', (self.sample_index,
                                              self.avg_dclink_ref / self.avg_count,
-                                             self.avg_dclink_measured / self.avg_count))
+                                             self.avg_dclink_measured / self.avg_count,
+                                             self.avg_current_error / self.avg_count))
                     
                     # New: Store averaged values in new buffers
                     self.oscilloscope.add_sample_to_buffer('current_measurements_abc_dclink', (self.sample_index,
@@ -927,7 +971,20 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.oscilloscope.add_sample_to_buffer('modulator_firing_angle_control', (self.sample_index,
                                                    self.avg_firing_angle_input / self.avg_count,
                                                    self.avg_firing_angle_output / self.avg_count,
-                                                   self.avg_modulator_enabled / self.avg_count))
+                                                   self.avg_operating_mode / self.avg_count,
+                                                   self.avg_request_extinguish_dc / self.avg_count,
+                                                   self.avg_request_force_commutation / self.avg_count,
+                                                   self.avg_modulator_enabled / self.avg_count,
+                                                   self.avg_force_commutation_ack / self.avg_count,
+                                                   self.avg_is_requesting_pi_reset / self.avg_count,
+                                                   self.avg_modulator_state / self.avg_count))
+                    self.oscilloscope.add_sample_to_buffer('pulse_generator_firing_pulses', (self.sample_index,
+                                                   self.avg_firing_pulse_1 / self.avg_count,
+                                                   self.avg_firing_pulse_2 / self.avg_count,
+                                                   self.avg_firing_pulse_3 / self.avg_count,
+                                                   self.avg_firing_pulse_4 / self.avg_count,
+                                                   self.avg_firing_pulse_5 / self.avg_count,
+                                                   self.avg_firing_pulse_6 / self.avg_count))
                     
                     # Store to persistent data if enabled (averaged packet)
                     if self.enable_persistence:
@@ -970,7 +1027,19 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.avg_controller_saturated = 0.0
                     self.avg_firing_angle_input = 0.0
                     self.avg_firing_angle_output = 0.0
+                    self.avg_operating_mode = 0.0
+                    self.avg_request_extinguish_dc = 0.0
+                    self.avg_request_force_commutation = 0.0
                     self.avg_modulator_enabled = 0.0
+                    self.avg_force_commutation_ack = 0.0
+                    self.avg_is_requesting_pi_reset = 0.0
+                    self.avg_modulator_state = 0.0
+                    self.avg_firing_pulse_1 = 0.0
+                    self.avg_firing_pulse_2 = 0.0
+                    self.avg_firing_pulse_3 = 0.0
+                    self.avg_firing_pulse_4 = 0.0
+                    self.avg_firing_pulse_5 = 0.0
+                    self.avg_firing_pulse_6 = 0.0
                     self.avg_count = 0
                     
                     self.sample_index += 1

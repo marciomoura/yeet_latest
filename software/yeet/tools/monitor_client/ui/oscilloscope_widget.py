@@ -170,7 +170,7 @@ class OscilloscopeWidget(QtWidgets.QWidget):
         self.plot_curves[buffer_key] = curves
         
         # Create buffer
-        self.buffers[buffer_key] = deque(maxlen=10000)
+        self.buffers[buffer_key] = deque(maxlen=50000)
         
         # Store in layout map (will be populated by _reorganize_subplot_layout)
         self._plot_layout_map[len(self._plot_layout_map)] = buffer_key
@@ -252,7 +252,7 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             sample: Tuple of (sample_index, value1, value2, ...)
         """
         if buffer_name not in self.buffers:
-            self.buffers[buffer_name] = deque(maxlen=10000)
+            self.buffers[buffer_name] = deque(maxlen=50000)
         
         self.buffers[buffer_name].append(sample)
     

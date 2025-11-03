@@ -117,6 +117,120 @@ config parse_args(int argc, char* argv[])
     return cfg;
 }
 
+// Handle grid-side telemetry communication
+void handle_grid_telemetry(
+    yeet::application::sfc::host::host_tcp_server& telemetry_server, grid_side_network_infrastructure& network_infra)
+{
+    if (!telemetry_server.is_client_connected()) {
+        return;
+    }
+
+    constexpr int max_packets_per_cycle = 20;
+    int packets_processed = 0;
+
+    // Process incoming network packets
+    while (packets_processed < max_packets_per_cycle) {
+        network_inputs_t network_inputs{};
+        network_outputs_t network_outputs{};
+
+        std::uint8_t rx_buffer[1024];
+        int rx_len = telemetry_server.receive_data(rx_buffer, sizeof(rx_buffer));
+
+        if (rx_len <= 0) {
+            break;
+        }
+
+        packets_processed++;
+
+        std::memcpy(network_inputs.network_rx.rx_buffer, rx_buffer,
+            std::min(rx_len, static_cast<int>(sizeof(network_inputs.network_rx.rx_buffer))));
+        network_inputs.network_rx.data_ready = true;
+        network_inputs.network_rx.rx_length = static_cast<std::uint16_t>(rx_len);
+        network_inputs.network_rx.tcp_connected = true;
+        network_inputs.network_rx.socket_id = 0;
+
+        grid_network(&network_infra, &network_inputs, &network_outputs);
+
+        if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+        }
+    }
+
+    // Transmit pending telemetry
+    {
+        network_inputs_t network_inputs{};
+        network_outputs_t network_outputs{};
+
+        network_inputs.network_rx.data_ready = false;
+        network_inputs.network_rx.rx_length = 0;
+        network_inputs.network_rx.tcp_connected = true;
+        network_inputs.network_rx.socket_id = 0;
+
+        grid_network(&network_infra, &network_inputs, &network_outputs);
+
+        if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+        }
+    }
+}
+
+// Handle machine-side telemetry communication
+void handle_machine_telemetry(
+    yeet::application::sfc::host::host_tcp_server& telemetry_server, machine_side_network_infrastructure& network_infra)
+{
+    if (!telemetry_server.is_client_connected()) {
+        return;
+    }
+
+    constexpr int max_packets_per_cycle = 20;
+    int packets_processed = 0;
+
+    // Process incoming network packets
+    while (packets_processed < max_packets_per_cycle) {
+        network_inputs_t network_inputs{};
+        network_outputs_t network_outputs{};
+
+        std::uint8_t rx_buffer[1024];
+        int rx_len = telemetry_server.receive_data(rx_buffer, sizeof(rx_buffer));
+
+        if (rx_len <= 0) {
+            break;
+        }
+
+        packets_processed++;
+
+        std::memcpy(network_inputs.network_rx.rx_buffer, rx_buffer,
+            std::min(rx_len, static_cast<int>(sizeof(network_inputs.network_rx.rx_buffer))));
+        network_inputs.network_rx.data_ready = true;
+        network_inputs.network_rx.rx_length = static_cast<std::uint16_t>(rx_len);
+        network_inputs.network_rx.tcp_connected = true;
+        network_inputs.network_rx.socket_id = 0;
+
+        machine_network(&network_infra, &network_inputs, &network_outputs);
+
+        if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+        }
+    }
+
+    // Transmit pending telemetry
+    {
+        network_inputs_t network_inputs{};
+        network_outputs_t network_outputs{};
+
+        network_inputs.network_rx.data_ready = false;
+        network_inputs.network_rx.rx_length = 0;
+        network_inputs.network_rx.tcp_connected = true;
+        network_inputs.network_rx.socket_id = 0;
+
+        machine_network(&network_infra, &network_inputs, &network_outputs);
+
+        if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
+            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+        }
+    }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -159,7 +273,6 @@ int main(int argc, char* argv[])
 
     std::cout << "[INIT] Initializing plant model and control systems..." << std::endl;
     plant_complete_sfc_closed_loop_simulation_builder simulator_builder;
-    simulator_builder.initialize();
 
     // Use unified simulator architecture for real-time tick-based execution
     std::cout << "[INIT] Creating unified simulator for real-time execution..." << std::endl;
@@ -170,73 +283,138 @@ int main(int argc, char* argv[])
     // 1ms (current control, fiber-optics), 200µs (measurements, observers, modulators)
     simulator_builder.register_applications(simulator);
 
+    // ==================== External I/O Lambda Runner (EXACT from test fixture) ====================
+    // External input command variables (simulates external digital I/O)
+    bool run_creep_speed = false;
+    bool run_purge_accel = false;
+    bool run_ignition_accel = false;
+    bool run_assist_accel = false;
+    bool hold_speed = false;
+    bool decelerate = false;
+    bool idle = true;
+    bool exciter_ready = true;
+    bool excitation_start_command = true;
+    bool excitation_stop_command = false;
+
+    // Register lambda runner for external speed profile commands (SAME as test fixture)
+    std::cout << "[INIT] Registering external I/O lambda runner (10ms)..." << std::endl;
+    simulator.register_lambda_runner(10e-3, [&]() {
+        simulator_builder.machine_side_control.external_ios.update_excitation_inputs(
+            exciter_ready, excitation_start_command, excitation_stop_command);
+
+        simulator_builder.machine_side_control.external_ios.update_speed_generator_inputs(
+            run_creep_speed, run_purge_accel, run_ignition_accel, run_assist_accel, hold_speed, decelerate, idle);
+    });
+
+    // Initialize the system (SAME as test fixture SetUp())
+    std::cout << "[INIT] Initializing control system..." << std::endl;
+    simulator_builder.initialize();
+
     std::cout << "[INIT] Initializing timing loop..." << std::endl;
     host_timing_loop control_loop(cfg.frequency_hz);
 
-    std::cout << "[INIT] Configuring state machine for automatic startup..." << std::endl;
-    // Configure state machine for automatic startup to MODULATING state
-    // Use parameter overrides to inject digital input signals
-    // simulator_builder.grid_side_control.external_ios.get_parameters().override_digital_inputs.write(false);
-    // simulator_builder.grid_side_control.external_ios.get_parameters().auxiliaries_are_on.write(true);
-    // simulator_builder.grid_side_control.external_ios.get_parameters().breakers_are_on.write(true);
-    // simulator_builder.grid_side_control.external_ios.get_parameters().start_command.write(false);
-    // simulator_builder.grid_side_control.external_ios.get_parameters().stop_command.write(false);
-    // simulator_builder.grid_side_control.external_ios.get_parameters().shutdown_request.write(false);
-
-    // Apply the parameter overrides by calling update_digital_inputs (with dummy values - overrides will be used)
-    simulator_builder.grid_side_control.external_ios.update_digital_inputs(true, true, false, false, false);
-
-    std::cout << "[INIT] Configuring speed generator to start at creep speed (Profile 1)..." << std::endl;
-    // Configure machine-side speed generator to automatically activate creep speed
-    // This allows the operator to start from a running drive rather than standstill
-    // simulator_builder.machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(false);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().idle.write(false);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().run_creep_speed.write(true);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().run_purge_accel.write(false);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().run_ignition_accel.write(false);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().hold_speed.write(false);
-    // simulator_builder.machine_side_control.external_ios.get_parameters().decelerate.write(false);
-
     std::cout << "[INIT] Initializing embedded task interface (for telemetry system)..." << std::endl;
     // Initialize using the plant builder's control instances instead of the static instances
-    grid_embedded_init(&simulator_builder.grid_side_control);
-    machine_embedded_init(&simulator_builder.machine_side_control);
+    // grid_embedded_init(&simulator_builder.grid_side_control);
+    // machine_embedded_init(&simulator_builder.machine_side_control);
 
     // Create network infrastructure for telemetry (tied to the plant builder's control instances)
     std::cout << "[INIT] Creating network telemetry infrastructure..." << std::endl;
     grid_side_network_infrastructure grid_network_infra(simulator_builder.grid_side_control);
     machine_side_network_infrastructure machine_network_infra(simulator_builder.machine_side_control);
 
+    // ==================== Plant Configuration (EXACT from LowSpeedStartupWithBreakawayBoostTest) ====================
+    std::cout << "[CONFIG] Configuring plant for low-speed startup with breakaway boost..." << std::endl;
+
+    // Configure plant at near-standstill (simulates sticky bearings)
+    yeet::application::sfc::integration::test::variable_speed_config plant_config{};
+    plant_config.initial_speed = yeet::speed_pu_t{0.001f};
+    yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
+
+    // Configure Profile 1 with faster acceleration and explicit boost settings
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time =
+        yeet::duration_t{15.0f};
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost =
+        yeet::torque_pu_t{0.20f};
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration =
+        yeet::duration_t{2.0f};
+
+    // High load simulating static friction
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque_pu, yeet::torque_pu_t(0.20f));
+
+    std::cout << "[CONFIG] Configuration complete:" << std::endl;
+    std::cout << "         - Initial speed: 0.001 pu (near-standstill)" << std::endl;
+    std::cout << "         - Load torque: 0.20 pu (static friction)" << std::endl;
+    std::cout << "         - Profile 1 acceleration: 15.0s" << std::endl;
+    std::cout << "         - Breakaway boost: 0.20 pu for 2.0s" << std::endl;
+
+    // ==================== PRE-LOOP INITIALIZATION (EXACT from test) ====================
+    std::cout << "[INIT] Executing state machine startup sequence..." << std::endl;
+
+    // State machine startup (EXACT from execute_startup_sequence())
+    yeet::mock_signal_input::write(
+        simulator_builder.grid_side_control.state_machine.get_inputs().auxiliaries_are_on, true);
+    yeet::mock_signal_input::write(
+        simulator_builder.grid_side_control.state_machine.get_inputs().breakers_are_on, true);
+    simulator.simulate_for(0.2);
+
+    yeet::mock_signal_input::write(simulator_builder.grid_side_control.state_machine.get_inputs().start_command, true);
+    simulator.simulate_for(0.1);
+
+    // Enable speed control and set voltage mode (EXACT from test)
+    yeet::mock_signal_input::write(
+        simulator_builder.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
+    simulator_builder.plant.get_plant_model().set_voltage_control_mode(
+        yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
+
+    std::cout << "[INIT] State machine startup complete" << std::endl;
+
+    // Verify state machine is operational
+    bool pulse_releases = simulator_builder.grid_side_control.state_machine.get_outputs().pulse_releases.read();
+    if (!pulse_releases) {
+        std::cerr << "[ERROR] State machine did not reach OPERATION_ON state!" << std::endl;
+        return 1;
+    }
+    std::cout << "[INIT] State machine: OPERATION_ON (pulse releases active)" << std::endl;
+
+    // ==================== Activate Profile 1 (Creep) ====================
+    std::cout << "[INIT] Activating Profile 1 (Creep speed)..." << std::endl;
+
+    // EXACT from test
+    idle = false;
+    simulator.simulate_for(0.1);
+
+    run_creep_speed = true;
+    simulator.simulate_for(0.1);
+
+    std::cout << "[INIT] Profile 1 activated" << std::endl;
+
+    // ==================== Simulate Until Steady State ====================
+    std::cout << "[INIT] Simulating to steady state (20 seconds)..." << std::endl;
+
+    // Simulate through boost phase and acceleration
+    simulator.simulate_for(20.0);
+
+    // Check final speed
+    auto final_speed =
+        simulator_builder.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    std::cout << "[INIT] Initialization complete - Speed: " << final_speed.value() << " pu" << std::endl;
+
+    if (final_speed.value() < 0.04f) {
+        std::cerr << "[WARNING] Speed may not have reached target (expected ~0.05 pu)" << std::endl;
+    }
+
+    // ==================== START REAL-TIME CONTROL LOOP ====================
+    std::cout << "\n======================================" << std::endl;
+    std::cout << "  Initialization Complete - Starting Real-Time Operation" << std::endl;
+    std::cout << "======================================" << std::endl;
     std::cout << "[READY] Starting control loop at " << cfg.frequency_hz << " Hz" << std::endl;
     std::cout << "[READY] Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
     std::cout << "[READY] Machine telemetry: localhost:" << cfg.machine_port << std::endl;
     std::cout << "[READY] Press Ctrl+C to stop" << std::endl;
     std::cout << "======================================" << std::endl;
 
-    // ==================== Plant Model Configuration ====================
-    std::cout << "[INIT] Configuring plant model..." << std::endl;
-
-    // Configure plant starting from near-standstill (matches integration test setup)
-    yeet::application::sfc::integration::test::variable_speed_config plant_config{};
-    plant_config.initial_speed = yeet::speed_pu_t{0.001f};  // Near standstill to avoid high back-EMF
-    plant_config.load_torque = yeet::torque_pu_t{0.20f};    // High load simulating static friction
-    yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
-    // yeet::application::sfc::integration::test::configure_fixed_speed_plant(simulator_builder.plant);
-
-    // Configure Profile 1 (creep speed) with faster acceleration and explicit boost settings
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time =
-        yeet::duration_t{10.0f};
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_target_speed =
-        yeet::speed_pu_t{0.05f};
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost =
-        yeet::torque_pu_t{0.20f};
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration =
-        yeet::duration_t{2.0f};
-
-    std::cout << "[INIT] Plant model configuration complete" << std::endl;
-
-    // Start control loop
+    // Start control loop AFTER initialization
     control_loop.start();
 
     std::uint32_t cycle_count = 0;
@@ -266,138 +444,15 @@ int main(int argc, char* argv[])
         // No data logging or checkers - optimized for real-time host execution
         simulator.run_single_tick();
 
-        // ========== POST-SIMULATION PLANT FEEDBACK ==========
-        // After simulation tick, extract plant outputs for network telemetry and diagnostics
-
-        // Convert grid-side abc pulses to 6-pulse format (p1-p6)
-        // Grid-side 6-pulse bridge: P1=A+, P2=B+, P3=C+, P4=A-, P5=B-, P6=C-
-        yeet::control::six_pulse_generator::pulses grid_pulses{};
-        grid_pulses.p1 = grid_outputs.thyristor_pulses.a_plus;
-        grid_pulses.p2 = grid_outputs.thyristor_pulses.b_plus;
-        grid_pulses.p3 = grid_outputs.thyristor_pulses.c_plus;
-        grid_pulses.p4 = grid_outputs.thyristor_pulses.a_minus;
-        grid_pulses.p5 = grid_outputs.thyristor_pulses.b_minus;
-        grid_pulses.p6 = grid_outputs.thyristor_pulses.c_minus;
-        yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().grid_side_firing_pulses, grid_pulses);
-
-        // Convert machine-side abc pulses to 6-pulse format (p1-p6)
-        // Machine-side 6-pulse bridge: P1=A+, P2=B+, P3=C+, P4=A-, P5=B-, P6=C-
-        yeet::control::six_pulse_generator::pulses machine_pulses{};
-        machine_pulses.p1 = machine_outputs.thyristor_pulses.a_plus;
-        machine_pulses.p2 = machine_outputs.thyristor_pulses.b_plus;
-        machine_pulses.p3 = machine_outputs.thyristor_pulses.c_plus;
-        machine_pulses.p4 = machine_outputs.thyristor_pulses.a_minus;
-        machine_pulses.p5 = machine_outputs.thyristor_pulses.b_minus;
-        machine_pulses.p6 = machine_outputs.thyristor_pulses.c_minus;
-        yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().machine_side_firing_pulses, machine_pulses);
-
         // ========== TCP SERVER PROCESSING ==========
         grid_telemetry_server.process();
         machine_telemetry_server.process();
 
         // ========== GRID-SIDE NETWORK COMMUNICATION ==========
-        if (grid_telemetry_server.is_client_connected()) {
-            constexpr int max_packets_per_cycle = 20;
-            int packets_processed = 0;
+        handle_grid_telemetry(grid_telemetry_server, grid_network_infra);
 
-            while (packets_processed < max_packets_per_cycle) {
-                network_inputs_t network_inputs{};
-                network_outputs_t network_outputs{};
-
-                std::uint8_t rx_buffer[1024];
-                int rx_len = grid_telemetry_server.receive_data(rx_buffer, sizeof(rx_buffer));
-
-                if (rx_len <= 0) {
-                    break;
-                }
-
-                packets_processed++;
-
-                std::memcpy(network_inputs.network_rx.rx_buffer, rx_buffer,
-                    std::min(rx_len, static_cast<int>(sizeof(network_inputs.network_rx.rx_buffer))));
-                network_inputs.network_rx.data_ready = true;
-                network_inputs.network_rx.rx_length = static_cast<std::uint16_t>(rx_len);
-                network_inputs.network_rx.tcp_connected = true;
-                network_inputs.network_rx.socket_id = 0;
-
-                grid_network(&grid_network_infra, &network_inputs, &network_outputs);
-
-                if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-                    grid_telemetry_server.send_data(
-                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-                }
-            }
-
-            // Transmit pending telemetry
-            {
-                network_inputs_t network_inputs{};
-                network_outputs_t network_outputs{};
-
-                network_inputs.network_rx.data_ready = false;
-                network_inputs.network_rx.rx_length = 0;
-                network_inputs.network_rx.tcp_connected = true;
-                network_inputs.network_rx.socket_id = 0;
-
-                grid_network(&grid_network_infra, &network_inputs, &network_outputs);
-
-                if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-                    grid_telemetry_server.send_data(
-                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-                }
-            }
-        }
-
-        // ========== MACHINE-SIDE NETWORK COMMUNICATION ====================
-        if (machine_telemetry_server.is_client_connected()) {
-            constexpr int max_packets_per_cycle = 20;
-            int packets_processed = 0;
-
-            while (packets_processed < max_packets_per_cycle) {
-                network_inputs_t network_inputs{};
-                network_outputs_t network_outputs{};
-
-                std::uint8_t rx_buffer[1024];
-                int rx_len = machine_telemetry_server.receive_data(rx_buffer, sizeof(rx_buffer));
-
-                if (rx_len <= 0) {
-                    break;
-                }
-
-                packets_processed++;
-
-                std::memcpy(network_inputs.network_rx.rx_buffer, rx_buffer,
-                    std::min(rx_len, static_cast<int>(sizeof(network_inputs.network_rx.rx_buffer))));
-                network_inputs.network_rx.data_ready = true;
-                network_inputs.network_rx.rx_length = static_cast<std::uint16_t>(rx_len);
-                network_inputs.network_rx.tcp_connected = true;
-                network_inputs.network_rx.socket_id = 0;
-
-                machine_network(&machine_network_infra, &network_inputs, &network_outputs);
-
-                if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-                    machine_telemetry_server.send_data(
-                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-                }
-            }
-
-            // Transmit pending telemetry
-            {
-                network_inputs_t network_inputs{};
-                network_outputs_t network_outputs{};
-
-                network_inputs.network_rx.data_ready = false;
-                network_inputs.network_rx.rx_length = 0;
-                network_inputs.network_rx.tcp_connected = true;
-                network_inputs.network_rx.socket_id = 0;
-
-                machine_network(&machine_network_infra, &network_inputs, &network_outputs);
-
-                if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-                    machine_telemetry_server.send_data(
-                        network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
-                }
-            }
-        }
+        // ========== MACHINE-SIDE NETWORK COMMUNICATION ==========
+        handle_machine_telemetry(machine_telemetry_server, machine_network_infra);
 
         // Mark end of cycle for timing measurement
         control_loop.mark_cycle_end();

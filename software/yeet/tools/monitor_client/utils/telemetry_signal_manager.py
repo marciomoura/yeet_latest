@@ -184,7 +184,7 @@ class SignalManager:
         times, values = manager.get_time_series('measurements', 'dc_link_current_pu')
     """
     
-    def __init__(self, buffer_size: int = 10000):
+    def __init__(self, buffer_size: int = 50000):
         """Initialize signal manager.
         
         Args:
