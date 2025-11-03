@@ -87,9 +87,7 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'P3', 'color': 'c', 'index': 52},
                     {'name': 'P4', 'color': 'm', 'index': 53},
                     {'name': 'P5', 'color': 'y', 'index': 54},
-                    {'name': 'P6', 'color': 'w', 'index': 55},
-                    {'name': 'P7', 'color': 'w', 'index': 55},
-                    {'name': 'P8', 'color': 'w', 'index': 55}
+                    {'name': 'P6', 'color': 'w', 'index': 55}
                 ]
             }
         }
