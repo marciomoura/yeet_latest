@@ -46,9 +46,8 @@ if(NOT YEET_SFC_HOST_BUILD)
         add_library(yeet_sfc_embedded_grid STATIC)
 
         target_sources(
-            yeet_sfc_embedded_grid
-            PRIVATE src/grid_side_tasks.cpp src/fiber_optic_protocol.cpp
-                    src/grid_side_telemetry_builder.cpp)
+            yeet_sfc_embedded_grid PRIVATE src/grid_side_tasks.cpp
+                                           src/grid_side_telemetry_builder.cpp)
 
         target_include_directories(
             yeet_sfc_embedded_grid
@@ -57,7 +56,8 @@ if(NOT YEET_SFC_HOST_BUILD)
 
         target_link_libraries(
             yeet_sfc_embedded_grid
-            PUBLIC yeet::yeet_control yeet::yeet_application_sfc_integration)
+            PUBLIC yeet::yeet_control yeet::yeet_application_sfc_integration
+                   yeet::yeet_application_sfc)
 
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
             target_compile_options(
@@ -90,7 +90,7 @@ if(NOT YEET_SFC_HOST_BUILD)
 
         target_sources(
             yeet_sfc_embedded_machine
-            PRIVATE src/machine_side_tasks.cpp src/fiber_optic_protocol.cpp
+            PRIVATE src/machine_side_tasks.cpp
                     src/machine_side_telemetry_builder.cpp)
 
         target_include_directories(
@@ -100,7 +100,8 @@ if(NOT YEET_SFC_HOST_BUILD)
 
         target_link_libraries(
             yeet_sfc_embedded_machine
-            PUBLIC yeet::yeet_control yeet::yeet_application_sfc_integration)
+            PUBLIC yeet::yeet_control yeet::yeet_application_sfc_integration
+                   yeet::yeet_application_sfc)
 
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
             target_compile_options(
@@ -214,7 +215,6 @@ if(YEET_SFC_HOST_BUILD)
                 # Both grid-side and machine-side control code
                 src/grid_side_tasks.cpp
                 src/machine_side_tasks.cpp
-                src/fiber_optic_protocol.cpp
                 src/grid_side_telemetry_builder.cpp
                 src/machine_side_telemetry_builder.cpp)
 
@@ -223,8 +223,10 @@ if(YEET_SFC_HOST_BUILD)
 
     target_link_libraries(
         sfc_host_simulator
-        PRIVATE yeet::yeet_control yeet::yeet_application_sfc_integration
-                yeet::yeet_testing)
+        PRIVATE yeet::yeet_control
+                yeet::yeet_application_sfc_integration
+                yeet::yeet_testing
+                yeet::yeet_application_sfc)
 
     target_compile_definitions(
         sfc_host_simulator

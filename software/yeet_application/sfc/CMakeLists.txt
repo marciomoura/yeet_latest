@@ -16,6 +16,7 @@ set(SFC_CORE_HEADERS
     include/sfc/sfc_commutation_mask.hpp
     include/sfc/sfc_current_controller.hpp
     include/sfc/sfc_excitation_controller.hpp
+    include/sfc/sfc_fiber_optic_protocol.hpp
     include/sfc/sfc_machine_side_filtering.hpp
     include/sfc/sfc_grid_side_filtering.hpp
     include/sfc/sfc_dc_link_filtering.hpp
@@ -44,6 +45,7 @@ set(SFC_CORE_SOURCES
     src/sfc_commutation_mask.cpp
     src/sfc_current_controller.cpp
     src/sfc_excitation_controller.cpp
+    src/sfc_fiber_optic_protocol.cpp
     src/sfc_machine_side_filtering.cpp
     src/sfc_machine_side_lookup_table.cpp
     src/sfc_grid_side_filtering.cpp

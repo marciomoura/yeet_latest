@@ -39,6 +39,31 @@ void sfc_machine_side_control::update_200us()
     machine_side_pulse_generator.run();
 }
 
+std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
+{
+    fiber_optic::machine_to_grid_message tx_msg;
+    tx_msg.measured_speed_pu = machine_side_observer.get_outputs().estimated_speed.read().value();
+    tx_msg.dc_link_current_reference_pu = torque_controller.get_outputs().current_reference.read().value();
+    tx_msg.machine_voltage_magnitude_pu = machine_measurements.get_outputs().machine_voltage_magnitude.read().value();
+    tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
+    _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
+    return _fiber_optic_tx_length;
+}
+
+bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
+    const std::uint32_t* payload, std::uint8_t payload_length)
+{
+    auto rx_msg = fiber_optic::decode_grid_to_machine(payload, payload_length);
+    if (!rx_msg) return false;
+
+    // All signals are now extracted directly from the fiber-optic protocol
+    external_ios.update_fiber_optics_inputs(rx_msg->mode, static_cast<sfc_state_id>(rx_msg->state_id),
+        rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero, rx_msg->current_controller_is_saturated,
+        rx_msg->pulse_releases, current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator,
+        rx_msg->is_requesting_main_pi_reset);
+    return true;
+}
+
 void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry)
 {
     // Register all component parameters with the model_registry

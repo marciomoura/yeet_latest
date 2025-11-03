@@ -4,8 +4,8 @@
 #include <cstring>
 #include <memory>
 
+#include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc/sfc_types.hpp"
-#include "sfc_embedded/fiber_optic_protocol.hpp"
 #include "sfc_embedded/machine_side_network_telemetry_builder.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
 #include "yeet/network_handler.hpp"

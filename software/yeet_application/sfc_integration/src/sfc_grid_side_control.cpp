@@ -52,6 +52,42 @@ void sfc_grid_side_control::update_200us()
     grid_side_pulse_generator.run();
 }
 
+std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
+{
+    // Encode grid-side signals into fiber-optic protocol
+    fiber_optic::grid_to_machine_message tx_msg;
+    tx_msg.mode = get_operating_mode().read();
+    tx_msg.dc_link_current_pu = dc_link_measurements.get_outputs().dc_current_pu.read().value();
+    tx_msg.is_current_zero = operation_mode_monitor.get_outputs().is_current_zero.read();
+    tx_msg.current_controller_is_saturated = current_controller.get_outputs().current_controller_is_saturated.read();
+    tx_msg.force_commutation_acknowledged = grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
+    tx_msg.pulse_releases = state_machine.get_outputs().pulse_releases.read();
+    // Include synchronization signals in fiber-optic protocol
+    tx_msg.state_id = static_cast<std::uint8_t>(state_machine.get_outputs().current_state_id.read());
+    tx_msg.freeze_integrator = get_freeze_integrator().read();
+    tx_msg.is_requesting_main_pi_reset = grid_side_modulator.get_outputs().is_requesting_main_pi_reset.read();
+
+    _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
+    return _fiber_optic_tx_length;
+}
+
+bool sfc_grid_side_control::decode_fiber_optic_rx_from_machine(
+    const std::uint32_t* payload, std::uint8_t payload_length)
+{
+    // Decode machine-side fiber-optic message
+    auto rx_msg = fiber_optic::decode_machine_to_grid(payload, payload_length);
+    if (!rx_msg) {
+        return false;
+    }
+
+    // Update external_ios with decoded signals
+    external_ios.update_fiber_optics_inputs_from_machine(speed_pu_t{rx_msg->measured_speed_pu},
+        current_pu_t{rx_msg->dc_link_current_reference_pu}, voltage_pu_t{rx_msg->machine_voltage_magnitude_pu},
+        rx_msg->force_commutation_request);
+
+    return true;
+}
+
 void sfc_grid_side_control::connect_internal_signals()
 {
     // NOTE: I/O interface connections are established automatically in sfc_grid_side_control_io constructor

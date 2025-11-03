@@ -157,47 +157,56 @@ int main(int argc, char* argv[])
     }
     std::cout << "[INIT] Machine TCP server listening on port " << cfg.machine_port << std::endl;
 
+    std::cout << "[INIT] Initializing plant model and control systems..." << std::endl;
+    plant_complete_sfc_closed_loop_simulation_builder simulator_builder;
+    simulator_builder.initialize();
+
+    // Use unified simulator architecture for real-time tick-based execution
+    std::cout << "[INIT] Creating unified simulator for real-time execution..." << std::endl;
+    yeet::simulator simulator;
+
+    // Register all applications with the simulator
+    // This sets up multi-rate execution: 10ms (state machine, speed control),
+    // 1ms (current control, fiber-optics), 200µs (measurements, observers, modulators)
+    simulator_builder.register_applications(simulator);
+
     std::cout << "[INIT] Initializing timing loop..." << std::endl;
     host_timing_loop control_loop(cfg.frequency_hz);
-
-    std::cout << "[INIT] Initializing plant model and control systems..." << std::endl;
-    plant_complete_sfc_closed_loop_simulation_builder simulator;
-    simulator.initialize();
 
     std::cout << "[INIT] Configuring state machine for automatic startup..." << std::endl;
     // Configure state machine for automatic startup to MODULATING state
     // Use parameter overrides to inject digital input signals
-    // simulator.grid_side_control.external_ios.get_parameters().override_digital_inputs.write(false);
-    // simulator.grid_side_control.external_ios.get_parameters().auxiliaries_are_on.write(true);
-    // simulator.grid_side_control.external_ios.get_parameters().breakers_are_on.write(true);
-    // simulator.grid_side_control.external_ios.get_parameters().start_command.write(false);
-    // simulator.grid_side_control.external_ios.get_parameters().stop_command.write(false);
-    // simulator.grid_side_control.external_ios.get_parameters().shutdown_request.write(false);
+    // simulator_builder.grid_side_control.external_ios.get_parameters().override_digital_inputs.write(false);
+    // simulator_builder.grid_side_control.external_ios.get_parameters().auxiliaries_are_on.write(true);
+    // simulator_builder.grid_side_control.external_ios.get_parameters().breakers_are_on.write(true);
+    // simulator_builder.grid_side_control.external_ios.get_parameters().start_command.write(false);
+    // simulator_builder.grid_side_control.external_ios.get_parameters().stop_command.write(false);
+    // simulator_builder.grid_side_control.external_ios.get_parameters().shutdown_request.write(false);
 
     // Apply the parameter overrides by calling update_digital_inputs (with dummy values - overrides will be used)
-    simulator.grid_side_control.external_ios.update_digital_inputs(true, true, false, false, false);
+    simulator_builder.grid_side_control.external_ios.update_digital_inputs(true, true, false, false, false);
 
     std::cout << "[INIT] Configuring speed generator to start at creep speed (Profile 1)..." << std::endl;
     // Configure machine-side speed generator to automatically activate creep speed
     // This allows the operator to start from a running drive rather than standstill
-    // simulator.machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(false);
-    // simulator.machine_side_control.external_ios.get_parameters().idle.write(false);
-    // simulator.machine_side_control.external_ios.get_parameters().run_creep_speed.write(true);
-    // simulator.machine_side_control.external_ios.get_parameters().run_purge_accel.write(false);
-    // simulator.machine_side_control.external_ios.get_parameters().run_ignition_accel.write(false);
-    // simulator.machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
-    // simulator.machine_side_control.external_ios.get_parameters().hold_speed.write(false);
-    // simulator.machine_side_control.external_ios.get_parameters().decelerate.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().idle.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().run_creep_speed.write(true);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().run_purge_accel.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().run_ignition_accel.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().hold_speed.write(false);
+    // simulator_builder.machine_side_control.external_ios.get_parameters().decelerate.write(false);
 
     std::cout << "[INIT] Initializing embedded task interface (for telemetry system)..." << std::endl;
     // Initialize using the plant builder's control instances instead of the static instances
-    grid_embedded_init(&simulator.grid_side_control);
-    machine_embedded_init(&simulator.machine_side_control);
+    grid_embedded_init(&simulator_builder.grid_side_control);
+    machine_embedded_init(&simulator_builder.machine_side_control);
 
     // Create network infrastructure for telemetry (tied to the plant builder's control instances)
     std::cout << "[INIT] Creating network telemetry infrastructure..." << std::endl;
-    grid_side_network_infrastructure grid_network_infra(simulator.grid_side_control);
-    machine_side_network_infrastructure machine_network_infra(simulator.machine_side_control);
+    grid_side_network_infrastructure grid_network_infra(simulator_builder.grid_side_control);
+    machine_side_network_infrastructure machine_network_infra(simulator_builder.machine_side_control);
 
     std::cout << "[READY] Starting control loop at " << cfg.frequency_hz << " Hz" << std::endl;
     std::cout << "[READY] Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
@@ -212,16 +221,18 @@ int main(int argc, char* argv[])
     yeet::application::sfc::integration::test::variable_speed_config plant_config{};
     plant_config.initial_speed = yeet::speed_pu_t{0.001f};  // Near standstill to avoid high back-EMF
     plant_config.load_torque = yeet::torque_pu_t{0.20f};    // High load simulating static friction
-    yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator.plant, plant_config);
-    // yeet::application::sfc::integration::test::configure_fixed_speed_plant(simulator.plant);
+    yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
+    // yeet::application::sfc::integration::test::configure_fixed_speed_plant(simulator_builder.plant);
 
     // Configure Profile 1 (creep speed) with faster acceleration and explicit boost settings
-    simulator.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time =
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time =
         yeet::duration_t{10.0f};
-    simulator.machine_side_control.speed_generator.get_parameters().profile_1_target_speed = yeet::speed_pu_t{0.05f};
-    simulator.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost =
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_target_speed =
+        yeet::speed_pu_t{0.05f};
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost =
         yeet::torque_pu_t{0.20f};
-    simulator.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration = yeet::duration_t{2.0f};
+    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration =
+        yeet::duration_t{2.0f};
 
     std::cout << "[INIT] Plant model configuration complete" << std::endl;
 
@@ -231,15 +242,16 @@ int main(int argc, char* argv[])
     std::uint32_t cycle_count = 0;
     const std::uint32_t stats_interval = static_cast<std::uint32_t>(cfg.frequency_hz * 10.0f);  // Every 10 seconds
 
-    // Task I/O structures for both controllers
+    // Task I/O structures for both controllers (used by network and direct access)
     task_outputs_t grid_outputs{};
     task_outputs_t machine_outputs{};
 
-    // Plant model timing: 10µs per plant step, 200µs per control cycle
-    constexpr int plant_steps_per_control_cycle = 20;  // 20 x 10µs = 200µs
+    // ==================== MAIN CONTROL LOOP - Unified Simulator Architecture ====================
+    // Uses yeet::simulator::run_single_tick() for real-time execution without data logging
+    // The simulator manages multi-rate execution (plant, 200µs, 1ms, 10ms)
 
     while (control_loop.is_running() && !shutdown_requested.load()) {
-        // Wait for next cycle
+        // Wait for next cycle at configured frequency
         if (!control_loop.wait_for_next_cycle()) {
             break;
         }
@@ -248,137 +260,15 @@ int main(int argc, char* argv[])
         cycle_count = control_loop.get_cycle_number();
         std::uint32_t timestamp_ms = static_cast<std::uint32_t>(control_loop.get_elapsed_time_ms());
 
-        // Run plant model and hardware mocks 20 times per control cycle (10µs plant tick x 20 = 200µs)
-        for (int plant_step = 0; plant_step < plant_steps_per_control_cycle; ++plant_step) {
-            simulator.plant.run();
-            simulator.grid_side_hardware_mock.run();
-            simulator.machine_side_hardware_mock.run();
-        }
+        // ========== UNIFIED SIMULATOR TICK ==========
+        // Executes one tick of simulation: calls all registered runners at their scheduled times
+        // Runners execute at their own sampling rates (plant, 200µs, 1ms, 10ms)
+        // No data logging or checkers - optimized for real-time host execution
+        simulator.run_single_tick();
 
-        // Process TCP servers (accept clients, receive commands)
-        grid_telemetry_server.process();
-        machine_telemetry_server.process();
+        // ========== POST-SIMULATION PLANT FEEDBACK ==========
+        // After simulation tick, extract plant outputs for network telemetry and diagnostics
 
-        // ==================== Prepare Grid-Side Inputs ====================
-        // Convert plant outputs through hardware mock ADC conversion
-        task_inputs_t grid_inputs{};
-        grid_inputs.analog_inputs.channels[1] =
-            simulator.grid_side_hardware_mock.get_outputs().v_ab_counts.read().value;
-        grid_inputs.analog_inputs.channels[2] =
-            simulator.grid_side_hardware_mock.get_outputs().v_bc_counts.read().value;
-        grid_inputs.analog_inputs.channels[5] = simulator.grid_side_hardware_mock.get_outputs().i_a_counts.read().value;
-        grid_inputs.analog_inputs.channels[7] = simulator.grid_side_hardware_mock.get_outputs().i_c_counts.read().value;
-        grid_inputs.analog_inputs.valid = true;
-
-        grid_inputs.digital_inputs.valid = true;
-
-        // Fiber-optic RX initially empty (will be filled by machine-side TX data below)
-        grid_inputs.fiber_optic_rx.data_ready = false;
-        grid_inputs.fiber_optic_rx.link_ok = true;
-        grid_inputs.fiber_optic_rx.payload_length = 0;
-
-        // ==================== Prepare Machine-Side Inputs ====================
-        task_inputs_t machine_inputs{};
-        machine_inputs.analog_inputs.channels[1] =
-            simulator.machine_side_hardware_mock.get_outputs().v_ab_counts.read().value;
-        machine_inputs.analog_inputs.channels[2] =
-            simulator.machine_side_hardware_mock.get_outputs().v_bc_counts.read().value;
-        machine_inputs.analog_inputs.valid = true;
-
-        machine_inputs.digital_inputs.valid = true;
-
-        // Fiber-optic RX initially empty (will be filled by grid-side TX data below)
-        machine_inputs.fiber_optic_rx.data_ready = false;
-        machine_inputs.fiber_optic_rx.link_ok = true;
-        machine_inputs.fiber_optic_rx.payload_length = 0;
-
-        // Update external_ios digital inputs to apply parameter overrides
-        // This must be called every cycle to keep the signal_outputs updated
-        // Start command (third parameter) is activated after 1 second
-        bool start_command = (control_loop.get_cycle_number() >= 10000);
-        start_command = simulator.machine_side_control.get_is_field_established().read();
-
-        simulator.grid_side_control.external_ios.update_digital_inputs(true, true, start_command, false, false);
-
-        if (start_command) {
-            // simulator.machine_side_control.get_speed_generator()
-            //     .get_parameters()
-            //     .override_speed_reference_generation.write(true);
-            // simulator.machine_side_control.get_speed_generator().get_parameters().override_speed_reference.write(
-            //     yeet::speed_pu_t{0.15f});
-            // simulator.machine_side_control.get_speed_generator().get_parameters().override_max_torque_limit.write(
-            //     yeet::torque_pu_t{0.4f});
-            // simulator.machine_side_control.get_speed_generator().get_parameters().override_min_torque_limit.write(
-            //     yeet::torque_pu_t{-0.4f});
-            // //
-            // simulator.machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(true);
-        }
-
-        // ==================== Execute Grid-Side 200µs Control Task ====================
-        grid_task_200us(&simulator.grid_side_control, &grid_inputs, &grid_outputs);
-
-        // ==================== Execute Machine-Side 200µs Control Task ====================
-        machine_task_200us(&simulator.machine_side_control, &machine_inputs, &machine_outputs);
-
-        // ==================== 1ms Tasks and Fiber-Optic Exchange ====================
-        if (cycle_count % 10 == 0) {
-            // Exchange fiber-optic data between controllers BEFORE running 1ms tasks
-            // Grid → Machine
-            if (grid_outputs.fiber_optic_tx.transmit_request && grid_outputs.fiber_optic_tx.payload_length > 0) {
-                machine_inputs.fiber_optic_rx.data_ready = true;
-                machine_inputs.fiber_optic_rx.payload_length = grid_outputs.fiber_optic_tx.payload_length;
-                std::memcpy(machine_inputs.fiber_optic_rx.payload, grid_outputs.fiber_optic_tx.payload,
-                    sizeof(uint32_t) * grid_outputs.fiber_optic_tx.payload_length);
-            }
-
-            // Machine → Grid
-            if (machine_outputs.fiber_optic_tx.transmit_request && machine_outputs.fiber_optic_tx.payload_length > 0) {
-                grid_inputs.fiber_optic_rx.data_ready = true;
-                grid_inputs.fiber_optic_rx.payload_length = machine_outputs.fiber_optic_tx.payload_length;
-                std::memcpy(grid_inputs.fiber_optic_rx.payload, machine_outputs.fiber_optic_tx.payload,
-                    sizeof(uint32_t) * machine_outputs.fiber_optic_tx.payload_length);
-            }
-
-            // Run 1ms tasks
-            grid_task_1000us(&simulator.grid_side_control, &grid_inputs, &grid_outputs);
-            machine_task_1000us(&simulator.machine_side_control, &machine_inputs, &machine_outputs);
-        }
-
-        // ==================== 10ms Tasks ====================
-        if (cycle_count % 100 == 0) {
-            // Update excitation inputs (exciter always ready, start commanded)
-            simulator.machine_side_control.external_ios.update_excitation_inputs(true,  // exciter_ready
-                true,                                                                   // excitation_start_command
-                false);                                                                 // excitation_stop_command
-
-            if (start_command) {
-                // Update speed generator profile commands
-                // For automatic creep speed startup:
-                simulator.machine_side_control.external_ios.update_speed_generator_inputs(
-                    true,    // run_creep_speed - ACTIVATE PROFILE 1
-                    false,   // run_purge_accel
-                    false,   // run_ignition_accel
-                    false,   // run_assist_accel
-                    false,   // hold_speed
-                    false,   // decelerate
-                    false);  // idle
-            }
-            else {
-                simulator.machine_side_control.external_ios.update_speed_generator_inputs(
-                    false,   // run_creep_speed - ACTIVATE PROFILE 1
-                    false,   // run_purge_accel
-                    false,   // run_ignition_accel
-                    false,   // run_assist_accel
-                    false,   // hold_speed
-                    false,   // decelerate
-                    false);  // idle
-            }
-
-            grid_task_10000us(&simulator.grid_side_control, &grid_inputs, &grid_outputs);
-            machine_task_10000us(&simulator.machine_side_control, &machine_inputs, &machine_outputs);
-        }
-
-        // ==================== Feedback Outputs to Plant ====================
         // Convert grid-side abc pulses to 6-pulse format (p1-p6)
         // Grid-side 6-pulse bridge: P1=A+, P2=B+, P3=C+, P4=A-, P5=B-, P6=C-
         yeet::control::six_pulse_generator::pulses grid_pulses{};
@@ -388,7 +278,7 @@ int main(int argc, char* argv[])
         grid_pulses.p4 = grid_outputs.thyristor_pulses.a_minus;
         grid_pulses.p5 = grid_outputs.thyristor_pulses.b_minus;
         grid_pulses.p6 = grid_outputs.thyristor_pulses.c_minus;
-        yeet::mock_signal_input::write(simulator.plant.get_inputs().grid_side_firing_pulses, grid_pulses);
+        yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().grid_side_firing_pulses, grid_pulses);
 
         // Convert machine-side abc pulses to 6-pulse format (p1-p6)
         // Machine-side 6-pulse bridge: P1=A+, P2=B+, P3=C+, P4=A-, P5=B-, P6=C-
@@ -399,9 +289,13 @@ int main(int argc, char* argv[])
         machine_pulses.p4 = machine_outputs.thyristor_pulses.a_minus;
         machine_pulses.p5 = machine_outputs.thyristor_pulses.b_minus;
         machine_pulses.p6 = machine_outputs.thyristor_pulses.c_minus;
-        yeet::mock_signal_input::write(simulator.plant.get_inputs().machine_side_firing_pulses, machine_pulses);
+        yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().machine_side_firing_pulses, machine_pulses);
 
-        // ==================== Grid-Side Network Communication ====================
+        // ========== TCP SERVER PROCESSING ==========
+        grid_telemetry_server.process();
+        machine_telemetry_server.process();
+
+        // ========== GRID-SIDE NETWORK COMMUNICATION ==========
         if (grid_telemetry_server.is_client_connected()) {
             constexpr int max_packets_per_cycle = 20;
             int packets_processed = 0;
@@ -453,7 +347,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        // ==================== Machine-Side Network Communication ====================
+        // ========== MACHINE-SIDE NETWORK COMMUNICATION ====================
         if (machine_telemetry_server.is_client_connected()) {
             constexpr int max_packets_per_cycle = 20;
             int packets_processed = 0;
