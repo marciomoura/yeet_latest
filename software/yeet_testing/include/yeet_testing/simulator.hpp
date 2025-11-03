@@ -83,8 +83,41 @@ public:
     {
         _runner.initialize();
         _current_simulation_time = 0.0;
+        _current_tick = 0;
     }
 
+    /**
+     * @brief Execute a single simulation tick at the fastest registered sampling rate.
+     *
+     * This method enables real-time execution where the host platform controls timing.
+     * The simulator will execute all registered applications that should run at the
+     * current tick based on their sampling rates.
+     *
+     * Data logging and checker validation are not performed in this mode - those are
+     * intended for batch simulation using simulate_for(). Real-time execution typically
+     * uses external monitoring (e.g., TCP telemetry servers).
+     *
+     * @note For time-based batch simulation with data logging, use simulate_for() instead.
+     * @note Must call initialize() before first call to run_single_tick().
+     */
+    void run_single_tick()
+    {
+        const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();
+        _current_simulation_time = _current_tick * simulation_sampling_rate;
+
+        _runner.run(_current_tick);
+
+        _current_tick++;
+    } /**
+       * @brief Simulate for a specified duration using time-based execution.
+       *
+       * This is the traditional batch simulation method used in integration tests.
+       * It executes the required number of ticks to cover the specified time duration.
+       *
+       * @param time Duration to simulate in seconds
+       * @param short_circuit_upon_reaching_max_failures Stop immediately on checker failure
+       * @return true if no checker failures detected, false otherwise
+       */
     bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false)
     {
         const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();
@@ -108,30 +141,46 @@ public:
 #endif
 
         for (std::size_t tick = 0; tick < num_simulation_ticks; ++tick) {
-            _current_simulation_time = (_current_tick + tick) * simulation_sampling_rate;
+            _current_simulation_time = _current_tick * simulation_sampling_rate;
 
 #ifdef YEET_ENABLE_DATA_LOGGING
             // Sample only at the specified rate
-            if (tick % sampling_ratio == 0) {
+            if (_current_tick % sampling_ratio == 0) {
                 _sampler.sample();
             }
 #endif
 
-            _runner.run(tick);
+            _runner.run(_current_tick);
             _checker.run_checks(_current_simulation_time);
+
+            _current_tick++;
 
             // Short circuit if requested and failures detected
             if (short_circuit_upon_reaching_max_failures && _checker.has_failure()) {
-                _current_tick += tick + 1;
                 return false;
             }
         }
 
-        _current_tick += num_simulation_ticks;
         return !_checker.has_failure();
     }
 
+    /**
+     * @brief Get the current simulation time in seconds.
+     * @return Current simulation time
+     */
     double get_current_simulation_time() const { return _current_simulation_time; }
+
+    /**
+     * @brief Get the current simulation tick count.
+     * @return Number of ticks executed since initialization
+     */
+    std::size_t get_current_tick() const { return _current_tick; }
+
+    /**
+     * @brief Get the period of a single simulation tick.
+     * @return Tick period in seconds (inverse of fastest sampling rate)
+     */
+    double get_tick_period() const { return _runner.get_fastest_sampling_rate(); }
 
     void dump_data()
     {
