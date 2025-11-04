@@ -45,8 +45,12 @@ public:
     struct outputs {
         /// Enable firing pulse generation for converter operation
         /// True when system is ready for active converter operation
-        signal_output<bool> pulse_releases;
-        signal_output<bool> freeze_integrator;
+        signal_output<bool> release_pulses;
+
+        /// Preset request signal to trigger controller preset sequences
+        signal_output<bool> preset_request;
+
+        /// Request to extinguish DC link current
         signal_output<bool> request_extinguish_dc_current;
 
         /// Current state identifier for monitoring and diagnostics

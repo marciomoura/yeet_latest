@@ -35,8 +35,8 @@ At low speeds where there is no back-EMF, the modulator orchestrates a "handshak
     1.  The modulator tracks the rotor's 60-degree electrical sector.
     2.  When the rotor transitions to a new sector, the modulator asserts the `request_force_commutation` output for one cycle.
     3.  Simultaneously, it **blocks** its own firing pulses by de-asserting the `release_pulses` output.
-    4.  It then monitors the `dc_link_current_is_zero` input.
-    5.  Once `dc_link_current_is_zero` becomes true and remains true for a configurable hold time, the modulator re-asserts `release_pulses`, firing the correct thyristor pair for the new sector.
+    4.  It then monitors the `is_current_zero` input.
+    5.  Once `is_current_zero` becomes true and remains true for a configurable hold time, the modulator re-asserts `release_pulses`, firing the correct thyristor pair for the new sector.
 
 ## 3. Implementation Details
 
@@ -44,7 +44,7 @@ At low speeds where there is no back-EMF, the modulator orchestrates a "handshak
 
 The core of the `Forced Commutation` logic is a state machine:
 1.  **`RUNNING`**: The modulator is releasing pulses for the current sector. It monitors the rotor position. If a sector change is detected, it asserts `request_force_commutation` for one cycle, de-asserts `release_pulses`, and transitions to `WAITING_FOR_ZERO_CURRENT`.
-2.  **`WAITING_FOR_ZERO_CURRENT`**: The modulator waits for the `dc_link_current_is_zero` input to become true. When it does, it starts a timer and transitions to `CONFIRMING_ZERO_CURRENT`.
+2.  **`WAITING_FOR_ZERO_CURRENT`**: The modulator waits for the `is_current_zero` input to become true. When it does, it starts a timer and transitions to `CONFIRMING_ZERO_CURRENT`.
 3.  **`CONFIRMING_ZERO_CURRENT`**: The modulator waits for the configured `zero_current_hold_time` to elapse. If the current remains zero for the entire duration, it re-asserts `release_pulses` and transitions back to `RUNNING`. If the current becomes non-zero, it transitions back to `WAITING_FOR_ZERO_CURRENT`.
 
 ### 3.2. Firing Angle Calculation

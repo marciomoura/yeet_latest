@@ -6,6 +6,7 @@ void sfc_grid_side_control::initialize()
 {
     state_machine.initialize();
     operation_mode_monitor.initialize();
+    grid_integrator_supervisor.initialize();
     current_controller.initialize();
     grid_side_observer.initialize();
     grid_side_modulator.initialize();
@@ -28,6 +29,7 @@ void sfc_grid_side_control::register_datamodel(yeet::model_registry& registry)
     // Register external I/O datamodel (supervisory inputs, fiber-optics, ADC measurements)
     external_ios.register_datamodel(registry);
 
+    grid_integrator_supervisor.register_datamodel(registry);
     current_controller.register_datamodel(registry);
     grid_side_observer.register_datamodel(registry);
     grid_side_modulator.register_datamodel(registry);
@@ -40,7 +42,11 @@ void sfc_grid_side_control::register_datamodel(yeet::model_registry& registry)
 
 void sfc_grid_side_control::update_10ms() { state_machine.run(); }
 
-void sfc_grid_side_control::update_1ms() { current_controller.run(); }
+void sfc_grid_side_control::update_1ms()
+{
+    grid_integrator_supervisor.run();
+    current_controller.run();
+}
 
 void sfc_grid_side_control::update_200us()
 {
@@ -61,11 +67,13 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     tx_msg.is_current_zero = operation_mode_monitor.get_outputs().is_current_zero.read();
     tx_msg.is_saturated = current_controller.get_outputs().is_saturated.read();
     tx_msg.force_commutation_acknowledged = grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
-    tx_msg.pulse_releases = state_machine.get_outputs().pulse_releases.read();
+    tx_msg.pulse_releases = state_machine.get_outputs().release_pulses.read();
     // Include synchronization signals in fiber-optic protocol
     tx_msg.state_id = static_cast<std::uint8_t>(state_machine.get_outputs().current_state_id.read());
-    tx_msg.freeze_integrator = get_freeze_integrator().read();
-    tx_msg.is_requesting_main_pi_reset = grid_side_modulator.get_outputs().is_requesting_main_pi_reset.read();
+    // UPDATED: Unified freeze_integrator from supervisor (ORs all freeze sources)
+    tx_msg.freeze_integrator = grid_integrator_supervisor.get_outputs().freeze_integrator.read();
+    tx_msg.is_tripped = grid_integrator_supervisor.get_outputs().is_tripped.read();
+    tx_msg.preset_request = grid_integrator_supervisor.get_outputs().preset_request.read();
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
@@ -110,6 +118,27 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         operation_mode_monitor.get_outputs().is_current_zero, state_machine.get_inputs().is_current_extinguished);
 
+    // ==================== Grid Integrator Supervisor Inputs ====================
+    // Preset request from state machine triggers preset sequences for controllers
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().preset_request, grid_integrator_supervisor.get_inputs().preset_request);
+
+    // Forced commutation freeze from modulator
+    signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().freeze_integrator,
+        grid_integrator_supervisor.get_inputs().forced_commutation_freeze_integrator);
+
+    // Shutdown request from external IOS
+    signals_connector::connect_output_to_input(
+        external_ios.get_digital_inputs().shutdown_request, grid_integrator_supervisor.get_inputs().shutdown_request);
+
+    // Pulse release command from state machine
+    signals_connector::connect_output_to_input(state_machine.get_outputs().release_pulses,
+        grid_integrator_supervisor.get_inputs().state_machine_release_pulses);
+
+    // Preset complete feedback from current controller
+    signals_connector::connect_output_to_input(
+        current_controller.get_outputs().preset_complete, grid_integrator_supervisor.get_inputs().preset_complete);
+
     // ==================== Grid Measurements Inputs ====================
     signals_connector::connect_output_to_input(
         external_ios.get_analog_inputs().v_ab_counts, grid_measurements.get_inputs().v_ab_counts);
@@ -132,21 +161,26 @@ void sfc_grid_side_control::connect_internal_signals()
 
     // ==================== Operation Mode Monitor Inputs ====================
     signals_connector::connect_output_to_input(
-        state_machine.get_outputs().pulse_releases, operation_mode_monitor.get_inputs().enable);
+        state_machine.get_outputs().release_pulses, operation_mode_monitor.get_inputs().enable);
     signals_connector::connect_output_to_input(
         dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current_pu);
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().measured_speed_pu,
         operation_mode_monitor.get_inputs().measured_speed_pu);
 
     // ==================== Current Controller Inputs ====================
+    // Freeze now comes from Grid Integrator Supervisor (unified and ORed)
     signals_connector::connect_output_to_input(
-        state_machine.get_outputs().freeze_integrator, current_controller.get_inputs().freeze_integrator);
+        grid_integrator_supervisor.get_outputs().freeze_integrator, current_controller.get_inputs().freeze_integrator);
+
+    // Preset request from supervisor
+    signals_connector::connect_output_to_input(
+        grid_integrator_supervisor.get_outputs().preset_request, current_controller.get_inputs().preset_request);
+
     signals_connector::connect_output_to_input(
         dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
     signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
         current_controller.get_inputs().grid_side_voltage_magnitude);
-    signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().is_requesting_main_pi_reset,
-        current_controller.get_inputs().modulator_freeze_integrator);
+
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().current_reference,
         current_controller.get_inputs().current_reference);
     signals_connector::connect_output_to_input(
@@ -161,20 +195,25 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(state_machine.get_outputs().request_extinguish_dc_current,
         grid_side_modulator.get_inputs().request_extinguish_dc_current);
     signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().shutdown_request, grid_side_modulator.get_inputs().is_tripped);
+        grid_integrator_supervisor.get_outputs().is_tripped, grid_side_modulator.get_inputs().is_tripped);
     signals_connector::connect_output_to_input(
         operation_mode_monitor.get_outputs().operating_mode, grid_side_modulator.get_inputs().operating_mode);
     signals_connector::connect_output_to_input(
-        operation_mode_monitor.get_outputs().is_current_zero, grid_side_modulator.get_inputs().dc_link_current_is_zero);
+        operation_mode_monitor.get_outputs().is_current_zero, grid_side_modulator.get_inputs().is_current_zero);
     signals_connector::connect_output_to_input(
         current_controller.get_outputs().firing_angle, grid_side_modulator.get_inputs().firing_angle);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs_from_machine().request_force_commutation,
         grid_side_modulator.get_inputs().request_force_commutation);
+    signals_connector::connect_output_to_input(
+        grid_integrator_supervisor.get_outputs().release_pulses, grid_side_modulator.get_inputs().release_pulses);
 
     // ==================== Grid Side Pulse Generator Inputs ====================
+    // Pulse releases now come from Grid Integrator Supervisor
+    // (supervisor gates state machine pulse_releases based on frozen/tripped status)
     signals_connector::connect_output_to_input(
-        grid_side_modulator.get_outputs().release_pulses, grid_side_pulse_generator.get_inputs().release_pulses);
+        grid_integrator_supervisor.get_outputs().release_pulses, grid_side_pulse_generator.get_inputs().release_pulses);
+
     signals_connector::connect_output_to_input(
         grid_side_observer.get_outputs().estimated_position, grid_side_pulse_generator.get_inputs().reference_angle);
     signals_connector::connect_output_to_input(

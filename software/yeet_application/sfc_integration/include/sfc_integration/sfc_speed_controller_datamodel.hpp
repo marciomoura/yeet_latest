@@ -29,9 +29,14 @@ public:
         /// Measured machine speed in per-unit (machine base)
         signal_input<speed_pu_t> measured_speed_pu;
 
+        /// Unified freeze command from supervisor
         signal_input<bool> freeze_integrator;
+
+        /// Preset request from supervisor
+        signal_input<bool> preset_request;
+
+        /// Saturation status feedback
         signal_input<bool> is_saturated;
-        signal_input<bool> modulator_freeze_integrator;  // needs additional logic to handle all freezes
     };
 
     /**

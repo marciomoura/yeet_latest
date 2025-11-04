@@ -20,7 +20,7 @@ void sfc_current_controller_runner::initialize()
 
 void sfc_current_controller_runner::run()
 {
-    bool const freeze_integrator = _inputs.freeze_integrator.read() || _inputs.modulator_freeze_integrator.read();
+    const bool freeze_integrator = _inputs.freeze_integrator.read();
     _sfc_current_controller.freeze_integrator(freeze_integrator);
 
     const voltage_pu_t reflected_machine_side_voltage_magnitude =

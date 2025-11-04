@@ -39,8 +39,8 @@ static inline void register_minimal_current_controller_logger(
         group + "input current_measured", [&]() { return current_controller.get_inputs().current_measured.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input freeze_integrator", [&]() { return current_controller.get_inputs().freeze_integrator.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input modulator_freeze",
-        [&]() { return current_controller.get_inputs().modulator_freeze_integrator.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input preset_request", [&]() { return current_controller.get_inputs().preset_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(
         group + "output current_error", [&]() { return current_controller.get_outputs().current_error.read(); }));
 }
@@ -478,9 +478,9 @@ static inline void register_minimal_state_machine_logger(
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input stop_command", [&]() { return state_machine.get_inputs().stop_command.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output pulse_releases", [&]() { return state_machine.get_outputs().pulse_releases.read(); }));
+        group + "output release_pulses", [&]() { return state_machine.get_outputs().release_pulses.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output freeze_integrator", [&]() { return state_machine.get_outputs().freeze_integrator.read(); }));
+        group + "output preset_request", [&]() { return state_machine.get_outputs().preset_request.read(); }));
 }
 
 static inline void register_complete_state_machine_logger(
@@ -581,8 +581,8 @@ static inline void register_minimal_grid_side_modulator_logger(
     const std::string group{"grid_side_modulator:"};
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input request_force_commutation",
         [&]() { return grid_side_modulator.get_inputs().request_force_commutation.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input dc_link_current_is_zero",
-        [&]() { return grid_side_modulator.get_inputs().dc_link_current_is_zero.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input is_current_zero", [&]() { return grid_side_modulator.get_inputs().is_current_zero.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
         [&]() { return grid_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
 }
@@ -596,8 +596,8 @@ static inline void register_complete_grid_side_modulator_logger(
 
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output force_commutation_acknowledged",
         [&]() { return grid_side_modulator.get_outputs().force_commutation_acknowledged.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_requesting_main_pi_reset",
-        [&]() { return grid_side_modulator.get_outputs().is_requesting_main_pi_reset.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output freeze_integrator",
+        [&]() { return grid_side_modulator.get_outputs().freeze_integrator.read(); }));
 }
 
 static inline void register_minimal_machine_side_modulator_logger(

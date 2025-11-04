@@ -54,10 +54,10 @@ void sfc_state_machine_runner::run()
     const sfc::sfc_state_id current_state = _sfc_state_machine.get_current_state();
 
     // Primary output signals
-    _outputs.pulse_releases = state_outputs.pulse_releases;
+    _outputs.release_pulses = state_outputs.pulse_releases;
     _outputs.current_state_id = current_state;
     _outputs.has_transitioned = _sfc_state_machine.has_transitioned();
-    _outputs.freeze_integrator = state_outputs.freeze_integrator;
+    _outputs.preset_request = state_outputs.freeze_integrator;
     _outputs.request_extinguish_dc_current = state_outputs.request_extinguish_dc_current;
 }
 

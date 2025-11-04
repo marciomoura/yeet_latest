@@ -27,7 +27,7 @@ The solution is a highly-coordinated, stateful handshake protocol between the tw
     *   During forced commutation, its output is temporarily ignored and its integrator **must** be held in reset to prevent windup.
 
 *   **Zero-Current Detector (ZCD):**
-    *   A hardware circuit or software comparator that provides the critical feedback signal: `dc_link_current_is_zero`.
+    *   A hardware circuit or software comparator that provides the critical feedback signal: `is_current_zero`.
 
 ## 3. Communication Flow: Step-by-Step Sequence
 
@@ -51,7 +51,7 @@ Here is the chronological sequence of events for a single forced commutation eve
     *   Asserts `is_requesting_main_pi_reset` to `true` to prevent controller windup.
 
 **Phase 4: Handshake and Pulse Release**
-*   **Step 5: Current Extinguishes.** The inverted DC link voltage rapidly drives the current to zero. The Zero-Current Detector asserts `dc_link_current_is_zero` to `true`.
+*   **Step 5: Current Extinguishes.** The inverted DC link voltage rapidly drives the current to zero. The Zero-Current Detector asserts `is_current_zero` to `true`.
 *   **Step 6: Grid-Side Acknowledges.** The `sfc_grid_side_modulator` sees that the current is zero. It:
     *   Asserts its `force_commutation_acknowledged` output to `true` for one cycle.
     *   Immediately transitions back to `NORMAL_OPERATION`, de-asserting the PI reset request and handing firing angle control back to the current controller.

@@ -219,8 +219,8 @@ private:
             machine_side_modulator.get_inputs().force_commutation_acknowledged);
 
         // ==================== Optional Reset / PI freeze ====================
-        signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().is_requesting_main_pi_reset,
-            current_controller.get_inputs().modulator_freeze_integrator);
+        signals_connector::connect_output_to_input(
+            grid_side_modulator.get_outputs().freeze_integrator, current_controller.get_inputs().preset_request);
 
         // ==================== DC Link & Speed → Operation Mode Monitor ====================
         signals_connector::connect_output_to_input(
@@ -233,8 +233,8 @@ private:
             operation_mode_monitor.get_outputs().operating_mode, grid_side_modulator.get_inputs().operating_mode);
         signals_connector::connect_output_to_input(
             operation_mode_monitor.get_outputs().operating_mode, machine_side_modulator.get_inputs().operating_mode);
-        signals_connector::connect_output_to_input(operation_mode_monitor.get_outputs().is_current_zero,
-            grid_side_modulator.get_inputs().dc_link_current_is_zero);
+        signals_connector::connect_output_to_input(
+            operation_mode_monitor.get_outputs().is_current_zero, grid_side_modulator.get_inputs().is_current_zero);
 
         // ==================== DC Current Extinguish Request ====================
         // Note: In this simplified builder without state machine, extinguish is not used.

@@ -312,7 +312,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
     EXPECT_TRUE(success) << "Gas turbine soft-start sequence did not complete successfully";
 
     // Verify state machine remained in OPERATION_ON throughout
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read())
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "Pulse releases should be active during entire starting sequence";
 
     // Verify final state: Ready for synchronous handoff
@@ -432,7 +432,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
     EXPECT_TRUE(success) << "Multi-profile sequence test did not complete successfully";
 
     // Verify state machine remained operational throughout
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read())
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "Pulse releases should remain active during profile sequence";
 }
 
@@ -560,7 +560,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     const auto torque_limit_max = system.machine_side_control.speed_generator.get_outputs().torque_limit_max_pu.read();
     EXPECT_NEAR(torque_limit_max.value(), 0.50f, 0.05f) << "Torque limit should match Profile 2 setting";
 
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read())
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "Pulse releases should remain active in pulse-to-transition region";
 }
 
@@ -630,7 +630,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
         system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read());
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read());
 
     bool success = true;
 
@@ -691,6 +691,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
     // Verify machine started successfully from near-standstill
     EXPECT_GT(speed_after_creep.value(), 0.04f) << "Machine should overcome breakaway friction and reach creep speed";
 
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().pulse_releases.read())
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "Pulse releases should remain active during low-speed creep operation";
 }

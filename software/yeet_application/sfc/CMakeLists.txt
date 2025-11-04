@@ -36,7 +36,9 @@ set(SFC_CORE_HEADERS
     include/sfc/sfc_speed_controller.hpp
     include/sfc/sfc_torque_controller.hpp
     include/sfc/sfc_types.hpp
-    include/sfc/sfc_state_machine.hpp)
+    include/sfc/sfc_state_machine.hpp
+    include/sfc/sfc_grid_side_integrator_supervisor.hpp
+    include/sfc/sfc_machine_side_integrator_supervisor.hpp)
 
 # Core SFC sources (always needed)
 set(SFC_CORE_SOURCES
@@ -64,7 +66,9 @@ set(SFC_CORE_SOURCES
     src/sfc_soft_starter_speed_generator.cpp
     src/sfc_speed_controller.cpp
     src/sfc_torque_controller.cpp
-    src/sfc_state_machine.cpp)
+    src/sfc_state_machine.cpp
+    src/sfc_grid_side_integrator_supervisor.cpp
+    src/sfc_machine_side_integrator_supervisor.cpp)
 
 # Plant model files (only needed for testing/simulation)
 set(SFC_PLANT_MODEL_HEADERS

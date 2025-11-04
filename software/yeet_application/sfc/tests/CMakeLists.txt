@@ -17,9 +17,11 @@ target_sources(
             sfc_excitation_controller_test.cpp
             sfc_grid_side_measurements_test.cpp
             sfc_grid_side_modulator_test.cpp
+            sfc_grid_side_integrator_supervisor_test.cpp
             sfc_machine_side_lookup_table_test.cpp
             sfc_machine_side_measurements_test.cpp
             sfc_machine_side_modulator_test.cpp
+            sfc_machine_side_integrator_supervisor_test.cpp
             sfc_mode_detector_test.cpp
             sfc_per_unit_system_test.cpp
             sfc_soft_starter_speed_generator_test.cpp

@@ -24,9 +24,8 @@ void sfc_speed_controller_runner::run()
     // both torque-level and current-level saturation
     const bool downstream_saturated = _inputs.is_saturated.read();
 
-    // CRITICAL: Also freeze during external events
-    const bool external_freeze_requested =
-        _inputs.freeze_integrator.read() || _inputs.modulator_freeze_integrator.read();
+    // CRITICAL: Also freeze during external events from supervisor
+    const bool external_freeze_requested = _inputs.freeze_integrator.read();
 
     // Combine: freeze if EITHER downstream is saturated OR external freeze requested
     const bool freeze_integrator = downstream_saturated || external_freeze_requested;

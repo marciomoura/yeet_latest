@@ -40,10 +40,10 @@ protected:
      * @param enable System enable signal
      * @param operating_mode Machine-side operating mode
      * @param rotor_position_rad Current rotor position
-     * @param dc_link_current_is_zero DC link current zero detection
+     * @param is_current_zero DC link current zero detection
      */
     void simulate_control_cycle(
-        bool enable, sfc_operating_mode_t operating_mode, angle_t rotor_position_rad, bool dc_link_current_is_zero)
+        bool enable, sfc_operating_mode_t operating_mode, angle_t rotor_position_rad, bool is_current_zero)
     {
         // Direct signal connections - no delay
         bool force_request = machine_modulator->get_request_force_commutation();
@@ -53,7 +53,7 @@ protected:
         machine_modulator->update(enable, operating_mode, force_ack, rotor_position_rad, test_pi_angle);
 
         // Update grid-side modulator
-        grid_modulator->update(enable, operating_mode, force_request, dc_link_current_is_zero, test_pi_angle, false);
+        grid_modulator->update(enable, operating_mode, force_request, is_current_zero, test_pi_angle, false);
     }
 };
 

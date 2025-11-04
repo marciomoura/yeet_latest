@@ -56,7 +56,7 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
@@ -212,7 +212,7 @@ private:
             current_controller.get_inputs().machine_side_voltage_magnitude);
 
         // Mock the modulator freeze integrator signal for this simplified configuration
-        yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
         // ==================== Observers → Machine Side Controller ====================
         // Connect observer-estimated speed to machine side controller for lookup table

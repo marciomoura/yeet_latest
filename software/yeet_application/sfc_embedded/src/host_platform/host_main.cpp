@@ -391,7 +391,7 @@ int main(int argc, char* argv[])
     std::cout << "[INIT] State machine startup complete" << std::endl;
 
     // Verify state machine is operational
-    bool pulse_releases = simulator_builder.grid_side_control.state_machine.get_outputs().pulse_releases.read();
+    bool pulse_releases = simulator_builder.grid_side_control.state_machine.get_outputs().release_pulses.read();
     if (!pulse_releases) {
         std::cerr << "[ERROR] State machine did not reach OPERATION_ON state!" << std::endl;
         return 1;

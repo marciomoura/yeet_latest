@@ -52,7 +52,8 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
     bool pulse_releases,
     current_pu_t dc_link_current,
     bool freeze_integrator,
-    bool is_requesting_main_pi_reset)
+    bool is_tripped,
+    bool preset_request)
 {
     const bool fiber_optics_overrides_written = write_fiber_optics_input_overrides();
     if (!fiber_optics_overrides_written) {
@@ -64,7 +65,8 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
         _fiber_optics_inputs.pulse_releases.write(pulse_releases);
         _fiber_optics_inputs.dc_link_current.write(dc_link_current);
         _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
-        _fiber_optics_inputs.is_requesting_main_pi_reset.write(is_requesting_main_pi_reset);
+        _fiber_optics_inputs.is_tripped.write(is_tripped);
+        _fiber_optics_inputs.preset_request.write(preset_request);
     }
 }
 
@@ -144,7 +146,8 @@ bool sfc_machine_side_external_ios_datamodel::write_fiber_optics_input_overrides
     _fiber_optics_inputs.pulse_releases.write(_parameters.pulse_releases.read());
     _fiber_optics_inputs.dc_link_current.write(_parameters.dc_link_current.read());
     _fiber_optics_inputs.freeze_integrator.write(_parameters.freeze_integrator.read());
-    _fiber_optics_inputs.is_requesting_main_pi_reset.write(_parameters.is_requesting_main_pi_reset.read());
+    _fiber_optics_inputs.is_tripped.write(_parameters.is_tripped.read());
+    _fiber_optics_inputs.preset_request.write(_parameters.preset_request.read());
     _fiber_optics_inputs.current_state_id.write(_parameters.current_state_id.read());
     return true;
 }
@@ -184,8 +187,8 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
     entry.parameters.insert("fo_pulse_releases", yeet::utils::make_units_accessor(_parameters.pulse_releases));
     entry.parameters.insert("fo_dc_link_current", yeet::utils::make_units_accessor(_parameters.dc_link_current));
     entry.parameters.insert("fo_freeze_integrator", yeet::utils::make_units_accessor(_parameters.freeze_integrator));
-    entry.parameters.insert(
-        "fo_is_requesting_main_pi_reset", yeet::utils::make_units_accessor(_parameters.is_requesting_main_pi_reset));
+    entry.parameters.insert("fo_is_tripped", yeet::utils::make_units_accessor(_parameters.is_tripped));
+    entry.parameters.insert("fo_preset_request", yeet::utils::make_units_accessor(_parameters.preset_request));
     entry.parameters.insert("fo_current_state_id", yeet::utils::make_units_accessor(_parameters.current_state_id));
 
     // Register the entry with the model registry

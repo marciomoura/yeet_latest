@@ -30,9 +30,11 @@ public:
 
         signal_input<voltage_pu_t> machine_side_voltage_magnitude;
 
+        /// Unified freeze command from supervisor (ORed from all freeze sources)
         signal_input<bool> freeze_integrator;
 
-        signal_input<bool> modulator_freeze_integrator;  // needs additional logic to handle all freezes
+        /// Preset request from supervisor (triggers preset sequence)
+        signal_input<bool> preset_request;
     };
 
     /**
@@ -62,6 +64,9 @@ public:
 
         /// @brief Indicates if the measured current exceeded the magnitude limit
         signal_output<bool> is_current_measured_above_magnitude_limit;
+
+        /// Preset sequence complete acknowledgment
+        signal_output<bool> preset_complete;
     };
 
     /**

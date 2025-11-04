@@ -54,9 +54,9 @@ public:
     {
         // Freeze/integrator management defaults
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
         yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().modulator_freeze_integrator, false);
+        yeet::mock_signal_input::write(speed_controller.get_inputs().preset_request, false);
 
         // Always release pulses for open-loop firing generation
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);

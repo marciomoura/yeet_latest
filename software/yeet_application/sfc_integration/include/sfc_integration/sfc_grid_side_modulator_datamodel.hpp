@@ -34,7 +34,7 @@ public:
         signal_input<bool> request_extinguish_dc_current;
 
         /// Signal from zero current detector indicating DC link current is zero
-        signal_input<bool> dc_link_current_is_zero;
+        signal_input<bool> is_current_zero;
 
         /// Firing angle reference from the main DC link current controller
         /// Range: [0.0, π] radians
@@ -46,6 +46,9 @@ public:
         /// External trip signal - forces forced_commutation mode until cleared
         /// When true, overrides normal mode logic and applies deep inversion
         signal_input<bool> is_tripped;
+
+        /// Pulse release command from supervisor
+        signal_input<bool> release_pulses;
     };
 
     /**
@@ -62,8 +65,8 @@ public:
         /// Acknowledgment signal to machine-side modulator (one-cycle pulse)
         signal_output<bool> force_commutation_acknowledged;
 
-        /// Request signal to hold main PI controller integrator in reset
-        signal_output<bool> is_requesting_main_pi_reset;
+        /// Request signal to hold main PI controller integrator in reset (forced commutation)
+        signal_output<bool> freeze_integrator;
 
         /// Current modulator state for diagnostics
         /// 0 = natural_commutation, 1 = forced_commutation

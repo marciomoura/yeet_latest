@@ -23,9 +23,10 @@ namespace yeet::application::sfc::fiber_optic {
     //   Bit 10:     Force commutation acknowledged
     //   Bit 11:     Pulse releases
     //   Bits 12-18: State machine state ID (0-127)
-    //   Bit 19:     Freeze integrator
-    //   Bit 20:     Is requesting main PI reset
-    //   Bits 21-31: Reserved for future use
+    //   Bit 19:     Freeze integrator (unified)
+    //   Bit 20:     Is tripped (grid-side trip status)
+    //   Bit 21:     Preset request
+    //   Bits 22-31: Reserved for future use
 
     // Encode DC link current float value
     std::memcpy(&payload[0], &msg.dc_link_current_pu, sizeof(float));
@@ -58,8 +59,11 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.freeze_integrator) {
         packed_flags |= detail::g2m_freeze_integrator_bit;
     }
-    if (msg.is_requesting_main_pi_reset) {
-        packed_flags |= detail::g2m_is_requesting_main_pi_reset_bit;
+    if (msg.is_tripped) {
+        packed_flags |= detail::g2m_is_tripped_bit;
+    }
+    if (msg.preset_request) {
+        packed_flags |= detail::g2m_preset_request_bit;
     }
 
     // Write packed word to payload
@@ -99,7 +103,8 @@ namespace yeet::application::sfc::fiber_optic {
 
     // Decode sync control flags
     msg.freeze_integrator = (packed_flags & detail::g2m_freeze_integrator_bit) != 0;
-    msg.is_requesting_main_pi_reset = (packed_flags & detail::g2m_is_requesting_main_pi_reset_bit) != 0;
+    msg.is_tripped = (packed_flags & detail::g2m_is_tripped_bit) != 0;
+    msg.preset_request = (packed_flags & detail::g2m_preset_request_bit) != 0;
 
     return msg;
 }
@@ -126,6 +131,9 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.force_commutation_request) {
         packed_flags |= detail::m2g_force_comm_req_bit;
     }
+    if (msg.is_tripped) {
+        packed_flags |= detail::m2g_is_tripped_bit;
+    }
     payload[3] = packed_flags;
 
     return machine_to_grid_payload_length;
@@ -150,6 +158,7 @@ namespace yeet::application::sfc::fiber_optic {
     // Decode packed control flags from word 3
     const std::uint32_t packed_flags = payload[3];
     msg.force_commutation_request = (packed_flags & detail::m2g_force_comm_req_bit) != 0;
+    msg.is_tripped = (packed_flags & detail::m2g_is_tripped_bit) != 0;
 
     return msg;
 }

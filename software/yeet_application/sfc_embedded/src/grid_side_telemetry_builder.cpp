@@ -49,24 +49,24 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(28, static_cast<float>(modulator.get_outputs().modulator_state.read()));
     packet.add_signal(25, modulator.get_outputs().release_pulses.read() ? 1.0f : 0.0f);  // Modulator outputs
     packet.add_signal(26, modulator.get_outputs().force_commutation_acknowledged.read() ? 1.0f : 0.0f);
-    packet.add_signal(27, modulator.get_outputs().is_requesting_main_pi_reset.read() ? 1.0f : 0.0f);
+    packet.add_signal(27, modulator.get_outputs().freeze_integrator.read() ? 1.0f : 0.0f);
 
     // === current_controller Group ===
     packet.add_signal(29, static_cast<float>(current_controller.get_inputs().current_reference.read()));
     packet.add_signal(30, static_cast<float>(current_controller.get_inputs().current_measured.read()));
     packet.add_signal(33, static_cast<float>(current_controller.get_outputs().current_reference.read()));
     packet.add_signal(31, static_cast<float>(current_controller.get_inputs().freeze_integrator.read()));
-    packet.add_signal(32, static_cast<float>(current_controller.get_inputs().modulator_freeze_integrator.read()));
+    packet.add_signal(32, static_cast<float>(current_controller.get_inputs().preset_request.read()));
     packet.add_signal(33, static_cast<float>(current_controller.get_outputs().current_error.read()));
     packet.add_signal(34, static_cast<float>(current_controller.get_outputs().pi_output.read()));
     packet.add_signal(33, static_cast<float>(current_controller.get_outputs().is_active.read()));
     packet.add_signal(36, static_cast<float>(current_controller.get_outputs().is_saturated.read()));
-    packet.add_signal(37, static_cast<float>(state_machine.get_outputs().freeze_integrator.read()));
+    packet.add_signal(37, static_cast<float>(state_machine.get_outputs().preset_request.read()));
     packet.add_signal(35, static_cast<float>(mode_monitor.get_outputs().operating_mode.read()));
 
     // === State Machine Group ===
     packet.add_signal(38, static_cast<float>(static_cast<int>(state_machine.get_outputs().current_state_id.read())));
-    packet.add_signal(39, state_machine.get_outputs().pulse_releases.read() ? 1.0f : 0.0f);
+    packet.add_signal(39, state_machine.get_outputs().release_pulses.read() ? 1.0f : 0.0f);
     packet.add_signal(40, state_machine.get_outputs().auxiliaries_are_on.read() ? 1.0f : 0.0f);
     packet.add_signal(41, state_machine.get_outputs().breakers_are_on.read() ? 1.0f : 0.0f);
     packet.add_signal(42, state_machine.get_outputs().start_command.read() ? 1.0f : 0.0f);

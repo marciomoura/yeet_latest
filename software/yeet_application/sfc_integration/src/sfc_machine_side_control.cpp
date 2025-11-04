@@ -59,7 +59,8 @@ bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
     // All signals are now extracted directly from the fiber-optic protocol
     external_ios.update_fiber_optics_inputs(rx_msg->mode, static_cast<sfc_state_id>(rx_msg->state_id),
         rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero, rx_msg->is_saturated, rx_msg->pulse_releases,
-        current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator, rx_msg->is_requesting_main_pi_reset);
+        current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator, rx_msg->is_tripped,
+        rx_msg->preset_request);
     return true;
 }
 
@@ -145,8 +146,6 @@ void sfc_machine_side_control::connect_internal_signals()
         external_ios.get_fiber_optics_inputs().is_saturated, speed_controller.get_inputs().is_saturated);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().freeze_integrator, speed_controller.get_inputs().freeze_integrator);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().is_requesting_main_pi_reset,
-        speed_controller.get_inputs().modulator_freeze_integrator);
     signals_connector::connect_output_to_input(
         torque_controller.get_outputs().composite_saturation, speed_controller.get_inputs().is_saturated);
 

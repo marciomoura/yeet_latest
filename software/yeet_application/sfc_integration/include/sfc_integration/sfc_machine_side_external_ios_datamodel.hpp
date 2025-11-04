@@ -104,7 +104,8 @@ public:
         yeet::parameter<bool> pulse_releases{false};                       ///< Grid pulse releases enable
         yeet::parameter<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current from grid-side
         yeet::parameter<bool> freeze_integrator{false};                    ///< Freeze speed controller integrator
-        yeet::parameter<bool> is_requesting_main_pi_reset{false};          ///< Grid modulator PI reset request
+        yeet::parameter<bool> is_tripped{false};                           ///< Grid-side trip status
+        yeet::parameter<bool> preset_request{false};                       ///< Preset request from grid-side
         yeet::parameter<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine state ID
     };
@@ -145,7 +146,7 @@ public:
      * - pulse_releases: Grid-side state machine enable (system running)
      * - dc_link_current: Grid-side DC link measurements (machine-side is sensorless)
      * - freeze_integrator: Speed controller integrator freeze for pulse-mode
-     * - is_requesting_main_pi_reset: Grid modulator PI reset request signal
+     * - is_tripped: Grid-side trip status
      * - current_state_id: Grid-side state machine state (for profile awareness)
      *
      * **Timing:** Updated at 1ms (after grid-side update, before machine-side uses them)
@@ -164,7 +165,8 @@ public:
         signal_output<bool> pulse_releases{false};                       ///< Grid system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< Grid-measured DC current [pu]
         signal_output<bool> freeze_integrator{false};                    ///< PI integrator freeze
-        signal_output<bool> is_requesting_main_pi_reset{false};          ///< Main PI reset request
+        signal_output<bool> is_tripped{false};                           ///< Grid-side trip status
+        signal_output<bool> preset_request{false};                       ///< Preset request from grid-side
         signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state ID
     };
@@ -326,7 +328,7 @@ public:
      * @param pulse_releases Pulses enabled / grid system running flag
      * @param dc_link_current Measured DC link current in per-unit
      * @param freeze_integrator Speed controller integrator freeze signal
-     * @param is_requesting_main_pi_reset Grid modulator requesting main PI reset
+     * @param is_tripped Grid-side trip status
      *
      * **Timing:** Called at 1ms after grid-side update
      *
@@ -350,7 +352,8 @@ public:
         bool pulse_releases,
         current_pu_t dc_link_current,
         bool freeze_integrator,
-        bool is_requesting_main_pi_reset);
+        bool is_tripped,
+        bool preset_request);
 
     /**
      * @brief Update excitation control inputs

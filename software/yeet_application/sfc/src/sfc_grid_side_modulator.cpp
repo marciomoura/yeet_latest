@@ -13,7 +13,7 @@ sfc_grid_side_modulator::sfc_grid_side_modulator()
 void sfc_grid_side_modulator::update(bool enable,
     sfc_operating_mode_t operating_mode,
     bool request_force_commutation,
-    bool dc_link_current_is_zero,
+    bool is_current_zero,
     angle_t firing_angle,
     bool request_extinguish_current) noexcept
 {
@@ -59,8 +59,8 @@ void sfc_grid_side_modulator::update(bool enable,
 
         case sfc_operating_mode_t::forced_commutation: {
             // Forced commutation mode: respond to force commutation requests
-            const auto state_update = compute_forced_commutation_state_update(
-                request_force_commutation, dc_link_current_is_zero, firing_angle);
+            const auto state_update =
+                compute_forced_commutation_state_update(request_force_commutation, is_current_zero, firing_angle);
 
             _current_state = state_update.new_state;
             _current_firing_angle_rad = state_update.new_firing_angle;
@@ -72,7 +72,7 @@ void sfc_grid_side_modulator::update(bool enable,
 }
 sfc_grid_side_modulator::forced_commutation_state_update
 sfc_grid_side_modulator::compute_forced_commutation_state_update(
-    bool request_force_commutation, bool dc_link_current_is_zero, angle_t firing_angle) const noexcept
+    bool request_force_commutation, bool is_current_zero, angle_t firing_angle) const noexcept
 {
     sfc_grid_side_modulator::forced_commutation_state_update state_update{};
 
@@ -98,8 +98,8 @@ sfc_grid_side_modulator::compute_forced_commutation_state_update(
 
         case grid_side_modulator_state_t::forced_commutation:
             // The condition to move back to running state is
-            // the signal `dc_link_current_is_zero`
-            if (dc_link_current_is_zero) {
+            // the signal `is_current_zero`
+            if (is_current_zero) {
                 // In case dc-link is zero, the machine-side will clear the force-commutation request.
                 // Hence, the grid-side will move back to running state and will clear the acknowledgment flag.
                 if (!request_force_commutation) {

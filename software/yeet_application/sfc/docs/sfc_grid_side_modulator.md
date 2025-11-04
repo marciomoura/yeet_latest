@@ -22,7 +22,7 @@ The modulator executes a precise, state-driven sequence:
 
 1.  **Request**: It continuously monitors the `request_force_commutation` input from the machine-side modulator.
 2.  **Invert**: When the request is asserted, the grid-side modulator immediately takes control, forces the firing angle into deep inversion, and requests a reset of the main PI controller.
-3.  **Confirm Zero Current**: It waits for the `dc_link_current_is_zero` input to become true.
+3.  **Confirm Zero Current**: It waits for the `is_current_zero` input to become true.
 4.  **Acknowledge & Release**: Once zero current is confirmed, it asserts the `force_commutation_acknowledged` output signal for a single cycle and immediately returns to normal operation, handing control of the firing angle back to the PI controller.
 
 ## 3. Architecture and Interface
@@ -39,7 +39,7 @@ public:
     // --- Main Execution Method ---
     void update(
         bool request_force_commutation,   // From machine-side modulator
-        bool dc_link_current_is_zero,
+        bool is_current_zero,
         angle_t firing_angle_from_main_pi
     );
 
@@ -59,11 +59,11 @@ public:
 
 The core of the logic is a simple two-state machine:
 1.  **`NORMAL_OPERATION`**: The default state. It passes through the firing angle from the PI controller. If `request_force_commutation` becomes true, it transitions to `FORCE_INVERSION`.
-2.  **`FORCE_INVERSION`**: The modulator has taken control. It outputs the deep inversion angle and requests a PI reset. It monitors the DC link current. If `dc_link_current_is_zero` becomes true, it asserts `force_commutation_acknowledged` for one cycle and transitions back to `NORMAL_OPERATION`.
+2.  **`FORCE_INVERSION`**: The modulator has taken control. It outputs the deep inversion angle and requests a PI reset. It monitors the DC link current. If `is_current_zero` becomes true, it asserts `force_commutation_acknowledged` for one cycle and transitions back to `NORMAL_OPERATION`.
 
 ### 4.2. Future Safety Enhancement: Handshake Timer
 
-While the current design is efficient, a potential failure mode exists if the `dc_link_current_is_zero` signal never arrives after a request is made. To enhance safety, a timer can be added to monitor the duration of the `FORCE_INVERSION` state. If the state persists for longer than a configurable timeout period, a system alarm or fault should be triggered. This functionality can be added in the future without changing the core state machine logic.
+While the current design is efficient, a potential failure mode exists if the `is_current_zero` signal never arrives after a request is made. To enhance safety, a timer can be added to monitor the duration of the `FORCE_INVERSION` state. If the state persists for longer than a configurable timeout period, a system alarm or fault should be triggered. This functionality can be added in the future without changing the core state machine logic.
 
 ### 4.3. Critical Note on External PI Controller
 
