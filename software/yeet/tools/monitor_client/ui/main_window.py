@@ -1256,6 +1256,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 signal_name = field['name']
                 signal_index = field['index']
                 signal_type = field.get('type', 'float')
+                signal_format = field.get('format', '.4f')  # Use format from definition
                 
                 # Get the value from packet by index based on type
                 if signal_type == 'bool':
@@ -1263,11 +1264,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 else:
                     value = packet.get_signal(signal_index)
                 
-                # Update the signal
-                if signal_type == 'bool':
+                # Update the signal with format from definition
+                if signal_format == 'bool':
                     self.telemetry_panel.update_signal(signal_name, value)
                 else:
-                    self.telemetry_panel.update_signal(signal_name, value, '.4f')
+                    self.telemetry_panel.update_signal(signal_name, value, signal_format)
     
     def _update_machine_dashboard(self, packet: MachineSideTelemetryPacket):
         """Update machine-side telemetry dashboard using signal definitions.
@@ -1285,6 +1286,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 signal_name = field['name']
                 signal_index = field['index']
                 signal_type = field.get('type', 'float')
+                signal_format = field.get('format', '.4f')  # Use format from definition
                 
                 # Get the value from packet by index based on type
                 if signal_type == 'bool':
@@ -1292,11 +1294,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 else:
                     value = packet.get_signal(signal_index)
                 
-                # Update the signal
-                if signal_type == 'bool':
+                # Update the signal with format from definition
+                if signal_format == 'bool':
                     self.telemetry_panel.update_signal(signal_name, value)
                 else:
-                    self.telemetry_panel.update_signal(signal_name, value, '.4f')
+                    self.telemetry_panel.update_signal(signal_name, value, signal_format)
         
         # Pulse Generator
         # if packet.pulse_generator:

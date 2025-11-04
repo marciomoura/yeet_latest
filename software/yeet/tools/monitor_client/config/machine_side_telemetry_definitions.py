@@ -17,120 +17,140 @@ Signal indices correspond to:
 """
 
 from typing import Dict, List, Any
+from collections import OrderedDict
+from .machine_side_telemetry_protocol import MachineSignalIndex
 
 
-def get_machine_side_telemetry() -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
-    """Get telemetry definitions for machine-side monitoring.
+def _get_section_order() -> List[str]:
+    """Get the canonical display order for telemetry sections.
     
-    Maps signal indices from machine_side_telemetry_builder.cpp to
-    human-readable names and display parameters.
+    This defines the preferred order for section display across all telemetry panels.
+    Not all sections may be present in every configuration.
     
     Returns:
-        Dictionary containing section definitions with structure:
-        {
-            'section_name': {
-                'fields': [
-                    {'name': str, 'index': int, 'type': 'float'|'bool'},
-                    ...
-                ]
-            }
-        }
+        List of section keys in preferred display order
     """
-    return {
-        'measurements': {
+    return [
+        'system',
+        'speed_controller',
+        'torque_controller',
+        'observer',
+        'measurements',
+        'modulator',
+        'operation_mode',
+    ]
+
+
+def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
+    """Get telemetry definitions for machine-side monitoring.
+    
+    Returns:
+        OrderedDict with section definitions in canonical order.
+    """
+    all_sections = {
+        'system': {
+            'title': 'System',
             'fields': [
-                {'name': 'Voltage Magnitude (pu)', 'index': 6, 'type': 'float'},
-                {'name': 'Voltage Magnitude Filtered (pu)', 'index': 7, 'type': 'float'}
+                {'name': 'modulator enabled', 'index': MachineSignalIndex.MODULATOR_ENABLED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release pulses', 'index': MachineSignalIndex.RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
+                {'name': 'torque is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'speed is active', 'index': MachineSignalIndex.SPEED_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'excitation enable', 'index': MachineSignalIndex.EXCITATION_ENABLE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'excitation is running', 'index': MachineSignalIndex.EXCITATION_IS_RUNNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'field established', 'index': MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'rotor sector', 'index': MachineSignalIndex.CURRENT_ROTOR_SECTOR, 'type': 'int', 'format': '.0f'},
+            ]
+        },
+        'measurements': {
+            'title': 'Measurements',
+            'fields': [
+                {'name': 'voltage magnitude (pu)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage magnitude filtered (pu)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
+                {'name': 'is commuting', 'index': MachineSignalIndex.IS_COMMUTING, 'type': 'bool', 'format': 'bool'}
             ]
         },
         'observer': {
+            'title': 'Observer',
             'fields': [
-                {'name': 'Frequency Est (pu)', 'index': 9, 'type': 'float'},
-                {'name': 'Position Est (pu)', 'index': 10, 'type': 'float'},
-                {'name': 'Voltage Alpha Filtered (pu)', 'index': 11, 'type': 'float'},
-                {'name': 'Voltage Beta Filtered (pu)', 'index': 12, 'type': 'float'},
+                {'name': 'frequency est. (pu)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'position est. (pu)', 'index': MachineSignalIndex.ESTIMATED_POSITION_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage alpha filtered (pu)', 'index': MachineSignalIndex.FILTERED_VOLTAGE_ALPHA, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage beta filtered (pu)', 'index': MachineSignalIndex.FILTERED_VOLTAGE_BETA, 'type': 'float', 'format': '.4f'},
             ]
         },
         'modulator': {
+            'title': 'Modulator',
             'fields': [
-                {'name': 'Firing Angle (rad)', 'index': 13, 'type': 'float'},
-                {'name': 'Modulator Enabled', 'index': 14, 'type': 'bool'},
-                {'name': 'Release Pulses', 'index': 15, 'type': 'bool'},
-                {'name': 'Force Commutation', 'index': 16, 'type': 'bool'},
-                {'name': 'Rotor Sector', 'index': 17, 'type': 'float'},
-                {'name': 'Is Commuting', 'index': 8, 'type': 'bool'}
+                {'name': 'firing angle (rad)', 'index': MachineSignalIndex.FIRING_ANGLE_RAD, 'type': 'float', 'format': '.4f'},
+                {'name': 'firing angle out (rad)', 'index': MachineSignalIndex.CONTROLLER_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'force commutation', 'index': MachineSignalIndex.REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
             ]
         },
-        'machine_controller': {
+        'torque_controller': {
+            'title': 'Torque Controller',
             'fields': [
-                {'name': 'Firing Angle Out (rad)', 'index': 18, 'type': 'float'},
-                {'name': 'DC Link Current (pu)', 'index': 19, 'type': 'float'},
-                {'name': 'Machine Speed (pu)', 'index': 20, 'type': 'float'},
-            ]
-        },
-        'torque_controller_inputs': {
-            'fields': [
-                {'name': 'Torque Ref from Speed (pu)', 'index': 21, 'type': 'float'},
-                {'name': 'Max Torque Limit (pu)', 'index': 22, 'type': 'float'},
-                {'name': 'Min Torque Limit (pu)', 'index': 23, 'type': 'float'},
-                {'name': 'Breakaway Boost Enabled', 'index': 24, 'type': 'bool'},
-                {'name': 'Current Controller Saturated', 'index': 25, 'type': 'bool'},
-            ]
-        },
-        'torque_controller_outputs': {
-            'fields': [
-                {'name': 'Current Reference (pu)', 'index': 26, 'type': 'float'},
-                {'name': 'Base Torque Ref (pu)', 'index': 27, 'type': 'float'},
-                {'name': 'Total Torque Ref (pu)', 'index': 28, 'type': 'float'},
-                {'name': 'Limited Torque Ref (pu)', 'index': 29, 'type': 'float'},
-                {'name': 'Is Saturated', 'index': 30, 'type': 'bool'},
-                {'name': 'Is Active', 'index': 31, 'type': 'bool'},
-                {'name': 'Breakaway Boost Active', 'index': 32, 'type': 'bool'},
-                {'name': 'Downstream Saturated', 'index': 33, 'type': 'bool'},
+                {'name': 'torque ref. from speed (pu)', 'index': MachineSignalIndex.TORQUE_REF_FROM_SPEED_CONTROLLER, 'type': 'float', 'format': '.4f'},
+                {'name': 'max torque limit (pu)', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MAX_LIMIT, 'type': 'float', 'format': '.4f'},
+                {'name': 'min torque limit (pu)', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MIN_LIMIT, 'type': 'float', 'format': '.4f'},
+                {'name': 'breakaway boost enabled', 'index': MachineSignalIndex.TORQUE_ENABLE_BREAKAWAY_BOOST, 'type': 'bool', 'format': 'bool'},
+                {'name': 'current controller saturated', 'index': MachineSignalIndex.TORQUE_CURRENT_CONTROLLER_SATURATED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'current reference (pu)', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'base torque ref. (pu)', 'index': MachineSignalIndex.TORQUE_BASE_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'total torque ref. (pu)', 'index': MachineSignalIndex.TORQUE_TOTAL_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'limited torque ref. (pu)', 'index': MachineSignalIndex.TORQUE_LIMITED_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'is saturated', 'index': MachineSignalIndex.TORQUE_IS_SATURATED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'breakaway boost active', 'index': MachineSignalIndex.TORQUE_IS_BREAKAWAY_BOOST_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'downstream saturated', 'index': MachineSignalIndex.TORQUE_DOWNSTREAM_SATURATION, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'speed_controller': {
+            'title': 'Speed Controller',
             'fields': [
-                {'name': 'Speed Reference (pu)', 'index': 34, 'type': 'float'},
-                {'name': 'Measured Speed (pu)', 'index': 35, 'type': 'float'},
-                {'name': 'Speed Reference Limited (pu)', 'index': 36, 'type': 'float'},
-                {'name': 'Torque Reference (pu)', 'index': 37, 'type': 'float'},
-                {'name': 'Speed Error (pu)', 'index': 38, 'type': 'float'},
-                {'name': 'PI Output (pu)', 'index': 39, 'type': 'float'},
-                {'name': 'Is Active', 'index': 40, 'type': 'bool'},
-                {'name': 'Is Saturated', 'index': 41, 'type': 'bool'},
+                {'name': 'speed reference (pu)', 'index': MachineSignalIndex.SPEED_REFERENCE_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'measured speed (pu)', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'speed reference limited (pu)', 'index': MachineSignalIndex.SPEED_REFERENCE_LIMITED_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'torque reference (pu)', 'index': MachineSignalIndex.SPEED_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'speed error (pu)', 'index': MachineSignalIndex.SPEED_ERROR, 'type': 'float', 'format': '.4f'},
+                {'name': 'pi output (pu)', 'index': MachineSignalIndex.SPEED_PI_OUTPUT, 'type': 'float', 'format': '.4f'},
+                {'name': 'is saturated', 'index': MachineSignalIndex.SPEED_IS_SATURATED, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'speed_generator': {
+            'title': 'Speed Generator',
             'fields': [
-                {'name': 'Speed Ref (pu)', 'index': 42, 'type': 'float'},
-                {'name': 'Torque Limit Max (pu)', 'index': 43, 'type': 'float'},
-                {'name': 'Torque Limit Min (pu)', 'index': 44, 'type': 'float'},
-                {'name': 'Profile Complete', 'index': 45, 'type': 'bool'},
-                {'name': 'Breakaway Boost Active', 'index': 46, 'type': 'bool'},
+                {'name': 'speed ref. (pu)', 'index': MachineSignalIndex.SPEED_REF_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'torque limit max (pu)', 'index': MachineSignalIndex.SPEED_TORQUE_LIMIT_MAX_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'torque limit min (pu)', 'index': MachineSignalIndex.SPEED_TORQUE_LIMIT_MIN_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'profile complete', 'index': MachineSignalIndex.SPEED_IS_PROFILE_COMPLETE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'breakaway boost active', 'index': MachineSignalIndex.SPEED_IS_BREAKAWAY_BOOST_ACTIVE, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'excitation_controller': {
+            'title': 'Excitation Controller',
             'fields': [
-                {'name': 'Excitation V Setpoint (pu)', 'index': 47, 'type': 'float'},
-                {'name': 'Enable Excitation', 'index': 48, 'type': 'bool'},
-                {'name': 'Field Established', 'index': 49, 'type': 'bool'},
-                {'name': 'Is Running', 'index': 50, 'type': 'bool'},
+                {'name': 'excitation voltage setpoint (pu)', 'index': MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT_PU, 'type': 'float', 'format': '.4f'},
             ]
         }
     }
+    
+    # Return sections in canonical order
+    section_order = _get_section_order()
+    ordered_result = OrderedDict()
+    for section_key in section_order:
+        if section_key in all_sections:
+            ordered_result[section_key] = all_sections[section_key]
+    
+    return ordered_result
 
 
 def get_default_visible_sections() -> list:
-    """Get default visible sections for machine-side telemetry.
+    """Get default visible sections for machine-side telemetry, in canonical order.
     
     Returns:
         List of section names that should be visible by default
     """
-    return [
-        'measurements',
-        'observer',
-        'torque_controller_outputs',
-        'speed_controller',
-        'machine_controller'
-    ]
+    section_order = _get_section_order()
+    # Machine-side has: system, speed_controller, torque_controller, measurements, observer, modulator
+    # (no controller or operation_mode at this side)
+    visible = ['system', 'speed_controller', 'torque_controller', 'measurements', 'observer']
+    return [s for s in section_order if s in visible]
