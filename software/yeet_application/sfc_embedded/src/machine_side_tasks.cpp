@@ -63,7 +63,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // Initialize cross-coupled inputs from grid-side controller with safe default values
     // In production, these come from fiber-optic communication interface
     // yeet::mock_signal_input::write(
-    //     control->get_io().grid_side_inputs.dc_link_current_measured, yeet::current_pu_t{0.0});
+    //     control->get_io().grid_side_inputs.current_measured, yeet::current_pu_t{0.0});
     // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.operating_mode,
     //     yeet::application::sfc::sfc_operating_mode_t::natural_commutation);
     // yeet::mock_signal_input::write(
@@ -178,9 +178,8 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
             // is_requesting_main_pi_reset) are not transmitted and use default values
             control->external_ios.update_fiber_optics_inputs(rx_msg->mode,
                 yeet::application::sfc::sfc_state_id::IDLE,  // Not transmitted - use default
-                rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero,
-                rx_msg->current_controller_is_saturated, rx_msg->pulse_releases,
-                yeet::current_pu_t{rx_msg->dc_link_current_pu},
+                rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero, rx_msg->is_saturated,
+                rx_msg->pulse_releases, yeet::current_pu_t{rx_msg->dc_link_current_pu},
                 false,   // freeze_integrator - not transmitted
                 false);  // is_requesting_main_pi_reset - not transmitted
         }

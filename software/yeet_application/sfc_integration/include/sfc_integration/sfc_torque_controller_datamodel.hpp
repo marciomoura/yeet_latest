@@ -29,7 +29,7 @@ public:
      */
     struct inputs {
         /// Torque reference from speed controller [pu]
-        signal_input<torque_pu_t> torque_reference_from_speed_controller;
+        signal_input<torque_pu_t> torque_reference;
 
         /// Maximum dynamic torque limit from speed generator [pu]
         signal_input<torque_pu_t> dynamic_max_torque_limit;
@@ -41,7 +41,7 @@ public:
         signal_input<bool> enable_breakaway_boost;
 
         /// Saturation feedback from downstream current controller
-        signal_input<bool> current_controller_is_saturated;
+        signal_input<bool> is_saturated;
     };
 
     /**

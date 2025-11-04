@@ -22,7 +22,7 @@ void sfc_speed_controller_runner::run()
 {
     // CRITICAL: Use composite saturation from torque controller, which includes
     // both torque-level and current-level saturation
-    const bool downstream_saturated = _inputs.current_controller_is_saturated.read();
+    const bool downstream_saturated = _inputs.is_saturated.read();
 
     // CRITICAL: Also freeze during external events
     const bool external_freeze_requested =

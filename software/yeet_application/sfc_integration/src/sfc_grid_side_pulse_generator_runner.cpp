@@ -26,15 +26,20 @@ void sfc_grid_side_pulse_generator_runner::run()
     // Get inputs
     const angle_wrapped firing_angle_command = _inputs.firing_angle.read();
     const angle_wrapped reference_angle = _inputs.reference_angle.read();
+    const bool release_pulses_input = _inputs.release_pulses.read();
+    const bool enable = _parameters.enable.read();
+
+    // Combine input signal with enable parameter override
+    const bool final_release_pulses = release_pulses_input && enable;
 
     // Generate pulses using the six-pulse generator
-    control::six_pulse_generator::pulses pulses = _pulse_generator.update(
-        reference_angle, firing_angle_command, _inputs.release_pulses.read() && _parameters.enable.read());
+    control::six_pulse_generator::pulses pulses =
+        _pulse_generator.update(reference_angle, firing_angle_command, final_release_pulses);
 
     // Set outputs
     _outputs.firing_pulses = pulses;
     _outputs.actual_firing_angle = firing_angle_command;
-    _outputs.is_active = _inputs.release_pulses.read();
+    _outputs.release_pulses = final_release_pulses;
 }
 
 void sfc_grid_side_pulse_generator_runner::stop()

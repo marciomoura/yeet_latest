@@ -122,7 +122,7 @@ public:
 
     // External control signals
     signal_output<torque_pu_t> load_torque_pu;
-    signal_output<current_pu_t> dc_link_current_reference;
+    signal_output<current_pu_t> current_reference;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -180,7 +180,7 @@ private:
 
         // DC link current feedback (RAW)
         signals_connector::connect_output_to_input(
-            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
+            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
 
         // Mock the modulator freeze integrator signal for this simplified configuration
         yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
@@ -233,7 +233,7 @@ private:
 
         // Current reference command (setpoint)
         signals_connector::connect_output_to_input(
-            dc_link_current_reference, current_controller.get_inputs().dc_link_current_reference);
+            current_reference, current_controller.get_inputs().current_reference);
 
         // Feedforward signals for improved control performance
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,

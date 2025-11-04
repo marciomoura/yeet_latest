@@ -22,9 +22,9 @@ public:
      * @brief Input signals for the current controller component
      */
     struct inputs {
-        signal_input<current_pu_t> dc_link_current_reference;
+        signal_input<current_pu_t> current_reference;
 
-        signal_input<current_pu_t> dc_link_current_measured;
+        signal_input<current_pu_t> current_measured;
 
         signal_input<voltage_pu_t> grid_side_voltage_magnitude;
 
@@ -52,7 +52,7 @@ public:
         signal_output<real_t> pi_output;
 
         /// Controller saturation status
-        signal_output<bool> current_controller_is_saturated;
+        signal_output<bool> is_saturated;
 
         /// Control loop active status
         signal_output<bool> is_active;

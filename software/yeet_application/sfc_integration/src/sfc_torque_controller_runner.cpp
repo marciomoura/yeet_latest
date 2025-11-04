@@ -35,11 +35,11 @@ void sfc_torque_controller_runner::run()
     }
 
     // Read input signals
-    const torque_pu_t torque_reference = _inputs.torque_reference_from_speed_controller.read();
+    const torque_pu_t torque_reference = _inputs.torque_reference.read();
     const torque_pu_t dynamic_max_limit = _inputs.dynamic_max_torque_limit.read();
     const torque_pu_t dynamic_min_limit = _inputs.dynamic_min_torque_limit.read();
     const bool enable_boost = _inputs.enable_breakaway_boost.read();
-    const bool downstream_saturated = _inputs.current_controller_is_saturated.read();
+    const bool downstream_saturated = _inputs.is_saturated.read();
 
     // Update downstream saturation feedback (must be done before update())
     _sfc_torque_controller.set_downstream_saturation(downstream_saturated);

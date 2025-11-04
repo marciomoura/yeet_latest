@@ -244,9 +244,7 @@ public:
      */
     const signal_output<bool>& get_current_controller_is_saturated() const
     {
-        return const_cast<sfc_current_controller_runner&>(current_controller)
-            .get_outputs()
-            .current_controller_is_saturated;
+        return const_cast<sfc_current_controller_runner&>(current_controller).get_outputs().is_saturated;
     }
 
     // ==================== Public Component Access for Direct Signal Connections ====================

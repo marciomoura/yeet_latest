@@ -32,7 +32,7 @@ void sfc_machine_side_external_ios_datamodel::register_callbacks()
     _parameters.override_fiber_optics_inputs.register_callback(fiber_optics_inputs_callback);
     _parameters.force_commutation_acknowledged.register_callback(fiber_optics_inputs_callback);
     _parameters.is_current_zero.register_callback(fiber_optics_inputs_callback);
-    _parameters.current_controller_is_saturated.register_callback(fiber_optics_inputs_callback);
+    _parameters.is_saturated.register_callback(fiber_optics_inputs_callback);
     _parameters.pulse_releases.register_callback(fiber_optics_inputs_callback);
     _parameters.dc_link_current.register_callback(fiber_optics_inputs_callback);
 }
@@ -48,7 +48,7 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
     yeet::application::sfc::sfc_state_id current_state_id,
     bool force_commutation_acknowledged,
     bool is_current_zero,
-    bool current_controller_is_saturated,
+    bool is_saturated,
     bool pulse_releases,
     current_pu_t dc_link_current,
     bool freeze_integrator,
@@ -60,7 +60,7 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
         _fiber_optics_inputs.current_state_id.write(current_state_id);
         _fiber_optics_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
         _fiber_optics_inputs.is_current_zero.write(is_current_zero);
-        _fiber_optics_inputs.current_controller_is_saturated.write(current_controller_is_saturated);
+        _fiber_optics_inputs.is_saturated.write(is_saturated);
         _fiber_optics_inputs.pulse_releases.write(pulse_releases);
         _fiber_optics_inputs.dc_link_current.write(dc_link_current);
         _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
@@ -140,7 +140,7 @@ bool sfc_machine_side_external_ios_datamodel::write_fiber_optics_input_overrides
 
     _fiber_optics_inputs.force_commutation_acknowledged.write(_parameters.force_commutation_acknowledged.read());
     _fiber_optics_inputs.is_current_zero.write(_parameters.is_current_zero.read());
-    _fiber_optics_inputs.current_controller_is_saturated.write(_parameters.current_controller_is_saturated.read());
+    _fiber_optics_inputs.is_saturated.write(_parameters.is_saturated.read());
     _fiber_optics_inputs.pulse_releases.write(_parameters.pulse_releases.read());
     _fiber_optics_inputs.dc_link_current.write(_parameters.dc_link_current.read());
     _fiber_optics_inputs.freeze_integrator.write(_parameters.freeze_integrator.read());
@@ -179,8 +179,8 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
     entry.parameters.insert("fo_force_commutation_acknowledged",
         yeet::utils::make_units_accessor(_parameters.force_commutation_acknowledged));
     entry.parameters.insert("fo_is_current_zero", yeet::utils::make_units_accessor(_parameters.is_current_zero));
-    entry.parameters.insert("fo_current_controller_is_saturated",
-        yeet::utils::make_units_accessor(_parameters.current_controller_is_saturated));
+    entry.parameters.insert(
+        "fo_current_controller_is_saturated", yeet::utils::make_units_accessor(_parameters.is_saturated));
     entry.parameters.insert("fo_pulse_releases", yeet::utils::make_units_accessor(_parameters.pulse_releases));
     entry.parameters.insert("fo_dc_link_current", yeet::utils::make_units_accessor(_parameters.dc_link_current));
     entry.parameters.insert("fo_freeze_integrator", yeet::utils::make_units_accessor(_parameters.freeze_integrator));

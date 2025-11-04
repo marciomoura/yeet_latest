@@ -41,7 +41,7 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.is_current_zero) {
         packed_flags |= detail::g2m_is_current_zero_bit;
     }
-    if (msg.current_controller_is_saturated) {
+    if (msg.is_saturated) {
         packed_flags |= detail::g2m_current_controller_saturated_bit;
     }
     if (msg.force_commutation_acknowledged) {
@@ -90,7 +90,7 @@ namespace yeet::application::sfc::fiber_optic {
 
     // Decode boolean flags
     msg.is_current_zero = (packed_flags & detail::g2m_is_current_zero_bit) != 0;
-    msg.current_controller_is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
+    msg.is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
     msg.force_commutation_acknowledged = (packed_flags & detail::g2m_force_comm_ack_bit) != 0;
     msg.pulse_releases = (packed_flags & detail::g2m_pulse_releases_bit) != 0;
 

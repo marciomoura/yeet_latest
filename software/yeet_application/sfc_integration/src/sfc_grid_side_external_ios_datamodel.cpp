@@ -34,7 +34,7 @@ void sfc_grid_side_external_ios_datamodel::update_digital_inputs(
 void sfc_grid_side_external_ios_datamodel::update_fiber_optics_outputs_to_machine(sfc_operating_mode_t operating_mode,
     bool force_commutation_acknowledged,
     bool is_current_zero,
-    bool current_controller_is_saturated,
+    bool is_saturated,
     bool pulse_releases,
     current_pu_t dc_link_current,
     bool freeze_integrator,
@@ -46,7 +46,7 @@ void sfc_grid_side_external_ios_datamodel::update_fiber_optics_outputs_to_machin
     _fiber_optics_outputs_to_machine.operating_mode.write(operating_mode);
     _fiber_optics_outputs_to_machine.force_commutation_acknowledged.write(force_commutation_acknowledged);
     _fiber_optics_outputs_to_machine.is_current_zero.write(is_current_zero);
-    _fiber_optics_outputs_to_machine.current_controller_is_saturated.write(current_controller_is_saturated);
+    _fiber_optics_outputs_to_machine.is_saturated.write(is_saturated);
     _fiber_optics_outputs_to_machine.pulse_releases.write(pulse_releases);
     _fiber_optics_outputs_to_machine.dc_link_current.write(dc_link_current);
     _fiber_optics_outputs_to_machine.freeze_integrator.write(freeze_integrator);
@@ -55,14 +55,14 @@ void sfc_grid_side_external_ios_datamodel::update_fiber_optics_outputs_to_machin
 }
 
 void sfc_grid_side_external_ios_datamodel::update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed_pu,
-    current_pu_t dc_link_current_reference,
+    current_pu_t current_reference,
     voltage_pu_t machine_voltage_magnitude,
     bool request_force_commutation)
 {
     const bool machine_side_overrides_written = write_machine_side_fiber_optics_input_overrides();
     if (!machine_side_overrides_written) {
         _fiber_optics_inputs_from_machine.measured_speed_pu.write(measured_speed_pu);
-        _fiber_optics_inputs_from_machine.dc_link_current_reference.write(dc_link_current_reference);
+        _fiber_optics_inputs_from_machine.current_reference.write(current_reference);
         _fiber_optics_inputs_from_machine.machine_voltage_magnitude.write(machine_voltage_magnitude);
         _fiber_optics_inputs_from_machine.request_force_commutation.write(request_force_commutation);
     }
@@ -90,7 +90,7 @@ bool sfc_grid_side_external_ios_datamodel::write_machine_side_fiber_optics_input
     }
 
     _fiber_optics_inputs_from_machine.measured_speed_pu.write(_parameters.measured_speed_pu.read());
-    _fiber_optics_inputs_from_machine.dc_link_current_reference.write(_parameters.dc_link_current_reference.read());
+    _fiber_optics_inputs_from_machine.current_reference.write(_parameters.current_reference.read());
     _fiber_optics_inputs_from_machine.machine_voltage_magnitude.write(_parameters.machine_voltage_magnitude.read());
     _fiber_optics_inputs_from_machine.request_force_commutation.write(_parameters.request_force_commutation.read());
 
@@ -112,7 +112,7 @@ void sfc_grid_side_external_ios_datamodel::register_callbacks()
 
     _parameters.override_machine_side_fiber_optics_inputs.register_callback(machine_side_fiber_optics_inputs_callback);
     _parameters.measured_speed_pu.register_callback(machine_side_fiber_optics_inputs_callback);
-    _parameters.dc_link_current_reference.register_callback(machine_side_fiber_optics_inputs_callback);
+    _parameters.current_reference.register_callback(machine_side_fiber_optics_inputs_callback);
     _parameters.machine_voltage_magnitude.register_callback(machine_side_fiber_optics_inputs_callback);
     _parameters.request_force_commutation.register_callback(machine_side_fiber_optics_inputs_callback);
 }
@@ -135,7 +135,7 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
         yeet::utils::make_units_accessor(_parameters.override_machine_side_fiber_optics_inputs));
     entry.parameters.insert("fo_measured_speed_pu", yeet::utils::make_units_accessor(_parameters.measured_speed_pu));
     entry.parameters.insert(
-        "fo_dc_link_current_reference", yeet::utils::make_units_accessor(_parameters.dc_link_current_reference));
+        "fo_dc_link_current_reference", yeet::utils::make_units_accessor(_parameters.current_reference));
     entry.parameters.insert(
         "fo_machine_voltage_magnitude", yeet::utils::make_units_accessor(_parameters.machine_voltage_magnitude));
     entry.parameters.insert(

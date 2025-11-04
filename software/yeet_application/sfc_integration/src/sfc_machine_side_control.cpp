@@ -58,9 +58,8 @@ bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
 
     // All signals are now extracted directly from the fiber-optic protocol
     external_ios.update_fiber_optics_inputs(rx_msg->mode, static_cast<sfc_state_id>(rx_msg->state_id),
-        rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero, rx_msg->current_controller_is_saturated,
-        rx_msg->pulse_releases, current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator,
-        rx_msg->is_requesting_main_pi_reset);
+        rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero, rx_msg->is_saturated, rx_msg->pulse_releases,
+        current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator, rx_msg->is_requesting_main_pi_reset);
     return true;
 }
 
@@ -142,26 +141,26 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().pulse_releases, speed_controller.get_inputs().enable_speed_control);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().current_controller_is_saturated,
-        speed_controller.get_inputs().current_controller_is_saturated);
+    signals_connector::connect_output_to_input(
+        external_ios.get_fiber_optics_inputs().is_saturated, speed_controller.get_inputs().is_saturated);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().freeze_integrator, speed_controller.get_inputs().freeze_integrator);
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().is_requesting_main_pi_reset,
         speed_controller.get_inputs().modulator_freeze_integrator);
-    signals_connector::connect_output_to_input(torque_controller.get_outputs().composite_saturation,
-        speed_controller.get_inputs().current_controller_is_saturated);
+    signals_connector::connect_output_to_input(
+        torque_controller.get_outputs().composite_saturation, speed_controller.get_inputs().is_saturated);
 
     // ==================== Torque Controller Inputs ====================
-    signals_connector::connect_output_to_input(speed_controller.get_outputs().torque_reference,
-        torque_controller.get_inputs().torque_reference_from_speed_controller);
+    signals_connector::connect_output_to_input(
+        speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
     signals_connector::connect_output_to_input(
         speed_generator.get_outputs().torque_limit_max_pu, torque_controller.get_inputs().dynamic_max_torque_limit);
     signals_connector::connect_output_to_input(
         speed_generator.get_outputs().torque_limit_min_pu, torque_controller.get_inputs().dynamic_min_torque_limit);
     signals_connector::connect_output_to_input(
         speed_generator.get_outputs().is_breakaway_boost_active, torque_controller.get_inputs().enable_breakaway_boost);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().current_controller_is_saturated,
-        torque_controller.get_inputs().current_controller_is_saturated);
+    signals_connector::connect_output_to_input(
+        external_ios.get_fiber_optics_inputs().is_saturated, torque_controller.get_inputs().is_saturated);
 
     // ==================== Machine-Side Controller Inputs ====================
     signals_connector::connect_output_to_input(
@@ -170,8 +169,6 @@ void sfc_machine_side_control::connect_internal_signals()
         external_ios.get_fiber_optics_inputs().dc_link_current, machine_side_controller.get_inputs().dc_link_current);
 
     // ==================== Machine-Side Modulator Inputs ====================
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs().pulse_releases, machine_side_modulator.get_inputs().enable);
     signals_connector::connect_output_to_input(
         machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
     signals_connector::connect_output_to_input(

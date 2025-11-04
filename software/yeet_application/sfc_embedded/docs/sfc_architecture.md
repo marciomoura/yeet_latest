@@ -88,7 +88,7 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 - **Purpose:** Regulate DC link current to maintain power balance
 - **Type:** PI controller with anti-windup
 - **Inputs:**
-  - `dc_link_current_reference` - From machine-side speed controller
+  - `current_reference` - From machine-side speed controller
   - `dc_link_current_measurement` - From DC link current sensor
   - `machine_side_voltage_magnitude` - For feedforward compensation
   - `freeze_integrator` - Anti-windup signal from state machine
@@ -166,22 +166,22 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 | `grid_side_frequency`            | Timer        | `frequency_t`                 | Grid frequency reference        |
 | `grid_side_angle`                | Timer        | `angle_wrapped`               | Grid angle reference            |
 | `grid_pulses`                    | Hardware     | `six_pulse_generator::pulses` | Thyristor commutation events    |
-| `dc_link_current_reference`      | Machine-side | `current_pu_t`                | Commanded DC current            |
+| `current_reference`              | Machine-side | `current_pu_t`                | Commanded DC current            |
 | `machine_side_voltage_magnitude` | Machine-side | `voltage_pu_t`                | Machine voltage for feedforward |
 | `request_force_commutation`      | Machine-side | `bool`                        | Force commutation request       |
 
 ### 2.4 Grid-Side Output Signals
 
-| Signal                            | Destination  | Type                   | Description              |
-| --------------------------------- | ------------ | ---------------------- | ------------------------ |
-| `pulse_releases`                  | Machine-side | `bool`                 | Enable thyristor firing  |
-| `operating_mode`                  | Machine-side | `sfc_operating_mode_t` | Power flow direction     |
-| `dc_link_current_pu`              | Machine-side | `current_pu_t`         | Measured DC link current |
-| `force_commutation_acknowledged`  | Machine-side | `bool`                 | Commutation ack          |
-| `freeze_integrator`               | Machine-side | `bool`                 | Anti-windup signal       |
-| `current_controller_is_saturated` | Machine-side | `bool`                 | Saturation status        |
-| `modulator_freeze_integrator`     | Machine-side | `bool`                 | Modulator freeze signal  |
-| `gate_pulses[6]`                  | Gate drivers | `bool[6]`              | Thyristor firing signals |
+| Signal                           | Destination  | Type                   | Description              |
+| -------------------------------- | ------------ | ---------------------- | ------------------------ |
+| `pulse_releases`                 | Machine-side | `bool`                 | Enable thyristor firing  |
+| `operating_mode`                 | Machine-side | `sfc_operating_mode_t` | Power flow direction     |
+| `dc_link_current_pu`             | Machine-side | `current_pu_t`         | Measured DC link current |
+| `force_commutation_acknowledged` | Machine-side | `bool`                 | Commutation ack          |
+| `freeze_integrator`              | Machine-side | `bool`                 | Anti-windup signal       |
+| `is_saturated`                   | Machine-side | `bool`                 | Saturation status        |
+| `modulator_freeze_integrator`    | Machine-side | `bool`                 | Modulator freeze signal  |
+| `gate_pulses[6]`                 | Gate drivers | `bool[6]`              | Thyristor firing signals |
 
 ---
 
@@ -205,10 +205,10 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
   - `measured_speed_pu` - From machine observer
   - `enable_speed_control` - From grid-side state machine
   - `freeze_integrator` - Anti-windup from grid-side
-  - `current_controller_is_saturated` - Anti-windup from machine controller
+  - `is_saturated` - Anti-windup from machine controller
   - `modulator_freeze_integrator` - Anti-windup from modulator
 - **Output:**
-  - `dc_link_current_reference` - Commanded DC link current → sent to grid-side
+  - `current_reference` - Commanded DC link current → sent to grid-side
 
 #### 3.2.2 Machine-Side Controller (`sfc_machine_side_controller_runner`)
 - **Purpose:** Control machine-side converter voltage/current
@@ -219,7 +219,7 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
   - Machine voltage feedback
 - **Outputs:**
   - `machine_voltage_reference` - Commanded machine voltage
-  - `current_controller_is_saturated` - Saturation flag
+  - `is_saturated` - Saturation flag
 
 #### 3.2.3 Machine-Side Measurements (`sfc_machine_side_measurements_runner`)
 - **Purpose:** Acquire and process machine voltages
@@ -261,33 +261,33 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
 
 ### 3.3 Machine-Side Input Signals
 
-| Signal                            | Source      | Type                          | Description                             |
-| --------------------------------- | ----------- | ----------------------------- | --------------------------------------- |
-| `speed_reference_pu`              | Supervisory | `speed_pu_t`                  | Commanded machine speed                 |
-| `pulse_releases`                  | Grid-side   | `bool`                        | Enable from state machine               |
-| `operating_mode`                  | Grid-side   | `sfc_operating_mode_t`        | Rectifier/Inverter mode                 |
-| `dc_link_current_pu`              | Grid-side   | `current_pu_t`                | Measured DC current                     |
-| `force_commutation_acknowledged`  | Grid-side   | `bool`                        | Commutation ack from grid               |
-| `freeze_integrator`               | Grid-side   | `bool`                        | Anti-windup for speed controller        |
-| `current_controller_is_saturated` | Grid-side   | `bool`                        | Saturation from grid current controller |
-| `modulator_freeze_integrator`     | Grid-side   | `bool`                        | Anti-windup from grid modulator         |
-| `enable_speed_control`            | Grid-side   | `bool`                        | Enable speed control loop               |
-| `v_ab_counts`                     | ADC         | `adc_counts`                  | Machine voltage AB measurement          |
-| `v_bc_counts`                     | ADC         | `adc_counts`                  | Machine voltage BC measurement          |
-| `machine_side_frequency`          | Timer       | `frequency_t`                 | Machine frequency reference             |
-| `machine_side_angle`              | Timer       | `angle_wrapped`               | Machine angle reference                 |
-| `machine_pulses`                  | Hardware    | `six_pulse_generator::pulses` | Thyristor commutation events            |
+| Signal                           | Source      | Type                          | Description                             |
+| -------------------------------- | ----------- | ----------------------------- | --------------------------------------- |
+| `speed_reference_pu`             | Supervisory | `speed_pu_t`                  | Commanded machine speed                 |
+| `pulse_releases`                 | Grid-side   | `bool`                        | Enable from state machine               |
+| `operating_mode`                 | Grid-side   | `sfc_operating_mode_t`        | Rectifier/Inverter mode                 |
+| `dc_link_current_pu`             | Grid-side   | `current_pu_t`                | Measured DC current                     |
+| `force_commutation_acknowledged` | Grid-side   | `bool`                        | Commutation ack from grid               |
+| `freeze_integrator`              | Grid-side   | `bool`                        | Anti-windup for speed controller        |
+| `is_saturated`                   | Grid-side   | `bool`                        | Saturation from grid current controller |
+| `modulator_freeze_integrator`    | Grid-side   | `bool`                        | Anti-windup from grid modulator         |
+| `enable_speed_control`           | Grid-side   | `bool`                        | Enable speed control loop               |
+| `v_ab_counts`                    | ADC         | `adc_counts`                  | Machine voltage AB measurement          |
+| `v_bc_counts`                    | ADC         | `adc_counts`                  | Machine voltage BC measurement          |
+| `machine_side_frequency`         | Timer       | `frequency_t`                 | Machine frequency reference             |
+| `machine_side_angle`             | Timer       | `angle_wrapped`               | Machine angle reference                 |
+| `machine_pulses`                 | Hardware    | `six_pulse_generator::pulses` | Thyristor commutation events            |
 
 ### 3.4 Machine-Side Output Signals
 
-| Signal                            | Destination  | Type           | Description               |
-| --------------------------------- | ------------ | -------------- | ------------------------- |
-| `dc_link_current_reference`       | Grid-side    | `current_pu_t` | Commanded DC current      |
-| `machine_side_voltage_magnitude`  | Grid-side    | `voltage_pu_t` | Machine voltage magnitude |
-| `request_force_commutation`       | Grid-side    | `bool`         | Force commutation request |
-| `measured_speed_pu`               | Grid-side    | `speed_pu_t`   | Estimated machine speed   |
-| `current_controller_is_saturated` | Internal     | `bool`         | Saturation flag           |
-| `gate_pulses[6]`                  | Gate drivers | `bool[6]`      | Thyristor firing signals  |
+| Signal                           | Destination  | Type           | Description               |
+| -------------------------------- | ------------ | -------------- | ------------------------- |
+| `current_reference`              | Grid-side    | `current_pu_t` | Commanded DC current      |
+| `machine_side_voltage_magnitude` | Grid-side    | `voltage_pu_t` | Machine voltage magnitude |
+| `request_force_commutation`      | Grid-side    | `bool`         | Force commutation request |
+| `measured_speed_pu`              | Grid-side    | `speed_pu_t`   | Estimated machine speed   |
+| `is_saturated`                   | Internal     | `bool`         | Saturation flag           |
+| `gate_pulses[6]`                 | Gate drivers | `bool[6]`      | Thyristor firing signals  |
 
 ---
 
@@ -343,7 +343,7 @@ Signals sent from Grid to Machine:
 ├── dc_link_current_pu ──────────────────► Measured DC link current
 ├── force_commutation_acknowledged ──────► Ack for commutation request
 ├── freeze_integrator ───────────────────► Anti-windup for speed controller
-├── current_controller_is_saturated ─────► Anti-windup signal
+├── is_saturated ─────► Anti-windup signal
 ├── modulator_freeze_integrator ─────────► Anti-windup from modulator
 └── enable_speed_control ────────────────► Enable speed control loop
 ```
@@ -356,7 +356,7 @@ Signals sent from Grid to Machine:
 └──────────────────┘                       └─────────────────┘
 
 Signals sent from Machine to Grid:
-├── dc_link_current_reference ───────────► Commanded DC current (from speed controller)
+├── current_reference ───────────► Commanded DC current (from speed controller)
 ├── machine_side_voltage_magnitude ──────► Machine voltage for feedforward
 ├── request_force_commutation ───────────► Request forced commutation
 └── measured_speed_pu ────────────────────► Estimated machine speed (for mode monitor)

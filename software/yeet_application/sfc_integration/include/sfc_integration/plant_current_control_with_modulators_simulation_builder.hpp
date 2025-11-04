@@ -50,10 +50,13 @@ public:
         // Controller integrator freeze stubs (no higher-level state machine here)
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
 
-        // Enable path: always enabled for this simplified builder (state machine not present)
-        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().enable, true);
-        yeet::mock_signal_input::write(machine_side_modulator.get_inputs().enable, true);
+        // Enable path: set via parameters (not signals) - always true for this simplified builder
+        grid_side_modulator.get_parameters().enable = true;
+        machine_side_modulator.get_parameters().enable = true;
         yeet::mock_signal_input::write(operation_mode_monitor.get_inputs().enable, true);
+
+        // Grid-side modulator trip control: not tripped (normal operation)
+        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().is_tripped, false);
 
         // Pulse releases: always true (no sequencing)
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
@@ -127,7 +130,7 @@ public:
     sfc_plant_model_runner plant;
 
     signal_output<torque_pu_t> load_torque_pu;
-    signal_output<current_pu_t> dc_link_current_reference;
+    signal_output<current_pu_t> current_reference;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -174,7 +177,7 @@ private:
 
         // ==================== Measurements → Current Controller ====================
         signals_connector::connect_output_to_input(
-            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
+            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,
             current_controller.get_inputs().grid_side_voltage_magnitude);
         signals_connector::connect_output_to_input(
@@ -253,7 +256,7 @@ private:
 
         // ==================== External Setpoints ====================
         signals_connector::connect_output_to_input(
-            dc_link_current_reference, current_controller.get_inputs().dc_link_current_reference);
+            current_reference, current_controller.get_inputs().current_reference);
     }
 };
 

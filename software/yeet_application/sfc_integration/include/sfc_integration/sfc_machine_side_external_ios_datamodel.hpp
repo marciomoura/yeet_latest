@@ -100,7 +100,7 @@ public:
             sfc_operating_mode_t::natural_commutation};                    ///< SFC operating mode (pulse or natural)
         yeet::parameter<bool> force_commutation_acknowledged{false};       ///< Forced commutation acknowledgement
         yeet::parameter<bool> is_current_zero{false};                      ///< Machine current below threshold
-        yeet::parameter<bool> current_controller_is_saturated{false};      ///< Grid current controller saturated
+        yeet::parameter<bool> is_saturated{false};                         ///< Grid current controller saturated
         yeet::parameter<bool> pulse_releases{false};                       ///< Grid pulse releases enable
         yeet::parameter<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current from grid-side
         yeet::parameter<bool> freeze_integrator{false};                    ///< Freeze speed controller integrator
@@ -141,7 +141,7 @@ public:
      * - operating_mode: Grid-side operating_mode_monitor (pulse or natural commutation)
      * - force_commutation_acknowledged: Grid-side state machine handshake ACK
      * - is_current_zero: Grid-side current detection (used for force commutation)
-     * - current_controller_is_saturated: Grid current controller saturation flag
+     * - is_saturated: Grid current controller saturation flag
      * - pulse_releases: Grid-side state machine enable (system running)
      * - dc_link_current: Grid-side DC link measurements (machine-side is sensorless)
      * - freeze_integrator: Speed controller integrator freeze for pulse-mode
@@ -160,7 +160,7 @@ public:
             sfc_operating_mode_t::natural_commutation};                  ///< SFC operating mode
         signal_output<bool> force_commutation_acknowledged{false};       ///< Forced commutation ACK
         signal_output<bool> is_current_zero{false};                      ///< DC current zero indicator
-        signal_output<bool> current_controller_is_saturated{false};      ///< Grid controller saturated
+        signal_output<bool> is_saturated{false};                         ///< Grid controller saturated
         signal_output<bool> pulse_releases{false};                       ///< Grid system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< Grid-measured DC current [pu]
         signal_output<bool> freeze_integrator{false};                    ///< PI integrator freeze
@@ -322,7 +322,7 @@ public:
      * @param current_state_id Grid-side state machine current state ID
      * @param force_commutation_acknowledged Forced commutation handshake acknowledgement
      * @param is_current_zero DC link current below threshold indicator
-     * @param current_controller_is_saturated Grid current controller at output limits
+     * @param is_saturated Grid current controller at output limits
      * @param pulse_releases Pulses enabled / grid system running flag
      * @param dc_link_current Measured DC link current in per-unit
      * @param freeze_integrator Speed controller integrator freeze signal
@@ -346,7 +346,7 @@ public:
         yeet::application::sfc::sfc_state_id current_state_id,
         bool force_commutation_acknowledged,
         bool is_current_zero,
-        bool current_controller_is_saturated,
+        bool is_saturated,
         bool pulse_releases,
         current_pu_t dc_link_current,
         bool freeze_integrator,

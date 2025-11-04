@@ -65,7 +65,7 @@ void sfc_torque_controller::reset()
     _downstream_saturation = false;
 }
 
-void sfc_torque_controller::update(torque_pu_t torque_reference_from_speed_controller,
+void sfc_torque_controller::update(torque_pu_t torque_reference,
     torque_pu_t dynamic_max_torque_limit,
     torque_pu_t dynamic_min_torque_limit,
     bool enable_breakaway_boost)
@@ -79,7 +79,7 @@ void sfc_torque_controller::update(torque_pu_t torque_reference_from_speed_contr
         _base_torque_reference = _manual_torque_reference;
     }
     else {
-        _base_torque_reference = torque_reference_from_speed_controller;
+        _base_torque_reference = torque_reference;
     }
 
     // Step 3: Handle breakaway boost

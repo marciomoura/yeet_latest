@@ -40,17 +40,21 @@ public:
         /// Range: [0.0, π] radians
         signal_input<angle_wrapped> firing_angle;
 
-        /// System enable command
-        signal_input<bool> enable;
-
         /// Operating mode selector for load commutated vs pulse mode
         signal_input<sfc_operating_mode_t> operating_mode;
+
+        /// External trip signal - forces forced_commutation mode until cleared
+        /// When true, overrides normal mode logic and applies deep inversion
+        signal_input<bool> is_tripped;
     };
 
     /**
      * @brief Output signals from the grid-side modulator component
      */
     struct outputs {
+        /// Pulse release control signal to pulse generator
+        signal_output<bool> release_pulses;
+
         /// Firing angle output to the pulse generator
         /// Range: [0.0, π] radians
         signal_output<angle_wrapped> firing_angle;
@@ -70,6 +74,10 @@ public:
      * @brief Configuration parameters for the grid-side modulator
      */
     struct parameters {
+        /// Master enable override - when false, forces release_pulses to false
+        /// Default: true (normal operation)
+        parameter<bool> enable{true};
+
         /// Fixed firing angle for forced commutation (deep inversion)
         /// Range: [2π/3, π] radians (120° to 180°)
         /// Default: 5π/6 radians (150°)
@@ -99,6 +107,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameters.insert("enable", _model_parameters->enable);
         entry.parameters.insert(
             "force_commutation_angle", yeet::utils::make_units_accessor(_model_parameters->force_commutation_angle));
         entry.parameters.insert(

@@ -60,7 +60,7 @@ struct grid_to_machine_message {
         yeet::application::sfc::sfc_operating_mode_t::natural_commutation}; /**< Current operating mode */
     float dc_link_current_pu{0.0f};                                         /**< DC link current measurement [pu] */
     bool is_current_zero{false};                                            /**< DC link current is zero */
-    bool current_controller_is_saturated{false};                            /**< Current controller is saturated */
+    bool is_saturated{false};                                               /**< Current controller is saturated */
     bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
     bool pulse_releases{false};                 /**< Thyristor pulses are enabled */
     std::uint8_t state_id{0};                   /**< Current grid-side state machine state */
@@ -97,7 +97,7 @@ struct grid_to_machine_message {
  *     .mode = operating_mode::natural_commutation,
  *     .dc_link_current_pu = 0.75f,
  *     .is_current_zero = false,
- *     .current_controller_is_saturated = false,
+ *     .is_saturated = false,
  *     .force_commutation_acknowledged = true,
  *     .pulse_releases = true,
  *     .state_id = 5,

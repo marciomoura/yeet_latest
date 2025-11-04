@@ -28,9 +28,6 @@ public:
      * @brief Input signals for the machine-side modulator component
      */
     struct inputs {
-        /// System enable command
-        signal_input<bool> enable;
-
         /// Operating mode selection from external mode detector
         signal_input<sfc_operating_mode_t> operating_mode;
 
@@ -48,12 +45,12 @@ public:
      * @brief Output signals from the machine-side modulator component
      */
     struct outputs {
+        /// Pulse release control signal to pulse generator
+        signal_output<bool> release_pulses;
+
         /// Firing angle output to the pulse generator
         /// Range: [0.0, π] radians
         signal_output<angle_wrapped> firing_angle;
-
-        /// Pulse release control signal to pulse generator
-        signal_output<bool> release_pulses;
 
         /// Request signal to grid-side modulator for forced commutation
         signal_output<bool> request_force_commutation;
@@ -69,6 +66,10 @@ public:
      * @brief Configuration parameters for the machine-side modulator
      */
     struct parameters {
+        /// Master enable override - when false, forces release_pulses to false
+        /// Default: true (normal operation)
+        parameter<bool> enable{true};
+
         /// Fixed firing angle for pulse mode operation
         /// Range: [0.0, π] radians
         /// Default: π radians (180°)
@@ -93,6 +94,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameters.insert("enable", _model_parameters->enable);
         entry.parameters.insert("forced_commutation_firing_angle",
             yeet::utils::make_units_accessor(_model_parameters->forced_commutation_firing_angle));
 

@@ -114,7 +114,7 @@ public:
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_plant_model_runner plant;
     signal_output<torque_pu_t> load_torque_pu;
-    signal_output<current_pu_t> dc_link_current_reference;
+    signal_output<current_pu_t> current_reference;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -192,7 +192,7 @@ private:
             current_controller.get_inputs().machine_side_voltage_magnitude);
         // Use dc link measurement filtered current (already scaled) instead of observer estimate
         signals_connector::connect_output_to_input(
-            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
+            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
         signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_heavy_filtered_pu,
             machine_side_controller.get_inputs().dc_link_current);
         // Machine speed from observer (sensorless)
@@ -220,7 +220,7 @@ private:
 
         // ==================== External setpoint -> current controller ====================
         signals_connector::connect_output_to_input(
-            dc_link_current_reference, current_controller.get_inputs().dc_link_current_reference);
+            current_reference, current_controller.get_inputs().current_reference);
     }
 };
 

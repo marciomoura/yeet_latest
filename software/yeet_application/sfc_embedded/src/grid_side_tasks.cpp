@@ -207,7 +207,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     //     yeet::mock_signal_input::write(
     //         get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
     //     yeet::mock_signal_input::write(
-    //         get_grid_side_control().get_io().machine_side_inputs.dc_link_current_reference,
+    //         get_grid_side_control().get_io().machine_side_inputs.current_reference,
     //         yeet::current_pu_t{0.0f});
     //     yeet::mock_signal_input::write(
     //         get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude,
@@ -235,7 +235,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
         tx_msg.force_commutation_acknowledged = control->get_force_commutation_acknowledged().read();
         tx_msg.pulse_releases = control->get_pulse_releases().read();
         tx_msg.dc_link_current_pu = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
-        tx_msg.current_controller_is_saturated = control->get_current_controller_is_saturated().read();
+        tx_msg.is_saturated = control->get_current_controller_is_saturated().read();
 
         // Encode and transmit
         outputs->fiber_optic_tx.payload_length =

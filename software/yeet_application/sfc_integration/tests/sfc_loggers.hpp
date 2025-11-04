@@ -33,10 +33,10 @@ static inline void register_minimal_current_controller_logger(
     yeet::simulator& simulator, sfc_current_controller_runner& current_controller)
 {
     const std::string group{"current_controller:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current_reference",
-        [&]() { return current_controller.get_inputs().dc_link_current_reference.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current_measured",
-        [&]() { return current_controller.get_inputs().dc_link_current_measured.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(
+        group + "input current_reference", [&]() { return current_controller.get_inputs().current_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(
+        group + "input current_measured", [&]() { return current_controller.get_inputs().current_measured.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input freeze_integrator", [&]() { return current_controller.get_inputs().freeze_integrator.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input modulator_freeze",
@@ -194,9 +194,8 @@ static inline void register_minimal_sfc_torque_controller_logger(
     const std::string group{"torque_controller:"};
 
     // Key inputs
-    simulator.register_sampler_entry(
-        yeet::make_lambda_sampler<torque_pu_t>(group + "input torque_reference_from_speed_controller",
-            [&]() { return torque_controller.get_inputs().torque_reference_from_speed_controller.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(
+        group + "input torque_reference", [&]() { return torque_controller.get_inputs().torque_reference.read(); }));
 
     // Key outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "output current_reference",
@@ -225,8 +224,8 @@ static inline void register_complete_sfc_torque_controller_logger(
         [&]() { return torque_controller.get_inputs().dynamic_min_torque_limit.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input enable_breakaway_boost",
         [&]() { return torque_controller.get_inputs().enable_breakaway_boost.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input current_controller_is_saturated",
-        [&]() { return torque_controller.get_inputs().current_controller_is_saturated.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input is_saturated", [&]() { return torque_controller.get_inputs().is_saturated.read(); }));
 
     // Additional outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
@@ -584,8 +583,6 @@ static inline void register_minimal_grid_side_modulator_logger(
         [&]() { return grid_side_modulator.get_inputs().request_force_commutation.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input dc_link_current_is_zero",
         [&]() { return grid_side_modulator.get_inputs().dc_link_current_is_zero.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input enable", [&]() { return grid_side_modulator.get_inputs().enable.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
         [&]() { return grid_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
 }
@@ -607,8 +604,6 @@ static inline void register_minimal_machine_side_modulator_logger(
     yeet::simulator& simulator, sfc_machine_side_modulator_runner& machine_side_modulator)
 {
     const std::string group{"machine_side_modulator:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input enable", [&]() { return machine_side_modulator.get_inputs().enable.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
         [&]() { return machine_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output current_rotor_sector", [&]() {
@@ -683,8 +678,8 @@ static inline void register_complete_grid_side_pulse_generator_logger(
 
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output actual_firing_angle",
         [&]() { return grid_side_pulse_generator.get_outputs().actual_firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_active", [&]() { return grid_side_pulse_generator.get_outputs().is_active.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_pulses",
+        [&]() { return grid_side_pulse_generator.get_outputs().release_pulses.read(); }));
 }
 
 static inline void register_minimal_machine_side_pulse_generator_logger(

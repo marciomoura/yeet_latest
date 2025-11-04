@@ -66,7 +66,7 @@ public:
         // Machine-side fiber-optics input overrides
         yeet::parameter<bool> override_machine_side_fiber_optics_inputs{false};
         yeet::parameter<speed_pu_t> measured_speed_pu{speed_pu_t{0.0}};
-        yeet::parameter<current_pu_t> dc_link_current_reference{current_pu_t{0.0}};
+        yeet::parameter<current_pu_t> current_reference{current_pu_t{0.0}};
         yeet::parameter<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};
         yeet::parameter<bool> request_force_commutation{false};
     };
@@ -124,7 +124,7 @@ public:
      * - operating_mode: From operation_mode_monitor or state_machine
      * - force_commutation_acknowledged: From state_machine or operation_mode_monitor
      * - is_current_zero: From grid_side_observer or current_controller
-     * - current_controller_is_saturated: From current_controller saturation detection
+     * - is_saturated: From current_controller saturation detection
      * - pulse_releases: From state_machine (pulses enabled / system running)
      * - dc_link_current: From dc_link_measurements (GRID-SIDE measured DC link current)
      *   NOTE: Machine-side has NO current measurement (sensorless), so it needs the DC link
@@ -142,7 +142,7 @@ public:
             sfc_operating_mode_t::natural_commutation};                  ///< SFC operating mode (pulse or natural)
         signal_output<bool> force_commutation_acknowledged{false};       ///< Forced commutation handshake ACK
         signal_output<bool> is_current_zero{false};                      ///< DC link current below threshold
-        signal_output<bool> current_controller_is_saturated{false};      ///< Current controller at output limits
+        signal_output<bool> is_saturated{false};                         ///< Current controller at output limits
         signal_output<bool> pulse_releases{false};                       ///< Pulses enabled/system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current [pu] (grid-measured)
         signal_output<bool> freeze_integrator{false};                    ///< Speed controller integrator freeze
@@ -161,7 +161,7 @@ public:
      *
      * **Signal Sources (Machine-Side Components):**
      * - measured_speed_pu: From machine_side_observer.estimated_speed
-     * - dc_link_current_reference: From torque_controller.current_reference
+     * - current_reference: From torque_controller.current_reference
      * - machine_voltage_magnitude: From machine_side_observer.estimated_voltage_magnitude
      * - request_force_commutation: From machine_side_modulator (when low-speed assist needed)
      *
@@ -173,9 +173,8 @@ public:
      * Flow: Machine-side components → update_fiber_optics_inputs_from_machine() → grid-side cross-coupling
      */
     struct fiber_optics_inputs_from_machine_t {
-        signal_output<speed_pu_t> measured_speed_pu{speed_pu_t{0.0}};  ///< Machine rotor speed [pu]
-        signal_output<current_pu_t> dc_link_current_reference{
-            current_pu_t{0.0}};  ///< Current ref from torque controller
+        signal_output<speed_pu_t> measured_speed_pu{speed_pu_t{0.0}};      ///< Machine rotor speed [pu]
+        signal_output<current_pu_t> current_reference{current_pu_t{0.0}};  ///< Current ref from torque controller
         signal_output<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};  ///< Machine back-EMF magnitude [pu]
         signal_output<bool> request_force_commutation{false};                      ///< Force commutation request
     };
@@ -317,7 +316,7 @@ public:
      * @param operating_mode Current SFC operating mode (pulse or natural commutation)
      * @param force_commutation_acknowledged Forced commutation handshake acknowledgement
      * @param is_current_zero DC link current below threshold indicator
-     * @param current_controller_is_saturated Current controller at output limits
+     * @param is_saturated Current controller at output limits
      * @param pulse_releases Pulses enabled / system running flag
      * @param dc_link_current Measured DC link current in per-unit
      * @param freeze_integrator Speed controller integrator freeze signal
@@ -340,7 +339,7 @@ public:
     void update_fiber_optics_outputs_to_machine(sfc_operating_mode_t operating_mode,
         bool force_commutation_acknowledged,
         bool is_current_zero,
-        bool current_controller_is_saturated,
+        bool is_saturated,
         bool pulse_releases,
         current_pu_t dc_link_current,
         bool freeze_integrator,
@@ -358,14 +357,14 @@ public:
      *
      * **Parameters:**
      * @param measured_speed_pu Machine rotor speed in per-unit
-     * @param dc_link_current_reference Current reference from torque controller
+     * @param current_reference Current reference from torque controller
      * @param machine_voltage_magnitude Machine back-EMF magnitude in per-unit
      * @param request_force_commutation Force commutation request from machine-side
      *
      * **Timing:** Called at 1ms after machine-side update
      *
      * **Override Logic:** When override_machine_side_fiber_optics_inputs is true,
-     * uses parameter values (measured_speed_pu, dc_link_current_reference, etc.)
+     * uses parameter values (measured_speed_pu, current_reference, etc.)
      * instead of the values provided to this method.
      *
      * **Plant Builder Usage:**
@@ -378,7 +377,7 @@ public:
      * ```
      */
     void update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed_pu,
-        current_pu_t dc_link_current_reference,
+        current_pu_t current_reference,
         voltage_pu_t machine_voltage_magnitude,
         bool request_force_commutation);
 

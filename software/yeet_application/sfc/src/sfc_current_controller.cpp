@@ -56,7 +56,7 @@ void sfc_current_controller::reset()
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
-    current_pu_t dc_link_current_measured,
+    current_pu_t current_measured,
     voltage_pu_t grid_side_voltage_magnitude,
     voltage_pu_t machine_side_voltage_magnitude)
 {
@@ -69,10 +69,10 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 
     // Step 2: Check if measured current exceeds the magnitude limit
     _is_current_measured_above_magnitude_limit =
-        yeet::control::limit<current_pu_t>::is_above_upper_limit(dc_link_current_measured, _dc_link_current_max_pu);
+        yeet::control::limit<current_pu_t>::is_above_upper_limit(current_measured, _dc_link_current_max_pu);
 
     // Step 3: Calculate the error signal using the limited reference and store it
-    _current_error_pu = _current_reference_limited_pu - dc_link_current_measured;
+    _current_error_pu = _current_reference_limited_pu - current_measured;
 
     // Step 4: Update the PI controller to get the corrective control voltage and store it
     _pi_output = _pi_controller.update(_current_error_pu.value());
@@ -94,7 +94,7 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
-    current_pu_t dc_link_current_measured,
+    current_pu_t current_measured,
     voltage_pu_t grid_side_voltage_magnitude,
     voltage_pu_t machine_side_voltage_magnitude,
     const voltage_t& machine_side_base_voltage,
@@ -105,7 +105,7 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
         machine_side_voltage_magnitude, machine_side_base_voltage, grid_side_base_voltage);
 
     // Call the main update method with the reflected voltage
-    update(dc_link_current_reference_pu, dc_link_current_measured, grid_side_voltage_magnitude,
+    update(dc_link_current_reference_pu, current_measured, grid_side_voltage_magnitude,
         inverter_back_emf_grid_reflected_pu);
 }
 

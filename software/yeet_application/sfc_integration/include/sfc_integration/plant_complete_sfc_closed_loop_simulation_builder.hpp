@@ -96,7 +96,7 @@ public:
         // Grid-side inputs via datamodel
         machine_side_control.external_ios.get_parameters().override_fiber_optics_inputs.write(false);
         machine_side_control.external_ios.get_parameters().pulse_releases.write(true);
-        machine_side_control.external_ios.get_parameters().current_controller_is_saturated.write(false);
+        machine_side_control.external_ios.get_parameters().is_saturated.write(false);
         machine_side_control.external_ios.get_parameters().is_current_zero.write(false);
         machine_side_control.external_ios.get_parameters().force_commutation_acknowledged.write(false);
         machine_side_control.external_ios.get_parameters().dc_link_current.write(current_pu_t{});

@@ -42,12 +42,17 @@ public:
         /// Actual firing angle being used (for monitoring/debugging)
         /// Range: [0.0, π] radians
         signal_output<angle_wrapped> actual_firing_angle;
+
+        /// Pulse generator active status
+        signal_output<bool> release_pulses;
     };
 
     /**
      * @brief Configuration parameters for the machine-side pulse generator
      */
     struct parameters {
+        /// Master enable override - when false, blocks all pulses
+        /// Default: true (normal operation)
         parameter<bool> enable{true};
 
         /// Pulse width for each firing pulse in radians

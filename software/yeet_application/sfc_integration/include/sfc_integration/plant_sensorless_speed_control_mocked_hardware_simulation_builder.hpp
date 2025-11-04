@@ -80,7 +80,7 @@ public:
         machine_side_pulse_generator.initialize();
     }
 
-    void register_applications(yeet::simulator &simulator)
+    void register_applications(yeet::simulator& simulator)
     {
         simulator.register_runner(plant);
         simulator.register_runner(grid_side_hardware_mock);
@@ -105,7 +105,7 @@ public:
         simulator.register_runner(machine_side_pulse_generator);
     }
 
-    void register_datamodel(yeet::model_registry &registry)
+    void register_datamodel(yeet::model_registry& registry)
     {
         plant.register_datamodel(registry);
         grid_side_hardware_mock.register_datamodel(registry);
@@ -225,11 +225,11 @@ private:
         // NOTE: In full SFC system, torque controller sits between speed and current controllers
         // Here we use 1:1 torque-to-current assumption for simplified testing (via intermediate signal)
         signals_connector::connect_output_to_input(
-            current_reference_from_speed_ctrl, current_controller.get_inputs().dc_link_current_reference);
+            current_reference_from_speed_ctrl, current_controller.get_inputs().current_reference);
 
         // ==================== DC Link Measurement -> Current Controller (feedback) ====================
         signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_filtered_pu,
-            current_controller.get_inputs().dc_link_current_measured);
+            current_controller.get_inputs().current_measured);
 
         // ==================== Observer Voltage Magnitudes -> Current Controller (feedforward) ====================
         signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
@@ -271,8 +271,8 @@ private:
             enable_speed_control, speed_controller.get_inputs().enable_speed_control);
 
         // ==================== Current Controller Saturation -> Speed Controller (anti-windup) ====================
-        signals_connector::connect_output_to_input(current_controller.get_outputs().current_controller_is_saturated,
-            speed_controller.get_inputs().current_controller_is_saturated);
+        signals_connector::connect_output_to_input(
+            current_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
     }
 };
 

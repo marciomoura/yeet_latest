@@ -229,14 +229,14 @@ private:
         // NOTE: In full SFC system, torque controller sits between speed and current controllers
         // Using intermediate signal for type conversion (torque_pu_t → current_pu_t)
         signals_connector::connect_output_to_input(
-            current_reference_from_speed_ctrl, current_ctrl_model.get_inputs().dc_link_current_reference);
+            current_reference_from_speed_ctrl, current_ctrl_model.get_inputs().current_reference);
 
         // ==================== DC Link Measurements → Current Controller ====================
         // Connect DC link current feedback to current controller
 
         // DC link current feedback (still use direct measurement as it's most reliable)
-        signals_connector::connect_output_to_input(dc_link_model.get_outputs().dc_current_filtered_pu,
-            current_ctrl_model.get_inputs().dc_link_current_measured);
+        signals_connector::connect_output_to_input(
+            dc_link_model.get_outputs().dc_current_filtered_pu, current_ctrl_model.get_inputs().current_measured);
 
         // ==================== Observers → Current Controller (Feedforward) ====================
         // Connect observer-estimated values to current controller feedforward inputs
@@ -306,8 +306,8 @@ private:
         signals_connector::connect_output_to_input(
             enable_speed_control, speed_ctrl_model.get_inputs().enable_speed_control);
 
-        signals_connector::connect_output_to_input(current_ctrl_model.get_outputs().current_controller_is_saturated,
-            speed_ctrl_model.get_inputs().current_controller_is_saturated);
+        signals_connector::connect_output_to_input(
+            current_ctrl_model.get_outputs().is_saturated, speed_ctrl_model.get_inputs().is_saturated);
 
         // Optional external current reference override (for manual current control mode)
         // Note: This would typically be switched in via a mode selector in a real application

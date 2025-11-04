@@ -30,7 +30,7 @@ public:
         signal_input<speed_pu_t> measured_speed_pu;
 
         signal_input<bool> freeze_integrator;
-        signal_input<bool> current_controller_is_saturated;
+        signal_input<bool> is_saturated;
         signal_input<bool> modulator_freeze_integrator;  // needs additional logic to handle all freezes
     };
 
