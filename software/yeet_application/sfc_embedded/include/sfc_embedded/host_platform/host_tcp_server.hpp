@@ -39,7 +39,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
+#include <mutex>
 #include <string>
+#include <vector>
 
 namespace yeet::application::sfc::host {
 
@@ -111,15 +114,40 @@ public:
     int receive_data(std::uint8_t* buffer, std::size_t max_len);
 
     /**
-     * @brief Send data to connected client
+     * @brief Send data to connected client (non-blocking with queue)
      *
      * @param data Pointer to data to send
      * @param len Number of bytes to send
-     * @return true if all data sent successfully, false on error
+     * @return true if data queued/sent successfully, false if queue full or error
      *
-     * Blocking operation - waits until all data is sent or error occurs.
+     * Non-blocking operation - queues data for transmission. If send queue
+     * is full (client too slow), oldest data is dropped.
      */
     bool send_data(const std::uint8_t* data, std::size_t len);
+
+    /**
+     * @brief Flush pending send queue (called automatically in process())
+     *
+     * Attempts to send queued data without blocking. Returns number of
+     * bytes actually transmitted.
+     *
+     * @return Number of bytes transmitted from queue
+     */
+    std::size_t flush_send_queue();
+
+    /**
+     * @brief Get number of bytes currently queued for transmission
+     *
+     * @return Bytes waiting in send queue
+     */
+    std::size_t get_send_queue_size() const;
+
+    /**
+     * @brief Get number of times send queue overflowed (data dropped)
+     *
+     * @return Count of queue overflow events
+     */
+    std::uint32_t get_queue_overflow_count() const { return queue_overflow_count_; }
 
     /**
      * @brief Get server port number
@@ -154,11 +182,26 @@ private:
      */
     bool set_nonblocking(int socket);
 
+    /**
+     * @brief Attempt to send data immediately (non-blocking)
+     *
+     * @param data Pointer to data
+     * @param len Number of bytes to send
+     * @return Number of bytes actually sent (may be less than len)
+     */
+    std::size_t try_send_immediate(const std::uint8_t* data, std::size_t len);
+
 private:
     int server_socket_;   ///< Server socket descriptor (-1 if not initialized)
     int client_socket_;   ///< Client socket descriptor (-1 if not connected)
     std::uint16_t port_;  ///< Server port number
     std::string host_;    ///< Server bind address
+
+    // Send queue for non-blocking operation
+    static constexpr std::size_t MAX_QUEUE_SIZE = 1024 * 1024;  ///< 1 MB max queue
+    std::deque<std::uint8_t> send_queue_;                       ///< Pending data to send
+    mutable std::mutex queue_mutex_;                            ///< Protects send queue
+    std::uint32_t queue_overflow_count_;                        ///< Number of queue overflows
 };
 
 }  // namespace yeet::application::sfc::host

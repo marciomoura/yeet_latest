@@ -7,6 +7,7 @@
 
 #include "sfc_embedded/host_platform/host_tcp_server.hpp"
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
 
@@ -46,7 +47,11 @@ constexpr int INVALID_SOCKET_VALUE = -1;
 }  // namespace
 
 host_tcp_server::host_tcp_server()
-    : server_socket_(INVALID_SOCKET_VALUE), client_socket_(INVALID_SOCKET_VALUE), port_(0), host_()
+    : server_socket_(INVALID_SOCKET_VALUE),
+      client_socket_(INVALID_SOCKET_VALUE),
+      port_(0),
+      host_(),
+      queue_overflow_count_(0)
 {
 }
 
@@ -152,6 +157,10 @@ void host_tcp_server::process()
     if (!is_client_connected()) {
         accept_client();
     }
+    else {
+        // Flush pending data to client
+        flush_send_queue();
+    }
 }
 
 bool host_tcp_server::accept_client()
@@ -172,7 +181,7 @@ bool host_tcp_server::accept_client()
 
     client_socket_ = new_socket;
 
-    // Set client socket to non-blocking for receive operations
+    // Set client socket to non-blocking
     set_nonblocking(client_socket_);
 
     char client_ip[INET_ADDRSTRLEN];
@@ -224,31 +233,93 @@ bool host_tcp_server::send_data(const std::uint8_t* data, std::size_t len)
         return false;
     }
 
-    // #ifdef HOST_BUILD
-    //     // Debug: print first 32 bytes being sent
-    //     printf("[SEND] Sending %zu bytes. First 32: ", len);
-    //     for (size_t i = 0; i < 32 && i < len; i++) {
-    //         printf("%02x ", data[i]);
-    //     }
-    //     printf("\n");
-    // #endif
+    std::lock_guard<std::mutex> lock(queue_mutex_);
 
-    std::size_t total_sent = 0;
+    // Check if adding this data would overflow queue
+    if (send_queue_.size() + len > MAX_QUEUE_SIZE) {
+        // Drop oldest data to make room
+        std::size_t bytes_to_drop = (send_queue_.size() + len) - MAX_QUEUE_SIZE;
+        send_queue_.erase(send_queue_.begin(), send_queue_.begin() + bytes_to_drop);
+        queue_overflow_count_++;
 
-    while (total_sent < len) {
-        ssize_t sent = send(
-            client_socket_, reinterpret_cast<const char*>(data + total_sent), static_cast<int>(len - total_sent), 0);
-
-        if (sent < 0) {
-            std::cerr << "Send error, disconnecting client\n";
-            disconnect_client();
-            return false;
+        // Optionally log warning (limit frequency to avoid spam)
+        static auto last_warning = std::chrono::steady_clock::now();
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - last_warning).count() >= 5) {
+            std::cerr << "[TCP] Send queue overflow, dropped " << bytes_to_drop << " bytes (client too slow)\n";
+            last_warning = now;
         }
+    }
 
+    // Add data to queue
+    send_queue_.insert(send_queue_.end(), data, data + len);
+
+    return true;
+}
+
+std::size_t host_tcp_server::flush_send_queue()
+{
+    if (!is_client_connected()) {
+        return 0;
+    }
+
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+
+    if (send_queue_.empty()) {
+        return 0;
+    }
+
+    // Try to send as much as possible without blocking
+    std::size_t total_sent = 0;
+    const std::size_t chunk_size = std::min<std::size_t>(send_queue_.size(), 8192);  // Send up to 8KB per call
+
+    // Copy chunk to temporary buffer (deque doesn't have data() method)
+    std::vector<std::uint8_t> buffer(chunk_size);
+    std::copy(send_queue_.begin(), send_queue_.begin() + chunk_size, buffer.begin());
+
+    std::size_t sent = try_send_immediate(buffer.data(), chunk_size);
+
+    if (sent > 0) {
+        send_queue_.erase(send_queue_.begin(), send_queue_.begin() + sent);
         total_sent += sent;
     }
 
-    return true;
+    return total_sent;
+}
+
+std::size_t host_tcp_server::try_send_immediate(const std::uint8_t* data, std::size_t len)
+{
+    if (!is_client_connected() || len == 0) {
+        return 0;
+    }
+
+    ssize_t sent = send(client_socket_, reinterpret_cast<const char*>(data), static_cast<int>(len), 0);
+
+    if (sent < 0) {
+#ifdef _WIN32
+        int error = WSAGetLastError();
+        if (error == WSAEWOULDBLOCK) {
+            return 0;  // Would block, try again later
+        }
+#else
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return 0;  // Would block, try again later
+        }
+#endif
+
+        // Error occurred
+        std::cerr << "[TCP] Send error, disconnecting client\n";
+        disconnect_client();
+        return 0;
+    }
+
+    return static_cast<std::size_t>(sent);
+}
+
+std::size_t host_tcp_server::get_send_queue_size() const
+{
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    return send_queue_.size();
 }
 
 void host_tcp_server::disconnect_client()
@@ -260,6 +331,10 @@ void host_tcp_server::disconnect_client()
         close(client_socket_);
 #endif
         client_socket_ = INVALID_SOCKET_VALUE;
+
+        // Clear send queue on disconnect
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        send_queue_.clear();
     }
 }
 
