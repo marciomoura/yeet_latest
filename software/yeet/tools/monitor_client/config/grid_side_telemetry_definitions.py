@@ -4,126 +4,129 @@
 This module defines the declarative structure for grid-side telemetry panels,
 mapping signal indices from grid-side telemetry packets to human-readable names
 and display parameters.
-
-Organized by functional area:
-  - State Machine: Current operating state and commands
-  - Measurements: Voltage and current measurements
-  - Observer: Estimated grid parameters
-  - Controller: Current and power regulation
-  - Modulator: Firing angle and pulse control
 """
 
 from typing import Dict, List, Any
+from collections import OrderedDict
+from .grid_side_telemetry_protocol import GridSignalIndex
 
 
-def get_grid_side_telemetry() -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
+def _get_section_order() -> List[str]:
+    """Get the canonical display order for telemetry sections.
+    
+    This defines the preferred order for section display across all telemetry panels.
+    Not all sections may be present in every configuration.
+    
+    Returns:
+        List of section keys in preferred display order
+    """
+    return [
+        'system',
+        'speed_controller',
+        'torque_controller',
+        'controller',
+        'observer',
+        'measurements',
+        'modulator',
+        'operation_mode',
+    ]
+
+
+def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
     """Get telemetry definitions for grid-side monitoring.
     
     Returns:
-        Dictionary containing section definitions with structure:
-        {
-            'section_name': {
-                'fields': [
-                    {'name': str, 'index': int, 'type': 'float'|'bool'},
-                    ...
-                ]
-            }
-        }
+        OrderedDict with section definitions in canonical order.
     """
-    return {
-        'measurements': {
+    all_sections = {
+        'system': {
+            'title': 'System',
             'fields': [
-                {'name': 'Grid Voltage Magnitude (pu)', 'index': 0, 'type': 'float'},
-                {'name': 'Grid Voltage A (pu)', 'index': 1, 'type': 'float'},
-                {'name': 'Grid Voltage B (pu)', 'index': 2, 'type': 'float'},
-                {'name': 'Grid Voltage C (pu)', 'index': 3, 'type': 'float'},
-                {'name': 'Grid Current Magnitude (pu)', 'index': 4, 'type': 'float'},
-                {'name': 'Grid Current A (pu)', 'index': 5, 'type': 'float'},
-                {'name': 'Grid Current B (pu)', 'index': 6, 'type': 'float'},
-                {'name': 'Grid Current C (pu)', 'index': 7, 'type': 'float'},
-                {'name': 'DC Link Current (pu)', 'index': 8, 'type': 'float'},
-                {'name': 'Is Commuting', 'index': 9, 'type': 'bool'},
-                {'name': 'Grid Voltage Alpha (pu)', 'index': 10, 'type': 'float'},
-                {'name': 'Grid Voltage Beta (pu)', 'index': 11, 'type': 'float'},
-                {'name': 'Grid Voltage Mag Filtered (pu)', 'index': 12, 'type': 'float'},
-                {'name': 'Grid Frequency (Hz)', 'index': 13, 'type': 'float'},
+                {'name': 'pulse releases', 'index': GridSignalIndex.PULSE_RELEASES, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is commuting', 'index': GridSignalIndex.IS_COMMUTING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'modulator enabled', 'index': GridSignalIndex.MODULATOR_ENABLED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'modulator state', 'index': GridSignalIndex.MODULATOR_STATE, 'type': 'int', 'format': '.0f'},
+                {'name': 'auxiliaries on', 'index': GridSignalIndex.AUXILIARIES_ON, 'type': 'bool', 'format': 'bool'},
+                {'name': 'breakers on', 'index': GridSignalIndex.BREAKERS_ON, 'type': 'bool', 'format': 'bool'},
+                {'name': 'current state', 'index': GridSignalIndex.STATE_MACHINE_STATE, 'type': 'int', 'format': '.0f'},
+                {'name': 'operating mode', 'index': GridSignalIndex.OPERATION_MODE, 'type': 'int', 'format': '.0f'},
+            ]
+        },
+        'measurements': {
+            'title': 'Measurements',
+            'fields': [
+                {'name': 'voltage magnitude (pu)', 'index': GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage magnitude filtered (pu)', 'index': GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED_DUP, 'type': 'float', 'format': '.4f'},
+                {'name': 'current magnitude (pu)', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'dc link current (pu)', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
+                {'name': 'frequency (hz)', 'index': GridSignalIndex.GRID_SIDE_FREQUENCY, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage alpha (pu)', 'index': GridSignalIndex.GRID_VOLTAGE_ALPHA, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage beta (pu)', 'index': GridSignalIndex.GRID_VOLTAGE_BETA, 'type': 'float', 'format': '.4f'},
             ]
         },
         'observer': {
+            'title': 'Observer',
             'fields': [
-                {'name': 'Est Voltage Magnitude (pu)', 'index': 14, 'type': 'float'},
-                {'name': 'Est Frequency (pu)', 'index': 15, 'type': 'float'},
-                {'name': 'Est Angle (rad)', 'index': 16, 'type': 'float'},
-                {'name': 'Est Frequency (Hz)', 'index': 17, 'type': 'float'},
-                {'name': 'Est Voltage Alpha (pu)', 'index': 18, 'type': 'float'},
-                {'name': 'Est Voltage Beta (pu)', 'index': 19, 'type': 'float'},
-            ]
-        },
-        'modulator': {
-            'fields': [
-                {'name': 'Firing Angle Input (pu)', 'index': 20, 'type': 'float'},
-                {'name': 'Firing Angle Output (pu)', 'index': 21, 'type': 'float'},
-                {'name': 'Operating Mode', 'index': 22, 'type': 'float'},
-                {'name': 'Request Extinguish DC', 'index': 23, 'type': 'float'},
-                {'name': 'Request Force Commutation', 'index': 24, 'type': 'bool'},
-                {'name': 'Is Enabled', 'index': 25, 'type': 'bool'},
-                {'name': 'Force Commutation Ack', 'index': 26, 'type': 'bool'},
-                {'name': 'Is Requesting PI Reset', 'index': 27, 'type': 'bool'},
-                {'name': 'Modulator State', 'index': 28, 'type': 'float'},
+                {'name': 'voltage magnitude est. (pu)', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'frequency est. (pu)', 'index': GridSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'frequency est. (hz)', 'index': GridSignalIndex.ESTIMATED_FREQUENCY_HZ, 'type': 'float', 'format': '.2f'},
+                {'name': 'angle est. (rad)', 'index': GridSignalIndex.ESTIMATED_ANGLE_RAD, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage alpha est. (pu)', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_ALPHA, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage beta est. (pu)', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_BETA, 'type': 'float', 'format': '.4f'},
             ]
         },
         'controller': {
+            'title': 'Controller',
             'fields': [
-                {'name': 'DC Link Current Ref (pu)', 'index': 29, 'type': 'float'},
-                {'name': 'DC Link Current Meas (pu)', 'index': 30, 'type': 'float'},
-                {'name': 'Freeze Integrator', 'index': 31, 'type': 'bool'},
-                {'name': 'Modulator Freeze Integrator', 'index': 32, 'type': 'bool'},
-                {'name': 'Current Error (pu)', 'index': 33, 'type': 'float'},
-                {'name': 'PI Output (pu)', 'index': 34, 'type': 'float'},
-                {'name': 'Natural Commutation Mode', 'index': 35, 'type': 'bool'},
-                {'name': 'Controller Saturated', 'index': 36, 'type': 'bool'},
-                {'name': 'State Machine Freeze', 'index': 37, 'type': 'bool'},
+                {'name': 'dc current ref. (pu)', 'index': GridSignalIndex.DC_LINK_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'dc current meas. (pu)', 'index': GridSignalIndex.DC_LINK_CURRENT_MEASURED, 'type': 'float', 'format': '.4f'},
+                {'name': 'current error (pu)', 'index': GridSignalIndex.CURRENT_ERROR, 'type': 'float', 'format': '.4f'},
+                {'name': 'pi output (pu)', 'index': GridSignalIndex.PI_OUTPUT, 'type': 'float', 'format': '.4f'},
+                {'name': 'freeze integrator', 'index': GridSignalIndex.FREEZE_INTEGRATOR, 'type': 'bool', 'format': 'bool'},
+                {'name': 'natural commutation mode', 'index': GridSignalIndex.NATURAL_COMMUTATION_MODE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'controller saturated', 'index': GridSignalIndex.CONTROLLER_SATURATED, 'type': 'bool', 'format': 'bool'},
             ]
         },
-        'state_machine': {
+        'modulator': {
+            'title': 'Modulator',
             'fields': [
-                {'name': 'Current State', 'index': 38, 'type': 'float'},
-                {'name': 'Pulse Releases', 'index': 39, 'type': 'bool'},
-                {'name': 'Auxiliaries On', 'index': 40, 'type': 'bool'},
-                {'name': 'Breakers On', 'index': 41, 'type': 'bool'},
-                {'name': 'Start Command', 'index': 42, 'type': 'bool'},
-                {'name': 'Stop Command', 'index': 43, 'type': 'bool'},
-                {'name': 'Current Extinguished', 'index': 44, 'type': 'bool'},
-                {'name': 'Shutdown Requested', 'index': 45, 'type': 'bool'},
+                {'name': 'firing angle input (pu)', 'index': GridSignalIndex.FIRING_ANGLE_INPUT, 'type': 'float', 'format': '.4f'},
+                {'name': 'firing angle output (pu)', 'index': GridSignalIndex.FIRING_ANGLE_OUTPUT, 'type': 'float', 'format': '.4f'},
+                {'name': 'actual firing angle (pu)', 'index': GridSignalIndex.ACTUAL_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'request extinguish dc', 'index': GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC, 'type': 'float', 'format': '.4f'},
+                {'name': 'request force commutation', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
+                {'name': 'force commutation ack', 'index': GridSignalIndex.FORCE_COMMUTATION_ACK, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is requesting pi reset', 'index': GridSignalIndex.IS_REQUESTING_PI_RESET, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'operation_mode': {
+            'title': 'Operation Mode',
             'fields': [
-                {'name': 'Operating Mode', 'index': 46, 'type': 'float'},
-                {'name': 'Has Mode Changed', 'index': 47, 'type': 'bool'},
-                {'name': 'Is Current Zero', 'index': 48, 'type': 'bool'},
-                {'name': 'Is Discontinuous Mode', 'index': 49, 'type': 'bool'},
-            ]
-        },
-        'pulse_generator': {
-            'fields': [
-                {'name': 'Pulse 1', 'index': 50, 'type': 'bool'},
-                {'name': 'Pulse 2', 'index': 51, 'type': 'bool'},
-                {'name': 'Pulse 3', 'index': 52, 'type': 'bool'},
-                {'name': 'Pulse 4', 'index': 53, 'type': 'bool'},
-                {'name': 'Pulse 5', 'index': 54, 'type': 'bool'},
-                {'name': 'Pulse 6', 'index': 55, 'type': 'bool'},
-                {'name': 'Is Active', 'index': 56, 'type': 'bool'},
-                {'name': 'Actual Firing Angle (pu)', 'index': 57, 'type': 'float'},
+                {'name': 'has mode changed', 'index': GridSignalIndex.MODE_CHANGED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is current zero', 'index': GridSignalIndex.CURRENT_ZERO, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is discontinuous mode', 'index': GridSignalIndex.DISCONTINUOUS_MODE, 'type': 'bool', 'format': 'bool'},
             ]
         }
     }
+    
+    # Return sections in canonical order
+    section_order = _get_section_order()
+    ordered_result = OrderedDict()
+    for section_key in section_order:
+        if section_key in all_sections:
+            ordered_result[section_key] = all_sections[section_key]
+    
+    return ordered_result
 
 
 def get_default_visible_sections() -> list:
-    """Get default visible sections for grid-side telemetry.
+    """Get default visible sections for grid-side telemetry, in canonical order.
     
     Returns:
         List of section names that should be visible by default
     """
-    return ['measurements', 'observer', 'controller', 'modulator']
+    section_order = _get_section_order()
+    # Grid-side has: system, controller, observer, measurements, modulator, operation_mode
+    # (no speed_controller or torque_controller)
+    visible = ['system', 'controller', 'observer', 'measurements']
+    return [s for s in section_order if s in visible]

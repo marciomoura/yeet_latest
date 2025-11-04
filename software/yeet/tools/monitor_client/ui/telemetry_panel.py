@@ -249,8 +249,8 @@ class GridSideTelemetryPanel(TelemetryPanel):
         
         # Add each section
         for section_key, section_data in definitions.items():
-            # Convert section_key from snake_case to Title Case
-            section_title = section_key.replace('_', ' ').title()
+            # Use title from definition, fallback to snake_case conversion
+            section_title = section_data.get('title', section_key.replace('_', ' ').title())
             fields = [item['name'] for item in section_data['fields']]
             self.add_section(section_title, fields)
 
@@ -272,7 +272,7 @@ class MachineSideTelemetryPanel(TelemetryPanel):
         
         # Add each section
         for section_key, section_data in definitions.items():
-            # Convert section_key from snake_case to Title Case
-            section_title = section_key.replace('_', ' ').title()
+            # Use title from definition, fallback to snake_case conversion
+            section_title = section_data.get('title', section_key.replace('_', ' ').title())
             fields = [item['name'] for item in section_data['fields']]
             self.add_section(section_title, fields)

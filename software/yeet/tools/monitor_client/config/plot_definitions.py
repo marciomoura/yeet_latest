@@ -7,6 +7,8 @@ Keeping these separate from the UI code makes them easier to maintain and modify
 """
 
 from typing import Dict, Any
+from .grid_side_telemetry_protocol import GridSignalIndex
+from .machine_side_telemetry_protocol import MachineSignalIndex
 
 
 def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
@@ -26,26 +28,36 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
     """
     return {
         'measurements': {
-            'voltage_and_current': {
-                'title': 'Grid Measurements',
+            'grid_voltages': {
+                'title': 'Grid Voltages',
                 'y_label': 'Magnitude (pu)',
                 'signals': [
-                    {'name': 'Voltage Magnitude', 'color': 'g', 'index': 0},
-                    {'name': 'Current Magnitude', 'color': 'r', 'index': 4},
-                    {'name': 'Current A', 'color': 'c', 'index': 5},
-                    {'name': 'Current B', 'color': 'm', 'index': 6},
-                    {'name': 'Current C', 'color': 'y', 'index': 7},
+                    {'name': 'voltage a', 'color': 'c', 'index': GridSignalIndex.GRID_VOLTAGE_A},
+                    {'name': 'voltage b', 'color': 'm', 'index': GridSignalIndex.GRID_VOLTAGE_B},
+                    {'name': 'voltage c', 'color': 'y', 'index': GridSignalIndex.GRID_VOLTAGE_C},
+                    {'name': 'voltage mag.', 'color': 'g', 'index': GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED},
+                ]
+            },
+            'grid_currents': {
+                'title': 'Grid Currents',
+                'y_label': 'Magnitude (pu)',
+                'signals': [
+                    {'name': 'current a', 'color': 'c', 'index': GridSignalIndex.GRID_CURRENT_A},
+                    {'name': 'current b', 'color': 'm', 'index': GridSignalIndex.GRID_CURRENT_B},
+                    {'name': 'current c', 'color': 'y', 'index': GridSignalIndex.GRID_CURRENT_C},
+                    {'name': 'current mag.', 'color': 'g', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE},
                 ]
             }
+
         },
         'observer': {
             'voltage_freq': {
                 'title': 'Observer Estimates',
                 'y_label': 'Magnitude (pu) / Frequency (Hz) / Angle (rad)',
                 'signals': [
-                    {'name': 'Voltage Magnitude (pu)', 'color': 'g', 'index': 14},
-                    {'name': 'Frequency (Hz)', 'color': 'r', 'index': 17},
-                    {'name': 'Angle (rad)', 'color': 'c', 'index': 16}
+                    {'name': 'voltage mag.', 'color': 'c', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE},
+                    {'name': 'frequency (pu)', 'color': 'm', 'index': GridSignalIndex.ESTIMATED_FREQUENCY_PU},
+                    {'name': 'angle (pu)', 'color': 'y', 'index': GridSignalIndex.ESTIMATED_ANGLE_RAD}
                 ]
             }
         },
@@ -54,9 +66,8 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'DC Link Current Control',
                 'y_label': 'Current (pu)',
                 'signals': [
-                    {'name': 'Reference', 'color': 'g', 'index': 29},
-                    {'name': 'Measured', 'color': 'r', 'index': 30},
-                    {'name': 'Error', 'color': 'c', 'index': 33},
+                    {'name': 'current ref.', 'color': 'g', 'index': GridSignalIndex.DC_LINK_CURRENT_REFERENCE},
+                    {'name': 'current meas.', 'color': 'r', 'index': GridSignalIndex.DC_LINK_CURRENT_MEASURED}
                 ]
             }
         },
@@ -65,29 +76,18 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Firing Angle Control',
                 'y_label': 'Angle (pu) / Mode / Requests / State',
                 'signals': [
-                    {'name': 'Firing Angle Input', 'color': 'g', 'index': 20},
-                    {'name': 'Firing Angle Output', 'color': 'r', 'index': 21},
-                    {'name': 'Operating Mode', 'color': 'c', 'index': 22},
-                    {'name': 'Request Extinguish DC', 'color': 'm', 'index': 23},
-                    {'name': 'Request Force Commutation', 'color': 'y', 'index': 24},
-                    {'name': 'Enable', 'color': 'w', 'index': 25},
-                    {'name': 'Force Commutation Ack', 'color': '#ff7f00', 'index': 26},
-                    {'name': 'PI Reset Request', 'color': '#ff00ff', 'index': 27},
-                    {'name': 'Modulator State', 'color': 'k', 'index': 28},
+                    {'name': 'firing angle in', 'color': 'g', 'index': GridSignalIndex.FIRING_ANGLE_INPUT},
+                    {'name': 'firing angle out', 'color': 'r', 'index': GridSignalIndex.FIRING_ANGLE_OUTPUT},
                 ]
-            }
-        },
-        'pulse_generator': {
-            'firing_pulses': {
-                'title': 'Firing Pulses',
-                'y_label': 'Pulse State',
+            },
+            'forced_commutation': {
+                'title': 'Forced Commutation Control',
+                'y_label': 'Angle (pu) / Mode / Requests / State',
                 'signals': [
-                    {'name': 'P1', 'color': 'r', 'index': 50},
-                    {'name': 'P2', 'color': 'g', 'index': 51},
-                    {'name': 'P3', 'color': 'c', 'index': 52},
-                    {'name': 'P4', 'color': 'm', 'index': 53},
-                    {'name': 'P5', 'color': 'y', 'index': 54},
-                    {'name': 'P6', 'color': 'w', 'index': 55}
+                    {'name': 'request force commutation', 'color': 'c', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION},
+                    {'name': 'request extinguish dc', 'color': 'm', 'index': GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC},
+                    {'name': 'force commutation ack', 'color': 'y', 'index': GridSignalIndex.FORCE_COMMUTATION_ACK},
+                    {'name': 'pi reset request', 'color': 'g', 'index': GridSignalIndex.IS_REQUESTING_PI_RESET}
                 ]
             }
         }
@@ -115,13 +115,10 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Machine Voltage Measurements',
                 'y_label': 'Voltage (pu)',
                 'signals': [
-                    {'name': 'V_A (Unmasked)', 'color': 'y', 'index': 3},
-                    {'name': 'V_B (Unmasked)', 'color': 'w', 'index': 4},
-                    {'name': 'V_C (Unmasked)', 'color': '#ff00ff', 'index': 5},
-                    {'name': 'V_A (Masked)', 'color': 'r', 'index': 0},
-                    {'name': 'V_B (Masked)', 'color': 'c', 'index': 1},
-                    {'name': 'V_C (Masked)', 'color': 'm', 'index': 2},
-                    {'name': 'V Magnitude', 'color': 'g', 'index': 6}
+                    {'name': 'voltage a', 'color': 'c', 'index': MachineSignalIndex.MACHINE_VOLTAGE_ABC_A},
+                    {'name': 'voltage b', 'color': 'm', 'index': MachineSignalIndex.MACHINE_VOLTAGE_ABC_B},
+                    {'name': 'voltage c', 'color': 'y', 'index': MachineSignalIndex.MACHINE_VOLTAGE_ABC_C},
+                    {'name': 'voltage magnitude', 'color': 'g', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE}
                 ]
             }
         },
@@ -130,8 +127,9 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Observer Estimates',
                 'y_label': 'Frequency (pu) / Angle (pu)',
                 'signals': [
-                    {'name': 'Frequency (pu)', 'color': 'g', 'index': 9},
-                    {'name': 'Position (pu)', 'color': 'r', 'index': 10}
+                    {'name': 'voltage mag.', 'color': 'c', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED},
+                    {'name': 'frequency (pu)', 'color': 'm', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU},
+                    {'name': 'angle (pu)', 'color': 'y', 'index': MachineSignalIndex.ESTIMATED_POSITION_PU}
                 ]
             }
         },
@@ -140,11 +138,11 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Modulator Control',
                 'y_label': 'Angle (rad) / State',
                 'signals': [
-                    {'name': 'Firing Angle (rad)', 'color': 'g', 'index': 13},
-                    {'name': 'Enabled', 'color': 'r', 'index': 14},
-                    {'name': 'Release Pulses', 'color': 'c', 'index': 15},
-                    {'name': 'Force Commutation', 'color': 'm', 'index': 16},
-                    {'name': 'Rotor Sector', 'color': 'y', 'index': 17},
+                    {'name': 'firing angle (rad)', 'color': 'g', 'index': MachineSignalIndex.FIRING_ANGLE_RAD},
+                    {'name': 'enabled', 'color': 'r', 'index': MachineSignalIndex.MODULATOR_ENABLED},
+                    {'name': 'release pulses', 'color': 'c', 'index': MachineSignalIndex.RELEASE_PULSES},
+                    {'name': 'force commutation', 'color': 'm', 'index': MachineSignalIndex.REQUEST_FORCE_COMMUTATION},
+                    {'name': 'rotor sector', 'color': 'y', 'index': MachineSignalIndex.CURRENT_ROTOR_SECTOR},
                 ]
             }
         },
@@ -153,27 +151,22 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Torque Controller',
                 'y_label': 'Reference (pu) / Limit (pu) / State',
                 'signals': [
-                    {'name': 'Torque Reference (from Speed)', 'color': 'g', 'index': 21},
-                    {'name': 'Current Controller Saturated', 'color': 'y', 'index': 25},
-                    {'name': 'Current Reference', 'color': 'c', 'index': 26},
-                    {'name': 'Limited Torque Ref', 'color': 'm', 'index': 29},
-                    {'name': 'Is Saturated', 'color': 'w', 'index': 30}
+                    {'name': 'torque ref.', 'color': 'g', 'index': MachineSignalIndex.TORQUE_REF_FROM_SPEED_CONTROLLER},
+                    {'name': 'current controller saturated', 'color': 'y', 'index': MachineSignalIndex.TORQUE_CURRENT_CONTROLLER_SATURATED},
+                    {'name': 'current reference', 'color': 'c', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE},
+                    {'name': 'limited torque ref.', 'color': 'm', 'index': MachineSignalIndex.TORQUE_LIMITED_REFERENCE},
+                    {'name': 'is saturated', 'color': 'w', 'index': MachineSignalIndex.TORQUE_IS_SATURATED}
                 ]
             },
         },
         'speed_controller': {
             'speed_control': {
                 'title': 'Speed Controller',
-                'y_label': 'Speed Ref (pu) / Measured Speed (pu) / Torque Ref (pu) / Error / PI Output',
+                'y_label': 'Speed Ref (pu) / Measured Speed (pu) / Torque Ref (pu) / Error',
                 'signals': [
-                    {'name': 'Speed Reference', 'color': 'g', 'index': 34},
-                    {'name': 'Measured Speed', 'color': 'r', 'index': 35},
-                    {'name': 'Speed Ref Limited', 'color': 'c', 'index': 36},
-                    {'name': 'Torque Reference', 'color': 'm', 'index': 37},
-                    {'name': 'Speed Error', 'color': 'y', 'index': 38},
-                    {'name': 'PI Output', 'color': 'w', 'index': 39},
-                    {'name': 'Is Active', 'color': '#ff7f00', 'index': 40},
-                    {'name': 'Is Saturated', 'color': '#ff00ff', 'index': 41},
+                    {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.SPEED_REFERENCE_PU},
+                    {'name': 'measured speed', 'color': 'r', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED_PU},
+                    {'name': 'speed ref. limited', 'color': 'c', 'index': MachineSignalIndex.SPEED_REFERENCE_LIMITED_PU},
                 ]
             }
         },
@@ -182,11 +175,11 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Speed Generator',
                 'y_label': 'Speed Ref (pu) / Torque Limit (pu) / State',
                 'signals': [
-                    {'name': 'Speed Ref (pu)', 'color': 'g', 'index': 42},
-                    {'name': 'Torque Limit Max', 'color': 'r', 'index': 43},
-                    {'name': 'Torque Limit Min', 'color': 'c', 'index': 44},
-                    {'name': 'Profile Complete', 'color': 'm', 'index': 45},
-                    {'name': 'Breakaway Boost Active', 'color': 'y', 'index': 46},
+                    {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.SPEED_REF_PU},
+                    {'name': 'torque limit max', 'color': 'r', 'index': MachineSignalIndex.SPEED_TORQUE_LIMIT_MAX_PU},
+                    {'name': 'torque limit min', 'color': 'c', 'index': MachineSignalIndex.SPEED_TORQUE_LIMIT_MIN_PU},
+                    {'name': 'profile complete', 'color': 'm', 'index': MachineSignalIndex.SPEED_IS_PROFILE_COMPLETE},
+                    {'name': 'breakaway boost active', 'color': 'y', 'index': MachineSignalIndex.SPEED_IS_BREAKAWAY_BOOST_ACTIVE},
                 ]
             }
         },
@@ -195,10 +188,10 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Excitation Controller',
                 'y_label': 'Voltage (pu) / State',
                 'signals': [
-                    {'name': 'Excitation V Setpoint', 'color': 'g', 'index': 47},
-                    {'name': 'Enable Excitation', 'color': 'r', 'index': 48},
-                    {'name': 'Field Established', 'color': 'c', 'index': 49},
-                    {'name': 'Is Running', 'color': 'm', 'index': 50},
+                    {'name': 'excitation v setpoint', 'color': 'g', 'index': MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT_PU},
+                    {'name': 'enable excitation', 'color': 'r', 'index': MachineSignalIndex.EXCITATION_ENABLE},
+                    {'name': 'field established', 'color': 'c', 'index': MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED},
+                    {'name': 'is running', 'color': 'm', 'index': MachineSignalIndex.EXCITATION_IS_RUNNING},
                 ]
             }
         }
@@ -215,7 +208,7 @@ def get_default_visible_groups(target: str) -> list:
         List of group names that should be visible by default
     """
     if target == 'grid':
-        return ['measurements', 'observer', 'current_controller']
+        return ['observer', 'measurements', 'controller'] 
     if target == 'machine':
-        return ['measurements', 'observer', 'torque_controller', 'speed_controller']
+        return ['torque_controller', 'speed_controller', 'speed_generator']
     return []

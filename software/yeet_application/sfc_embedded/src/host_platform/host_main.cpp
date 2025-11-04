@@ -35,9 +35,11 @@
 #ifdef HOST_BUILD
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstring>
 #include <iostream>
+#include <thread>
 
 // Control task interface
 #include "sfc_embedded/grid_side_tasks.hpp"
@@ -105,7 +107,9 @@ config parse_args(int argc, char* argv[])
                       << "  --machine-port PORT    Machine-side telemetry TCP port (default: 7001)\n"
                       << "  --frequency HZ         Control loop frequency (default: 5000.0 Hz)\n"
                       << "  --verbose              Enable verbose logging\n"
-                      << "  --help, -h             Show this help message\n";
+                      << "  --help, -h             Show this help message\n"
+                      << "\n"
+                      << "Note: Telemetry always runs at 50µs (20 kHz) and simulator runs as fast as possible.\n";
             std::exit(0);
         }
         else {
@@ -247,6 +251,8 @@ int main(int argc, char* argv[])
     std::cout << "Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
     std::cout << "Machine telemetry: localhost:" << cfg.machine_port << std::endl;
     std::cout << "Control frequency: " << cfg.frequency_hz << " Hz" << std::endl;
+    std::cout << "Telemetry rate:    20000 Hz (50 µs)" << std::endl;
+    std::cout << "Real-time pacing:  OFF (as fast as possible)" << std::endl;
     std::cout << "Verbose logging:   " << (cfg.verbose ? "ON" : "OFF") << std::endl;
     std::cout << "Plant model:       Complete 6p-6p topology" << std::endl;
     std::cout << "======================================" << std::endl;
@@ -323,9 +329,10 @@ int main(int argc, char* argv[])
     grid_side_network_infrastructure grid_network_infra(simulator_builder.grid_side_control);
     machine_side_network_infrastructure machine_network_infra(simulator_builder.machine_side_control);
 
-    // ==================== Telemetry Lambda Runner (1ms) ====================
-    std::cout << "[INIT] Registering telemetry lambda runner (1ms)..." << std::endl;
-    simulator.register_lambda_runner(50e-6, [&]() {
+    // ==================== Telemetry Lambda Runner (50µs = 20 kHz) ====================
+    std::cout << "[INIT] Registering telemetry lambda runner (20 kHz / 50 µs)..." << std::endl;
+    constexpr double telemetry_period = 50e-6;  // 50 microseconds
+    simulator.register_lambda_runner(telemetry_period, [&]() {
         // TCP server processing
         grid_telemetry_server.process();
         machine_telemetry_server.process();
@@ -441,6 +448,7 @@ int main(int argc, char* argv[])
     // ==================== MAIN CONTROL LOOP - Unified Simulator Architecture ====================
     // Uses yeet::simulator::run_single_tick() for real-time execution without data logging
     // The simulator manages multi-rate execution (plant, 200µs, 1ms, 10ms)
+    // Runs as fast as possible (no real-time pacing)
 
     while (control_loop.is_running() && !shutdown_requested.load()) {
         // Wait for next cycle at configured frequency
@@ -450,11 +458,10 @@ int main(int argc, char* argv[])
 
         // Get current cycle number and timestamp
         cycle_count = control_loop.get_cycle_number();
-        std::uint32_t timestamp_ms = static_cast<std::uint32_t>(control_loop.get_elapsed_time_ms());
 
         // ========== UNIFIED SIMULATOR TICK ==========
         // Executes one tick of simulation: calls all registered runners at their scheduled times
-        // Runners execute at their own sampling rates (plant, 200µs, 1ms, 10ms)
+        // Runners execute at their own sampling rates (plant, 200µs, 1ms, 10ms, telemetry at 50µs)
         // No data logging or checkers - optimized for real-time host execution
         simulator.run_single_tick();
 
@@ -464,12 +471,23 @@ int main(int argc, char* argv[])
         // Print statistics periodically
         if (cfg.verbose && (cycle_count % stats_interval == 0)) {
             timing_statistics stats = control_loop.get_statistics();
+            std::size_t grid_queue = grid_telemetry_server.get_send_queue_size();
+            std::size_t machine_queue = machine_telemetry_server.get_send_queue_size();
+
             std::cout << "[STATS] Cycles: " << stats.total_cycles << " | Avg: " << stats.average_cycle_time_ms
                       << " ms | Max: " << stats.max_cycle_time_ms << " ms"
                       << " | Overruns: " << stats.overrun_count
                       << " | Grid: " << (grid_telemetry_server.is_client_connected() ? "CONNECTED" : "disconnected")
+                      << " (queue: " << grid_queue << " bytes)"
                       << " | Machine: "
-                      << (machine_telemetry_server.is_client_connected() ? "CONNECTED" : "disconnected") << std::endl;
+                      << (machine_telemetry_server.is_client_connected() ? "CONNECTED" : "disconnected")
+                      << " (queue: " << machine_queue << " bytes)" << std::endl;
+
+            if (grid_telemetry_server.get_queue_overflow_count() > 0 ||
+                machine_telemetry_server.get_queue_overflow_count() > 0) {
+                std::cout << "[WARNING] Queue overflows - Grid: " << grid_telemetry_server.get_queue_overflow_count()
+                          << " | Machine: " << machine_telemetry_server.get_queue_overflow_count() << std::endl;
+            }
         }
     }
 
