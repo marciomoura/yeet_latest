@@ -31,7 +31,7 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
 
     // === Observer Group ===
     packet.add_signal(9, static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
-    packet.add_signal(10, static_cast<float>(observer.get_outputs().estimated_position.read().get_pu()));
+    packet.add_signal(10, static_cast<float>(observer.get_outputs().estimated_reference_angle.read().get_pu()));
     packet.add_signal(11, static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
 
     // === Modulator Group ===

@@ -41,10 +41,10 @@ void sfc_grid_side_observer::configure_frequency_filter(frequency_t cutoff_frequ
     _filtered_frequency.configure(cutoff_frequency, damping_ratio);
 }
 
-void sfc_grid_side_observer::update(const abc<voltage_pu_t>& grid_voltage_pu)
+void sfc_grid_side_observer::update(const abc<voltage_pu_t>& grid_voltage_abc)
 {
     // Convert machine voltage to alpha-beta for PLL
-    alphabeta<voltage_pu_t> const grid_voltage_alphabeta = grid_voltage_pu.to_alphabeta();
+    alphabeta<voltage_pu_t> const grid_voltage_alphabeta = grid_voltage_abc.to_alphabeta();
 
     // Update PLL
     _pll.update(grid_voltage_alphabeta);

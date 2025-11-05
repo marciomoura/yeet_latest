@@ -18,26 +18,54 @@ public:
      * @brief Input signals for the grid-side measurements component
      */
     struct inputs {
-        signal_input<abc<voltage_t>> grid_voltage_measurements;
-        signal_input<abc<current_t>> grid_current_measurements;
+        /// Raw analog grid-side voltage measurements (line-to-neutral) from plant model.
+        signal_input<abc<voltage_t>> grid_voltage_abc;
+
+        /// Raw analog grid-side current measurements from plant model.
+        signal_input<abc<current_t>> grid_current_abc;
+
+        /// Firing pulses from the six-pulse generator.
         signal_input<control::six_pulse_generator::pulses> grid_pulses;
-        signal_input<frequency_t> grid_side_frequency;
-        signal_input<angle_wrapped> grid_side_angle;
+
+        /// Grid frequency measurement input.
+        signal_input<frequency_t> grid_frequency;
+
+        /// Grid side angle measurement input.
+        signal_input<angle_wrapped> grid_angle;
     };
 
     /**
      * @brief Output signals from the grid-side measurements component
      */
     struct outputs {
-        signal_output<frequency_pu_t> grid_side_frequency;
+        /// Measured grid frequency in per unit.
+        signal_output<frequency_pu_t> grid_frequency;
+
+        /// Measured grid voltage in alpha-beta coordinates.
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta;
+
+        /// Measured grid voltage in alpha-beta coordinates.
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta_filtered;
+
+        /// Measured grid current in abc coordinates.
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;
+
+        /// Measured grid voltage in abc coordinates (unmasked).
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_unmasked;
+
+        /// Measured grid voltage in abc coordinates (filtered).
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_filtered;
+
+        /// Measured grid current in abc coordinates.
         signal_output<abc<current_pu_t>> grid_current_abc;
+
+        /// Measured grid current in dq coordinates.
         signal_output<voltage_pu_t> grid_voltage_magnitude;
+
+        /// Measured grid voltage magnitude (filtered).
         signal_output<voltage_pu_t> grid_voltage_magnitude_filtered;
+
+        /// Commutation status signal.
         signal_output<bool> is_commuting;
     };
 
@@ -120,15 +148,15 @@ public:
         signal_input<control::adc_counts> i_a_counts;
         signal_input<control::adc_counts> i_c_counts;
         signal_input<control::six_pulse_generator::pulses> grid_pulses;
-        signal_input<frequency_t> grid_side_frequency;
-        signal_input<angle_wrapped> grid_side_angle;
+        signal_input<frequency_t> grid_frequency;
+        signal_input<angle_wrapped> grid_angle;
     };
 
     /**
      * @brief Output signals from the grid-side measurements component
      */
     struct outputs {
-        signal_output<frequency_pu_t> grid_side_frequency;
+        signal_output<frequency_pu_t> grid_frequency;
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta;
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta_filtered;
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;

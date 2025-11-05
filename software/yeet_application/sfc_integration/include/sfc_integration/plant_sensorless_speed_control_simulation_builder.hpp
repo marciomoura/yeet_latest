@@ -174,17 +174,17 @@ private:
 
         // Grid measurements: Raw grid voltages and currents from plant
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().grid_voltage, grid_meas_model.get_inputs().grid_voltage_measurements);
+            plant_model.get_outputs().grid_voltage_abc, grid_meas_model.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().grid_current, grid_meas_model.get_inputs().grid_current_measurements);
+            plant_model.get_outputs().grid_current_abc, grid_meas_model.get_inputs().grid_current_abc);
 
         signals_connector::connect_output_to_input(
             grid_pulse_gen_model.get_outputs().firing_pulses, grid_meas_model.get_inputs().grid_pulses);
 
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().grid_voltage_source_angle, grid_meas_model.get_inputs().grid_side_angle);
+            plant_model.get_outputs().grid_voltage_source_angle, grid_meas_model.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().grid_frequency, grid_meas_model.get_inputs().grid_side_frequency);
+            plant_model.get_outputs().grid_frequency, grid_meas_model.get_inputs().grid_frequency);
 
         // Machine measurements: Raw machine voltages and currents from plant
         signals_connector::connect_output_to_input(
@@ -202,14 +202,14 @@ private:
 
         // DC link measurements: Raw DC voltage and current from plant
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_model.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_model.get_inputs().grid_current_abc);
 
         // ==================== Raw Measurements → Observers ====================
         // Connect filtered measurements to observers for estimation
 
         // Grid side observer inputs: filtered grid voltage and firing pulses
         signals_connector::connect_output_to_input(
-            grid_meas_model.get_outputs().grid_voltage_abc, grid_observer_model.get_inputs().grid_voltage_pu);
+            grid_meas_model.get_outputs().grid_voltage_abc, grid_observer_model.get_inputs().grid_voltage_abc);
 
         // Machine side observer inputs: filtered machine voltage and firing pulses
         signals_connector::connect_output_to_input(machine_meas_model.get_outputs().machine_voltage_abc,
@@ -243,9 +243,9 @@ private:
 
         // Feedforward signals from observers instead of direct measurements
         signals_connector::connect_output_to_input(grid_observer_model.get_outputs().estimated_voltage_magnitude,
-            current_ctrl_model.get_inputs().grid_side_voltage_magnitude);
+            current_ctrl_model.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_voltage_magnitude,
-            current_ctrl_model.get_inputs().machine_side_voltage_magnitude);
+            current_ctrl_model.get_inputs().machine_voltage_magnitude);
 
         // ==================== Observers → Machine Side Controller ====================
         // Connect observer-estimated values to machine side controller for lookup table
@@ -288,11 +288,11 @@ private:
         // For sensorless operation, use observer-estimated angles instead of direct plant angles
 
         // Grid side: Use observer-estimated angle for pulse generator synchronization
-        signals_connector::connect_output_to_input(
-            grid_observer_model.get_outputs().estimated_position, grid_pulse_gen_model.get_inputs().reference_angle);
+        signals_connector::connect_output_to_input(grid_observer_model.get_outputs().estimated_reference_angle,
+            grid_pulse_gen_model.get_inputs().reference_angle);
 
         // Machine side: Use observer-estimated position for pulse generator synchronization
-        signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_position,
+        signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_reference_angle,
             machine_pulse_gen_model.get_inputs().reference_angle);
 
         // ==================== External Control Signals ====================
@@ -303,8 +303,7 @@ private:
             speed_reference_pu, speed_ctrl_model.get_inputs().speed_reference_pu);
 
         // Enable signal for speed control
-        signals_connector::connect_output_to_input(
-            enable_speed_control, speed_ctrl_model.get_inputs().release_pulses);
+        signals_connector::connect_output_to_input(enable_speed_control, speed_ctrl_model.get_inputs().release_pulses);
 
         signals_connector::connect_output_to_input(
             current_ctrl_model.get_outputs().is_saturated, speed_ctrl_model.get_inputs().is_saturated);

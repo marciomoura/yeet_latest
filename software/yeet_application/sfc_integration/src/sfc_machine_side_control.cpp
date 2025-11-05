@@ -99,8 +99,8 @@ void sfc_machine_side_control::connect_internal_signals()
         external_ios.get_analog_inputs().v_bc_counts, machine_measurements.get_inputs().v_bc_counts);
     signals_connector::connect_output_to_input(
         machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_position, machine_measurements.get_inputs().machine_side_angle);
+    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
+        machine_measurements.get_inputs().machine_side_angle);
     signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_frequency,
         machine_measurements.get_inputs().machine_side_frequency);
 
@@ -189,8 +189,8 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== Machine-Side Modulator Inputs ====================
     signals_connector::connect_output_to_input(
         machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_position, machine_side_modulator.get_inputs().machine_side_angle);
+    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
+        machine_side_modulator.get_inputs().machine_side_angle);
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().force_commutation_acknowledged,
         machine_side_modulator.get_inputs().force_commutation_acknowledged);
     signals_connector::connect_output_to_input(
@@ -201,7 +201,7 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_side_modulator.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
     signals_connector::connect_output_to_input(
         machine_side_modulator.get_outputs().release_pulses, machine_side_pulse_generator.get_inputs().release_pulses);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_position,
+    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
         machine_side_pulse_generator.get_inputs().reference_angle);
 
     // ==================== External IO Output Connections ====================

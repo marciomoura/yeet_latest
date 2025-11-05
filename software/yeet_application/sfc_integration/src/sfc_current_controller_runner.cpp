@@ -23,14 +23,14 @@ void sfc_current_controller_runner::run()
     const bool freeze_integrator = _inputs.freeze_integrator.read();
     _sfc_current_controller.freeze_integrator(freeze_integrator);
 
-    const voltage_pu_t reflected_machine_side_voltage_magnitude =
-        _per_unit_system->reflect_machine_to_grid_voltage_pu(_inputs.machine_side_voltage_magnitude.read());
+    const voltage_pu_t reflected_machine_voltage_magnitude =
+        _per_unit_system->reflect_machine_to_grid_voltage_pu(_inputs.machine_voltage_magnitude.read());
 
     const current_pu_t dc_link_current_reference_pu =
         _inputs.current_reference.read() + _parameters.current_reference_rectifier_operation.read();
 
     _sfc_current_controller.update(dc_link_current_reference_pu, _inputs.current_measured.read(),
-        _inputs.grid_side_voltage_magnitude.read(), reflected_machine_side_voltage_magnitude);
+        _inputs.grid_voltage_magnitude.read(), reflected_machine_voltage_magnitude);
 
     _outputs.firing_angle.write(
         angle_wrapped::from_radians(_sfc_current_controller.get_firing_angle_reference_radians()));

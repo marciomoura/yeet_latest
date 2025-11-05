@@ -362,7 +362,7 @@ auto v_si = to_si(v_pu, v_base);  // Explicit and safe
 Create meaningful type aliases for your specific application domain:
 
 ```cpp
-using grid_voltage = voltage<double>;
+using grid_voltage_abc = voltage<double>;
 using motor_current = current<double>;
 using thyristor_firing_angle = angle<double>;  // If angle type exists
 ```

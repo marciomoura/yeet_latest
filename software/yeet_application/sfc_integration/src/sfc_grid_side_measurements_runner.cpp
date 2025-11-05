@@ -21,19 +21,17 @@ void sfc_grid_side_measurements_ideal_runner::initialize()
 
 void sfc_grid_side_measurements_ideal_runner::run()
 {
-    _measurements.update(
-        _per_unit_system->get_grid_bases(), _inputs.grid_voltage_measurements, _inputs.grid_current_measurements);
+    _measurements.update(_per_unit_system->get_grid_bases(), _inputs.grid_voltage_abc, _inputs.grid_current_abc);
 
     _commutation_monitor.update(_measurements.get_voltage_pu(), _inputs.grid_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
 
     abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(
-        _measurements.get_voltage_pu(), _inputs.grid_side_angle, _inputs.grid_side_frequency, _outputs.is_commuting);
+        _measurements.get_voltage_pu(), _inputs.grid_angle, _inputs.grid_frequency, _outputs.is_commuting);
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
-    _outputs.grid_side_frequency =
-        to_pu(_inputs.grid_side_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
+    _outputs.grid_frequency = to_pu(_inputs.grid_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
     _outputs.grid_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_abc = masked_voltage_abc;
@@ -103,12 +101,11 @@ void sfc_grid_side_measurements_runner::run()
     _outputs.is_commuting = _commutation_monitor.is_commuting();
 
     abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(
-        _measurements.get_voltage_pu(), _inputs.grid_side_angle, _inputs.grid_side_frequency, _outputs.is_commuting);
+        _measurements.get_voltage_pu(), _inputs.grid_angle, _inputs.grid_frequency, _outputs.is_commuting);
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
-    _outputs.grid_side_frequency =
-        to_pu(_inputs.grid_side_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
+    _outputs.grid_frequency = to_pu(_inputs.grid_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
     _outputs.grid_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_abc = masked_voltage_abc;

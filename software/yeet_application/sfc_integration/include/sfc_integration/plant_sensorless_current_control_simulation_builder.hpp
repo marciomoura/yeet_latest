@@ -157,17 +157,17 @@ private:
 
         // Grid measurements: Raw grid voltages and currents from plant
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_measurements.get_inputs().grid_voltage_measurements);
+            plant.get_outputs().grid_voltage_abc, grid_measurements.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_measurements.get_inputs().grid_current_measurements);
+            plant.get_outputs().grid_current_abc, grid_measurements.get_inputs().grid_current_abc);
 
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
 
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
 
         // Machine measurements: Raw machine voltages and currents from plant
         signals_connector::connect_output_to_input(
@@ -185,14 +185,14 @@ private:
 
         // DC link measurements: Raw DC voltage and current from plant
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
         // ==================== Raw Measurements → Observers ====================
         // Connect filtered measurements to observers for estimation
 
         // Grid side observer inputs: filtered grid voltage and firing pulses
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_pu);
+            grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_abc);
 
         // Machine side observer inputs: filtered machine voltage and firing pulses
         signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_abc,
@@ -207,9 +207,9 @@ private:
 
         // Feedforward signals from observers instead of direct measurements
         signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
+            current_controller.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            current_controller.get_inputs().machine_voltage_magnitude);
 
         // Mock the modulator freeze integrator signal for this simplified configuration
         yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
@@ -253,11 +253,11 @@ private:
         // For sensorless operation, use observer-estimated angles instead of direct plant angles
 
         // Grid side: Use observer-estimated angle for pulse generator synchronization
-        signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_position,
+        signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_reference_angle,
             grid_side_pulse_generator.get_inputs().reference_angle);
 
         // Machine side: Use observer-estimated position for pulse generator synchronization
-        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_position,
+        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
             machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== External Control Signals ====================

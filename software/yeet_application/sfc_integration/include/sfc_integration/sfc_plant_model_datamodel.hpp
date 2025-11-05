@@ -59,10 +59,10 @@ public:
      */
     struct outputs {
         /// Grid-side voltage measurements (line-to-neutral)
-        signal_output<abc<voltage_t>> grid_voltage;
+        signal_output<abc<voltage_t>> grid_voltage_abc;
 
         /// Grid-side current measurements
-        signal_output<abc<current_t>> grid_current;
+        signal_output<abc<current_t>> grid_current_abc;
 
         /// DC link voltage
         signal_output<voltage_t> dc_link_voltage;

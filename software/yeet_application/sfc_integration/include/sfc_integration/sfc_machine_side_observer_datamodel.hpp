@@ -41,10 +41,10 @@ public:
         yeet::signal_output<yeet::speed_pu_t> estimated_speed;
 
         /// Estimated rotor position in radians
-        yeet::signal_output<angle_wrapped> estimated_position;
+        yeet::signal_output<angle_wrapped> estimated_reference_angle;
 
         /// Filtered machine voltage in alpha-beta stationary frame
-        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
+        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> estimated_voltage_alphabeta_filtered;
     };
 
     /**

@@ -229,7 +229,9 @@ public:
      */
     const signal_output<angle_wrapped>& get_estimated_position() const
     {
-        return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer).get_outputs().estimated_position;
+        return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer)
+            .get_outputs()
+            .estimated_reference_angle;
     }
 
     /**

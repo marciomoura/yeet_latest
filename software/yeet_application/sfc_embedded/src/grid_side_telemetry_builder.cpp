@@ -28,17 +28,17 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(2, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().b()));
     packet.add_signal(3, static_cast<float>(grid_meas.get_outputs().grid_voltage_abc.read().c()));
 
-    const auto& grid_current = grid_meas.get_outputs().grid_current_abc.read();
-    packet.add_signal(4, static_cast<float>(grid_current.to_alphabeta().magnitude()));  // Grid current magnitude
-    packet.add_signal(5, static_cast<float>(grid_current.a()));
-    packet.add_signal(6, static_cast<float>(grid_current.b()));
-    packet.add_signal(7, static_cast<float>(grid_current.c()));
+    const auto& grid_current_abc = grid_meas.get_outputs().grid_current_abc.read();
+    packet.add_signal(4, static_cast<float>(grid_current_abc.to_alphabeta().magnitude()));  // Grid current magnitude
+    packet.add_signal(5, static_cast<float>(grid_current_abc.a()));
+    packet.add_signal(6, static_cast<float>(grid_current_abc.b()));
+    packet.add_signal(7, static_cast<float>(grid_current_abc.c()));
     packet.add_signal(8, static_cast<float>(dc_meas.get_outputs().dc_current_filtered_pu.read()));
 
     // === Observer Group ===
     packet.add_signal(14, static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
     packet.add_signal(15, static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
-    packet.add_signal(16, static_cast<float>(observer.get_outputs().estimated_position.read().get_pu()));
+    packet.add_signal(16, static_cast<float>(observer.get_outputs().estimated_reference_angle.read().get_pu()));
 
     // === Modulator Group ===
     packet.add_signal(20, static_cast<float>(modulator.get_inputs().firing_angle.read().get_pu()));

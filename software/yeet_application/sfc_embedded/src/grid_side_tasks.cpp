@@ -120,7 +120,7 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
         // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
         // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
         outputs->analog_outputs.channels[0] =
-            control->grid_side_observer.get_outputs().estimated_position.read().get_pu().value();  // CH A
+            control->grid_side_observer.get_outputs().estimated_reference_angle.read().get_pu().value();  // CH A
         outputs->analog_outputs.channels[1] =
             control->grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
         outputs->analog_outputs.channels[2] =

@@ -144,13 +144,13 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
     signals_connector::connect_output_to_input(
-        grid_side_observer.get_outputs().estimated_position, grid_measurements.get_inputs().grid_side_angle);
+        grid_side_observer.get_outputs().estimated_reference_angle, grid_measurements.get_inputs().grid_angle);
     signals_connector::connect_output_to_input(
-        grid_side_observer.get_outputs().estimated_frequency, grid_measurements.get_inputs().grid_side_frequency);
+        grid_side_observer.get_outputs().estimated_frequency, grid_measurements.get_inputs().grid_frequency);
 
     // ==================== DC Link Measurements Inputs ====================
     signals_connector::connect_output_to_input(
-        grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+        grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
     // ==================== Operation Mode Monitor Inputs ====================
     signals_connector::connect_output_to_input(
@@ -172,17 +172,17 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
     signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
-        current_controller.get_inputs().grid_side_voltage_magnitude);
+        current_controller.get_inputs().grid_voltage_magnitude);
 
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().current_reference,
         current_controller.get_inputs().current_reference);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs_from_machine().machine_voltage_magnitude,
-        current_controller.get_inputs().machine_side_voltage_magnitude);
+        current_controller.get_inputs().machine_voltage_magnitude);
 
     // ==================== Grid Side Observer Inputs ====================
     signals_connector::connect_output_to_input(
-        grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_pu);
+        grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_abc);
 
     // ==================== Grid Side Modulator Inputs ====================
     signals_connector::connect_output_to_input(state_machine.get_outputs().request_extinguish_dc_current,
@@ -207,8 +207,8 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         grid_integrator_supervisor.get_outputs().release_pulses, grid_side_pulse_generator.get_inputs().release_pulses);
 
-    signals_connector::connect_output_to_input(
-        grid_side_observer.get_outputs().estimated_position, grid_side_pulse_generator.get_inputs().reference_angle);
+    signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_reference_angle,
+        grid_side_pulse_generator.get_inputs().reference_angle);
     signals_connector::connect_output_to_input(
         grid_side_modulator.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
 }

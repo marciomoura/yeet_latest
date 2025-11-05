@@ -20,7 +20,7 @@ public:
      * @brief Input signals for the DC link measurements component
      */
     struct inputs {
-        signal_input<abc<current_pu_t>> grid_side_current;
+        signal_input<abc<current_pu_t>> grid_current_abc;
     };
 
     /**

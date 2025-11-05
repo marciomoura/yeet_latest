@@ -90,7 +90,7 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 - **Inputs:**
   - `current_reference` - From machine-side speed controller
   - `dc_link_current_measurement` - From DC link current sensor
-  - `machine_side_voltage_magnitude` - For feedforward compensation
+  - `machine_voltage_magnitude` - For feedforward compensation
   - `freeze_integrator` - Anti-windup signal from state machine
   - `modulator_freeze_integrator` - Anti-windup from modulator
 - **Output:**
@@ -151,24 +151,24 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 
 ### 2.3 Grid-Side Input Signals
 
-| Signal                           | Source       | Type                          | Description                     |
-| -------------------------------- | ------------ | ----------------------------- | ------------------------------- |
-| `auxiliaries_are_on`             | Supervisory  | `bool`                        | Auxiliary systems ready         |
-| `breakers_are_on`                | Supervisory  | `bool`                        | Main breakers closed            |
-| `start_command`                  | Supervisory  | `bool`                        | Command to start system         |
-| `stop_command`                   | Supervisory  | `bool`                        | Command to stop system          |
-| `shutdown_request`               | Supervisory  | `bool`                        | Emergency shutdown              |
-| `is_current_extinguished`        | Hardware     | `bool`                        | Zero-current detection          |
-| `v_ab_counts`                    | ADC          | `adc_counts`                  | Grid voltage AB measurement     |
-| `v_bc_counts`                    | ADC          | `adc_counts`                  | Grid voltage BC measurement     |
-| `i_a_counts`                     | ADC          | `adc_counts`                  | Grid phase A current            |
-| `i_c_counts`                     | ADC          | `adc_counts`                  | Grid phase C current            |
-| `grid_side_frequency`            | Timer        | `frequency_t`                 | Grid frequency reference        |
-| `grid_side_angle`                | Timer        | `angle_wrapped`               | Grid angle reference            |
-| `grid_pulses`                    | Hardware     | `six_pulse_generator::pulses` | Thyristor commutation events    |
-| `current_reference`              | Machine-side | `current_pu_t`                | Commanded DC current            |
-| `machine_side_voltage_magnitude` | Machine-side | `voltage_pu_t`                | Machine voltage for feedforward |
-| `request_force_commutation`      | Machine-side | `bool`                        | Force commutation request       |
+| Signal                      | Source       | Type                          | Description                     |
+| --------------------------- | ------------ | ----------------------------- | ------------------------------- |
+| `auxiliaries_are_on`        | Supervisory  | `bool`                        | Auxiliary systems ready         |
+| `breakers_are_on`           | Supervisory  | `bool`                        | Main breakers closed            |
+| `start_command`             | Supervisory  | `bool`                        | Command to start system         |
+| `stop_command`              | Supervisory  | `bool`                        | Command to stop system          |
+| `shutdown_request`          | Supervisory  | `bool`                        | Emergency shutdown              |
+| `is_current_extinguished`   | Hardware     | `bool`                        | Zero-current detection          |
+| `v_ab_counts`               | ADC          | `adc_counts`                  | Grid voltage AB measurement     |
+| `v_bc_counts`               | ADC          | `adc_counts`                  | Grid voltage BC measurement     |
+| `i_a_counts`                | ADC          | `adc_counts`                  | Grid phase A current            |
+| `i_c_counts`                | ADC          | `adc_counts`                  | Grid phase C current            |
+| `grid_frequency`            | Timer        | `frequency_t`                 | Grid frequency reference        |
+| `grid_angle`                | Timer        | `angle_wrapped`               | Grid angle reference            |
+| `grid_pulses`               | Hardware     | `six_pulse_generator::pulses` | Thyristor commutation events    |
+| `current_reference`         | Machine-side | `current_pu_t`                | Commanded DC current            |
+| `machine_voltage_magnitude` | Machine-side | `voltage_pu_t`                | Machine voltage for feedforward |
+| `request_force_commutation` | Machine-side | `bool`                        | Force commutation request       |
 
 ### 2.4 Grid-Side Output Signals
 
@@ -280,14 +280,14 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
 
 ### 3.4 Machine-Side Output Signals
 
-| Signal                           | Destination  | Type           | Description               |
-| -------------------------------- | ------------ | -------------- | ------------------------- |
-| `current_reference`              | Grid-side    | `current_pu_t` | Commanded DC current      |
-| `machine_side_voltage_magnitude` | Grid-side    | `voltage_pu_t` | Machine voltage magnitude |
-| `request_force_commutation`      | Grid-side    | `bool`         | Force commutation request |
-| `measured_speed_pu`              | Grid-side    | `speed_pu_t`   | Estimated machine speed   |
-| `is_saturated`                   | Internal     | `bool`         | Saturation flag           |
-| `gate_pulses[6]`                 | Gate drivers | `bool[6]`      | Thyristor firing signals  |
+| Signal                      | Destination  | Type           | Description               |
+| --------------------------- | ------------ | -------------- | ------------------------- |
+| `current_reference`         | Grid-side    | `current_pu_t` | Commanded DC current      |
+| `machine_voltage_magnitude` | Grid-side    | `voltage_pu_t` | Machine voltage magnitude |
+| `request_force_commutation` | Grid-side    | `bool`         | Force commutation request |
+| `measured_speed_pu`         | Grid-side    | `speed_pu_t`   | Estimated machine speed   |
+| `is_saturated`              | Internal     | `bool`         | Saturation flag           |
+| `gate_pulses[6]`            | Gate drivers | `bool[6]`      | Thyristor firing signals  |
 
 ---
 
@@ -357,7 +357,7 @@ Signals sent from Grid to Machine:
 
 Signals sent from Machine to Grid:
 ├── current_reference ───────────► Commanded DC current (from speed controller)
-├── machine_side_voltage_magnitude ──────► Machine voltage for feedforward
+├── machine_voltage_magnitude ──────► Machine voltage for feedforward
 ├── request_force_commutation ───────────► Request forced commutation
 └── measured_speed_pu ────────────────────► Estimated machine speed (for mode monitor)
 ```

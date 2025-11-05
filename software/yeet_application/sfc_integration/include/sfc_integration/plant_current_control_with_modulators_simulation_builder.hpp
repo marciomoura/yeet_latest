@@ -153,13 +153,13 @@ private:
     {
         // ==================== Plant → Measurements ====================
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_measurements.get_inputs().grid_voltage_measurements);
+            plant.get_outputs().grid_voltage_abc, grid_measurements.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_measurements.get_inputs().grid_current_measurements);
+            plant.get_outputs().grid_current_abc, grid_measurements.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_measurements.get_inputs().machine_voltage_measurements);
         signals_connector::connect_output_to_input(
@@ -177,16 +177,16 @@ private:
 
         // DC link current aggregation uses grid phase currents
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
         // ==================== Measurements → Current Controller ====================
         signals_connector::connect_output_to_input(
             dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
+            current_controller.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            current_controller.get_inputs().machine_voltage_magnitude);
 
         // ==================== DC Link Measurements → Machine Side Controller ====================
         signals_connector::connect_output_to_input(dc_link_measurements.get_outputs().dc_current_heavy_filtered_pu,

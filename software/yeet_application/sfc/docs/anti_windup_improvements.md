@@ -48,7 +48,7 @@ void handle_downstream_saturation(bool downstream_saturated);
 #### Usage Pattern:
 ```cpp
 // Update current controller first
-current_controller.update(current_ref, current_measured, grid_voltage, back_emf);
+current_controller.update(current_ref, current_measured, grid_voltage_abc, back_emf);
 
 // Handle anti-windup: freeze speed controller if current controller saturates
 speed_controller.handle_downstream_saturation(current_controller.is_saturated());
@@ -114,14 +114,14 @@ _current_reference_limited_pu = current_pu_t{_rate_of_change_limiter.get_output(
 class sfc_drive_controller {
 public:
     void update(speed_pu_t speed_ref, speed_pu_t speed_measured, 
-                current_pu_t current_measured, voltage_pu_t grid_voltage, 
+                current_pu_t current_measured, voltage_pu_t grid_voltage_abc, 
                 voltage_pu_t back_emf) {
         
         // Get current reference from speed controller (previous cycle)
         current_pu_t current_ref = _torque_to_current_converter.convert(_speed_controller.get_torque_ref_pu());
         
         // Update current controller
-        _current_controller.update(current_ref, current_measured, grid_voltage, back_emf);
+        _current_controller.update(current_ref, current_measured, grid_voltage_abc, back_emf);
         
         // Handle anti-windup coordination
         _speed_controller.handle_downstream_saturation(_current_controller.is_saturated());

@@ -331,9 +331,9 @@ private:
         // Grid-side hardware mock: Receives 3-phase grid voltage and current from plant
         // Scales them according to transformer ratios and ADC resolution
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+            plant.get_outputs().grid_voltage_abc, grid_side_hardware_mock.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+            plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
 
         // Machine-side hardware mock: Receives 3-phase machine voltage from plant
         // Scales according to transformer ratios and ADC resolution

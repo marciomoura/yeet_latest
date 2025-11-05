@@ -17,9 +17,9 @@ public:
     /**
      * @brief Updates the per-unit values from new raw measurements.
      * @param bases The per-unit base values.
-     * @param grid_side_current The per-unit grid-side current [pu]
+     * @param grid_current_abc The per-unit grid-side current [pu]
      */
-    void update(sfc_per_unit_system const& bases, abc<current_pu_t> const& grid_side_current);
+    void update(sfc_per_unit_system const& bases, abc<current_pu_t> const& grid_current_abc);
 
     current_pu_t get_current_pu() const { return _current_pu; }
 

@@ -135,9 +135,9 @@ private:
     {
         // Plant → hardware mocks
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+            plant.get_outputs().grid_voltage_abc, grid_side_hardware_mock.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+            plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
 
@@ -163,9 +163,9 @@ private:
             machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
 
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
 
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage_source_angle, machine_measurements.get_inputs().machine_side_angle);
@@ -174,7 +174,7 @@ private:
 
         // Measurements → DC link measurements
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
         // DC link → controllers
         signals_connector::connect_output_to_input(
@@ -188,10 +188,10 @@ private:
 
         // Feedforward voltages
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
+            current_controller.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            current_controller.get_inputs().machine_voltage_magnitude);
 
         // Controller outputs → pulse generators
         signals_connector::connect_output_to_input(

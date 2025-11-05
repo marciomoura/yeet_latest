@@ -22,13 +22,17 @@ public:
      * @brief Input signals for the current controller component
      */
     struct inputs {
+        /// DC link current reference input [pu]
         signal_input<current_pu_t> current_reference;
 
+        /// Measured DC link current input [pu]
         signal_input<current_pu_t> current_measured;
 
-        signal_input<voltage_pu_t> grid_side_voltage_magnitude;
+        /// Grid-side voltage magnitude input [pu]
+        signal_input<voltage_pu_t> grid_voltage_magnitude;
 
-        signal_input<voltage_pu_t> machine_side_voltage_magnitude;
+        /// Machine-side voltage magnitude input [pu]
+        signal_input<voltage_pu_t> machine_voltage_magnitude;
 
         /// Unified freeze command from supervisor (ORed from all freeze sources)
         signal_input<bool> freeze_integrator;

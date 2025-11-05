@@ -140,9 +140,9 @@ private:
     {
         // ==================== Plant -> hardware mocks ====================
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+            plant.get_outputs().grid_voltage_abc, grid_side_hardware_mock.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+            plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
 
@@ -166,9 +166,9 @@ private:
         signals_connector::connect_output_to_input(
             machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage_source_angle, machine_measurements.get_inputs().machine_side_angle);
         signals_connector::connect_output_to_input(
@@ -176,20 +176,20 @@ private:
 
         // ==================== Measurements -> DC link measurements ====================
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
         // ==================== Measurements -> observers (logging only) ====================
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_pu);
+            grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_abc,
             machine_side_observer.get_inputs().machine_voltage_pu);
 
         // ====================
         // Sensorless feed-forward: use observer estimated voltage magnitudes (replaces filtered measurement magnitudes)
         signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
+            current_controller.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            current_controller.get_inputs().machine_voltage_magnitude);
         // Use dc link measurement filtered current (already scaled) instead of observer estimate
         signals_connector::connect_output_to_input(
             dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
@@ -206,9 +206,9 @@ private:
             machine_side_controller.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
 
         // ==================== Reference angles (observer estimated electrical position) ====================
-        signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_position,
+        signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_reference_angle,
             grid_side_pulse_generator.get_inputs().reference_angle);
-        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_position,
+        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
             machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== Pulse generators -> plant & load torque ====================

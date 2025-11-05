@@ -158,9 +158,9 @@ private:
 
         // ==================== Plant Outputs → Hardware Mocks (analog → ADC counts) ====================
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+            plant.get_outputs().grid_voltage_abc, grid_side_hardware_mock.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+            plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
 
@@ -179,9 +179,9 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, grid_side_measurements.get_inputs().grid_pulses);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_side_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_side_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_side_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_side_measurements.get_inputs().grid_frequency);
 
         // Machine side: connect ADC counts outputs to measurement runner inputs
         signals_connector::connect_output_to_input(
@@ -204,7 +204,7 @@ private:
         // ==================== Measurements → DC Link Measurements ====================
         // Use reconstructed grid phase currents (abc) from grid-side measurements as input
         signals_connector::connect_output_to_input(
-            grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
     }
 };
 

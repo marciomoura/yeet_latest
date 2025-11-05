@@ -23,10 +23,10 @@ public:
      */
     struct inputs {
         /// Raw analog grid-side voltage measurements (line-to-neutral) from plant model.
-        signal_input<abc<voltage_t>> grid_voltage;
+        signal_input<abc<voltage_t>> grid_voltage_abc;
 
         /// Raw analog grid-side current measurements from plant model.
-        signal_input<abc<current_t>> grid_current;
+        signal_input<abc<current_t>> grid_current_abc;
     };
 
     /**

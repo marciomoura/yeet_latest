@@ -17,7 +17,7 @@ public:
      */
     struct inputs {
         /// Three-phase grid voltage measurements in per-unit (grid-side base)
-        signal_input<abc<voltage_pu_t>> grid_voltage_pu;
+        signal_input<abc<voltage_pu_t>> grid_voltage_abc;
     };
 
     /**
@@ -34,10 +34,10 @@ public:
         yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
 
         /// Estimated rotor position in radians
-        yeet::signal_output<angle_wrapped> estimated_position;
+        yeet::signal_output<angle_wrapped> estimated_reference_angle;
 
         /// Filtered machine voltage in alpha-beta stationary frame
-        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
+        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> estimated_voltage_alphabeta_filtered;
     };
 
     /**

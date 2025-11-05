@@ -95,8 +95,8 @@ Grid Voltages → Grid Measurements → Grid Observer → Grid Modulator → Fir
 4. Grid Modulator generates synchronized firing pulses
 
 **Key Connections**:
-- `plant.grid_voltage` → `grid_measurements.line_voltages_raw`
-- `grid_measurements.grid_voltage_abc_pu` → `grid_observer.grid_voltage_pu`
+- `plant.grid_voltage_abc` → `grid_measurements.line_voltages_raw`
+- `grid_measurements.grid_voltage_abc_pu` → `grid_observer.grid_voltage_abc`
 - `grid_observer.estimated_angle` → `grid_modulator.grid_voltage_angle`
 - `grid_observer.estimated_frequency` → `grid_modulator.grid_frequency`
 - `grid_modulator.firing_pulses` → `plant.grid_side_firing_pulses`
@@ -123,7 +123,7 @@ Machine Measurements → Machine Observer → Rotor Position          Plant Mode
 - `dc_link_measurements.dc_link_current_pu` → `lookup_table.dc_link_current_pu`
 - `lookup_table.firing_angle` → `machine_modulator.lookup_table_firing_angle`
 - `machine_measurements.machine_voltage_abc_pu` → `machine_observer.machine_voltage_pu`
-- `machine_observer.estimated_position` → `machine_modulator.rotor_position_electrical`
+- `machine_observer.estimated_reference_angle` → `machine_modulator.rotor_position_electrical`
 - `machine_modulator.firing_pulses` → `plant.machine_side_firing_pulses`
 
 ### 5. Measurement Processing Chains
@@ -199,7 +199,7 @@ DC Current → Lookup Table → Firing Angle → Machine Modulator → Machine F
 - `grid_observer.estimated_angle` → `grid_modulator.grid_voltage_angle`
 - `grid_modulator.firing_pulses` → `plant.grid_side_firing_pulses`
 - `lookup_table.firing_angle` → `machine_modulator.lookup_table_firing_angle`
-- `machine_observer.estimated_position` → `machine_modulator.rotor_position_electrical`
+- `machine_observer.estimated_reference_angle` → `machine_modulator.rotor_position_electrical`
 - `machine_modulator.firing_pulses` → `plant.machine_side_firing_pulses`
 
 ## Complete System Diagram

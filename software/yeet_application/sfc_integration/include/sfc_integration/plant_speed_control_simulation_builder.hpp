@@ -163,15 +163,15 @@ private:
 
         // Grid measurements: Raw grid voltages and currents from plant
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_measurements.get_inputs().grid_voltage_measurements);
+            plant.get_outputs().grid_voltage_abc, grid_measurements.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_measurements.get_inputs().grid_current_measurements);
+            plant.get_outputs().grid_current_abc, grid_measurements.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
 
         // Machine measurements: Raw machine voltages and currents from plant
         signals_connector::connect_output_to_input(
@@ -187,7 +187,7 @@ private:
 
         // DC link measurements: Raw DC voltage and current from plant
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
         // ==================== Speed Measurements → Speed Controller ====================
         // Connect speed measurements to speed controller feedback
@@ -268,18 +268,17 @@ private:
             speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
 
         // Speed control enable/disable
-        signals_connector::connect_output_to_input(
-            enable_speed_control, speed_controller.get_inputs().release_pulses);
+        signals_connector::connect_output_to_input(enable_speed_control, speed_controller.get_inputs().release_pulses);
 
         signals_connector::connect_output_to_input(
             current_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
 
         // Feedforward signals for improved current control performance
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
+            current_controller.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            current_controller.get_inputs().machine_voltage_magnitude);
     }
 };
 

@@ -62,9 +62,9 @@ public:
      * @brief Executes one update cycle of the grid observer.
      *
      * All inputs required for the estimation must be passed in this call.
-     * @param grid_voltage_pu The three-phase measured grid voltage [pu].
+     * @param grid_voltage_abc The three-phase measured grid voltage [pu].
      */
-    void update(const abc<voltage_pu_t>& grid_voltage_pu);
+    void update(const abc<voltage_pu_t>& grid_voltage_abc);
 
     /**
      * @brief Resets all internal states of the observer.
