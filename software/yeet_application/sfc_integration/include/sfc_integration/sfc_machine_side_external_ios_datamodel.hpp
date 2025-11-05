@@ -93,21 +93,6 @@ public:
         yeet::parameter<bool> hold_speed{false};          ///< Hold current speed setpoint
         yeet::parameter<bool> decelerate{false};          ///< Controlled deceleration to zero
         yeet::parameter<bool> idle{false};                ///< Idle mode (zero torque/speed outputs)
-
-        // Fiber-optics input overrides from grid-side
-        yeet::parameter<bool> override_fiber_optics_inputs{false};
-        yeet::parameter<sfc_operating_mode_t> operating_mode{
-            sfc_operating_mode_t::natural_commutation};                    ///< SFC operating mode (pulse or natural)
-        yeet::parameter<bool> force_commutation_acknowledged{false};       ///< Forced commutation acknowledgement
-        yeet::parameter<bool> is_current_zero{false};                      ///< Machine current below threshold
-        yeet::parameter<bool> is_saturated{false};                         ///< Grid current controller saturated
-        yeet::parameter<bool> pulse_releases{false};                       ///< Grid pulse releases enable
-        yeet::parameter<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current from grid-side
-        yeet::parameter<bool> freeze_integrator{false};                    ///< Freeze speed controller integrator
-        yeet::parameter<bool> is_tripped{false};                           ///< Grid-side trip status
-        yeet::parameter<bool> preset_request{false};                       ///< Preset request from grid-side
-        yeet::parameter<yeet::application::sfc::sfc_state_id> current_state_id{
-            yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine state ID
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================
@@ -160,7 +145,7 @@ public:
         signal_output<sfc_operating_mode_t> operating_mode{
             sfc_operating_mode_t::natural_commutation};                  ///< SFC operating mode
         signal_output<bool> force_commutation_acknowledged{false};       ///< Forced commutation ACK
-        signal_output<bool> is_current_zero{false};                      ///< DC current zero indicator
+        signal_output<bool> current_is_zero{false};                      ///< DC current zero indicator
         signal_output<bool> is_saturated{false};                         ///< Grid controller saturated
         signal_output<bool> pulse_releases{false};                       ///< Grid system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< Grid-measured DC current [pu]
@@ -323,7 +308,7 @@ public:
      * @param operating_mode Grid operating mode (pulse or natural commutation)
      * @param current_state_id Grid-side state machine current state ID
      * @param force_commutation_acknowledged Forced commutation handshake acknowledgement
-     * @param is_current_zero DC link current below threshold indicator
+     * @param current_is_zero DC link current below threshold indicator
      * @param is_saturated Grid current controller at output limits
      * @param pulse_releases Pulses enabled / grid system running flag
      * @param dc_link_current Measured DC link current in per-unit
@@ -347,7 +332,7 @@ public:
     void update_fiber_optics_inputs(sfc_operating_mode_t operating_mode,
         yeet::application::sfc::sfc_state_id current_state_id,
         bool force_commutation_acknowledged,
-        bool is_current_zero,
+        bool current_is_zero,
         bool is_saturated,
         bool pulse_releases,
         current_pu_t dc_link_current,
@@ -442,12 +427,6 @@ private:
      * @return true if overrides were applied, false if real signals should be used
      */
     bool write_speed_generator_overrides();
-
-    /**
-     * @brief Apply fiber-optics input overrides if enabled
-     * @return true if overrides were applied, false if real signals should be used
-     */
-    bool write_fiber_optics_input_overrides();
 
     // ==================== MEMBER STATE ====================
 

@@ -34,7 +34,7 @@ public:
         signal_input<bool> request_extinguish_dc_current;
 
         /// Signal from zero current detector indicating DC link current is zero
-        signal_input<bool> is_current_zero;
+        signal_input<bool> current_is_zero;
 
         /// Firing angle reference from the main DC link current controller
         /// Range: [0.0, π] radians

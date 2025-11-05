@@ -39,13 +39,16 @@ public:
 
         /// Machine-side firing angle
         signal_input<angle_wrapped> firing_angle;
+
+        /// Pulse release control from supervisor component
+        signal_input<bool> release_pulses;
     };
 
     /**
      * @brief Output signals from the machine-side modulator component
      */
     struct outputs {
-        /// Pulse release control signal to pulse generator
+        /// Pulse release control signal
         signal_output<bool> release_pulses;
 
         /// Firing angle output to the pulse generator

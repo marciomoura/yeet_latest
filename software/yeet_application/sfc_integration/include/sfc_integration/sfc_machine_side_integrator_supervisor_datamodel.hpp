@@ -30,25 +30,22 @@ public:
      */
     struct inputs {
         /// Unified freeze signal from grid-side supervisor (via fiber optics)
-        signal_input<bool> grid_side_freeze;
+        signal_input<bool> grid_side_freeze_integrator;
 
-        /// Local emergency stop/shutdown request
-        signal_input<bool> emergency_stop;
+        /// Trip/shutdown signal from grid-side (via fiber optics)
+        signal_input<bool> grid_side_is_tripped;
+
+        /// Pulse release command from grid-side (via fiber optics)
+        signal_input<bool> grid_side_release_pulses;
+
+        /// Current is zero signal from grid-side (via fiber optics) - safety for pulse release
+        signal_input<bool> current_is_zero;
+
+        /// Saturation signal from speed controller (anti-windup freeze)
+        signal_input<bool> speed_saturated;
 
         /// Saturation signal from torque controller (anti-windup freeze)
         signal_input<bool> torque_saturated;
-
-        /// Speed controller enable command from external
-        signal_input<bool> enable_speed_controller;
-
-        /// Signal from speed controller indicating preset is complete
-        signal_input<bool> speed_preset_complete;
-
-        /// Torque controller enable command from external
-        signal_input<bool> enable_torque_controller;
-
-        /// Signal from torque controller indicating preset is complete
-        signal_input<bool> torque_preset_complete;
     };
 
     /**

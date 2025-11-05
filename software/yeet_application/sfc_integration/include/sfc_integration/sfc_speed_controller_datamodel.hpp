@@ -20,8 +20,8 @@ public:
      * @brief Input signals for the speed controller component
      */
     struct inputs {
-        /// Enable signal for speed control mode
-        signal_input<bool> enable_speed_control;
+        /// Enable signal for speed control mode (pulse release from supervisor)
+        signal_input<bool> release_pulses;
 
         /// Speed reference signal in per-unit (machine base)
         signal_input<speed_pu_t> speed_reference_pu;
@@ -42,18 +42,13 @@ public:
     /**
      * @brief Output signals from the speed controller component
      */
+    /**
+     * @brief Output signals from the speed controller component
+     */
     struct outputs {
         /// Torque reference output to torque controller
         /// Range: [-1.2, 1.2] pu (limited to protect downstream control)
         signal_output<torque_pu_t> torque_reference;
-
-        /// Speed reference after rate limiting
-        /// Range: [-1.2, 1.2] pu
-        signal_output<speed_pu_t> speed_reference_limited;
-
-        /// Speed control error (reference - measured)
-        /// Range: [-1.0, 1.0] pu
-        signal_output<speed_pu_t> speed_error;
 
         /// PI controller output before limiting
         /// Range: [-2.0, 2.0] pu (before saturation)
@@ -61,9 +56,6 @@ public:
 
         /// Controller saturation status
         signal_output<bool> is_saturated;
-
-        /// Speed control active status
-        signal_output<bool> is_active;
     };
 
     /**

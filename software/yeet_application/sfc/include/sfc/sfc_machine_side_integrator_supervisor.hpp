@@ -30,22 +30,20 @@ public:
 
     /**
      * @brief Main update cycle - process all inputs and update state
-     * @param grid_side_freeze Unified freeze from grid-side supervisor
-     * @param emergency_stop Local emergency stop/trip request
+     * @param grid_side_freeze_integrator Unified freeze from grid-side supervisor
+     * @param grid_side_is_tripped Trip/shutdown from grid-side
+     * @param grid_side_release_pulses Pulse release command from grid-side
+     * @param current_is_zero Current is zero signal for safe pulse release
+     * @param speed_saturated Anti-windup freeze from speed controller saturation
      * @param torque_saturated Anti-windup freeze from torque controller saturation
-     * @param enable_speed_controller Speed controller enable command
-     * @param speed_preset_complete Speed controller signals preset is done
-     * @param enable_torque_controller Torque controller enable command
-     * @param torque_preset_complete Torque controller signals preset is done
      * @param override_freeze Testing override to disable freezes
      */
-    void update(bool grid_side_freeze,
-        bool emergency_stop,
+    void update(bool grid_side_freeze_integrator,
+        bool grid_side_is_tripped,
+        bool grid_side_release_pulses,
+        bool current_is_zero,
+        bool speed_saturated,
         bool torque_saturated,
-        bool enable_speed_controller,
-        bool speed_preset_complete,
-        bool enable_torque_controller,
-        bool torque_preset_complete,
         bool override_freeze);
 
     /**
@@ -76,6 +74,10 @@ private:
     bool _is_tripped{false};
     bool _preset_request{false};
     bool _preset_done{false};
+
+    // Grid-side commands
+    bool _grid_side_release_pulses{false};
+    bool _current_is_zero{false};
 
     // Track previous freeze state
     bool _previous_freeze_requested{false};

@@ -51,23 +51,8 @@ public:
         /// Current reference output to current controller [pu]
         signal_output<current_pu_t> current_reference;
 
-        /// Base torque reference before boost [pu]
-        signal_output<torque_pu_t> base_torque_reference;
-
-        /// Total torque reference after boost injection [pu]
-        signal_output<torque_pu_t> total_torque_reference;
-
-        /// Limited torque reference after all limits applied [pu]
-        signal_output<torque_pu_t> limited_torque_reference;
-
-        /// Local saturation status (torque limits exceeded)
+        /// Controller saturation status (combines local and downstream saturation)
         signal_output<bool> is_saturated;
-
-        /// Downstream saturation status (from current controller)
-        signal_output<bool> downstream_saturation;
-
-        /// Composite saturation status (local OR downstream)
-        signal_output<bool> composite_saturation;
 
         /// Breakaway boost active status
         signal_output<bool> is_breakaway_boost_active;

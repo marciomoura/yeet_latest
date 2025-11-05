@@ -30,23 +30,20 @@ void sfc_speed_controller_runner::run()
     // Combine: freeze if EITHER downstream is saturated OR external freeze requested
     const bool freeze_integrator = downstream_saturated || external_freeze_requested;
 
-    if (!_inputs.enable_speed_control.read()) {
-        _outputs.is_active.write(false);
-        // When re-enabling, reset to current measured speed to prevent bump
+    if (!_inputs.release_pulses.read()) {
+        // When disabled, controller is inactive (no output updates)
+        // When re-enabling, could reset to current measured speed to prevent bump
         // _sfc_speed_controller.reset(_inputs.measured_speed_pu.read());
-    }
-    else {
-        _outputs.is_active.write(true);
-        _sfc_speed_controller.freeze_integrator(freeze_integrator);
-        _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
+        return;  // Skip update when disabled
     }
 
+    // Execute controller update
+    _sfc_speed_controller.freeze_integrator(freeze_integrator);
+    _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
+
+    // Write output signals
     _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
-    _outputs.speed_reference_limited = _sfc_speed_controller.get_processed_speed_ref_pu();
-    _outputs.speed_error = _outputs.speed_reference_limited.read() - _inputs.measured_speed_pu.read();
     _outputs.pi_output = _sfc_speed_controller.get_pi_output();
-
-    // FIXED: Report actual PI controller saturation, not freeze status
     _outputs.is_saturated = _sfc_speed_controller.is_saturated();
 }
 

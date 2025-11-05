@@ -26,8 +26,10 @@ void sfc_grid_side_integrator_supervisor_runner::run()
 
     // Write outputs to datamodel
     _outputs.freeze_integrator.write(_sfc_grid_side_integrator_supervisor.get_freeze_integrator());
-    _outputs.preset_request.write(_sfc_grid_side_integrator_supervisor.get_preset_request());
-    _outputs.release_pulses.write(_sfc_grid_side_integrator_supervisor.get_release_pulses());
+    _outputs.preset_request.write(false);  //_sfc_grid_side_integrator_supervisor.get_preset_request());
+    // _outputs.release_pulses.write(_sfc_grid_side_integrator_supervisor.get_release_pulses());
+    // Directly pass through some signals
+    _outputs.release_pulses = _inputs.state_machine_release_pulses;
     _outputs.is_tripped.write(_sfc_grid_side_integrator_supervisor.get_is_tripped());
 }
 

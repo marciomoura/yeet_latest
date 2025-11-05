@@ -35,7 +35,7 @@ void sfc_operation_mode_monitor_runner::run()
     // Write the results to the output signals
     _outputs.operating_mode = _mode_detector.get_operating_mode();
     _outputs.has_mode_changed = _mode_detector.has_mode_changed();
-    _outputs.is_current_zero = _discontinuous_conduction_detector.get_is_current_zero();
+    _outputs.current_is_zero = _discontinuous_conduction_detector.get_is_current_zero();
     _outputs.is_discontinuous_mode = _discontinuous_conduction_detector.get_is_discontinuous_mode();
 }
 

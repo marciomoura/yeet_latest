@@ -59,7 +59,7 @@ struct grid_to_machine_message {
     yeet::application::sfc::sfc_operating_mode_t mode{
         yeet::application::sfc::sfc_operating_mode_t::natural_commutation}; /**< Current operating mode */
     float dc_link_current_pu{0.0f};                                         /**< DC link current measurement [pu] */
-    bool is_current_zero{false};                                            /**< DC link current is zero */
+    bool current_is_zero{false};                                            /**< DC link current is zero */
     bool is_saturated{false};                                               /**< Current controller is saturated */
     bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
     bool pulse_releases{false};                 /**< Thyristor pulses are enabled */
@@ -98,7 +98,7 @@ struct grid_to_machine_message {
  * grid_to_machine_message msg{
  *     .mode = operating_mode::natural_commutation,
  *     .dc_link_current_pu = 0.75f,
- *     .is_current_zero = false,
+ *     .current_is_zero = false,
  *     .is_saturated = false,
  *     .force_commutation_acknowledged = true,
  *     .pulse_releases = true,

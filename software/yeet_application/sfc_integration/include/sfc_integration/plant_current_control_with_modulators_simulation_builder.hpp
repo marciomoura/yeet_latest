@@ -234,7 +234,7 @@ private:
         signals_connector::connect_output_to_input(
             operation_mode_monitor.get_outputs().operating_mode, machine_side_modulator.get_inputs().operating_mode);
         signals_connector::connect_output_to_input(
-            operation_mode_monitor.get_outputs().is_current_zero, grid_side_modulator.get_inputs().is_current_zero);
+            operation_mode_monitor.get_outputs().current_is_zero, grid_side_modulator.get_inputs().current_is_zero);
 
         // ==================== DC Current Extinguish Request ====================
         // Note: In this simplified builder without state machine, extinguish is not used.

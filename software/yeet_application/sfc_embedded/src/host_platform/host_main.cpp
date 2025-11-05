@@ -384,7 +384,7 @@ int main(int argc, char* argv[])
 
     // Enable speed control and set voltage mode (EXACT from test)
     yeet::mock_signal_input::write(
-        simulator_builder.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
+        simulator_builder.machine_side_control.speed_controller.get_inputs().release_pulses, true);
     simulator_builder.plant.get_plant_model().set_voltage_control_mode(
         yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
 

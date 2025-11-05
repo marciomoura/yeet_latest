@@ -231,7 +231,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
 
         // Read from control class outputs directly (these are sent via fiber-optics to machine-side)
         tx_msg.mode = control->get_operating_mode().read();
-        tx_msg.is_current_zero = control->get_is_current_zero().read();
+        tx_msg.current_is_zero = control->get_is_current_zero().read();
         tx_msg.force_commutation_acknowledged = control->get_force_commutation_acknowledged().read();
         tx_msg.pulse_releases = control->get_pulse_releases().read();
         tx_msg.dc_link_current_pu = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();

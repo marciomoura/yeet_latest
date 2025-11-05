@@ -27,17 +27,12 @@ void sfc_machine_side_modulator_runner::run()
     const angle_t firing_angle_from_lut = _inputs.firing_angle.read();
 
     // Update the modulator - pass true for enable (control is via parameters)
-    _sfc_machine_side_modulator.update(
-        true, operating_mode, force_commutation_acknowledged, rotor_position_rad, firing_angle_from_lut);
-
-    // Apply enable parameter override to release_pulses
-    const bool modulator_release_pulses = _sfc_machine_side_modulator.get_release_pulses();
-    const bool enable_override = _parameters.enable.read();
-    const bool final_release_pulses = modulator_release_pulses && enable_override;
+    _sfc_machine_side_modulator.update(_inputs.release_pulses, operating_mode, force_commutation_acknowledged,
+        rotor_position_rad, firing_angle_from_lut);
 
     // Write outputs to the datamodel
     _outputs.firing_angle = _sfc_machine_side_modulator.get_firing_angle_rad();
-    _outputs.release_pulses = final_release_pulses;
+    _outputs.release_pulses = _sfc_machine_side_modulator.get_release_pulses();
     _outputs.request_force_commutation = _sfc_machine_side_modulator.get_request_force_commutation();
     _outputs.commutation_state = _sfc_machine_side_modulator.get_commutation_state();
 

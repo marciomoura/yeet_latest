@@ -77,7 +77,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     // === Operation Mode Monitor Group ===
     packet.add_signal(47, static_cast<float>(mode_monitor.get_outputs().operating_mode.read()));
     packet.add_signal(48, static_cast<float>(mode_monitor.get_outputs().has_mode_changed.read()));
-    packet.add_signal(49, static_cast<float>(mode_monitor.get_outputs().is_current_zero.read()));
+    packet.add_signal(49, static_cast<float>(mode_monitor.get_outputs().current_is_zero.read()));
     packet.add_signal(50, static_cast<float>(mode_monitor.get_outputs().is_discontinuous_mode.read()));
 
     // === Pulse Generator Group ===

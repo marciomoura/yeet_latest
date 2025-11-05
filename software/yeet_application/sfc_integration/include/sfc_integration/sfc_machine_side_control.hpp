@@ -6,6 +6,7 @@
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_external_ios_datamodel.hpp"
+#include "sfc_integration/sfc_machine_side_integrator_supervisor_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
@@ -42,6 +43,7 @@ public:
           speed_generator(),
           speed_controller(),
           torque_controller(),
+          machine_integrator_supervisor(),
           machine_side_controller(),
           machine_side_observer(),
           machine_side_modulator(),
@@ -282,6 +284,7 @@ public:
     sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
+    sfc_machine_side_integrator_supervisor_runner machine_integrator_supervisor;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;
     sfc_machine_side_modulator_runner machine_side_modulator;

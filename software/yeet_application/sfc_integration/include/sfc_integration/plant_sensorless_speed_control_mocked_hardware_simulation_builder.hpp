@@ -268,7 +268,7 @@ private:
         signals_connector::connect_output_to_input(
             speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
         signals_connector::connect_output_to_input(
-            enable_speed_control, speed_controller.get_inputs().enable_speed_control);
+            enable_speed_control, speed_controller.get_inputs().release_pulses);
 
         // ==================== Current Controller Saturation -> Speed Controller (anti-windup) ====================
         signals_connector::connect_output_to_input(

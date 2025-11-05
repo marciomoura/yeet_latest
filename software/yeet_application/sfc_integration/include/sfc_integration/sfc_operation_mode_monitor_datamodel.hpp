@@ -44,7 +44,7 @@ public:
         signal_output<bool> has_mode_changed;
 
         /// @brief True if the DC link current is considered zero (with on-delay).
-        signal_output<bool> is_current_zero;
+        signal_output<bool> current_is_zero;
 
         /// @brief True if the system is determined to be in discontinuous conduction mode.
         signal_output<bool> is_discontinuous_mode;

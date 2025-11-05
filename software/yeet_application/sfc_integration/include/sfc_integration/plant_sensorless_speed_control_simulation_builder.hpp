@@ -304,7 +304,7 @@ private:
 
         // Enable signal for speed control
         signals_connector::connect_output_to_input(
-            enable_speed_control, speed_ctrl_model.get_inputs().enable_speed_control);
+            enable_speed_control, speed_ctrl_model.get_inputs().release_pulses);
 
         signals_connector::connect_output_to_input(
             current_ctrl_model.get_outputs().is_saturated, speed_ctrl_model.get_inputs().is_saturated);

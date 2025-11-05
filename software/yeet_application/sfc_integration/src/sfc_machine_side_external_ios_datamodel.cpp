@@ -14,8 +14,6 @@ void sfc_machine_side_external_ios_datamodel::register_callbacks()
 
     auto speed_generator_profiles_callback = [this]() { write_speed_generator_overrides(); };
 
-    auto fiber_optics_inputs_callback = [this]() { write_fiber_optics_input_overrides(); };
-
     _parameters.override_excitation_inputs.register_callback(excitation_inputs_callback);
     _parameters.exciter_ready.register_callback(excitation_inputs_callback);
     _parameters.excitation_start_command.register_callback(excitation_inputs_callback);
@@ -28,13 +26,6 @@ void sfc_machine_side_external_ios_datamodel::register_callbacks()
     _parameters.hold_speed.register_callback(excitation_inputs_callback);
     _parameters.decelerate.register_callback(excitation_inputs_callback);
     _parameters.idle.register_callback(excitation_inputs_callback);
-
-    _parameters.override_fiber_optics_inputs.register_callback(fiber_optics_inputs_callback);
-    _parameters.force_commutation_acknowledged.register_callback(fiber_optics_inputs_callback);
-    _parameters.is_current_zero.register_callback(fiber_optics_inputs_callback);
-    _parameters.is_saturated.register_callback(fiber_optics_inputs_callback);
-    _parameters.pulse_releases.register_callback(fiber_optics_inputs_callback);
-    _parameters.dc_link_current.register_callback(fiber_optics_inputs_callback);
 }
 
 void sfc_machine_side_external_ios_datamodel::update_analog_inputs(
@@ -47,7 +38,7 @@ void sfc_machine_side_external_ios_datamodel::update_analog_inputs(
 void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_operating_mode_t operating_mode,
     yeet::application::sfc::sfc_state_id current_state_id,
     bool force_commutation_acknowledged,
-    bool is_current_zero,
+    bool current_is_zero,
     bool is_saturated,
     bool pulse_releases,
     current_pu_t dc_link_current,
@@ -55,19 +46,16 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
     bool is_tripped,
     bool preset_request)
 {
-    const bool fiber_optics_overrides_written = write_fiber_optics_input_overrides();
-    if (!fiber_optics_overrides_written) {
-        _fiber_optics_inputs.operating_mode.write(operating_mode);
-        _fiber_optics_inputs.current_state_id.write(current_state_id);
-        _fiber_optics_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
-        _fiber_optics_inputs.is_current_zero.write(is_current_zero);
-        _fiber_optics_inputs.is_saturated.write(is_saturated);
-        _fiber_optics_inputs.pulse_releases.write(pulse_releases);
-        _fiber_optics_inputs.dc_link_current.write(dc_link_current);
-        _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
-        _fiber_optics_inputs.is_tripped.write(is_tripped);
-        _fiber_optics_inputs.preset_request.write(preset_request);
-    }
+    _fiber_optics_inputs.operating_mode.write(operating_mode);
+    _fiber_optics_inputs.current_state_id.write(current_state_id);
+    _fiber_optics_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
+    _fiber_optics_inputs.current_is_zero.write(current_is_zero);
+    _fiber_optics_inputs.is_saturated.write(is_saturated);
+    _fiber_optics_inputs.pulse_releases.write(pulse_releases);
+    _fiber_optics_inputs.dc_link_current.write(dc_link_current);
+    _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
+    _fiber_optics_inputs.is_tripped.write(is_tripped);
+    _fiber_optics_inputs.preset_request.write(preset_request);
 }
 
 control::six_pulse_generator::pulses sfc_machine_side_external_ios_datamodel::get_thyristor_pulse_outputs() const
@@ -134,24 +122,6 @@ bool sfc_machine_side_external_ios_datamodel::write_speed_generator_overrides()
     return true;
 }
 
-bool sfc_machine_side_external_ios_datamodel::write_fiber_optics_input_overrides()
-{
-    if (!_parameters.override_fiber_optics_inputs.read()) {
-        return false;
-    }
-
-    _fiber_optics_inputs.force_commutation_acknowledged.write(_parameters.force_commutation_acknowledged.read());
-    _fiber_optics_inputs.is_current_zero.write(_parameters.is_current_zero.read());
-    _fiber_optics_inputs.is_saturated.write(_parameters.is_saturated.read());
-    _fiber_optics_inputs.pulse_releases.write(_parameters.pulse_releases.read());
-    _fiber_optics_inputs.dc_link_current.write(_parameters.dc_link_current.read());
-    _fiber_optics_inputs.freeze_integrator.write(_parameters.freeze_integrator.read());
-    _fiber_optics_inputs.is_tripped.write(_parameters.is_tripped.read());
-    _fiber_optics_inputs.preset_request.write(_parameters.preset_request.read());
-    _fiber_optics_inputs.current_state_id.write(_parameters.current_state_id.read());
-    return true;
-}
-
 void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
 {
     yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
@@ -176,20 +146,6 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
     entry.parameters.insert("speed_ref_hold_speed", yeet::utils::make_units_accessor(_parameters.hold_speed));
     entry.parameters.insert("speed_ref_decelerate", yeet::utils::make_units_accessor(_parameters.decelerate));
     entry.parameters.insert("speed_ref_idle", yeet::utils::make_units_accessor(_parameters.idle));
-
-    entry.parameters.insert(
-        "fo_override_fiber_optics_inputs", yeet::utils::make_units_accessor(_parameters.override_fiber_optics_inputs));
-    entry.parameters.insert("fo_force_commutation_acknowledged",
-        yeet::utils::make_units_accessor(_parameters.force_commutation_acknowledged));
-    entry.parameters.insert("fo_is_current_zero", yeet::utils::make_units_accessor(_parameters.is_current_zero));
-    entry.parameters.insert(
-        "fo_current_controller_is_saturated", yeet::utils::make_units_accessor(_parameters.is_saturated));
-    entry.parameters.insert("fo_pulse_releases", yeet::utils::make_units_accessor(_parameters.pulse_releases));
-    entry.parameters.insert("fo_dc_link_current", yeet::utils::make_units_accessor(_parameters.dc_link_current));
-    entry.parameters.insert("fo_freeze_integrator", yeet::utils::make_units_accessor(_parameters.freeze_integrator));
-    entry.parameters.insert("fo_is_tripped", yeet::utils::make_units_accessor(_parameters.is_tripped));
-    entry.parameters.insert("fo_preset_request", yeet::utils::make_units_accessor(_parameters.preset_request));
-    entry.parameters.insert("fo_current_state_id", yeet::utils::make_units_accessor(_parameters.current_state_id));
 
     // Register the entry with the model registry
     registry.insert("machine_side_external_ios", std::move(entry));

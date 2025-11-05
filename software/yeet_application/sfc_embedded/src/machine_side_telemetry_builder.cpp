@@ -60,26 +60,18 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(24, torque_controller.get_inputs().enable_breakaway_boost.read() ? 1.0f : 0.0f);
     packet.add_signal(25, torque_controller.get_inputs().is_saturated.read() ? 1.0f : 0.0f);
     packet.add_signal(26, static_cast<float>(torque_controller.get_outputs().current_reference.read()));
-    packet.add_signal(27, static_cast<float>(torque_controller.get_outputs().base_torque_reference.read()));
-    packet.add_signal(28, static_cast<float>(torque_controller.get_outputs().total_torque_reference.read()));
-    packet.add_signal(29, static_cast<float>(torque_controller.get_outputs().limited_torque_reference.read()));
     packet.add_signal(
         30, torque_controller.get_outputs().is_saturated.read() ? 1.0f : 0.0f);  // Is torque-controller saturated
     packet.add_signal(
         31, torque_controller.get_outputs().is_active.read() ? 1.0f : 0.0f);  // Is torque-controller active
     packet.add_signal(32,
         torque_controller.get_outputs().is_breakaway_boost_active.read() ? 1.0f : 0.0f);  // Is breakaway boost active
-    packet.add_signal(33,
-        torque_controller.get_outputs().downstream_saturation.read() ? 1.0f : 0.0f);  // Downstream saturation status
 
     // === Speed Controller Group ===
     packet.add_signal(34, static_cast<float>(speed_controller.get_inputs().speed_reference_pu.read()));
     packet.add_signal(35, static_cast<float>(speed_controller.get_inputs().measured_speed_pu.read()));
-    packet.add_signal(36, static_cast<float>(speed_controller.get_outputs().speed_reference_limited.read()));
     packet.add_signal(37, static_cast<float>(speed_controller.get_outputs().torque_reference.read()));
-    packet.add_signal(38, static_cast<float>(speed_controller.get_outputs().speed_error.read()));
     packet.add_signal(39, static_cast<float>(speed_controller.get_outputs().pi_output.read()));
-    packet.add_signal(40, speed_controller.get_outputs().is_active.read() ? 1.0f : 0.0f);  // Is speed-controller active
     packet.add_signal(
         41, speed_controller.get_outputs().is_saturated.read() ? 1.0f : 0.0f);  // Is speed-controller saturated
 

@@ -41,13 +41,14 @@ public:
         // register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
 
         // register_complete_logger(simulator, system.machine_side_control.speed_generator);  // TODO: Create logger
+        register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
         register_complete_logger(simulator, system.machine_side_control.torque_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_generator);
-        register_complete_logger(simulator, system.machine_side_control.torque_controller);  // TODO: Create logger
-        register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
-        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        register_complete_logger(simulator, system.grid_side_control.state_machine);
+        // register_complete_logger(simulator, system.machine_side_control.excitation_controller);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
         // register_complete_logger(simulator, system.grid_side_control.grid_side_observer);
         // register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
@@ -205,15 +206,16 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "speed tracking error",
-        [&]() -> speed_pu_t { return system.machine_side_control.speed_controller.get_outputs().speed_error.read(); },
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
 
     speed_tracking_checker->deactivate();  // Will activate during steady-state phases
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    yeet::mock_signal_input::write(
-        system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     bool success = true;
@@ -372,15 +374,16 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
 
     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "speed tracking error",
-        [&]() -> speed_pu_t { return system.machine_side_control.speed_controller.get_outputs().speed_error.read(); },
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
 
     speed_tracking_checker->deactivate();
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    yeet::mock_signal_input::write(
-        system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     bool success = true;
@@ -488,15 +491,16 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
 
     auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "purge mode speed error",
-        [&]() -> speed_pu_t { return system.machine_side_control.speed_controller.get_outputs().speed_error.read(); },
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
         -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
 
     speed_error_checker->deactivate();
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    yeet::mock_signal_input::write(
-        system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     // Initial load
@@ -619,15 +623,16 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
 
     auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "creep mode speed error",
-        [&]() -> speed_pu_t { return system.machine_side_control.speed_controller.get_outputs().speed_error.read(); },
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
         -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
 
     speed_error_checker->deactivate();
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    yeet::mock_signal_input::write(
-        system.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read());

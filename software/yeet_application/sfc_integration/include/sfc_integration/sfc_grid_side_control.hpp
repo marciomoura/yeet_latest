@@ -205,7 +205,7 @@ public:
      */
     const signal_output<bool>& get_is_current_zero() const
     {
-        return const_cast<sfc_operation_mode_monitor_runner&>(operation_mode_monitor).get_outputs().is_current_zero;
+        return const_cast<sfc_operation_mode_monitor_runner&>(operation_mode_monitor).get_outputs().current_is_zero;
     }
 
     /**
