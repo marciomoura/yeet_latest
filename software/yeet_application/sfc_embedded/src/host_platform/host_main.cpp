@@ -361,7 +361,7 @@ int main(int argc, char* argv[])
         yeet::duration_t{2.0f};
 
     // High load simulating static friction
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque_pu, yeet::torque_pu_t(0.20f));
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.20f));
 
     std::cout << "[CONFIG] Configuration complete:" << std::endl;
     std::cout << "         - Initial speed: 0.001 pu (near-standstill)" << std::endl;
@@ -384,14 +384,14 @@ int main(int argc, char* argv[])
 
     // Enable speed control and set voltage mode (EXACT from test)
     yeet::mock_signal_input::write(
-        simulator_builder.machine_side_control.speed_controller.get_inputs().enable_speed_control, true);
+        simulator_builder.machine_side_control.speed_controller.get_inputs().release_pulses, true);
     simulator_builder.plant.get_plant_model().set_voltage_control_mode(
         yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
 
     std::cout << "[INIT] State machine startup complete" << std::endl;
 
     // Verify state machine is operational
-    bool pulse_releases = simulator_builder.grid_side_control.state_machine.get_outputs().pulse_releases.read();
+    bool pulse_releases = simulator_builder.grid_side_control.state_machine.get_outputs().release_pulses.read();
     if (!pulse_releases) {
         std::cerr << "[ERROR] State machine did not reach OPERATION_ON state!" << std::endl;
         return 1;

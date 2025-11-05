@@ -93,7 +93,7 @@ bool sfc_speed_controller::is_saturated() const
 
 void sfc_speed_controller::reset(speed_pu_t initial_speed_pu)
 {
-    _pi_controller.reset();
+    _pi_controller.reset(initial_speed_pu.value());
     _speed_ref_derivative.reset(initial_speed_pu.value());
     _processed_speed_ref_pu = initial_speed_pu;
     _torque_ref_pu = torque_pu_t{0.0};

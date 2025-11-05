@@ -63,7 +63,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // Initialize cross-coupled inputs from grid-side controller with safe default values
     // In production, these come from fiber-optic communication interface
     // yeet::mock_signal_input::write(
-    //     control->get_io().grid_side_inputs.dc_link_current_measured, yeet::current_pu_t{0.0});
+    //     control->get_io().grid_side_inputs.current_measured, yeet::current_pu_t{0.0});
     // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.operating_mode,
     //     yeet::application::sfc::sfc_operating_mode_t::natural_commutation);
     // yeet::mock_signal_input::write(
@@ -174,15 +174,12 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
             // Update fiber optics inputs with decoded protocol data
-            // Note: Protocol transmits only 6 fields. Other fields (current_state_id, freeze_integrator,
-            // is_requesting_main_pi_reset) are not transmitted and use default values
+            // Note: Protocol transmits mode, dc_link_current, current_is_zero, is_saturated,
+            // force_commutation_acknowledged, pulse_releases, state_id, preset_request
             control->external_ios.update_fiber_optics_inputs(rx_msg->mode,
-                yeet::application::sfc::sfc_state_id::IDLE,  // Not transmitted - use default
-                rx_msg->force_commutation_acknowledged, rx_msg->is_current_zero,
-                rx_msg->current_controller_is_saturated, rx_msg->pulse_releases,
-                yeet::current_pu_t{rx_msg->dc_link_current_pu},
-                false,   // freeze_integrator - not transmitted
-                false);  // is_requesting_main_pi_reset - not transmitted
+                yeet::application::sfc::sfc_state_id::IDLE,  // TODO: transmit state_id in protocol
+                rx_msg->force_commutation_acknowledged, rx_msg->current_is_zero, rx_msg->is_saturated,
+                rx_msg->pulse_releases, yeet::current_pu_t{rx_msg->dc_link_current}, rx_msg->preset_request);
         }
     }
 
@@ -195,7 +192,7 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     if (outputs != nullptr) {
         // Prepare Machine → Grid protocol message
         yeet::application::sfc::fiber_optic::machine_to_grid_message tx_msg{
-            .measured_speed_pu =
+            .measured_speed =
                 static_cast<float>(control->get_machine_side_observer().get_outputs().estimated_speed.read()),
             .dc_link_current_reference_pu =
                 static_cast<float>(control->get_torque_controller().get_outputs().current_reference.read()),

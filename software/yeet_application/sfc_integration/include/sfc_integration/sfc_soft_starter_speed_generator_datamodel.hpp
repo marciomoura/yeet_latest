@@ -25,31 +25,31 @@ public:
      * @brief Input signals for the speed reference generator component
      */
     struct inputs {
-        /// Current state ID from the state machine to coordinate sequencing
+        /// Current state ID from state machine
         signal_input<sfc::sfc_state_id> current_state_id;
 
-        /// Measured machine rotor speed in per-unit (for proper ramp initialization)
-        signal_input<speed_pu_t> measured_speed_pu;
+        /// Measured machine rotor speed [pu]
+        signal_input<speed_pu_t> measured_speed;
 
-        /// Command to select and run Profile 1 (typically creep speed)
+        /// Command to run Profile 1 [bool]
         signal_input<bool> run_profile_1;
 
-        /// Command to select and run Profile 2 (typically purge acceleration)
+        /// Command to run Profile 2 [bool]
         signal_input<bool> run_profile_2;
 
-        /// Command to select and run Profile 3 (typically ignition acceleration)
+        /// Command to run Profile 3 [bool]
         signal_input<bool> run_profile_3;
 
-        /// Command to select and run Profile 4 (typically assist acceleration)
+        /// Command to run Profile 4 [bool]
         signal_input<bool> run_profile_4;
 
-        /// Command to hold current speed (freeze reference)
+        /// Command to hold current speed [bool]
         signal_input<bool> hold_speed;
 
-        /// Command to decelerate to zero
+        /// Command to decelerate to zero [bool]
         signal_input<bool> decelerate;
 
-        /// Command to go to idle (zero torque and speed)
+        /// Command to go to idle [bool]
         signal_input<bool> idle;
     };
 
@@ -58,30 +58,24 @@ public:
      */
     struct outputs {
         /// Speed reference output to speed controller [pu]
-        /// This is the rate-limited, smooth speed trajectory
-        signal_output<speed_pu_t> speed_reference_pu;
+        signal_output<speed_pu_t> speed_reference;
 
-        /// Maximum torque limit for current/torque controller [pu]
-        /// Varies based on active profile and breakaway boost status
+        /// Maximum torque limit [pu]
         signal_output<torque_pu_t> torque_limit_max_pu;
 
-        /// Minimum torque limit for current/torque controller [pu]
-        /// Typically negative for braking capability
+        /// Minimum torque limit [pu]
         signal_output<torque_pu_t> torque_limit_min_pu;
 
-        /// Flag indicating the active acceleration profile has completed
-        /// Used by state machine to trigger transitions
+        /// Active acceleration profile has completed [bool]
         signal_output<bool> is_profile_complete;
 
-        /// Flag indicating breakaway torque boost is currently active
-        /// Used for diagnostics and interlocking
+        /// Breakaway torque boost is active [bool]
         signal_output<bool> is_breakaway_boost_active;
 
-        /// Currently active command (IDLE, HOLD_SPEED, DECELERATE, RUN_PROFILE)
+        /// Currently active command
         signal_output<sfc::speed_command_t> active_command;
 
-        /// Currently selected profile (PROFILE_1 through PROFILE_4)
-        /// Only valid when active_command is RUN_PROFILE
+        /// Currently selected profile
         signal_output<sfc::acceleration_profile_t> selected_profile;
     };
 
@@ -170,10 +164,10 @@ public:
         /// Absolute minimum torque limit [pu]
         parameter<torque_pu_t> min_torque_limit = torque_pu_t{-1.2};
 
-        parameter<bool> override_speed_reference_generation = false;
-        parameter<torque_pu_t> override_min_torque_limit = torque_pu_t{-2.0};
-        parameter<torque_pu_t> override_max_torque_limit = torque_pu_t{2.0};
-        parameter<speed_pu_t> override_speed_reference = speed_pu_t{0.0};
+        parameter<bool> override_speed_reference = false;
+        parameter<torque_pu_t> override_min_torque_limit_value = torque_pu_t{-2.0};
+        parameter<torque_pu_t> override_max_torque_limit_value = torque_pu_t{2.0};
+        parameter<speed_pu_t> override_speed_reference_value = speed_pu_t{0.0};
     };
 
 private:
@@ -265,14 +259,13 @@ public:
             "min_torque_limit", yeet::utils::make_units_accessor(_model_parameters->min_torque_limit));
 
         // Register override parameters
-        entry.parameters.insert("override_speed_reference_generation",
-            yeet::utils::make_units_accessor(_model_parameters->override_speed_reference_generation));
-        entry.parameters.insert("override_min_torque_limit",
-            yeet::utils::make_units_accessor(_model_parameters->override_min_torque_limit));
-        entry.parameters.insert("override_max_torque_limit",
-            yeet::utils::make_units_accessor(_model_parameters->override_max_torque_limit));
-        entry.parameters.insert(
-            "override_speed_reference", yeet::utils::make_units_accessor(_model_parameters->override_speed_reference));
+        entry.parameters.insert("override_speed_reference", _model_parameters->override_speed_reference);
+        entry.parameters.insert("override_min_torque_limit_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_min_torque_limit_value));
+        entry.parameters.insert("override_max_torque_limit_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_max_torque_limit_value));
+        entry.parameters.insert("override_speed_reference_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_speed_reference_value));
 
         registry.insert("soft_starter_speed_generator", std::move(entry));
     }

@@ -27,42 +27,45 @@ public:
      * @brief Input signals for the grid-side modulator component
      */
     struct inputs {
-        /// Request signal from machine-side modulator to initiate forced commutation
+        /// Request signal from machine-side modulator to initiate forced commutation [bool]
         signal_input<bool> request_force_commutation;
 
-        /// Request signal to extinguish dc-link current
+        /// Request signal to extinguish dc-link current [bool]
         signal_input<bool> request_extinguish_dc_current;
 
-        /// Signal from zero current detector indicating DC link current is zero
-        signal_input<bool> dc_link_current_is_zero;
+        /// Signal indicating DC link current is zero [bool]
+        signal_input<bool> current_is_zero;
 
-        /// Firing angle reference from the main DC link current controller
-        /// Range: [0.0, π] radians
+        /// Firing angle reference from current controller [rad]
         signal_input<angle_wrapped> firing_angle;
 
-        /// System enable command
-        signal_input<bool> enable;
-
-        /// Operating mode selector for load commutated vs pulse mode
+        /// Operating mode selector (natural vs pulse mode)
         signal_input<sfc_operating_mode_t> operating_mode;
+
+        /// External shutdown/trip signal [bool]
+        signal_input<bool> shutdown_request;
+
+        /// Pulse release command from supervisor [bool]
+        signal_input<bool> release_pulses;
     };
 
     /**
      * @brief Output signals from the grid-side modulator component
      */
     struct outputs {
-        /// Firing angle output to the pulse generator
-        /// Range: [0.0, π] radians
+        /// Pulse release control signal to pulse generator [bool]
+        signal_output<bool> release_pulses;
+
+        /// Firing angle output to pulse generator [rad]
         signal_output<angle_wrapped> firing_angle;
 
-        /// Acknowledgment signal to machine-side modulator (one-cycle pulse)
+        /// Acknowledgment signal to machine-side modulator [bool]
         signal_output<bool> force_commutation_acknowledged;
 
-        /// Request signal to hold main PI controller integrator in reset
-        signal_output<bool> is_requesting_main_pi_reset;
+        /// Request signal to freeze current controller integrator [bool]
+        signal_output<bool> freeze_integrator;
 
         /// Current modulator state for diagnostics
-        /// 0 = natural_commutation, 1 = forced_commutation
         signal_output<grid_side_modulator_state_t> modulator_state;
     };
 
@@ -70,14 +73,13 @@ public:
      * @brief Configuration parameters for the grid-side modulator
      */
     struct parameters {
-        /// Fixed firing angle for forced commutation (deep inversion)
-        /// Range: [2π/3, π] radians (120° to 180°)
-        /// Default: 5π/6 radians (150°)
-        parameter<angle_wrapped> force_commutation_angle = angle_wrapped(2.6180);  // 150°
+        /// Master enable override [bool]
+        parameter<bool> enable{true};
 
-        /// Timeout duration for forced commutation (future safety feature)
-        /// Range: [0.01, 1.0] seconds
-        /// Default: 0.1 seconds
+        /// Firing angle for forced commutation [rad]
+        parameter<angle_wrapped> force_commutation_angle = angle_wrapped(2.6180);
+
+        /// Timeout duration for forced commutation [s]
         parameter<duration_t> commutation_timeout = duration_t(0.1);
     };
 
@@ -99,6 +101,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameters.insert("enable", _model_parameters->enable);
         entry.parameters.insert(
             "force_commutation_angle", yeet::utils::make_units_accessor(_model_parameters->force_commutation_angle));
         entry.parameters.insert(

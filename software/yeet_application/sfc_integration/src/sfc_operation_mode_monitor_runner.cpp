@@ -28,14 +28,14 @@ void sfc_operation_mode_monitor_runner::run()
     const bool enable = _inputs.enable.read();
 
     // Update the detectors with the latest inputs
-    _mode_detector.update(enable, _inputs.measured_speed_pu.read());
+    _mode_detector.update(enable, _inputs.measured_speed.read());
 
-    _discontinuous_conduction_detector.update(_inputs.dc_link_current_pu.read());
+    _discontinuous_conduction_detector.update(_inputs.dc_link_current.read());
 
     // Write the results to the output signals
     _outputs.operating_mode = _mode_detector.get_operating_mode();
     _outputs.has_mode_changed = _mode_detector.has_mode_changed();
-    _outputs.is_current_zero = _discontinuous_conduction_detector.get_is_current_zero();
+    _outputs.current_is_zero = _discontinuous_conduction_detector.get_is_current_zero();
     _outputs.is_discontinuous_mode = _discontinuous_conduction_detector.get_is_discontinuous_mode();
 }
 

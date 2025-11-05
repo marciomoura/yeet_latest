@@ -93,16 +93,8 @@ public:
         machine_side_control.external_ios.get_parameters().decelerate.write(false);
         machine_side_control.external_ios.get_parameters().idle.write(false);
 
-        // Grid-side inputs via datamodel
-        machine_side_control.external_ios.get_parameters().override_fiber_optics_inputs.write(false);
-        machine_side_control.external_ios.get_parameters().pulse_releases.write(true);
-        machine_side_control.external_ios.get_parameters().current_controller_is_saturated.write(false);
-        machine_side_control.external_ios.get_parameters().is_current_zero.write(false);
-        machine_side_control.external_ios.get_parameters().force_commutation_acknowledged.write(false);
-        machine_side_control.external_ios.get_parameters().dc_link_current.write(current_pu_t{});
-
         // Mock plant inputs
-        load_torque_pu.write(torque_pu_t{0.0});
+        load_torque.write(torque_pu_t{0.0});
     }
 
     void initialize()
@@ -297,7 +289,7 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
-    signal_output<torque_pu_t> load_torque_pu;
+    signal_output<torque_pu_t> load_torque;
 
     // External control signals for state machine
     signal_output<bool> auxiliaries_are_on;
@@ -339,14 +331,14 @@ private:
         // Grid-side hardware mock: Receives 3-phase grid voltage and current from plant
         // Scales them according to transformer ratios and ADC resolution
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+            plant.get_outputs().grid_voltage_abc, grid_side_hardware_mock.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+            plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
 
         // Machine-side hardware mock: Receives 3-phase machine voltage from plant
         // Scales according to transformer ratios and ADC resolution
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
+            plant.get_outputs().machine_voltage_abc, machine_side_hardware_mock.get_inputs().machine_voltage_abc);
 
         // ==================== Control Outputs → Plant Inputs ====================
         // Controllers generate firing pulses and excitation commands, which drive the power converters
@@ -355,26 +347,26 @@ private:
         // Grid-side firing pulses: Controls the grid-side 6-pulse thyristor converter
         // Determines when grid-side thyristors are gated on/off
         signals_connector::connect_output_to_input(
-            grid_side_control.get_firing_pulses(), plant.get_inputs().grid_side_firing_pulses);
+            grid_side_control.get_firing_pulses(), plant.get_inputs().grid_firing_pulses);
 
         // Machine-side firing pulses: Controls the machine-side 6-pulse thyristor converter
         // Determines when machine-side thyristors are gated on/off
         signals_connector::connect_output_to_input(
             machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,
-            plant.get_inputs().machine_side_firing_pulses);
+            plant.get_inputs().machine_firing_pulses);
 
         // Excitation voltage command: Controls the excitation system of the synchronous machine
         // Modulates the machine field voltage for flux and torque control
         signals_connector::connect_output_to_input(
-            machine_side_control.excitation_controller.get_outputs().excitation_voltage_setpoint_pu,
-            plant.get_inputs().excitation_voltage_setpoint_pu);
+            machine_side_control.excitation_controller.get_outputs().excitation_voltage_setpoint,
+            plant.get_inputs().excitation_voltage_setpoint);
 
         // ==================== External Disturbances → Plant ====================
         // External inputs to the plant model for testing and simulation scenarios
 
         // Load torque: Applied load on the machine shaft
         // Simulates the gas turbine load or other mechanical loads
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
     }
 };
 

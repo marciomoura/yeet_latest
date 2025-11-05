@@ -28,34 +28,33 @@ public:
      * @brief Input signals for the machine-side modulator component
      */
     struct inputs {
-        /// System enable command
-        signal_input<bool> enable;
-
-        /// Operating mode selection from external mode detector
+        /// Operating mode selector (natural vs pulse)
         signal_input<sfc_operating_mode_t> operating_mode;
 
-        /// Acknowledgment signal from grid-side modulator
+        /// Acknowledgment signal from grid-side modulator [bool]
         signal_input<bool> force_commutation_acknowledged;
 
-        /// Absolute rotor electrical position for sector tracking
-        signal_input<angle_wrapped> machine_side_angle;
+        /// Rotor electrical angle for sector tracking [rad]
+        signal_input<angle_wrapped> machine_reference_angle;
 
-        /// Machine-side firing angle
+        /// Machine-side firing angle reference [rad]
         signal_input<angle_wrapped> firing_angle;
+
+        /// Pulse release control from supervisor [bool]
+        signal_input<bool> release_pulses;
     };
 
     /**
      * @brief Output signals from the machine-side modulator component
      */
     struct outputs {
-        /// Firing angle output to the pulse generator
-        /// Range: [0.0, π] radians
-        signal_output<angle_wrapped> firing_angle;
-
-        /// Pulse release control signal to pulse generator
+        /// Pulse release control signal [bool]
         signal_output<bool> release_pulses;
 
-        /// Request signal to grid-side modulator for forced commutation
+        /// Firing angle output to pulse generator [rad]
+        signal_output<angle_wrapped> firing_angle;
+
+        /// Request signal to grid-side modulator for forced commutation [bool]
         signal_output<bool> request_force_commutation;
 
         /// Current commutation state for diagnostics
@@ -69,10 +68,11 @@ public:
      * @brief Configuration parameters for the machine-side modulator
      */
     struct parameters {
-        /// Fixed firing angle for pulse mode operation
-        /// Range: [0.0, π] radians
-        /// Default: π radians (180°)
-        parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);  // 180°
+        /// Master enable override [bool]
+        parameter<bool> enable{true};
+
+        /// Firing angle for pulse mode operation [rad]
+        parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);
     };
 
 private:
@@ -93,6 +93,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        entry.parameters.insert("enable", _model_parameters->enable);
         entry.parameters.insert("forced_commutation_firing_angle",
             yeet::utils::make_units_accessor(_model_parameters->forced_commutation_firing_angle));
 

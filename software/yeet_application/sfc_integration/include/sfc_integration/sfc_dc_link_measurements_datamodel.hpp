@@ -20,15 +20,21 @@ public:
      * @brief Input signals for the DC link measurements component
      */
     struct inputs {
-        signal_input<abc<current_pu_t>> grid_side_current;
+        /// Grid current in abc frame [pu]
+        signal_input<abc<current_pu_t>> grid_current_abc;
     };
 
     /**
      * @brief Output signals from the DC link measurements component
      */
     struct outputs {
+        /// DC link current (raw) [pu]
         signal_output<current_pu_t> dc_current_pu;
+
+        /// DC link current (filtered) [pu]
         signal_output<current_pu_t> dc_current_filtered_pu;
+
+        /// DC link current (heavily filtered) [pu]
         signal_output<current_pu_t> dc_current_heavy_filtered_pu;
     };
 
@@ -36,7 +42,10 @@ public:
      * @brief Configuration parameters for the DC link measurements
      */
     struct parameters {
+        /// Filter cutoff frequency [Hz]
         parameter<frequency_t> filter_cutoff_frequency = frequency_t(100.0);
+
+        /// Heavy filter cutoff frequency [Hz]
         parameter<frequency_t> heavy_filter_cutoff_frequency = frequency_t(10.0);
     };
 

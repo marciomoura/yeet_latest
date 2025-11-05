@@ -43,14 +43,14 @@ public:
      * @param enable System enable signal.
      * @param operating_mode Current operating mode (natural or forced commutation).
      * @param request_force_commutation Signal from machine-side modulator requesting commutation.
-     * @param dc_link_current_is_zero Signal indicating DC link current has reached zero.
+     * @param is_current_zero Signal indicating DC link current has reached zero.
      * @param firing_angle_from_main_pi Firing angle from external PI current controller.
      * @param request_extinguish_current Priority request to extinguish current (shutdown/trip).
      */
     void update(bool enable,
         sfc_operating_mode_t operating_mode,
         bool request_force_commutation,
-        bool dc_link_current_is_zero,
+        bool is_current_zero,
         angle_t firing_angle_from_main_pi,
         bool request_extinguish_current) noexcept;
 
@@ -134,7 +134,7 @@ private:
     };
 
     forced_commutation_state_update compute_forced_commutation_state_update(
-        bool request_force_commutation, bool dc_link_current_is_zero, angle_t firing_angle) const noexcept;
+        bool request_force_commutation, bool is_current_zero, angle_t firing_angle) const noexcept;
 
     // Configuration parameters
     angle_t _force_commutation_angle_rad{deg_to_rad(150.0)};  ///< 150° for forced commutation

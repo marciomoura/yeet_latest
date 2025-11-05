@@ -17,27 +17,27 @@ public:
      */
     struct inputs {
         /// Three-phase grid voltage measurements in per-unit (grid-side base)
-        signal_input<abc<voltage_pu_t>> grid_voltage_pu;
+        signal_input<abc<voltage_pu_t>> grid_voltage_abc;
     };
 
     /**
      * @brief Output signals from the grid-side observer component
      */
     struct outputs {
-        /// Estimated machine voltage magnitude
+        /// Estimated voltage magnitude [pu]
         yeet::signal_output<yeet::voltage_pu_t> estimated_voltage_magnitude;
 
-        /// Estimated machine frequency (electrical)
+        /// Estimated frequency [Hz]
         yeet::signal_output<yeet::frequency_t> estimated_frequency;
 
-        /// Estimated machine frequency in per-unit
+        /// Estimated frequency in per-unit [pu]
         yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
 
-        /// Estimated rotor position in radians
-        yeet::signal_output<angle_wrapped> estimated_position;
+        /// Estimated voltage phase angle [rad]
+        yeet::signal_output<angle_wrapped> estimated_reference_angle;
 
-        /// Filtered machine voltage in alpha-beta stationary frame
-        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> filtered_voltage_alphabeta;
+        /// Filtered voltage in alpha-beta stationary frame [pu]
+        yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> estimated_voltage_alphabeta_filtered;
     };
 
     /**
@@ -47,17 +47,16 @@ public:
         /// PLL proportional gain
         yeet::parameter<real_t> kp = 0.4;
 
-        /// PLL integral time constant
+        /// PLL integral time constant [s]
         yeet::parameter<duration_t> ti = duration_t{ms(31.8)};
 
-        /// Nominal machine frequency
+        /// Nominal grid frequency [Hz]
         yeet::parameter<frequency_t> nominal_frequency = frequency_t{50.0};
 
-        /// Initial machine frequency for startup
+        /// Initial frequency estimate for startup [pu]
         yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{1.0};
 
-        /// Frequency estimation filter cutoff frequency
-        /// Range: [1.0, 50.0] Hz
+        /// Frequency estimation filter cutoff frequency [Hz]
         yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
     };
 

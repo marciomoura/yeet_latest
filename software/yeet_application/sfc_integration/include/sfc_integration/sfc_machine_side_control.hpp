@@ -6,6 +6,7 @@
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_external_ios_datamodel.hpp"
+#include "sfc_integration/sfc_machine_side_integrator_supervisor_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
@@ -42,6 +43,7 @@ public:
           speed_generator(),
           speed_controller(),
           torque_controller(),
+          machine_integrator_supervisor(),
           machine_side_controller(),
           machine_side_observer(),
           machine_side_modulator(),
@@ -183,7 +185,7 @@ public:
     {
         return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
             .get_outputs()
-            .excitation_voltage_setpoint_pu;
+            .excitation_voltage_setpoint;
     }
 
     /**
@@ -215,7 +217,7 @@ public:
 
     /**
      * @brief Get estimated machine speed from observer
-     * Prefer: get_io().grid_side_outputs.measured_speed_pu
+     * Prefer: get_io().grid_side_outputs.measured_speed
      */
     const signal_output<speed_pu_t>& get_estimated_speed() const
     {
@@ -227,7 +229,9 @@ public:
      */
     const signal_output<angle_wrapped>& get_estimated_position() const
     {
-        return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer).get_outputs().estimated_position;
+        return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer)
+            .get_outputs()
+            .estimated_reference_angle;
     }
 
     /**
@@ -282,6 +286,7 @@ public:
     sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
+    sfc_machine_side_integrator_supervisor_runner machine_integrator_supervisor;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;
     sfc_machine_side_modulator_runner machine_side_modulator;

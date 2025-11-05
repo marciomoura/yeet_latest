@@ -23,15 +23,13 @@ public:
      * @brief Input signals for the grid-side pulse generator
      */
     struct inputs {
-        /// Reference angle from grid voltage observer (PLL output)
-        /// Range: [0.0, 2π] radians
+        /// Reference angle from grid observer (PLL output) [rad]
         signal_input<angle_wrapped> reference_angle;
 
-        /// Firing angle command from grid-side modulator
-        /// Range: [0.0, π] radians
+        /// Firing angle command from grid-side modulator [rad]
         signal_input<angle_wrapped> firing_angle;
 
-        /// Pulse release control (blocks all pulses when false)
+        /// Pulse release control (blocks all pulses when false) [bool]
         signal_input<bool> release_pulses;
     };
 
@@ -39,31 +37,27 @@ public:
      * @brief Output signals from the grid-side pulse generator
      */
     struct outputs {
-        /// Generated firing pulses for the 6-pulse bridge
-        /// Contains the state of all 6 thyristor firing signals
+        /// Generated firing pulses for 6-pulse bridge
         signal_output<control::six_pulse_generator::pulses> firing_pulses;
 
-        /// Actual firing angle being applied (pass-through for monitoring)
-        /// Range: [0.0, π] radians
+        /// Actual firing angle being applied [rad]
         signal_output<angle_wrapped> actual_firing_angle;
 
-        /// Pulse generator active status
-        signal_output<bool> is_active;
+        /// Pulse generator active status [bool]
+        signal_output<bool> release_pulses;
     };
 
     /**
      * @brief Configuration parameters for the grid-side pulse generator
      */
     struct parameters {
+        /// Master enable override [bool]
         parameter<bool> enable{true};
 
-        /// Pulse width for each firing pulse in radians
-        /// Range: [π/36, π/3] radians (5° to 60°)
-        /// Default: π/6 rad (30°)
+        /// Pulse width for each firing pulse [rad]
         parameter<angle_wrapped> pulse_width = angle_wrapped(0.5236);
 
-        /// Reference type (line or phase voltage reference)
-        /// Default: phase voltage reference
+        /// Reference voltage type (line or phase)
         parameter<control::six_pulse_generator::reference_type> reference_type =
             control::six_pulse_generator::reference_type::phase;
     };

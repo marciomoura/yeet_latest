@@ -23,23 +23,18 @@ void sfc_torque_controller_runner::run()
 
         // Write output signals
         _outputs.current_reference.write(current_pu_t{torque_reference});
-        _outputs.base_torque_reference.write(torque_reference);
-        _outputs.total_torque_reference.write(torque_reference);
-        _outputs.limited_torque_reference.write(torque_reference);
         _outputs.is_saturated.write(false);
-        _outputs.downstream_saturation.write(false);
-        _outputs.composite_saturation.write(false);
         _outputs.is_breakaway_boost_active.write(false);
         _outputs.is_active.write(true);
         return;
     }
 
     // Read input signals
-    const torque_pu_t torque_reference = _inputs.torque_reference_from_speed_controller.read();
+    const torque_pu_t torque_reference = _inputs.torque_reference.read();
     const torque_pu_t dynamic_max_limit = _inputs.dynamic_max_torque_limit.read();
     const torque_pu_t dynamic_min_limit = _inputs.dynamic_min_torque_limit.read();
     const bool enable_boost = _inputs.enable_breakaway_boost.read();
-    const bool downstream_saturated = _inputs.current_controller_is_saturated.read();
+    const bool downstream_saturated = _inputs.is_saturated.read();
 
     // Update downstream saturation feedback (must be done before update())
     _sfc_torque_controller.set_downstream_saturation(downstream_saturated);
@@ -47,14 +42,9 @@ void sfc_torque_controller_runner::run()
     // Execute torque controller
     _sfc_torque_controller.update(torque_reference, dynamic_max_limit, dynamic_min_limit, enable_boost);
 
-    // Write output signals
+    // Write output signals (composite saturation becomes unified is_saturated)
     _outputs.current_reference.write(_sfc_torque_controller.get_current_reference());
-    _outputs.base_torque_reference.write(_sfc_torque_controller.get_base_torque_reference());
-    _outputs.total_torque_reference.write(_sfc_torque_controller.get_total_torque_reference());
-    _outputs.limited_torque_reference.write(_sfc_torque_controller.get_limited_torque_reference());
     _outputs.is_saturated.write(_sfc_torque_controller.is_saturated());
-    _outputs.downstream_saturation.write(_sfc_torque_controller.get_downstream_saturation());
-    _outputs.composite_saturation.write(_sfc_torque_controller.get_composite_saturation());
     _outputs.is_breakaway_boost_active.write(_sfc_torque_controller.is_breakaway_boost_active());
     _outputs.is_active.write(true);  // Always active when run() is called
 }

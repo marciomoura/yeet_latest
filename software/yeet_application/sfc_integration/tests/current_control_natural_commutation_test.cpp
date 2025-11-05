@@ -138,21 +138,16 @@ public:
 
     void set_dc_link_current_reference(const current_pu_t& value) noexcept
     {
-        std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
-                                  sys->dc_link_current_reference = value;
-                              },
-                       [&](plant_simplified_current_control_simulation_builder* sys) {
-                           sys->dc_link_current_reference = value;
+        std::visit(
+            overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
+                           sys->current_reference = value;
                        },
-                       [&](plant_sensorless_current_control_simulation_builder* sys) {
-                           sys->dc_link_current_reference = value;
-                       },
-                       [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
-                           sys->dc_link_current_reference = value;
-                       },
-                       [&](plant_current_control_with_modulators_simulation_builder* sys) {
-                           sys->dc_link_current_reference = value;
-                       }},
+                [&](plant_simplified_current_control_simulation_builder* sys) { sys->current_reference = value; },
+                [&](plant_sensorless_current_control_simulation_builder* sys) { sys->current_reference = value; },
+                [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
+                    sys->current_reference = value;
+                },
+                [&](plant_current_control_with_modulators_simulation_builder* sys) { sys->current_reference = value; }},
             system_variant_t{&system});
     }
 

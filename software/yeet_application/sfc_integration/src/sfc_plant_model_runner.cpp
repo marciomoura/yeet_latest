@@ -40,23 +40,23 @@ void sfc_plant_model_runner::initialize()
 void sfc_plant_model_runner::run()
 {
     // Set inputs to the plant model
-    _plant.set_grid_side_pulses(_inputs.grid_side_firing_pulses.read().to_array());
-    _plant.set_machine_side_pulses(_inputs.machine_side_firing_pulses.read().to_array());
-    _plant.set_load_torque_pu(_inputs.load_torque_pu.read());
+    _plant.set_grid_side_pulses(_inputs.grid_firing_pulses.read().to_array());
+    _plant.set_machine_side_pulses(_inputs.machine_firing_pulses.read().to_array());
+    _plant.set_load_torque_pu(_inputs.load_torque.read());
 
     // Set excitation voltage setpoint if in external control mode
     if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::external_control) {
-        _plant.set_excitation_voltage_setpoint_pu(_inputs.excitation_voltage_setpoint_pu.read());
+        _plant.set_excitation_voltage_setpoint_pu(_inputs.excitation_voltage_setpoint.read());
     }
 
     // Execute one simulation step
     _plant.update();
 
     // Read outputs from the plant model
-    _outputs.grid_voltage = _plant.get_grid_side_voltages_abc();
-    _outputs.grid_current = _plant.get_grid_side_currents_abc();
+    _outputs.grid_voltage_abc = _plant.get_grid_side_voltages_abc();
+    _outputs.grid_current_abc = _plant.get_grid_side_currents_abc();
     _outputs.dc_link_current = _plant.get_dc_link_current();
-    _outputs.machine_voltage = _plant.get_machine_side_voltages_abc();
+    _outputs.machine_voltage_abc = _plant.get_machine_side_voltages_abc();
     _outputs.machine_current = _plant.get_machine_side_currents_abc();
     _outputs.grid_voltage_source_angle = _plant.get_grid_voltage_source_angle();
     _outputs.machine_voltage_source_angle = _plant.get_machine_voltage_source_angle();

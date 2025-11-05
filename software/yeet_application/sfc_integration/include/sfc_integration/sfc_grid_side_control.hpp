@@ -6,6 +6,7 @@
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_external_ios_datamodel.hpp"
+#include "sfc_integration/sfc_grid_side_integrator_supervisor_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
@@ -42,6 +43,7 @@ public:
      */
     explicit sfc_grid_side_control()
         : state_machine(),
+          grid_integrator_supervisor(),
           current_controller(per_unit_system),
           grid_side_observer(),
           grid_side_modulator(),
@@ -182,6 +184,12 @@ public:
     sfc_operation_mode_monitor_runner& get_operation_mode_monitor() { return operation_mode_monitor; }
     const sfc_operation_mode_monitor_runner& get_operation_mode_monitor() const { return operation_mode_monitor; }
 
+    sfc_grid_side_integrator_supervisor_runner& get_grid_integrator_supervisor() { return grid_integrator_supervisor; }
+    const sfc_grid_side_integrator_supervisor_runner& get_grid_integrator_supervisor() const
+    {
+        return grid_integrator_supervisor;
+    }
+
     // ==================== External Output Signals ====================
 
     /**
@@ -197,7 +205,7 @@ public:
      */
     const signal_output<bool>& get_is_current_zero() const
     {
-        return const_cast<sfc_operation_mode_monitor_runner&>(operation_mode_monitor).get_outputs().is_current_zero;
+        return const_cast<sfc_operation_mode_monitor_runner&>(operation_mode_monitor).get_outputs().current_is_zero;
     }
 
     /**
@@ -228,7 +236,7 @@ public:
      */
     const signal_output<bool>& get_pulse_releases() const
     {
-        return const_cast<sfc_state_machine_runner&>(state_machine).get_outputs().pulse_releases;
+        return const_cast<sfc_state_machine_runner&>(state_machine).get_outputs().release_pulses;
     }
 
     /**
@@ -236,7 +244,7 @@ public:
      */
     const signal_output<bool>& get_freeze_integrator() const
     {
-        return const_cast<sfc_state_machine_runner&>(state_machine).get_outputs().freeze_integrator;
+        return const_cast<sfc_state_machine_runner&>(state_machine).get_outputs().preset_request;
     }
 
     /**
@@ -244,9 +252,7 @@ public:
      */
     const signal_output<bool>& get_current_controller_is_saturated() const
     {
-        return const_cast<sfc_current_controller_runner&>(current_controller)
-            .get_outputs()
-            .current_controller_is_saturated;
+        return const_cast<sfc_current_controller_runner&>(current_controller).get_outputs().is_saturated;
     }
 
     // ==================== Public Component Access for Direct Signal Connections ====================
@@ -270,6 +276,7 @@ public:
 
     // Grid-side control components (made public for intermediate integration)
     sfc_state_machine_runner state_machine;
+    sfc_grid_side_integrator_supervisor_runner grid_integrator_supervisor;
     sfc_current_controller_runner current_controller;
     sfc_grid_side_observer_runner grid_side_observer;
     sfc_grid_side_modulator_runner grid_side_modulator;

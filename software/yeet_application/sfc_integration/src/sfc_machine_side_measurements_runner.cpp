@@ -20,19 +20,19 @@ void sfc_machine_side_measurements_ideal_runner::initialize()
 
 void sfc_machine_side_measurements_ideal_runner::run()
 {
-    _measurements.update(_per_unit_system->get_machine_bases(), _inputs.machine_voltage_measurements,
-        _inputs.machine_current_measurements);
+    _measurements.update(
+        _per_unit_system->get_machine_bases(), _inputs.machine_voltage_abc, _inputs.machine_current_abc);
 
     // Execute commutation monitor and mask
     _commutation_monitor.update(_measurements.get_voltage_pu(), _inputs.machine_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
     abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(_measurements.get_voltage_pu(),
-        _inputs.machine_side_angle, _inputs.machine_side_frequency, _outputs.is_commuting);
+        _inputs.machine_reference_angle, _inputs.machine_frequency, _outputs.is_commuting);
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
-    _outputs.machine_side_speed =
-        speed_pu_t{to_pu(_inputs.machine_side_frequency.read(), _per_unit_system->get_machine_bases().base_frequency)};
+    _outputs.machine_speed =
+        speed_pu_t{to_pu(_inputs.machine_frequency.read(), _per_unit_system->get_machine_bases().base_frequency)};
     _outputs.machine_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_abc = masked_voltage_abc;
@@ -87,13 +87,13 @@ void sfc_machine_side_measurements_runner::run()
     _outputs.is_commuting = _commutation_monitor.is_commuting();
 
     abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(_measurements.get_voltage_pu(),
-        _inputs.machine_side_angle, _inputs.machine_side_frequency, _outputs.is_commuting);
+        _inputs.machine_reference_angle, _inputs.machine_frequency, _outputs.is_commuting);
 
     // No current measurements on machine side -> pass zero currents (already zero in measurements object)
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
-    _outputs.machine_side_speed =
-        speed_pu_t{to_pu(_inputs.machine_side_frequency.read(), _per_unit_system->get_machine_bases().base_frequency)};
+    _outputs.machine_speed =
+        speed_pu_t{to_pu(_inputs.machine_frequency.read(), _per_unit_system->get_machine_bases().base_frequency)};
     _outputs.machine_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_abc = masked_voltage_abc;

@@ -19,16 +19,16 @@ public:
      * @brief Input signals for the excitation controller component
      */
     struct inputs {
-        /// Machine rotor speed in per-unit
+        /// Machine rotor speed [pu]
         signal_input<speed_pu_t> machine_rotor_speed_pu;
 
-        /// Exciter ready status from external excitation controller
+        /// Exciter ready status [bool]
         signal_input<bool> exciter_ready;
 
-        /// Command to start excitation sequence
+        /// Start command [bool]
         signal_input<bool> start_command;
 
-        /// Command to stop excitation sequence
+        /// Stop command [bool]
         signal_input<bool> stop_command;
     };
 
@@ -36,16 +36,16 @@ public:
      * @brief Output signals from the excitation controller component
      */
     struct outputs {
-        /// Excitation voltage setpoint to send to exciter [pu]
-        signal_output<voltage_pu_t> excitation_voltage_setpoint_pu;
+        /// Excitation voltage setpoint [pu]
+        signal_output<voltage_pu_t> excitation_voltage_setpoint;
 
-        /// Enable command to external exciter
+        /// Enable command to external exciter [bool]
         signal_output<bool> enable_excitation;
 
-        /// Field established status flag
+        /// Field established status [bool]
         signal_output<bool> is_field_established;
 
-        /// Controller running status
+        /// Controller running status [bool]
         signal_output<bool> is_running;
 
         /// Pre-fluxing elapsed time [s]
@@ -56,13 +56,13 @@ public:
      * @brief Configuration parameters for the excitation controller
      */
     struct parameters {
-        /// Pre-fluxing duration [seconds]
+        /// Pre-fluxing duration [s]
         parameter<duration_t> prefluxing_duration = duration_t{2.0};
 
-        /// Field established timeout [seconds]
+        /// Field established timeout [s]
         parameter<duration_t> field_established_timeout = duration_t{5.0};
 
-        /// Excitation ramp-down time during shutdown [seconds]
+        /// Excitation ramp-down time during shutdown [s]
         parameter<duration_t> excitation_ramp_down_time = duration_t{1.0};
 
         /// Speed axis for lookup table [pu]

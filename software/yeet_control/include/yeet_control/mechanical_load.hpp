@@ -44,7 +44,7 @@ public:
      * @param load_torque The external load torque (optional, defaults to 0).
      * @return The updated mechanical speed.
      */
-    speed_pu_t update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque_pu = torque_pu_t{0.0});
+    speed_pu_t update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque = torque_pu_t{0.0});
 
     /**
      * @brief Resets the mechanical load with a specific speed.

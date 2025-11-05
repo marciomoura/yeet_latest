@@ -56,7 +56,7 @@ protected:
     {
         const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
         EXPECT_EQ(outputs.current_state_id.read(), expected_state);
-        EXPECT_EQ(outputs.pulse_releases.read(), expected_pulse_releases);
+        EXPECT_EQ(outputs.release_pulses.read(), expected_pulse_releases);
 
         // Verify individual state flags
         // EXPECT_EQ(outputs.is_idle.read(), (expected_state == sfc::sfc_state_id::IDLE));

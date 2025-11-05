@@ -24,15 +24,15 @@ void sfc_grid_side_hardware_mock_runner::initialize()
 void sfc_grid_side_hardware_mock_runner::run()
 {
     // Read raw analog signals from the inputs
-    const auto grid_voltage = _inputs.grid_voltage.read();
-    const auto grid_current = _inputs.grid_current.read();
+    const auto grid_voltage_abc = _inputs.grid_voltage_abc.read();
+    const auto grid_current_abc = _inputs.grid_current_abc.read();
 
     // Convert line-to-neutral voltages to line-to-line for the mock hardware interface
-    const real_t v_ab = grid_voltage.a().value() - grid_voltage.b().value();
-    const real_t v_bc = grid_voltage.b().value() - grid_voltage.c().value();
+    const real_t v_ab = grid_voltage_abc.a().value() - grid_voltage_abc.b().value();
+    const real_t v_bc = grid_voltage_abc.b().value() - grid_voltage_abc.c().value();
 
     // Pass the raw analog values to the hardware mock for processing
-    _hardware_mock.update(v_ab, v_bc, grid_current.a().value(), grid_current.c().value());
+    _hardware_mock.update(v_ab, v_bc, grid_current_abc.a().value(), grid_current_abc.c().value());
 
     // Write the quantized ADC counts to the outputs
     _outputs.v_ab_counts = _hardware_mock.get_v_ab_counts();

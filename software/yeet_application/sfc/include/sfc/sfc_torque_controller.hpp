@@ -121,12 +121,12 @@ public:
      * Call order: speed.update() → torque.update() → current.update()
      *             → torque.set_downstream_saturation(current.is_saturated())
      *
-     * @param torque_reference_from_speed_controller Torque command from outer loop [pu]
+     * @param torque_reference Torque command from outer loop [pu]
      * @param dynamic_max_torque_limit Upper limit from soft-starter or other sources [pu]
      * @param dynamic_min_torque_limit Lower limit from soft-starter or other sources [pu]
      * @param enable_breakaway_boost True to activate breakaway boost, false to disable
      */
-    void update(torque_pu_t torque_reference_from_speed_controller,
+    void update(torque_pu_t torque_reference,
         torque_pu_t dynamic_max_torque_limit,
         torque_pu_t dynamic_min_torque_limit,
         bool enable_breakaway_boost);

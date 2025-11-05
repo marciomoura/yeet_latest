@@ -16,18 +16,18 @@ sfc_excitation_controller::sfc_excitation_controller(duration_t sampling_time)
 
 void sfc_excitation_controller::configure_excitation_voltage_lookup_table(
     const std::array<real_t, NUM_LOOKUP_POINTS>& speed_axis_pu,
-    const std::array<real_t, NUM_LOOKUP_POINTS>& excitation_voltage_setpoint_pu)
+    const std::array<real_t, NUM_LOOKUP_POINTS>& excitation_voltage_setpoint)
 {
     // Verify that speed axis is sorted
     assert(
         std::is_sorted(speed_axis_pu.begin(), speed_axis_pu.end()) && "Speed axis must be sorted in ascending order.");
 
     // Verify that all excitation voltages are non-negative
-    for (const auto& voltage : excitation_voltage_setpoint_pu) {
+    for (const auto& voltage : excitation_voltage_setpoint) {
         assert(voltage >= 0.0 && "Excitation voltage setpoint values must be non-negative.");
     }
 
-    _excitation_voltage_lookup_table.configure(speed_axis_pu, excitation_voltage_setpoint_pu);
+    _excitation_voltage_lookup_table.configure(speed_axis_pu, excitation_voltage_setpoint);
 }
 
 void sfc_excitation_controller::configure_prefluxing_duration(duration_t prefluxing_duration)

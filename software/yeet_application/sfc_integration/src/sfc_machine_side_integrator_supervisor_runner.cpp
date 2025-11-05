@@ -1,0 +1,55 @@
+#include "sfc_integration/sfc_machine_side_integrator_supervisor_runner.hpp"
+
+namespace yeet::application::sfc::integration {
+
+void sfc_machine_side_integrator_supervisor_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_machine_side_integrator_supervisor_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
+void sfc_machine_side_integrator_supervisor_runner::initialize()
+{
+    _outputs.freeze_integrator = false;
+    _outputs.preset_request = false;
+    _outputs.release_pulses = false;
+    _outputs.request_shutdown = false;
+}
+
+void sfc_machine_side_integrator_supervisor_runner::run()
+{
+    if (_parameters.override_release_pulses) {
+        _outputs.release_pulses = _parameters.release_pulses_value;
+    }
+    else {
+        _outputs.release_pulses = _inputs.grid_side_release_pulses;
+    }
+
+    if (_parameters.override_is_tripped) {
+        _outputs.request_shutdown = _parameters.is_tripped_value;
+    }
+    else {
+        _outputs.request_shutdown = false;  // TODO: Implement trip logic for the machine-side
+    }
+
+    if (_parameters.override_freeze) {
+        _outputs.freeze_integrator = _parameters.freeze_value;
+    }
+    else {
+        _outputs.freeze_integrator = _inputs.torque_saturated;
+    }
+
+    // TODO
+    _outputs.preset_request = false;
+}
+
+void sfc_machine_side_integrator_supervisor_runner::stop()
+{
+    _outputs.freeze_integrator = false;
+    _outputs.preset_request = false;
+    _outputs.release_pulses = false;
+    _outputs.request_shutdown = true;
+}
+
+}  // namespace yeet::application::sfc::integration

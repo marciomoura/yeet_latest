@@ -17,7 +17,7 @@ void sfc_dc_link_measurements_runner::initialize()
 
 void sfc_dc_link_measurements_runner::run()
 {
-    _sfc_dc_link_measurements.update(*_per_unit_system, _inputs.grid_side_current);
+    _sfc_dc_link_measurements.update(*_per_unit_system, _inputs.grid_current_abc);
 
     _outputs.dc_current_pu = _sfc_dc_link_measurements.get_current_pu();
 

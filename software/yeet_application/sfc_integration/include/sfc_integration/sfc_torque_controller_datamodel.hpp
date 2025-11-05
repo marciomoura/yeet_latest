@@ -29,7 +29,7 @@ public:
      */
     struct inputs {
         /// Torque reference from speed controller [pu]
-        signal_input<torque_pu_t> torque_reference_from_speed_controller;
+        signal_input<torque_pu_t> torque_reference;
 
         /// Maximum dynamic torque limit from speed generator [pu]
         signal_input<torque_pu_t> dynamic_max_torque_limit;
@@ -41,7 +41,7 @@ public:
         signal_input<bool> enable_breakaway_boost;
 
         /// Saturation feedback from downstream current controller
-        signal_input<bool> current_controller_is_saturated;
+        signal_input<bool> is_saturated;
     };
 
     /**
@@ -51,23 +51,8 @@ public:
         /// Current reference output to current controller [pu]
         signal_output<current_pu_t> current_reference;
 
-        /// Base torque reference before boost [pu]
-        signal_output<torque_pu_t> base_torque_reference;
-
-        /// Total torque reference after boost injection [pu]
-        signal_output<torque_pu_t> total_torque_reference;
-
-        /// Limited torque reference after all limits applied [pu]
-        signal_output<torque_pu_t> limited_torque_reference;
-
-        /// Local saturation status (torque limits exceeded)
+        /// Controller saturation status (combines local and downstream saturation)
         signal_output<bool> is_saturated;
-
-        /// Downstream saturation status (from current controller)
-        signal_output<bool> downstream_saturation;
-
-        /// Composite saturation status (local OR downstream)
-        signal_output<bool> composite_saturation;
 
         /// Breakaway boost active status
         signal_output<bool> is_breakaway_boost_active;
@@ -80,36 +65,31 @@ public:
      * @brief Configuration parameters for the torque controller
      */
     struct parameters {
+        /// Enable override for torque reference testing
         parameter<bool> override_torque_reference = false;
 
-        /// Overrides normal control operation for testing or specific control modes
+        /// Forced torque reference value when override is enabled
         parameter<torque_pu_t> forced_torque_reference = torque_pu_t{0.0};
 
-        /// Absolute minimum torque limit [pu]
-        /// Hard limit representing physical machine capability
+        /// Minimum torque limit [pu]
         parameter<torque_pu_t> absolute_min_torque = torque_pu_t{-1.2};
 
-        /// Absolute maximum torque limit [pu]
-        /// Hard limit representing physical machine capability
+        /// Maximum torque limit [pu]
         parameter<torque_pu_t> absolute_max_torque = torque_pu_t{1.2};
 
-        /// Torque-to-current conversion factor [dimensionless]
-        /// Typically close to 1.0 in a well-designed per-unit system
+        /// Torque-to-current conversion factor
         parameter<real_t> torque_to_current_factor = real_t(1.0);
 
         /// Torque rate limit [pu/s]
-        /// Limits how fast torque can change to prevent mechanical shock
         parameter<real_t> torque_rate_limit = real_t(10.0);
 
-        /// Enable/disable torque rate limiting
+        /// Enable torque rate limiting
         parameter<bool> enable_torque_rate_limiting = true;
 
         /// Breakaway boost torque magnitude [pu]
-        /// Extra torque added during startup to overcome static friction
         parameter<torque_pu_t> breakaway_boost_torque = torque_pu_t{0.0};
 
         /// Breakaway boost duration [s]
-        /// How long the boost is applied
         parameter<duration_t> breakaway_boost_duration = duration_t{1.0};
     };
 

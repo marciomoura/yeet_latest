@@ -81,7 +81,7 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
     // Step 1: 0.2 pu
     checker->deactivate();
     current_reference = current_pu_t{0.2f};
-    system.dc_link_current_reference = current_reference;
+    system.current_reference = current_reference;
     EXPECT_TRUE(simulator.simulate_for(0.5));  // transient
     EXPECT_EQ(system.operation_mode_monitor.get_outputs().operating_mode.read(),
         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);
@@ -91,7 +91,7 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
     // Step 2: 0.5 pu
     checker->deactivate();
     current_reference = current_pu_t{0.5f};
-    system.dc_link_current_reference = current_reference;
+    system.current_reference = current_reference;
     EXPECT_TRUE(simulator.simulate_for(0.5));
     EXPECT_EQ(system.operation_mode_monitor.get_outputs().operating_mode.read(),
         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);
@@ -101,7 +101,7 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
     // Step 3: 1.0 pu
     checker->deactivate();
     current_reference = current_pu_t{1.0f};
-    system.dc_link_current_reference = current_reference;
+    system.current_reference = current_reference;
     EXPECT_TRUE(simulator.simulate_for(0.5));
     EXPECT_EQ(system.operation_mode_monitor.get_outputs().operating_mode.read(),
         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);

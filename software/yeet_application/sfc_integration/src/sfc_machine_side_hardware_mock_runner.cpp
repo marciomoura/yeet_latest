@@ -24,11 +24,11 @@ void sfc_machine_side_hardware_mock_runner::initialize()
 void sfc_machine_side_hardware_mock_runner::run()
 {
     // Read raw analog signals from the inputs
-    const auto machine_voltage = _inputs.machine_voltage.read();
+    const auto machine_voltage_abc = _inputs.machine_voltage_abc.read();
 
     // Convert line-to-neutral voltages to line-to-line for the mock hardware interface
-    const real_t v_ab = machine_voltage.a().value() - machine_voltage.b().value();
-    const real_t v_bc = machine_voltage.b().value() - machine_voltage.c().value();
+    const real_t v_ab = machine_voltage_abc.a().value() - machine_voltage_abc.b().value();
+    const real_t v_bc = machine_voltage_abc.b().value() - machine_voltage_abc.c().value();
 
     // Pass the raw analog values to the hardware mock for processing
     _hardware_mock.update(v_ab, v_bc);

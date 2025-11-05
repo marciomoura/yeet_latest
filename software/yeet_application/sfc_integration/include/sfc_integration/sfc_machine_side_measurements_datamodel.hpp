@@ -24,26 +24,54 @@ public:
      * @brief Input signals for the machine-side measurements component
      */
     struct inputs {
-        signal_input<abc<voltage_t>> machine_voltage_measurements;
-        signal_input<abc<current_t>> machine_current_measurements;
+        /// Machine voltage abc [V]
+        signal_input<abc<voltage_t>> machine_voltage_abc;
+
+        /// Machine current abc [A]
+        signal_input<abc<current_t>> machine_current_abc;
+
+        /// Pulse signals for commutation detection
         signal_input<control::six_pulse_generator::pulses> machine_pulses;
-        signal_input<frequency_t> machine_side_frequency;
-        signal_input<angle_wrapped> machine_side_angle;
+
+        /// Electrical frequency estimate [Hz]
+        signal_input<frequency_t> machine_frequency;
+
+        /// Electrical angle reference [rad]
+        signal_input<angle_wrapped> machine_reference_angle;
     };
 
     /**
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
-        signal_output<speed_pu_t> machine_side_speed;
+        /// Machine speed [pu]
+        signal_output<speed_pu_t> machine_speed;
+
+        /// Machine voltage in alpha-beta frame [pu]
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
+
+        /// Machine voltage in alpha-beta frame, filtered [pu]
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
+
+        /// Machine voltage in abc frame [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;
+
+        /// Machine voltage in abc frame, unmasked [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_unmasked;
+
+        /// Machine voltage in abc frame, filtered [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_filtered;
-        signal_output<abc<current_pu_t>> machine_current_abc;
+
+        /// Machine voltage magnitude [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude;
+
+        /// Machine voltage magnitude, filtered [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude_filtered;
+
+        /// Machine current in abc frame [pu]
+        signal_output<abc<current_pu_t>> machine_current_abc;
+
+        /// Commutation activity indicator [bool]
         signal_output<bool> is_commuting;
     };
 
@@ -51,17 +79,32 @@ public:
      * @brief Configuration parameters for measurements and filtering
      */
     struct parameters {
+        /// Voltage low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> voltage_lpf_cutoff_frequency{frequency_t{100.0}};
+
+        /// Current low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> current_lpf_cutoff_frequency{frequency_t{100.0}};
+
+        /// Voltage magnitude low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
+
+        /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
+
+        /// Commutation detection threshold (end) [pu]
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
-        // ADC conversion parameters (secondary side)
+
+        /// ADC resolution [bits]
         parameter<int> voltage_adc_bits{16};
-        parameter<real_t> voltage_adc_full_scale{real_t{10.0}};  // +/- full scale volts at card input
-        // Transducer gain for documentation / future reconstruction
-        parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};  // V_out / V_primary_LL
-        parameter<real_t> pt_ratio{real_t{1.0}};                         // Primary LL voltage / secondary LL voltage
+
+        /// ADC full-scale voltage [V]
+        parameter<real_t> voltage_adc_full_scale{real_t{10.0}};
+
+        /// Voltage transducer gain [V_out/V_primary]
+        parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};
+
+        /// Potential transformer ratio [Primary/Secondary]
+        parameter<real_t> pt_ratio{real_t{1.0}};
     };
 
 private:
@@ -120,15 +163,15 @@ public:
         signal_input<control::adc_counts> v_ab_counts;
         signal_input<control::adc_counts> v_bc_counts;
         signal_input<control::six_pulse_generator::pulses> machine_pulses;
-        signal_input<frequency_t> machine_side_frequency;
-        signal_input<angle_wrapped> machine_side_angle;
+        signal_input<frequency_t> machine_frequency;
+        signal_input<angle_wrapped> machine_reference_angle;
     };
 
     /**
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
-        signal_output<speed_pu_t> machine_side_speed;
+        signal_output<speed_pu_t> machine_speed;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;

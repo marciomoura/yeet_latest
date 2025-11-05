@@ -103,7 +103,7 @@ public:
      * @brief Updates the model with new firing pulses and voltage parameters.
      * @param grid_side_pulses The 6-pulse firing signals for the grid side.
      * @param machine_side_pulses The 6-pulse firing signals for the machine side.
-     * @param load_torque_pu The load torque in per-unit.
+     * @param load_torque The load torque in per-unit.
      * @param grid_frequency_hz The grid frequency in Hertz.
      * @param machine_frequency_hz The machine frequency in Hertz.
      * @param grid_voltage_rms The RMS line-to-line voltage on the grid side.
@@ -111,7 +111,7 @@ public:
      */
     void update(const std::array<bool, 6>& grid_side_pulses,
         const std::array<bool, 6>& machine_side_pulses,
-        torque_pu_t load_torque_pu,
+        torque_pu_t load_torque,
         frequency_t grid_frequency_hz,
         frequency_t machine_frequency_hz,
         voltage_t grid_voltage_rms,
@@ -208,10 +208,10 @@ public:
      * excitation controller. The setpoint is only used when voltage_control_mode is set to
      * external_control. This simulates a "perfect exciter" with instantaneous tracking.
      *
-     * @param excitation_voltage_setpoint_pu The excitation voltage setpoint in per-unit [pu].
+     * @param excitation_voltage_setpoint The excitation voltage setpoint in per-unit [pu].
      *        This value is multiplied by the nominal machine voltage to produce the actual voltage.
      */
-    void set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint_pu);
+    void set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint);
 
     /**
      * @brief Sets the initial mechanical speed for the load.
@@ -221,9 +221,9 @@ public:
 
     /**
      * @brief Sets the load torque in per-unit for the mechanical load model.
-     * @param load_torque_pu The load torque in per-unit.
+     * @param load_torque The load torque in per-unit.
      */
-    void set_load_torque_pu(torque_pu_t load_torque_pu);
+    void set_load_torque_pu(torque_pu_t load_torque);
 
     // Output getters - Current model state
     frequency_t get_grid_frequency() const noexcept;

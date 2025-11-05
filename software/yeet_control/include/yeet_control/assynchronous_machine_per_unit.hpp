@@ -54,11 +54,11 @@ public:
     const per_unit_base_values& get_base_values() const { return _base_values; }
 
     // Update with per-unit voltage and torque
-    void update(const alphabeta<double>& voltage_ab_pu, double load_torque_pu)
+    void update(const alphabeta<double>& voltage_ab_pu, double load_torque)
     {
         // Convert inputs from per-unit to SI
         alphabeta<double> voltage_ab_si = voltage_pu_to_si(voltage_ab_pu);
-        double load_torque_si = load_torque_pu * _base_values.torque;
+        double load_torque_si = load_torque * _base_values.torque;
 
         // Update the underlying machine
         _machine.update(voltage_ab_si, load_torque_si);

@@ -52,7 +52,7 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
@@ -121,8 +121,8 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
-    signal_output<torque_pu_t> load_torque_pu;
-    signal_output<current_pu_t> dc_link_current_reference;
+    signal_output<torque_pu_t> load_torque;
+    signal_output<current_pu_t> current_reference;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -144,46 +144,46 @@ private:
 
         // Grid measurements: Raw grid voltages and currents from plant
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_measurements.get_inputs().grid_voltage_measurements);
+            plant.get_outputs().grid_voltage_abc, grid_measurements.get_inputs().grid_voltage_abc);
 
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_measurements.get_inputs().grid_current_measurements);
+            plant.get_outputs().grid_current_abc, grid_measurements.get_inputs().grid_current_abc);
 
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
 
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
 
         // Machine measurements: Raw machine voltages and currents from plant
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage, machine_measurements.get_inputs().machine_voltage_measurements);
+            plant.get_outputs().machine_voltage_abc, machine_measurements.get_inputs().machine_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_current, machine_measurements.get_inputs().machine_current_measurements);
+            plant.get_outputs().machine_current, machine_measurements.get_inputs().machine_current_abc);
 
         signals_connector::connect_output_to_input(
             machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
 
+        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+            machine_measurements.get_inputs().machine_reference_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage_source_angle, machine_measurements.get_inputs().machine_side_angle);
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_frequency, machine_measurements.get_inputs().machine_side_frequency);
+            plant.get_outputs().machine_frequency, machine_measurements.get_inputs().machine_frequency);
 
         // DC link measurements: Raw DC voltage and current from plant
         signals_connector::connect_output_to_input(
-            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
         // ==================== Measurements → Current Controller ====================
         // Connect filtered measurements to current controller feedback
 
         // DC link current feedback (RAW)
         signals_connector::connect_output_to_input(
-            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().dc_link_current_measured);
+            dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
 
         // Mock the modulator freeze integrator signal for this simplified configuration
-        yeet::mock_signal_input::write(current_controller.get_inputs().modulator_freeze_integrator, false);
+        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
         // ==================== DC Link Measurements → Machine Side Controller ====================
         // Connect DC link current and speed to machine side controller for lookup table
@@ -212,13 +212,13 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
         // Connect reference angles from plant model to pulse generators for synchronization
@@ -233,14 +233,14 @@ private:
 
         // Current reference command (setpoint)
         signals_connector::connect_output_to_input(
-            dc_link_current_reference, current_controller.get_inputs().dc_link_current_reference);
+            current_reference, current_controller.get_inputs().current_reference);
 
         // Feedforward signals for improved control performance
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,
-            current_controller.get_inputs().grid_side_voltage_magnitude);
+            current_controller.get_inputs().grid_voltage_magnitude);
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
-            current_controller.get_inputs().machine_side_voltage_magnitude);
+            current_controller.get_inputs().machine_voltage_magnitude);
     }
 };
 

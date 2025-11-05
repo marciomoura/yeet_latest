@@ -59,14 +59,14 @@ public:
      * @brief Executes one update cycle of the current controller.
      *
      * @param dc_link_current_reference_pu The per-unit current reference from the outer loop.
-     * @param dc_link_current_measured The measured per-unit DC link current.
-     * @param grid_side_voltage_magnitude The ideal no-load DC voltage from the rectifier [pu, grid-side base].
-     * @param machine_side_voltage_magnitude Estimated per-unit inverter back-EMF [pu, reflected to grid-side base].
+     * @param current_measured The measured per-unit DC link current.
+     * @param grid_voltage_magnitude The ideal no-load DC voltage from the rectifier [pu, grid-side base].
+     * @param machine_voltage_magnitude Estimated per-unit inverter back-EMF [pu, reflected to grid-side base].
      */
     void update(current_pu_t dc_link_current_reference_pu,
-        current_pu_t dc_link_current_measured,
-        voltage_pu_t grid_side_voltage_magnitude,
-        voltage_pu_t machine_side_voltage_magnitude);
+        current_pu_t current_measured,
+        voltage_pu_t grid_voltage_magnitude,
+        voltage_pu_t machine_voltage_magnitude);
 
     /**
      * @brief Executes one update cycle of the current controller with automatic per-unit reflection.
@@ -76,16 +76,16 @@ public:
      * per-unit quantities are available.
      *
      * @param dc_link_current_reference_pu The per-unit current reference from the outer loop.
-     * @param dc_link_current_measured The measured per-unit DC link current.
-     * @param grid_side_voltage_magnitude The ideal no-load DC voltage from the rectifier [pu, grid-side base].
-     * @param machine_side_voltage_magnitude Estimated per-unit inverter back-EMF [pu, machine-side base].
+     * @param current_measured The measured per-unit DC link current.
+     * @param grid_voltage_magnitude The ideal no-load DC voltage from the rectifier [pu, grid-side base].
+     * @param machine_voltage_magnitude Estimated per-unit inverter back-EMF [pu, machine-side base].
      * @param machine_side_base_voltage The machine-side voltage base for per-unit reflection [V].
      * @param grid_side_base_voltage The grid-side voltage base for per-unit reflection [V].
      */
     void update(current_pu_t dc_link_current_reference_pu,
-        current_pu_t dc_link_current_measured,
-        voltage_pu_t grid_side_voltage_magnitude,
-        voltage_pu_t machine_side_voltage_magnitude,
+        current_pu_t current_measured,
+        voltage_pu_t grid_voltage_magnitude,
+        voltage_pu_t machine_voltage_magnitude,
         const voltage_t& machine_side_base_voltage,
         const precomputed_divisor<voltage_t>& grid_side_base_voltage);
 

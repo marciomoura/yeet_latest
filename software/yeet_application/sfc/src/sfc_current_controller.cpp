@@ -56,9 +56,9 @@ void sfc_current_controller::reset()
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
-    current_pu_t dc_link_current_measured,
-    voltage_pu_t grid_side_voltage_magnitude,
-    voltage_pu_t machine_side_voltage_magnitude)
+    current_pu_t current_measured,
+    voltage_pu_t grid_voltage_magnitude,
+    voltage_pu_t machine_voltage_magnitude)
 {
     // Step 1: Saturate the incoming current reference to its absolute limits and check if limited
     const auto limit_result = yeet::control::limit<current_pu_t>::range_with_upper_limit_status(
@@ -69,22 +69,22 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 
     // Step 2: Check if measured current exceeds the magnitude limit
     _is_current_measured_above_magnitude_limit =
-        yeet::control::limit<current_pu_t>::is_above_upper_limit(dc_link_current_measured, _dc_link_current_max_pu);
+        yeet::control::limit<current_pu_t>::is_above_upper_limit(current_measured, _dc_link_current_max_pu);
 
     // Step 3: Calculate the error signal using the limited reference and store it
-    _current_error_pu = _current_reference_limited_pu - dc_link_current_measured;
+    _current_error_pu = _current_reference_limited_pu - current_measured;
 
     // Step 4: Update the PI controller to get the corrective control voltage and store it
     _pi_output = _pi_controller.update(_current_error_pu.value());
 
     // Step 5: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
-    const voltage_pu_t compensated_control_voltage = voltage_pu_t{_pi_output} + machine_side_voltage_magnitude;
+    const voltage_pu_t compensated_control_voltage = voltage_pu_t{_pi_output} + machine_voltage_magnitude;
 
     // Step 6: Linearize by normalizing with V_do to get cos(alpha) command
     // Avoid division by zero or small numbers for stability.
-    const voltage_pu_t saturated_grid_side_voltage_magnitude = max(grid_side_voltage_magnitude, voltage_pu_t{0.2});
+    const voltage_pu_t saturated_grid_voltage_magnitude = max(grid_voltage_magnitude, voltage_pu_t{0.2});
 
-    _cos_alpha_unclamped = compensated_control_voltage / saturated_grid_side_voltage_magnitude;
+    _cos_alpha_unclamped = compensated_control_voltage / saturated_grid_voltage_magnitude;
 
     // Step 7: Clamp the cosine of the firing angle based on pre-calculated limits
     _cos_alpha_clamped = std::clamp(_cos_alpha_unclamped, _cos_alpha_min, _cos_alpha_max);
@@ -94,19 +94,18 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
 }
 
 void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
-    current_pu_t dc_link_current_measured,
-    voltage_pu_t grid_side_voltage_magnitude,
-    voltage_pu_t machine_side_voltage_magnitude,
+    current_pu_t current_measured,
+    voltage_pu_t grid_voltage_magnitude,
+    voltage_pu_t machine_voltage_magnitude,
     const voltage_t& machine_side_base_voltage,
     const precomputed_divisor<voltage_t>& grid_side_base_voltage)
 {
     // Reflect the machine-side inverter back-EMF to grid-side per-unit
     const voltage_pu_t inverter_back_emf_grid_reflected_pu = reflect_machine_to_grid_voltage_pu(
-        machine_side_voltage_magnitude, machine_side_base_voltage, grid_side_base_voltage);
+        machine_voltage_magnitude, machine_side_base_voltage, grid_side_base_voltage);
 
     // Call the main update method with the reflected voltage
-    update(dc_link_current_reference_pu, dc_link_current_measured, grid_side_voltage_magnitude,
-        inverter_back_emf_grid_reflected_pu);
+    update(dc_link_current_reference_pu, current_measured, grid_voltage_magnitude, inverter_back_emf_grid_reflected_pu);
 }
 
 angle_t sfc_current_controller::get_firing_angle_reference_radians() const { return _firing_angle_reference_radians; }

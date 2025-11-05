@@ -78,7 +78,7 @@ struct acceleration_profile_config {
  * }
  *
  * // 4. Real-time execution
- * speed_gen.update(measured_speed_pu);
+ * speed_gen.update(measured_speed);
  *
  * // 5. Output retrieval
  * auto speed_ref = speed_gen.get_speed_reference_pu();

@@ -18,26 +18,54 @@ public:
      * @brief Input signals for the grid-side measurements component
      */
     struct inputs {
-        signal_input<abc<voltage_t>> grid_voltage_measurements;
-        signal_input<abc<current_t>> grid_current_measurements;
+        /// Raw analog grid-side voltage measurements (line-to-neutral) from plant model.
+        signal_input<abc<voltage_t>> grid_voltage_abc;
+
+        /// Raw analog grid-side current measurements from plant model.
+        signal_input<abc<current_t>> grid_current_abc;
+
+        /// Firing pulses from the six-pulse generator.
         signal_input<control::six_pulse_generator::pulses> grid_pulses;
-        signal_input<frequency_t> grid_side_frequency;
-        signal_input<angle_wrapped> grid_side_angle;
+
+        /// Grid frequency measurement input.
+        signal_input<frequency_t> grid_frequency;
+
+        /// Grid side angle measurement input.
+        signal_input<angle_wrapped> grid_angle;
     };
 
     /**
      * @brief Output signals from the grid-side measurements component
      */
     struct outputs {
-        signal_output<frequency_pu_t> grid_side_frequency;
+        /// Measured grid frequency in per unit.
+        signal_output<frequency_pu_t> grid_frequency;
+
+        /// Measured grid voltage in alpha-beta coordinates.
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta;
+
+        /// Measured grid voltage in alpha-beta coordinates.
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta_filtered;
+
+        /// Measured grid current in abc coordinates.
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;
+
+        /// Measured grid voltage in abc coordinates (unmasked).
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_unmasked;
+
+        /// Measured grid voltage in abc coordinates (filtered).
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_filtered;
+
+        /// Measured grid current in abc coordinates.
         signal_output<abc<current_pu_t>> grid_current_abc;
+
+        /// Measured grid current in dq coordinates.
         signal_output<voltage_pu_t> grid_voltage_magnitude;
+
+        /// Measured grid voltage magnitude (filtered).
         signal_output<voltage_pu_t> grid_voltage_magnitude_filtered;
+
+        /// Commutation status signal.
         signal_output<bool> is_commuting;
     };
 
@@ -115,28 +143,60 @@ public:
      * @brief Input signals for the grid-side measurements component
      */
     struct inputs {
+        /// Grid voltage ADC counts (phase A to B) [counts]
         signal_input<control::adc_counts> v_ab_counts;
+
+        /// Grid voltage ADC counts (phase B to C) [counts]
         signal_input<control::adc_counts> v_bc_counts;
+
+        /// Grid current ADC counts (phase A) [counts]
         signal_input<control::adc_counts> i_a_counts;
+
+        /// Grid current ADC counts (phase C) [counts]
         signal_input<control::adc_counts> i_c_counts;
+
+        /// Firing pulses for commutation detection
         signal_input<control::six_pulse_generator::pulses> grid_pulses;
-        signal_input<frequency_t> grid_side_frequency;
-        signal_input<angle_wrapped> grid_side_angle;
+
+        /// Grid frequency estimate [Hz]
+        signal_input<frequency_t> grid_frequency;
+
+        /// Grid voltage phase angle [rad]
+        signal_input<angle_wrapped> grid_angle;
     };
 
     /**
      * @brief Output signals from the grid-side measurements component
      */
     struct outputs {
-        signal_output<frequency_pu_t> grid_side_frequency;
+        /// Grid frequency estimate [pu]
+        signal_output<frequency_pu_t> grid_frequency;
+
+        /// Grid voltage in alpha-beta coordinates [pu]
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta;
+
+        /// Grid voltage in alpha-beta coordinates, filtered [pu]
         signal_output<alphabeta<voltage_pu_t>> grid_voltage_alphabeta_filtered;
+
+        /// Grid voltage in abc coordinates [pu]
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;
+
+        /// Grid voltage in abc coordinates, unmasked [pu]
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_unmasked;
+
+        /// Grid voltage in abc coordinates, filtered [pu]
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_filtered;
+
+        /// Grid current in abc coordinates [pu]
         signal_output<abc<current_pu_t>> grid_current_abc;
+
+        /// Grid voltage magnitude [pu]
         signal_output<voltage_pu_t> grid_voltage_magnitude;
+
+        /// Grid voltage magnitude, filtered [pu]
         signal_output<voltage_pu_t> grid_voltage_magnitude_filtered;
+
+        /// Commutation activity indicator
         signal_output<bool> is_commuting;
     };
 
@@ -144,19 +204,43 @@ public:
      * @brief Configuration parameters for measurements and filtering
      */
     struct parameters {
+        /// Voltage low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> voltage_lpf_cutoff_frequency{frequency_t{100.0}};
+
+        /// Current low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> current_lpf_cutoff_frequency{frequency_t{100.0}};
+
+        /// Voltage magnitude low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
+
+        /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
+
+        /// Commutation detection threshold (end) [pu]
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
-        // ADC conversion (secondary side) parameters
+
+        /// ADC resolution [bits]
         parameter<int> voltage_adc_bits{16};
+
+        /// ADC full-scale voltage [V]
         parameter<real_t> voltage_adc_full_scale{real_t{10.0}};
+
+        /// ADC resolution [bits]
         parameter<int> current_adc_bits{16};
+
+        /// ADC full-scale voltage [V]
         parameter<real_t> current_adc_full_scale{real_t{10.0}};
+
+        /// Voltage transducer gain [V_out/V_primary]
         parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};
+
+        /// Current transducer gain [V_out/A_primary]
         parameter<real_t> current_transducer_gain{real_t{1.0}};
+
+        /// Potential transformer ratio [Primary/Secondary]
         parameter<real_t> pt_ratio{real_t{1.0}};
+
+        /// Current transformer ratio [Primary/Secondary]
         parameter<real_t> ct_ratio{real_t{1.0}};
     };
 

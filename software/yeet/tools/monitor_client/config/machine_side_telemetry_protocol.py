@@ -14,112 +14,104 @@ from enum import IntEnum
 
 class MachineSignalIndex(IntEnum):
     """Signal array indices for MACHINE_SIDE_TELEMETRY matching C++ machine_side_telemetry_builder.cpp."""
-    # Machine Measurements Group (0-8)
+    # Machine Measurements Group (0-6)
     MACHINE_VOLTAGE_ABC_A = 0
     MACHINE_VOLTAGE_ABC_B = 1
     MACHINE_VOLTAGE_ABC_C = 2
-    MACHINE_VOLTAGE_UNMASKED_A = 3
-    MACHINE_VOLTAGE_UNMASKED_B = 4
-    MACHINE_VOLTAGE_UNMASKED_C = 5
-    MACHINE_VOLTAGE_MAGNITUDE = 6
-    MACHINE_VOLTAGE_MAGNITUDE_FILTERED = 7
-    IS_COMMUTING = 8
+    MACHINE_VOLTAGE_MAGNITUDE_FILTERED = 3
+    ESTIMATED_SPEED = 4
+    ESTIMATED_VOLTAGE_MAGNITUDE = 5
     
-    # Observer Group (9-12)
-    ESTIMATED_FREQUENCY_PU = 9
-    ESTIMATED_POSITION_PU = 10
-    FILTERED_VOLTAGE_ALPHA = 11
-    FILTERED_VOLTAGE_BETA = 12
+    # Observer Group (6-8)
+    ESTIMATED_FREQUENCY_PU = 6
+    ESTIMATED_REFERENCE_ANGLE = 7
+    ESTIMATED_FREQUENCY = 8
     
-    # Modulator Group (13-17)
-    FIRING_ANGLE_RAD = 13
-    MODULATOR_ENABLED = 14
-    RELEASE_PULSES = 15
-    REQUEST_FORCE_COMMUTATION = 16
-    CURRENT_ROTOR_SECTOR = 17
+    # Modulator Group (9-16)
+    MODULATOR_RELEASE_PULSES_INPUT = 9
+    MODULATOR_OPERATING_MODE = 10
+    MODULATOR_RELEASE_PULSES_OUTPUT = 11
+    MODULATOR_REQUEST_FORCE_COMMUTATION = 12
+    MODULATOR_FORCE_COMMUTATION_ACK = 13
+    MODULATOR_FIRING_ANGLE = 14
+    MODULATOR_CURRENT_ROTOR_SECTOR = 15
+    MODULATOR_COMMUTATION_STATE = 16
     
-    # Machine-Side Controller Group (18-20)
-    CONTROLLER_FIRING_ANGLE = 18
-    CONTROLLER_DC_LINK_CURRENT = 19
-    CONTROLLER_MACHINE_SPEED = 20
+    # Machine-Side Controller Group (17-19)
+    CONTROLLER_FIRING_ANGLE = 17
+    CONTROLLER_DC_LINK_CURRENT = 18
+    CONTROLLER_MACHINE_SPEED = 19
     
-    # Torque Controller Inputs (21-25)
-    TORQUE_REF_FROM_SPEED_CONTROLLER = 21
-    TORQUE_DYNAMIC_MAX_LIMIT = 22
-    TORQUE_DYNAMIC_MIN_LIMIT = 23
-    TORQUE_ENABLE_BREAKAWAY_BOOST = 24
-    TORQUE_CURRENT_CONTROLLER_SATURATED = 25
+    # Torque Controller Group (20-28)
+    TORQUE_TORQUE_REFERENCE = 20
+    TORQUE_DYNAMIC_MAX_LIMIT = 21
+    TORQUE_DYNAMIC_MIN_LIMIT = 22
+    TORQUE_ENABLE_BREAKAWAY_BOOST = 23
+    TORQUE_IS_SATURATED_INPUT = 24
+    TORQUE_CURRENT_REFERENCE = 25
+    TORQUE_IS_SATURATED_OUTPUT = 26
+    TORQUE_IS_ACTIVE = 27
+    TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 28
     
-    # Torque Controller Outputs (26-33)
-    TORQUE_CURRENT_REFERENCE = 26
-    TORQUE_BASE_REFERENCE = 27
-    TORQUE_TOTAL_REFERENCE = 28
-    TORQUE_LIMITED_REFERENCE = 29
-    TORQUE_IS_SATURATED = 30
-    TORQUE_IS_ACTIVE = 31
-    TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 32
-    TORQUE_DOWNSTREAM_SATURATION = 33
+    # Speed Controller Group (29-33)
+    SPEED_SPEED_REFERENCE = 29
+    SPEED_MEASURED_SPEED = 30
+    SPEED_TORQUE_REFERENCE = 31
+    SPEED_PI_OUTPUT = 32
+    SPEED_IS_SATURATED = 33
     
-    # Speed Controller Group (34-41)
-    SPEED_REFERENCE_PU = 34
-    SPEED_MEASURED_SPEED_PU = 35
-    SPEED_REFERENCE_LIMITED_PU = 36
-    SPEED_TORQUE_REFERENCE = 37
-    SPEED_ERROR = 38
-    SPEED_PI_OUTPUT = 39
-    SPEED_IS_ACTIVE = 40
-    SPEED_IS_SATURATED = 41
+    # Speed Generator Group (34-38)
+    SPEED_GEN_SPEED_REFERENCE = 34
+    SPEED_GEN_TORQUE_LIMIT_MAX = 35
+    SPEED_GEN_TORQUE_LIMIT_MIN = 36
+    SPEED_GEN_IS_PROFILE_COMPLETE = 37
+    SPEED_GEN_IS_BREAKAWAY_BOOST_ACTIVE = 38
     
-    # Speed Generator Group (42-46)
-    SPEED_REF_PU = 42
-    SPEED_TORQUE_LIMIT_MAX_PU = 43
-    SPEED_TORQUE_LIMIT_MIN_PU = 44
-    SPEED_IS_PROFILE_COMPLETE = 45
-    SPEED_IS_BREAKAWAY_BOOST_ACTIVE = 46
-    
-    # Excitation Controller Group (47-50)
-    EXCITATION_VOLTAGE_SETPOINT_PU = 47
-    EXCITATION_ENABLE = 48
-    EXCITATION_IS_FIELD_ESTABLISHED = 49
-    EXCITATION_IS_RUNNING = 50
+    # Excitation Controller Group (39-42)
+    EXCITATION_VOLTAGE_SETPOINT = 39
+    EXCITATION_ENABLE = 40
+    EXCITATION_IS_FIELD_ESTABLISHED = 41
+    EXCITATION_IS_RUNNING = 42
 
 
 @dataclass
 class MachineMeasurements:
-    """Machine-side voltage and state measurements (0-8)."""
+    """Machine-side voltage and observer data (0-8)."""
     machine_voltage_abc_a_pu: float = 0.0
     machine_voltage_abc_b_pu: float = 0.0
     machine_voltage_abc_c_pu: float = 0.0
-    machine_voltage_unmasked_a_pu: float = 0.0
-    machine_voltage_unmasked_b_pu: float = 0.0
-    machine_voltage_unmasked_c_pu: float = 0.0
-    machine_voltage_magnitude_pu: float = 0.0
     machine_voltage_magnitude_filtered_pu: float = 0.0
-    is_commuting: bool = False
+    estimated_speed_pu: float = 0.0
+    estimated_voltage_magnitude_pu: float = 0.0
+    estimated_frequency_pu: float = 0.0
+    estimated_reference_angle_pu: float = 0.0
+    estimated_frequency_hz: float = 0.0
 
 
 @dataclass
 class MachineObserverData:
     """Machine-side observer estimates."""
     estimated_frequency_pu: float = 0.0
-    estimated_position_pu: float = 0.0
-    filtered_voltage_alpha_pu: float = 0.0
-    filtered_voltage_beta_pu: float = 0.0
+    estimated_reference_angle_pu: float = 0.0
+    estimated_frequency_hz: float = 0.0
 
 
 @dataclass
 class MachineModulatorData:
-    """Machine-side modulator control signals (13-17)."""
-    firing_angle_rad: float = 0.0
-    is_enabled: bool = False
-    release_pulses: bool = False
+    """Machine-side modulator control signals (9-16)."""
+    release_pulses_input: bool = False
+    operating_mode: int = 0
+    release_pulses_output: bool = False
     request_force_commutation: bool = False
-    current_rotor_sector: float = 0.0
+    force_commutation_acknowledged: bool = False
+    firing_angle_pu: float = 0.0
+    current_rotor_sector_normalized: float = 0.0
+    commutation_state: int = 0
 
 
 @dataclass
 class MachineControllerData:
-    """Machine-side controller outputs."""
+    """Machine-side controller outputs (17-19)."""
     firing_angle_rad: float = 0.0
     dc_link_current_pu: float = 0.0
     machine_speed_pu: float = 0.0
@@ -127,44 +119,37 @@ class MachineControllerData:
 
 @dataclass
 class TorqueControllerInputsData:
-    """Torque controller inputs (21-25)."""
-    torque_reference_from_speed_controller_pu: float = 0.0
+    """Torque controller inputs (20-24)."""
+    torque_reference_pu: float = 0.0
     dynamic_max_torque_limit_pu: float = 0.0
     dynamic_min_torque_limit_pu: float = 0.0
     enable_breakaway_boost: bool = False
-    current_controller_is_saturated: bool = False
+    is_saturated: bool = False
 
 
 @dataclass
 class TorqueControllerOutputsData:
-    """Torque controller outputs and state (26-33)."""
+    """Torque controller outputs and state (25-28)."""
     current_reference_pu: float = 0.0
-    base_torque_reference_pu: float = 0.0
-    total_torque_reference_pu: float = 0.0
-    limited_torque_reference_pu: float = 0.0
     is_saturated: bool = False
     is_active: bool = False
     is_breakaway_boost_active: bool = False
-    downstream_saturation: bool = False
 
 
 @dataclass
 class SpeedControllerData:
-    """Speed controller state and outputs (34-41)."""
+    """Speed controller state and outputs (29-33)."""
     speed_reference_pu: float = 0.0
     measured_speed_pu: float = 0.0
-    speed_reference_limited_pu: float = 0.0
     torque_reference_pu: float = 0.0
-    speed_error_pu: float = 0.0
     pi_output_pu: float = 0.0
-    is_active: bool = False
     is_saturated: bool = False
 
 
 @dataclass
 class SpeedGeneratorData:
-    """Speed generator configuration and state (42-46)."""
-    speed_ref_pu: float = 0.0
+    """Speed generator configuration and state (34-38)."""
+    speed_reference_pu: float = 0.0
     torque_limit_max_pu: float = 0.0
     torque_limit_min_pu: float = 0.0
     is_profile_complete: bool = False
@@ -173,7 +158,7 @@ class SpeedGeneratorData:
 
 @dataclass
 class ExcitationControllerData:
-    """Excitation controller state and outputs (47-50)."""
+    """Excitation controller state and outputs (39-42)."""
     voltage_setpoint_pu: float = 0.0
     enable: bool = False
     is_field_established: bool = False

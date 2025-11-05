@@ -40,54 +40,50 @@ public:
      */
     struct inputs {
         /// Grid-side firing pulses (6-pulse rectifier)
-        signal_input<control::six_pulse_generator::pulses> grid_side_firing_pulses;
+        signal_input<control::six_pulse_generator::pulses> grid_firing_pulses;
 
         /// Machine-side firing pulses (6-pulse inverter)
-        signal_input<control::six_pulse_generator::pulses> machine_side_firing_pulses;
+        signal_input<control::six_pulse_generator::pulses> machine_firing_pulses;
 
-        /// Mechanical load torque on motor shaft
-        /// Range: [-2.0, 2.0] pu
-        signal_input<torque_pu_t> load_torque_pu;
+        /// Mechanical load torque on motor shaft [pu]
+        signal_input<torque_pu_t> load_torque;
 
         /// Excitation voltage setpoint from external controller [pu]
-        /// Only used when machine_voltage_control_mode is set to external_control
-        signal_input<voltage_pu_t> excitation_voltage_setpoint_pu;
+        signal_input<voltage_pu_t> excitation_voltage_setpoint;
     };
 
     /**
      * @brief Output signals from the SFC plant model component
      */
     struct outputs {
-        /// Grid-side voltage measurements (line-to-neutral)
-        signal_output<abc<voltage_t>> grid_voltage;
+        /// Grid-side voltage measurements (line-to-neutral) [V]
+        signal_output<abc<voltage_t>> grid_voltage_abc;
 
-        /// Grid-side current measurements
-        signal_output<abc<current_t>> grid_current;
+        /// Grid-side current measurements [A]
+        signal_output<abc<current_t>> grid_current_abc;
 
-        /// DC link voltage
+        /// DC link voltage [V]
         signal_output<voltage_t> dc_link_voltage;
 
-        /// DC link current
+        /// DC link current [A]
         signal_output<current_t> dc_link_current;
 
-        /// Machine-side voltage measurements (line-to-neutral)
-        signal_output<abc<voltage_t>> machine_voltage;
+        /// Machine-side voltage measurements (line-to-neutral) [V]
+        signal_output<abc<voltage_t>> machine_voltage_abc;
 
-        /// Machine-side current measurements
+        /// Machine-side current measurements [A]
         signal_output<abc<current_t>> machine_current;
 
-        /// Grid voltage angular position
-        /// Range: [0.0, 2π] radians
+        /// Grid voltage angular position [rad]
         signal_output<angle_wrapped> grid_voltage_source_angle;
 
-        /// Grid voltage angular position
-        /// Range: [0.0, 2π] radians
+        /// Machine voltage angular position [rad]
         signal_output<angle_wrapped> machine_voltage_source_angle;
 
-        /// Machine frequency (Hz)
+        /// Machine frequency [Hz]
         signal_output<frequency_t> machine_frequency;
 
-        /// Machine speed pu
+        /// Machine speed [pu]
         signal_output<speed_pu_t> machine_speed;
 
         /// Grid frequency (Hz)
@@ -136,8 +132,28 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         entry.parameters.insert("initial_speed", _model_parameters->initial_speed);
-        // Note: Enum parameters (operation_mode, voltage_control_mode) are not registered as they require custom
-        // serialization
+
+        // Register operation_mode enum parameter
+        auto& operation_mode_param = _model_parameters->operation_mode;
+        entry.parameters.insert("operation_mode",
+            low_level_access([&operation_mode_param]()
+                                 -> float { return static_cast<float>(static_cast<int>(operation_mode_param.read())); },
+                [&operation_mode_param](float value) {
+                    operation_mode_param.write(static_cast<machine_operation_mode>(static_cast<int>(value)));
+                }));
+
+        // Register voltage_control_mode enum parameter
+        auto& voltage_control_mode_param = _model_parameters->voltage_control_mode;
+        entry.parameters.insert("voltage_control_mode",
+            low_level_access(
+                [&voltage_control_mode_param]() -> float {
+                    return static_cast<float>(static_cast<int>(voltage_control_mode_param.read()));
+                },
+                [&voltage_control_mode_param](float value) {
+                    voltage_control_mode_param.write(
+                        static_cast<machine_voltage_control_mode>(static_cast<int>(value)));
+                }));
+
         entry.parameters.insert(
             "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
         entry.parameters.insert(

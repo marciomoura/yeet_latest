@@ -417,10 +417,6 @@
                 "7001",
                 "--frequency",
                 "5000",
-                "--real-time-factor",
-                "1.0",
-                "--telemetry-rate",
-                "20000",
                 "--verbose"
             ],
             "group": {
@@ -432,7 +428,7 @@
             },
             "isBackground": true,
             "problemMatcher": [],
-            "detail": "Launches SFC host simulator with real-time pacing (1.0x speed, 50µs telemetry)",
+            "detail": "Launches SFC host simulator (as fast as possible, 50µs telemetry)",
             "presentation": {
                 "echo": true,
                 "reveal": "always",

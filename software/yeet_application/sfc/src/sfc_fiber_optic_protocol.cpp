@@ -23,12 +23,11 @@ namespace yeet::application::sfc::fiber_optic {
     //   Bit 10:     Force commutation acknowledged
     //   Bit 11:     Pulse releases
     //   Bits 12-18: State machine state ID (0-127)
-    //   Bit 19:     Freeze integrator
-    //   Bit 20:     Is requesting main PI reset
-    //   Bits 21-31: Reserved for future use
+    //   Bit 19:     Preset request
+    //   Bits 20-31: Reserved for future use
 
     // Encode DC link current float value
-    std::memcpy(&payload[0], &msg.dc_link_current_pu, sizeof(float));
+    std::memcpy(&payload[0], &msg.dc_link_current, sizeof(float));
 
     // Pack control flags into word 1
     std::uint32_t packed_flags = 0;
@@ -38,10 +37,10 @@ namespace yeet::application::sfc::fiber_optic {
                     << detail::g2m_operating_mode_shift;
 
     // Encode boolean flags
-    if (msg.is_current_zero) {
+    if (msg.current_is_zero) {
         packed_flags |= detail::g2m_is_current_zero_bit;
     }
-    if (msg.current_controller_is_saturated) {
+    if (msg.is_saturated) {
         packed_flags |= detail::g2m_current_controller_saturated_bit;
     }
     if (msg.force_commutation_acknowledged) {
@@ -54,12 +53,9 @@ namespace yeet::application::sfc::fiber_optic {
     // Encode state ID (bits 12-18)
     packed_flags |= (static_cast<std::uint32_t>(msg.state_id) & 0x7FU) << detail::g2m_state_id_shift;
 
-    // Encode sync control flags
-    if (msg.freeze_integrator) {
-        packed_flags |= detail::g2m_freeze_integrator_bit;
-    }
-    if (msg.is_requesting_main_pi_reset) {
-        packed_flags |= detail::g2m_is_requesting_main_pi_reset_bit;
+    // Encode preset request flag
+    if (msg.preset_request) {
+        packed_flags |= detail::g2m_preset_request_bit;
     }
 
     // Write packed word to payload
@@ -79,7 +75,7 @@ namespace yeet::application::sfc::fiber_optic {
     grid_to_machine_message msg;
 
     // Decode DC link current float value
-    std::memcpy(&msg.dc_link_current_pu, &payload[0], sizeof(float));
+    std::memcpy(&msg.dc_link_current, &payload[0], sizeof(float));
 
     // Extract packed word 1
     const std::uint32_t packed_flags = payload[1];
@@ -89,17 +85,16 @@ namespace yeet::application::sfc::fiber_optic {
         (packed_flags >> detail::g2m_operating_mode_shift) & detail::g2m_operating_mode_mask);
 
     // Decode boolean flags
-    msg.is_current_zero = (packed_flags & detail::g2m_is_current_zero_bit) != 0;
-    msg.current_controller_is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
+    msg.current_is_zero = (packed_flags & detail::g2m_is_current_zero_bit) != 0;
+    msg.is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
     msg.force_commutation_acknowledged = (packed_flags & detail::g2m_force_comm_ack_bit) != 0;
     msg.pulse_releases = (packed_flags & detail::g2m_pulse_releases_bit) != 0;
 
     // Decode state ID (bits 12-18)
     msg.state_id = static_cast<std::uint8_t>((packed_flags >> detail::g2m_state_id_shift) & 0x7FU);
 
-    // Decode sync control flags
-    msg.freeze_integrator = (packed_flags & detail::g2m_freeze_integrator_bit) != 0;
-    msg.is_requesting_main_pi_reset = (packed_flags & detail::g2m_is_requesting_main_pi_reset_bit) != 0;
+    // Decode preset request flag
+    msg.preset_request = (packed_flags & detail::g2m_preset_request_bit) != 0;
 
     return msg;
 }
@@ -117,7 +112,7 @@ namespace yeet::application::sfc::fiber_optic {
 
     // Encode float values using standards-compliant type punning
     // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
-    std::memcpy(&payload[0], &msg.measured_speed_pu, sizeof(float));
+    std::memcpy(&payload[0], &msg.measured_speed, sizeof(float));
     std::memcpy(&payload[1], &msg.dc_link_current_reference_pu, sizeof(float));
     std::memcpy(&payload[2], &msg.machine_voltage_magnitude_pu, sizeof(float));
 
@@ -125,6 +120,9 @@ namespace yeet::application::sfc::fiber_optic {
     std::uint32_t packed_flags = 0;
     if (msg.force_commutation_request) {
         packed_flags |= detail::m2g_force_comm_req_bit;
+    }
+    if (msg.shutdown_request) {
+        packed_flags |= detail::m2g_shutdown_request_bit;
     }
     payload[3] = packed_flags;
 
@@ -143,13 +141,14 @@ namespace yeet::application::sfc::fiber_optic {
 
     // Decode float values using standards-compliant type punning
     // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
-    std::memcpy(&msg.measured_speed_pu, &payload[0], sizeof(float));
+    std::memcpy(&msg.measured_speed, &payload[0], sizeof(float));
     std::memcpy(&msg.dc_link_current_reference_pu, &payload[1], sizeof(float));
     std::memcpy(&msg.machine_voltage_magnitude_pu, &payload[2], sizeof(float));
 
     // Decode packed control flags from word 3
     const std::uint32_t packed_flags = payload[3];
     msg.force_commutation_request = (packed_flags & detail::m2g_force_comm_req_bit) != 0;
+    msg.shutdown_request = (packed_flags & detail::m2g_shutdown_request_bit) != 0;
 
     return msg;
 }

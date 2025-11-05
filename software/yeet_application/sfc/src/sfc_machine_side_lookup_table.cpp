@@ -29,9 +29,9 @@ void sfc_machine_side_firing_angle_lookup_table::configure_table(
 
 void sfc_machine_side_firing_angle_lookup_table::reset() { _firing_angle_deg = kDefaultFiringAngleDeg[0]; }
 
-void sfc_machine_side_firing_angle_lookup_table::update(current_pu_t dc_link_current_pu)
+void sfc_machine_side_firing_angle_lookup_table::update(current_pu_t dc_link_current)
 {
-    _firing_angle_deg = _lookup_table.get_value(dc_link_current_pu.value());
+    _firing_angle_deg = _lookup_table.get_value(dc_link_current.value());
 }
 
 real_t sfc_machine_side_firing_angle_lookup_table::get_firing_angle_deg() const { return _firing_angle_deg; }

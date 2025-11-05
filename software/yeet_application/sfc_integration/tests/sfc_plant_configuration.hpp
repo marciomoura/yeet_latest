@@ -81,7 +81,7 @@ struct fixed_speed_config {
     frequency_t machine_frequency{50.0f};
 
     /// Fixed machine voltage
-    voltage_t machine_voltage{2200.0f};
+    voltage_t machine_voltage_abc{2200.0f};
 
     /// Load torque in per-unit
     torque_pu_t load_torque{0.3f};
@@ -109,7 +109,7 @@ inline void configure_fixed_speed_plant(
 
     // Configure underlying plant model
     plant_runner.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::fixed_speed);
-    plant_runner.get_plant_model().set_machine_parameters(config.machine_frequency, config.machine_voltage);
+    plant_runner.get_plant_model().set_machine_parameters(config.machine_frequency, config.machine_voltage_abc);
     plant_runner.get_plant_model().set_load_torque_pu(config.load_torque);
 }
 

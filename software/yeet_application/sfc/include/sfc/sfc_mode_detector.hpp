@@ -42,9 +42,9 @@ public:
      * @brief Updates the mode detector with the current machine speed.
      *
      * @param enable System enable signal. When false, defaults to forced_commutation.
-     * @param measured_speed_pu Current machine speed in per-unit.
+     * @param measured_speed Current machine speed in per-unit.
      */
-    void update(bool enable, speed_pu_t measured_speed_pu) noexcept;
+    void update(bool enable, speed_pu_t measured_speed) noexcept;
 
     /**
      * @brief Resets the mode detector to its initial state (forced_commutation).

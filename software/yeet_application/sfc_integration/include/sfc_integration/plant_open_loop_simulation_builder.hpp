@@ -124,7 +124,7 @@ public:
     sfc_machine_side_measurements_runner machine_side_measurements;    // ADC-based machine-side measurement chain
     sfc_dc_link_measurements_runner dc_link_measurements;              // DC link measurement chain
 
-    signal_output<torque_pu_t> load_torque_pu;
+    signal_output<torque_pu_t> load_torque;
     signal_output<angle_wrapped> firing_angle;
     signal_output<angle_wrapped> grid_side_firing_angle;
 
@@ -144,11 +144,11 @@ private:
     void connect_components()
     {
         // ==================== Pulse Generators → Plant Model ====================
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
         signals_connector::connect_output_to_input(
@@ -158,11 +158,11 @@ private:
 
         // ==================== Plant Outputs → Hardware Mocks (analog → ADC counts) ====================
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage, grid_side_hardware_mock.get_inputs().grid_voltage);
+            plant.get_outputs().grid_voltage_abc, grid_side_hardware_mock.get_inputs().grid_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_current, grid_side_hardware_mock.get_inputs().grid_current);
+            plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
+            plant.get_outputs().machine_voltage_abc, machine_side_hardware_mock.get_inputs().machine_voltage_abc);
 
         // ==================== Hardware Mocks → Measurement Runners (ADC counts to PU) ====================
         // Grid side: connect ADC counts outputs to measurement runner inputs
@@ -179,9 +179,9 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, grid_side_measurements.get_inputs().grid_pulses);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_side_measurements.get_inputs().grid_side_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_side_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_frequency, grid_side_measurements.get_inputs().grid_side_frequency);
+            plant.get_outputs().grid_frequency, grid_side_measurements.get_inputs().grid_frequency);
 
         // Machine side: connect ADC counts outputs to measurement runner inputs
         signals_connector::connect_output_to_input(
@@ -191,9 +191,9 @@ private:
         signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
             machine_side_measurements.get_inputs().machine_pulses);
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
-            machine_side_measurements.get_inputs().machine_side_angle);
+            machine_side_measurements.get_inputs().machine_reference_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_frequency, machine_side_measurements.get_inputs().machine_side_frequency);
+            plant.get_outputs().machine_frequency, machine_side_measurements.get_inputs().machine_frequency);
 
         // ==================== External Control Signals ====================
         signals_connector::connect_output_to_input(
@@ -204,7 +204,7 @@ private:
         // ==================== Measurements → DC Link Measurements ====================
         // Use reconstructed grid phase currents (abc) from grid-side measurements as input
         signals_connector::connect_output_to_input(
-            grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_side_current);
+            grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
     }
 };
 

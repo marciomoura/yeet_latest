@@ -53,9 +53,9 @@ public:
     /**
      * @brief Updates the firing angle based on the current DC link current.
      *
-     * @param dc_link_current_pu The measured DC link current [p.u.].
+     * @param dc_link_current The measured DC link current [p.u.].
      */
-    void update(current_pu_t dc_link_current_pu);
+    void update(current_pu_t dc_link_current);
 
     /**
      * @brief Gets the last calculated inverter firing angle.
