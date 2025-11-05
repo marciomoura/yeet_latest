@@ -37,7 +37,7 @@ public:
      */
     struct outputs {
         /// Excitation voltage setpoint to send to exciter [pu]
-        signal_output<voltage_pu_t> excitation_voltage_setpoint_pu;
+        signal_output<voltage_pu_t> excitation_voltage_setpoint;
 
         /// Enable command to external exciter
         signal_output<bool> enable_excitation;

@@ -40,18 +40,18 @@ public:
      */
     struct inputs {
         /// Grid-side firing pulses (6-pulse rectifier)
-        signal_input<control::six_pulse_generator::pulses> grid_side_firing_pulses;
+        signal_input<control::six_pulse_generator::pulses> grid_firing_pulses;
 
         /// Machine-side firing pulses (6-pulse inverter)
-        signal_input<control::six_pulse_generator::pulses> machine_side_firing_pulses;
+        signal_input<control::six_pulse_generator::pulses> machine_firing_pulses;
 
         /// Mechanical load torque on motor shaft
         /// Range: [-2.0, 2.0] pu
-        signal_input<torque_pu_t> load_torque_pu;
+        signal_input<torque_pu_t> load_torque;
 
         /// Excitation voltage setpoint from external controller [pu]
         /// Only used when machine_voltage_control_mode is set to external_control
-        signal_input<voltage_pu_t> excitation_voltage_setpoint_pu;
+        signal_input<voltage_pu_t> excitation_voltage_setpoint;
     };
 
     /**

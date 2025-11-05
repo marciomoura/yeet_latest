@@ -139,9 +139,9 @@ public:
     sfc_plant_model_runner plant;                                          // Core plant model
 
     // External command / disturbance signals
-    signal_output<torque_pu_t> load_torque_pu;     // Mechanical load torque
-    signal_output<speed_pu_t> speed_reference_pu;  // Speed setpoint (pu)
-    signal_output<bool> enable_speed_control;      // Enable outer loop
+    signal_output<torque_pu_t> load_torque;     // Mechanical load torque
+    signal_output<speed_pu_t> speed_reference;  // Speed setpoint (pu)
+    signal_output<bool> enable_speed_control;   // Enable outer loop
 
     // Internal signal for torque-to-current conversion (simplified tests without torque controller)
     signal_output<current_pu_t> current_reference_from_speed_ctrl;
@@ -219,7 +219,7 @@ private:
 
         // ==================== Observer Estimates -> Speed Controller (feedback) ====================
         signals_connector::connect_output_to_input(
-            machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
+            machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed);
 
         // ==================== Speed Controller -> Current Controller (cascade) ====================
         // NOTE: In full SFC system, torque controller sits between speed and current controllers
@@ -258,15 +258,14 @@ private:
             machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== Pulse Generators -> Plant & Load Torque ====================
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== External Commands -> Speed Controller ====================
-        signals_connector::connect_output_to_input(
-            speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
+        signals_connector::connect_output_to_input(speed_reference, speed_controller.get_inputs().speed_reference);
         signals_connector::connect_output_to_input(enable_speed_control, speed_controller.get_inputs().release_pulses);
 
         // ==================== Current Controller Saturation -> Speed Controller (anti-windup) ====================

@@ -11,7 +11,8 @@ namespace {
 static constexpr real_t kSamplingTime = 0.001f;  // 1 ms
 
 // Verifies that with no load and no damping, a constant torque produces constant acceleration.
-TEST(MechanicalLoadTest, NoLoadAcceleration) {
+TEST(MechanicalLoadTest, NoLoadAcceleration)
+{
     mechanical_load load(kSamplingTime);
     const inertia_constant_t inertia_constant = inertia_constant_t{2.0f};                 // s
     const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.0f};  // pu
@@ -31,7 +32,8 @@ TEST(MechanicalLoadTest, NoLoadAcceleration) {
 }
 
 // Verifies that damping reduces the net torque and thus the acceleration.
-TEST(MechanicalLoadTest, AccelerationWithDamping) {
+TEST(MechanicalLoadTest, AccelerationWithDamping)
+{
     mechanical_load load(kSamplingTime);
     const inertia_constant_t inertia_constant = inertia_constant_t{2.0f};
     const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.5f};  // pu
@@ -53,7 +55,8 @@ TEST(MechanicalLoadTest, AccelerationWithDamping) {
 }
 
 // Verifies that the system reaches a steady state when electromagnetic torque equals damping torque.
-TEST(MechanicalLoadTest, SteadyStateSpeed) {
+TEST(MechanicalLoadTest, SteadyStateSpeed)
+{
     mechanical_load load(kSamplingTime);
     const inertia_constant_t inertia_constant = inertia_constant_t{1.0f};
     const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.5f};
@@ -74,7 +77,8 @@ TEST(MechanicalLoadTest, SteadyStateSpeed) {
 }
 
 // Verifies that applying a load torque correctly reduces the final speed.
-TEST(MechanicalLoadTest, LoadTorqueApplication) {
+TEST(MechanicalLoadTest, LoadTorqueApplication)
+{
     mechanical_load load(kSamplingTime);
     const inertia_constant_t inertia_constant = inertia_constant_t{1.0f};
     const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.5f};
@@ -82,22 +86,23 @@ TEST(MechanicalLoadTest, LoadTorqueApplication) {
     load.reset();
 
     const torque_pu_t em_torque_pu = torque_pu_t{1.0f};
-    const torque_pu_t load_torque_pu = torque_pu_t{0.2f};
-    const real_t net_torque_for_ss = em_torque_pu.value() - load_torque_pu.value();              // 0.8 pu
+    const torque_pu_t load_torque = torque_pu_t{0.2f};
+    const real_t net_torque_for_ss = em_torque_pu.value() - load_torque.value();                 // 0.8 pu
     const real_t expected_steady_state_speed = net_torque_for_ss / damping_coefficient.value();  // 0.8 / 0.5 = 1.6 pu
 
     // Simulate for a long time to reach steady state
     const int simulation_steps =
         static_cast<int>((10.0f * (2.0f * inertia_constant.value() / damping_coefficient.value())) / kSamplingTime);
     for (int i = 0; i < simulation_steps; ++i) {
-        load.update(em_torque_pu, load_torque_pu);
+        load.update(em_torque_pu, load_torque);
     }
 
     EXPECT_NEAR(load.get_speed_pu().value(), expected_steady_state_speed, 1e-3f);
 }
 
 // Verifies that the reset functionality can set a specific initial speed.
-TEST(MechanicalLoadTest, ResetToSpecificSpeed) {
+TEST(MechanicalLoadTest, ResetToSpecificSpeed)
+{
     mechanical_load load(kSamplingTime);
     load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f});
 
@@ -107,7 +112,8 @@ TEST(MechanicalLoadTest, ResetToSpecificSpeed) {
 }
 
 // Verifies that speed remains constant if torques balance and there is no damping.
-TEST(MechanicalLoadTest, ConstantSpeedWhenTorquesBalanceWithoutDamping) {
+TEST(MechanicalLoadTest, ConstantSpeedWhenTorquesBalanceWithoutDamping)
+{
     mechanical_load load(kSamplingTime);
     load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.0f});  // No damping
 
@@ -123,7 +129,8 @@ TEST(MechanicalLoadTest, ConstantSpeedWhenTorquesBalanceWithoutDamping) {
 }
 
 // Verifies that speed decreases if torques balance but damping is present.
-TEST(MechanicalLoadTest, SpeedDecreasesWhenTorquesBalanceWithDamping) {
+TEST(MechanicalLoadTest, SpeedDecreasesWhenTorquesBalanceWithDamping)
+{
     mechanical_load load(kSamplingTime);
     load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f});  // With damping
 
@@ -139,7 +146,8 @@ TEST(MechanicalLoadTest, SpeedDecreasesWhenTorquesBalanceWithDamping) {
 }
 
 // Test that configure method validates input parameters
-TEST(MechanicalLoadTest, ConfigureValidatesParameters) {
+TEST(MechanicalLoadTest, ConfigureValidatesParameters)
+{
     mechanical_load load(kSamplingTime);
 
     // Valid configuration should not crash
@@ -148,7 +156,8 @@ TEST(MechanicalLoadTest, ConfigureValidatesParameters) {
 }
 
 // Test that update method handles zero torques correctly
-TEST(MechanicalLoadTest, UpdateWithZeroTorques) {
+TEST(MechanicalLoadTest, UpdateWithZeroTorques)
+{
     mechanical_load load(kSamplingTime);
     load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f});
 

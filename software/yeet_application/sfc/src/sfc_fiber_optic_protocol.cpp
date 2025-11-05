@@ -27,7 +27,7 @@ namespace yeet::application::sfc::fiber_optic {
     //   Bits 20-31: Reserved for future use
 
     // Encode DC link current float value
-    std::memcpy(&payload[0], &msg.dc_link_current_pu, sizeof(float));
+    std::memcpy(&payload[0], &msg.dc_link_current, sizeof(float));
 
     // Pack control flags into word 1
     std::uint32_t packed_flags = 0;
@@ -75,7 +75,7 @@ namespace yeet::application::sfc::fiber_optic {
     grid_to_machine_message msg;
 
     // Decode DC link current float value
-    std::memcpy(&msg.dc_link_current_pu, &payload[0], sizeof(float));
+    std::memcpy(&msg.dc_link_current, &payload[0], sizeof(float));
 
     // Extract packed word 1
     const std::uint32_t packed_flags = payload[1];
@@ -112,7 +112,7 @@ namespace yeet::application::sfc::fiber_optic {
 
     // Encode float values using standards-compliant type punning
     // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
-    std::memcpy(&payload[0], &msg.measured_speed_pu, sizeof(float));
+    std::memcpy(&payload[0], &msg.measured_speed, sizeof(float));
     std::memcpy(&payload[1], &msg.dc_link_current_reference_pu, sizeof(float));
     std::memcpy(&payload[2], &msg.machine_voltage_magnitude_pu, sizeof(float));
 
@@ -141,7 +141,7 @@ namespace yeet::application::sfc::fiber_optic {
 
     // Decode float values using standards-compliant type punning
     // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
-    std::memcpy(&msg.measured_speed_pu, &payload[0], sizeof(float));
+    std::memcpy(&msg.measured_speed, &payload[0], sizeof(float));
     std::memcpy(&msg.dc_link_current_reference_pu, &payload[1], sizeof(float));
     std::memcpy(&msg.machine_voltage_magnitude_pu, &payload[2], sizeof(float));
 

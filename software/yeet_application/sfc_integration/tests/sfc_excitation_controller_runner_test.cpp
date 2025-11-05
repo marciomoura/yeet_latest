@@ -62,7 +62,7 @@ protected:
     voltage_pu_t get_excitation_voltage_setpoint()
     {
         const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
-        return outputs.excitation_voltage_setpoint_pu.read();
+        return outputs.excitation_voltage_setpoint.read();
     }
 
     bool get_enable_excitation()

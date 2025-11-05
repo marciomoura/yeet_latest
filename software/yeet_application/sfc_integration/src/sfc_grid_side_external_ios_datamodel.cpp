@@ -54,7 +54,7 @@ void sfc_grid_side_external_ios_datamodel::update_fiber_optics_outputs_to_machin
     _fiber_optics_outputs_to_machine.current_state_id.write(current_state_id);
 }
 
-void sfc_grid_side_external_ios_datamodel::update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed_pu,
+void sfc_grid_side_external_ios_datamodel::update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed,
     current_pu_t current_reference,
     voltage_pu_t machine_voltage_magnitude,
     bool request_force_commutation,
@@ -62,7 +62,7 @@ void sfc_grid_side_external_ios_datamodel::update_fiber_optics_inputs_from_machi
 {
     const bool machine_side_overrides_written = write_machine_side_fiber_optics_input_overrides();
     if (!machine_side_overrides_written) {
-        _fiber_optics_inputs_from_machine.measured_speed_pu.write(measured_speed_pu);
+        _fiber_optics_inputs_from_machine.measured_speed.write(measured_speed);
         _fiber_optics_inputs_from_machine.current_reference.write(current_reference);
         _fiber_optics_inputs_from_machine.machine_voltage_magnitude.write(machine_voltage_magnitude);
         _fiber_optics_inputs_from_machine.request_force_commutation.write(request_force_commutation);
@@ -91,7 +91,7 @@ bool sfc_grid_side_external_ios_datamodel::write_machine_side_fiber_optics_input
         return false;
     }
 
-    _fiber_optics_inputs_from_machine.measured_speed_pu.write(_parameters.measured_speed_pu.read());
+    _fiber_optics_inputs_from_machine.measured_speed.write(_parameters.measured_speed.read());
     _fiber_optics_inputs_from_machine.current_reference.write(_parameters.current_reference.read());
     _fiber_optics_inputs_from_machine.machine_voltage_magnitude.write(_parameters.machine_voltage_magnitude.read());
     _fiber_optics_inputs_from_machine.request_force_commutation.write(_parameters.request_force_commutation.read());
@@ -113,7 +113,7 @@ void sfc_grid_side_external_ios_datamodel::register_callbacks()
     _parameters.shutdown_request.register_callback(digital_inputs_callback);
 
     _parameters.override_machine_side_fiber_optics_inputs.register_callback(machine_side_fiber_optics_inputs_callback);
-    _parameters.measured_speed_pu.register_callback(machine_side_fiber_optics_inputs_callback);
+    _parameters.measured_speed.register_callback(machine_side_fiber_optics_inputs_callback);
     _parameters.current_reference.register_callback(machine_side_fiber_optics_inputs_callback);
     _parameters.machine_voltage_magnitude.register_callback(machine_side_fiber_optics_inputs_callback);
     _parameters.request_force_commutation.register_callback(machine_side_fiber_optics_inputs_callback);
@@ -135,7 +135,7 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
     // Machine-side fiber-optics input override parameters
     entry.parameters.insert("fo_override_machine_side_inputs",
         yeet::utils::make_units_accessor(_parameters.override_machine_side_fiber_optics_inputs));
-    entry.parameters.insert("fo_measured_speed_pu", yeet::utils::make_units_accessor(_parameters.measured_speed_pu));
+    entry.parameters.insert("fo_measured_speed_pu", yeet::utils::make_units_accessor(_parameters.measured_speed));
     entry.parameters.insert(
         "fo_dc_link_current_reference", yeet::utils::make_units_accessor(_parameters.current_reference));
     entry.parameters.insert(

@@ -63,7 +63,7 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Encode grid-side signals into fiber-optic protocol
     fiber_optic::grid_to_machine_message tx_msg;
     tx_msg.mode = get_operating_mode().read();
-    tx_msg.dc_link_current_pu = dc_link_measurements.get_outputs().dc_current_pu.read().value();
+    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_pu.read().value();
     tx_msg.current_is_zero = operation_mode_monitor.get_outputs().current_is_zero.read();
     tx_msg.is_saturated = current_controller.get_outputs().is_saturated.read();
     tx_msg.force_commutation_acknowledged = grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
@@ -86,7 +86,7 @@ bool sfc_grid_side_control::decode_fiber_optic_rx_from_machine(
     }
 
     // Update external_ios with decoded signals
-    external_ios.update_fiber_optics_inputs_from_machine(speed_pu_t{rx_msg->measured_speed_pu},
+    external_ios.update_fiber_optics_inputs_from_machine(speed_pu_t{rx_msg->measured_speed},
         current_pu_t{rx_msg->dc_link_current_reference_pu}, voltage_pu_t{rx_msg->machine_voltage_magnitude_pu},
         rx_msg->force_commutation_request, rx_msg->shutdown_request);
 
@@ -156,9 +156,9 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         grid_integrator_supervisor.get_outputs().release_pulses, operation_mode_monitor.get_inputs().enable);
     signals_connector::connect_output_to_input(
-        dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current_pu);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().measured_speed_pu,
-        operation_mode_monitor.get_inputs().measured_speed_pu);
+        dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current);
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().measured_speed,
+        operation_mode_monitor.get_inputs().measured_speed);
 
     // ==================== Current Controller Inputs ====================
     // Freeze now comes from Grid Integrator Supervisor (unified and ORed)

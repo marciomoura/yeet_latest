@@ -66,12 +66,12 @@ public:
     // ---- control wrappers ----
     void set_speed_reference(speed_pu_t ref) noexcept
     {
-        std::visit(overloaded{[&](auto* sys) { sys->speed_reference_pu = ref; }}, speed_system_variant_t{&system});
+        std::visit(overloaded{[&](auto* sys) { sys->speed_reference = ref; }}, speed_system_variant_t{&system});
     }
 
     void set_load_torque(torque_pu_t tq) noexcept
     {
-        std::visit(overloaded{[&](auto* sys) { sys->load_torque_pu = tq; }}, speed_system_variant_t{&system});
+        std::visit(overloaded{[&](auto* sys) { sys->load_torque = tq; }}, speed_system_variant_t{&system});
     }
 
     void enable_speed_control(bool en = true) noexcept

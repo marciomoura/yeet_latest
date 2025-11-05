@@ -361,7 +361,7 @@ int main(int argc, char* argv[])
         yeet::duration_t{2.0f};
 
     // High load simulating static friction
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque_pu, yeet::torque_pu_t(0.20f));
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.20f));
 
     std::cout << "[CONFIG] Configuration complete:" << std::endl;
     std::cout << "         - Initial speed: 0.001 pu (near-standstill)" << std::endl;

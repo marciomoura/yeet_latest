@@ -188,7 +188,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
     yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
     // Configure realistic load torque profile (increases with speed)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.15f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
 
     // ==================== Configure Speed Generator Profiles ====================
     // Configure acceleration times to match test expectations (defaults are much longer)
@@ -207,7 +207,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "speed tracking error",
         [&]() -> speed_pu_t {
-            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference.read() -
                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
         },
         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
@@ -271,7 +271,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
     // Increase load as turbine begins to generate power
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.25f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.25f));
 
     // Allow acceleration to complete (90s acceleration time + 5s settling + 0.1s from above)
     success &= simulator.simulate_for(94.9);
@@ -295,7 +295,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
     success &= simulator.simulate_for(0.05);  // Allow edge detection
 
     // Further increase load as turbine approaches full power
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.30f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.30f));
 
     // Allow acceleration to complete (60s acceleration time + 5s settling + 0.1s from above)
     success &= simulator.simulate_for(64.9);
@@ -361,7 +361,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
     yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
     // Configure realistic load torque
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.15f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
 
     // ==================== Configure Speed Generator Profiles ====================
     // Reduce acceleration times for faster test execution
@@ -375,7 +375,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "speed tracking error",
         [&]() -> speed_pu_t {
-            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference.read() -
                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
         },
         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
@@ -416,7 +416,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
     success &= simulator.simulate_for(0.05);
 
     // Increase load as speed increases (simulates turbine power generation)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.25f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.25f));
 
     // Wait for profile completion (40s acceleration + 3s settling)
     success &= simulator.simulate_for(42.9);
@@ -492,7 +492,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "purge mode speed error",
         [&]() -> speed_pu_t {
-            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference.read() -
                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
         },
         -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
@@ -504,7 +504,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     // Initial load
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.10f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
 
     bool success = true;
 
@@ -524,14 +524,14 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     EXPECT_LT(speed_mid_purge.value(), 0.14f) << "Should not yet reach target during mid-ramp";
 
     // ==================== Load Step UP During Acceleration ====================
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.20f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
     success &= simulator.simulate_for(2.0);  // Transient
     speed_error_checker->activate();
     success &= simulator.simulate_for(3.0);  // Steady-state validation
     speed_error_checker->deactivate();
 
     // ==================== Load Step DOWN During Acceleration ====================
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.10f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
     success &= simulator.simulate_for(2.0);  // Transient
     speed_error_checker->activate();
     success &= simulator.simulate_for(3.0);  // Steady-state validation
@@ -551,7 +551,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     speed_error_checker->deactivate();
 
     // Final load step at target speed
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.18f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.18f));
     success &= simulator.simulate_for(2.0);
     speed_error_checker->activate();
     success &= simulator.simulate_for(3.0);
@@ -616,7 +616,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
     system.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration = duration_t{2.0f};
 
     // High load simulating static friction
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque_pu, torque_pu_t(0.20f));
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
 
     // Wider tolerance for low-speed ripple
     const speed_pu_t speed_err_margin{0.10f};
@@ -624,7 +624,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
     auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "creep mode speed error",
         [&]() -> speed_pu_t {
-            return (system.machine_side_control.speed_generator.get_outputs().speed_reference_pu.read() -
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference.read() -
                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
         },
         -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));

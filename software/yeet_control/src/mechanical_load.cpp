@@ -17,7 +17,7 @@ void mechanical_load::configure(inertia_constant_t inertia_constant_seconds, dam
     _damping_factor_pu = damping_factor_pu;
 }
 
-speed_pu_t mechanical_load::update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque_pu)
+speed_pu_t mechanical_load::update(torque_pu_t electromagnetic_torque_pu, torque_pu_t load_torque)
 {
     const real_t current_speed_pu = _speed_integrator.get_output();
 
@@ -25,8 +25,7 @@ speed_pu_t mechanical_load::update(torque_pu_t electromagnetic_torque_pu, torque
     const real_t damping_torque_pu = _damping_factor_pu.value() * current_speed_pu;
 
     // Calculate net accelerating torque: T_acc_pu = T_e_pu - T_l_pu - T_d_pu
-    const real_t accelerating_torque_pu =
-        electromagnetic_torque_pu.value() - load_torque_pu.value() - damping_torque_pu;
+    const real_t accelerating_torque_pu = electromagnetic_torque_pu.value() - load_torque.value() - damping_torque_pu;
 
     // Calculate angular acceleration: d(omega_pu)/dt = T_acc_pu / (2H)
     const real_t angular_acceleration_pu_per_s = accelerating_torque_pu / (2.0f * _inertia_constant_seconds.value());

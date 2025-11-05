@@ -135,8 +135,8 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
-    signal_output<torque_pu_t> load_torque_pu;
-    signal_output<speed_pu_t> speed_reference_pu;
+    signal_output<torque_pu_t> load_torque;
+    signal_output<speed_pu_t> speed_reference;
     signal_output<bool> enable_speed_control;
     signal_output<current_pu_t> external_current_reference_pu;
 
@@ -194,7 +194,7 @@ private:
 
         // Machine speed feedback (from machine measurements)
         signals_connector::connect_output_to_input(
-            machine_measurements.get_outputs().machine_speed, speed_controller.get_inputs().measured_speed_pu);
+            machine_measurements.get_outputs().machine_speed, speed_controller.get_inputs().measured_speed);
 
         // ==================== Speed Controller → Current Controller ====================
         // Connect speed controller output to current controller reference (cascade control)
@@ -244,13 +244,13 @@ private:
         // Connect firing pulses from both pulse generators to plant model inputs
 
         // Load torque input to plant model
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
         // Connect reference angles from plant model to pulse generators for synchronization
@@ -264,8 +264,7 @@ private:
         // Connect external control signals to speed controller inputs
 
         // Speed reference command (setpoint for outer loop)
-        signals_connector::connect_output_to_input(
-            speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
+        signals_connector::connect_output_to_input(speed_reference, speed_controller.get_inputs().speed_reference);
 
         // Speed control enable/disable
         signals_connector::connect_output_to_input(enable_speed_control, speed_controller.get_inputs().release_pulses);

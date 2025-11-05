@@ -113,7 +113,7 @@ public:
     sfc_machine_side_measurements_runner machine_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_plant_model_runner plant;
-    signal_output<torque_pu_t> load_torque_pu;
+    signal_output<torque_pu_t> load_torque;
     signal_output<current_pu_t> current_reference;
 
 private:
@@ -212,11 +212,11 @@ private:
             machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== Pulse generators -> plant & load torque ====================
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== External setpoint -> current controller ====================
         signals_connector::connect_output_to_input(

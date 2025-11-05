@@ -44,7 +44,7 @@ void sfc_machine_side_control::update_200us()
 std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
 {
     fiber_optic::machine_to_grid_message tx_msg;
-    tx_msg.measured_speed_pu = machine_side_observer.get_outputs().estimated_speed.read().value();
+    tx_msg.measured_speed = machine_side_observer.get_outputs().estimated_speed.read().value();
     tx_msg.dc_link_current_reference_pu = torque_controller.get_outputs().current_reference.read().value();
     tx_msg.machine_voltage_magnitude_pu = machine_measurements.get_outputs().machine_voltage_magnitude.read().value();
     tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
@@ -62,7 +62,7 @@ bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
     // All signals are now extracted directly from the fiber-optic protocol
     external_ios.update_fiber_optics_inputs(rx_msg->mode, static_cast<sfc_state_id>(rx_msg->state_id),
         rx_msg->force_commutation_acknowledged, rx_msg->current_is_zero, rx_msg->is_saturated, rx_msg->pulse_releases,
-        current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->preset_request);
+        current_pu_t{rx_msg->dc_link_current}, rx_msg->preset_request);
     return true;
 }
 
@@ -129,7 +129,7 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // ==================== Speed Generator Inputs ====================
     signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed_pu);
+        machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().current_state_id, speed_generator.get_inputs().current_state_id);
     signals_connector::connect_output_to_input(
@@ -149,9 +149,9 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // ==================== Speed Controller Inputs ====================
     signals_connector::connect_output_to_input(
-        speed_generator.get_outputs().speed_reference_pu, speed_controller.get_inputs().speed_reference_pu);
+        speed_generator.get_outputs().speed_reference, speed_controller.get_inputs().speed_reference);
     signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed_pu);
+        machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed);
     // Enable and freeze signals from supervisor (centralized coordination)
     signals_connector::connect_output_to_input(machine_integrator_supervisor.get_outputs().release_pulses,
         this->machine_side_pulse_generator.get_inputs().release_pulses);

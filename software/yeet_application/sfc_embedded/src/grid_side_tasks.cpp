@@ -198,7 +198,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
             // Update fiber optics inputs using proper datamodel method (respects override flags)
-            control->external_ios.update_fiber_optics_inputs_from_machine(yeet::speed_pu_t{rx_msg->measured_speed_pu},
+            control->external_ios.update_fiber_optics_inputs_from_machine(yeet::speed_pu_t{rx_msg->measured_speed},
                 yeet::current_pu_t{rx_msg->dc_link_current_reference_pu},
                 yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu}, rx_msg->force_commutation_request,
                 rx_msg->shutdown_request);
@@ -206,7 +206,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     }
     //     // #else
     //     yeet::mock_signal_input::write(
-    //         get_grid_side_control().get_io().machine_side_inputs.measured_speed_pu, yeet::speed_pu_t{1.0f});
+    //         get_grid_side_control().get_io().machine_side_inputs.measured_speed, yeet::speed_pu_t{1.0f});
     //     yeet::mock_signal_input::write(
     //         get_grid_side_control().get_io().machine_side_inputs.current_reference,
     //         yeet::current_pu_t{0.0f});
@@ -235,7 +235,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
         tx_msg.current_is_zero = control->get_is_current_zero().read();
         tx_msg.force_commutation_acknowledged = control->get_force_commutation_acknowledged().read();
         tx_msg.pulse_releases = control->get_pulse_releases().read();
-        tx_msg.dc_link_current_pu = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
+        tx_msg.dc_link_current = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
         tx_msg.is_saturated = control->get_current_controller_is_saturated().read();
 
         // Encode and transmit

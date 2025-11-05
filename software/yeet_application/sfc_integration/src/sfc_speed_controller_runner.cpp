@@ -33,13 +33,13 @@ void sfc_speed_controller_runner::run()
     if (!_inputs.release_pulses.read()) {
         // When disabled, controller is inactive (no output updates)
         // When re-enabling, could reset to current measured speed to prevent bump
-        // _sfc_speed_controller.reset(_inputs.measured_speed_pu.read());
+        // _sfc_speed_controller.reset(_inputs.measured_speed.read());
         return;  // Skip update when disabled
     }
 
     // Execute controller update
     _sfc_speed_controller.freeze_integrator(freeze_integrator);
-    _sfc_speed_controller.update(_inputs.speed_reference_pu, _inputs.measured_speed_pu);
+    _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
 
     // Write output signals
     _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();

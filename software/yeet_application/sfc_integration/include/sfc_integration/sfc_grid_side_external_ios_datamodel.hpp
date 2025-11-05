@@ -65,7 +65,7 @@ public:
 
         // Machine-side fiber-optics input overrides
         yeet::parameter<bool> override_machine_side_fiber_optics_inputs{false};
-        yeet::parameter<speed_pu_t> measured_speed_pu{speed_pu_t{0.0}};
+        yeet::parameter<speed_pu_t> measured_speed{speed_pu_t{0.0}};
         yeet::parameter<current_pu_t> current_reference{current_pu_t{0.0}};
         yeet::parameter<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};
         yeet::parameter<bool> request_force_commutation{false};
@@ -160,7 +160,7 @@ public:
      * These are **outputs** from the machine-side datamodel perspective.
      *
      * **Signal Sources (Machine-Side Components):**
-     * - measured_speed_pu: From machine_side_observer.estimated_speed
+     * - measured_speed: From machine_side_observer.estimated_speed
      * - current_reference: From torque_controller.current_reference
      * - machine_voltage_magnitude: From machine_side_observer.estimated_voltage_magnitude
      * - request_force_commutation: From machine_side_modulator (when low-speed assist needed)
@@ -173,7 +173,7 @@ public:
      * Flow: Machine-side components → update_fiber_optics_inputs_from_machine() → grid-side cross-coupling
      */
     struct fiber_optics_inputs_from_machine_t {
-        signal_output<speed_pu_t> measured_speed_pu{speed_pu_t{0.0}};      ///< Machine rotor speed [pu]
+        signal_output<speed_pu_t> measured_speed{speed_pu_t{0.0}};         ///< Machine rotor speed [pu]
         signal_output<current_pu_t> current_reference{current_pu_t{0.0}};  ///< Current ref from torque controller
         signal_output<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};  ///< Machine back-EMF magnitude [pu]
         signal_output<bool> request_force_commutation{false};                      ///< Force commutation request
@@ -357,7 +357,7 @@ public:
      * Respects override_machine_side_fiber_optics_inputs flag if set for test injection.
      *
      * **Parameters:**
-     * @param measured_speed_pu Machine rotor speed in per-unit
+     * @param measured_speed Machine rotor speed in per-unit
      * @param current_reference Current reference from torque controller
      * @param machine_voltage_magnitude Machine back-EMF magnitude in per-unit
      * @param request_force_commutation Force commutation request from machine-side
@@ -365,7 +365,7 @@ public:
      * **Timing:** Called at 1ms after machine-side update
      *
      * **Override Logic:** When override_machine_side_fiber_optics_inputs is true,
-     * uses parameter values (measured_speed_pu, current_reference, etc.)
+     * uses parameter values (measured_speed, current_reference, etc.)
      * instead of the values provided to this method.
      *
      * **Plant Builder Usage:**
@@ -378,7 +378,7 @@ public:
      *     machine_side_control.machine_side_supervisor.get_outputs().shutdown_request.read());
      * ```
      */
-    void update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed_pu,
+    void update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed,
         current_pu_t current_reference,
         voltage_pu_t machine_voltage_magnitude,
         bool request_force_commutation,

@@ -29,7 +29,7 @@ void sfc_excitation_controller_runner::run()
     _sfc_excitation_controller.update(_inputs.machine_rotor_speed_pu.read(), _inputs.exciter_ready.read());
 
     // Write outputs
-    _outputs.excitation_voltage_setpoint_pu.write(_sfc_excitation_controller.get_excitation_voltage_setpoint_pu());
+    _outputs.excitation_voltage_setpoint.write(_sfc_excitation_controller.get_excitation_voltage_setpoint_pu());
     _outputs.enable_excitation.write(_sfc_excitation_controller.get_enable_excitation());
     _outputs.is_field_established.write(_sfc_excitation_controller.get_is_field_established());
     _outputs.is_running.write(_sfc_excitation_controller.get_is_running());

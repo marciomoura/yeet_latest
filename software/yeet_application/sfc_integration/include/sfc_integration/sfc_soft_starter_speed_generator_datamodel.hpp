@@ -29,7 +29,7 @@ public:
         signal_input<sfc::sfc_state_id> current_state_id;
 
         /// Measured machine rotor speed in per-unit (for proper ramp initialization)
-        signal_input<speed_pu_t> measured_speed_pu;
+        signal_input<speed_pu_t> measured_speed;
 
         /// Command to select and run Profile 1 (typically creep speed)
         signal_input<bool> run_profile_1;
@@ -59,7 +59,7 @@ public:
     struct outputs {
         /// Speed reference output to speed controller [pu]
         /// This is the rate-limited, smooth speed trajectory
-        signal_output<speed_pu_t> speed_reference_pu;
+        signal_output<speed_pu_t> speed_reference;
 
         /// Maximum torque limit for current/torque controller [pu]
         /// Varies based on active profile and breakaway boost status

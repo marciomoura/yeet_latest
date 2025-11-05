@@ -133,7 +133,7 @@ public:
 
     sfc_plant_model_runner plant;
 
-    signal_output<torque_pu_t> load_torque_pu;
+    signal_output<torque_pu_t> load_torque;
     signal_output<current_pu_t> current_reference;
 
 private:
@@ -228,9 +228,9 @@ private:
 
         // ==================== DC Link & Speed → Operation Mode Monitor ====================
         signals_connector::connect_output_to_input(
-            dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current_pu);
+            dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_speed, operation_mode_monitor.get_inputs().measured_speed_pu);
+            plant.get_outputs().machine_speed, operation_mode_monitor.get_inputs().measured_speed);
 
         // ==================== Operation Mode Monitor → Modulatiors ====================
         signals_connector::connect_output_to_input(
@@ -246,11 +246,11 @@ private:
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().request_extinguish_dc_current, false);
 
         // ==================== Pulse Generators → Plant ====================
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== Plant Angles → Pulse Generators ====================
         signals_connector::connect_output_to_input(

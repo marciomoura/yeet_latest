@@ -68,15 +68,15 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
         torque_controller.get_outputs().is_breakaway_boost_active.read() ? 1.0f : 0.0f);  // Is breakaway boost active
 
     // === Speed Controller Group ===
-    packet.add_signal(34, static_cast<float>(speed_controller.get_inputs().speed_reference_pu.read()));
-    packet.add_signal(35, static_cast<float>(speed_controller.get_inputs().measured_speed_pu.read()));
+    packet.add_signal(34, static_cast<float>(speed_controller.get_inputs().speed_reference.read()));
+    packet.add_signal(35, static_cast<float>(speed_controller.get_inputs().measured_speed.read()));
     packet.add_signal(37, static_cast<float>(speed_controller.get_outputs().torque_reference.read()));
     packet.add_signal(39, static_cast<float>(speed_controller.get_outputs().pi_output.read()));
     packet.add_signal(
         41, speed_controller.get_outputs().is_saturated.read() ? 1.0f : 0.0f);  // Is speed-controller saturated
 
     // === Speed Generator Group ===
-    packet.add_signal(42, static_cast<float>(speed_generator.get_outputs().speed_reference_pu.read()));
+    packet.add_signal(42, static_cast<float>(speed_generator.get_outputs().speed_reference.read()));
     packet.add_signal(43, static_cast<float>(speed_generator.get_outputs().torque_limit_max_pu.read()));
     packet.add_signal(44, static_cast<float>(speed_generator.get_outputs().torque_limit_min_pu.read()));
     packet.add_signal(45, speed_generator.get_outputs().is_profile_complete.read() ? 1.0f : 0.0f);
@@ -84,8 +84,7 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(46, static_cast<float>(speed_generator.get_outputs().selected_profile.read()));
 
     // === Excitation Controller Group ===
-    packet.add_signal(
-        47, static_cast<float>(excitation_controller.get_outputs().excitation_voltage_setpoint_pu.read()));
+    packet.add_signal(47, static_cast<float>(excitation_controller.get_outputs().excitation_voltage_setpoint.read()));
     packet.add_signal(48, excitation_controller.get_outputs().enable_excitation.read() ? 1.0f : 0.0f);
     packet.add_signal(49, excitation_controller.get_outputs().is_field_established.read() ? 1.0f : 0.0f);
     packet.add_signal(50, excitation_controller.get_outputs().is_running.read() ? 1.0f : 0.0f);

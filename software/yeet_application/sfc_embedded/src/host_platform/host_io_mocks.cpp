@@ -36,7 +36,7 @@ mock_adc_measurements read_mock_adc()
     measurements.grid_voltage_a_pu = 1.0f;   // Nominal grid voltage
     measurements.grid_voltage_b_pu = 1.0f;   // Nominal grid voltage
     measurements.grid_voltage_c_pu = 1.0f;   // Nominal grid voltage
-    measurements.dc_link_current_pu = 0.0f;  // No load current
+    measurements.dc_link_current = 0.0f;     // No load current
     measurements.dc_link_voltage_pu = 1.0f;  // Nominal DC voltage
     measurements.machine_current_pu = 0.0f;  // No machine current
     measurements.reserved_1 = 0.0f;

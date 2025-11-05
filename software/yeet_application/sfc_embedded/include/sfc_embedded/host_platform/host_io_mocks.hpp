@@ -36,7 +36,7 @@ struct mock_adc_measurements {
     float grid_voltage_a_pu;   ///< Phase A grid voltage [pu] (placeholder: 1.0)
     float grid_voltage_b_pu;   ///< Phase B grid voltage [pu] (placeholder: 1.0)
     float grid_voltage_c_pu;   ///< Phase C grid voltage [pu] (placeholder: 1.0)
-    float dc_link_current_pu;  ///< DC link current [pu] (placeholder: 0.0)
+    float dc_link_current;     ///< DC link current [pu] (placeholder: 0.0)
     float dc_link_voltage_pu;  ///< DC link voltage [pu] (placeholder: 1.0)
     float machine_current_pu;  ///< Machine current [pu] (placeholder: 0.0)
     float reserved_1;          ///< Reserved ADC channel

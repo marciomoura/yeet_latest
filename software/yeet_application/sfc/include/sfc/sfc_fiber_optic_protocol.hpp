@@ -58,7 +58,7 @@ static constexpr std::size_t machine_to_grid_payload_length = 4;
 struct grid_to_machine_message {
     yeet::application::sfc::sfc_operating_mode_t mode{
         yeet::application::sfc::sfc_operating_mode_t::natural_commutation}; /**< Current operating mode */
-    float dc_link_current_pu{0.0f};                                         /**< DC link current measurement [pu] */
+    float dc_link_current{0.0f};                                            /**< DC link current measurement [pu] */
     bool current_is_zero{false};                                            /**< DC link current is zero */
     bool is_saturated{false};                                               /**< Current controller is saturated */
     bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
@@ -93,7 +93,7 @@ struct grid_to_machine_message {
  * @code
  * grid_to_machine_message msg{
  *     .mode = operating_mode::natural_commutation,
- *     .dc_link_current_pu = 0.75f,
+ *     .dc_link_current = 0.75f,
  *     .current_is_zero = false,
  *     .is_saturated = false,
  *     .force_commutation_acknowledged = true,
@@ -149,7 +149,7 @@ struct grid_to_machine_message {
  * Contains all signals transmitted from machine-side to grid-side controller.
  */
 struct machine_to_grid_message {
-    float measured_speed_pu{0.0f};            /**< Measured rotor speed [pu] */
+    float measured_speed{0.0f};               /**< Measured rotor speed [pu] */
     float dc_link_current_reference_pu{0.0f}; /**< DC link current reference [pu] */
     float machine_voltage_magnitude_pu{0.0f}; /**< Machine voltage magnitude [pu] */
     bool force_commutation_request{false};    /**< Force commutation requested by machine side */
@@ -177,7 +177,7 @@ struct machine_to_grid_message {
  * Example:
  * @code
  * machine_to_grid_message msg{
- *     .measured_speed_pu = 0.5f,
+ *     .measured_speed = 0.5f,
  *     .dc_link_current_reference_pu = 0.8f,
  *     .machine_voltage_magnitude_pu = 1.0f,
  *     .force_commutation_request = false
@@ -209,7 +209,7 @@ struct machine_to_grid_message {
  * Example:
  * @code
  * if (auto msg = decode_machine_to_grid(rx_payload, rx_length)) {
- *     // Use decoded msg->measured_speed_pu, msg->dc_link_current_reference_pu, etc.
+ *     // Use decoded msg->measured_speed, msg->dc_link_current_reference_pu, etc.
  * }
  * @endcode
  */

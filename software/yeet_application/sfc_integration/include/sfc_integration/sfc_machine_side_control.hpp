@@ -185,7 +185,7 @@ public:
     {
         return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
             .get_outputs()
-            .excitation_voltage_setpoint_pu;
+            .excitation_voltage_setpoint;
     }
 
     /**
@@ -217,7 +217,7 @@ public:
 
     /**
      * @brief Get estimated machine speed from observer
-     * Prefer: get_io().grid_side_outputs.measured_speed_pu
+     * Prefer: get_io().grid_side_outputs.measured_speed
      */
     const signal_output<speed_pu_t>& get_estimated_speed() const
     {

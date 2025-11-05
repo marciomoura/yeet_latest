@@ -148,13 +148,13 @@ void sfc_plant_model_augmented_6p_6p::update()
 
 void sfc_plant_model_augmented_6p_6p::update(const std::array<bool, 6>& grid_side_pulses,
     const std::array<bool, 6>& machine_side_pulses,
-    torque_pu_t load_torque_pu,
+    torque_pu_t load_torque,
     frequency_t grid_frequency_hz,
     frequency_t machine_frequency_hz,
     voltage_t grid_voltage_rms,
     voltage_t machine_voltage_rms)
 {
-    set_load_torque_pu(load_torque_pu);
+    set_load_torque_pu(load_torque);
     set_grid_side_pulses(grid_side_pulses);
     set_machine_side_pulses(machine_side_pulses);
     set_grid_parameters(grid_frequency_hz, grid_voltage_rms);
@@ -217,9 +217,9 @@ void sfc_plant_model_augmented_6p_6p::set_voltage_control_mode(plant_model_volta
     _voltage_mode = mode;
 }
 
-void sfc_plant_model_augmented_6p_6p::set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint_pu)
+void sfc_plant_model_augmented_6p_6p::set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint)
 {
-    _external_excitation_voltage_setpoint_pu = excitation_voltage_setpoint_pu;
+    _external_excitation_voltage_setpoint_pu = excitation_voltage_setpoint;
 }
 
 void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
@@ -241,10 +241,7 @@ void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t
     }
 }
 
-void sfc_plant_model_augmented_6p_6p::set_load_torque_pu(torque_pu_t load_torque_pu)
-{
-    _load_torque_pu = load_torque_pu;
-}
+void sfc_plant_model_augmented_6p_6p::set_load_torque_pu(torque_pu_t load_torque) { _load_torque_pu = load_torque; }
 
 // Output getters - Current model state
 frequency_t sfc_plant_model_augmented_6p_6p::get_grid_frequency() const noexcept { return resolve_grid_frequency(); }

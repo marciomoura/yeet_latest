@@ -132,7 +132,7 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
-    signal_output<torque_pu_t> load_torque_pu;
+    signal_output<torque_pu_t> load_torque;
     signal_output<current_pu_t> current_reference;
 
 private:
@@ -241,13 +241,13 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
-        signals_connector::connect_output_to_input(load_torque_pu, plant.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_side_firing_pulses);
+            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_side_firing_pulses);
+            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // ==================== Plant Model → Pulse Generators ====================
         // For sensorless operation, use observer-estimated angles instead of direct plant angles

@@ -27,10 +27,10 @@ public:
         signal_input<bool> enable;
 
         /// @brief Measured machine speed in per-unit for mode detection.
-        signal_input<speed_pu_t> measured_speed_pu;
+        signal_input<speed_pu_t> measured_speed;
 
         /// @brief Measured DC link current in per-unit for discontinuous conduction detection.
-        signal_input<current_pu_t> dc_link_current_pu;
+        signal_input<current_pu_t> dc_link_current;
     };
 
     /**

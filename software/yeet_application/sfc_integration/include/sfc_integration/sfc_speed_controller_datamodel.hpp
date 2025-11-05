@@ -24,10 +24,10 @@ public:
         signal_input<bool> release_pulses;
 
         /// Speed reference signal in per-unit (machine base)
-        signal_input<speed_pu_t> speed_reference_pu;
+        signal_input<speed_pu_t> speed_reference;
 
         /// Measured machine speed in per-unit (machine base)
-        signal_input<speed_pu_t> measured_speed_pu;
+        signal_input<speed_pu_t> measured_speed;
 
         /// Unified freeze command from supervisor
         signal_input<bool> freeze_integrator;

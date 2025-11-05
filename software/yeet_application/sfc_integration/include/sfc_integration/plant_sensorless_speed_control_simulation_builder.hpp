@@ -131,8 +131,8 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
-    signal_output<torque_pu_t> load_torque_pu;
-    signal_output<speed_pu_t> speed_reference_pu;
+    signal_output<torque_pu_t> load_torque;
+    signal_output<speed_pu_t> speed_reference;
     signal_output<bool> enable_speed_control;
     signal_output<current_pu_t> external_current_reference_pu;
 
@@ -220,7 +220,7 @@ private:
 
         // Speed feedback from machine observer instead of direct measurement
         signals_connector::connect_output_to_input(
-            machine_observer_model.get_outputs().estimated_speed, speed_ctrl_model.get_inputs().measured_speed_pu);
+            machine_observer_model.get_outputs().estimated_speed, speed_ctrl_model.get_inputs().measured_speed);
 
         // ==================== Speed Controller → Current Controller ====================
         // Connect speed controller output to current controller reference (cascade control)
@@ -276,13 +276,13 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
-        signals_connector::connect_output_to_input(load_torque_pu, plant_model.get_inputs().load_torque_pu);
+        signals_connector::connect_output_to_input(load_torque, plant_model.get_inputs().load_torque);
 
         signals_connector::connect_output_to_input(
-            grid_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().grid_side_firing_pulses);
+            grid_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(
-            machine_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().machine_side_firing_pulses);
+            machine_pulse_gen_model.get_outputs().firing_pulses, plant_model.get_inputs().machine_firing_pulses);
 
         // ==================== Observer Estimates → Pulse Generators ====================
         // For sensorless operation, use observer-estimated angles instead of direct plant angles
@@ -299,8 +299,7 @@ private:
         // Connect external control signals to speed controller inputs
 
         // Speed reference command (setpoint for outer loop)
-        signals_connector::connect_output_to_input(
-            speed_reference_pu, speed_ctrl_model.get_inputs().speed_reference_pu);
+        signals_connector::connect_output_to_input(speed_reference, speed_ctrl_model.get_inputs().speed_reference);
 
         // Enable signal for speed control
         signals_connector::connect_output_to_input(enable_speed_control, speed_ctrl_model.get_inputs().release_pulses);

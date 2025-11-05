@@ -39,7 +39,7 @@ void sfc_soft_starter_speed_generator_runner::run()
         _parameters.override_min_torque_limit.read();
         _parameters.override_max_torque_limit.read();
 
-        _outputs.speed_reference_pu = _parameters.override_speed_reference.read();
+        _outputs.speed_reference = _parameters.override_speed_reference.read();
         _outputs.torque_limit_max_pu = _parameters.override_max_torque_limit.read();
         _outputs.torque_limit_min_pu = _parameters.override_min_torque_limit.read();
         _outputs.is_profile_complete = false;
@@ -53,10 +53,10 @@ void sfc_soft_starter_speed_generator_runner::run()
     handle_commands();
 
     // Update the speed generator with measured speed
-    _speed_generator.update(_inputs.measured_speed_pu.read());
+    _speed_generator.update(_inputs.measured_speed.read());
 
     // Write all outputs
-    _outputs.speed_reference_pu.write(_speed_generator.get_speed_reference_pu());
+    _outputs.speed_reference.write(_speed_generator.get_speed_reference_pu());
     _outputs.torque_limit_max_pu.write(_speed_generator.get_torque_limit_max_pu());
     _outputs.torque_limit_min_pu.write(_speed_generator.get_torque_limit_min_pu());
     _outputs.is_profile_complete.write(_speed_generator.is_profile_complete());

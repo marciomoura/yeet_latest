@@ -59,10 +59,10 @@ public:
      * the specific machine's saturation characteristics.
      *
      * @param speed_axis_pu Array of speed breakpoints [pu], must be sorted ascending.
-     * @param excitation_voltage_setpoint_pu Array of corresponding excitation voltage setpoints [pu].
+     * @param excitation_voltage_setpoint Array of corresponding excitation voltage setpoints [pu].
      */
     void configure_excitation_voltage_lookup_table(const std::array<real_t, NUM_LOOKUP_POINTS>& speed_axis_pu,
-        const std::array<real_t, NUM_LOOKUP_POINTS>& excitation_voltage_setpoint_pu);
+        const std::array<real_t, NUM_LOOKUP_POINTS>& excitation_voltage_setpoint);
 
     /**
      * @brief Configures the pre-fluxing duration.
