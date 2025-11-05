@@ -25,14 +25,11 @@ public:
      * @brief Input signals for the grid-side integrator supervisor
      */
     struct inputs {
-        /// Preset request from state machine (triggers component preset sequences)
-        signal_input<bool> preset_request;
-
         /// Forced commutation freeze request from grid-side modulator
         signal_input<bool> forced_commutation_freeze_integrator;
 
-        /// Trip/shutdown request from external IOS
-        signal_input<bool> shutdown_request;
+        /// Trip signal from external sources (operator or fault)
+        signal_input<bool> machine_side_shutdown_request;
 
         /// Pulse release command from state machine
         signal_input<bool> state_machine_release_pulses;
@@ -49,13 +46,13 @@ public:
         signal_output<bool> freeze_integrator;
 
         /// Preset request to current controller (controller presets internally)
-        signal_output<bool> preset_request;
+        signal_output<bool> preset_controller;
 
         /// Enable for current controller to release pulses
         signal_output<bool> release_pulses;
 
-        /// Status: fault condition active (requires acknowledgment to clear)
-        signal_output<bool> is_tripped;
+        /// Shutdown request signal to modulator (brings current to zero)
+        signal_output<bool> shutdown_request;
     };
 
     /**
@@ -64,6 +61,21 @@ public:
     struct parameters {
         /// Override freeze signal for testing (when true, disables all freezes)
         parameter<bool> override_freeze{false};
+
+        /// Value to force freeze signal to when override is active
+        parameter<bool> freeze_value{false};
+
+        /// Override release pulses signal for testing
+        parameter<bool> override_release_pulses{false};
+
+        /// Value to force release pulses signal to when override is active
+        parameter<bool> release_pulses_value{false};
+
+        /// Override is_tripped signal for testing
+        parameter<bool> override_is_tripped{false};
+
+        /// Value to force is_tripped signal to when override is active
+        parameter<bool> is_tripped_value{false};
     };
 
 private:

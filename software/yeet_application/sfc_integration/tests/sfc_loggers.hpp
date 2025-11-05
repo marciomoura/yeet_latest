@@ -574,16 +574,8 @@ static inline void register_minimal_machine_side_integrator_supervisor_logger(
     const std::string group{"machine_side_integrator_supervisor:"};
 
     // Key inputs
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input grid_side_freeze_integrator",
-        [&]() { return integrator_supervisor.get_inputs().grid_side_freeze_integrator.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input grid_side_is_tripped",
-        [&]() { return integrator_supervisor.get_inputs().grid_side_is_tripped.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input grid_side_release_pulses",
         [&]() { return integrator_supervisor.get_inputs().grid_side_release_pulses.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input current_is_zero", [&]() { return integrator_supervisor.get_inputs().current_is_zero.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input speed_saturated", [&]() { return integrator_supervisor.get_inputs().speed_saturated.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input torque_saturated",
         [&]() { return integrator_supervisor.get_inputs().torque_saturated.read(); }));
 
@@ -594,8 +586,8 @@ static inline void register_minimal_machine_side_integrator_supervisor_logger(
         group + "output preset_request", [&]() { return integrator_supervisor.get_outputs().preset_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output release_pulses", [&]() { return integrator_supervisor.get_outputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_tripped", [&]() { return integrator_supervisor.get_outputs().is_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output request_shutdown",
+        [&]() { return integrator_supervisor.get_outputs().request_shutdown.read(); }));
 }
 
 static inline void register_complete_machine_side_integrator_supervisor_logger(
@@ -619,23 +611,23 @@ static inline void register_minimal_grid_side_integrator_supervisor_logger(
     // Key inputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input state_machine_release_pulses",
         [&]() { return integrator_supervisor.get_inputs().state_machine_release_pulses.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input preset_request", [&]() { return integrator_supervisor.get_inputs().preset_request.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<bool>(group + "input forced_commutation_freeze_integrator",
             [&]() { return integrator_supervisor.get_inputs().forced_commutation_freeze_integrator.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input shutdown_request",
-        [&]() { return integrator_supervisor.get_inputs().shutdown_request.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input machine_side_shutdown_request",
+        [&]() { return integrator_supervisor.get_inputs().machine_side_shutdown_request.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input preset_complete", [&]() { return integrator_supervisor.get_inputs().preset_complete.read(); }));
 
     // Key outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output freeze_integrator",
         [&]() { return integrator_supervisor.get_outputs().freeze_integrator.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output preset_request", [&]() { return integrator_supervisor.get_outputs().preset_request.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output preset_controller",
+        [&]() { return integrator_supervisor.get_outputs().preset_controller.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output release_pulses", [&]() { return integrator_supervisor.get_outputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_tripped", [&]() { return integrator_supervisor.get_outputs().is_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output shutdown_request",
+        [&]() { return integrator_supervisor.get_outputs().shutdown_request.read(); }));
 }
 
 static inline void register_complete_grid_side_integrator_supervisor_logger(

@@ -45,7 +45,7 @@ public:
 
         /// External trip signal - forces forced_commutation mode until cleared
         /// When true, overrides normal mode logic and applies deep inversion
-        signal_input<bool> is_tripped;
+        signal_input<bool> shutdown_request;
 
         /// Pulse release command from supervisor
         signal_input<bool> release_pulses;

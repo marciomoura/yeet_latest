@@ -174,14 +174,12 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
                 inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
             // Update fiber optics inputs with decoded protocol data
-            // Note: Protocol now transmits mode, force_commutation_acknowledged, current_is_zero, is_saturated,
-            // pulse_releases, dc_link_current_pu, freeze_integrator, is_tripped, preset_request
-            // state_id is not transmitted and uses default value
+            // Note: Protocol transmits mode, dc_link_current_pu, current_is_zero, is_saturated,
+            // force_commutation_acknowledged, pulse_releases, state_id, preset_request
             control->external_ios.update_fiber_optics_inputs(rx_msg->mode,
-                yeet::application::sfc::sfc_state_id::IDLE,  // Not transmitted - use default
+                yeet::application::sfc::sfc_state_id::IDLE,  // TODO: transmit state_id in protocol
                 rx_msg->force_commutation_acknowledged, rx_msg->current_is_zero, rx_msg->is_saturated,
-                rx_msg->pulse_releases, yeet::current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator,
-                rx_msg->is_tripped, rx_msg->preset_request);
+                rx_msg->pulse_releases, yeet::current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->preset_request);
         }
     }
 

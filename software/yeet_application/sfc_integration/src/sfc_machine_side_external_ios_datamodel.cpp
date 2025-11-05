@@ -42,8 +42,6 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
     bool is_saturated,
     bool pulse_releases,
     current_pu_t dc_link_current,
-    bool freeze_integrator,
-    bool is_tripped,
     bool preset_request)
 {
     _fiber_optics_inputs.operating_mode.write(operating_mode);
@@ -53,8 +51,6 @@ void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_ope
     _fiber_optics_inputs.is_saturated.write(is_saturated);
     _fiber_optics_inputs.pulse_releases.write(pulse_releases);
     _fiber_optics_inputs.dc_link_current.write(dc_link_current);
-    _fiber_optics_inputs.freeze_integrator.write(freeze_integrator);
-    _fiber_optics_inputs.is_tripped.write(is_tripped);
     _fiber_optics_inputs.preset_request.write(preset_request);
 }
 

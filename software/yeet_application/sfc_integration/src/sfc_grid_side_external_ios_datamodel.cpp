@@ -57,7 +57,8 @@ void sfc_grid_side_external_ios_datamodel::update_fiber_optics_outputs_to_machin
 void sfc_grid_side_external_ios_datamodel::update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed_pu,
     current_pu_t current_reference,
     voltage_pu_t machine_voltage_magnitude,
-    bool request_force_commutation)
+    bool request_force_commutation,
+    bool shutdown_request)
 {
     const bool machine_side_overrides_written = write_machine_side_fiber_optics_input_overrides();
     if (!machine_side_overrides_written) {
@@ -65,6 +66,7 @@ void sfc_grid_side_external_ios_datamodel::update_fiber_optics_inputs_from_machi
         _fiber_optics_inputs_from_machine.current_reference.write(current_reference);
         _fiber_optics_inputs_from_machine.machine_voltage_magnitude.write(machine_voltage_magnitude);
         _fiber_optics_inputs_from_machine.request_force_commutation.write(request_force_commutation);
+        _fiber_optics_inputs_from_machine.shutdown_request.write(shutdown_request);
     }
 }
 

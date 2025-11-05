@@ -9,30 +9,47 @@ void sfc_machine_side_integrator_supervisor_runner::register_datamodel(yeet::mod
     datamodel.register_data_model(registry);
 }
 
-void sfc_machine_side_integrator_supervisor_runner::initialize() { _sfc_machine_side_integrator_supervisor.reset(); }
+void sfc_machine_side_integrator_supervisor_runner::initialize()
+{
+    _outputs.freeze_integrator = false;
+    _outputs.preset_request = false;
+    _outputs.release_pulses = false;
+    _outputs.request_shutdown = false;
+}
 
 void sfc_machine_side_integrator_supervisor_runner::run()
 {
-    // Read all inputs from datamodel
-    const bool grid_side_freeze_integrator = _inputs.grid_side_freeze_integrator.read();
-    const bool grid_side_is_tripped = _inputs.grid_side_is_tripped.read();
-    const bool grid_side_release_pulses = _inputs.grid_side_release_pulses.read();
-    const bool current_is_zero = _inputs.current_is_zero.read();
-    const bool speed_saturated = _inputs.speed_saturated.read();
-    const bool torque_saturated = _inputs.torque_saturated.read();
-    const bool override_freeze = _parameters.override_freeze.read();
+    if (_parameters.override_release_pulses) {
+        _outputs.release_pulses = _parameters.release_pulses_value;
+    }
+    else {
+        _outputs.release_pulses = _inputs.grid_side_release_pulses;
+    }
 
-    // Update supervisor core logic
-    _sfc_machine_side_integrator_supervisor.update(grid_side_freeze_integrator, grid_side_is_tripped,
-        grid_side_release_pulses, current_is_zero, speed_saturated, torque_saturated, override_freeze);
+    if (_parameters.override_is_tripped) {
+        _outputs.request_shutdown = _parameters.is_tripped_value;
+    }
+    else {
+        _outputs.request_shutdown = false;  // TODO: Implement trip logic for the machine-side
+    }
 
-    // Write outputs to datamodel
-    _outputs.freeze_integrator.write(torque_saturated);
-    _outputs.preset_request.write(_sfc_machine_side_integrator_supervisor.get_preset_request());
-    _outputs.release_pulses.write(_sfc_machine_side_integrator_supervisor.get_release_pulses());
-    _outputs.is_tripped.write(_sfc_machine_side_integrator_supervisor.get_is_tripped());
+    if (_parameters.override_freeze) {
+        _outputs.freeze_integrator = _parameters.freeze_value;
+    }
+    else {
+        _outputs.freeze_integrator = _inputs.torque_saturated;
+    }
+
+    // TODO
+    _outputs.preset_request = false;
 }
 
-void sfc_machine_side_integrator_supervisor_runner::stop() { _sfc_machine_side_integrator_supervisor.reset(); }
+void sfc_machine_side_integrator_supervisor_runner::stop()
+{
+    _outputs.freeze_integrator = false;
+    _outputs.preset_request = false;
+    _outputs.release_pulses = false;
+    _outputs.request_shutdown = true;
+}
 
 }  // namespace yeet::application::sfc::integration

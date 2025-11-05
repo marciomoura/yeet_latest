@@ -48,6 +48,7 @@ std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
     tx_msg.dc_link_current_reference_pu = torque_controller.get_outputs().current_reference.read().value();
     tx_msg.machine_voltage_magnitude_pu = machine_measurements.get_outputs().machine_voltage_magnitude.read().value();
     tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
+    tx_msg.shutdown_request = machine_integrator_supervisor.get_outputs().request_shutdown.read();
     _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
 }
@@ -61,8 +62,7 @@ bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
     // All signals are now extracted directly from the fiber-optic protocol
     external_ios.update_fiber_optics_inputs(rx_msg->mode, static_cast<sfc_state_id>(rx_msg->state_id),
         rx_msg->force_commutation_acknowledged, rx_msg->current_is_zero, rx_msg->is_saturated, rx_msg->pulse_releases,
-        current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->freeze_integrator, rx_msg->is_tripped,
-        rx_msg->preset_request);
+        current_pu_t{rx_msg->dc_link_current_pu}, rx_msg->preset_request);
     return true;
 }
 
@@ -109,19 +109,11 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_measurements.get_outputs().machine_voltage_abc, machine_side_observer.get_inputs().machine_voltage_pu);
 
     // ==================== Machine Integrator Supervisor Inputs ====================
-    // Connect fiber-optic signals from grid-side supervisor
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().freeze_integrator,
-        machine_integrator_supervisor.get_inputs().grid_side_freeze_integrator);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().is_tripped,
-        machine_integrator_supervisor.get_inputs().grid_side_is_tripped);
+    // Connect fiber-optic signals from grid-side
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().pulse_releases,
         machine_integrator_supervisor.get_inputs().grid_side_release_pulses);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().current_is_zero,
-        machine_integrator_supervisor.get_inputs().current_is_zero);
 
-    // Connect saturation signals for anti-windup
-    signals_connector::connect_output_to_input(
-        speed_controller.get_outputs().is_saturated, machine_integrator_supervisor.get_inputs().speed_saturated);
+    // Connect saturation signal for anti-windup (only torque controller)
     signals_connector::connect_output_to_input(
         torque_controller.get_outputs().is_saturated, machine_integrator_supervisor.get_inputs().torque_saturated);
 

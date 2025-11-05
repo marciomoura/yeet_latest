@@ -177,6 +177,7 @@ public:
         signal_output<current_pu_t> current_reference{current_pu_t{0.0}};  ///< Current ref from torque controller
         signal_output<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};  ///< Machine back-EMF magnitude [pu]
         signal_output<bool> request_force_commutation{false};                      ///< Force commutation request
+        signal_output<bool> shutdown_request{false};  ///< Shutdown request from machine side
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -373,13 +374,15 @@ public:
      *     machine_side_control.machine_side_observer.get_outputs().estimated_speed.read(),
      *     machine_side_control.torque_controller.get_outputs().current_reference.read(),
      *     machine_side_control.machine_side_observer.get_outputs().estimated_voltage_magnitude.read(),
-     *     machine_side_control.machine_side_modulator.get_outputs().request_force_commutation.read());
+     *     machine_side_control.machine_side_modulator.get_outputs().request_force_commutation.read(),
+     *     machine_side_control.machine_side_supervisor.get_outputs().shutdown_request.read());
      * ```
      */
     void update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed_pu,
         current_pu_t current_reference,
         voltage_pu_t machine_voltage_magnitude,
-        bool request_force_commutation);
+        bool request_force_commutation,
+        bool shutdown_request);
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access

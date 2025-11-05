@@ -55,8 +55,8 @@ public:
         machine_side_modulator.get_parameters().enable = true;
         yeet::mock_signal_input::write(operation_mode_monitor.get_inputs().enable, true);
 
-        // Grid-side modulator trip control: not tripped (normal operation)
-        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().is_tripped, false);
+        // Grid-side modulator shutdown: not shutdown (normal operation)
+        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().shutdown_request, false);
 
         // Pulse releases: always true (no sequencing)
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);

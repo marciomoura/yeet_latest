@@ -23,9 +23,9 @@ void sfc_grid_side_modulator_runner::run()
     const bool current_is_zero = _inputs.current_is_zero.read();
     const angle_t firing_angle_from_main_pi = _inputs.firing_angle.read();
     const sfc_operating_mode_t operating_mode = _inputs.operating_mode.read();
-    const bool is_tripped = _inputs.is_tripped.read();
+    const bool shutdown_request = _inputs.shutdown_request.read();
 
-    // Update the modulator logic - pass true for enable (control is via parameters and is_tripped)
+    // Update the modulator logic - pass true for enable (control is via parameters and shutdown_request)
     _sfc_grid_side_modulator.update(_inputs.release_pulses, operating_mode, request_force_commutation, current_is_zero,
         firing_angle_from_main_pi, _inputs.request_extinguish_dc_current);
 

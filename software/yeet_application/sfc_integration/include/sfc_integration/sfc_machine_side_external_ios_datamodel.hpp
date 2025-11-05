@@ -130,8 +130,7 @@ public:
      * - is_saturated: Grid current controller saturation flag
      * - pulse_releases: Grid-side state machine enable (system running)
      * - dc_link_current: Grid-side DC link measurements (machine-side is sensorless)
-     * - freeze_integrator: Speed controller integrator freeze for pulse-mode
-     * - is_tripped: Grid-side trip status
+     * - preset_request: Preset request from grid-side supervisor
      * - current_state_id: Grid-side state machine state (for profile awareness)
      *
      * **Timing:** Updated at 1ms (after grid-side update, before machine-side uses them)
@@ -149,8 +148,6 @@ public:
         signal_output<bool> is_saturated{false};                         ///< Grid controller saturated
         signal_output<bool> pulse_releases{false};                       ///< Grid system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< Grid-measured DC current [pu]
-        signal_output<bool> freeze_integrator{false};                    ///< PI integrator freeze
-        signal_output<bool> is_tripped{false};                           ///< Grid-side trip status
         signal_output<bool> preset_request{false};                       ///< Preset request from grid-side
         signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state ID
@@ -325,7 +322,7 @@ public:
      * machine_side_control.external_ios.update_fiber_optics_inputs(
      *     grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().operating_mode.read(),
      *     grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().current_state_id.read(),
-     *     // ... etc (9 signals total)
+     *     // ... etc (7 signals total)
      * );
      * ```
      */
@@ -336,8 +333,6 @@ public:
         bool is_saturated,
         bool pulse_releases,
         current_pu_t dc_link_current,
-        bool freeze_integrator,
-        bool is_tripped,
         bool preset_request);
 
     /**

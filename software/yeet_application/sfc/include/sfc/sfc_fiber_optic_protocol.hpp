@@ -64,8 +64,6 @@ struct grid_to_machine_message {
     bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
     bool pulse_releases{false};                 /**< Thyristor pulses are enabled */
     std::uint8_t state_id{0};                   /**< Current grid-side state machine state */
-    bool freeze_integrator{false};              /**< Unified freeze signal for machine-side integrator */
-    bool is_tripped{false};                     /**< Grid-side trip status */
     bool preset_request{false};                 /**< Preset request to machine-side controllers */
 };
 
@@ -82,10 +80,8 @@ struct grid_to_machine_message {
  *   - Bit 10:     Force commutation acknowledged
  *   - Bit 11:     Pulse releases
  *   - Bits 12-18: State machine state ID (0-127)
- *   - Bit 19:     Freeze integrator (unified)
- *   - Bit 20:     Is tripped (grid-side trip status)
- *   - Bit 21:     Preset request
- *   - Bits 22-31: Reserved for future use
+ *   - Bit 19:     Preset request
+ *   - Bits 20-31: Reserved for future use
  *
  * @param[in]  msg      Message structure to encode
  * @param[out] payload  Array to receive encoded data (min 2 words)
@@ -103,8 +99,6 @@ struct grid_to_machine_message {
  *     .force_commutation_acknowledged = true,
  *     .pulse_releases = true,
  *     .state_id = 5,
- *     .freeze_integrator = false,
- *     .is_tripped = false,
  *     .preset_request = false
  * };
  * std::array<std::uint32_t, max_payload_words> payload;
@@ -126,9 +120,7 @@ struct grid_to_machine_message {
  *   - Bit 10:     Force commutation acknowledged
  *   - Bit 11:     Pulse releases
  *   - Bits 12-18: State machine state ID (0-127)
- *   - Bit 19:     Freeze integrator (unified)
- *   - Bit 20:     Is tripped (grid-side trip status)
- *   - Bit 21:     Preset request
+ *   - Bit 19:     Preset request
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
@@ -139,9 +131,8 @@ struct grid_to_machine_message {
  * Example:
  * @code
  * if (auto msg = decode_grid_to_machine(rx_payload, rx_length)) {
- *     // Use decoded signals - all 9 fields are now available
+ *     // Use decoded signals
  *     process_grid_state(msg->state_id);
- *     handle_integrator_freeze(msg->freeze_integrator);
  * }
  * @endcode
  */
@@ -162,7 +153,7 @@ struct machine_to_grid_message {
     float dc_link_current_reference_pu{0.0f}; /**< DC link current reference [pu] */
     float machine_voltage_magnitude_pu{0.0f}; /**< Machine voltage magnitude [pu] */
     bool force_commutation_request{false};    /**< Force commutation requested by machine side */
-    bool is_tripped{false};                   /**< Machine-side trip status */
+    bool shutdown_request{false};             /**< Shutdown request from machine side (brings current to zero) */
 };
 
 /**
@@ -173,7 +164,9 @@ struct machine_to_grid_message {
  * - Word 0: Measured speed [pu] (IEEE 754 float bits)
  * - Word 1: DC link current reference [pu] (IEEE 754 float bits)
  * - Word 2: Machine voltage magnitude [pu] (IEEE 754 float bits)
- * - Word 3: Packed control flags (bit 0 = force_commutation_request)
+ * - Word 3: Packed control flags
+ *   - Bit 0: Force commutation request
+ *   - Bit 1: Shutdown request
  *
  * @param[in]  msg      Message structure to encode
  * @param[out] payload  Array to receive encoded data (min 4 words)
@@ -203,7 +196,9 @@ struct machine_to_grid_message {
  * - Word 0: Measured speed [pu] (IEEE 754 float bits)
  * - Word 1: DC link current reference [pu] (IEEE 754 float bits)
  * - Word 2: Machine voltage magnitude [pu] (IEEE 754 float bits)
- * - Word 3: Packed control flags (bit 0 = force_commutation_request)
+ * - Word 3: Packed control flags
+ *   - Bit 0: Force commutation request
+ *   - Bit 1: Shutdown request
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
@@ -235,13 +230,11 @@ static constexpr std::uint32_t g2m_force_comm_ack_bit = (1U << 10);             
 static constexpr std::uint32_t g2m_pulse_releases_bit = (1U << 11);               // Bit 11
 static constexpr std::uint32_t g2m_state_id_mask = 0x0007F000U;                   // Bits 12-18
 static constexpr std::uint8_t g2m_state_id_shift = 12;
-static constexpr std::uint32_t g2m_freeze_integrator_bit = (1U << 19);  // Bit 19
-static constexpr std::uint32_t g2m_is_tripped_bit = (1U << 20);         // Bit 20
-static constexpr std::uint32_t g2m_preset_request_bit = (1U << 21);     // Bit 21
+static constexpr std::uint32_t g2m_preset_request_bit = (1U << 19);  // Bit 19
 
 // Machine → Grid bit field layout (Word 3)
-static constexpr std::uint32_t m2g_force_comm_req_bit = (1U << 0);  // Bit 0
-static constexpr std::uint32_t m2g_is_tripped_bit = (1U << 1);      // Bit 1
+static constexpr std::uint32_t m2g_force_comm_req_bit = (1U << 0);    // Bit 0
+static constexpr std::uint32_t m2g_shutdown_request_bit = (1U << 1);  // Bit 1
 }  // namespace detail
 
 }  // namespace yeet::application::sfc::fiber_optic

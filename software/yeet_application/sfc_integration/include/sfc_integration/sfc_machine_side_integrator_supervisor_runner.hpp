@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sfc/sfc_machine_side_integrator_supervisor.hpp"
 #include "sfc_integration/sfc_machine_side_integrator_supervisor_datamodel.hpp"
 #include "yeet/application_interface.hpp"
 #include "yeet_control/constants.hpp"
@@ -29,10 +28,7 @@ public:
     /**
      * @brief Constructor
      */
-    sfc_machine_side_integrator_supervisor_runner()
-        : base_application(sampling_time), _sfc_machine_side_integrator_supervisor(sampling_time)
-    {
-    }
+    sfc_machine_side_integrator_supervisor_runner() : base_application(sampling_time) {}
 
     /// Initialize the supervisor component
     void initialize() override;
@@ -45,9 +41,6 @@ public:
 
     /// Register datamodel for network access
     void register_datamodel(yeet::model_registry& registry) override;
-
-private:
-    sfc::sfc_machine_side_integrator_supervisor _sfc_machine_side_integrator_supervisor;
 };
 
 }  // namespace yeet::application::sfc::integration

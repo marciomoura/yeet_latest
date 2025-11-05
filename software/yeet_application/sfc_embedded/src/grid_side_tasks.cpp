@@ -200,7 +200,8 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
             // Update fiber optics inputs using proper datamodel method (respects override flags)
             control->external_ios.update_fiber_optics_inputs_from_machine(yeet::speed_pu_t{rx_msg->measured_speed_pu},
                 yeet::current_pu_t{rx_msg->dc_link_current_reference_pu},
-                yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu}, rx_msg->force_commutation_request);
+                yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu}, rx_msg->force_commutation_request,
+                rx_msg->shutdown_request);
         }
     }
     //     // #else

@@ -29,20 +29,8 @@ public:
      * @brief Input signals for the machine-side integrator supervisor
      */
     struct inputs {
-        /// Unified freeze signal from grid-side supervisor (via fiber optics)
-        signal_input<bool> grid_side_freeze_integrator;
-
-        /// Trip/shutdown signal from grid-side (via fiber optics)
-        signal_input<bool> grid_side_is_tripped;
-
         /// Pulse release command from grid-side (via fiber optics)
         signal_input<bool> grid_side_release_pulses;
-
-        /// Current is zero signal from grid-side (via fiber optics) - safety for pulse release
-        signal_input<bool> current_is_zero;
-
-        /// Saturation signal from speed controller (anti-windup freeze)
-        signal_input<bool> speed_saturated;
 
         /// Saturation signal from torque controller (anti-windup freeze)
         signal_input<bool> torque_saturated;
@@ -62,7 +50,7 @@ public:
         signal_output<bool> release_pulses;
 
         /// Status: fault condition active (propagated back to grid-side via fiber optics)
-        signal_output<bool> is_tripped;
+        signal_output<bool> request_shutdown;
     };
 
     /**
@@ -71,6 +59,21 @@ public:
     struct parameters {
         /// Override freeze signal for testing (when true, disables all freezes)
         parameter<bool> override_freeze{false};
+
+        /// Value to force freeze signal to when override is active
+        parameter<bool> freeze_value{false};
+
+        /// Override release pulses signal for testing
+        parameter<bool> override_release_pulses{false};
+
+        /// Value to force release pulses signal to when override is active
+        parameter<bool> release_pulses_value{false};
+
+        /// Override is_tripped signal for testing
+        parameter<bool> override_is_tripped{false};
+
+        /// Value to force is_tripped signal to when override is active
+        parameter<bool> is_tripped_value{false};
     };
 
 private:

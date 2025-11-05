@@ -9,30 +9,51 @@ void sfc_grid_side_integrator_supervisor_runner::register_datamodel(yeet::model_
     datamodel.register_data_model(registry);
 }
 
-void sfc_grid_side_integrator_supervisor_runner::initialize() { _sfc_grid_side_integrator_supervisor.reset(); }
+void sfc_grid_side_integrator_supervisor_runner::initialize()
+{
+    _outputs.preset_controller = false;
+    _outputs.release_pulses = false;
+    _outputs.shutdown_request = false;
+    _outputs.freeze_integrator = false;
+}
 
 void sfc_grid_side_integrator_supervisor_runner::run()
 {
-    // Read all inputs from datamodel
-    const bool forced_commutation_freeze = _inputs.forced_commutation_freeze_integrator.read();
-    const bool shutdown_request = _inputs.shutdown_request.read();
-    const bool preset_complete = _inputs.preset_complete.read();
-    const bool override_freeze = _parameters.override_freeze.read();
+    // If state machine requests pulse release, pass to output
+    if (_parameters.override_release_pulses) {
+        _outputs.release_pulses = _parameters.release_pulses_value;
+    }
+    else {
+        _outputs.release_pulses = _inputs.state_machine_release_pulses;
+    }
 
-    // Update supervisor core logic
-    // Note: enable_current_controller parameter is placeholder for future use
-    _sfc_grid_side_integrator_supervisor.update(
-        forced_commutation_freeze, shutdown_request, true, preset_complete, override_freeze);
+    // Handle trip latching on machine_side_shutdown_request input
+    if (_parameters.override_is_tripped) {
+        _outputs.shutdown_request = _parameters.is_tripped_value;
+    }
+    else {
+        _outputs.shutdown_request = _inputs.machine_side_shutdown_request;
+    }
 
-    // Write outputs to datamodel
-    _outputs.freeze_integrator.write(_sfc_grid_side_integrator_supervisor.get_freeze_integrator());
-    _outputs.preset_request.write(false);  //_sfc_grid_side_integrator_supervisor.get_preset_request());
-    // _outputs.release_pulses.write(_sfc_grid_side_integrator_supervisor.get_release_pulses());
-    // Directly pass through some signals
-    _outputs.release_pulses = _inputs.state_machine_release_pulses;
-    _outputs.is_tripped.write(_sfc_grid_side_integrator_supervisor.get_is_tripped());
+    // Override freeze if parameter is set
+    if (_parameters.override_freeze) {
+        _outputs.freeze_integrator = _parameters.freeze_value;
+    }
+    else {
+        // If forced commutation freeze or shutdown request, set freeze output
+        _outputs.freeze_integrator = _outputs.shutdown_request || _inputs.forced_commutation_freeze_integrator;
+    }
+
+    // Logic should be decided on preset
+    _outputs.preset_controller = false;
 }
 
-void sfc_grid_side_integrator_supervisor_runner::stop() { _sfc_grid_side_integrator_supervisor.reset(); }
+void sfc_grid_side_integrator_supervisor_runner::stop()
+{
+    _outputs.preset_controller = false;
+    _outputs.release_pulses = false;
+    _outputs.shutdown_request = false;
+    _outputs.freeze_integrator = false;
+}
 
 }  // namespace yeet::application::sfc::integration
