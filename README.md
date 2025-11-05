@@ -30,20 +30,56 @@ cmake --preset embedded-gcc
 cmake --build --preset embedded-gcc-release
 ```
 
-## Project Structure
+## Software Architecture
 
-```
-software/
-├── yeet/              # Core library
-├── yeet_control/      # Control algorithms
-└── yeet_application/  # Applications (SFC, etc.)
-boards/                # Board support packages
-```
+The YEET platform is organized in layered architecture from foundational libraries to application-specific implementations:
 
-## Documentation
+### Core Platform Layers
 
-- [SFC System Documentation](software/yeet_application/sfc/docs/index.md)
-- [Control Library Reference](software/yeet_control/docs/index.md)
+#### **[YEET Core](software/yeet/docs/index.md)**
+Foundational infrastructure for real-time control applications
+- Application data models and signal definitions
+- Control execution policies and task scheduling
+- Network telemetry and command interfaces
+- Parameter management and configuration
+
+#### **[YEET Testing](software/yeet_testing/docs/index.md)**
+Comprehensive testing and validation framework
+- Software-in-the-Loop (SIL) simulation infrastructure
+- Automated data sampling and post-processing
+- Verification and validation tools
+- Google Test integration for CI/CD
+
+#### **[YEET Control](software/yeet_control/docs/index.md)**
+Generic, reusable control algorithms and components
+- PI/PID controllers with anti-windup
+- Digital filters and signal processing
+- Phase-Locked Loops (PLLs) for synchronization
+- Reference frame transformations (abc, αβ, dq)
+- Mechanical load models and pulse generators
+
+### Application Layer - Static Frequency Converter (SFC)
+
+#### **[SFC Application](software/yeet_application/sfc/docs/index.md)**
+Load-Commutated Inverter (LCI) control application
+- LCI system theory and mathematical models
+- Current and speed control algorithms
+- Per-unit system and steady-state equations
+- Terminology dictionary and design guidelines
+
+#### **[SFC Integration](software/yeet_application/sfc_integration/docs/index.md)**
+Platform integration and data model definitions
+- Data model interconnection architecture
+- Runner implementations for host and embedded platforms
+- Signal mapping and execution synchronization
+- Testing and simulation interfaces
+
+#### **[SFC Embedded](software/yeet_application/sfc_embedded/docs/index.md)**
+Embedded hardware implementation
+- STM32 and custom board support
+- Real-time I/O and interrupt management
+- Hardware abstraction and driver layer
+- Timing, memory, and performance optimization
 
 ## Prerequisites
 
