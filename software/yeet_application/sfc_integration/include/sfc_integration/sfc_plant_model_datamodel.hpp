@@ -132,8 +132,28 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         entry.parameters.insert("initial_speed", _model_parameters->initial_speed);
-        // Note: Enum parameters (operation_mode, voltage_control_mode) are not registered as they require custom
-        // serialization
+
+        // Register operation_mode enum parameter
+        auto& operation_mode_param = _model_parameters->operation_mode;
+        entry.parameters.insert("operation_mode",
+            low_level_access([&operation_mode_param]()
+                                 -> float { return static_cast<float>(static_cast<int>(operation_mode_param.read())); },
+                [&operation_mode_param](float value) {
+                    operation_mode_param.write(static_cast<machine_operation_mode>(static_cast<int>(value)));
+                }));
+
+        // Register voltage_control_mode enum parameter
+        auto& voltage_control_mode_param = _model_parameters->voltage_control_mode;
+        entry.parameters.insert("voltage_control_mode",
+            low_level_access(
+                [&voltage_control_mode_param]() -> float {
+                    return static_cast<float>(static_cast<int>(voltage_control_mode_param.read()));
+                },
+                [&voltage_control_mode_param](float value) {
+                    voltage_control_mode_param.write(
+                        static_cast<machine_voltage_control_mode>(static_cast<int>(value)));
+                }));
+
         entry.parameters.insert(
             "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
         entry.parameters.insert(

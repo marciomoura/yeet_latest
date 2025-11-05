@@ -35,13 +35,10 @@ void sfc_soft_starter_speed_generator_runner::initialize()
 
 void sfc_soft_starter_speed_generator_runner::run()
 {
-    if (_parameters.override_speed_reference_generation.read()) {
-        _parameters.override_min_torque_limit.read();
-        _parameters.override_max_torque_limit.read();
-
-        _outputs.speed_reference = _parameters.override_speed_reference.read();
-        _outputs.torque_limit_max_pu = _parameters.override_max_torque_limit.read();
-        _outputs.torque_limit_min_pu = _parameters.override_min_torque_limit.read();
+    if (_parameters.override_speed_reference.read()) {
+        _outputs.speed_reference = _parameters.override_speed_reference_value.read();
+        _outputs.torque_limit_max_pu = _parameters.override_max_torque_limit_value.read();
+        _outputs.torque_limit_min_pu = _parameters.override_min_torque_limit_value.read();
         _outputs.is_profile_complete = false;
         _outputs.is_breakaway_boost_active = false;
         _outputs.active_command = sfc::speed_command_t::IDLE;

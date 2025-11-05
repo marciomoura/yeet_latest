@@ -15,7 +15,7 @@ from typing import List
 
 class GridSignalIndex(IntEnum):
     """Signal array indices for GRID_SIDE_TELEMETRY matching C++ grid_side_telemetry_builder.cpp."""
-    # === Grid Measurements Group (0-13) ===
+    # === Grid Measurements Group (0-8) ===
     GRID_VOLTAGE_MAGNITUDE_FILTERED = 0
     GRID_VOLTAGE_A = 1
     GRID_VOLTAGE_B = 2
@@ -25,72 +25,63 @@ class GridSignalIndex(IntEnum):
     GRID_CURRENT_B = 6
     GRID_CURRENT_C = 7
     DC_LINK_CURRENT = 8
-    IS_COMMUTING = 9
-    GRID_VOLTAGE_ALPHA = 10
-    GRID_VOLTAGE_BETA = 11
-    GRID_VOLTAGE_MAGNITUDE_FILTERED_DUP = 12
-    GRID_SIDE_FREQUENCY = 13
     
-    # === Observer Group (14-19) ===
-    ESTIMATED_VOLTAGE_MAGNITUDE = 14
-    ESTIMATED_FREQUENCY_PU = 15
-    ESTIMATED_ANGLE_RAD = 16
-    ESTIMATED_FREQUENCY_HZ = 17
-    ESTIMATED_VOLTAGE_ALPHA = 18
-    ESTIMATED_VOLTAGE_BETA = 19
+    # === Observer Group (9-11) ===
+    ESTIMATED_VOLTAGE_MAGNITUDE = 9
+    ESTIMATED_FREQUENCY_PU = 10
+    ESTIMATED_REFERENCE_ANGLE = 11
     
-    # === Modulator Group (20-28) ===
-    FIRING_ANGLE_INPUT = 20
-    FIRING_ANGLE_OUTPUT = 21
-    MODULATOR_OPERATING_MODE = 22
-    MODULATOR_REQUEST_EXTINGUISH_DC = 23
-    MODULATOR_REQUEST_FORCE_COMMUTATION = 24
-    MODULATOR_ENABLED = 25
-    FORCE_COMMUTATION_ACK = 26
-    IS_REQUESTING_PI_RESET = 27
-    MODULATOR_STATE = 28
+    # === Modulator Group (12-19) ===
+    MODULATOR_RELEASE_PULSES_INPUT = 12
+    MODULATOR_FIRING_ANGLE_INPUT = 13
+    MODULATOR_FIRING_ANGLE_OUTPUT = 14
+    MODULATOR_OPERATING_MODE = 15
+    MODULATOR_REQUEST_EXTINGUISH_DC = 16
+    MODULATOR_REQUEST_FORCE_COMMUTATION = 17
+    MODULATOR_STATE = 18
+    MODULATOR_RELEASE_PULSES_OUTPUT = 19
     
-    # === Controller Group (29-37) ===
-    DC_LINK_CURRENT_REFERENCE = 29
-    DC_LINK_CURRENT_MEASURED = 30
-    FREEZE_INTEGRATOR = 31
-    MODULATOR_FREEZE_INTEGRATOR = 32
-    CURRENT_ERROR = 33
-    PI_OUTPUT = 34
-    NATURAL_COMMUTATION_MODE = 35
-    CONTROLLER_SATURATED = 36
-    STATE_MACHINE_FREEZE_INTEGRATOR = 37
+    # === Modulator Control Group (20-22) ===
+    MODULATOR_FORCE_COMMUTATION_ACK = 20
+    MODULATOR_FREEZE_INTEGRATOR = 21
+    MODE_MONITOR_OPERATING_MODE = 22
     
-    # === State Machine Group (38-45) ===
-    STATE_MACHINE_STATE = 38
-    PULSE_RELEASES = 39
-    AUXILIARIES_ON = 40
-    BREAKERS_ON = 41
-    START_COMMAND = 42
-    STOP_COMMAND = 43
-    CURRENT_EXTINGUISHED = 44
-    SHUTDOWN_REQUESTED = 45
+    # === Current Controller Group (23-31) ===
+    CURRENT_REFERENCE = 23
+    CURRENT_MEASURED = 24
+    CURRENT_FREEZE_INTEGRATOR = 25
+    CURRENT_PRESET_REQUEST = 26
+    CURRENT_REFERENCE_OUTPUT = 27
+    CURRENT_ERROR = 28
+    CURRENT_PI_OUTPUT = 29
+    CURRENT_IS_ACTIVE = 30
+    CURRENT_IS_SATURATED = 31
     
-    # === Operation Mode Monitor Group (46-49) ===
-    OPERATION_MODE = 46
-    MODE_CHANGED = 47
-    CURRENT_ZERO = 48
-    DISCONTINUOUS_MODE = 49
+    # === State Machine Group (32-39) ===
+    STATE_MACHINE_STATE = 32
+    STATE_MACHINE_RELEASE_PULSES = 33
+    STATE_MACHINE_AUXILIARIES_ON = 34
+    STATE_MACHINE_BREAKERS_ON = 35
+    STATE_MACHINE_START_COMMAND = 36
+    STATE_MACHINE_STOP_COMMAND = 37
+    STATE_MACHINE_CURRENT_EXTINGUISHED = 38
+    STATE_MACHINE_SHUTDOWN_REQUEST = 39
     
-    # === Pulse Generator Group (50-57) ===
-    FIRING_PULSE_1 = 50
-    FIRING_PULSE_2 = 51
-    FIRING_PULSE_3 = 52
-    FIRING_PULSE_4 = 53
-    FIRING_PULSE_5 = 54
-    FIRING_PULSE_6 = 55
-    PULSE_GENERATOR_ACTIVE = 56
-    ACTUAL_FIRING_ANGLE = 57
+    # === Operation Mode Monitor Group (40-43) ===
+    STATE_MACHINE_PRESET_REQUEST = 40
+    MODE_MONITOR_HAS_MODE_CHANGED = 41
+    MODE_MONITOR_CURRENT_IS_ZERO = 42
+    MODE_MONITOR_IS_DISCONTINUOUS_MODE = 43
+    
+    # === Pulse Generator Group (44-46) ===
+    PULSE_GENERATOR_RELEASE_PULSES = 44
+    PULSE_GENERATOR_ACTUAL_FIRING_ANGLE = 45
+    PULSE_GENERATOR_RELEASE_PULSES_INPUT = 46
 
 
 @dataclass
 class GridMeasurements:
-    """Grid-side measurements."""
+    """Grid-side measurements (0-8)."""
     grid_voltage_magnitude_pu: float = 0.0
     grid_voltage_a_pu: float = 0.0
     grid_voltage_b_pu: float = 0.0
@@ -100,54 +91,56 @@ class GridMeasurements:
     grid_current_b_pu: float = 0.0
     grid_current_c_pu: float = 0.0
     dc_link_current_pu: float = 0.0
-    is_commuting: bool = False
-    grid_voltage_alpha_pu: float = 0.0
-    grid_voltage_beta_pu: float = 0.0
-    grid_side_frequency_hz: float = 0.0
 
 
 @dataclass
 class GridObserverData:
-    """Grid-side observer estimates."""
+    """Grid-side observer estimates (9-11)."""
     estimated_voltage_magnitude_pu: float = 0.0
     estimated_frequency_pu: float = 0.0
-    estimated_angle_rad: float = 0.0
-    estimated_frequency_hz: float = 0.0
-    estimated_voltage_alpha_pu: float = 0.0
-    estimated_voltage_beta_pu: float = 0.0
+    estimated_reference_angle_pu: float = 0.0
 
 
 @dataclass
 class GridModulatorData:
-    """Grid-side modulator control signals."""
+    """Grid-side modulator control signals (12-19)."""
+    release_pulses_input: bool = False
     firing_angle_input_pu: float = 0.0
     firing_angle_output_pu: float = 0.0
     operating_mode: int = 0
     request_extinguish_dc: bool = False
     request_force_commutation: bool = False
-    is_enabled: bool = False
-    force_commutation_ack: bool = False
-    is_requesting_pi_reset: bool = False
     modulator_state: int = 0
+    release_pulses_output: bool = False
+
+
+@dataclass
+class GridModulatorControlData:
+    """Grid-side modulator control (20-22)."""
+    force_commutation_acknowledged: bool = False
+    freeze_integrator: bool = False
+    operating_mode: int = 0
 
 
 @dataclass
 class GridControllerData:
-    """Grid-side current controller state."""
-    dc_link_current_reference: float = 0.0
-    dc_link_current_measured: float = 0.0
-    current_error_pu: float = 0.0
-    controller_output_pu: float = 0.0
-    operating_mode: bool = False
-    controller_saturated: bool = False
+    """Grid-side current controller state (23-31)."""
+    current_reference: float = 0.0
+    current_measured: float = 0.0
     freeze_integrator: bool = False
+    preset_request: bool = False
+    current_reference_output: float = 0.0
+    current_error_pu: float = 0.0
+    pi_output_pu: float = 0.0
+    is_active: bool = False
+    is_saturated: bool = False
 
 
 @dataclass
 class StateMachineData:
-    """State machine flags (grid-side only)."""
+    """State machine flags (32-39)."""
     current_state: int = 0
-    pulse_releases: bool = False
+    release_pulses: bool = False
     auxiliaries_are_on: bool = False
     breakers_are_on: bool = False
     start_command: bool = False
@@ -158,20 +151,16 @@ class StateMachineData:
 
 @dataclass
 class OperationModeMonitorData:
-    """Operation mode monitor (grid-side only)."""
-    mode: int = 0
-    mode_changed: bool = False
-    current_zero: bool = False
-    discontinuous_mode: bool = False
+    """Operation mode monitor (40-43)."""
+    preset_request: bool = False
+    has_mode_changed: bool = False
+    current_is_zero: bool = False
+    is_discontinuous_mode: bool = False
 
 
 @dataclass
 class PulseGeneratorData:
-    """Pulse generator outputs."""
-    firing_pulse_1: bool = False
-    firing_pulse_2: bool = False
-    firing_pulse_3: bool = False
-    firing_pulse_4: bool = False
-    firing_pulse_5: bool = False
-    firing_pulse_6: bool = False
-    is_active: bool = False
+    """Pulse generator outputs (44-46)."""
+    release_pulses: bool = False
+    actual_firing_angle_pu: float = 0.0
+    release_pulses_input: bool = False

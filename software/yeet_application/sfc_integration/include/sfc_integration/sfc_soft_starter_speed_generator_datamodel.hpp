@@ -164,10 +164,10 @@ public:
         /// Absolute minimum torque limit [pu]
         parameter<torque_pu_t> min_torque_limit = torque_pu_t{-1.2};
 
-        parameter<bool> override_speed_reference_generation = false;
-        parameter<torque_pu_t> override_min_torque_limit = torque_pu_t{-2.0};
-        parameter<torque_pu_t> override_max_torque_limit = torque_pu_t{2.0};
-        parameter<speed_pu_t> override_speed_reference = speed_pu_t{0.0};
+        parameter<bool> override_speed_reference = false;
+        parameter<torque_pu_t> override_min_torque_limit_value = torque_pu_t{-2.0};
+        parameter<torque_pu_t> override_max_torque_limit_value = torque_pu_t{2.0};
+        parameter<speed_pu_t> override_speed_reference_value = speed_pu_t{0.0};
     };
 
 private:
@@ -259,14 +259,13 @@ public:
             "min_torque_limit", yeet::utils::make_units_accessor(_model_parameters->min_torque_limit));
 
         // Register override parameters
-        entry.parameters.insert("override_speed_reference_generation",
-            yeet::utils::make_units_accessor(_model_parameters->override_speed_reference_generation));
-        entry.parameters.insert("override_min_torque_limit",
-            yeet::utils::make_units_accessor(_model_parameters->override_min_torque_limit));
-        entry.parameters.insert("override_max_torque_limit",
-            yeet::utils::make_units_accessor(_model_parameters->override_max_torque_limit));
-        entry.parameters.insert(
-            "override_speed_reference", yeet::utils::make_units_accessor(_model_parameters->override_speed_reference));
+        entry.parameters.insert("override_speed_reference", _model_parameters->override_speed_reference);
+        entry.parameters.insert("override_min_torque_limit_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_min_torque_limit_value));
+        entry.parameters.insert("override_max_torque_limit_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_max_torque_limit_value));
+        entry.parameters.insert("override_speed_reference_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_speed_reference_value));
 
         registry.insert("soft_starter_speed_generator", std::move(entry));
     }

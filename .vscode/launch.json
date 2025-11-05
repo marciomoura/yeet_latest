@@ -12,11 +12,7 @@
                 "--machine-port",
                 "7001",
                 "--frequency",
-                "20000",
-                "--real-time-factor",
-                "0.0",
-                "--telemetry-rate",
-                "20000",
+                "5000",
                 "--verbose"
             ],
             "stopAtEntry": false,
