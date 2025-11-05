@@ -73,26 +73,28 @@ The PLL is configured through dedicated methods:
 using namespace yeet::control;
 
 // 1. Instantiate PLL with sampling time
-three_phase_pll<double> pll(100e-6); // 100 µs sampling time
+three_phase_pll pll(duration_t{100e-6}); // 100 µs sampling time
 
 // 2. Configure PLL parameters
-pll.configure_nominal_frequency(50.0);      // 50 Hz nominal
-pll.configure_pi_controller(100.0, 10000.0); // Kp, Ki gains
-pll.configure_frequency_limits(45.0, 55.0); // Min/max frequency
+pll.configure_nominal_frequency(frequency_t{50.0});          // 50 Hz nominal
+pll.configure_pi_controller(0.2, duration_t{0.05});          // Kp, Ti
+pll.configure_frequency_limits(frequency_t{45.0}, frequency_t{55.0}); // Min/max frequency
 ```
 
 ### Real-Time Processing
 ```cpp
 // In real-time loop
-abc<double> measured_voltages = get_voltage_measurements();
+// Note: PLL expects alphabeta<voltage_pu_t> input, not abc
+abc<voltage_pu_t> measured_voltages = get_voltage_measurements();
+alphabeta<voltage_pu_t> voltages_ab = measured_voltages.to_alphabeta();
 
 // Update the PLL with the latest measurements
-pll.update(measured_voltages);
+pll.update(voltages_ab);
 
 // Use estimated values
-double estimated_frequency = pll.get_estimated_frequency();
+frequency_t estimated_frequency = pll.get_estimated_frequency();
 angle_wrapped estimated_angle = pll.get_estimated_angle();
-bool is_locked = pll.is_locked(0.05); // 5% threshold
+bool is_locked = pll.is_locked(voltage_pu_t{0.05}); // 5% threshold
 
 // Monitor lock status
 if (is_locked) {
@@ -107,21 +109,14 @@ if (is_locked) {
 ### Advanced Monitoring
 ```cpp
 // Detailed monitoring after update
-std::cout << "Frequency: " << pll.get_estimated_frequency() << " Hz" << std::endl;
-std::cout << "Phase: " << pll.get_estimated_angle().get_degrees() << " degrees" << std::endl;
-std::cout << "Q-axis error: " << pll.get_q_error() << std::endl;
+frequency_t freq = pll.get_estimated_frequency();
+std::cout << "Frequency: " << freq.value() << " Hz" << std::endl;
 
-const auto& alphabeta = pll.get_voltage_alphabeta();
-std::cout << "Alpha-Beta: [" << alphabeta.alpha() << ", " << alphabeta.beta() << "]" << std::endl;
+angle_wrapped angle = pll.get_estimated_angle();
+std::cout << "Phase: " << angle.get_degrees() << " degrees" << std::endl;
 
 const auto& dq = pll.get_voltage_dq();
-std::cout << "DQ: [" << dq.d() << ", " << dq.q() << "]" << std::endl;
-
-// Check controller status
-const auto& controller = pll.get_frequency_controller();
-if (controller.is_output_saturated()) {
-    std::cout << "Warning: Frequency controller saturated" << std::endl;
-}
+std::cout << "DQ: [" << dq.d().value() << ", " << dq.q().value() << "]" << std::endl;
 ```
 
 ## API Reference
