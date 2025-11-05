@@ -23,7 +23,7 @@ public:
      */
     struct inputs {
         /// Raw analog machine-side voltage measurements (line-to-neutral) from plant model.
-        signal_input<abc<voltage_t>> machine_voltage;
+        signal_input<abc<voltage_t>> machine_voltage_abc;
     };
 
     /**

@@ -28,6 +28,7 @@ public:
         /// Range: [0.0, π] radians
         signal_input<angle_wrapped> firing_angle;
 
+        /// Pulse release control (blocks all pulses when false)
         signal_input<bool> release_pulses;
     };
 

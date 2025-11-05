@@ -188,17 +188,17 @@ private:
 
         // Machine measurements: Raw machine voltages and currents from plant
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().machine_voltage, machine_meas_model.get_inputs().machine_voltage_measurements);
+            plant_model.get_outputs().machine_voltage_abc, machine_meas_model.get_inputs().machine_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().machine_current, machine_meas_model.get_inputs().machine_current_measurements);
+            plant_model.get_outputs().machine_current, machine_meas_model.get_inputs().machine_current_abc);
 
         signals_connector::connect_output_to_input(
             machine_pulse_gen_model.get_outputs().firing_pulses, machine_meas_model.get_inputs().machine_pulses);
 
+        signals_connector::connect_output_to_input(plant_model.get_outputs().machine_voltage_source_angle,
+            machine_meas_model.get_inputs().machine_reference_angle);
         signals_connector::connect_output_to_input(
-            plant_model.get_outputs().machine_voltage_source_angle, machine_meas_model.get_inputs().machine_side_angle);
-        signals_connector::connect_output_to_input(
-            plant_model.get_outputs().machine_frequency, machine_meas_model.get_inputs().machine_side_frequency);
+            plant_model.get_outputs().machine_frequency, machine_meas_model.get_inputs().machine_frequency);
 
         // DC link measurements: Raw DC voltage and current from plant
         signals_connector::connect_output_to_input(

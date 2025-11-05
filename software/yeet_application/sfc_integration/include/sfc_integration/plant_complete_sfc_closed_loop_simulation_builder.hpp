@@ -338,7 +338,7 @@ private:
         // Machine-side hardware mock: Receives 3-phase machine voltage from plant
         // Scales according to transformer ratios and ADC resolution
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
+            plant.get_outputs().machine_voltage_abc, machine_side_hardware_mock.get_inputs().machine_voltage_abc);
 
         // ==================== Control Outputs → Plant Inputs ====================
         // Controllers generate firing pulses and excitation commands, which drive the power converters

@@ -35,7 +35,7 @@ public:
         signal_input<bool> force_commutation_acknowledged;
 
         /// Absolute rotor electrical position for sector tracking
-        signal_input<angle_wrapped> machine_side_angle;
+        signal_input<angle_wrapped> machine_reference_angle;
 
         /// Machine-side firing angle
         signal_input<angle_wrapped> firing_angle;

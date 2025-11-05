@@ -231,13 +231,13 @@ void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t
         frequency_pu_t initial_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);
         frequency_t machine_frequency_hz = to_si(initial_frequency_pu, _electrical_params.machine_frequency);
 
-        voltage_t machine_voltage = _electrical_params.machine_voltage_rms;
+        voltage_t machine_voltage_abc = _electrical_params.machine_voltage_rms;
         if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent) {
             real_t voltage_magnitude_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
-            machine_voltage = voltage_t(voltage_magnitude_pu * _electrical_params.machine_voltage_rms.value());
+            machine_voltage_abc = voltage_t(voltage_magnitude_pu * _electrical_params.machine_voltage_rms.value());
         }
 
-        _plant.set_machine_parameters(machine_frequency_hz, machine_voltage);
+        _plant.set_machine_parameters(machine_frequency_hz, machine_voltage_abc);
     }
 }
 

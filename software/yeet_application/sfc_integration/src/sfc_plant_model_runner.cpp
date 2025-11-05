@@ -56,7 +56,7 @@ void sfc_plant_model_runner::run()
     _outputs.grid_voltage_abc = _plant.get_grid_side_voltages_abc();
     _outputs.grid_current_abc = _plant.get_grid_side_currents_abc();
     _outputs.dc_link_current = _plant.get_dc_link_current();
-    _outputs.machine_voltage = _plant.get_machine_side_voltages_abc();
+    _outputs.machine_voltage_abc = _plant.get_machine_side_voltages_abc();
     _outputs.machine_current = _plant.get_machine_side_currents_abc();
     _outputs.grid_voltage_source_angle = _plant.get_grid_voltage_source_angle();
     _outputs.machine_voltage_source_angle = _plant.get_machine_voltage_source_angle();

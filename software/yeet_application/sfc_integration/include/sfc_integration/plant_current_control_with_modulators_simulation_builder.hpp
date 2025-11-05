@@ -161,13 +161,13 @@ private:
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage, machine_measurements.get_inputs().machine_voltage_measurements);
+            plant.get_outputs().machine_voltage_abc, machine_measurements.get_inputs().machine_voltage_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_current, machine_measurements.get_inputs().machine_current_measurements);
+            plant.get_outputs().machine_current, machine_measurements.get_inputs().machine_current_abc);
+        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+            machine_measurements.get_inputs().machine_reference_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage_source_angle, machine_measurements.get_inputs().machine_side_angle);
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_frequency, machine_measurements.get_inputs().machine_side_frequency);
+            plant.get_outputs().machine_frequency, machine_measurements.get_inputs().machine_frequency);
 
         // Pulse feedback to measurements (for masking / commuting detection)
         signals_connector::connect_output_to_input(
@@ -201,8 +201,8 @@ private:
             machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
 
         // Provide machine electrical angle to machine-side modulator (sector tracking / pulse mode selection)
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage_source_angle, machine_side_modulator.get_inputs().machine_side_angle);
+        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+            machine_side_modulator.get_inputs().machine_reference_angle);
 
         // Provide grid voltage source angle to grid-side pulse generator already below; ensure modulator has angle if
         // later needed (Current grid-side modulator implementation does not require angle directly.)

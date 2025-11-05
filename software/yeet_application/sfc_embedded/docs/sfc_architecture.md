@@ -274,8 +274,8 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
 | `enable_speed_control`           | Grid-side   | `bool`                        | Enable speed control loop               |
 | `v_ab_counts`                    | ADC         | `adc_counts`                  | Machine voltage AB measurement          |
 | `v_bc_counts`                    | ADC         | `adc_counts`                  | Machine voltage BC measurement          |
-| `machine_side_frequency`         | Timer       | `frequency_t`                 | Machine frequency reference             |
-| `machine_side_angle`             | Timer       | `angle_wrapped`               | Machine angle reference                 |
+| `machine_frequency`              | Timer       | `frequency_t`                 | Machine frequency reference             |
+| `machine_reference_angle`        | Timer       | `angle_wrapped`               | Machine angle reference                 |
 | `machine_pulses`                 | Hardware    | `six_pulse_generator::pulses` | Thyristor commutation events            |
 
 ### 3.4 Machine-Side Output Signals

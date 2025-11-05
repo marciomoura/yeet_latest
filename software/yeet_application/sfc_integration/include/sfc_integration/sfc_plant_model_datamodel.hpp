@@ -71,7 +71,7 @@ public:
         signal_output<current_t> dc_link_current;
 
         /// Machine-side voltage measurements (line-to-neutral)
-        signal_output<abc<voltage_t>> machine_voltage;
+        signal_output<abc<voltage_t>> machine_voltage_abc;
 
         /// Machine-side current measurements
         signal_output<abc<current_t>> machine_current;

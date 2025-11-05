@@ -100,9 +100,9 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
     signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-        machine_measurements.get_inputs().machine_side_angle);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_frequency,
-        machine_measurements.get_inputs().machine_side_frequency);
+        machine_measurements.get_inputs().machine_reference_angle);
+    signals_connector::connect_output_to_input(
+        machine_side_observer.get_outputs().estimated_frequency, machine_measurements.get_inputs().machine_frequency);
 
     // ==================== Machine-Side Observer Inputs ====================
     signals_connector::connect_output_to_input(
@@ -190,7 +190,7 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
     signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-        machine_side_modulator.get_inputs().machine_side_angle);
+        machine_side_modulator.get_inputs().machine_reference_angle);
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs().force_commutation_acknowledged,
         machine_side_modulator.get_inputs().force_commutation_acknowledged);
     signals_connector::connect_output_to_input(

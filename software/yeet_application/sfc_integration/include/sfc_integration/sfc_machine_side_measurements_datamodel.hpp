@@ -24,26 +24,54 @@ public:
      * @brief Input signals for the machine-side measurements component
      */
     struct inputs {
-        signal_input<abc<voltage_t>> machine_voltage_measurements;
-        signal_input<abc<current_t>> machine_current_measurements;
+        /// Machine-side voltage measurements (line-to-neutral) from plant model.
+        signal_input<abc<voltage_t>> machine_voltage_abc;
+
+        /// Machine-side current measurements (line-to-neutral) from plant model.
+        signal_input<abc<current_t>> machine_current_abc;
+
+        /// Machine-side pulse signals from plant model.
         signal_input<control::six_pulse_generator::pulses> machine_pulses;
-        signal_input<frequency_t> machine_side_frequency;
-        signal_input<angle_wrapped> machine_side_angle;
+
+        /// Machine-side electrical frequency from plant model.
+        signal_input<frequency_t> machine_frequency;
+
+        /// Machine-side electrical angle from plant model.
+        signal_input<angle_wrapped> machine_reference_angle;
     };
 
     /**
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
-        signal_output<speed_pu_t> machine_side_speed;
+        /// Machine-side speed (per unit)
+        signal_output<speed_pu_t> machine_speed;
+
+        /// Machine-side voltage measurements in alphabeta frame
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
+
+        /// Filtered machine-side voltage measurements in alphabeta frame
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
+
+        /// Machine-side voltage measurements in abc frame
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;
+
+        /// Unmasked machine-side voltage measurements in abc frame
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_unmasked;
+
+        /// Filtered machine-side voltage measurements in abc frame
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_filtered;
-        signal_output<abc<current_pu_t>> machine_current_abc;
+
+        /// Unmasked machine-side current measurements in abc frame
         signal_output<voltage_pu_t> machine_voltage_magnitude;
+
+        /// Filtered machine-side voltage magnitude
         signal_output<voltage_pu_t> machine_voltage_magnitude_filtered;
+
+        /// Machine-side current measurements in abc frame
+        signal_output<abc<current_pu_t>> machine_current_abc;
+
+        ///  Indicates if the machine is currently in a commutation event
         signal_output<bool> is_commuting;
     };
 
@@ -120,15 +148,15 @@ public:
         signal_input<control::adc_counts> v_ab_counts;
         signal_input<control::adc_counts> v_bc_counts;
         signal_input<control::six_pulse_generator::pulses> machine_pulses;
-        signal_input<frequency_t> machine_side_frequency;
-        signal_input<angle_wrapped> machine_side_angle;
+        signal_input<frequency_t> machine_frequency;
+        signal_input<angle_wrapped> machine_reference_angle;
     };
 
     /**
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
-        signal_output<speed_pu_t> machine_side_speed;
+        signal_output<speed_pu_t> machine_speed;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;

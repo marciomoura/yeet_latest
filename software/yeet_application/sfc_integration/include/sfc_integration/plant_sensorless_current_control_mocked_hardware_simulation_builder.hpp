@@ -144,7 +144,7 @@ private:
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_current_abc, grid_side_hardware_mock.get_inputs().grid_current_abc);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage, machine_side_hardware_mock.get_inputs().machine_voltage);
+            plant.get_outputs().machine_voltage_abc, machine_side_hardware_mock.get_inputs().machine_voltage_abc);
 
         // ==================== Hardware mocks -> measurements (ADC counts) ====================
         signals_connector::connect_output_to_input(
@@ -169,10 +169,10 @@ private:
             plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_frequency, grid_measurements.get_inputs().grid_frequency);
+        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
+            machine_measurements.get_inputs().machine_reference_angle);
         signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_voltage_source_angle, machine_measurements.get_inputs().machine_side_angle);
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().machine_frequency, machine_measurements.get_inputs().machine_side_frequency);
+            plant.get_outputs().machine_frequency, machine_measurements.get_inputs().machine_frequency);
 
         // ==================== Measurements -> DC link measurements ====================
         signals_connector::connect_output_to_input(
