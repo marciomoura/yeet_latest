@@ -14,17 +14,17 @@ Type-safe dimensional analysis framework for scientific and engineering computat
 - **File**: `yeet_control/units.hpp`
 - **Applications**: Power calculations, unit conversion, engineering equation validation
 
-#### **Angle Class**
-Type-safe angle representation with automatic wrapping for control applications.
-- **Features**: Configurable ranges (-π to π, 0 to 2π), arithmetic operations, unit conversions
+#### [Angle Wrapped](angle_wrapped.md)
+Type-safe angle representation with automatic wrapping using uint32_t overflow.
+- **Features**: Zero-cost wrapping, high resolution (~1.46e-9 rad), exact binary angles, O(1) operations
 - **File**: `yeet_control/angle_wrapped.hpp`
-- **Applications**: Phase angle tracking, firing angle control, synchronization
+- **Applications**: Phase angle tracking, firing angle control, PLL integration, rotor position
 
-#### **Coordinate Frame Types**
+#### [Coordinate Reference Frames](reference_frame.md)
 Strongly-typed coordinate system representations for three-phase power systems.
-- **Types**: `abc<T>`, `alphabeta<T>`, `dq<T>`, `symmetrical_components<T>`
-- **File**: `yeet_control/coordinates.hpp`
-- **Applications**: Vector control, power quality analysis, fault detection
+- **Types**: `abc<T>`, `alphabeta<T>`, `dq<T>` with bidirectional transformations
+- **File**: `yeet_control/reference_frame.hpp`
+- **Applications**: Field-oriented control, Clarke/Park transforms, vector control, power quality analysis
 
 #### **Constants and Utilities**
 Mathematical constants and utility functions optimized for power electronics.
@@ -40,6 +40,18 @@ Discrete-time Proportional-Integral controller with advanced anti-windup capabil
 - **File**: `yeet_control/pi_controller.hpp`
 - **Applications**: Current control, voltage regulation, speed control
 
+#### [Integrator](integrator.md)
+Discrete-time numerical integrator using rectangular (forward Euler) method.
+- **Features**: Fixed sampling time, template-based, resettable state, coordinate frame support
+- **File**: `yeet_control/integrator.hpp`
+- **Applications**: Position from velocity, PLL angle integration, PI control integral term, flux estimation
+
+#### [Rate of Change Limiter](rate_of_change_limiter.md)
+Slew rate limiter for smooth signal transitions and acceleration control.
+- **Features**: Symmetric rate limiting, enable/disable control, configurable rate, real-time safe
+- **File**: `yeet_control/rate_of_change_limiter.hpp`
+- **Applications**: Reference smoothing, motor acceleration control, voltage ramping, torque limiting
+
 #### [Mechanical Load Model](mechanical_load.md)
 Dynamic mechanical load simulation for motor control applications.
 - **Features**: Inertia and damping modeling, per-unit operation, speed tracking
@@ -51,6 +63,20 @@ Precision timing control for 6-pulse thyristor bridge converters.
 - **Features**: IEEE standard firing sequence, phase-locked operation, safety interlocks
 - **Files**: `yeet_control/six_pulse_generator.hpp`, `yeet_control/pulse_generator.hpp`
 - **Applications**: Load-Commutated Inverters (LCI), soft-starters, rectifier control
+
+#### [Speed-Voltage Relationship](speed_voltage_relationship.md)
+Model for the relationship between motor speed and voltage in synchronous machines.
+- **Features**: Linear V/Hz control, field weakening, per-unit operation
+- **File**: `yeet_control/speed_voltage_relationship.hpp`
+- **Applications**: Motor control, V/f scalar control, field weakening strategies
+
+### Utility Components
+
+#### [Lookup Tables](lookup_table.md)
+Efficient 1D and 2D lookup table implementations with interpolation.
+- **Features**: Linear interpolation, boundary clamping, compile-time optimization
+- **Files**: `yeet_control/lookup_table_1d.hpp`, `yeet_control/lookup_table_2d.hpp`
+- **Applications**: Nonlinear function approximation, saturation curves, efficiency maps
 
 ### Signal Processing
 
@@ -68,18 +94,31 @@ Standard power systems coordinate transformations for three-phase analysis.
 
 ### Filtering and Signal Conditioning
 
-#### **Digital Filters**
-Real-time digital filtering implementations for power electronics applications.
-- **Types**: Low-pass, high-pass, band-pass, notch filters
-- **Features**: Biquad and IIR structures, coordinate frame support
-- **File**: `yeet_control/filters.hpp`
-- **Applications**: Measurement filtering, harmonic suppression, noise reduction
+#### [First-Order Low-Pass Filter](first_order_low_pass_filter.md)
+Discrete-time first-order low-pass filter using bilinear transform with frequency pre-warping.
+- **Features**: Double-precision arithmetic, frequency response analysis, settling time calculation
+- **File**: `yeet_control/first_order_low_pass_filter.hpp`
+- **Applications**: Sensor filtering, current measurement smoothing, DC bus voltage filtering, speed estimation
+
+#### [SOGI Filter and Dual-SOGI](sogi.md)
+Second-Order Generalized Integrator for signal filtering and positive sequence extraction.
+- **Features**: Adaptive filtering, orthogonal signal generation, unbalance rejection
+- **Files**: `yeet_control/sogi_filter.hpp`, `yeet_control/dual_sogi_srf_pll.hpp`
+- **Applications**: Grid synchronization, harmonic filtering, sequence component extraction
 
 #### **Phase-Locked Loop (PLL)**
 Grid synchronization and frequency tracking for power converter applications.
-- **Features**: Single-phase and three-phase operation, frequency adaptation, disturbance rejection
-- **File**: `yeet_control/pll.hpp`
-- **Applications**: Grid-tied inverters, synchronous rectifiers, power quality monitoring
+
+##### [Three-Phase PLL](three_phase_pll.md)
+Synchronous reference frame (SRF) based PLL for three-phase systems.
+- **Features**: Clarke/Park transformations, PI controller, frequency limits, lock detection
+- **File**: `yeet_control/three_phase_pll.hpp`
+- **Applications**: Grid-tied inverters, motor control, power quality monitoring
+
+##### [SRF-PLL](srf_pll.md)
+Mathematical foundation and theory of synchronous reference frame PLLs.
+- **Features**: Position and speed estimation, field-oriented control
+- **Applications**: Sensorless motor control, back-EMF tracking
 
 ## Real-Time Considerations
 
