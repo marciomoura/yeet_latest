@@ -55,7 +55,7 @@ public:
      */
     struct parameters {
         /// Speed threshold for mode switching [pu]
-        parameter<speed_pu_t> mode_handover_speed_pu{speed_pu_t{0.25f}};
+        parameter<speed_pu_t> mode_handover_speed_pu{speed_pu_t{0.15f}};
 
         /// Hysteresis factor for mode switching [dimensionless]
         parameter<real_t> mode_hysteresis_factor{0.15f};

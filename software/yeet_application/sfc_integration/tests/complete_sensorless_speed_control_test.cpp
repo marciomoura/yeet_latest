@@ -256,7 +256,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
     const auto speed_after_purge =
         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_NEAR(speed_after_purge.value(), 0.20f, 0.015f) << "Profile 2 (Purge) did not reach target speed";
-
     // Hold at purge speed (typically 2-5 minutes in real operation, shortened for test)
     speed_tracking_checker->activate();
     success &= simulator.simulate_for(10.0);

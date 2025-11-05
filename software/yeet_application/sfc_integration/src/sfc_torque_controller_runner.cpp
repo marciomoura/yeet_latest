@@ -44,7 +44,7 @@ void sfc_torque_controller_runner::run()
 
     // Write output signals (composite saturation becomes unified is_saturated)
     _outputs.current_reference.write(_sfc_torque_controller.get_current_reference());
-    _outputs.is_saturated.write(_sfc_torque_controller.get_composite_saturation());
+    _outputs.is_saturated.write(_sfc_torque_controller.is_saturated());
     _outputs.is_breakaway_boost_active.write(_sfc_torque_controller.is_breakaway_boost_active());
     _outputs.is_active.write(true);  // Always active when run() is called
 }
