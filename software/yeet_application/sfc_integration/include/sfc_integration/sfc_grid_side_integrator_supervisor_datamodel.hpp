@@ -59,22 +59,22 @@ public:
      * @brief Configuration parameters for the grid-side integrator supervisor
      */
     struct parameters {
-        /// Override freeze signal for testing (when true, disables all freezes)
+        /// Override freeze signal for testing [bool]
         parameter<bool> override_freeze{false};
 
-        /// Value to force freeze signal to when override is active
+        /// Forced freeze value when override is active [bool]
         parameter<bool> freeze_value{false};
 
-        /// Override release pulses signal for testing
+        /// Override release pulses signal for testing [bool]
         parameter<bool> override_release_pulses{false};
 
-        /// Value to force release pulses signal to when override is active
+        /// Forced release pulses value when override is active [bool]
         parameter<bool> release_pulses_value{false};
 
-        /// Override is_tripped signal for testing
+        /// Override shutdown signal for testing [bool]
         parameter<bool> override_is_tripped{false};
 
-        /// Value to force is_tripped signal to when override is active
+        /// Forced shutdown value when override is active [bool]
         parameter<bool> is_tripped_value{false};
     };
 

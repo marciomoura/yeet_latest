@@ -28,22 +28,22 @@ public:
      * @brief Output signals from the machine-side observer component
      */
     struct outputs {
-        /// Estimated machine voltage magnitude
+        /// Estimated voltage magnitude [pu]
         yeet::signal_output<yeet::voltage_pu_t> estimated_voltage_magnitude;
 
-        /// Estimated machine frequency (electrical)
+        /// Estimated frequency [Hz]
         yeet::signal_output<yeet::frequency_t> estimated_frequency;
 
-        /// Estimated machine frequency in per-unit
+        /// Estimated frequency in per-unit [pu]
         yeet::signal_output<yeet::frequency_pu_t> estimated_frequency_pu;
 
-        /// Estimated machine speed in per-unit
+        /// Estimated machine speed [pu]
         yeet::signal_output<yeet::speed_pu_t> estimated_speed;
 
-        /// Estimated rotor position in radians
+        /// Estimated rotor phase angle [rad]
         yeet::signal_output<angle_wrapped> estimated_reference_angle;
 
-        /// Filtered machine voltage in alpha-beta stationary frame
+        /// Filtered voltage in alpha-beta stationary frame [pu]
         yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> estimated_voltage_alphabeta_filtered;
     };
 
@@ -52,27 +52,21 @@ public:
      */
     struct parameters {
         /// PLL proportional gain
-        /// Range: [0.1, 10.0]
         yeet::parameter<real_t> kp = 0.4;
 
-        /// PLL integral time constant
-        /// Range: [0.01, 1.0] s
+        /// PLL integral time constant [s]
         yeet::parameter<duration_t> ti = duration_t{ms(31.8)};
 
-        /// Nominal machine frequency
-        /// Range: [30.0, 100.0] Hz
+        /// Nominal machine frequency [Hz]
         yeet::parameter<frequency_t> nominal_frequency = frequency_t{50.0};
 
-        /// Initial machine frequency for startup
-        /// Range: [0.0, 1.0] pu
+        /// Initial frequency estimate for startup [pu]
         yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{0.01};
 
-        /// Frequency estimation filter cutoff frequency
-        /// Range: [1.0, 50.0] Hz
+        /// Frequency estimation filter cutoff frequency [Hz]
         yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
 
-        /// Voltage threshold for commutation detection
-        /// Range: [0.05, 0.3] pu
+        /// Commutation detection voltage threshold [pu]
         yeet::parameter<real_t> commutation_detection_threshold = 0.15;
     };
 

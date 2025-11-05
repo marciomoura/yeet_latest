@@ -45,16 +45,16 @@ public:
      * @brief Output signals from the current controller component
      */
     struct outputs {
-        /// Grid-side rectifier firing angle reference
+        /// Grid-side rectifier firing angle reference [rad]
         signal_output<angle_wrapped> firing_angle;
 
-        /// Current control error (reference - measured)
+        /// Current control error (reference - measured) [pu]
         signal_output<current_pu_t> current_error;
 
-        /// Full current reference output
+        /// Full current reference output [pu]
         signal_output<current_pu_t> current_reference;
 
-        /// PI controller output before limiting
+        /// PI controller output before limiting [pu]
         signal_output<real_t> pi_output;
 
         /// Controller saturation status
@@ -63,10 +63,10 @@ public:
         /// Control loop active status
         signal_output<bool> is_active;
 
-        /// @brief  Indicates if the current reference exceeded the magnitude limit
+        /// Indicates if the current reference exceeded the magnitude limit
         signal_output<bool> is_reference_current_limited;
 
-        /// @brief Indicates if the measured current exceeded the magnitude limit
+        /// Indicates if the measured current exceeded the magnitude limit
         signal_output<bool> is_current_measured_above_magnitude_limit;
 
         /// Preset sequence complete acknowledgment
@@ -80,20 +80,19 @@ public:
         /// PI controller proportional gain
         parameter<real_t> kp{0.7439 / 1.35};
 
-        /// PI controller integral time [seconds]
+        /// PI controller integral time constant [s]
         parameter<duration_t> ti{ms(101.64)};
 
-        /// Minimum firing angle limit [radians]
+        /// Minimum firing angle limit [rad]
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
-        /// Maximum firing angle limit [radians]
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);  // π/2
+        /// Maximum firing angle limit [rad]
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);
 
         /// Current reference magnitude limit [pu]
-        /// Applied symmetrically: [-limit, +limit]
         parameter<current_pu_t> current_reference_magnitude_limit = current_pu_t(2.0);
 
-        /// Current reference for rectifier operation
+        /// Current reference for rectifier operation [pu]
         parameter<current_pu_t> current_reference_rectifier_operation = current_pu_t(0.0);
     };
 

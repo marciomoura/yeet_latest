@@ -42,16 +42,11 @@ public:
     /**
      * @brief Output signals from the speed controller component
      */
-    /**
-     * @brief Output signals from the speed controller component
-     */
     struct outputs {
-        /// Torque reference output to torque controller
-        /// Range: [-1.2, 1.2] pu (limited to protect downstream control)
+        /// Torque reference output to torque controller [pu]
         signal_output<torque_pu_t> torque_reference;
 
-        /// PI controller output before limiting
-        /// Range: [-2.0, 2.0] pu (before saturation)
+        /// PI controller output before limiting [pu]
         signal_output<real_t> pi_output;
 
         /// Controller saturation status
@@ -63,22 +58,18 @@ public:
      */
     struct parameters {
         /// PI controller proportional gain
-        /// Range: [1.0, 100.0]
         parameter<real_t> kp = real_t(6.32);
 
-        /// PI controller integral time constant
-        /// Range: (0.0, 10.0] seconds
+        /// PI controller integral time constant [s]
         parameter<duration_t> ti = duration_t{ms(2200.0)};
 
         /// Torque reference magnitude limit [pu]
-        /// Applied symmetrically: [-limit, +limit]
         parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{2.0};
 
         /// Initial speed for controller reset [pu]
         parameter<speed_pu_t> initial_speed{speed_pu_t{0.0}};
 
         /// Feedforward inertia constant [pu]
-        /// Set to 0.0 to disable feedforward
         parameter<inertia_constant_pu_t> feedforward_inertia = inertia_constant_pu_t(0.0);
     };
 

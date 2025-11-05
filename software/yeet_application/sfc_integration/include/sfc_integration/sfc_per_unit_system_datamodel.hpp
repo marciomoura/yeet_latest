@@ -39,22 +39,28 @@ class sfc_per_unit_system_datamodel {
 public:
     /**
      * @brief Parameters structure containing all per-unit system base values
-     *
-     * These are initialized from the sfc_per_unit_system object during construction
-     * and exposed through the datamodel interface.
      */
     struct parameters {
-        // Grid-side base quantities
-        parameter<voltage_t> grid_voltage_base_rms{voltage_t{2090.0}};  ///< Grid L-L RMS base voltage [V]
-        parameter<frequency_t> grid_frequency_base{frequency_t{50.0}};  ///< Grid base frequency [Hz]
-        // DC link base quantities
-        parameter<current_t> dc_link_current_base{current_t{1044.0}};  ///< DC link base current [A]
-        // Machine-side base quantities
-        parameter<voltage_t> machine_voltage_base_rms{voltage_t{1980.0}};  ///< Machine L-L RMS base voltage [V]
-        parameter<frequency_t> machine_frequency_base{frequency_t{50.0}};  ///< Machine base frequency [Hz]
-        parameter<power_t> machine_power_base{power_t{2950e3}};            ///< Machine rated power [VA]
-        // Machine mechanical parameters
-        parameter<int> machine_num_poles{2};  ///< Number of poles (dimensionless)
+        /// Grid line-to-line RMS base voltage [V]
+        parameter<voltage_t> grid_voltage_base_rms{voltage_t{2090.0}};
+
+        /// Grid base frequency [Hz]
+        parameter<frequency_t> grid_frequency_base{frequency_t{50.0}};
+
+        /// DC link base current [A]
+        parameter<current_t> dc_link_current_base{current_t{1044.0}};
+
+        /// Machine line-to-line RMS base voltage [V]
+        parameter<voltage_t> machine_voltage_base_rms{voltage_t{1980.0}};
+
+        /// Machine base frequency [Hz]
+        parameter<frequency_t> machine_frequency_base{frequency_t{50.0}};
+
+        /// Machine rated power [VA]
+        parameter<power_t> machine_power_base{power_t{2950e3}};
+
+        /// Number of machine poles
+        parameter<int> machine_num_poles{2};
     };
 
     /**

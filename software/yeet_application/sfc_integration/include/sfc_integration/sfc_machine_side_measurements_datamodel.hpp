@@ -24,19 +24,19 @@ public:
      * @brief Input signals for the machine-side measurements component
      */
     struct inputs {
-        /// Machine-side voltage measurements (line-to-neutral) from plant model.
+        /// Machine voltage abc [V]
         signal_input<abc<voltage_t>> machine_voltage_abc;
 
-        /// Machine-side current measurements (line-to-neutral) from plant model.
+        /// Machine current abc [A]
         signal_input<abc<current_t>> machine_current_abc;
 
-        /// Machine-side pulse signals from plant model.
+        /// Pulse signals for commutation detection
         signal_input<control::six_pulse_generator::pulses> machine_pulses;
 
-        /// Machine-side electrical frequency from plant model.
+        /// Electrical frequency estimate [Hz]
         signal_input<frequency_t> machine_frequency;
 
-        /// Machine-side electrical angle from plant model.
+        /// Electrical angle reference [rad]
         signal_input<angle_wrapped> machine_reference_angle;
     };
 
@@ -44,34 +44,34 @@ public:
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
-        /// Machine-side speed (per unit)
+        /// Machine speed [pu]
         signal_output<speed_pu_t> machine_speed;
 
-        /// Machine-side voltage measurements in alphabeta frame
+        /// Machine voltage in alpha-beta frame [pu]
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
 
-        /// Filtered machine-side voltage measurements in alphabeta frame
+        /// Machine voltage in alpha-beta frame, filtered [pu]
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
 
-        /// Machine-side voltage measurements in abc frame
+        /// Machine voltage in abc frame [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;
 
-        /// Unmasked machine-side voltage measurements in abc frame
+        /// Machine voltage in abc frame, unmasked [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_unmasked;
 
-        /// Filtered machine-side voltage measurements in abc frame
+        /// Machine voltage in abc frame, filtered [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_filtered;
 
-        /// Unmasked machine-side current measurements in abc frame
+        /// Machine voltage magnitude [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude;
 
-        /// Filtered machine-side voltage magnitude
+        /// Machine voltage magnitude, filtered [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude_filtered;
 
-        /// Machine-side current measurements in abc frame
+        /// Machine current in abc frame [pu]
         signal_output<abc<current_pu_t>> machine_current_abc;
 
-        ///  Indicates if the machine is currently in a commutation event
+        /// Commutation activity indicator [bool]
         signal_output<bool> is_commuting;
     };
 
@@ -79,17 +79,32 @@ public:
      * @brief Configuration parameters for measurements and filtering
      */
     struct parameters {
+        /// Voltage low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> voltage_lpf_cutoff_frequency{frequency_t{100.0}};
+
+        /// Current low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> current_lpf_cutoff_frequency{frequency_t{100.0}};
+
+        /// Voltage magnitude low-pass filter cutoff frequency [Hz]
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
+
+        /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
+
+        /// Commutation detection threshold (end) [pu]
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
-        // ADC conversion parameters (secondary side)
+
+        /// ADC resolution [bits]
         parameter<int> voltage_adc_bits{16};
-        parameter<real_t> voltage_adc_full_scale{real_t{10.0}};  // +/- full scale volts at card input
-        // Transducer gain for documentation / future reconstruction
-        parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};  // V_out / V_primary_LL
-        parameter<real_t> pt_ratio{real_t{1.0}};                         // Primary LL voltage / secondary LL voltage
+
+        /// ADC full-scale voltage [V]
+        parameter<real_t> voltage_adc_full_scale{real_t{10.0}};
+
+        /// Voltage transducer gain [V_out/V_primary]
+        parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};
+
+        /// Potential transformer ratio [Primary/Secondary]
+        parameter<real_t> pt_ratio{real_t{1.0}};
     };
 
 private:

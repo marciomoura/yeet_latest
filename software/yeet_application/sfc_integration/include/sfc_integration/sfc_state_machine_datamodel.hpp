@@ -20,22 +20,22 @@ public:
      * @brief Input signals for the state machine component
      */
     struct inputs {
-        /// Auxiliaries power systems are operational
+        /// Auxiliaries power systems operational [bool]
         signal_input<bool> auxiliaries_are_on;
 
-        /// Main circuit breakers are closed and energized
+        /// Main circuit breakers closed and energized [bool]
         signal_input<bool> breakers_are_on;
 
-        /// Start command from operator or control system
+        /// Start command [bool]
         signal_input<bool> start_command;
 
-        /// Stop command from operator or control system
+        /// Stop command [bool]
         signal_input<bool> stop_command;
 
-        /// Emergency shutdown request signal
+        /// Emergency shutdown request [bool]
         signal_input<bool> shutdown_request;
 
-        /// Current has been extinguished (safe for breaker operations)
+        /// Current has been extinguished [bool]
         signal_input<bool> is_current_extinguished;
     };
 
@@ -43,40 +43,37 @@ public:
      * @brief Output signals from the state machine component
      */
     struct outputs {
-        /// Enable firing pulse generation for converter operation
-        /// True when system is ready for active converter operation
+        /// Enable firing pulse generation [bool]
         signal_output<bool> release_pulses;
 
-        /// Preset request signal to trigger controller preset sequences
+        /// Preset request signal to trigger controller preset [bool]
         signal_output<bool> preset_request;
 
-        /// Request to extinguish DC link current
+        /// Request to extinguish DC link current [bool]
         signal_output<bool> request_extinguish_dc_current;
 
-        /// Current state identifier for monitoring and diagnostics
-        /// Indicates which operational state the SFC system is currently in
+        /// Current state identifier for monitoring
         signal_output<sfc::sfc_state_id> current_state_id;
 
-        /// State transition flag
-        /// True when a state transition occurred in the last update cycle
+        /// State transition flag (true when transitioned in this cycle) [bool]
         signal_output<bool> has_transitioned;
 
-        /// Auxiliaries power systems are operational
+        /// Auxiliaries power systems operational [bool]
         signal_output<bool> auxiliaries_are_on;
 
-        /// Main circuit breakers are closed and energized
+        /// Main circuit breakers closed and energized [bool]
         signal_output<bool> breakers_are_on;
 
-        /// Start command from operator or control system
+        /// Start command [bool]
         signal_output<bool> start_command;
 
-        /// Stop command from operator or control system
+        /// Stop command [bool]
         signal_output<bool> stop_command;
 
-        /// Emergency shutdown request signal
+        /// Emergency shutdown request [bool]
         signal_output<bool> shutdown_request;
 
-        /// Current has been extinguished (safe for breaker operations)
+        /// Current has been extinguished [bool]
         signal_output<bool> is_current_extinguished;
     };
 

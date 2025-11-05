@@ -20,54 +20,53 @@ namespace yeet::application::sfc::integration {
 class sfc_operation_mode_monitor_datamodel {
 public:
     /**
-     * @brief Input signals for the operation mode monitor.
+     * @brief Input signals for the operation mode monitor
      */
     struct inputs {
-        /// @brief System enable signal. When false, detectors are reset to a safe state.
+        /// System enable signal [bool]
         signal_input<bool> enable;
 
-        /// @brief Measured machine speed in per-unit for mode detection.
+        /// Measured machine speed for mode detection [pu]
         signal_input<speed_pu_t> measured_speed;
 
-        /// @brief Measured DC link current in per-unit for discontinuous conduction detection.
+        /// Measured DC link current for discontinuous conduction detection [pu]
         signal_input<current_pu_t> dc_link_current;
     };
 
     /**
-     * @brief Output signals from the operation mode monitor.
+     * @brief Output signals from the operation mode monitor
      */
     struct outputs {
-        /// @brief The current operating mode (forced_commutation or natural_commutation).
+        /// Current operating mode (forced vs natural commutation)
         signal_output<sfc_operating_mode_t> operating_mode;
 
-        /// @brief True for one cycle immediately after an operating mode transition.
+        /// True for one cycle after mode transition [bool]
         signal_output<bool> has_mode_changed;
 
-        /// @brief True if the DC link current is considered zero (with on-delay).
+        /// DC link current is considered zero [bool]
         signal_output<bool> current_is_zero;
 
-        /// @brief True if the system is determined to be in discontinuous conduction mode.
+        /// System is in discontinuous conduction mode [bool]
         signal_output<bool> is_discontinuous_mode;
     };
 
     /**
-     * @brief Configuration parameters for the operation mode monitor.
+     * @brief Configuration parameters for the operation mode monitor
      */
     struct parameters {
-        // Mode Detector Parameters
-        /// @brief Base speed for switching between pulse and load-commutated modes.
+        /// Speed threshold for mode switching [pu]
         parameter<speed_pu_t> mode_handover_speed_pu{speed_pu_t{0.25f}};
 
-        /// @brief Hysteresis factor for mode switching to prevent chattering.
+        /// Hysteresis factor for mode switching [dimensionless]
         parameter<real_t> mode_hysteresis_factor{0.15f};
 
-        // Discontinuous Conduction Detector Parameters
-        /// @brief Current level below which DC link current is considered zero.
+        /// Current threshold for zero current detection [pu]
         parameter<current_pu_t> zero_current_threshold_pu{current_pu_t{0.02f}};
 
-        /// @brief On-delay in seconds to confirm current is zero.
+        /// On-delay for zero current detection [s]
         parameter<duration_t> is_zero_on_delay_s{duration_t{(1.0 / 50.0 / 6.0)}};
 
+        /// On-delay for discontinuous conduction detection [s]
         parameter<duration_t> discontinuous_on_delay_s{duration_t{0.002f}};
         parameter<duration_t> discontinuous_off_delay_s{duration_t{0.05f}};
     };

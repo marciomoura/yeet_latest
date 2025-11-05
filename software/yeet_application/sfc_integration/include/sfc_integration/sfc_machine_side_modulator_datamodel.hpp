@@ -28,19 +28,19 @@ public:
      * @brief Input signals for the machine-side modulator component
      */
     struct inputs {
-        /// Operating mode selection from external mode detector
+        /// Operating mode selector (natural vs pulse)
         signal_input<sfc_operating_mode_t> operating_mode;
 
-        /// Acknowledgment signal from grid-side modulator
+        /// Acknowledgment signal from grid-side modulator [bool]
         signal_input<bool> force_commutation_acknowledged;
 
-        /// Absolute rotor electrical position for sector tracking
+        /// Rotor electrical angle for sector tracking [rad]
         signal_input<angle_wrapped> machine_reference_angle;
 
-        /// Machine-side firing angle
+        /// Machine-side firing angle reference [rad]
         signal_input<angle_wrapped> firing_angle;
 
-        /// Pulse release control from supervisor component
+        /// Pulse release control from supervisor [bool]
         signal_input<bool> release_pulses;
     };
 
@@ -48,14 +48,13 @@ public:
      * @brief Output signals from the machine-side modulator component
      */
     struct outputs {
-        /// Pulse release control signal
+        /// Pulse release control signal [bool]
         signal_output<bool> release_pulses;
 
-        /// Firing angle output to the pulse generator
-        /// Range: [0.0, π] radians
+        /// Firing angle output to pulse generator [rad]
         signal_output<angle_wrapped> firing_angle;
 
-        /// Request signal to grid-side modulator for forced commutation
+        /// Request signal to grid-side modulator for forced commutation [bool]
         signal_output<bool> request_force_commutation;
 
         /// Current commutation state for diagnostics
@@ -69,14 +68,11 @@ public:
      * @brief Configuration parameters for the machine-side modulator
      */
     struct parameters {
-        /// Master enable override - when false, forces release_pulses to false
-        /// Default: true (normal operation)
+        /// Master enable override [bool]
         parameter<bool> enable{true};
 
-        /// Fixed firing angle for pulse mode operation
-        /// Range: [0.0, π] radians
-        /// Default: π radians (180°)
-        parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);  // 180°
+        /// Firing angle for pulse mode operation [rad]
+        parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);
     };
 
 private:
