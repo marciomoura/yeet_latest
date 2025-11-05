@@ -55,10 +55,14 @@ public:
         machine_side_modulator.get_parameters().enable = true;
         yeet::mock_signal_input::write(operation_mode_monitor.get_inputs().enable, true);
 
-        // Grid-side modulator shutdown: not shutdown (normal operation)
+        // Grid-side modulator inputs
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().shutdown_request, false);
+        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().release_pulses, true);
 
-        // Pulse releases: always true (no sequencing)
+        // Machine-side modulator pulse release
+        yeet::mock_signal_input::write(machine_side_modulator.get_inputs().release_pulses, true);
+
+        // Pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
         yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
     }
