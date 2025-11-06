@@ -86,37 +86,10 @@ ARM_FUNCTION
 void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side_control* control)
 {
     // ==================== INITIALIZE DIGITAL INPUTS ====================
-    // Set safe default values for supervisory controller inputs
-    // yeet::mock_signal_input::write(control->get_io().digital_inputs.exciter_ready, false);
-    // yeet::mock_signal_input::write(control->get_io().digital_inputs.excitation_start_command,
-    // false);
-    // yeet::mock_signal_input::write(control->get_io().digital_inputs.excitation_stop_command,
-    // false); yeet::mock_signal_input::write(control->get_io().digital_inputs.run_creep_speed,
-    // false); yeet::mock_signal_input::write(control->get_io().digital_inputs.run_purge_accel,
-    // false); yeet::mock_signal_input::write(control->get_io().digital_inputs.run_ignition_accel,
-    // false); yeet::mock_signal_input::write(control->get_io().digital_inputs.run_assist_accel,
-    // false); yeet::mock_signal_input::write(control->get_io().digital_inputs.hold_speed, false);
-    // yeet::mock_signal_input::write(control->get_io().digital_inputs.decelerate, false);
-    // yeet::mock_signal_input::write(control->get_io().digital_inputs.idle, true);
-
-    // ==================== INITIALIZE GRID-SIDE INPUTS ====================
-    // Initialize cross-coupled inputs from grid-side controller with safe default values
-    // In production, these come from fiber-optic communication interface
-    // yeet::mock_signal_input::write(
-    //     control->get_io().grid_side_inputs.current_measured, yeet::current_pu_t{0.0});
-    // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.operating_mode,
-    //     yeet::application::sfc::sfc_operating_mode_t::natural_commutation);
-    // yeet::mock_signal_input::write(
-    //     control->get_io().grid_side_inputs.force_commutation_acknowledged, false);
-    // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.freeze_integrator, false);
-    // yeet::mock_signal_input::write(
-    //     control->get_io().grid_side_inputs.current_controller_saturated, false);
-    // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.pulse_releases, false);
-    // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.current_state_id,
-    //     yeet::application::sfc::sfc_state_id::IDLE);
 
 #if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
-    // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
+    //  Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware
+    //  staging)
     control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
     control->machine_side_pulse_generator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
@@ -190,53 +163,28 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // ==================== DIGITAL INPUTS → CONTROL COMMANDS ====================
     // Map hardware digital inputs to state machine control signals via I/O interface
     if (inputs != nullptr && inputs->digital_inputs.valid) {
-        // Excitation control inputs
-        // bool exciter_ready = inputs->digital_inputs.signals[0];     // DI1: Exciter ready
-        // bool excitation_start = inputs->digital_inputs.signals[1];  // DI2: Start excitation
-        // bool excitation_stop = inputs->digital_inputs.signals[2];   // DI3: Stop excitation
+        // Update excitation digital inputs from hardware I/O
+        control->external_ios.update_excitation_inputs(inputs->digital_inputs.signals[0],  // DI1: Exciter ready
+            inputs->digital_inputs.signals[1],                                             // DI2: Excitation start
+            inputs->digital_inputs.signals[2]);                                            // DI3: Excitation stop
 
-        // // Speed profile selection inputs (turbine starting sequence)
-        // bool run_creep = inputs->digital_inputs.signals[3];       // DI4: Run creep speed profile
-        // bool run_purge = inputs->digital_inputs.signals[4];       // DI5: Run purge acceleration
-        // bool run_ignition = inputs->digital_inputs.signals[5];    // DI6: Run ignition acceleration
-        // bool run_assist = inputs->digital_inputs.signals[6];      // DI7: Run assist acceleration
-        // bool hold_speed_cmd = inputs->digital_inputs.signals[7];  // DI8: Hold current speed
-        // bool decelerate_cmd = inputs->digital_inputs.signals[8];  // DI9: Decelerate to zero
-        // bool idle_cmd = inputs->digital_inputs.signals[9];        // DI10: Idle mode
-
-        // Write digital input values directly to I/O interface
-        // yeet::mock_signal_input::write(control->get_io().digital_inputs.exciter_ready,
-        // exciter_ready); yeet::mock_signal_input::write(
-        //     control->get_io().digital_inputs.excitation_start_command, excitation_start);
-        // yeet::mock_signal_input::write(
-        //     control->get_io().digital_inputs.excitation_stop_command, excitation_stop);
-        // yeet::mock_signal_input::write(control->get_io().digital_inputs.run_creep_speed,
-        // run_creep);
-        // yeet::mock_signal_input::write(control->get_io().digital_inputs.run_purge_accel,
-        // run_purge); yeet::mock_signal_input::write(
-        //     control->get_io().digital_inputs.run_ignition_accel, run_ignition);
-        // yeet::mock_signal_input::write(control->get_io().digital_inputs.run_assist_accel,
-        // run_assist); yeet::mock_signal_input::write(control->get_io().digital_inputs.hold_speed,
-        // hold_speed_cmd);
-        // yeet::mock_signal_input::write(control->get_io().digital_inputs.decelerate,
-        // decelerate_cmd); yeet::mock_signal_input::write(control->get_io().digital_inputs.idle,
-        // idle_cmd);
+        // Update speed generator digital inputs from hardware I/O
+        control->external_ios.update_speed_generator_inputs(inputs->digital_inputs.signals[3],  // DI4: Run creep speed
+            inputs->digital_inputs.signals[4],   // DI5: Run purge acceleration
+            inputs->digital_inputs.signals[5],   // DI6: Run ignition acceleration
+            inputs->digital_inputs.signals[6],   // DI7: Run assist acceleration
+            inputs->digital_inputs.signals[7],   // DI8: Hold current speed
+            inputs->digital_inputs.signals[8],   // DI9: Decelerate to zero
+            inputs->digital_inputs.signals[9]);  // DI10: Idle mode
     }
 
     // Process fiber-optic RX data from grid-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
     if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
-        // Decode Grid → Machine protocol message
-        if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_grid_to_machine(
-                inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // Update fiber optics inputs with decoded protocol data
-            // Note: Protocol transmits mode, dc_link_current, current_is_zero, is_saturated,
-            // force_commutation_acknowledged, pulse_releases, state_id, preset_request
-            control->external_ios.update_fiber_optics_inputs(rx_msg->mode,
-                yeet::application::sfc::sfc_state_id::IDLE,  // TODO: transmit state_id in protocol
-                rx_msg->force_commutation_acknowledged, rx_msg->current_is_zero, rx_msg->is_saturated,
-                rx_msg->pulse_releases, yeet::current_pu_t{rx_msg->dc_link_current}, rx_msg->preset_request);
-        }
+        // Use control class method to decode all signals (ensures consistency with host simulator)
+        // This updates external_ios with: mode, state_id, force_commutation_acknowledged, current_is_zero,
+        // is_saturated, pulse_releases, dc_link_current, preset_request
+        control->decode_fiber_optic_rx_from_grid(inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length);
     }
 
     // Execute 1 kHz control update (machine controller)
@@ -246,20 +194,16 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // Prepare fiber-optic TX data to send to grid-side board via I/O interface outputs
     // Transmit machine-side status and cross-coupled signals
     if (outputs != nullptr) {
-        // Prepare Machine → Grid protocol message
-        yeet::application::sfc::fiber_optic::machine_to_grid_message tx_msg{
-            .measured_speed =
-                static_cast<float>(control->get_machine_side_observer().get_outputs().estimated_speed.read()),
-            .dc_link_current_reference_pu =
-                static_cast<float>(control->get_torque_controller().get_outputs().current_reference.read()),
-            .machine_voltage_magnitude_pu = static_cast<float>(
-                control->get_machine_side_observer().get_outputs().estimated_voltage_magnitude.read()),
-            .force_commutation_request =
-                control->get_machine_side_modulator().get_outputs().request_force_commutation.read()};
+        // Use control class method to encode all signals (ensures consistency with host simulator)
+        // This includes: measured_speed, dc_link_current_reference_pu, machine_voltage_magnitude_pu,
+        // force_commutation_request, shutdown_request
+        uint8_t payload_words = control->encode_fiber_optic_tx_to_grid();
+        outputs->fiber_optic_tx.payload_length = payload_words;
 
-        // Encode and transmit
-        outputs->fiber_optic_tx.payload_length =
-            yeet::application::sfc::fiber_optic::encode_machine_to_grid(tx_msg, outputs->fiber_optic_tx.payload);
+        // Copy encoded payload from control class to output buffer
+        // Note: payload_length is in uint32_t words, memcpy needs bytes
+        std::memcpy(
+            outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
         outputs->fiber_optic_tx.transmit_request = true;
     }
 

@@ -82,7 +82,8 @@ inline low_level_access make_units_accessor(parameter<UnitT>& param) noexcept
 inline low_level_access make_bool_accessor(parameter<bool>& param) noexcept
 {
     return make_parameter_accessor(
-        param, [](bool v) -> float { return v ? 1.0f : 0.0f; }, [](float f) -> bool { return f != 0.0f; });
+        param, [](bool v) -> float { return v ? 1.0f : 0.0f; },
+        [](float f) -> bool { return f > 0.0f ? true : false; });
 }
 
 }  // namespace yeet::utils

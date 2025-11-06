@@ -124,24 +124,24 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
 
     // Register grid-side base quantities
     entry.parameters.insert(
-        "exc_override_excitation_inputs", yeet::utils::make_units_accessor(_parameters.override_excitation_inputs));
-    entry.parameters.insert("exc_exciter_ready", yeet::utils::make_units_accessor(_parameters.exciter_ready));
+        "exc_override_excitation_inputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_inputs));
+    entry.parameters.insert("exc_exciter_ready", yeet::utils::make_bool_accessor(_parameters.exciter_ready));
     entry.parameters.insert(
-        "exc_excitation_start_command", yeet::utils::make_units_accessor(_parameters.excitation_start_command));
+        "exc_excitation_start_command", yeet::utils::make_bool_accessor(_parameters.excitation_start_command));
     entry.parameters.insert(
-        "exc_excitation_stop_command", yeet::utils::make_units_accessor(_parameters.excitation_stop_command));
+        "exc_excitation_stop_command", yeet::utils::make_bool_accessor(_parameters.excitation_stop_command));
 
     entry.parameters.insert("speed_ref_override_speed_generator_profiles",
-        yeet::utils::make_units_accessor(_parameters.override_speed_generator_profiles));
-    entry.parameters.insert("speed_ref_run_creep_speed", yeet::utils::make_units_accessor(_parameters.run_creep_speed));
-    entry.parameters.insert("speed_ref_run_purge_accel", yeet::utils::make_units_accessor(_parameters.run_purge_accel));
+        yeet::utils::make_bool_accessor(_parameters.override_speed_generator_profiles));
+    entry.parameters.insert("speed_ref_run_creep_speed", yeet::utils::make_bool_accessor(_parameters.run_creep_speed));
+    entry.parameters.insert("speed_ref_run_purge_accel", yeet::utils::make_bool_accessor(_parameters.run_purge_accel));
     entry.parameters.insert(
-        "speed_ref_run_ignition_accel", yeet::utils::make_units_accessor(_parameters.run_ignition_accel));
+        "speed_ref_run_ignition_accel", yeet::utils::make_bool_accessor(_parameters.run_ignition_accel));
     entry.parameters.insert(
-        "speed_ref_run_assist_accel", yeet::utils::make_units_accessor(_parameters.run_assist_accel));
-    entry.parameters.insert("speed_ref_hold_speed", yeet::utils::make_units_accessor(_parameters.hold_speed));
-    entry.parameters.insert("speed_ref_decelerate", yeet::utils::make_units_accessor(_parameters.decelerate));
-    entry.parameters.insert("speed_ref_idle", yeet::utils::make_units_accessor(_parameters.idle));
+        "speed_ref_run_assist_accel", yeet::utils::make_bool_accessor(_parameters.run_assist_accel));
+    entry.parameters.insert("speed_ref_hold_speed", yeet::utils::make_bool_accessor(_parameters.hold_speed));
+    entry.parameters.insert("speed_ref_decelerate", yeet::utils::make_bool_accessor(_parameters.decelerate));
+    entry.parameters.insert("speed_ref_idle", yeet::utils::make_bool_accessor(_parameters.idle));
 
     // Register the entry with the model registry
     registry.insert("machine_side_external_ios", std::move(entry));

@@ -95,12 +95,16 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("override_freeze", _model_parameters->override_freeze);
-        entry.parameters.insert("freeze_value", _model_parameters->freeze_value);
-        entry.parameters.insert("override_release_pulses", _model_parameters->override_release_pulses);
-        entry.parameters.insert("release_pulses_value", _model_parameters->release_pulses_value);
-        entry.parameters.insert("override_is_tripped", _model_parameters->override_is_tripped);
-        entry.parameters.insert("is_tripped_value", _model_parameters->is_tripped_value);
+        entry.parameters.insert("override_freeze", yeet::utils::make_bool_accessor(_model_parameters->override_freeze));
+        entry.parameters.insert("freeze_value", yeet::utils::make_bool_accessor(_model_parameters->freeze_value));
+        entry.parameters.insert(
+            "override_release_pulses", yeet::utils::make_bool_accessor(_model_parameters->override_release_pulses));
+        entry.parameters.insert(
+            "release_pulses_value", yeet::utils::make_bool_accessor(_model_parameters->release_pulses_value));
+        entry.parameters.insert(
+            "override_is_tripped", yeet::utils::make_bool_accessor(_model_parameters->override_is_tripped));
+        entry.parameters.insert(
+            "is_tripped_value", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_value));
 
         registry.insert("machine_side_integrator_supervisor", std::move(entry));
     }

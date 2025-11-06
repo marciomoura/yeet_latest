@@ -131,7 +131,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("initial_speed", _model_parameters->initial_speed);
+        entry.parameters.insert("initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
 
         // Register operation_mode enum parameter
         auto& operation_mode_param = _model_parameters->operation_mode;

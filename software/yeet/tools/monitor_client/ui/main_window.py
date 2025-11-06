@@ -217,7 +217,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.pending_parameter_indices: List[int] = []  # Queue of indices to request
         self.param_request_timer = QtCore.QTimer(self)
         self.param_request_timer.timeout.connect(self._send_next_parameter_request)
-        self.param_request_timer.setInterval(50)  # 50ms between requests (20 requests/sec)
+        self.param_request_timer.setInterval(20)  # 50ms between requests (20 requests/sec)
         
         # Build UI
         central = QtWidgets.QWidget()

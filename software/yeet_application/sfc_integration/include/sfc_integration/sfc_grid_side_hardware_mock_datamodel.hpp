@@ -88,20 +88,26 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("voltage_adc_gain", _model_parameters->voltage_adc_gain);
+        entry.parameters.insert(
+            "voltage_adc_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_gain));
         entry.parameters.insert(
             "voltage_adc_cutoff_freq", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_cutoff_freq));
-        entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
-        entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
+        entry.parameters.insert(
+            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        entry.parameters.insert(
+            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
 
-        entry.parameters.insert("current_adc_gain", _model_parameters->current_adc_gain);
+        entry.parameters.insert(
+            "current_adc_gain", yeet::utils::make_units_accessor(_model_parameters->current_adc_gain));
         entry.parameters.insert(
             "current_adc_cutoff_freq", yeet::utils::make_units_accessor(_model_parameters->current_adc_cutoff_freq));
-        entry.parameters.insert("current_adc_bits", _model_parameters->current_adc_bits);
-        entry.parameters.insert("current_adc_full_scale", _model_parameters->current_adc_full_scale);
+        entry.parameters.insert(
+            "current_adc_bits", yeet::utils::make_units_accessor(_model_parameters->current_adc_bits));
+        entry.parameters.insert(
+            "current_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->current_adc_full_scale));
 
-        entry.parameters.insert("pt_ratio", _model_parameters->pt_ratio);
-        entry.parameters.insert("ct_ratio", _model_parameters->ct_ratio);
+        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
+        entry.parameters.insert("ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
 
         registry.insert("grid_side_hardware_mock", std::move(entry));
     }

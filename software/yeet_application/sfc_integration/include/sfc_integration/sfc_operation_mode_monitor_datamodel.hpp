@@ -91,7 +91,8 @@ public:
 
         entry.parameters.insert(
             "mode_handover_speed_pu", yeet::utils::make_units_accessor(_model_parameters->mode_handover_speed_pu));
-        entry.parameters.insert("mode_hysteresis_factor", _model_parameters->mode_hysteresis_factor);
+        entry.parameters.insert(
+            "mode_hysteresis_factor", yeet::utils::make_units_accessor(_model_parameters->mode_hysteresis_factor));
         entry.parameters.insert("zero_current_threshold_pu",
             yeet::utils::make_units_accessor(_model_parameters->zero_current_threshold_pu));
         entry.parameters.insert(

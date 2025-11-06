@@ -24,21 +24,6 @@
                 <use_harmonics>False</use_harmonics>
                 <harmonics>[(2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0)]</harmonics>
                 <harmonics_type>per_rms_unit_harmonics</harmonics_type>
-            </input>
-            <input>
-                <name>voltage_source_machine_side</name>
-                <device>0</device>
-                <input_address>5</input_address>
-                <child_input_address>[3, 4, 5]</child_input_address>
-                <device>0</device>
-            	<input_type>ThreePhaseInput</input_type>
-                <waveform_type>Sine</waveform_type>
-                <rms>1143.15</rms>
-                <frequency>50.0</frequency>
-                <phase>0.0</phase>
-                <use_harmonics>False</use_harmonics>
-                <harmonics>[]</harmonics>
-                <harmonics_type>per_rms_unit_harmonics</harmonics_type>
             </input></inputs>
         <pvs>
         </pvs>
@@ -297,7 +282,7 @@
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
-                	<name>voltage_bridge_grid_side_ab</name>
+                	<name>voltage_bridge_machine_side_ab</name>
                 	<show>True</show>
                 	<device>0</device>
                 </analog_signal>
@@ -312,7 +297,7 @@
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
-                	<name>voltage_bridge_grid_side_bc</name>
+                	<name>voltage_bridge_machine_side_bc</name>
                 	<show>True</show>
                 	<device>0</device>
                 </analog_signal>
@@ -1784,7 +1769,7 @@
                 <type>regular_conv</type>
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
-                <site>0</site>
+                <site>1</site>
                 <switches>
                     <switch>
                         <name>Sa_bot</name>
@@ -1835,7 +1820,7 @@
                 <type>regular_conv</type>
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
-                <site>1</site>
+                <site>0</site>
                 <switches>
                     <switch>
                         <name>Sa_bot</name>
@@ -1885,6 +1870,16 @@
         <batteries>
         </batteries>
         <scada_inputs>
+            <scada_input>
+                <name>electrical_torque</name>
+                <device>0</device>
+                <value>0.0</value>
+            </scada_input>
+            <scada_input>
+                <name>field_voltage</name>
+                <device>0</device>
+                <value>0.0</value>
+            </scada_input>
         </scada_inputs>
         <tunable_parameters>
         </tunable_parameters>

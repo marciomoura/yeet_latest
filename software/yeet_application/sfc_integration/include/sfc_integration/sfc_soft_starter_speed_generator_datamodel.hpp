@@ -187,7 +187,8 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register profile 1 parameters
-        entry.parameters.insert("profile_1_enabled", _model_parameters->profile_1_enabled);
+        entry.parameters.insert(
+            "profile_1_enabled", yeet::utils::make_bool_accessor(_model_parameters->profile_1_enabled));
         entry.parameters.insert(
             "profile_1_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_1_target_speed));
         entry.parameters.insert("profile_1_acceleration_time",
@@ -201,50 +202,56 @@ public:
         entry.parameters.insert(
             "profile_1_boost_duration", yeet::utils::make_units_accessor(_model_parameters->profile_1_boost_duration));
 
-        // Register profile 2 parameters
-        entry.parameters.insert("profile_2_enabled", _model_parameters->profile_2_enabled);
-        entry.parameters.insert(
-            "profile_2_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_2_target_speed));
-        entry.parameters.insert("profile_2_acceleration_time",
-            yeet::utils::make_units_accessor(_model_parameters->profile_2_acceleration_time));
-        entry.parameters.insert("profile_2_torque_limit_max",
-            yeet::utils::make_units_accessor(_model_parameters->profile_2_torque_limit_max));
-        entry.parameters.insert("profile_2_torque_limit_min",
-            yeet::utils::make_units_accessor(_model_parameters->profile_2_torque_limit_min));
-        entry.parameters.insert("profile_2_initial_torque_boost",
-            yeet::utils::make_units_accessor(_model_parameters->profile_2_initial_torque_boost));
-        entry.parameters.insert(
-            "profile_2_boost_duration", yeet::utils::make_units_accessor(_model_parameters->profile_2_boost_duration));
+        // // Register profile 2 parameters
+        // entry.parameters.insert(
+        //     "profile_2_enabled", yeet::utils::make_bool_accessor(_model_parameters->profile_2_enabled));
+        // entry.parameters.insert(
+        //     "profile_2_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_2_target_speed));
+        // entry.parameters.insert("profile_2_acceleration_time",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_2_acceleration_time));
+        // entry.parameters.insert("profile_2_torque_limit_max",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_2_torque_limit_max));
+        // entry.parameters.insert("profile_2_torque_limit_min",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_2_torque_limit_min));
+        // entry.parameters.insert("profile_2_initial_torque_boost",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_2_initial_torque_boost));
+        // entry.parameters.insert(
+        //     "profile_2_boost_duration",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_2_boost_duration));
 
-        // Register profile 3 parameters
-        entry.parameters.insert("profile_3_enabled", _model_parameters->profile_3_enabled);
-        entry.parameters.insert(
-            "profile_3_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_3_target_speed));
-        entry.parameters.insert("profile_3_acceleration_time",
-            yeet::utils::make_units_accessor(_model_parameters->profile_3_acceleration_time));
-        entry.parameters.insert("profile_3_torque_limit_max",
-            yeet::utils::make_units_accessor(_model_parameters->profile_3_torque_limit_max));
-        entry.parameters.insert("profile_3_torque_limit_min",
-            yeet::utils::make_units_accessor(_model_parameters->profile_3_torque_limit_min));
-        entry.parameters.insert("profile_3_initial_torque_boost",
-            yeet::utils::make_units_accessor(_model_parameters->profile_3_initial_torque_boost));
-        entry.parameters.insert(
-            "profile_3_boost_duration", yeet::utils::make_units_accessor(_model_parameters->profile_3_boost_duration));
+        // // Register profile 3 parameters
+        // entry.parameters.insert(
+        //     "profile_3_enabled", yeet::utils::make_bool_accessor(_model_parameters->profile_3_enabled));
+        // entry.parameters.insert(
+        //     "profile_3_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_3_target_speed));
+        // entry.parameters.insert("profile_3_acceleration_time",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_3_acceleration_time));
+        // entry.parameters.insert("profile_3_torque_limit_max",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_3_torque_limit_max));
+        // entry.parameters.insert("profile_3_torque_limit_min",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_3_torque_limit_min));
+        // entry.parameters.insert("profile_3_initial_torque_boost",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_3_initial_torque_boost));
+        // entry.parameters.insert(
+        //     "profile_3_boost_duration",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_3_boost_duration));
 
-        // Register profile 4 parameters
-        entry.parameters.insert("profile_4_enabled", _model_parameters->profile_4_enabled);
-        entry.parameters.insert(
-            "profile_4_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_4_target_speed));
-        entry.parameters.insert("profile_4_acceleration_time",
-            yeet::utils::make_units_accessor(_model_parameters->profile_4_acceleration_time));
-        entry.parameters.insert("profile_4_torque_limit_max",
-            yeet::utils::make_units_accessor(_model_parameters->profile_4_torque_limit_max));
-        entry.parameters.insert("profile_4_torque_limit_min",
-            yeet::utils::make_units_accessor(_model_parameters->profile_4_torque_limit_min));
-        entry.parameters.insert("profile_4_initial_torque_boost",
-            yeet::utils::make_units_accessor(_model_parameters->profile_4_initial_torque_boost));
-        entry.parameters.insert(
-            "profile_4_boost_duration", yeet::utils::make_units_accessor(_model_parameters->profile_4_boost_duration));
+        // // Register profile 4 parameters
+        // entry.parameters.insert(
+        //     "profile_4_enabled", yeet::utils::make_bool_accessor(_model_parameters->profile_4_enabled));
+        // entry.parameters.insert(
+        //     "profile_4_target_speed", yeet::utils::make_units_accessor(_model_parameters->profile_4_target_speed));
+        // entry.parameters.insert("profile_4_acceleration_time",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_4_acceleration_time));
+        // entry.parameters.insert("profile_4_torque_limit_max",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_4_torque_limit_max));
+        // entry.parameters.insert("profile_4_torque_limit_min",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_4_torque_limit_min));
+        // entry.parameters.insert("profile_4_initial_torque_boost",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_4_initial_torque_boost));
+        // entry.parameters.insert(
+        //     "profile_4_boost_duration",
+        //     yeet::utils::make_units_accessor(_model_parameters->profile_4_boost_duration));
 
         // Register deceleration and safety limit parameters
         entry.parameters.insert(
@@ -259,7 +266,8 @@ public:
             "min_torque_limit", yeet::utils::make_units_accessor(_model_parameters->min_torque_limit));
 
         // Register override parameters
-        entry.parameters.insert("override_speed_reference", _model_parameters->override_speed_reference);
+        entry.parameters.insert(
+            "override_speed_reference", yeet::utils::make_bool_accessor(_model_parameters->override_speed_reference));
         entry.parameters.insert("override_min_torque_limit_value",
             yeet::utils::make_units_accessor(_model_parameters->override_min_torque_limit_value));
         entry.parameters.insert("override_max_torque_limit_value",
@@ -267,7 +275,7 @@ public:
         entry.parameters.insert("override_speed_reference_value",
             yeet::utils::make_units_accessor(_model_parameters->override_speed_reference_value));
 
-        registry.insert("soft_starter_speed_generator", std::move(entry));
+        registry.insert("speed_generator", std::move(entry));
     }
 
     inputs& get_inputs() { return *_model_inputs; }
