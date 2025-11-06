@@ -21,13 +21,13 @@ def _get_section_order() -> List[str]:
         List of section keys in preferred display order
     """
     return [
+        'state_machine',
         'system',
+        'operation_mode',
+        'modulator',
+        'measurements',
         'controller',
         'observer',
-        'measurements',
-        'modulator',
-        'operation_mode',
-        'state_machine',
     ]
 
 
@@ -43,12 +43,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'state machine release pulses', 'index': GridSignalIndex.STATE_MACHINE_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
                 {'name': 'modulator release pulses', 'index': GridSignalIndex.MODULATOR_RELEASE_PULSES_INPUT, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse gen. release pulses', 'index': GridSignalIndex.PULSE_GENERATOR_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
-                {'name': 'modulator state', 'index': GridSignalIndex.MODULATOR_STATE, 'type': 'int', 'format': '.0f'},
-                {'name': 'auxiliaries on', 'index': GridSignalIndex.STATE_MACHINE_AUXILIARIES_ON, 'type': 'bool', 'format': 'bool'},
-                {'name': 'breakers on', 'index': GridSignalIndex.STATE_MACHINE_BREAKERS_ON, 'type': 'bool', 'format': 'bool'},
-                {'name': 'current state', 'index': GridSignalIndex.STATE_MACHINE_STATE, 'type': 'int', 'format': '.0f'},
-                {'name': 'operating mode', 'index': GridSignalIndex.MODE_MONITOR_OPERATING_MODE, 'type': 'int', 'format': '.0f'},
+                {'name': 'pulse gen. release pulses', 'index': GridSignalIndex.PULSE_GENERATOR_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'}
             ]
         },
         'measurements': {
@@ -70,14 +65,9 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
         'controller': {
             'title': 'Current Controller',
             'fields': [
-                {'name': 'current reference (pu)', 'index': GridSignalIndex.CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'current reference (pu)', 'index': GridSignalIndex.CURRENT_REFERENCE_OUTPUT, 'type': 'float', 'format': '.4f'},
                 {'name': 'current measured (pu)', 'index': GridSignalIndex.CURRENT_MEASURED, 'type': 'float', 'format': '.4f'},
-                {'name': 'current reference output (pu)', 'index': GridSignalIndex.CURRENT_REFERENCE_OUTPUT, 'type': 'float', 'format': '.4f'},
-                {'name': 'current error (pu)', 'index': GridSignalIndex.CURRENT_ERROR, 'type': 'float', 'format': '.4f'},
-                {'name': 'pi output (pu)', 'index': GridSignalIndex.CURRENT_PI_OUTPUT, 'type': 'float', 'format': '.4f'},
-                {'name': 'freeze integrator', 'index': GridSignalIndex.CURRENT_FREEZE_INTEGRATOR, 'type': 'bool', 'format': 'bool'},
                 {'name': 'preset request', 'index': GridSignalIndex.CURRENT_PRESET_REQUEST, 'type': 'bool', 'format': 'bool'},
-                {'name': 'is active', 'index': GridSignalIndex.CURRENT_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is saturated', 'index': GridSignalIndex.CURRENT_IS_SATURATED, 'type': 'bool', 'format': 'bool'},
             ]
         },
@@ -88,11 +78,11 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'firing angle input (pu)', 'index': GridSignalIndex.MODULATOR_FIRING_ANGLE_INPUT, 'type': 'float', 'format': '.4f'},
                 {'name': 'firing angle output (pu)', 'index': GridSignalIndex.MODULATOR_FIRING_ANGLE_OUTPUT, 'type': 'float', 'format': '.4f'},
                 {'name': 'actual firing angle (pu)', 'index': GridSignalIndex.PULSE_GENERATOR_ACTUAL_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
-                {'name': 'operating mode', 'index': GridSignalIndex.MODULATOR_OPERATING_MODE, 'type': 'int', 'format': '.0f'},
+                {'name': 'operating mode', 'index': GridSignalIndex.MODULATOR_OPERATING_MODE, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'NATURAL_COMMUTATION', 1: 'FORCED_COMMUTATION'}},
                 {'name': 'request extinguish dc', 'index': GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC, 'type': 'bool', 'format': 'bool'},
                 {'name': 'request force commutation', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
                 {'name': 'force commutation ack', 'index': GridSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK, 'type': 'bool', 'format': 'bool'},
-                {'name': 'freeze integrator', 'index': GridSignalIndex.MODULATOR_FREEZE_INTEGRATOR, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'operation_mode': {
@@ -109,6 +99,10 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'start command', 'index': GridSignalIndex.STATE_MACHINE_START_COMMAND, 'type': 'bool', 'format': 'bool'},
                 {'name': 'stop command', 'index': GridSignalIndex.STATE_MACHINE_STOP_COMMAND, 'type': 'bool', 'format': 'bool'},
+                {'name': 'auxiliaries on', 'index': GridSignalIndex.STATE_MACHINE_AUXILIARIES_ON, 'type': 'bool', 'format': 'bool'},
+                {'name': 'breakers on', 'index': GridSignalIndex.STATE_MACHINE_BREAKERS_ON, 'type': 'bool', 'format': 'bool'},
+                {'name': 'current state', 'index': GridSignalIndex.STATE_MACHINE_STATE, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'IDLE', 1: 'AUXILIARIES_ON', 2: 'BREAKERS_OFF', 3: 'BREAKERS_ON', 4: 'OPERATION_OFF', 5: 'OPERATION_ON', 6: 'SHUTDOWN_REQUESTED'}},
                 {'name': 'current extinguished', 'index': GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'shutdown request', 'index': GridSignalIndex.STATE_MACHINE_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
             ]

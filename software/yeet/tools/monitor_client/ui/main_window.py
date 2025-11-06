@@ -1257,6 +1257,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 signal_index = field['index']
                 signal_type = field.get('type', 'float')
                 signal_format = field.get('format', '.4f')  # Use format from definition
+                enum_map = field.get('enum_map', None)
                 
                 # Get the value from packet by index based on type
                 if signal_type == 'bool':
@@ -1264,8 +1265,14 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 else:
                     value = packet.get_signal(signal_index)
                 
+                # Handle enum type: map integer value to string
+                if signal_type == 'enum' and enum_map is not None:
+                    # Convert float to int for enum lookup
+                    int_value = int(value)
+                    display_value = enum_map.get(int_value, f"UNKNOWN({int_value})")
+                    self.telemetry_panel.update_signal(signal_name, display_value)
                 # Update the signal with format from definition
-                if signal_format == 'bool':
+                elif signal_format == 'bool':
                     self.telemetry_panel.update_signal(signal_name, value)
                 else:
                     self.telemetry_panel.update_signal(signal_name, value, signal_format)
@@ -1287,6 +1294,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 signal_index = field['index']
                 signal_type = field.get('type', 'float')
                 signal_format = field.get('format', '.4f')  # Use format from definition
+                enum_map = field.get('enum_map', None)
                 
                 # Get the value from packet by index based on type
                 if signal_type == 'bool':
@@ -1294,8 +1302,14 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 else:
                     value = packet.get_signal(signal_index)
                 
+                # Handle enum type: map integer value to string
+                if signal_type == 'enum' and enum_map is not None:
+                    # Convert float to int for enum lookup
+                    int_value = int(value)
+                    display_value = enum_map.get(int_value, f"UNKNOWN({int_value})")
+                    self.telemetry_panel.update_signal(signal_name, display_value)
                 # Update the signal with format from definition
-                if signal_format == 'bool':
+                elif signal_format == 'bool':
                     self.telemetry_panel.update_signal(signal_name, value)
                 else:
                     self.telemetry_panel.update_signal(signal_name, value, signal_format)
