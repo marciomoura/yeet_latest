@@ -115,14 +115,14 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.current_state_id,
     //     yeet::application::sfc::sfc_state_id::IDLE);
 
-    // #if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+#if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
     // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
     control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
     control->machine_side_pulse_generator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
     control->machine_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
-    // #endif
+#endif
 
     // Initialize machine-side control subsystem
     control->initialize();

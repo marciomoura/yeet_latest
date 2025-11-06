@@ -100,7 +100,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
     control->initialize();
 
-    // #if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+#if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
     // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
     control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 120.0f});
@@ -108,7 +108,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::control::six_pulse_generator::reference_type::line);
     control->grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
-    // #endif
+#endif
     // IMPORTANT: For host simulation with plant model, measurement parameters are configured via
     // plant_hardware::stage_grid_side_measurement_parameters() in the plant builder BEFORE calling this init.
     // For production embedded builds, these parameters should be set here or via network configuration.
