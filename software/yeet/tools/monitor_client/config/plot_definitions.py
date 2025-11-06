@@ -128,10 +128,9 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'title': 'Observer Estimates',
                 'y_label': 'Frequency (pu) / Angle (pu)',
                 'signals': [
-                    {'name': 'estimated speed', 'color': 'c', 'index': MachineSignalIndex.ESTIMATED_SPEED},
                     {'name': 'estimated voltage mag.', 'color': 'b', 'index': MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE},
-                    {'name': 'frequency (pu)', 'color': 'm', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU},
-                    {'name': 'reference angle (pu)', 'color': 'y', 'index': MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE}
+                    {'name': 'estimated frequency (pu)', 'color': 'm', 'index': MachineSignalIndex.ESTIMATED_SPEED},
+                    {'name': 'estimated reference angle (pu)', 'color': 'y', 'index': MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE}
                 ]
             }
         },

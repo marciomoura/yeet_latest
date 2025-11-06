@@ -22,6 +22,46 @@
 
 extern "C" {
 
+// ==================== Static Instances for Embedded Single-Controller Build ====================
+// For embedded builds with ONLY machine-side control (no dual-controller), provide static instances
+// that can be accessed by the backward compatibility wrappers in the header file
+
+#if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+
+// File-scope storage for static instances - allocated at first use
+static yeet::application::sfc::integration::sfc_machine_side_control* static_machine_control_ptr = nullptr;
+static machine_side_network_infrastructure* static_machine_infrastructure_ptr = nullptr;
+
+// Initialization function to create the static instances
+// Called only once during yeet_embedded_init and from the accessor functions
+static void _initialize_static_instances()
+{
+    if (static_machine_control_ptr == nullptr) {
+        // Allocate static storage for control instance
+        static yeet::application::sfc::integration::sfc_machine_side_control static_control_storage;
+        static_machine_control_ptr = &static_control_storage;
+
+        // Allocate static storage for network infrastructure instance
+        static machine_side_network_infrastructure static_infra_storage(*static_machine_control_ptr);
+        static_machine_infrastructure_ptr = &static_infra_storage;
+    }
+}
+
+// Accessor functions for backward compatibility wrappers
+yeet::application::sfc::integration::sfc_machine_side_control& get_machine_side_control()
+{
+    _initialize_static_instances();
+    return *static_machine_control_ptr;
+}
+
+machine_side_network_infrastructure& get_machine_side_network_infrastructure()
+{
+    _initialize_static_instances();
+    return *static_machine_infrastructure_ptr;
+}
+
+#endif  // YEET_EMBEDDED_MACHINE_SIDE && !YEET_BUILD_DUAL_CONTROLLER
+
 // ==================== Network Telemetry/Parameter Infrastructure ====================
 // These are instantiated per control instance to support both embedded (static) and host (dynamic) usage
 
@@ -75,6 +115,15 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // yeet::mock_signal_input::write(control->get_io().grid_side_inputs.current_state_id,
     //     yeet::application::sfc::sfc_state_id::IDLE);
 
+#if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+    // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
+    control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
+    control->machine_side_pulse_generator.get_parameters().reference_type.write(
+        yeet::control::six_pulse_generator::reference_type::line);
+    control->machine_side_pulse_generator.get_parameters().pulse_width.write(
+        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+#endif
+
     // Initialize machine-side control subsystem
     control->initialize();
 }
@@ -107,16 +156,23 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     control->update_200us();
 
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
-    // Extract firing pulses from machine-side I/O interface and map to hardware PWM channels
+    // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
+    // Based on sfc_io_definitions.md PWM mapping:
+    //   PWM1 (PC6) → a_plus  (Phase A positive arm, T1)
+    //   PWM2 (PC7) → c_minus (Phase C negative arm, T6)
+    //   PWM3 (PC8) → b_plus  (Phase B positive arm, T3)
+    //   PWM4 (PC9) → a_minus (Phase A negative arm, T4)
+    //   PWM5 (PB0) → c_plus  (Phase C positive arm, T5)
+    //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
     if (outputs != nullptr) {
-        const auto firing_pulses = control->external_ios.get_thyristor_pulse_outputs();
+        const auto& firing_pulses = control->get_firing_pulses().read();
 
-        outputs->thyristor_pulses.a_plus = firing_pulses.p1;   // T1 (A+) → p1
-        outputs->thyristor_pulses.b_minus = firing_pulses.p2;  // T2 (B-) → p2
-        outputs->thyristor_pulses.b_plus = firing_pulses.p3;   // T3 (B+) → p3
-        outputs->thyristor_pulses.a_minus = firing_pulses.p4;  // T4 (A-) → p4
-        outputs->thyristor_pulses.c_plus = firing_pulses.p5;   // T5 (C+) → p5
-        outputs->thyristor_pulses.c_minus = firing_pulses.p6;  // T6 (C-) → p6
+        outputs->thyristor_pulses.a_plus = firing_pulses.p1;
+        outputs->thyristor_pulses.c_minus = firing_pulses.p2;
+        outputs->thyristor_pulses.b_plus = firing_pulses.p3;
+        outputs->thyristor_pulses.a_minus = firing_pulses.p4;
+        outputs->thyristor_pulses.c_plus = firing_pulses.p5;
+        outputs->thyristor_pulses.b_minus = firing_pulses.p6;
     }
 }
 
@@ -135,18 +191,18 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // Map hardware digital inputs to state machine control signals via I/O interface
     if (inputs != nullptr && inputs->digital_inputs.valid) {
         // Excitation control inputs
-        bool exciter_ready = inputs->digital_inputs.signals[0];     // DI1: Exciter ready
-        bool excitation_start = inputs->digital_inputs.signals[1];  // DI2: Start excitation
-        bool excitation_stop = inputs->digital_inputs.signals[2];   // DI3: Stop excitation
+        // bool exciter_ready = inputs->digital_inputs.signals[0];     // DI1: Exciter ready
+        // bool excitation_start = inputs->digital_inputs.signals[1];  // DI2: Start excitation
+        // bool excitation_stop = inputs->digital_inputs.signals[2];   // DI3: Stop excitation
 
-        // Speed profile selection inputs (turbine starting sequence)
-        bool run_creep = inputs->digital_inputs.signals[3];       // DI4: Run creep speed profile
-        bool run_purge = inputs->digital_inputs.signals[4];       // DI5: Run purge acceleration
-        bool run_ignition = inputs->digital_inputs.signals[5];    // DI6: Run ignition acceleration
-        bool run_assist = inputs->digital_inputs.signals[6];      // DI7: Run assist acceleration
-        bool hold_speed_cmd = inputs->digital_inputs.signals[7];  // DI8: Hold current speed
-        bool decelerate_cmd = inputs->digital_inputs.signals[8];  // DI9: Decelerate to zero
-        bool idle_cmd = inputs->digital_inputs.signals[9];        // DI10: Idle mode
+        // // Speed profile selection inputs (turbine starting sequence)
+        // bool run_creep = inputs->digital_inputs.signals[3];       // DI4: Run creep speed profile
+        // bool run_purge = inputs->digital_inputs.signals[4];       // DI5: Run purge acceleration
+        // bool run_ignition = inputs->digital_inputs.signals[5];    // DI6: Run ignition acceleration
+        // bool run_assist = inputs->digital_inputs.signals[6];      // DI7: Run assist acceleration
+        // bool hold_speed_cmd = inputs->digital_inputs.signals[7];  // DI8: Hold current speed
+        // bool decelerate_cmd = inputs->digital_inputs.signals[8];  // DI9: Decelerate to zero
+        // bool idle_cmd = inputs->digital_inputs.signals[9];        // DI10: Idle mode
 
         // Write digital input values directly to I/O interface
         // yeet::mock_signal_input::write(control->get_io().digital_inputs.exciter_ready,
@@ -276,5 +332,48 @@ void machine_network(
     // Delegate to network_handler for all packet processing and state management
     infrastructure->network_handler.process(inputs, outputs);
 }
+
+// ==================== Wrapper Functions for Embedded Builds ====================
+// For embedded builds, provide the yeet_* function names that main.c expects
+// These delegate to the machine_* functions with the static instances
+
+#if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+
+ARM_FUNCTION
+void yeet_embedded_init(void)
+{
+    _initialize_static_instances();
+    machine_embedded_init(static_machine_control_ptr);
+}
+
+ARM_FUNCTION
+void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    machine_task_200us(static_machine_control_ptr, inputs, outputs);
+}
+
+ARM_FUNCTION
+void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    machine_task_1000us(static_machine_control_ptr, inputs, outputs);
+}
+
+ARM_FUNCTION
+void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    machine_task_10000us(static_machine_control_ptr, inputs, outputs);
+}
+
+ARM_FUNCTION
+void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    machine_network(static_machine_infrastructure_ptr, inputs, outputs);
+}
+
+#endif  // YEET_EMBEDDED_MACHINE_SIDE && !YEET_BUILD_DUAL_CONTROLLER
 
 }  // extern "C"

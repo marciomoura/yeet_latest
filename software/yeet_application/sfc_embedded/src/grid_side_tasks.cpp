@@ -25,6 +25,46 @@
 
 extern "C" {
 
+// ==================== Static Instances for Embedded Single-Controller Build ====================
+// For embedded builds with ONLY grid-side control (no dual-controller), provide static instances
+// that can be accessed by the backward compatibility wrappers in the header file
+
+#if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+
+// File-scope storage for static instances - allocated at first use
+static yeet::application::sfc::integration::sfc_grid_side_control* static_grid_control_ptr = nullptr;
+static grid_side_network_infrastructure* static_grid_infrastructure_ptr = nullptr;
+
+// Initialization function to create the static instances
+// Called only once during yeet_embedded_init and from the accessor functions
+static void _initialize_static_instances()
+{
+    if (static_grid_control_ptr == nullptr) {
+        // Allocate static storage for control instance
+        static yeet::application::sfc::integration::sfc_grid_side_control static_control_storage;
+        static_grid_control_ptr = &static_control_storage;
+
+        // Allocate static storage for network infrastructure instance
+        static grid_side_network_infrastructure static_infra_storage(*static_grid_control_ptr);
+        static_grid_infrastructure_ptr = &static_infra_storage;
+    }
+}
+
+// Accessor functions for backward compatibility wrappers
+yeet::application::sfc::integration::sfc_grid_side_control& get_grid_side_control()
+{
+    _initialize_static_instances();
+    return *static_grid_control_ptr;
+}
+
+grid_side_network_infrastructure& get_grid_side_network_infrastructure()
+{
+    _initialize_static_instances();
+    return *static_grid_infrastructure_ptr;
+}
+
+#endif  // YEET_EMBEDDED_GRID_SIDE && !YEET_BUILD_DUAL_CONTROLLER
+
 // ==================== Network Telemetry/Parameter Infrastructure ====================
 // These are instantiated per control instance to support both embedded (static) and host (dynamic) usage
 
@@ -60,16 +100,15 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
     control->initialize();
 
+#if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
     // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
-    // control->grid_measurements.get_parameters().voltage_transducer_gain.write(
-    //     yeet::real_t{1.0f / 300.0f});
-    // control->grid_measurements.get_parameters().current_transducer_gain.write(
-    //     yeet::real_t{1.0f / 120.0f});
-    // control->grid_side_pulse_generator.get_parameters().reference_type.write(
-    //     yeet::control::six_pulse_generator::reference_type::line);
-    // control->grid_side_pulse_generator.get_parameters().pulse_width.write(
-    //     yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
-
+    control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
+    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 120.0f});
+    control->grid_side_pulse_generator.get_parameters().reference_type.write(
+        yeet::control::six_pulse_generator::reference_type::line);
+    control->grid_side_pulse_generator.get_parameters().pulse_width.write(
+        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+#endif
     // IMPORTANT: For host simulation with plant model, measurement parameters are configured via
     // plant_hardware::stage_grid_side_measurement_parameters() in the plant builder BEFORE calling this init.
     // For production embedded builds, these parameters should be set here or via network configuration.
@@ -319,5 +358,48 @@ void grid_network(
     // Delegate to network_handler for all packet processing and state management
     infrastructure->network_handler.process(inputs, outputs);
 }
+
+// ==================== Wrapper Functions for Embedded Builds ====================
+// For embedded builds, provide the yeet_* function names that main.c expects
+// These delegate to the grid_* functions with the static instances
+
+#if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+
+ARM_FUNCTION
+void yeet_embedded_init(void)
+{
+    _initialize_static_instances();
+    grid_embedded_init(static_grid_control_ptr);
+}
+
+ARM_FUNCTION
+void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    grid_task_200us(static_grid_control_ptr, inputs, outputs);
+}
+
+ARM_FUNCTION
+void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    grid_task_1000us(static_grid_control_ptr, inputs, outputs);
+}
+
+ARM_FUNCTION
+void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    grid_task_10000us(static_grid_control_ptr, inputs, outputs);
+}
+
+ARM_FUNCTION
+void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
+{
+    _initialize_static_instances();
+    grid_network(static_grid_infrastructure_ptr, inputs, outputs);
+}
+
+#endif  // YEET_EMBEDDED_GRID_SIDE && !YEET_BUILD_DUAL_CONTROLLER
 
 }  // extern "C"

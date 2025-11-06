@@ -1,0 +1,1090 @@
+version = 4.2
+
+//
+// Saved by sw version: 2025.3
+//
+
+model "sfc_back_to_back" {
+    configuration {
+        hil_device = "HIL604"
+        hil_configuration_id = 1
+        simulation_method = exact
+        simulation_time_step = auto
+        simulation_discret_scaling = 1.0
+        dsp_timer_periods = 100e-6, 50e-3
+        ss_calc_method = "systematic elimination"
+        enb_pole_shift = True
+        enb_gds_oversampling = True
+        show_modes = False
+        device_ao_limit_enable = False
+        reset_analog_outputs_on_sim_stop = True
+        reset_analog_outputs_on_sim_stop_mode = Offset values
+        reset_digital_outputs_on_sim_stop = True
+        vhil_adio_loopback = False
+        cpl_stb = False
+        enb_dep_sw_detect = False
+        code_section = "internal memory"
+        data_section = "internal memory"
+        sys_sp_rate_1 = 0.0001
+        sys_sp_rate_2 = 0.05
+        sys_real_type_precision = "default"
+        user_real_type_precision = "default"
+        sys_cpu_optimization = "high"
+        user_cpu_optimization = "high"
+        user_cpu_part_option = "default"
+        matrix_based_reduction = True
+        cpl_dynamics_analysis = False
+        export_ss_to_pickle = False
+        ground_scope_core = False
+        dss_num_tol = 1e-15
+        cce_platform = "generic"
+        cce_use_relative_names = False
+        cce_type_mapping_real = "double"
+        cce_type_mapping_uint = "unsigned int"
+        cce_type_mapping_int = "int"
+        cce_platform = "generic"
+        cce_use_relative_names = False
+        cce_type_mapping_real = "double"
+        cce_type_mapping_uint = "unsigned int"
+        cce_type_mapping_int = "int"
+        cce_term_var_location = "local"
+        cce_directory = ""
+        cce_custom_type_int = ""
+        cce_custom_type_uint = ""
+        cce_custom_type_real = ""
+        tunable_params = "component defined"
+        sp_compiler_type = "C compiler"
+        sig_stim = "off"
+        export_resource_list = ""
+        export_dependency_list = ""
+        excluded_resource_list = ""
+        excluded_component_from_locking_list = ""
+        export_out_file = ""
+        export_lock_top_level = True
+        export_encrypt_library = True
+        export_encrypt_resources = True
+        solver_type = "DAE"
+        integration_method = "BDF"
+        max_sim_step = 1e-4
+        simulation_time = 1.0
+        abs_tol = 1e-3
+        rel_tol = 1e-3
+        init_sim_step = 1e-6
+        r_on_sw = 1e-3
+        v_on_diode = 0.1
+        data_sampling_rate = 0
+        feedthrough_validation_error_level = error
+    }
+
+    component Subsystem Root {
+        component "core/Three Phase Voltage Source" voltage_source_grid_side {
+            init_rms_value = "1206.66"
+        }
+        [
+            position = 8216, 8248
+            size = 62, 256
+        ]
+
+        component "core/Resistor" R1 {
+            resistance = "0.0163"
+        }
+        [
+            position = 8652, 8152
+        ]
+
+        component "core/Inductor" L1 {
+            inductance = "0.5e-3"
+        }
+        [
+            position = 8772, 8152
+        ]
+
+        component "core/Resistor" R2 {
+            resistance = "0.0163"
+        }
+        [
+            position = 8652, 8248
+        ]
+
+        component "core/Inductor" L2 {
+            inductance = "0.5e-3"
+        }
+        [
+            position = 8772, 8248
+        ]
+
+        component "core/Resistor" R3 {
+            resistance = "0.0163"
+        }
+        [
+            position = 8652, 8344
+        ]
+
+        component "core/Inductor" L3 {
+            inductance = "0.5e-3"
+        }
+        [
+            position = 8772, 8344
+        ]
+
+        component "core/Voltage Measurement" voltage_grid_ab {
+        }
+        [
+            position = 8352, 8200
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_grid_bc {
+        }
+        [
+            position = 8352, 8296
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_grid_ca {
+        }
+        [
+            position = 8408, 8296
+            rotation = left
+            size = 64, 32
+        ]
+
+        component "core/Current Measurement" current_grid_a {
+        }
+        [
+            position = 8504, 8152
+            size = 64, 32
+        ]
+
+        component "core/Current Measurement" current_grid_b {
+        }
+        [
+            position = 8508, 8248
+            size = 64, 32
+        ]
+
+        component "core/Current Measurement" current_grid_c {
+        }
+        [
+            position = 8512, 8344
+            size = 64, 32
+        ]
+
+        component "core/Analog Input" AI1 {
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8172, 8556
+        ]
+
+        component "core/Analog Input" AI2 {
+            addr = "2"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8172, 8608
+        ]
+
+        component "core/Analog Input" AI3 {
+            addr = "3"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8172, 8660
+        ]
+
+        component "core/Analog Input" AI4 {
+            addr = "4"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8172, 8712
+        ]
+
+        component "core/Probe" grid_a1 {
+        }
+        [
+            position = 8248, 8556
+        ]
+
+        component "core/Probe" grid_a2 {
+        }
+        [
+            position = 8248, 8608
+        ]
+
+        component "core/Probe" grid_a3 {
+        }
+        [
+            position = 8248, 8660
+        ]
+
+        component "core/Probe" grid_a4 {
+        }
+        [
+            position = 8248, 8712
+        ]
+
+        component "core/Digital Input" DI1 {
+        }
+        [
+            position = 8368, 8556
+        ]
+
+        component "core/Digital Input" DI2 {
+            addr = "2"
+        }
+        [
+            position = 8368, 8608
+        ]
+
+        component "core/Digital Input" DI3 {
+            addr = "3"
+        }
+        [
+            position = 8368, 8664
+        ]
+
+        component "core/Digital Input" DI4 {
+            addr = "4"
+        }
+        [
+            position = 8368, 8716
+        ]
+
+        component "core/Probe" grid_di1 {
+        }
+        [
+            position = 8464, 8556
+        ]
+
+        component "core/Probe" grid_di2 {
+        }
+        [
+            position = 8464, 8608
+        ]
+
+        component "core/Probe" grid_di3 {
+        }
+        [
+            position = 8464, 8664
+        ]
+
+        component "core/Probe" grid_di4 {
+        }
+        [
+            position = 8464, 8716
+        ]
+
+        component "core/Digital Input" DI11 {
+            addr = "11"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8484
+        ]
+
+        component "core/Digital Input" DI16 {
+            addr = "16"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8536
+        ]
+
+        component "core/Digital Input" DI12 {
+            addr = "12"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8592
+        ]
+
+        component "core/Digital Input" DI14 {
+            addr = "14"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8644
+        ]
+
+        component "core/Probe" grid_pulse_t1 {
+        }
+        [
+            position = 9256, 8484
+        ]
+
+        component "core/Probe" grid_pulse_t2 {
+        }
+        [
+            position = 9256, 8536
+        ]
+
+        component "core/Probe" grid_pulse_t3 {
+        }
+        [
+            position = 9256, 8592
+        ]
+
+        component "core/Probe" grid_pulse_t4 {
+        }
+        [
+            position = 9256, 8644
+        ]
+
+        component "core/Digital Input" DI13 {
+            addr = "13"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8700
+        ]
+
+        component "core/Probe" grid_pulse_t5 {
+        }
+        [
+            position = 9256, 8700
+        ]
+
+        component "core/Digital Input" DI15 {
+            addr = "15"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8756
+        ]
+
+        component "core/Probe" grid_pulse_t6 {
+        }
+        [
+            position = 9256, 8756
+        ]
+
+        component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier1" {
+            PESB_Optimization = "False"
+            Sa_bot = "14"
+            Sa_bot_I = "True"
+            Sa_bot_logic = "active low"
+            Sa_top = "11"
+            Sa_top_I = "True"
+            Sa_top_logic = "active low"
+            Sb_bot = "15"
+            Sb_bot_I = "True"
+            Sb_bot_logic = "active low"
+            Sb_top = "12"
+            Sb_top_I = "True"
+            Sb_top_logic = "active low"
+            Sc_bot = "16"
+            Sc_bot_I = "True"
+            Sc_bot_logic = "active low"
+            Sc_top = "13"
+            Sc_top_I = "True"
+            Sc_top_logic = "active low"
+            _control_property = "all low"
+        }
+        [
+            position = 9216, 8248
+            size = 127, 256
+        ]
+
+        component "core/Resistor" R4 {
+            resistance = "0.0503"
+        }
+        [
+            position = 9572, 8152
+        ]
+
+        component "core/Inductor" L4 {
+            inductance = "8e-3"
+        }
+        [
+            position = 9692, 8152
+        ]
+
+        component "core/Current Measurement" current_dc_link {
+        }
+        [
+            position = 9440, 8152
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_grid_a {
+        }
+        [
+            position = 8216, 8088
+            rotation = down
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_grid_side_ab {
+        }
+        [
+            position = 8900, 8200
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_grid_side_bc {
+        }
+        [
+            position = 8900, 8296
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_grid_side_ca {
+        }
+        [
+            position = 8948, 8296
+            rotation = left
+            size = 64, 32
+        ]
+
+        component "core/Digital Input" DI27 {
+            addr = "27"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8500
+        ]
+
+        component "core/Digital Input" DI32 {
+            addr = "32"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8552
+        ]
+
+        component "core/Digital Input" DI28 {
+            addr = "28"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8608
+        ]
+
+        component "core/Digital Input" DI30 {
+            addr = "30"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8660
+        ]
+
+        component "core/Probe" machine_pulse_t1 {
+        }
+        [
+            position = 10000, 8500
+        ]
+
+        component "core/Probe" machine_pulse_t2 {
+        }
+        [
+            position = 10000, 8552
+        ]
+
+        component "core/Probe" machine_pulse_t3 {
+        }
+        [
+            position = 10000, 8608
+        ]
+
+        component "core/Probe" machine_pulse_t4 {
+        }
+        [
+            position = 10000, 8660
+        ]
+
+        component "core/Digital Input" DI29 {
+            addr = "29"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8716
+        ]
+
+        component "core/Probe" machine_pulse_t5 {
+        }
+        [
+            position = 10000, 8716
+        ]
+
+        component "core/Digital Input" DI31 {
+            addr = "31"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8772
+        ]
+
+        component "core/Probe" machine_pulse_t6 {
+        }
+        [
+            position = 10000, 8772
+        ]
+
+        component "core/Three Phase Voltage Source" voltage_source_machine_side {
+            init_rms_value = "1143.15"
+        }
+        [
+            position = 10900, 8248
+            scale = -1, 1
+            size = 62, 256
+        ]
+
+        component "core/Voltage Measurement" voltage_machine_ab {
+        }
+        [
+            position = 10764, 8200
+            rotation = right
+            scale = -1, 1
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_machine_bc {
+        }
+        [
+            position = 10764, 8296
+            rotation = right
+            scale = -1, 1
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_machine_ca {
+        }
+        [
+            position = 10708, 8296
+            rotation = left
+            scale = -1, 1
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_machine_a {
+        }
+        [
+            position = 10900, 8088
+            rotation = down
+            scale = -1, 1
+            size = 64, 32
+        ]
+
+        component "core/Resistor" R5 {
+            resistance = "0.0066"
+        }
+        [
+            position = 10432, 8152
+        ]
+
+        component "core/Inductor" L5 {
+            inductance = "0.2508e-3"
+        }
+        [
+            position = 10552, 8152
+        ]
+
+        component "core/Resistor" R6 {
+            resistance = "0.0066"
+        }
+        [
+            position = 10432, 8248
+        ]
+
+        component "core/Inductor" L6 {
+            inductance = "0.2508e-3"
+        }
+        [
+            position = 10552, 8248
+        ]
+
+        component "core/Resistor" R7 {
+            resistance = "0.0066"
+        }
+        [
+            position = 10432, 8344
+        ]
+
+        component "core/Inductor" L7 {
+            inductance = "0.2508e-3"
+        }
+        [
+            position = 10552, 8344
+        ]
+
+        component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier2" {
+            PESB_Optimization = "False"
+            Sa_bot = "30"
+            Sa_bot_I = "True"
+            Sa_bot_logic = "active low"
+            Sa_top = "27"
+            Sa_top_I = "True"
+            Sa_top_logic = "active low"
+            Sb_bot = "31"
+            Sb_bot_I = "True"
+            Sb_bot_logic = "active low"
+            Sb_top = "28"
+            Sb_top_I = "True"
+            Sb_top_logic = "active low"
+            Sc_bot = "32"
+            Sc_bot_I = "True"
+            Sc_bot_logic = "active low"
+            Sc_top = "29"
+            Sc_top_I = "True"
+            Sc_top_logic = "active low"
+            _control_property = "all low"
+        }
+        [
+            position = 9944, 8248
+            rotation = down
+            size = 127, 256
+        ]
+
+        component "core/Single Phase Core Coupling" "Core Coupling 1" {
+        }
+        [
+            position = 9760, 8248
+            scale = -1, 1
+            size = 13, 256
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_machine_side_ab {
+        }
+        [
+            position = 10244, 8200
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_machine_side_bc {
+        }
+        [
+            position = 10244, 8296
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_machine_side_ca {
+        }
+        [
+            position = 10292, 8296
+            rotation = left
+            size = 64, 32
+        ]
+
+        junction Junction3 pe
+        [
+            position = 8352, 8152
+        ]
+
+        junction Junction4 pe
+        [
+            position = 8352, 8248
+        ]
+
+        junction Junction5 pe
+        [
+            position = 8352, 8344
+        ]
+
+        junction Junction6 pe
+        [
+            position = 8408, 8344
+        ]
+
+        junction Junction7 pe
+        [
+            position = 8408, 8152
+        ]
+
+        junction Junction8 pe
+        [
+            position = 8900, 8152
+        ]
+
+        junction Junction9 pe
+        [
+            position = 8896, 8248
+        ]
+
+        junction Junction10 pe
+        [
+            position = 8900, 8252
+        ]
+
+        junction Junction11 pe
+        [
+            position = 8900, 8344
+        ]
+
+        junction Junction12 pe
+        [
+            position = 8948, 8344
+        ]
+
+        junction Junction13 pe
+        [
+            position = 8948, 8152
+        ]
+
+        junction Junction14 pe
+        [
+            position = 10764, 8152
+        ]
+
+        junction Junction15 pe
+        [
+            position = 10764, 8248
+        ]
+
+        junction Junction16 pe
+        [
+            position = 10764, 8344
+        ]
+
+        junction Junction17 pe
+        [
+            position = 10708, 8152
+        ]
+
+        junction Junction18 pe
+        [
+            position = 10764, 8248
+        ]
+
+        junction Junction19 pe
+        [
+            position = 10708, 8344
+        ]
+
+        junction Junction23 pe
+        [
+            position = 10244, 8152
+        ]
+
+        junction Junction24 pe
+        [
+            position = 10244, 8344
+        ]
+
+        junction Junction25 pe
+        [
+            position = 10244, 8248
+        ]
+
+        junction Junction26 pe
+        [
+            position = 10292, 8152
+        ]
+
+        junction Junction27 pe
+        [
+            position = 10292, 8344
+        ]
+
+        comment Comment1 START <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Arial'; font-size:12pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; line-height:19px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T1 (A+) → p1 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T2 (B-) → p2 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T3 (B+) → p3</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T4 (A-) → p4</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T5 (C+) → p5</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T6 (C-) → p6</span></p></body></html> ENDCOMMENT 
+        [
+            position = 9504, 8508
+        ]
+
+        scheme_area Area1 {
+            title = <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Tahoma'; font-size:14pt; font-weight:100; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Grid-side pulses</p></body></html>
+        }
+        [
+            position = 9208, 8616
+            size = 380, 400
+        ]
+
+        scheme_area Area2 {
+            title = <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Tahoma'; font-size:14pt; font-weight:100; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Machine-side pulses</p></body></html>
+        }
+        [
+            position = 9964, 8628
+            size = 380, 400
+        ]
+
+        connect R1.n_node L1.p_node as Connection3
+        connect R2.n_node L2.p_node as Connection4
+        connect R3.n_node L3.p_node as Connection5
+        connect voltage_source_grid_side.a_node Junction3 as Connection15
+        connect voltage_grid_ab.p_node Junction3 as Connection17
+        connect voltage_source_grid_side.b_node Junction4 as Connection18
+        connect voltage_grid_ab.n_node Junction4 as Connection20
+        connect voltage_grid_bc.p_node Junction4 as Connection21
+        connect Junction5 voltage_source_grid_side.c_node as Connection23
+        connect voltage_grid_bc.n_node Junction5 as Connection24
+        connect Junction6 Junction5 as Connection26
+        connect voltage_grid_ca.p_node Junction6 as Connection27
+        connect Junction3 Junction7 as Connection28
+        connect voltage_grid_ca.n_node Junction7 as Connection30
+        connect Junction7 current_grid_a.p_node as Connection32
+        connect current_grid_a.n_node R1.p_node as Connection33
+        connect Junction4 current_grid_b.p_node as Connection34
+        connect current_grid_b.n_node R2.p_node as Connection35
+        connect R3.p_node current_grid_c.n_node as Connection36
+        connect current_grid_c.p_node Junction6 as Connection37
+        connect AI1.out grid_a1.in as Connection38
+        connect AI4.out grid_a4.in as Connection39
+        connect grid_a3.in AI3.out as Connection40
+        connect AI2.out grid_a2.in as Connection41
+        connect DI4.out grid_di4.in as Connection42
+        connect grid_di3.in DI3.out as Connection43
+        connect DI2.out grid_di2.in as Connection44
+        connect grid_di1.in DI1.out as Connection45
+        connect DI14.out grid_pulse_t4.in as Connection46
+        connect grid_pulse_t3.in DI12.out as Connection47
+        connect DI16.out grid_pulse_t2.in as Connection48
+        connect grid_pulse_t1.in DI11.out as Connection49
+        connect DI13.out grid_pulse_t5.in as Connection50
+        connect DI15.out grid_pulse_t6.in as Connection51
+        connect R4.n_node L4.p_node as Connection59
+        connect current_dc_link.n_node R4.p_node as Connection60
+        connect current_dc_link.p_node "Three Phase Thyristor Rectifier1.pos_out" as Connection61
+        connect voltage_grid_a.p_node Junction3 as Connection69
+        connect voltage_source_grid_side.n_node voltage_grid_a.n_node as Connection73
+        [
+            breakpoints = 8104, 8248
+        ]
+        connect L1.n_node Junction8 as Connection74
+        connect voltage_bridge_grid_side_ab.p_node Junction8 as Connection76
+        connect L2.n_node Junction9 as Connection77
+        connect Junction9 "Three Phase Thyristor Rectifier1.b_in" as Connection78
+        connect voltage_bridge_grid_side_ab.n_node Junction10 as Connection80
+        connect Junction10 Junction9 as Connection81
+        connect voltage_bridge_grid_side_bc.p_node Junction10 as Connection82
+        connect L3.n_node Junction11 as Connection83
+        [
+            breakpoints = 8816, 8344
+        ]
+        connect voltage_bridge_grid_side_bc.n_node Junction11 as Connection85
+        connect Junction11 Junction12 as Connection86
+        connect Junction12 "Three Phase Thyristor Rectifier1.c_in" as Connection87
+        connect voltage_bridge_grid_side_ca.p_node Junction12 as Connection88
+        connect Junction8 Junction13 as Connection89
+        connect Junction13 "Three Phase Thyristor Rectifier1.a_in" as Connection90
+        connect voltage_bridge_grid_side_ca.n_node Junction13 as Connection91
+        connect DI30.out machine_pulse_t4.in as Connection92
+        connect machine_pulse_t3.in DI28.out as Connection93
+        connect DI32.out machine_pulse_t2.in as Connection94
+        connect machine_pulse_t1.in DI27.out as Connection95
+        connect DI29.out machine_pulse_t5.in as Connection96
+        connect DI31.out machine_pulse_t6.in as Connection97
+        connect voltage_source_machine_side.a_node Junction14 as Connection98
+        connect voltage_machine_ab.p_node Junction14 as Connection99
+        connect voltage_source_machine_side.b_node Junction15 as Connection100
+        connect voltage_machine_ab.n_node Junction15 as Connection101
+        connect Junction16 voltage_source_machine_side.c_node as Connection103
+        connect voltage_machine_bc.n_node Junction16 as Connection104
+        connect voltage_machine_a.p_node Junction14 as Connection109
+        connect voltage_source_machine_side.n_node voltage_machine_a.n_node as Connection110
+        [
+            breakpoints = 11012, 8248
+        ]
+        connect R5.n_node L5.p_node as Connection111
+        connect R6.n_node L6.p_node as Connection112
+        connect R7.n_node L7.p_node as Connection113
+        connect voltage_machine_ca.n_node Junction17 as Connection121
+        connect Junction17 Junction14 as Connection122
+        [
+            breakpoints = 10708, 8152; 10764, 8152
+        ]
+        connect L5.n_node Junction17 as Connection123
+        connect voltage_machine_bc.p_node Junction18 as Connection124
+        connect Junction18 Junction15 as Connection125
+        connect L6.n_node Junction18 as Connection126
+        connect Junction16 Junction19 as Connection127
+        connect Junction19 voltage_machine_ca.p_node as Connection128
+        [
+            breakpoints = 10708, 8344
+        ]
+        connect L7.n_node Junction19 as Connection129
+        connect "Core Coupling 1.b_in" "Three Phase Thyristor Rectifier2.pos_out" as Connection131
+        connect "Three Phase Thyristor Rectifier2.neg_out" "Core Coupling 1.a_in" as Connection132
+        connect "Core Coupling 1.a_out" L4.n_node as Connection133
+        connect "Core Coupling 1.b_out" "Three Phase Thyristor Rectifier1.neg_out" as Connection134
+        connect voltage_bridge_machine_side_ab.p_node Junction23 as Connection146
+        connect "Three Phase Thyristor Rectifier2.a_in" Junction23 as Connection148
+        [
+            breakpoints = 10144, 8344; 10144, 8152; 10244, 8152
+        ]
+        connect Junction24 voltage_bridge_machine_side_bc.n_node as Connection151
+        [
+            breakpoints = 10244, 8344
+        ]
+        connect "Three Phase Thyristor Rectifier2.c_in" Junction24 as Connection152
+        [
+            breakpoints = 10144, 8152; 10144, 8256
+        ]
+        connect voltage_bridge_machine_side_ab.n_node Junction25 as Connection154
+        connect Junction25 voltage_bridge_machine_side_bc.p_node as Connection155
+        connect "Three Phase Thyristor Rectifier2.b_in" Junction25 as Connection156
+        connect R6.p_node Junction25 as Connection157
+        connect Junction23 Junction26 as Connection158
+        [
+            breakpoints = 10244, 8152
+        ]
+        connect Junction26 voltage_bridge_machine_side_ca.n_node as Connection159
+        [
+            breakpoints = 10292, 8152
+        ]
+        connect R5.p_node Junction26 as Connection160
+        connect voltage_bridge_machine_side_ca.p_node Junction27 as Connection161
+        connect Junction27 Junction24 as Connection162
+        [
+            breakpoints = 10292, 8344
+        ]
+        connect R7.p_node Junction27 as Connection163
+    }
+
+    default {
+        "core/Analog Input" {
+            addr = "1"
+            ai_offset = "0"
+            ai_gain = "1"
+            execution_rate = "100e-6"
+        }
+
+        "core/Digital Input" {
+            addr = "1"
+            invert = "false"
+            signal_type = "uint"
+            execution_rate = "100e-6"
+        }
+
+        "core/Inductor" {
+            signal_access = "inherit"
+            inductance = "1e-3"
+            initial_current = "0.0"
+            pole_shift_ignore = "False"
+            visible = "True"
+        }
+
+        "core/Probe" {
+            signal_access = "inherit"
+            addr = "0"
+            override_signal_name = "False"
+            signal_name = ""
+            signal_type = "generic"
+            streaming_en = "False"
+            streaming_er_idx = "0"
+            execution_rate = "inherit"
+        }
+
+        "core/Resistor" {
+            resistance = "1"
+            param_set = ""
+        }
+
+        "core/Current Measurement" {
+            signal_access = "inherit"
+            bw_limit = "False"
+            frequency = "10e3"
+            comparator_enable = "False"
+            operator = "greater"
+            threshold = "0"
+            cmp_abs_value = "False"
+            feed_forward = "false"
+            sig_output = "False"
+            sig_output_filt_and_full_bw = "False"
+            execution_rate = "100e-6"
+            addr = "0"
+            nd_msr_estimation = "false"
+            dev_cpl_msr = "false"
+            host_device = "0"
+            output_to_device = "0"
+            dev_cpl_index = "0"
+            dev_cpl_var_nb = "0"
+            visible = "True"
+            override_signal_name = "False"
+            signal_name = ""
+        }
+
+        "core/Single Phase Core Coupling" {
+            snb_type_i = "none"
+            R1 = "100000.0"
+            C1 = "1e-06"
+            C2 = "1e-06"
+            fixed_snb_i = "false"
+            snb_type_u = "none"
+            R2 = "0.1"
+            L1 = "0.1"
+            L2 = "0.1"
+            fixed_snb_u = "false"
+        }
+
+        "core/Three Phase Thyristor Rectifier" {
+            signal_access = "inherit"
+            ctrl_src = "Digital inputs"
+            Sa_top = "1"
+            Sa_top_logic = "active high"
+            Sa_bot = "2"
+            Sa_bot_logic = "active high"
+            Sb_top = "3"
+            Sb_top_logic = "active high"
+            Sb_bot = "4"
+            Sb_bot_logic = "active high"
+            Sc_top = "5"
+            Sc_top_logic = "active high"
+            Sc_bot = "6"
+            Sc_bot_logic = "active high"
+            _overridable_switches = "[\'Sa_top\', \'Sa_bot\', \'Sb_top\', \'Sb_bot\', \'Sc_top\', \'Sc_bot\']"
+            execution_rate = "inherit"
+            show_monitoring = "False"
+            PESB_Optimization = "True"
+            _control_property = "all high"
+            pwm_enabling = "False"
+            pwm_enable_di = "13"
+            pwm_enable_inv = "active high"
+            Sa_top_I = "False"
+            Sa_bot_I = "False"
+            Sb_top_I = "False"
+            Sb_bot_I = "False"
+            Sc_top_I = "False"
+            Sc_bot_I = "False"
+            losses_estimation = "False"
+            i_sw = "[0.0, 6.0, 12.0, 18.0, 24.0]"
+            v_sw = "[0.0, 600.0]"
+            temp_sw = "[25.0, 50.0, 75.0, 100.0, 125.0]"
+            vd_table_out = "[1.2, 1.2, 1.2, 1.2, 1.2]"
+            et_on_table_out = "[[0.0, 0.0275e-3, 0.15e-3, 0.275e-3, 0.3e-3], [0.35*2.2e-3, 0.4*2.2e-3, 0.8*2.2e-3, 0.68*2.2e-3, 0.9*2.2e-3], [0.65*2.2e-3, 0.9*2.2e-3, 1.2*2.2e-3, 1.5*2.2e-3, 1.7*2.2e-3], [0.9*2.2e-3, 1.3*2.2e-3, 1.7*2.2e-3, 1.9*2.2e-3, 2.25*2.2e-3], [1.1*2.2e-3, 1.7*2.2e-3, 2.1*2.2e-3, 2.3*2.2e-3, 2.5*2.2e-3]]"
+            temp_estimation = "False"
+            thermal_networks_type = "Foster"
+            diode_Rth = "[0.159, 0.133, 0.120, 0.038]"
+            diode_Tth = "[1.1e-1, 1.56e-2, 1.35e-3, 1.51e-4]"
+            diode_Cth = "[0.0029, 0.0097, 0.1068, 0.8500]"
+            loss_exec_rate = "100e-6"
+            visualize_luts = "Visualize Lookup Tables"
+        }
+
+        "core/Three Phase Voltage Source" {
+            init_rms_value = "0.0"
+            init_frequency = "50.0"
+            init_phase = "0.0"
+        }
+
+        "core/Voltage Measurement" {
+            signal_access = "inherit"
+            bw_limit = "False"
+            frequency = "10e3"
+            comparator_enable = "False"
+            operator = "greater"
+            threshold = "0"
+            cmp_abs_value = "False"
+            feed_forward = "false"
+            sig_output = "False"
+            sig_output_filt_and_full_bw = "False"
+            execution_rate = "100e-6"
+            addr = "0"
+            nd_msr_estimation = "false"
+            dev_cpl_msr = "false"
+            host_device = "0"
+            output_to_device = "0"
+            dev_cpl_index = "0"
+            dev_cpl_var_nb = "0"
+            visible = "True"
+            override_signal_name = "False"
+            signal_name = ""
+        }
+    }
+}

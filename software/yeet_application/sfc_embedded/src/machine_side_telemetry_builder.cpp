@@ -28,7 +28,7 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(1, static_cast<float>(measurements.get_outputs().machine_voltage_abc.read().b()));
     packet.add_signal(2, static_cast<float>(measurements.get_outputs().machine_voltage_abc.read().c()));
     packet.add_signal(3, static_cast<float>(measurements.get_outputs().machine_voltage_magnitude_filtered.read()));
-    packet.add_signal(4, static_cast<float>(observer.get_outputs().estimated_speed.read()));
+    packet.add_signal(4, static_cast<float>(observer.get_outputs().estimated_frequency_pu.read()));
     packet.add_signal(5, static_cast<float>(observer.get_outputs().estimated_voltage_magnitude.read()));
 
     // === Observer Group (6-8) ===

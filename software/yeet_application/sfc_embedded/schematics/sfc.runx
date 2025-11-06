@@ -21,8 +21,23 @@
                 <rms>1206.66</rms>
                 <frequency>50.0</frequency>
                 <phase>0.0</phase>
-                <use_harmonics>True</use_harmonics>
+                <use_harmonics>False</use_harmonics>
                 <harmonics>[(2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0)]</harmonics>
+                <harmonics_type>per_rms_unit_harmonics</harmonics_type>
+            </input>
+            <input>
+                <name>voltage_source_machine_side</name>
+                <device>0</device>
+                <input_address>5</input_address>
+                <child_input_address>[3, 4, 5]</child_input_address>
+                <device>0</device>
+            	<input_type>ThreePhaseInput</input_type>
+                <waveform_type>Sine</waveform_type>
+                <rms>1143.15</rms>
+                <frequency>50.0</frequency>
+                <phase>0.0</phase>
+                <use_harmonics>False</use_harmonics>
+                <harmonics>[]</harmonics>
                 <harmonics_type>per_rms_unit_harmonics</harmonics_type>
             </input></inputs>
         <pvs>
@@ -275,14 +290,14 @@
             <analog_channel>
                 <number>17</number>
                 <device>0</device>
-                <scale>100.0</scale>
+                <scale>300.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
                 <ao_limiting_enabled>False</ao_limiting_enabled>
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
-                	<name>const_0V</name>
+                	<name>voltage_bridge_grid_side_ab</name>
                 	<show>True</show>
                 	<device>0</device>
                 </analog_signal>
@@ -290,14 +305,14 @@
             <analog_channel>
                 <number>18</number>
                 <device>0</device>
-                <scale>100.0</scale>
+                <scale>300.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
                 <ao_limiting_enabled>False</ao_limiting_enabled>
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
-                	<name>const_0V</name>
+                	<name>voltage_bridge_grid_side_bc</name>
                 	<show>True</show>
                 	<device>0</device>
                 </analog_signal>
@@ -1770,6 +1785,57 @@
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
                 <site>0</site>
+                <switches>
+                    <switch>
+                        <name>Sa_bot</name>
+                        <device>0</device>
+                        <weight>[0]</weight>
+                        <software_control>False</software_control>
+                        <software_value>0</software_value>
+                    </switch>
+                    <switch>
+                        <name>Sa_top</name>
+                        <device>0</device>
+                        <weight>[1]</weight>
+                        <software_control>False</software_control>
+                        <software_value>0</software_value>
+                    </switch>
+                    <switch>
+                        <name>Sb_bot</name>
+                        <device>0</device>
+                        <weight>[6]</weight>
+                        <software_control>False</software_control>
+                        <software_value>0</software_value>
+                    </switch>
+                    <switch>
+                        <name>Sb_top</name>
+                        <device>0</device>
+                        <weight>[7]</weight>
+                        <software_control>False</software_control>
+                        <software_value>0</software_value>
+                    </switch>
+                    <switch>
+                        <name>Sc_bot</name>
+                        <device>0</device>
+                        <weight>[12]</weight>
+                        <software_control>False</software_control>
+                        <software_value>0</software_value>
+                    </switch>
+                    <switch>
+                        <name>Sc_top</name>
+                        <device>0</device>
+                        <weight>[13]</weight>
+                        <software_control>False</software_control>
+                        <software_value>0</software_value>
+                    </switch>
+                </switches>
+            </switching_block>
+            <switching_block>
+                <name>Three Phase Thyristor Rectifier2</name>
+                <type>regular_conv</type>
+                <scm_comp_type>thy_leg</scm_comp_type>
+                <device>0</device>
+                <site>1</site>
                 <switches>
                     <switch>
                         <name>Sa_bot</name>
