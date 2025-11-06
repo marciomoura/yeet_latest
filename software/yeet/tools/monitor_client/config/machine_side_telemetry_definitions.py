@@ -32,13 +32,12 @@ def _get_section_order() -> List[str]:
     """
     return [
         'system',
+        'measurements',
+        'speed_generator',
         'speed_controller',
         'torque_controller',
         'controller',
-        'observer',
-        'measurements',
         'modulator',
-        'speed_generator',
         'excitation_controller',
     ]
 
@@ -55,25 +54,15 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'modulator release pulses', 'index': MachineSignalIndex.MODULATOR_RELEASE_PULSES_INPUT, 'type': 'bool', 'format': 'bool'},
                 {'name': 'torque is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'excitation enable', 'index': MachineSignalIndex.EXCITATION_ENABLE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'excitation is running', 'index': MachineSignalIndex.EXCITATION_IS_RUNNING, 'type': 'bool', 'format': 'bool'},
-                {'name': 'field established', 'index': MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED, 'type': 'bool', 'format': 'bool'}
+                {'name': 'excitation enable', 'index': MachineSignalIndex.EXCITATION_ENABLE, 'type': 'bool', 'format': 'bool'}
             ]
         },
         'measurements': {
             'title': 'Measurements',
             'fields': [
-                {'name': 'voltage magnitude filtered (pu)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
-                {'name': 'estimated speed (pu)', 'index': MachineSignalIndex.ESTIMATED_SPEED, 'type': 'float', 'format': '.4f'},
-                {'name': 'estimated voltage magnitude (pu)', 'index': MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'}
-            ]
-        },
-        'observer': {
-            'title': 'Observer',
-            'fields': [
-                {'name': 'frequency est. (pu)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
-                {'name': 'reference angle (pu)', 'index': MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
-                {'name': 'frequency (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage mag.', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
+                {'name': 'frequency est.', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'frequency est. (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY, 'type': 'float', 'format': '.2f'},
             ]
         },
         'modulator': {
@@ -90,41 +79,38 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
         'controller': {
             'title': 'Machine Controller',
             'fields': [
-                {'name': 'firing angle (rad)', 'index': MachineSignalIndex.CONTROLLER_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
-                {'name': 'dc link current (pu)', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
-                {'name': 'machine speed (pu)', 'index': MachineSignalIndex.CONTROLLER_MACHINE_SPEED, 'type': 'float', 'format': '.4f'},
+                {'name': 'firing angle (pu)', 'index': MachineSignalIndex.CONTROLLER_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'current reference', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'current measured', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
+                {'name': 'machine speed', 'index': MachineSignalIndex.CONTROLLER_MACHINE_SPEED, 'type': 'float', 'format': '.4f'},
             ]
         },
         'torque_controller': {
             'title': 'Torque Controller',
             'fields': [
-                {'name': 'torque reference (pu)', 'index': MachineSignalIndex.TORQUE_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'max torque limit (pu)', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MAX_LIMIT, 'type': 'float', 'format': '.4f'},
-                {'name': 'min torque limit (pu)', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MIN_LIMIT, 'type': 'float', 'format': '.4f'},
+                {'name': 'torque reference', 'index': MachineSignalIndex.TORQUE_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'max torque limit', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MAX_LIMIT, 'type': 'float', 'format': '.4f'},
+                {'name': 'min torque limit', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MIN_LIMIT, 'type': 'float', 'format': '.4f'},
                 {'name': 'breakaway boost enabled', 'index': MachineSignalIndex.TORQUE_ENABLE_BREAKAWAY_BOOST, 'type': 'bool', 'format': 'bool'},
-                {'name': 'is saturated (input)', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_INPUT, 'type': 'bool', 'format': 'bool'},
-                {'name': 'current reference (pu)', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'is saturated (output)', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_OUTPUT, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is saturated', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_INPUT, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'breakaway boost active', 'index': MachineSignalIndex.TORQUE_IS_BREAKAWAY_BOOST_ACTIVE, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'speed_controller': {
             'title': 'Speed Controller',
             'fields': [
-                {'name': 'speed reference (pu)', 'index': MachineSignalIndex.SPEED_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'measured speed (pu)', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED, 'type': 'float', 'format': '.4f'},
-                {'name': 'torque reference (pu)', 'index': MachineSignalIndex.SPEED_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'pi output (pu)', 'index': MachineSignalIndex.SPEED_PI_OUTPUT, 'type': 'float', 'format': '.4f'},
+                {'name': 'speed reference', 'index': MachineSignalIndex.SPEED_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'measured speed', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED, 'type': 'float', 'format': '.4f'},
+                {'name': 'pi output', 'index': MachineSignalIndex.SPEED_PI_OUTPUT, 'type': 'float', 'format': '.4f'},
                 {'name': 'is saturated', 'index': MachineSignalIndex.SPEED_IS_SATURATED, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'speed_generator': {
             'title': 'Speed Generator',
             'fields': [
-                {'name': 'speed ref. (pu)', 'index': MachineSignalIndex.SPEED_GEN_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'torque limit max (pu)', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MAX, 'type': 'float', 'format': '.4f'},
-                {'name': 'torque limit min (pu)', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MIN, 'type': 'float', 'format': '.4f'},
+                {'name': 'speed ref.', 'index': MachineSignalIndex.SPEED_GEN_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'torque limit max', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MAX, 'type': 'float', 'format': '.4f'},
+                {'name': 'torque limit min', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MIN, 'type': 'float', 'format': '.4f'},
                 {'name': 'profile complete', 'index': MachineSignalIndex.SPEED_GEN_IS_PROFILE_COMPLETE, 'type': 'bool', 'format': 'bool'},
                 {'name': 'breakaway boost active', 'index': MachineSignalIndex.SPEED_GEN_IS_BREAKAWAY_BOOST_ACTIVE, 'type': 'bool', 'format': 'bool'},
             ]
@@ -132,7 +118,9 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
         'excitation_controller': {
             'title': 'Excitation Controller',
             'fields': [
-                {'name': 'excitation voltage setpoint (pu)', 'index': MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT, 'type': 'float', 'format': '.4f'},
+                {'name': 'excitation is running', 'index': MachineSignalIndex.EXCITATION_IS_RUNNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'field established', 'index': MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'excitation voltage setpoint', 'index': MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT, 'type': 'float', 'format': '.4f'}
             ]
         }
     }

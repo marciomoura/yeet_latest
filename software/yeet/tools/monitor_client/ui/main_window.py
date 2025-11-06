@@ -1252,11 +1252,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         # Iterate through each section in definitions
         for section_key, section_data in definitions.items():
+            section_title = section_data.get('title', section_key.replace('_', ' ').title())
             for field in section_data['fields']:
                 signal_name = field['name']
                 signal_index = field['index']
                 signal_type = field.get('type', 'float')
                 signal_format = field.get('format', '.4f')  # Use format from definition
+                enum_map = field.get('enum_map', None)
                 
                 # Get the value from packet by index based on type
                 if signal_type == 'bool':
@@ -1264,11 +1266,17 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 else:
                     value = packet.get_signal(signal_index)
                 
+                # Handle enum type: map integer value to string
+                if signal_type == 'enum' and enum_map is not None:
+                    # Convert float to int for enum lookup
+                    int_value = int(value)
+                    display_value = enum_map.get(int_value, f"UNKNOWN({int_value})")
+                    self.telemetry_panel.update_signal(signal_name, display_value, section=section_title)
                 # Update the signal with format from definition
-                if signal_format == 'bool':
-                    self.telemetry_panel.update_signal(signal_name, value)
+                elif signal_format == 'bool':
+                    self.telemetry_panel.update_signal(signal_name, value, section=section_title)
                 else:
-                    self.telemetry_panel.update_signal(signal_name, value, signal_format)
+                    self.telemetry_panel.update_signal(signal_name, value, signal_format, section=section_title)
     
     def _update_machine_dashboard(self, packet: MachineSideTelemetryPacket):
         """Update machine-side telemetry dashboard using signal definitions.
@@ -1282,11 +1290,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         # Iterate through each section in definitions
         for section_key, section_data in definitions.items():
+            section_title = section_data.get('title', section_key.replace('_', ' ').title())
             for field in section_data['fields']:
                 signal_name = field['name']
                 signal_index = field['index']
                 signal_type = field.get('type', 'float')
                 signal_format = field.get('format', '.4f')  # Use format from definition
+                enum_map = field.get('enum_map', None)
                 
                 # Get the value from packet by index based on type
                 if signal_type == 'bool':
@@ -1294,11 +1304,17 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 else:
                     value = packet.get_signal(signal_index)
                 
+                # Handle enum type: map integer value to string
+                if signal_type == 'enum' and enum_map is not None:
+                    # Convert float to int for enum lookup
+                    int_value = int(value)
+                    display_value = enum_map.get(int_value, f"UNKNOWN({int_value})")
+                    self.telemetry_panel.update_signal(signal_name, display_value, section=section_title)
                 # Update the signal with format from definition
-                if signal_format == 'bool':
-                    self.telemetry_panel.update_signal(signal_name, value)
+                elif signal_format == 'bool':
+                    self.telemetry_panel.update_signal(signal_name, value, section=section_title)
                 else:
-                    self.telemetry_panel.update_signal(signal_name, value, signal_format)
+                    self.telemetry_panel.update_signal(signal_name, value, signal_format, section=section_title)
         
         # Pulse Generator
         # if packet.pulse_generator:

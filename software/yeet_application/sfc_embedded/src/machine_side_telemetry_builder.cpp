@@ -49,11 +49,11 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
             ? 1.0f
             : 0.0f);  // Force commutation acknowledged (from grid side)
     packet.add_signal(14, static_cast<float>(modulator.get_outputs().firing_angle.read().get_pu()));
-    packet.add_signal(15, static_cast<float>(modulator.get_outputs().current_rotor_sector.read() / 6.0f));
+    packet.add_signal(15, static_cast<float>(modulator.get_outputs().current_rotor_sector.read()));
     packet.add_signal(16, static_cast<float>(static_cast<int>(modulator.get_outputs().commutation_state.read())));
 
     // === Machine-Side Controller Group (17-19) ===
-    packet.add_signal(17, static_cast<float>(machine_controller.get_outputs().firing_angle.read().get_radians()));
+    packet.add_signal(17, static_cast<float>(machine_controller.get_outputs().firing_angle.read().get_pu()));
     packet.add_signal(18, static_cast<float>(machine_controller.get_inputs().dc_link_current.read()));
     packet.add_signal(19, static_cast<float>(machine_controller.get_inputs().machine_speed.read()));
 

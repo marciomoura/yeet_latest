@@ -143,8 +143,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'firing angle (pu)', 'color': 'g', 'index': MachineSignalIndex.MODULATOR_FIRING_ANGLE},
                     {'name': 'release pulses input', 'color': 'r', 'index': MachineSignalIndex.MODULATOR_RELEASE_PULSES_INPUT},
                     {'name': 'release pulses output', 'color': 'c', 'index': MachineSignalIndex.MODULATOR_RELEASE_PULSES_OUTPUT},
-                    {'name': 'force commutation', 'color': 'm', 'index': MachineSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION},
-                    {'name': 'rotor sector', 'color': 'y', 'index': MachineSignalIndex.MODULATOR_CURRENT_ROTOR_SECTOR},
+                    {'name': 'force commutation', 'color': 'm', 'index': MachineSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION}
                 ]
             }
         },
