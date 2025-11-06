@@ -76,10 +76,10 @@ void signal_handler(int signal)
 
 // Command line arguments
 struct config {
-    int grid_port = 7000;          // Telemetry port for grid-side
-    int machine_port = 7001;       // Telemetry port for machine-side
-    float frequency_hz = 5000.0f;  // Control frequency (5 kHz recommended for plant simulation)
-    bool verbose = false;          // Verbose logging
+    int grid_port = 7000;           // Telemetry port for grid-side
+    int machine_port = 7001;        // Telemetry port for machine-side
+    float frequency_hz = 10000.0f;  // Control frequency (5 kHz recommended for plant simulation)
+    bool verbose = false;           // Verbose logging
 };
 
 // Parse command line arguments

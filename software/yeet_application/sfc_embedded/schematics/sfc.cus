@@ -79,208 +79,172 @@ SETTINGS_DIR = get_settings_dir_path()
                             <layout>Grid</layout>
                             <legend>True</legend>
                             <show_viewports>4</show_viewports>
-                            <decimation>21</decimation>
-                            <time_base>0.02</time_base>
+                            <decimation>6</decimation>
+                            <time_base>0.005</time_base>
                             <analog_signals>
                                 <analog>
                                     <channel>0</channel>
-                                    <name><![CDATA[grid_pulse_t1]]></name>
+                                    <name><![CDATA[current_dc_link]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>0</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
+                                        <num_viewport>2</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>1</channel>
-                                    <name><![CDATA[grid_pulse_t2]]></name>
+                                    <name><![CDATA[current_grid_a]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>1</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>2</channel>
-                                    <name><![CDATA[grid_pulse_t3]]></name>
+                                    <name><![CDATA[current_grid_b]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>2</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>3</channel>
-                                    <name><![CDATA[grid_pulse_t4]]></name>
+                                    <name><![CDATA[current_grid_c]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>3</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>4</channel>
-                                    <name><![CDATA[grid_pulse_t5]]></name>
+                                    <name><![CDATA[voltage_bridge_grid_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>4</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
+                                        <num_viewport>1</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>5</channel>
-                                    <name><![CDATA[grid_pulse_t6]]></name>
+                                    <name><![CDATA[voltage_bridge_grid_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>5</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
+                                        <num_viewport>1</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>6</channel>
-                                    <name><![CDATA[current_dc_link]]></name>
+                                    <name><![CDATA[voltage_bridge_grid_side_ca]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>6</row>
                                     <viewports>
-                                        <num_viewport>2</num_viewport>
+                                        <num_viewport>1</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>7</channel>
-                                    <name><![CDATA[current_grid_a]]></name>
+                                    <name><![CDATA[grid_a1]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>Auto Range</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>7</row>
                                     <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>8</channel>
-                                    <name><![CDATA[current_grid_b]]></name>
+                                    <name><![CDATA[grid_a2]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>1</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>8</row>
                                     <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>9</channel>
-                                    <name><![CDATA[current_grid_c]]></name>
+                                    <name><![CDATA[grid_a3]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>1</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>9</row>
                                     <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>10</channel>
-                                    <name><![CDATA[voltage_bridge_grid_side_ab]]></name>
+                                    <name><![CDATA[grid_a4]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>1</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>10</row>
                                     <viewports>
-                                        <num_viewport>1</num_viewport>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>11</channel>
-                                    <name><![CDATA[voltage_bridge_grid_side_bc]]></name>
+                                    <name><![CDATA[voltage_bridge_machine_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0.0</vertical_offset>
+                                    <vertical_offset>0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>11</row>
                                     <viewports>
-                                        <num_viewport>1</num_viewport>
+                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>12</channel>
-                                    <name><![CDATA[voltage_bridge_grid_side_ca]]></name>
+                                    <name><![CDATA[voltage_bridge_machine_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0.0</vertical_offset>
+                                    <vertical_offset>0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>12</row>
                                     <viewports>
-                                        <num_viewport>1</num_viewport>
+                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                                 <analog>
                                     <channel>13</channel>
-                                    <name><![CDATA[grid_a1]]></name>
+                                    <name><![CDATA[voltage_bridge_machine_side_ca]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto Range</vertical_scale>
+                                    <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>13</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
-                                   </viewports>
-                               </analog>
-                                <analog>
-                                    <channel>14</channel>
-                                    <name><![CDATA[grid_a2]]></name>
-                                    <is_locked>False</is_locked>
-                                    <vertical_scale>1</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
-                                    <coupling>False</coupling>
-                                    <row>14</row>
-                                    <viewports>
-                                        <num_viewport>4</num_viewport>
-                                   </viewports>
-                               </analog>
-                                <analog>
-                                    <channel>15</channel>
-                                    <name><![CDATA[grid_a3]]></name>
-                                    <is_locked>False</is_locked>
-                                    <vertical_scale>1</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
-                                    <coupling>False</coupling>
-                                    <row>15</row>
-                                    <viewports>
-                                        <num_viewport>4</num_viewport>
-                                   </viewports>
-                               </analog>
-                                <analog>
-                                    <channel>16</channel>
-                                    <name><![CDATA[grid_a4]]></name>
-                                    <is_locked>False</is_locked>
-                                    <vertical_scale>1</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
-                                    <coupling>False</coupling>
-                                    <row>16</row>
-                                    <viewports>
-                                        <num_viewport>4</num_viewport>
+                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                             </analog_signals>
@@ -290,7 +254,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                 <device>0</device>
                                 <is_force>False</is_force>
                                 <type>Analog</type>
-                                <source>grid_pulse_t1</source>
+                                <source>current_dc_link</source>
                                 <edge>Rising edge</edge>
                                 <treshold>0.34</treshold>
                                 <offset>31.75</offset>
@@ -318,14 +282,14 @@ SETTINGS_DIR = get_settings_dir_path()
                          </digital_signals>
                     </capture>
                     <scope>
-                        <time_base>0.02 </time_base>
+                        <time_base>0.005 </time_base>
                         <background_color>black</background_color>
                         <layout>Grid</layout>
                         <legend>True</legend>
                         <trigger>
                             <mode>Auto</mode>
                             <type>Analog</type>
-                            <source>grid_pulse_t1</source>
+                            <source>current_dc_link</source>
                             <edge>Rising edge</edge>
                             <treshold>0.34</treshold>
                             <offset>31.75</offset>
@@ -333,203 +297,167 @@ SETTINGS_DIR = get_settings_dir_path()
                          <analog_signals>
                             <analog>
                                     <channel>0</channel>
-                                    <name><![CDATA[grid_pulse_t1]]></name>
+                                    <name><![CDATA[current_dc_link]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>0</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
+                                        <num_viewport>2</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>1</channel>
-                                    <name><![CDATA[grid_pulse_t2]]></name>
+                                    <name><![CDATA[current_grid_a]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>1</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>2</channel>
-                                    <name><![CDATA[grid_pulse_t3]]></name>
+                                    <name><![CDATA[current_grid_b]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>2</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>3</channel>
-                                    <name><![CDATA[grid_pulse_t4]]></name>
+                                    <name><![CDATA[current_grid_c]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>3</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>4</channel>
-                                    <name><![CDATA[grid_pulse_t5]]></name>
+                                    <name><![CDATA[voltage_bridge_grid_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>4</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
+                                        <num_viewport>1</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>5</channel>
-                                    <name><![CDATA[grid_pulse_t6]]></name>
+                                    <name><![CDATA[voltage_bridge_grid_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>5</row>
                                     <viewports>
-                                        <num_viewport>3</num_viewport>
+                                        <num_viewport>1</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>6</channel>
-                                    <name><![CDATA[current_dc_link]]></name>
+                                    <name><![CDATA[voltage_bridge_grid_side_ca]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>6</row>
                                     <viewports>
-                                        <num_viewport>2</num_viewport>
+                                        <num_viewport>1</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>7</channel>
-                                    <name><![CDATA[current_grid_a]]></name>
+                                    <name><![CDATA[grid_a1]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>Auto Range</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>7</row>
                                     <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>8</channel>
-                                    <name><![CDATA[current_grid_b]]></name>
+                                    <name><![CDATA[grid_a2]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>1</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>8</row>
                                     <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>9</channel>
-                                    <name><![CDATA[current_grid_c]]></name>
+                                    <name><![CDATA[grid_a3]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>1</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>9</row>
                                     <viewports>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>10</channel>
-                                    <name><![CDATA[voltage_bridge_grid_side_ab]]></name>
+                                    <name><![CDATA[grid_a4]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto</vertical_scale>
+                                    <vertical_scale>1</vertical_scale>
                                     <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>10</row>
                                     <viewports>
-                                        <num_viewport>1</num_viewport>
+                                        <num_viewport>4</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>11</channel>
-                                    <name><![CDATA[voltage_bridge_grid_side_bc]]></name>
+                                    <name><![CDATA[voltage_bridge_machine_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0.0</vertical_offset>
+                                    <vertical_offset>0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>11</row>
                                     <viewports>
-                                        <num_viewport>1</num_viewport>
+                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>12</channel>
-                                    <name><![CDATA[voltage_bridge_grid_side_ca]]></name>
+                                    <name><![CDATA[voltage_bridge_machine_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0.0</vertical_offset>
+                                    <vertical_offset>0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>12</row>
                                     <viewports>
-                                        <num_viewport>1</num_viewport>
+                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                             <analog>
                                     <channel>13</channel>
-                                    <name><![CDATA[grid_a1]]></name>
+                                    <name><![CDATA[voltage_bridge_machine_side_ca]]></name>
                                     <is_locked>False</is_locked>
-                                    <vertical_scale>Auto Range</vertical_scale>
+                                    <vertical_scale>Auto</vertical_scale>
                                     <vertical_offset>0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>13</row>
                                     <viewports>
-                                        <num_viewport>4</num_viewport>
-                                   </viewports>
-                               </analog>
-                            <analog>
-                                    <channel>14</channel>
-                                    <name><![CDATA[grid_a2]]></name>
-                                    <is_locked>False</is_locked>
-                                    <vertical_scale>1</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
-                                    <coupling>False</coupling>
-                                    <row>14</row>
-                                    <viewports>
-                                        <num_viewport>4</num_viewport>
-                                   </viewports>
-                               </analog>
-                            <analog>
-                                    <channel>15</channel>
-                                    <name><![CDATA[grid_a3]]></name>
-                                    <is_locked>False</is_locked>
-                                    <vertical_scale>1</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
-                                    <coupling>False</coupling>
-                                    <row>15</row>
-                                    <viewports>
-                                        <num_viewport>4</num_viewport>
-                                   </viewports>
-                               </analog>
-                            <analog>
-                                    <channel>16</channel>
-                                    <name><![CDATA[grid_a4]]></name>
-                                    <is_locked>False</is_locked>
-                                    <vertical_scale>1</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
-                                    <coupling>False</coupling>
-                                    <row>16</row>
-                                    <viewports>
-                                        <num_viewport>4</num_viewport>
+                                        <num_viewport>3</num_viewport>
                                    </viewports>
                                </analog>
                         </analog_signals>

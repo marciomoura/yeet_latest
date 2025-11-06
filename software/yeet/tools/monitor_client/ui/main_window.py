@@ -15,6 +15,7 @@ import sys
 import logging
 import time
 import traceback
+import json
 from collections import deque
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -383,11 +384,36 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         header.setStyleSheet("color: #00ffff; font-size: 14pt; font-weight: bold; padding: 5px;")
         layout.addWidget(header)
         
-        # Load button
-        self.load_params_btn = QtWidgets.QPushButton("Load Parameters")
+        # Button row 1: Load from controller
+        self.load_params_btn = QtWidgets.QPushButton("Load from Controller")
         self.load_params_btn.setEnabled(False)
+        self.load_params_btn.setToolTip("Load all parameter definitions from the controller")
         self.load_params_btn.clicked.connect(self._on_load_parameters)
         layout.addWidget(self.load_params_btn)
+        
+        # Button row 2: Refresh values
+        self.refresh_params_btn = QtWidgets.QPushButton("Refresh Values")
+        self.refresh_params_btn.setEnabled(False)
+        self.refresh_params_btn.setToolTip("Reload current parameter values from controller")
+        self.refresh_params_btn.clicked.connect(self._on_refresh_parameters)
+        layout.addWidget(self.refresh_params_btn)
+        
+        # Button row 3: Save/Load to file
+        file_btn_layout = QtWidgets.QHBoxLayout()
+        
+        self.save_params_btn = QtWidgets.QPushButton("Save to File")
+        self.save_params_btn.setEnabled(False)
+        self.save_params_btn.setToolTip("Save current parameter values to JSON file")
+        self.save_params_btn.clicked.connect(self._on_save_parameters_to_file)
+        file_btn_layout.addWidget(self.save_params_btn)
+        
+        self.load_file_params_btn = QtWidgets.QPushButton("Load from File")
+        self.load_file_params_btn.setEnabled(False)
+        self.load_file_params_btn.setToolTip("Load parameter values from JSON file and apply to controller")
+        self.load_file_params_btn.clicked.connect(self._on_load_parameters_from_file)
+        file_btn_layout.addWidget(self.load_file_params_btn)
+        
+        layout.addLayout(file_btn_layout)
         
         # Parameter tree
         self.param_tree = QtWidgets.QTreeWidget()
@@ -467,6 +493,15 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.start_btn.setEnabled(connected)
         self.stop_btn.setEnabled(False)
         self.load_params_btn.setEnabled(connected)
+        
+        # Enable refresh only if connected and parameters are loaded
+        self.refresh_params_btn.setEnabled(connected and len(self.parameters) > 0)
+        
+        # Enable save/load file buttons only if parameters are loaded
+        self.save_params_btn.setEnabled(len(self.parameters) > 0)
+        
+        # Enable load from file only if connected (so we can apply them)
+        self.load_file_params_btn.setEnabled(connected)
         
         if connected:
             self.status_label.setText("Connected - Ready")
@@ -1120,6 +1155,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     if len(self.parameters) >= metadata.total_parameters:
                         self.param_loading = False
                         self.load_params_btn.setEnabled(True)
+                        self.refresh_params_btn.setEnabled(True)  # Enable refresh after load
+                        self.save_params_btn.setEnabled(True)  # Enable save after load
                         self.param_status_label.setText(f"Loaded {len(self.parameters)} parameters")
                         logger.info(f"All parameters loaded: {len(self.parameters)}")
                         
@@ -1207,6 +1244,197 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             # Send set request
             if not self.network_client.send_parameter_set_request(metadata.component, metadata.name, new_value):
                 QtWidgets.QMessageBox.warning(self, "Error", "Failed to send parameter set request")
+    
+    def _on_save_parameters_to_file(self):
+        """Save current parameter values to JSON file."""
+        if not self.parameters:
+            QtWidgets.QMessageBox.warning(self, "No Parameters", "No parameters loaded to save")
+            return
+        
+        # Open file dialog
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Parameters to JSON",
+            f"parameters_{self.target_side}_{time.strftime('%Y%m%d_%H%M%S')}.json",
+            "JSON Files (*.json);;All Files (*)"
+        )
+        
+        if not filename:
+            return  # User cancelled
+        
+        try:
+            # Build parameter dictionary
+            param_dict = {
+                "metadata": {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "target": self.target_side,
+                    "total_parameters": len(self.parameters)
+                },
+                "parameters": {}
+            }
+            
+            for param in self.parameters:
+                key = f"{param.component}.{param.name}"
+                param_dict["parameters"][key] = {
+                    "component": param.component,
+                    "name": param.name,
+                    "display_name": param.display_name,
+                    "value": param.current_value,
+                    "unit": param.unit,
+                    "description": param.description,
+                    "min": param.min_value,
+                    "max": param.max_value,
+                    "default": param.default_value
+                }
+            
+            # Save to file
+            with open(filename, 'w') as f:
+                json.dump(param_dict, f, indent=2)
+            
+            logger.info(f"Saved {len(self.parameters)} parameters to {filename}")
+            QtWidgets.QMessageBox.information(
+                self, 
+                "Parameters Saved", 
+                f"Successfully saved {len(self.parameters)} parameters to:\n{filename}"
+            )
+        
+        except Exception as e:
+            error_msg = f"Failed to save parameters: {e}"
+            logger.error(error_msg, exc_info=True)
+            QtWidgets.QMessageBox.critical(self, "Save Failed", error_msg)
+    
+    def _on_load_parameters_from_file(self):
+        """Load parameter values from JSON file and apply to controller."""
+        if not self.network_client.connected:
+            QtWidgets.QMessageBox.warning(self, "Not Connected", "Must be connected to controller to load parameters")
+            return
+        
+        # Open file dialog
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Load Parameters from JSON",
+            "",
+            "JSON Files (*.json);;All Files (*)"
+        )
+        
+        if not filename:
+            return  # User cancelled
+        
+        try:
+            # Load JSON file
+            with open(filename, 'r') as f:
+                param_dict = json.load(f)
+            
+            parameters = param_dict.get("parameters", {})
+            if not parameters:
+                QtWidgets.QMessageBox.warning(self, "Invalid File", "No parameters found in JSON file")
+                return
+            
+            # Confirm with user
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                "Confirm Load",
+                f"Load {len(parameters)} parameters from file and apply to controller?\n\n"
+                f"File: {filename}\n"
+                f"Target: {param_dict.get('metadata', {}).get('target', 'unknown')}\n"
+                f"Timestamp: {param_dict.get('metadata', {}).get('timestamp', 'unknown')}\n\n"
+                f"This will change controller parameters!",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+            )
+            
+            if reply != QtWidgets.QMessageBox.Yes:
+                return
+            
+            # Apply parameters one by one
+            success_count = 0
+            failed_params = []
+            
+            # Create progress dialog
+            progress = QtWidgets.QProgressDialog(
+                "Loading parameters from file...", 
+                "Cancel", 
+                0, 
+                len(parameters), 
+                self
+            )
+            progress.setWindowModality(QtCore.Qt.WindowModal)
+            progress.setMinimumDuration(0)
+            
+            for idx, (key, param_data) in enumerate(parameters.items()):
+                if progress.wasCanceled():
+                    break
+                
+                progress.setValue(idx)
+                progress.setLabelText(f"Setting parameter {idx+1}/{len(parameters)}: {key}")
+                
+                component = param_data.get("component")
+                name = param_data.get("name")
+                value = param_data.get("value")
+                
+                if component and name and value is not None:
+                    # Send parameter set request
+                    if self.network_client.send_parameter_set_request(component, name, value):
+                        success_count += 1
+                        # Small delay to avoid overwhelming controller
+                        QtCore.QThread.msleep(10)
+                    else:
+                        failed_params.append(key)
+                        logger.warning(f"Failed to set parameter: {key}")
+            
+            progress.setValue(len(parameters))
+            
+            # Show results
+            if failed_params:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Partial Success",
+                    f"Loaded {success_count}/{len(parameters)} parameters.\n\n"
+                    f"Failed to set {len(failed_params)} parameters:\n" + 
+                    "\n".join(failed_params[:10]) +
+                    (f"\n... and {len(failed_params)-10} more" if len(failed_params) > 10 else "")
+                )
+            else:
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Load Complete",
+                    f"Successfully loaded {success_count} parameters from file!"
+                )
+            
+            logger.info(f"Loaded {success_count}/{len(parameters)} parameters from {filename}")
+        
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON file: {e}"
+            logger.error(error_msg)
+            QtWidgets.QMessageBox.critical(self, "Load Failed", error_msg)
+        except Exception as e:
+            error_msg = f"Failed to load parameters: {e}"
+            logger.error(error_msg, exc_info=True)
+            QtWidgets.QMessageBox.critical(self, "Load Failed", error_msg)
+    
+    def _on_refresh_parameters(self):
+        """Refresh parameter values from controller."""
+        if not self.network_client.connected:
+            QtWidgets.QMessageBox.warning(self, "Not Connected", "Must be connected to controller to refresh parameters")
+            return
+        
+        if not self.parameters:
+            QtWidgets.QMessageBox.information(self, "No Parameters", "No parameters loaded yet. Use 'Load from Controller' first.")
+            return
+        
+        # Confirm with user
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "Confirm Refresh",
+            f"Reload current values for all {len(self.parameters)} parameters from controller?",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+        )
+        
+        if reply != QtWidgets.QMessageBox.Yes:
+            return
+        
+        # Simply reload all parameters using existing mechanism
+        # Clear current list and reload from controller
+        self._on_load_parameters()
     
     # Plot updates
     def _update_plot(self):

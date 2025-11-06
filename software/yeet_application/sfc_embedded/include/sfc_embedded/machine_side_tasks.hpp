@@ -85,52 +85,12 @@ void machine_network(
 // the original function names as wrappers to maintain compatibility with
 // existing embedded main.c code. These wrappers use the static instance.
 #if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
-static inline void yeet_embedded_init(void)
-{
-#ifdef __cplusplus
-    extern yeet::application::sfc::integration::sfc_machine_side_control& get_machine_side_control();
-    machine_embedded_init(&get_machine_side_control());
-#else
-    machine_embedded_init(0);
-#endif
-}
-static inline void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs)
-{
-#ifdef __cplusplus
-    extern yeet::application::sfc::integration::sfc_machine_side_control& get_machine_side_control();
-    machine_task_200us(&get_machine_side_control(), inputs, outputs);
-#else
-    machine_task_200us(0, inputs, outputs);
-#endif
-}
-static inline void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs)
-{
-#ifdef __cplusplus
-    extern yeet::application::sfc::integration::sfc_machine_side_control& get_machine_side_control();
-    machine_task_1000us(&get_machine_side_control(), inputs, outputs);
-#else
-    machine_task_1000us(0, inputs, outputs);
-#endif
-}
-static inline void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs)
-{
-#ifdef __cplusplus
-    extern yeet::application::sfc::integration::sfc_machine_side_control& get_machine_side_control();
-    machine_task_10000us(&get_machine_side_control(), inputs, outputs);
-#else
-    machine_task_10000us(0, inputs, outputs);
-#endif
-}
-static inline void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs)
-{
-#ifdef __cplusplus
-    // For embedded, we need a static infrastructure instance
-    extern machine_side_network_infrastructure& get_machine_side_network_infrastructure();
-    machine_network(&get_machine_side_network_infrastructure(), inputs, outputs);
-#else
-    machine_network(0, inputs, outputs);
-#endif
-}
+// These are extern functions implemented in machine_side_tasks.cpp
+void yeet_embedded_init(void);
+void yeet_task_200us(const task_inputs_t* inputs, task_outputs_t* outputs);
+void yeet_task_1000us(const task_inputs_t* inputs, task_outputs_t* outputs);
+void yeet_task_10000us(const task_inputs_t* inputs, task_outputs_t* outputs);
+void yeet_network(const network_inputs_t* inputs, network_outputs_t* outputs);
 #endif
 
 #ifdef __cplusplus
