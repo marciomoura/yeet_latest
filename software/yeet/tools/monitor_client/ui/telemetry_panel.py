@@ -54,12 +54,15 @@ class TelemetryPanel(QtWidgets.QWidget):
         self.max_width = max_width
         
         # Store labels for direct access
-        # Structure: {signal_name: QLabel}
-        self.signal_labels: Dict[str, QtWidgets.QLabel] = {}
+        # Structure: {(section_title, signal_name): QLabel}
+        self.signal_labels: Dict[tuple, QtWidgets.QLabel] = {}
         
         # Store sections for organization
         # Structure: {section_title: [field_names]}
         self.sections: Dict[str, List[str]] = {}
+        
+        # Track current section being added (for label key generation)
+        self._current_section: str = ""
         
         # Initialize UI
         self._init_ui()
@@ -105,6 +108,8 @@ class TelemetryPanel(QtWidgets.QWidget):
             title: Section title (e.g., "State Machine", "Measurements")
             fields: List of field names to display
         """
+        self._current_section = title
+        
         section_label = QtWidgets.QLabel(title)
         section_label.setStyleSheet("color: #ffff00; font-weight: bold; font-size: 11pt; margin-top: 10px;")
         self.content_layout.addWidget(section_label)
@@ -125,26 +130,37 @@ class TelemetryPanel(QtWidgets.QWidget):
             value_label.setAlignment(QtCore.Qt.AlignRight)
             field_layout.addWidget(value_label)
             
-            # Store reference for updates
-            self.signal_labels[field] = value_label
+            # Store reference for updates using (section, field) tuple as key
+            self.signal_labels[(title, field)] = value_label
             self.content_layout.addLayout(field_layout)
         
         # Store section mapping
         self.sections[title] = fields
     
-    def update_signal(self, signal_name: str, value: any, format_str: str = None):
+    def update_signal(self, signal_name: str, value: any, format_str: str = None, section: str = None):
         """Update a single signal value display.
         
         Args:
             signal_name: Signal name (key in signal_labels)
             value: Signal value (any type)
             format_str: Optional format string (e.g., ":.4f" for floats, default auto)
+            section: Optional section name for disambiguation when multiple sections have same field name
         """
-        if signal_name not in self.signal_labels:
-            logger.warning(f"Signal not found: {signal_name}")
-            return
+        # Try to find the label - if section provided, use it; otherwise search all sections
+        label = None
+        if section is not None:
+            key = (section, signal_name)
+            label = self.signal_labels.get(key)
+        else:
+            # Search for signal in any section (backward compatibility)
+            for (sec, sig), lbl in self.signal_labels.items():
+                if sig == signal_name:
+                    label = lbl
+                    break
         
-        label = self.signal_labels[signal_name]
+        if label is None:
+            logger.warning(f"Signal not found: {signal_name}" + (f" in section {section}" if section else ""))
+            return
         
         # Auto-format based on value type if format_str not provided
         if format_str is None:
@@ -178,58 +194,84 @@ class TelemetryPanel(QtWidgets.QWidget):
         for label in self.signal_labels.values():
             label.setText("---")
     
-    def get_signal_value(self, signal_name: str) -> Optional[str]:
+    def get_signal_value(self, signal_name: str, section: str = None) -> Optional[str]:
         """Get the current display value of a signal.
         
         Args:
             signal_name: Signal name
+            section: Optional section name for disambiguation
             
         Returns:
             Current text value or None if signal doesn't exist
         """
-        if signal_name in self.signal_labels:
-            return self.signal_labels[signal_name].text()
-        return None
+        if section is not None:
+            key = (section, signal_name)
+            label = self.signal_labels.get(key)
+            return label.text() if label else None
+        else:
+            # Search all sections
+            for (sec, sig), label in self.signal_labels.items():
+                if sig == signal_name:
+                    return label.text()
+            return None
     
-    def set_signal_color(self, signal_name: str, color: str):
+    def set_signal_color(self, signal_name: str, color: str, section: str = None):
         """Change the color of a signal value label.
         
         Args:
             signal_name: Signal name
             color: Color string (e.g., "#ff0000" for red, "green", etc.)
+            section: Optional section name for disambiguation
         """
-        if signal_name not in self.signal_labels:
+        label = None
+        if section is not None:
+            key = (section, signal_name)
+            label = self.signal_labels.get(key)
+        else:
+            # Search all sections
+            for (sec, sig), lbl in self.signal_labels.items():
+                if sig == signal_name:
+                    label = lbl
+                    break
+        
+        if label is None:
             logger.warning(f"Signal not found: {signal_name}")
             return
         
-        label = self.signal_labels[signal_name]
         label.setStyleSheet(f"color: {color}; font-family: 'Courier New'; font-size: 9pt;")
     
-    def highlight_signal(self, signal_name: str, highlight: bool = True):
+    def highlight_signal(self, signal_name: str, highlight: bool = True, section: str = None):
         """Highlight or unhighlight a signal value.
         
         Args:
             signal_name: Signal name
             highlight: Whether to highlight (True) or normal (False)
+            section: Optional section name for disambiguation
         """
-        if signal_name not in self.signal_labels:
-            return
-        
         if highlight:
-            self.set_signal_color(signal_name, "#ff00ff")  # Magenta highlight
+            self.set_signal_color(signal_name, "#ff00ff", section)  # Magenta highlight
         else:
-            self.set_signal_color(signal_name, "#ffffff")  # Normal white
+            self.set_signal_color(signal_name, "#ffffff", section)  # Normal white
     
-    def get_label(self, signal_name: str) -> Optional[QtWidgets.QLabel]:
+    def get_label(self, signal_name: str, section: str = None) -> Optional[QtWidgets.QLabel]:
         """Get direct reference to a signal label.
         
         Args:
             signal_name: Signal name
+            section: Optional section name for disambiguation
             
         Returns:
             QLabel reference or None
         """
-        return self.signal_labels.get(signal_name)
+        if section is not None:
+            key = (section, signal_name)
+            return self.signal_labels.get(key)
+        else:
+            # Search all sections
+            for (sec, sig), label in self.signal_labels.items():
+                if sig == signal_name:
+                    return label
+            return None
 
 
 class GridSideTelemetryPanel(TelemetryPanel):

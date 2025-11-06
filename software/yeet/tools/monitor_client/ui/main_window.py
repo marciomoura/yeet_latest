@@ -1252,6 +1252,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         # Iterate through each section in definitions
         for section_key, section_data in definitions.items():
+            section_title = section_data.get('title', section_key.replace('_', ' ').title())
             for field in section_data['fields']:
                 signal_name = field['name']
                 signal_index = field['index']
@@ -1270,12 +1271,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     # Convert float to int for enum lookup
                     int_value = int(value)
                     display_value = enum_map.get(int_value, f"UNKNOWN({int_value})")
-                    self.telemetry_panel.update_signal(signal_name, display_value)
+                    self.telemetry_panel.update_signal(signal_name, display_value, section=section_title)
                 # Update the signal with format from definition
                 elif signal_format == 'bool':
-                    self.telemetry_panel.update_signal(signal_name, value)
+                    self.telemetry_panel.update_signal(signal_name, value, section=section_title)
                 else:
-                    self.telemetry_panel.update_signal(signal_name, value, signal_format)
+                    self.telemetry_panel.update_signal(signal_name, value, signal_format, section=section_title)
     
     def _update_machine_dashboard(self, packet: MachineSideTelemetryPacket):
         """Update machine-side telemetry dashboard using signal definitions.
@@ -1289,6 +1290,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         # Iterate through each section in definitions
         for section_key, section_data in definitions.items():
+            section_title = section_data.get('title', section_key.replace('_', ' ').title())
             for field in section_data['fields']:
                 signal_name = field['name']
                 signal_index = field['index']
@@ -1307,12 +1309,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     # Convert float to int for enum lookup
                     int_value = int(value)
                     display_value = enum_map.get(int_value, f"UNKNOWN({int_value})")
-                    self.telemetry_panel.update_signal(signal_name, display_value)
+                    self.telemetry_panel.update_signal(signal_name, display_value, section=section_title)
                 # Update the signal with format from definition
                 elif signal_format == 'bool':
-                    self.telemetry_panel.update_signal(signal_name, value)
+                    self.telemetry_panel.update_signal(signal_name, value, section=section_title)
                 else:
-                    self.telemetry_panel.update_signal(signal_name, value, signal_format)
+                    self.telemetry_panel.update_signal(signal_name, value, signal_format, section=section_title)
         
         # Pulse Generator
         # if packet.pulse_generator:
