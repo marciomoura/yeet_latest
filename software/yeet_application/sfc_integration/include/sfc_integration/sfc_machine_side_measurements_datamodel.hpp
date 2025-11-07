@@ -140,11 +140,14 @@ public:
         entry.parameters.insert("commutation_end_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
 
-        // int and real_t parameters - use default accessor
-        entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
-        entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
-        entry.parameters.insert("voltage_transducer_gain", _model_parameters->voltage_transducer_gain);
-        entry.parameters.insert("pt_ratio", _model_parameters->pt_ratio);
+        // int and real_t parameters - use make_units_accessor
+        entry.parameters.insert(
+            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        entry.parameters.insert(
+            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
+        entry.parameters.insert(
+            "voltage_transducer_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
+        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
 
         registry.insert("machine_side_measurements_ideal", std::move(entry));
     }
@@ -229,11 +232,14 @@ public:
         entry.parameters.insert("commutation_end_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
 
-        // int and real_t parameters - use default accessor
-        entry.parameters.insert("voltage_adc_bits", _model_parameters->voltage_adc_bits);
-        entry.parameters.insert("voltage_adc_full_scale", _model_parameters->voltage_adc_full_scale);
-        entry.parameters.insert("voltage_transducer_gain", _model_parameters->voltage_transducer_gain);
-        entry.parameters.insert("pt_ratio", _model_parameters->pt_ratio);
+        // int and real_t parameters - use make_units_accessor
+        entry.parameters.insert(
+            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        entry.parameters.insert(
+            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
+        entry.parameters.insert(
+            "voltage_transducer_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
+        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
 
         registry.insert("machine_side_measurements", std::move(entry));
     }

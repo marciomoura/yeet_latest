@@ -125,23 +125,23 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
 
     // Supervisory digital input override parameters
     entry.parameters.insert(
-        "di_override_digital_inputs", yeet::utils::make_units_accessor(_parameters.override_digital_inputs));
-    entry.parameters.insert("di_auxiliaries_are_on", yeet::utils::make_units_accessor(_parameters.auxiliaries_are_on));
-    entry.parameters.insert("di_breakers_are_on", yeet::utils::make_units_accessor(_parameters.breakers_are_on));
-    entry.parameters.insert("di_start_command", yeet::utils::make_units_accessor(_parameters.start_command));
-    entry.parameters.insert("di_stop_command", yeet::utils::make_units_accessor(_parameters.stop_command));
-    entry.parameters.insert("di_shutdown_request", yeet::utils::make_units_accessor(_parameters.shutdown_request));
+        "di_override_digital_inputs", yeet::utils::make_bool_accessor(_parameters.override_digital_inputs));
+    entry.parameters.insert("di_auxiliaries_are_on", yeet::utils::make_bool_accessor(_parameters.auxiliaries_are_on));
+    entry.parameters.insert("di_breakers_are_on", yeet::utils::make_bool_accessor(_parameters.breakers_are_on));
+    entry.parameters.insert("di_start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
+    entry.parameters.insert("di_stop_command", yeet::utils::make_bool_accessor(_parameters.stop_command));
+    entry.parameters.insert("di_shutdown_request", yeet::utils::make_bool_accessor(_parameters.shutdown_request));
 
     // Machine-side fiber-optics input override parameters
     entry.parameters.insert("fo_override_machine_side_inputs",
-        yeet::utils::make_units_accessor(_parameters.override_machine_side_fiber_optics_inputs));
+        yeet::utils::make_bool_accessor(_parameters.override_machine_side_fiber_optics_inputs));
     entry.parameters.insert("fo_measured_speed_pu", yeet::utils::make_units_accessor(_parameters.measured_speed));
     entry.parameters.insert(
         "fo_dc_link_current_reference", yeet::utils::make_units_accessor(_parameters.current_reference));
     entry.parameters.insert(
         "fo_machine_voltage_magnitude", yeet::utils::make_units_accessor(_parameters.machine_voltage_magnitude));
     entry.parameters.insert(
-        "fo_request_force_commutation", yeet::utils::make_units_accessor(_parameters.request_force_commutation));
+        "fo_request_force_commutation", yeet::utils::make_bool_accessor(_parameters.request_force_commutation));
 
     // Register the entry with the model registry
     registry.insert("grid_side_external_ios", std::move(entry));

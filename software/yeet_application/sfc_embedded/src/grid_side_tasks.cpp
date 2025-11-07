@@ -109,9 +109,11 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 #endif
-    // IMPORTANT: For host simulation with plant model, measurement parameters are configured via
-    // plant_hardware::stage_grid_side_measurement_parameters() in the plant builder BEFORE calling this init.
-    // For production embedded builds, these parameters should be set here or via network configuration.
+
+    // Prepare the inputs to be "ready"
+    control->get_external_ios().get_parameters().override_digital_inputs.write(true);
+    control->get_external_ios().get_parameters().auxiliaries_are_on.write(true);
+    control->get_external_ios().get_parameters().breakers_are_on.write(true);
 }
 
 ARM_FUNCTION
@@ -134,10 +136,10 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   AI7 (X1-7): Grid current Ic
 
     // Write ADC values directly to external_ios interface analog inputs
-    control->get_external_ios().get_analog_inputs().v_ab_counts.write(yeet::control::adc_counts{
-        static_cast<int16_t>(inputs->analog_inputs.channels[1])});  // On hil this is channel 1
+    control->get_external_ios().get_analog_inputs().v_ab_counts.write(
+        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
     control->get_external_ios().get_analog_inputs().v_bc_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});  // On hil this is 2
+        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});
     control->get_external_ios().get_analog_inputs().i_a_counts.write(
         yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
     control->get_external_ios().get_analog_inputs().i_c_counts.write(
@@ -207,54 +209,23 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     //   DI1-DI6: State machine commands (auxiliaries, breakers, start, stop, etc.)
     //   DI7-DI16: System status and interlocks
     if (inputs != nullptr && inputs->digital_inputs.valid) {
-        // State machine command inputs (active-high logic)
-        // bool auxiliaries_on = inputs->digital_inputs.signals[0];        // DI1: Auxiliary systems ready
-        // bool breakers_on = inputs->digital_inputs.signals[1];           // DI2: Grid breakers closed
-        // bool start_cmd = inputs->digital_inputs.signals[2];             // DI3: Start command
-        // bool stop_cmd = inputs->digital_inputs.signals[3];              // DI4: Stop command
-        // bool shutdown_req = inputs->digital_inputs.signals[4];          // DI5: Emergency shutdown
-        // bool current_extinguished = inputs->digital_inputs.signals[5];  // DI6: DC link current is zero
-
-        // #ifndef RECTIFIER_MODE
-        // Write digital input values directly to external_ios interface
-        // get_grid_side_control().get_external_ios().get_digital_inputs().auxiliaries_are_on.write(auxiliaries_on);
-        // get_grid_side_control().get_external_ios().get_digital_inputs().breakers_are_on.write(breakers_on);
-        // get_grid_side_control().get_external_ios().get_digital_inputs().start_command.write(start_cmd);
-        // get_grid_side_control().get_external_ios().get_digital_inputs().stop_command.write(stop_cmd);
-        // get_grid_side_control().get_external_ios().get_digital_inputs().shutdown_request.write(shutdown_req); #else
-        // NOTE: Digital inputs are now managed through external_ios datamodel
-        // In embedded, supervisory signals come from hardware and are routed via ADC/DI task
-        // These mock writes are for simulation/testing only - not applicable in embedded context
-        // The actual hardware flow: Hardware ADC/DI → ADC runner → measurements → control
-        // #endif
+        // Update supervisory digital inputs from hardware I/O
+        control->external_ios.update_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
+            inputs->digital_inputs.signals[1],                                          // DI2: Grid breakers closed
+            inputs->digital_inputs.signals[2],                                          // DI3: Start command
+            inputs->digital_inputs.signals[3],                                          // DI4: Stop command
+            inputs->digital_inputs.signals[4]);                                         // DI5: Emergency shutdown
     }
 
     // Process fiber-optic RX data from machine-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
-    // #ifndef RECTIFIER_MODE
     if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
-        // Decode Machine → Grid protocol message
-        if (auto rx_msg = yeet::application::sfc::fiber_optic::decode_machine_to_grid(
-                inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length)) {
-            // Update fiber optics inputs using proper datamodel method (respects override flags)
-            control->external_ios.update_fiber_optics_inputs_from_machine(yeet::speed_pu_t{rx_msg->measured_speed},
-                yeet::current_pu_t{rx_msg->dc_link_current_reference_pu},
-                yeet::voltage_pu_t{rx_msg->machine_voltage_magnitude_pu}, rx_msg->force_commutation_request,
-                rx_msg->shutdown_request);
-        }
+        // Use control class method to decode all signals (ensures consistency with host simulator)
+        // This updates external_ios with: measured_speed, current_reference, machine_voltage_magnitude,
+        // force_commutation_request, shutdown_request
+        control->decode_fiber_optic_rx_from_machine(
+            inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length);
     }
-    //     // #else
-    //     yeet::mock_signal_input::write(
-    //         get_grid_side_control().get_io().machine_side_inputs.measured_speed, yeet::speed_pu_t{1.0f});
-    //     yeet::mock_signal_input::write(
-    //         get_grid_side_control().get_io().machine_side_inputs.current_reference,
-    //         yeet::current_pu_t{0.0f});
-    //     yeet::mock_signal_input::write(
-    //         get_grid_side_control().get_io().machine_side_inputs.machine_voltage_magnitude,
-    //         yeet::voltage_pu_t{1.0f});
-    //     yeet::mock_signal_input::write(
-    //         get_grid_side_control().get_io().machine_side_inputs.request_force_commutation, false);
-    // #endif
 
     // ==================== EXECUTE CONTROL UPDATE ====================
     // Digital input overrides are automatically applied within the state machine lambdas
@@ -266,20 +237,11 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     // Prepare fiber-optic TX data to send to machine-side board via I/O interface outputs
     // Transmit grid-side status and cross-coupled signals
     if (outputs != nullptr) {
-        // Prepare Grid → Machine protocol message
-        yeet::application::sfc::fiber_optic::grid_to_machine_message tx_msg;
+        uint8_t payload_words = control->encode_fiber_optic_tx_to_machine();
+        outputs->fiber_optic_tx.payload_length = payload_words;
 
-        // Read from control class outputs directly (these are sent via fiber-optics to machine-side)
-        tx_msg.mode = control->get_operating_mode().read();
-        tx_msg.current_is_zero = control->get_is_current_zero().read();
-        tx_msg.force_commutation_acknowledged = control->get_force_commutation_acknowledged().read();
-        tx_msg.pulse_releases = control->get_pulse_releases().read();
-        tx_msg.dc_link_current = control->dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
-        tx_msg.is_saturated = control->get_current_controller_is_saturated().read();
-
-        // Encode and transmit
-        outputs->fiber_optic_tx.payload_length =
-            yeet::application::sfc::fiber_optic::encode_grid_to_machine(tx_msg, outputs->fiber_optic_tx.payload);
+        std::memcpy(
+            outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
         outputs->fiber_optic_tx.transmit_request = true;
     }
 

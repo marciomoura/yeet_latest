@@ -93,7 +93,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("enable", _model_parameters->enable);
+        entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
         entry.parameters.insert("forced_commutation_firing_angle",
             yeet::utils::make_units_accessor(_model_parameters->forced_commutation_firing_angle));
 

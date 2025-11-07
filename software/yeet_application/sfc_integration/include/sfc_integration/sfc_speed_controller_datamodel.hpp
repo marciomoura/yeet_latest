@@ -91,7 +91,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("kp", _model_parameters->kp);
+        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->kp));
         entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
         entry.parameters.insert("torque_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->torque_reference_magnitude_limit));

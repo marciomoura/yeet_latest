@@ -78,8 +78,8 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        // bool parameter - use default accessor
-        entry.parameters.insert("enable", _model_parameters->enable);
+        // bool parameter - use make_bool_accessor
+        entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
 
         // angle_wrapped parameter - convert to/from radians
         auto& pulse_width_param = _model_parameters->pulse_width;

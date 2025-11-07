@@ -119,9 +119,12 @@ public:
             "absolute_min_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_min_torque));
         entry.parameters.insert(
             "absolute_max_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_max_torque));
-        entry.parameters.insert("torque_to_current_factor", _model_parameters->torque_to_current_factor);
-        entry.parameters.insert("torque_rate_limit", _model_parameters->torque_rate_limit);
-        entry.parameters.insert("enable_torque_rate_limiting", _model_parameters->enable_torque_rate_limiting);
+        entry.parameters.insert(
+            "torque_to_current_factor", yeet::utils::make_units_accessor(_model_parameters->torque_to_current_factor));
+        entry.parameters.insert(
+            "torque_rate_limit", yeet::utils::make_units_accessor(_model_parameters->torque_rate_limit));
+        entry.parameters.insert("enable_torque_rate_limiting",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_torque_rate_limiting));
         entry.parameters.insert(
             "breakaway_boost_torque", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_torque));
         entry.parameters.insert(

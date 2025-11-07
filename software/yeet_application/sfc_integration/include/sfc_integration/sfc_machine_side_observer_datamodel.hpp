@@ -88,7 +88,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("kp", _model_parameters->kp);
+        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->kp));
         entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
         entry.parameters.insert(
             "nominal_frequency", yeet::utils::make_units_accessor(_model_parameters->nominal_frequency));
@@ -96,7 +96,8 @@ public:
             "initial_frequency", yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
         entry.parameters.insert(
             "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
-        entry.parameters.insert("commutation_detection_threshold", _model_parameters->commutation_detection_threshold);
+        entry.parameters.insert("commutation_detection_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_detection_threshold));
 
         registry.insert("machine_side_observer", std::move(entry));
     }

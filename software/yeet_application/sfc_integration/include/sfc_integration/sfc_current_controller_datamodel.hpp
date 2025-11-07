@@ -114,7 +114,7 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("kp", _model_parameters->kp);
+        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->kp));
         entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
         entry.parameters.insert(
             "min_firing_angle", yeet::utils::make_units_accessor(_model_parameters->min_firing_angle));
@@ -122,8 +122,8 @@ public:
             "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
         entry.parameters.insert("current_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_magnitude_limit));
-        entry.parameters.insert(
-            "current_reference_rectifier_operation", _model_parameters->current_reference_rectifier_operation);
+        entry.parameters.insert("current_reference_rectifier_operation",
+            yeet::utils::make_units_accessor(_model_parameters->current_reference_rectifier_operation));
 
         registry.insert("current_controller", std::move(entry));
     }

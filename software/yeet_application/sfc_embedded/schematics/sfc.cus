@@ -79,8 +79,8 @@ SETTINGS_DIR = get_settings_dir_path()
                             <layout>Grid</layout>
                             <legend>True</legend>
                             <show_viewports>4</show_viewports>
-                            <decimation>6</decimation>
-                            <time_base>0.005</time_base>
+                            <decimation>21</decimation>
+                            <time_base>0.02</time_base>
                             <analog_signals>
                                 <analog>
                                     <channel>0</channel>
@@ -216,7 +216,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_machine_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>11</row>
                                     <viewports>
@@ -228,7 +228,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_machine_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>12</row>
                                     <viewports>
@@ -240,7 +240,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_machine_side_ca]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>13</row>
                                     <viewports>
@@ -282,7 +282,7 @@ SETTINGS_DIR = get_settings_dir_path()
                          </digital_signals>
                     </capture>
                     <scope>
-                        <time_base>0.005 </time_base>
+                        <time_base>0.02 </time_base>
                         <background_color>black</background_color>
                         <layout>Grid</layout>
                         <legend>True</legend>
@@ -429,7 +429,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_machine_side_ab]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>11</row>
                                     <viewports>
@@ -441,7 +441,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_machine_side_bc]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>12</row>
                                     <viewports>
@@ -453,7 +453,7 @@ SETTINGS_DIR = get_settings_dir_path()
                                     <name><![CDATA[voltage_bridge_machine_side_ca]]></name>
                                     <is_locked>False</is_locked>
                                     <vertical_scale>Auto</vertical_scale>
-                                    <vertical_offset>0</vertical_offset>
+                                    <vertical_offset>0.0</vertical_offset>
                                     <coupling>False</coupling>
                                     <row>13</row>
                                     <viewports>
