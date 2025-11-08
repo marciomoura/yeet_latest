@@ -20,6 +20,7 @@
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
+#include "sfc_integration/sfc_plant_model_machine_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
@@ -819,6 +820,113 @@ static inline void register_complete_plant_model_logger(yeet::simulator& simulat
         group + "output grid_frequency", [&]() { return plant_model.get_outputs().grid_frequency.read(); }));
 }
 
+// ==================== Plant Model Machine Loggers ====================
+// Split into Grid-side and Machine-side loggers for better organization
+
+// Grid-side plant model outputs
+static inline void register_minimal_plant_model_machine_grid_logger(
+    yeet::simulator& simulator, sfc_plant_model_machine_runner& plant_model)
+{
+    const std::string group{"plant_grid:"};
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(
+        group + "output dc_link_voltage", [&]() { return plant_model.get_outputs().dc_link_voltage.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(
+        group + "output dc_link_current", [&]() { return plant_model.get_outputs().dc_link_current.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
+        group + "output grid_current_abc", [&]() { return plant_model.get_outputs().grid_current_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
+        group + "output grid_voltage_abc", [&]() { return plant_model.get_outputs().grid_voltage_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output grid_voltage_source_angle",
+        [&]() { return plant_model.get_outputs().grid_voltage_source_angle.read().get_radians(); }));
+}
+
+static inline void register_complete_plant_model_machine_grid_logger(
+    yeet::simulator& simulator, sfc_plant_model_machine_runner& plant_model)
+{
+    register_minimal_plant_model_machine_grid_logger(simulator, plant_model);
+    const std::string group{"plant_grid:"};
+
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<abc<voltage_t>>(group + "output grid_voltage_source_phase_to_neutral_abc",
+            [&]() { return plant_model.get_outputs().grid_voltage_source_phase_to_neutral_abc.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<abc<current_t>>(group + "output grid_voltage_source_currents_abc",
+            [&]() { return plant_model.get_outputs().grid_voltage_source_currents_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_t>(
+        group + "output grid_frequency", [&]() { return plant_model.get_outputs().grid_frequency.read(); }));
+}
+
+// Machine-side plant model outputs
+static inline void register_minimal_plant_model_machine_side_logger(
+    yeet::simulator& simulator, sfc_plant_model_machine_runner& plant_model)
+{
+    const std::string group{"plant_machine:"};
+    simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
+        group + "output machine_current_abc", [&]() { return plant_model.get_outputs().machine_current_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
+        group + "output machine_voltage_abc", [&]() { return plant_model.get_outputs().machine_voltage_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_t>(
+        group + "output machine_speed", [&]() { return plant_model.get_outputs().machine_speed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_t>(group + "output machine_electrical_torque",
+        [&]() { return plant_model.get_outputs().machine_electrical_torque.read(); }));
+}
+
+static inline void register_complete_plant_model_machine_side_logger(
+    yeet::simulator& simulator, sfc_plant_model_machine_runner& plant_model)
+{
+    register_minimal_plant_model_machine_side_logger(simulator, plant_model);
+    const std::string group{"plant_machine:"};
+
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(
+        group + "output machine_dc_voltage", [&]() { return plant_model.get_outputs().machine_dc_voltage.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<abc<current_t>>(group + "output machine_stator_currents_abc",
+            [&]() { return plant_model.get_outputs().machine_stator_currents_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<angle_t>(group + "output machine_mechanical_angle",
+        [&]() { return plant_model.get_outputs().machine_mechanical_angle.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_t>(
+        group + "output machine_load_torque", [&]() { return plant_model.get_outputs().machine_load_torque.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<power_t>(group + "output machine_electrical_power",
+        [&]() { return plant_model.get_outputs().machine_electrical_power.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(group + "output machine_stator_current_d",
+        [&]() { return plant_model.get_outputs().machine_stator_current_d.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(group + "output machine_stator_current_q",
+        [&]() { return plant_model.get_outputs().machine_stator_current_q.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(group + "output machine_stator_voltage_d",
+        [&]() { return plant_model.get_outputs().machine_stator_voltage_d.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(group + "output machine_stator_voltage_q",
+        [&]() { return plant_model.get_outputs().machine_stator_voltage_q.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<magnetic_flux_t>(
+        group + "output machine_flux_d", [&]() { return plant_model.get_outputs().machine_flux_d.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<magnetic_flux_t>(
+        group + "output machine_flux_q", [&]() { return plant_model.get_outputs().machine_flux_q.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(group + "output machine_field_current_d",
+        [&]() { return plant_model.get_outputs().machine_field_current_d.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(group + "output machine_damper_current_q1",
+        [&]() { return plant_model.get_outputs().machine_damper_current_q1.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(group + "output machine_damper_current_q2",
+        [&]() { return plant_model.get_outputs().machine_damper_current_q2.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(group + "output machine_damper_current_d",
+        [&]() { return plant_model.get_outputs().machine_damper_current_d.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output source_voltage_phase",
+        [&]() { return plant_model.get_outputs().source_voltage_phase.read().get_radians(); }));
+}
+
+// Legacy combined logger (deprecated - use split loggers instead)
+static inline void register_minimal_plant_model_machine_logger(
+    yeet::simulator& simulator, sfc_plant_model_machine_runner& plant_model)
+{
+    register_minimal_plant_model_machine_grid_logger(simulator, plant_model);
+    register_minimal_plant_model_machine_side_logger(simulator, plant_model);
+}
+
+static inline void register_complete_plant_model_machine_logger(
+    yeet::simulator& simulator, sfc_plant_model_machine_runner& plant_model)
+{
+    register_complete_plant_model_machine_grid_logger(simulator, plant_model);
+    register_complete_plant_model_machine_side_logger(simulator, plant_model);
+}
+
 // ==================== Hardware Mock Loggers ====================
 // Grid-Side Hardware Mock
 static inline void register_minimal_grid_side_hardware_mock_logger(
@@ -1058,6 +1166,16 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_plant
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_plant_model_runner& runner)
 {
     register_complete_plant_model_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_plant_model_machine_runner& runner)
+{
+    register_minimal_plant_model_machine_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_plant_model_machine_runner& runner)
+{
+    register_complete_plant_model_machine_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_operation_mode_monitor_runner& runner)

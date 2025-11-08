@@ -8,12 +8,11 @@
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
-// Forward declarations for Simulink-generated class and types
-class sfc_6p_6p_topology_machine;
-struct ExtU_sfc_6p_6p_topology_machi_T;
+// Forward declaration for Simulink-generated class only
+// The full header will be included in the .cpp file
+class LCITopology6x6MinimalModelClass;
 
 namespace yeet::application::sfc {
-
 /**
  * @brief Wrapper class for the Simulink-generated 6-pulse to 6-pulse SFC topology with complete machine model
  *
@@ -262,7 +261,7 @@ private:
     void update_cached_machine_states();
 
 private:
-    std::unique_ptr<sfc_6p_6p_topology_machine> _model;
+    std::unique_ptr<LCITopology6x6MinimalModelClass> _model;
     sfc_plant_model_transformer_parameters _transformer_params;
     sfc_plant_model_dc_link_parameters _dc_link_params;
     sfc_plant_model_machine_electrical_parameters _machine_electrical_params;
@@ -273,8 +272,5 @@ private:
     mutable machine_mechanical_state _cached_mechanical_state;
     mutable machine_stator_state_dq _cached_stator_state_dq;
     mutable machine_rotor_state _cached_rotor_state;
-
-    // Simulink input caching - use pointer to keep header lean
-    std::unique_ptr<ExtU_sfc_6p_6p_topology_machi_T> _inputs;
 };
 }  // namespace yeet::application::sfc

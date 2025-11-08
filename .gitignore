@@ -32,7 +32,7 @@ vendor/
 
 # Ignore STM32CubeMX-generated Drivers (fetched via CMake)
 boards/*/Drivers/
-
+boards/stm32f407zg-cn/legacy/
 # Ignore STM32CubeMX-generated Middlewares (fetched via CMake)
 boards/*/Middlewares/ST/
 

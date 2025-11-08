@@ -1,0 +1,9 @@
+-IC:/git/simulink/sfc_6p_6p_topology_machine
+-IC:/git/simulink/sfc_6p_6p_topology_machine/sfc_6p_6p_topology_machine_ert_rtw
+-IC:/Program\ Files/MATLAB/R2023b/extern/include
+-IC:/Program\ Files/MATLAB/R2023b/simulink/include
+-IC:/Program\ Files/MATLAB/R2023b/rtw/c/src
+-IC:/Program\ Files/MATLAB/R2023b/rtw/c/src/ext_mode/common
+-IC:/Program\ Files/MATLAB/R2023b/rtw/c/ert
+-IC:/Program\ Files/MATLAB/R2023b/toolbox/physmod/powersys/facts/facts
+-IC:/Program\ Files/MATLAB/R2023b/toolbox/physmod/powersys/DR/DR

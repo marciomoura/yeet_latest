@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <array>
 
-#include "sfc_6p_6p_topology_machine.h"  // Include the Simulink-generated header
+#include "LCITopology6x6Minimal.h"  // Include the Simulink-generated header
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
 
@@ -62,7 +62,7 @@ sfc_plant_model_6p_6p_machine::sfc_plant_model_6p_6p_machine(
     const sfc_plant_model_machine_electrical_parameters& machine_electrical_params,
     const sfc_plant_model_machine_mechanical_parameters& machine_mechanical_params,
     const sfc_plant_model_measurement_parameters& measurement_params)
-    : _model(std::make_unique<sfc_6p_6p_topology_machine>()),
+    : _model(std::make_unique<LCITopology6x6MinimalModelClass>()),
       _transformer_params(transformer_params),
       _dc_link_params(dc_link_params),
       _machine_electrical_params(machine_electrical_params),
@@ -70,8 +70,7 @@ sfc_plant_model_6p_6p_machine::sfc_plant_model_6p_6p_machine(
       _measurement_params(measurement_params),
       _cached_mechanical_state{},
       _cached_stator_state_dq{},
-      _cached_rotor_state{},
-      _inputs(std::make_unique<ExtU_sfc_6p_6p_topology_machi_T>())
+      _cached_rotor_state{}
 {
     _model->initialize();
 
@@ -79,10 +78,14 @@ sfc_plant_model_6p_6p_machine::sfc_plant_model_6p_6p_machine(
     // Manually set it to point to odeF[0] to fix the segfault in derivatives function.
     auto* rtm = _model->getRTM();
     rtm->derivs = rtm->odeF[0];
+
+    // Initialize measurement ratios to prevent division by zero in Simulink outputs
+    set_measurement_ratios(measurement_params.grid_pt_ratio, measurement_params.grid_ct_ratio,
+        measurement_params.motor_pt_ratio, measurement_params.motor_ct_ratio);
 }
 
 sfc_plant_model_6p_6p_machine::sfc_plant_model_6p_6p_machine()
-    : _model(std::make_unique<sfc_6p_6p_topology_machine>()),
+    : _model(std::make_unique<LCITopology6x6MinimalModelClass>()),
       _transformer_params(create_default_transformer_parameters()),
       _dc_link_params(create_default_dc_link_parameters()),
       _machine_electrical_params(create_default_machine_electrical_parameters()),
@@ -90,8 +93,7 @@ sfc_plant_model_6p_6p_machine::sfc_plant_model_6p_6p_machine()
       _measurement_params(create_default_measurement_parameters()),
       _cached_mechanical_state{},
       _cached_stator_state_dq{},
-      _cached_rotor_state{},
-      _inputs(std::make_unique<ExtU_sfc_6p_6p_topology_machi_T>())
+      _cached_rotor_state{}
 {
     _model->initialize();
 
@@ -99,6 +101,9 @@ sfc_plant_model_6p_6p_machine::sfc_plant_model_6p_6p_machine()
     // Manually set it to point to odeF[0] to fix the segfault in derivatives function.
     auto* rtm = _model->getRTM();
     rtm->derivs = rtm->odeF[0];
+
+    // Initialize measurement ratios to prevent division by zero in Simulink outputs
+    set_measurement_ratios(kDefaultGridPTRatio, kDefaultGridCTRatio, kDefaultMotorPTRatio, kDefaultMotorCTRatio);
 }
 
 sfc_plant_model_6p_6p_machine::~sfc_plant_model_6p_6p_machine()
@@ -182,83 +187,75 @@ void sfc_plant_model_6p_6p_machine::terminate() { _model->terminate(); }
 void sfc_plant_model_6p_6p_machine::set_grid_side_pulses(const std::array<bool, 6>& pulses)
 {
     for (size_t i = 0; i < 6; ++i) {
-        _inputs->pulses_in_grid[i] = static_cast<double>(pulses[i]);
+        _model->LCITopology6x6Minimal_U.pulses_in_grid[i] = static_cast<double>(pulses[i]);
     }
-    _model->setExternalInputs(_inputs.get());
 }
 
 void sfc_plant_model_6p_6p_machine::set_machine_side_pulses(const std::array<bool, 6>& pulses)
 {
     for (size_t i = 0; i < 6; ++i) {
-        _inputs->pulses_in_motor[i] = static_cast<double>(pulses[i]);
+        _model->LCITopology6x6Minimal_U.pulses_in_motor[i] = static_cast<double>(pulses[i]);
     }
-    _model->setExternalInputs(_inputs.get());
 }
 
 void sfc_plant_model_6p_6p_machine::set_grid_voltage_source(
     voltage_t voltage_mag_a, voltage_t voltage_mag_b, voltage_t voltage_mag_c, frequency_t frequency)
 {
-    _inputs->voltage_magnitude_a = voltage_mag_a.value();
-    _inputs->voltage_magnitude_b = voltage_mag_b.value();
-    _inputs->voltage_magnitude_c = voltage_mag_c.value();
-    _inputs->voltage_frequency = frequency.value();
-    _model->setExternalInputs(_inputs.get());
+    _model->LCITopology6x6Minimal_U.voltage_magnitude_a = voltage_mag_a.value();
+    _model->LCITopology6x6Minimal_U.voltage_magnitude_b = voltage_mag_b.value();
+    _model->LCITopology6x6Minimal_U.voltage_magnitude_c = voltage_mag_c.value();
+    _model->LCITopology6x6Minimal_U.voltage_frequency = frequency.value();
 }
 
 void sfc_plant_model_6p_6p_machine::set_field_voltage(voltage_t field_voltage)
 {
-    _inputs->voltage_excitation = field_voltage.value();
-    _model->setExternalInputs(_inputs.get());
+    _model->LCITopology6x6Minimal_U.voltage_excitation = field_voltage.value();
 }
 
 void sfc_plant_model_6p_6p_machine::set_load_coefficients(const std::array<real_t, 3>& load_coefficients)
 {
     for (size_t i = 0; i < 3; ++i) {
-        _inputs->load_coefficients[i] = load_coefficients[i];
+        _model->LCITopology6x6Minimal_U.load_coefficients[i] = load_coefficients[i];
     }
-    _model->setExternalInputs(_inputs.get());
 }
 
 void sfc_plant_model_6p_6p_machine::set_measurement_ratios(
     real_t grid_pt_ratio, real_t grid_ct_ratio, real_t motor_pt_ratio, real_t motor_ct_ratio)
 {
-    _inputs->grid_pt_ratio = grid_pt_ratio;
-    _inputs->grid_ct_ratio = grid_ct_ratio;
-    _inputs->motor_pt_ratio = motor_pt_ratio;
-    _inputs->motor_ct_ratio = motor_ct_ratio;
-    _model->setExternalInputs(_inputs.get());
+    _model->LCITopology6x6Minimal_U.grid_pt_ratio = grid_pt_ratio;
+    _model->LCITopology6x6Minimal_U.grid_ct_ratio = grid_ct_ratio;
+    _model->LCITopology6x6Minimal_U.motor_pt_ratio = motor_pt_ratio;
+    _model->LCITopology6x6Minimal_U.motor_ct_ratio = motor_ct_ratio;
 }
 
 void sfc_plant_model_6p_6p_machine::set_forced_speed(real_t speed_pu, bool enable)
 {
-    _inputs->forced_speed_pu = speed_pu;
-    _inputs->enable_forced_speed = static_cast<double>(enable);
-    _model->setExternalInputs(_inputs.get());
+    _model->LCITopology6x6Minimal_U.forced_speed_pu = speed_pu;
+    _model->LCITopology6x6Minimal_U.enable_forced_speed = static_cast<double>(enable);
 }
 
 void sfc_plant_model_6p_6p_machine::set_dc_isolator(bool closed)
 {
-    _inputs->close_dc_isolator = static_cast<double>(closed);
-    _model->setExternalInputs(_inputs.get());
+    _model->LCITopology6x6Minimal_U.close_dc_isolator = closed;
 }
 
 // Output getters - DC link
 voltage_t sfc_plant_model_6p_6p_machine::get_dc_link_voltage() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     return voltage_t(outputs.Udc);
 }
 
 current_t sfc_plant_model_6p_6p_machine::get_dc_link_current() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     return current_t(outputs.Idc);
 }
 
 // Output getters - Grid side
 abc<current_t> sfc_plant_model_6p_6p_machine::get_grid_side_currents_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& currents = outputs.Iph_grid;
     return to_dimension_abc<current_t>(abc<real_t>(
         static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])));
@@ -266,7 +263,7 @@ abc<current_t> sfc_plant_model_6p_6p_machine::get_grid_side_currents_abc() const
 
 abc<voltage_t> sfc_plant_model_6p_6p_machine::get_grid_side_voltages_line_to_line_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& voltages = outputs.Uph_ph_grid;
     return to_dimension_abc<voltage_t>(abc<real_t>(
         static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])));
@@ -274,13 +271,13 @@ abc<voltage_t> sfc_plant_model_6p_6p_machine::get_grid_side_voltages_line_to_lin
 
 angle_wrapped sfc_plant_model_6p_6p_machine::get_grid_voltage_source_angle() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     return angle_wrapped(outputs.wt);
 }
 
 abc<voltage_t> sfc_plant_model_6p_6p_machine::get_grid_voltage_source_phase_to_neutral_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& voltages = outputs.Uph_n_source;
     return to_dimension_abc<voltage_t>(abc<real_t>(
         static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])));
@@ -288,7 +285,7 @@ abc<voltage_t> sfc_plant_model_6p_6p_machine::get_grid_voltage_source_phase_to_n
 
 abc<current_t> sfc_plant_model_6p_6p_machine::get_grid_voltage_source_currents_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& currents = outputs.Iph_source;
     return to_dimension_abc<current_t>(abc<real_t>(
         static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])));
@@ -297,7 +294,7 @@ abc<current_t> sfc_plant_model_6p_6p_machine::get_grid_voltage_source_currents_a
 // Output getters - Machine side converter
 abc<current_t> sfc_plant_model_6p_6p_machine::get_machine_side_currents_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& currents = outputs.Iph_motor;
     return to_dimension_abc<current_t>(abc<real_t>(
         static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])));
@@ -305,7 +302,7 @@ abc<current_t> sfc_plant_model_6p_6p_machine::get_machine_side_currents_abc() co
 
 abc<voltage_t> sfc_plant_model_6p_6p_machine::get_machine_side_voltages_line_to_line_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& voltages = outputs.Uph_ph_motor;
     return to_dimension_abc<voltage_t>(abc<real_t>(
         static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])));
@@ -313,7 +310,7 @@ abc<voltage_t> sfc_plant_model_6p_6p_machine::get_machine_side_voltages_line_to_
 
 voltage_t sfc_plant_model_6p_6p_machine::get_machine_side_dc_voltage() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     return voltage_t(outputs.Udc_machine);
 }
 
@@ -330,7 +327,7 @@ const machine_stator_state_dq& sfc_plant_model_6p_6p_machine::get_machine_stator
 
 abc<current_t> sfc_plant_model_6p_6p_machine::get_machine_stator_currents_abc() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     const auto& currents_a = outputs.machine_phase_current_a;
     const auto& currents_b = outputs.machine_phase_current_b;
     const auto& currents_c = outputs.machine_phase_current_c;
@@ -345,7 +342,7 @@ const machine_rotor_state& sfc_plant_model_6p_6p_machine::get_machine_rotor_stat
 
 angle_wrapped sfc_plant_model_6p_6p_machine::get_source_voltage_phase() const noexcept
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
     return angle_wrapped(outputs.source_voltage_phase);
 }
 
@@ -433,16 +430,14 @@ sfc_plant_model_measurement_parameters sfc_plant_model_6p_6p_machine::create_def
 
 void sfc_plant_model_6p_6p_machine::update_cached_machine_states()
 {
-    const auto& outputs = _model->getExternalOutputs();
+    const auto& outputs = _model->LCITopology6x6Minimal_Y;
 
     // Update mechanical state
     _cached_mechanical_state.speed = speed_t(outputs.machine_speed);
     _cached_mechanical_state.electrical_torque = torque_t(outputs.machine_electrical_torque);
     _cached_mechanical_state.mechanical_angle = angle_t(outputs.machine_mechanical_angle);
     _cached_mechanical_state.load_torque = torque_t(outputs.machine_load);
-    _cached_mechanical_state.electrical_power = power_t(outputs.machine_electrical_power);
-
-    // Update stator state
+    _cached_mechanical_state.electrical_power = power_t(outputs.machine_electrical_power);  // Update stator state
     _cached_stator_state_dq.current_d = current_t(outputs.machine_stator_current_d);
     _cached_stator_state_dq.current_q = current_t(outputs.machine_stator_current_q);
     _cached_stator_state_dq.voltage_d = voltage_t(outputs.machine_stator_voltage_d);

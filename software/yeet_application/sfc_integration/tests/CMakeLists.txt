@@ -15,6 +15,7 @@ target_sources(
             complete_sensorless_speed_control_test.cpp
             # Open loop tests
             open_loop_plant_model_test.cpp
+            open_loop_plant_machine_model_test.cpp
             # Current control tests
             current_control_forced_commutation_test.cpp
             current_control_natural_commutation_test.cpp
