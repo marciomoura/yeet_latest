@@ -37,6 +37,9 @@ public:
 
         /// Stop command signal
         signal_input<bool> stop_command;
+
+        /// External speed reference [pu]
+        signal_input<speed_pu_t> external_speed_reference;
     };
 
     /**
@@ -68,13 +71,16 @@ public:
         signal_output<bool> release_torque_controller;
 
         /// Virtual rotor angle [rad]
-        signal_output<angle_t> virtual_rotor_angle;
+        signal_output<angle_wrapped> virtual_rotor_angle;
 
         /// Virtual rotor frequency [Hz]
-        signal_output<frequency_t> virtual_rotor_frequency;
+        signal_output<frequency_pu_t> virtual_rotor_frequency;
 
         /// Virtual torque reference [pu]
         signal_output<torque_pu_t> virtual_torque_reference;
+
+        /// Rate-limited speed reference [pu]
+        signal_output<speed_pu_t> speed_reference;
 
         /// Startup complete status (true when in CLOSED_LOOP_OPERATION)
         signal_output<bool> is_startup_complete;
@@ -87,11 +93,11 @@ public:
      * @brief Configuration parameters for the startup sequencer
      */
     struct parameters {
-        /// Initial virtual frequency [Hz]
-        parameter<frequency_t> virtual_frequency_initial = frequency_t{1.0};
+        /// Initial virtual frequency [pu]
+        parameter<frequency_pu_t> virtual_frequency_initial = frequency_pu_t{0.0};
 
-        /// Final virtual frequency [Hz]
-        parameter<frequency_t> virtual_frequency_final = frequency_t{10.0};
+        /// Final virtual frequency [pu]
+        parameter<frequency_pu_t> virtual_frequency_final = frequency_pu_t{0.2};
 
         /// Virtual frequency ramp duration [s], 0 = skip virtual phase
         parameter<duration_t> virtual_frequency_duration = duration_t{10.0};
@@ -122,6 +128,13 @@ public:
 
         /// Forced field established value when override is enabled
         parameter<bool> override_value_field_established = false;
+
+        /// Speed reference rate limit in seconds per per-unit speed change
+        /// (e.g., 10.0 means 10 seconds to ramp from 0 to 1.0 pu = 0.1 pu/s)
+        parameter<real_t> speed_reference_rate_limit_seconds_per_pu = real_t{10.0};
+
+        /// Enable/disable speed reference rate limiting
+        parameter<bool> speed_reference_rate_limit_enabled = true;
     };
 
 private:
@@ -167,6 +180,10 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->override_enable_field_established));
         entry.parameters.insert("override_value_field_established",
             yeet::utils::make_bool_accessor(_model_parameters->override_value_field_established));
+        entry.parameters.insert("speed_reference_rate_limit_seconds_per_pu",
+            yeet::utils::make_units_accessor(_model_parameters->speed_reference_rate_limit_seconds_per_pu));
+        entry.parameters.insert("speed_reference_rate_limit_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->speed_reference_rate_limit_enabled));
 
         registry.insert("startup_sequencer", std::move(entry));
     }

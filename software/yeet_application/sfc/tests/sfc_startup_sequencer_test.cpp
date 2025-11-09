@@ -22,7 +22,7 @@ protected:
     void run_cycles(int count, bool field_established = true, angle_t estimated_angle = angle_t{0.0})
     {
         for (int i = 0; i < count; ++i) {
-            sequencer->update(field_established, estimated_angle);
+            sequencer->update(field_established, estimated_angle, speed_pu_t{1.0});
         }
     }
 
@@ -151,7 +151,7 @@ TEST_F(SfcStartupSequencerTest, FluxBuildupOutputsAreCorrect)
 {
     sequencer->start_sequence();
     // Run one cycle without field established to verify FLUX_BUILDUP outputs
-    sequencer->update(false, angle_t{0.0});  // is_field_established = false
+    sequencer->update(false, angle_t{0.0}, speed_pu_t{1.0});  // is_field_established = false
     auto outputs = sequencer->get_outputs();
 
     // Should still be in FLUX_BUILDUP state
@@ -163,8 +163,8 @@ TEST_F(SfcStartupSequencerTest, FluxBuildupOutputsAreCorrect)
     EXPECT_FALSE(outputs.controller_commands.release_machine_side_pulses);
 
     // Release commands
-    EXPECT_TRUE(outputs.controller_commands.release_excitation);  // Excitation enabled
-    EXPECT_FALSE(outputs.controller_commands.release_machine_observer);
+    EXPECT_TRUE(outputs.controller_commands.release_excitation);        // Excitation enabled
+    EXPECT_TRUE(outputs.controller_commands.release_machine_observer);  // Observer enabled during flux buildup
     EXPECT_FALSE(outputs.controller_commands.release_speed_controller);
     EXPECT_FALSE(outputs.controller_commands.release_torque_controller);
 }
@@ -252,11 +252,11 @@ TEST_F(SfcStartupSequencerTest, VirtualAngleWrapsToTwoPi)
 
     // Run for full duration in STARTING_PROCEDURE
     for (int i = 0; i < 1000; ++i) {
-        sequencer->update(true, angle_t{0.0});
+        sequencer->update(true, angle_t{0.0}, speed_pu_t{1.0});
         auto outputs = sequencer->get_outputs();
         // Angle should always be in [0, 2π]
-        EXPECT_GE(outputs.virtual_reference.rotor_angle.value(), 0.0f);
-        EXPECT_LT(outputs.virtual_reference.rotor_angle.value(), two_pi);
+        EXPECT_GE(outputs.virtual_reference.rotor_angle.get_radians(), 0.0f);
+        EXPECT_LT(outputs.virtual_reference.rotor_angle.get_radians(), two_pi);
     }
 }
 
@@ -379,7 +379,7 @@ TEST_F(SfcStartupSequencerTest, ResetClearsVirtualReferenceFrame)
     sequencer->reset();
 
     auto outputs = sequencer->get_outputs();
-    EXPECT_EQ(outputs.virtual_reference.rotor_angle.value(), 0.0f);
+    EXPECT_EQ(outputs.virtual_reference.rotor_angle.get_radians(), 0.0f);
     EXPECT_EQ(outputs.virtual_reference.rotor_frequency.value(), 0.0f);
     EXPECT_EQ(outputs.virtual_reference.torque_reference.value(), 0.0f);
 }

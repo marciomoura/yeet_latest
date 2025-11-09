@@ -49,7 +49,8 @@ public:
         register_complete_logger(simulator, system.grid_side_control.current_controller);
         register_complete_logger(simulator, system.machine_side_control.torque_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
-        register_complete_logger(simulator, system.machine_side_control.speed_generator);
+        // register_complete_logger(simulator, system.machine_side_control.speed_generator);
+        register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.grid_side_control.state_machine);
         register_complete_logger(simulator, system.machine_side_control.excitation_controller);
         register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
@@ -745,38 +746,33 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
  */
 TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
 {
-    // Configure plant starting from standstill
-    yeet::application::sfc::integration::test::variable_speed_config config{};
-    config.initial_speed = speed_pu_t{0.0f};  // Complete standstill
-    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
-
-    // Configure moderate load torque
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
-
     // ==================== Configure Startup Sequencer ====================
-    // Virtual frequency profile: 1 Hz to 10 Hz in 20 seconds (start from 1 Hz to avoid zero frequency)
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_t{1.0f};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_t{10.0f};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{20.0f};
+    // Virtual frequency profile: 0 Hz (0 pu) to 20 Hz (0.4 pu) in 50 seconds
+    // Parameters are in per-unit and will be converted to SI using the per-unit system (base = 50 Hz)
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.2};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
 
-    // Virtual torque profile: 0.1 pu to 0.4 pu in 5 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.1f};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.4f};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{5.0f};
+    // Virtual torque profile: 0.0 pu to 0.3 pu in 2 seconds
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
 
-    // ==================== Configure Speed Generator for Final Speed ====================
-    // Configure Profile 1 (Creep) to reach 0.2 pu in reasonable time
-    system.machine_side_control.speed_generator.get_parameters().profile_1_target_speed = speed_pu_t{0.2f};
-    system.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time = duration_t{15.0f};
-    system.machine_side_control.speed_generator.get_parameters().profile_1_torque_limit_max = torque_pu_t{0.5f};
-    system.machine_side_control.speed_generator.get_parameters().profile_1_torque_limit_min = torque_pu_t{-0.2f};
+    // Pre-fluxing duration before virtual startup
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // ==================== Configure Speed Reference Rate Limiter ====================
+    // Configure rate limiter: 20 seconds per per-unit = 0.05 pu/s
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+        real_t{20.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
     // Speed tracking checker for steady-state validation
-    const speed_pu_t speed_error_tolerance{0.08f};  // Relaxed for startup transients
+    const speed_pu_t speed_error_tolerance{0.10f};  // Relaxed for rate-limited ramp
     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
         "speed tracking error",
         [&]() -> speed_pu_t {
-            return (system.machine_side_control.speed_generator.get_outputs().speed_reference.read() -
+            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
         },
         -speed_error_tolerance, speed_error_tolerance, yeet::checker_activation_always{}));
@@ -785,7 +781,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
 
     // ==================== Execute State Machine Startup ====================
     execute_startup_sequence();
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "State machine should enable pulse releases after startup sequence";
@@ -795,17 +790,27 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     // ==================== Trigger Startup Sequencer ====================
     // Send start command to the startup sequencer to begin the coordinated startup sequence
     set_startup_sequencer_start_command(true);
-    success &= simulator.simulate_for(0.1);
+    success &= simulator.simulate_for(1.0);  // Pre-flux duration
+
+    // Configure moderate load torque
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+
+    // Configure torque limits for startup
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
 
     // ==================== Wait for Flux Buildup and Virtual Startup ====================
     // The startup sequencer will progress through:
     // IDLE → FLUX_BUILDUP → STARTING_PROCEDURE → CLOSED_LOOP_OPERATION
-    // Allow time for flux build and virtual frequency ramp (20s) + settling
-    success &= simulator.simulate_for(25.0);
+    // Pre-flux (1s) + Virtual frequency ramp (10s) = 11s until closed-loop
+    // Add small settling time = 11.5s total
+    success &= simulator.simulate_for(11.5);
 
     // Verify startup sequencer completed its sequence
-    auto final_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
-    EXPECT_EQ(final_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
         << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
 
     // Verify reference frame switched to estimated (observer-based)
@@ -818,24 +823,46 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     EXPECT_EQ(torque_mode, sfc_torque_controller::control_mode::SPEED_CONTROL)
         << "Torque controller should be in SPEED_CONTROL mode";
 
-    // ==================== Command Speed Profile to Reach 0.2 pu ====================
-    // Now that startup is complete, command speed generator to reach final speed
-    set_idle(false);
+    // ==================== Ramp Speed Reference to 1.0 pu with Rate Limiting ====================
+    // After virtual startup, the speed reference limiter is reset to 0 when transitioning to closed-loop.
+    // The limiter has been running since the transition (about 0.5s ago with 0 input).
+    // Now set external speed reference to 1.0 pu and track the ramp from 0.
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{1.0});
+
+    // Simulate a small step to allow the new reference to propagate
     success &= simulator.simulate_for(0.1);
 
-    set_run_creep_speed(true);
-    success &= simulator.simulate_for(0.1);
+    // Get the current speed reference as baseline (should be very close to 0, maybe ~0.005 pu from 0.5s + 0.1s
+    // settling)
+    auto baseline_speed_ref = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
 
-    // Allow acceleration to 0.2 pu (15s acceleration + 3s settling)
-    success &= simulator.simulate_for(18.0);
+    // Calculate expected speed reference values based on rate limiting from baseline
+    const real_t rate_pu_per_s = 0.05f;  // 20 s/pu = 0.05 pu/s
+    const real_t expected_ref_5s = baseline_speed_ref.value() + 0.05f * 5.0f;
+    const real_t expected_ref_10s = baseline_speed_ref.value() + 0.05f * 10.0f;
+    const real_t expected_ref_20s = 1.0f;  // 1.0 pu after 20s from baseline
 
-    // ==================== Verify Final Speed ====================
+    // Simulate for 5 seconds
+    success &= simulator.simulate_for(5.0);
+    auto speed_ref_5s = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+    EXPECT_NEAR(speed_ref_5s.value(), expected_ref_5s, 0.05f)
+        << "Speed reference should ramp at 0.05 pu/s from 0 after closed-loop transition";
+
+    // Simulate for 5 more seconds
+    success &= simulator.simulate_for(5.0);
+    auto speed_ref_10s = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+    EXPECT_NEAR(speed_ref_10s.value(), expected_ref_10s, 0.05f)
+        << "Speed reference should continue ramping at 0.05 pu/s";
+
+    // Simulate until reference reaches 1.0 pu (need 20s total at 0.05 pu/s, already simulated 10s)
+    success &= simulator.simulate_for(10.0);
+    auto speed_ref_final = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+    EXPECT_NEAR(speed_ref_final.value(), 1.0f, 0.03f)
+        << "Speed reference should reach 1.0 pu with 20 s/pu rate limit";  // ==================== Verify Speed Tracking
+                                                                           // ====================
     auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(final_speed.value(), 0.2f, 0.05f)
-        << "Machine should reach approximately 0.2 pu after startup sequence and speed profile";
-
-    auto speed_ref = system.machine_side_control.speed_generator.get_outputs().speed_reference.read();
-    EXPECT_NEAR(speed_ref.value(), 0.2f, 0.02f) << "Speed generator should output 0.2 pu reference";
+    EXPECT_NEAR(final_speed.value(), 1.0f, 0.15f)
+        << "Machine should track the rate-limited speed reference to approximately 1.0 pu";
 
     // ==================== Steady-State Validation ====================
     speed_tracking_checker->activate();

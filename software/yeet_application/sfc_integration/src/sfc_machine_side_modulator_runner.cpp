@@ -23,8 +23,8 @@ void sfc_machine_side_modulator_runner::run()
     // Read inputs from the datamodel
     const sfc_operating_mode_t operating_mode = _inputs.operating_mode.read();
     const bool force_commutation_acknowledged = _inputs.force_commutation_acknowledged.read();
-    const angle_t estimated_rotor_angle = _inputs.machine_reference_angle.read();
-    const angle_t virtual_rotor_angle = _inputs.virtual_rotor_angle.read();
+    const angle_t estimated_rotor_angle = _inputs.machine_reference_angle.read().get_radians();
+    const angle_t virtual_rotor_angle = _inputs.virtual_rotor_angle.read().get_radians();
     const reference_frame_source_t frame_source = _inputs.reference_frame_source.read();
     const angle_t firing_angle_from_lut = _inputs.firing_angle.read();
 

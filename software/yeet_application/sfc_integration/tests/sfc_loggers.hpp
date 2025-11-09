@@ -23,6 +23,7 @@
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_integration/sfc_startup_sequencer_runner.hpp"
 #include "sfc_integration/sfc_state_machine_runner.hpp"
 #include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet_control/types.hpp"
@@ -489,6 +490,76 @@ static inline void register_complete_state_machine_logger(
         group + "output has_transitioned", [&]() { return state_machine.get_outputs().has_transitioned.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<sfc_state_id>(
         group + "output current_state_id", [&]() { return state_machine.get_outputs().current_state_id.read(); }));
+}
+
+// --- Startup sequencer runner loggers ---
+static inline void register_minimal_startup_sequencer_logger(
+    yeet::simulator& simulator, sfc_startup_sequencer_runner& startup_sequencer)
+{
+    const std::string group{"startup_sequencer:"};
+
+    // Key inputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input start_command", [&]() { return startup_sequencer.get_inputs().start_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input stop_command", [&]() { return startup_sequencer.get_inputs().stop_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input is_field_established",
+        [&]() { return startup_sequencer.get_inputs().is_field_established.read(); }));
+
+    // State and mode outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<startup_sequencer_state_t>(
+        group + "output current_state", [&]() { return startup_sequencer.get_outputs().current_state.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<reference_frame_source_t>(group + "output reference_frame_source",
+            [&]() { return startup_sequencer.get_outputs().reference_frame_source.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<sfc_torque_controller::control_mode>(group + "output torque_control_mode",
+            [&]() { return startup_sequencer.get_outputs().torque_control_mode.read(); }));
+
+    // Release signals
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_machine_side_pulses",
+        [&]() { return startup_sequencer.get_outputs().release_machine_side_pulses.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_excitation",
+        [&]() { return startup_sequencer.get_outputs().release_excitation.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_machine_observer",
+        [&]() { return startup_sequencer.get_outputs().release_machine_observer.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_speed_controller",
+        [&]() { return startup_sequencer.get_outputs().release_speed_controller.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_torque_controller",
+        [&]() { return startup_sequencer.get_outputs().release_torque_controller.read(); }));
+
+    // Virtual reference outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output virtual_rotor_angle",
+        [&]() { return startup_sequencer.get_outputs().virtual_rotor_angle.read().get_pu(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "output virtual_rotor_frequency",
+        [&]() { return startup_sequencer.get_outputs().virtual_rotor_frequency.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "output virtual_torque_reference",
+        [&]() { return startup_sequencer.get_outputs().virtual_torque_reference.read(); }));
+
+    // Speed control outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
+        group + "output speed_reference", [&]() { return startup_sequencer.get_outputs().speed_reference.read(); }));
+
+    // Status outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_startup_complete",
+        [&]() { return startup_sequencer.get_outputs().is_startup_complete.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "output time_in_current_state",
+        [&]() { return startup_sequencer.get_outputs().time_in_current_state.read(); }));
+}
+
+static inline void register_complete_startup_sequencer_logger(
+    yeet::simulator& simulator, sfc_startup_sequencer_runner& startup_sequencer)
+{
+    const std::string group{"startup_sequencer:"};
+
+    register_minimal_startup_sequencer_logger(simulator, startup_sequencer);
+
+    // Add estimated rotor angle input
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input estimated_rotor_angle",
+        [&]() { return startup_sequencer.get_inputs().estimated_rotor_angle.read().get_pu(); }));
+    // Add external speed reference input
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "input external_speed_reference",
+        [&]() { return startup_sequencer.get_inputs().external_speed_reference.read(); }));
 }
 
 static inline void register_minimal_operation_mode_monitor_logger(
@@ -992,6 +1063,16 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_state
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_state_machine_runner& runner)
 {
     register_complete_state_machine_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_startup_sequencer_runner& runner)
+{
+    register_minimal_startup_sequencer_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_startup_sequencer_runner& runner)
+{
+    register_complete_startup_sequencer_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machine_side_controller_runner& runner)

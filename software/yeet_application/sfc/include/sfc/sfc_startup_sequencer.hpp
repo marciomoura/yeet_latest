@@ -53,6 +53,14 @@ struct virtual_torque_config {
 };
 
 /**
+ * @brief Speed reference rate limit configuration
+ */
+struct speed_reference_rate_limit_config {
+    real_t seconds_per_pu{10.0};  ///< Rate limit in seconds per per-unit speed change
+    bool enabled{true};           ///< Enable/disable rate limiting
+};
+
+/**
  * @brief Flux build-up outputs
  */
 struct flux_buildup_outputs {
@@ -64,9 +72,16 @@ struct flux_buildup_outputs {
  * @brief Virtual reference frame outputs
  */
 struct virtual_reference_outputs {
-    angle_t rotor_angle{0.0};           ///< Virtual rotor angle [rad]
+    angle_wrapped rotor_angle{0.0};     ///< Virtual rotor angle [rad]
     frequency_t rotor_frequency{0.0};   ///< Virtual rotor frequency [Hz]
     torque_pu_t torque_reference{0.0};  ///< Virtual torque reference [pu]
+};
+
+/**
+ * @brief Speed control outputs
+ */
+struct speed_control_outputs {
+    speed_pu_t speed_reference{0.0};  ///< Rate-limited speed reference [pu]
 };
 
 /**
@@ -92,6 +107,7 @@ struct controller_command_outputs {
 struct startup_sequencer_outputs {
     flux_buildup_outputs flux_buildup;
     virtual_reference_outputs virtual_reference;
+    speed_control_outputs speed_control;
     controller_command_outputs controller_commands;
 };
 
@@ -138,6 +154,17 @@ public:
     void configure_virtual_torque(const virtual_torque_config& config);
 
     /**
+     * @brief Configures the speed reference rate limiter
+     *
+     * The rate limit is specified as seconds per per-unit of speed change.
+     * For example, a value of 10.0 means it takes 10 seconds to change the
+     * speed reference by 1.0 pu (0.1 pu/s rate).
+     *
+     * @param config Speed reference rate limit configuration
+     */
+    void configure_speed_reference_rate_limit(const speed_reference_rate_limit_config& config);
+
+    /**
      * @brief Starts the startup sequence
      *
      * Called when the main state machine enters OPERATION_ON.
@@ -167,8 +194,9 @@ public:
      *
      * @param is_field_established Field excitation established flag from excitation controller
      * @param estimated_rotor_angle Angle from observer [rad]
+     * @param external_speed_reference External speed reference input [pu]
      */
-    void update(bool is_field_established, angle_t estimated_rotor_angle);
+    void update(bool is_field_established, angle_wrapped estimated_rotor_angle, speed_pu_t external_speed_reference);
 
     /**
      * @brief Resets the sequencer to initial state
@@ -231,10 +259,12 @@ private:
     linear_ramp<torque_pu_t> _virtual_torque_ramp;
     control::elapsed_timer _state_elapsed_timer;
     control::integrator<angle_wrapped> _virtual_angle_integrator;
+    control::rate_of_change_limiter _speed_reference_limiter;
 
     // Configuration
     virtual_frequency_config _virtual_frequency_config;
     virtual_torque_config _virtual_torque_config;
+    speed_reference_rate_limit_config _speed_reference_rate_limit_config;
 
     // State
     startup_sequencer_state_t _current_state{startup_sequencer_state_t::IDLE};
@@ -243,7 +273,7 @@ private:
 
     // Virtual reference frame generation
     frequency_t _virtual_frequency{0.0};
-    angle_t _virtual_rotor_angle{0.0};
+    angle_wrapped _virtual_rotor_angle{0.0};
     torque_pu_t _virtual_torque{0.0};
 
     // State transition methods
@@ -256,12 +286,12 @@ private:
     void update_idle();
     void update_flux_buildup(bool is_field_established);
     void update_starting_procedure();
-    void update_closed_loop_operation();
+    void update_closed_loop_operation(speed_pu_t external_speed_reference);
 
     // Virtual reference frame generation
     bool update_virtual_reference_frame();
     bool update_virtual_torque_reference();
-    void synchronize_virtual_to_estimated(angle_t estimated_angle);
+    void synchronize_virtual_to_estimated(angle_wrapped estimated_angle);
 
     // Helper methods
     void update_outputs_for_current_state();

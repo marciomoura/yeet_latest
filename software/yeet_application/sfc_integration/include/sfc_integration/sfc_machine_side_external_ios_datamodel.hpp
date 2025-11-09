@@ -429,6 +429,16 @@ public:
     yeet::control::six_pulse_generator::pulses get_thyristor_pulse_outputs() const;
 
     /**
+     * @brief Get fixed speed reference output (temporary for startup sequencer testing)
+     *
+     * Provides a constant 1.0 pu speed reference while speed_generator is disconnected.
+     * This will be removed when speed_generator is reintegrated.
+     *
+     * @return Signal output with fixed 1.0 pu speed reference
+     */
+    signal_output<speed_pu_t>& get_fixed_speed_reference() { return _fixed_speed_reference; }
+
+    /**
      * @brief Register datamodel with model registry for network/telemetry access
      *
      * Called during application initialization to make datamodel parameters available
@@ -470,6 +480,9 @@ private:
     speed_generator_outputs_t _speed_generator_outputs;
     startup_sequencer_outputs_t _startup_sequencer_outputs;
     thyristor_control_output_t _thyristor_output;
+
+    // Fixed speed reference for startup sequencer testing (temporary until speed_generator reintegration)
+    signal_output<speed_pu_t> _fixed_speed_reference{speed_pu_t{1.0}};
 };
 
 }  // namespace yeet::application::sfc::integration

@@ -20,22 +20,14 @@ void sfc_speed_controller_runner::initialize()
 
 void sfc_speed_controller_runner::run()
 {
-    // CRITICAL: Use composite saturation from torque controller, which includes
-    // both torque-level and current-level saturation
-    // const bool downstream_saturated = _inputs.is_saturated.read();
-
-    // // CRITICAL: Also freeze during external events from supervisor
-    // const bool external_freeze_requested = _inputs.freeze_integrator.read();
-
-    // Combine: freeze if EITHER downstream is saturated OR external freeze requested
-    const bool freeze_integrator = _inputs.is_saturated;
-
     if (!_inputs.release_pulses.read()) {
-        // When disabled, controller is inactive (no output updates)
-        // When re-enabling, could reset to current measured speed to prevent bump
-        // _sfc_speed_controller.reset(_inputs.measured_speed.read());
+        // When disabled, reset controller to initial speed
+        _sfc_speed_controller.reset(_parameters.initial_speed);
         return;  // Skip update when disabled
     }
+
+    // Combine: freeze if downstream is saturated
+    const bool freeze_integrator = _inputs.is_saturated;
 
     // Execute controller update
     // _sfc_speed_controller.freeze_integrator(freeze_integrator);

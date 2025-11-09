@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "sfc/sfc_per_unit_system.hpp"
 #include "sfc/sfc_startup_sequencer.hpp"
 #include "sfc_integration/sfc_startup_sequencer_datamodel.hpp"
 #include "yeet/application_interface.hpp"
@@ -32,8 +35,12 @@ public:
 
     /**
      * @brief Constructs the startup sequencer runner
+     * @param per_unit_system Shared per-unit system for frequency conversions
      */
-    sfc_startup_sequencer_runner() : base_application(sampling_time), _sequencer(sampling_time) {}
+    explicit sfc_startup_sequencer_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
+        : base_application(sampling_time), _sequencer(sampling_time), _per_unit_system(std::move(per_unit_system))
+    {
+    }
 
     void register_datamodel(yeet::model_registry& registry) override;
     void initialize() override;
@@ -58,6 +65,9 @@ private:
 
     /// The core startup sequencer instance
     sfc::sfc_startup_sequencer _sequencer;
+
+    /// Per-unit system for frequency conversions
+    std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
     /// Edge detection flags for commands
     bool _prev_start_command{false};

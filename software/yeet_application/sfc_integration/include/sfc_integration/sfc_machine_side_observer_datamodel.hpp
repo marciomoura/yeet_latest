@@ -22,6 +22,9 @@ public:
     struct inputs {
         /// Three-phase machine voltage measurements in per-unit (machine-side base)
         yeet::signal_input<yeet::abc<yeet::voltage_pu_t>> machine_voltage_pu;
+
+        /// Enable signal for observer execution (from startup sequencer)
+        yeet::signal_input<bool> release_observer;
     };
 
     /**

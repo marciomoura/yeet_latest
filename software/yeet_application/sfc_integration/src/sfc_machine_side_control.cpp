@@ -21,9 +21,9 @@ void sfc_machine_side_control::update_10ms()
 {
     // 10ms sampling: Execute in order: supervisor → generator → controller → limiter
     machine_integrator_supervisor.run();  // 0. Coordinate freeze/preset/trip logic
-    speed_generator.run();                // 1. Generate speed reference + dynamic torque limits
-    speed_controller.run();               // 2. Process speed error → torque reference
-    torque_controller.run();              // 3. Apply limits + boost → current reference
+    // speed_generator.run();                // 1. Generate speed reference + dynamic torque limits
+    speed_controller.run();   // 2. Process speed error → torque reference
+    torque_controller.run();  // 3. Apply limits + boost → current reference
 }
 
 void sfc_machine_side_control::update_1ms()
@@ -110,6 +110,9 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== Machine-Side Observer Inputs ====================
     signals_connector::connect_output_to_input(
         machine_measurements.get_outputs().machine_voltage_abc, machine_side_observer.get_inputs().machine_voltage_pu);
+    // Observer enable from startup sequencer
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().release_machine_observer, machine_side_observer.get_inputs().release_observer);
 
     // ==================== Machine Integrator Supervisor Inputs ====================
     // Connect fiber-optic signals from grid-side
@@ -123,8 +126,9 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== Excitation Controller Inputs ====================
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, excitation_controller.get_inputs().machine_rotor_speed_pu);
-    signals_connector::connect_output_to_input(machine_integrator_supervisor.get_outputs().release_pulses,
-        excitation_controller.get_inputs().release_excitation);
+    // Excitation enable from startup sequencer
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().release_excitation, excitation_controller.get_inputs().release_excitation);
 
     // ==================== Startup Sequencer Inputs ====================
     signals_connector::connect_output_to_input(
@@ -135,43 +139,51 @@ void sfc_machine_side_control::connect_internal_signals()
         external_ios.get_startup_sequencer_outputs().start_command, startup_sequencer.get_inputs().start_command);
     signals_connector::connect_output_to_input(
         external_ios.get_startup_sequencer_outputs().stop_command, startup_sequencer.get_inputs().stop_command);
+    // External speed reference input for rate limiting
+    signals_connector::connect_output_to_input(
+        external_ios.get_fixed_speed_reference(), startup_sequencer.get_inputs().external_speed_reference);
 
-    // ==================== Speed Generator Inputs ====================
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed);
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs().current_state_id, speed_generator.get_inputs().current_state_id);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().run_creep_speed, speed_generator.get_inputs().run_profile_1);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().run_purge_accel, speed_generator.get_inputs().run_profile_2);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().run_ignition_accel, speed_generator.get_inputs().run_profile_3);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().run_assist_accel, speed_generator.get_inputs().run_profile_4);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().hold_speed, speed_generator.get_inputs().hold_speed);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().decelerate, speed_generator.get_inputs().decelerate);
-    signals_connector::connect_output_to_input(
-        external_ios.get_speed_generator_outputs().idle, speed_generator.get_inputs().idle);
+    // ==================== Speed Generator Inputs (TEMPORARILY DISABLED) ====================
+    // Speed generator disconnected during startup sequencer testing
+    // Will be re-integrated later for multi-profile speed control
+    // signals_connector::connect_output_to_input(
+    //     machine_side_observer.get_outputs().estimated_speed, speed_generator.get_inputs().measured_speed);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_fiber_optics_inputs().current_state_id, speed_generator.get_inputs().current_state_id);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().run_creep_speed, speed_generator.get_inputs().run_profile_1);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().run_purge_accel, speed_generator.get_inputs().run_profile_2);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().run_ignition_accel, speed_generator.get_inputs().run_profile_3);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().run_assist_accel, speed_generator.get_inputs().run_profile_4);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().hold_speed, speed_generator.get_inputs().hold_speed);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().decelerate, speed_generator.get_inputs().decelerate);
+    // signals_connector::connect_output_to_input(
+    //     external_ios.get_speed_generator_outputs().idle, speed_generator.get_inputs().idle);
 
     // ==================== Speed Controller Inputs ====================
+    // Speed reference from startup sequencer (rate-limited)
     signals_connector::connect_output_to_input(
-        speed_generator.get_outputs().speed_reference, speed_controller.get_inputs().speed_reference);
+        startup_sequencer.get_outputs().speed_reference, speed_controller.get_inputs().speed_reference);
+    // Measured speed from observer
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed);
-    // Enable and freeze signals from supervisor (centralized coordination)
-    signals_connector::connect_output_to_input(machine_integrator_supervisor.get_outputs().release_pulses,
-        this->machine_side_pulse_generator.get_inputs().release_pulses);
-    signals_connector::connect_output_to_input(machine_integrator_supervisor.get_outputs().release_pulses,
-        this->machine_side_modulator.get_inputs().release_pulses);
+
+    // ==================== Startup Sequencer → Component Enable Connections ====================
+    // Speed controller enable from startup sequencer
     signals_connector::connect_output_to_input(
-        machine_integrator_supervisor.get_outputs().release_pulses, speed_controller.get_inputs().release_pulses);
+        startup_sequencer.get_outputs().release_speed_controller, speed_controller.get_inputs().release_pulses);
+
+    // Keep machine_integrator_supervisor for anti-windup freeze logic
     signals_connector::connect_output_to_input(
         machine_integrator_supervisor.get_outputs().freeze_integrator, speed_controller.get_inputs().freeze_integrator);
     signals_connector::connect_output_to_input(
         machine_integrator_supervisor.get_outputs().preset_request, speed_controller.get_inputs().preset_request);
+
     // Grid-side saturation signal
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().is_saturated, speed_controller.get_inputs().is_saturated);
@@ -179,12 +191,19 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== Torque Controller Inputs ====================
     signals_connector::connect_output_to_input(
         speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
-    signals_connector::connect_output_to_input(
-        speed_generator.get_outputs().torque_limit_max_pu, torque_controller.get_inputs().dynamic_max_torque_limit);
-    signals_connector::connect_output_to_input(
-        speed_generator.get_outputs().torque_limit_min_pu, torque_controller.get_inputs().dynamic_min_torque_limit);
-    signals_connector::connect_output_to_input(
-        speed_generator.get_outputs().is_breakaway_boost_active, torque_controller.get_inputs().enable_breakaway_boost);
+
+    // Mock speed_generator outputs during startup sequencer coordination
+    // These will be reconnected when speed_generator is reintegrated
+    yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{2.0});
+    yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
+    yeet::mock_signal_input::write(torque_controller.get_inputs().enable_breakaway_boost, false);
+    // signals_connector::connect_output_to_input(
+    //     speed_generator.get_outputs().torque_limit_max_pu, torque_controller.get_inputs().dynamic_max_torque_limit);
+    // signals_connector::connect_output_to_input(
+    //     speed_generator.get_outputs().torque_limit_min_pu, torque_controller.get_inputs().dynamic_min_torque_limit);
+    // signals_connector::connect_output_to_input(speed_generator.get_outputs().is_breakaway_boost_active,
+    //     torque_controller.get_inputs().enable_breakaway_boost);
+
     // Saturation signal from grid-side
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().is_saturated, torque_controller.get_inputs().is_saturated);
@@ -214,6 +233,9 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_side_modulator.get_inputs().reference_frame_source);
     signals_connector::connect_output_to_input(
         startup_sequencer.get_outputs().virtual_rotor_angle, machine_side_modulator.get_inputs().virtual_rotor_angle);
+    // Modulator enable from startup sequencer
+    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().release_machine_side_pulses,
+        machine_side_modulator.get_inputs().release_pulses);
 
     // ==================== Machine-Side Pulse Generator Inputs ====================
     signals_connector::connect_output_to_input(

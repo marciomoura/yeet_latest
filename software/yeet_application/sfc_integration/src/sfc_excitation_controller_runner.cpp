@@ -26,6 +26,7 @@ void sfc_excitation_controller_runner::run()
     _outputs.field_current_reference.write(_sfc_excitation_controller.get_field_current_reference_pu());
     _outputs.prefluxing_elapsed_time.write(
         _sfc_excitation_controller.get_flux_buildup_elapsed_time());  // Renamed getter
+    _outputs.is_field_established.write(_sfc_excitation_controller.get_is_field_established());
 }
 
 void sfc_excitation_controller_runner::stop() { _sfc_excitation_controller.reset(); }

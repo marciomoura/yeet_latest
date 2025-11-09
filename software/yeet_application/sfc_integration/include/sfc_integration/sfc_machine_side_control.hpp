@@ -44,7 +44,7 @@ public:
           speed_generator(),
           speed_controller(),
           torque_controller(),
-          startup_sequencer(),
+          startup_sequencer(per_unit_system),
           machine_integrator_supervisor(),
           machine_side_controller(),
           machine_side_observer(),
@@ -300,6 +300,9 @@ private:
     // Fiber-optic communication buffers (internal storage)
     std::array<std::uint32_t, fiber_optic::max_payload_words> _fiber_optic_tx_payload{};
     std::uint8_t _fiber_optic_tx_length{0};
+
+    // Fixed speed reference for startup sequencer coordination (temporary, until speed_generator reintegration)
+    speed_pu_t _fixed_speed_reference{1.0};
 
     /**
      * @brief Connect internal signals between machine-side components

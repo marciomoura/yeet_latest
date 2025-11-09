@@ -38,8 +38,11 @@ void sfc_startup_sequencer_runner::run()
     // Read estimated rotor angle and convert from angle_wrapped to angle_t
     angle_t estimated_angle = _inputs.estimated_rotor_angle.read().get_radians();
 
+    // Read external speed reference
+    speed_pu_t external_speed_reference = _inputs.external_speed_reference.read();
+
     // Update the sequencer with measured signals
-    _sequencer.update(is_field_established, estimated_angle);
+    _sequencer.update(is_field_established, estimated_angle, external_speed_reference);
     const sfc::startup_sequencer_outputs sequencer_outputs = _sequencer.get_outputs();
 
     _outputs.current_state.write(sequencer_outputs.controller_commands.current_state);
@@ -52,8 +55,12 @@ void sfc_startup_sequencer_runner::run()
     _outputs.release_torque_controller.write(sequencer_outputs.controller_commands.release_torque_controller);
 
     _outputs.virtual_rotor_angle.write(sequencer_outputs.virtual_reference.rotor_angle);
-    _outputs.virtual_rotor_frequency.write(sequencer_outputs.virtual_reference.rotor_frequency);
+    // Convert SI frequency back to per-unit for datamodel output
+    const frequency_pu_t freq_pu{sequencer_outputs.virtual_reference.rotor_frequency.value() /
+                                 _per_unit_system->get_machine_bases().base_frequency.value()};
+    _outputs.virtual_rotor_frequency.write(freq_pu);
     _outputs.virtual_torque_reference.write(sequencer_outputs.virtual_reference.torque_reference);
+    _outputs.speed_reference.write(sequencer_outputs.speed_control.speed_reference);
 
     _outputs.is_startup_complete.write(_sequencer.is_startup_complete());
     _outputs.time_in_current_state.write(_sequencer.get_time_in_current_state());
@@ -68,19 +75,31 @@ void sfc_startup_sequencer_runner::stop()
 
 void sfc_startup_sequencer_runner::set_parameters()
 {
-    // Configure virtual frequency phase
+    // Convert frequency parameters from per-unit to SI (Hz) using the machine-side per-unit system
+    const frequency_t freq_initial_si =
+        to_si(_parameters.virtual_frequency_initial.read(), _per_unit_system->get_machine_bases().base_frequency);
+    const frequency_t freq_final_si =
+        to_si(_parameters.virtual_frequency_final.read(), _per_unit_system->get_machine_bases().base_frequency);
+
+    // Configure virtual frequency phase (in SI units)
     sfc::virtual_frequency_config freq_cfg;
-    freq_cfg.initial = _parameters.virtual_frequency_initial.read();
-    freq_cfg.final = _parameters.virtual_frequency_final.read();
+    freq_cfg.initial = freq_initial_si;
+    freq_cfg.final = freq_final_si;
     freq_cfg.duration = _parameters.virtual_frequency_duration.read();
     _sequencer.configure_virtual_frequency(freq_cfg);
 
-    // Configure virtual torque phase
+    // Configure virtual torque phase (already in per-unit)
     sfc::virtual_torque_config torque_cfg;
     torque_cfg.initial = _parameters.virtual_torque_initial.read();
     torque_cfg.final = _parameters.virtual_torque_final.read();
     torque_cfg.duration = _parameters.virtual_torque_duration.read();
     _sequencer.configure_virtual_torque(torque_cfg);
+
+    // Configure speed reference rate limit
+    sfc::speed_reference_rate_limit_config rate_limit_cfg;
+    rate_limit_cfg.seconds_per_pu = _parameters.speed_reference_rate_limit_seconds_per_pu.read();
+    rate_limit_cfg.enabled = _parameters.speed_reference_rate_limit_enabled.read();
+    _sequencer.configure_speed_reference_rate_limit(rate_limit_cfg);
 }
 
 void sfc_startup_sequencer_runner::set_parameter_callback()
@@ -94,6 +113,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
     _parameters.virtual_torque_initial.register_callback([&]() { set_parameters(); });
     _parameters.virtual_torque_final.register_callback([&]() { set_parameters(); });
     _parameters.virtual_torque_duration.register_callback([&]() { set_parameters(); });
+
+    // Register callbacks for speed reference rate limit parameters
+    _parameters.speed_reference_rate_limit_seconds_per_pu.register_callback([&]() { set_parameters(); });
+    _parameters.speed_reference_rate_limit_enabled.register_callback([&]() { set_parameters(); });
 }
 
 void sfc_startup_sequencer_runner::handle_commands()

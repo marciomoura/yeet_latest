@@ -24,6 +24,7 @@ target_sources(
             sfc_per_unit_system_test.cpp
             sfc_soft_starter_speed_generator_test.cpp
             sfc_startup_sequencer_test.cpp
+            sfc_startup_sequencer_rate_limiter_test.cpp
             sfc_state_machine_test.cpp
             sfc_torque_controller_test.cpp)
 

@@ -12,7 +12,8 @@ sfc_startup_sequencer::sfc_startup_sequencer(duration_t sampling_time)
       _virtual_frequency_ramp(sampling_time),
       _virtual_torque_ramp(sampling_time),
       _state_elapsed_timer(sampling_time),
-      _virtual_angle_integrator(sampling_time)
+      _virtual_angle_integrator(sampling_time),
+      _speed_reference_limiter(sampling_time.value())
 {
     reset();
 }
@@ -37,6 +38,17 @@ void sfc_startup_sequencer::configure_virtual_torque(const virtual_torque_config
     _virtual_torque_ramp.configure(ramp_cfg);
 }
 
+void sfc_startup_sequencer::configure_speed_reference_rate_limit(const speed_reference_rate_limit_config& config)
+{
+    _speed_reference_rate_limit_config = config;
+
+    // Convert seconds/pu to pu/second for rate limiter
+    // If seconds_per_pu = 10, then rate = 1/10 = 0.1 pu/s
+    real_t rate_pu_per_second = 1.0f / config.seconds_per_pu;
+    _speed_reference_limiter.configure(rate_pu_per_second);
+    _speed_reference_limiter.configure_enable(config.enabled);
+}
+
 bool sfc_startup_sequencer::start_sequence()
 {
     // Can only start from IDLE state
@@ -51,7 +63,8 @@ bool sfc_startup_sequencer::start_sequence()
 
 void sfc_startup_sequencer::stop_sequence() { transition_to_idle(); }
 
-void sfc_startup_sequencer::update(bool is_field_established, angle_t estimated_rotor_angle)
+void sfc_startup_sequencer::update(
+    bool is_field_established, angle_wrapped estimated_rotor_angle, speed_pu_t external_speed_reference)
 {
     // Update state elapsed timer (always enabled)
     _state_elapsed_timer.update(true);
@@ -71,7 +84,7 @@ void sfc_startup_sequencer::update(bool is_field_established, angle_t estimated_
             break;
 
         case startup_sequencer_state_t::CLOSED_LOOP_OPERATION:
-            update_closed_loop_operation();
+            update_closed_loop_operation(external_speed_reference);
             break;
     }
 
@@ -184,6 +197,9 @@ void sfc_startup_sequencer::transition_to_closed_loop_operation()
     _virtual_frequency = frequency_t{0.0};
     _virtual_torque = torque_pu_t{0.0};
 
+    // Reset speed reference limiter to start from 0 for closed-loop ramp-up
+    _speed_reference_limiter.reset();
+
     // Reset state elapsed timer
     _state_elapsed_timer.reset();
 }
@@ -235,9 +251,12 @@ void sfc_startup_sequencer::update_starting_procedure()
     }
 }
 
-void sfc_startup_sequencer::update_closed_loop_operation()
+void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t external_speed_reference)
 {
-    // Closed-loop operation - no special actions required
+    // Update speed reference limiter with external reference (only in closed-loop)
+    _speed_reference_limiter.update(external_speed_reference.value());
+
+    // Closed-loop operation - speed control is active
     // System is running normally under speed control
 }
 
@@ -268,11 +287,11 @@ bool sfc_startup_sequencer::update_virtual_torque_reference()
     return _virtual_torque_ramp.is_finished();
 }
 
-void sfc_startup_sequencer::synchronize_virtual_to_estimated(angle_t estimated_angle)
+void sfc_startup_sequencer::synchronize_virtual_to_estimated(angle_wrapped estimated_angle)
 {
     // Synchronize the virtual angle integrator to the estimated angle
     // This prevents a discontinuity when switching from virtual to estimated
-    _virtual_angle_integrator.reset(angle_wrapped::from_radians(estimated_angle));
+    _virtual_angle_integrator.reset(estimated_angle);
     _virtual_rotor_angle = estimated_angle;
 }
 
@@ -284,6 +303,9 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
     _outputs.virtual_reference.rotor_angle = _virtual_rotor_angle;
     _outputs.virtual_reference.rotor_frequency = _virtual_frequency;
     _outputs.virtual_reference.torque_reference = _virtual_torque;
+
+    // Update speed control outputs (rate-limited speed reference)
+    _outputs.speed_control.speed_reference = speed_pu_t{_speed_reference_limiter.get_output()};
 
     // Update controller command outputs based on state
     _outputs.controller_commands.current_state = _current_state;
@@ -304,7 +326,7 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::MANUAL_TORQUE;
             _outputs.controller_commands.release_machine_side_pulses = false;  // No pulses during flux buildup
             _outputs.controller_commands.release_excitation = true;            // Enable excitation controller
-            _outputs.controller_commands.release_machine_observer = false;
+            _outputs.controller_commands.release_machine_observer = true;      // Enable observer during flux buildup
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = false;
             break;

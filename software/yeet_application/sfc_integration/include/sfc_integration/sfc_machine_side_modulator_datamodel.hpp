@@ -39,7 +39,7 @@ public:
         signal_input<angle_wrapped> machine_reference_angle;
 
         /// Virtual rotor angle from startup sequencer [rad]
-        signal_input<angle_t> virtual_rotor_angle;
+        signal_input<angle_wrapped> virtual_rotor_angle;
 
         /// Reference frame source selection (VIRTUAL or ESTIMATED)
         signal_input<reference_frame_source_t> reference_frame_source;

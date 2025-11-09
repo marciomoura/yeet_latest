@@ -22,11 +22,11 @@ public:
 
     // Default x-axis (DC link current in per-unit)
     static constexpr std::array<current_pu_t, NUM_POINTS> kDefaultDcCurrentAxisPu = {current_pu_t{0.0},
-        current_pu_t{0.3}, current_pu_t{0.5}, current_pu_t{1.0}, current_pu_t{1.88}, current_pu_t{2.0}};
+        current_pu_t{0.3}, current_pu_t{0.5}, current_pu_t{1.0}, current_pu_t{1.8}, current_pu_t{2.0}};
 
     // Default y-axis (inverter firing angle in degrees)
     static constexpr std::array<real_t, NUM_POINTS> kDefaultFiringAngleDeg = {
-        real_t{150.0}, real_t{150.0}, real_t{150.0}, real_t{140.0}, real_t{130.0}, real_t{120.0}};
+        real_t{150.0}, real_t{150.0}, real_t{150.0}, real_t{145.0}, real_t{140.0}, real_t{140.0}};
 
     /**
      * @brief Constructs the firing angle lookup table, initializing with default values.
