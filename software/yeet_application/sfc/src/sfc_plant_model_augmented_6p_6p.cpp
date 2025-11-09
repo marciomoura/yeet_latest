@@ -1,5 +1,8 @@
 #include "sfc/sfc_plant_model_augmented_6p_6p.hpp"
 
+#include <algorithm>  // std::min
+#include <cmath>      // std::abs
+
 namespace yeet::application::sfc {
 
 namespace {
@@ -32,8 +35,9 @@ static constexpr damping_coefficient_pu_t kDefaultDampingFactorD =
     damping_coefficient_pu_t(0.01);  // 0.01 pu damping factor
 
 // Default Speed-Voltage Parameters
-static constexpr real_t kDefaultVoltageSpeedCoefficient = 0.9f;  // 0.9 pu/pu voltage-speed coefficient
-static constexpr real_t kDefaultVoltageOffset = 0.1f;            // 0.1 pu voltage offset
+static constexpr real_t kDefaultVoltageSpeedCoefficient = 0.9f;  // 0.9 pu/pu voltage-speed coefficient (legacy)
+static constexpr real_t kDefaultVoltageOffset =
+    0.1f;  // 0.1 pu minimum voltage offset at standstill (resistive component)
 
 }  // anonymous namespace
 
@@ -42,7 +46,8 @@ sfc_plant_model_augmented_6p_6p::sfc_plant_model_augmented_6p_6p(
     const sfc_plant_model_mechanical_parameters& mechanical_params,
     const sfc_plant_model_voltage_control_parameters& voltage_control_params)
     : _mechanical_load(duration_t(kSamplingTime)),
-      _speed_voltage_relationship(duration_t(kSamplingTime)),
+      _field_current_regulator(duration_t(kSamplingTime)),
+      _speed_filter(kSamplingTime),
       _pu_system(electrical_params.grid_voltage_rms,
           electrical_params.grid_frequency,
           electrical_params.base_dc_link_current,
@@ -57,6 +62,24 @@ sfc_plant_model_augmented_6p_6p::sfc_plant_model_augmented_6p_6p(
 {
     configure_mechanical_parameters(mechanical_params);
     configure_voltage_control_parameters(voltage_control_params);
+
+    // Configure field current regulator with realistic parameters for large LCI machines
+    _field_current_regulator.configure_field_circuit(
+        resistance_pu_t{0.01},  // 1% field resistance (typical for large synchronous machines)
+        duration_t{2.5}         // 2.5s field time constant (L/R)
+    );
+    _field_current_regulator.configure_pi_gains(1.0, 2.0);                // Moderate bandwidth for stable control
+    _field_current_regulator.configure_voltage_limits(voltage_pu_t{0.0},  // Minimum exciter voltage
+        voltage_pu_t{2.0}                                                 // Maximum exciter voltage (200% rated)
+    );
+
+    // Configure speed filter with 10ms time constant to smooth back-EMF oscillations
+    // fc = 1/(2πτ) where τ = 10ms → fc ≈ 15.9 Hz
+    constexpr double time_constant_s = 10e-3;  // 10 ms
+    const auto cutoff_freq = control::first_order_low_pass_filter<speed_pu_t>::calculate_cutoff_frequency(
+        speed_pu_t{static_cast<float>(time_constant_s)});
+    _speed_filter.configure(cutoff_freq.value());
+
     // Capture nominal bases for per-unit runtime scaling
     _nominal_grid_voltage_rms = electrical_params.grid_voltage_rms;
     _nominal_machine_voltage_rms = electrical_params.machine_voltage_rms;
@@ -97,9 +120,8 @@ void sfc_plant_model_augmented_6p_6p::configure_voltage_control_parameters(
     const sfc_plant_model_voltage_control_parameters& voltage_control_params)
 {
     _voltage_control_params = voltage_control_params;
-    _speed_voltage_relationship.configure_voltage_speed_coefficient(voltage_control_params.voltage_speed_coefficient);
-    _speed_voltage_relationship.configure_voltage_offset_pu(voltage_control_params.voltage_offset);
-    _speed_voltage_relationship.configure_voltage_limits_pu(0.1f, 1.5f);  // Reasonable default limits
+    // Note: voltage_speed_coefficient and voltage_offset are no longer used
+    // Back-EMF is calculated directly from E = Φ × ω in step_voltage_control()
 }
 
 void sfc_plant_model_augmented_6p_6p::configure_mechanical_load(
@@ -110,26 +132,12 @@ void sfc_plant_model_augmented_6p_6p::configure_mechanical_load(
     _mechanical_load.configure(inertia_constant_seconds, damping_coefficient);
 }
 
-void sfc_plant_model_augmented_6p_6p::configure_speed_voltage_relationship(
-    real_t coefficient, real_t offset_pu, real_t time_constant_seconds)
-{
-    _voltage_control_params.voltage_speed_coefficient = coefficient;
-    _voltage_control_params.voltage_offset = offset_pu;
-    _speed_voltage_relationship.configure_voltage_speed_coefficient(coefficient);
-    _speed_voltage_relationship.configure_voltage_offset_pu(offset_pu);
-    _speed_voltage_relationship.configure_time_constant(duration_t(time_constant_seconds));
-}
-
-void sfc_plant_model_augmented_6p_6p::configure_voltage_limits_pu(real_t min_voltage_pu, real_t max_voltage_pu)
-{
-    _speed_voltage_relationship.configure_voltage_limits_pu(min_voltage_pu, max_voltage_pu);
-}
-
 void sfc_plant_model_augmented_6p_6p::initialize()
 {
     _plant.initialize();
     _mechanical_load.reset(speed_pu_t{0.0});
-    _speed_voltage_relationship.reset(1.0, 1.0);
+    _speed_filter.reset(0.0f);  // Reset speed filter to zero
+    _machine_back_emf_pu = voltage_pu_t{0.0};
     // Reset runtime per-unit scalars to nominal
     _grid_voltage_pu = voltage_pu_t{1.0f};
     _machine_voltage_pu = voltage_pu_t{1.0f};
@@ -217,24 +225,30 @@ void sfc_plant_model_augmented_6p_6p::set_voltage_control_mode(plant_model_volta
     _voltage_mode = mode;
 }
 
-void sfc_plant_model_augmented_6p_6p::set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint)
+void sfc_plant_model_augmented_6p_6p::set_field_current_reference_pu(current_pu_t field_current_reference)
 {
-    _external_excitation_voltage_setpoint_pu = excitation_voltage_setpoint;
+    _field_current_reference_pu = field_current_reference;
 }
 
 void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
 {
     _mechanical_load.reset(initial_speed_pu);
-    _speed_voltage_relationship.reset(initial_speed_pu, initial_speed_pu);  // TODO: FIX INITIAL VOLTAGE
+
+    // Initialize speed filter to initial speed to avoid transients
+    _speed_filter.reset(initial_speed_pu.value());
+
+    // Initialize back-EMF based on initial speed (assuming nominal flux)
+    // E = Φ × ω, with nominal flux ≈ 1.0 pu, so E ≈ ω
+    _machine_back_emf_pu = per_unit_cast<voltage_pu_t>(initial_speed_pu);
 
     if (_mode == plant_model_machine_operation_mode::variable_speed) {
         frequency_pu_t initial_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);
         frequency_t machine_frequency_hz = to_si(initial_frequency_pu, _electrical_params.machine_frequency);
 
         voltage_t machine_voltage_abc = _electrical_params.machine_voltage_rms;
-        if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent) {
-            real_t voltage_magnitude_pu = _speed_voltage_relationship.get_voltage_magnitude_pu();
-            machine_voltage_abc = voltage_t(voltage_magnitude_pu * _electrical_params.machine_voltage_rms.value());
+        if (_voltage_mode == plant_model_voltage_control_mode::variable_speed) {
+            // Use the calculated back-EMF as machine voltage
+            machine_voltage_abc = to_si(_machine_back_emf_pu, _electrical_params.machine_voltage_rms);
         }
 
         _plant.set_machine_parameters(machine_frequency_hz, machine_voltage_abc);
@@ -299,7 +313,7 @@ voltage_t sfc_plant_model_augmented_6p_6p::get_machine_voltage() const noexcept 
 
 real_t sfc_plant_model_augmented_6p_6p::get_voltage_magnitude_pu() const noexcept
 {
-    return _speed_voltage_relationship.get_voltage_magnitude_pu();
+    return _machine_back_emf_pu.value();
 }
 
 // Parameter getters - Current configuration
@@ -326,17 +340,6 @@ const control::mechanical_load& sfc_plant_model_augmented_6p_6p::get_mechanical_
 }
 
 control::mechanical_load& sfc_plant_model_augmented_6p_6p::get_mechanical_load() noexcept { return _mechanical_load; }
-
-const control::speed_voltage_relationship& sfc_plant_model_augmented_6p_6p::get_speed_voltage_relationship()
-    const noexcept
-{
-    return _speed_voltage_relationship;
-}
-
-control::speed_voltage_relationship& sfc_plant_model_augmented_6p_6p::get_speed_voltage_relationship() noexcept
-{
-    return _speed_voltage_relationship;
-}
 
 const sfc_per_unit_system& sfc_plant_model_augmented_6p_6p::get_per_unit_system() const noexcept { return _pu_system; }
 
@@ -395,20 +398,45 @@ void sfc_plant_model_augmented_6p_6p::step_mechanical_dynamics()
 
 void sfc_plant_model_augmented_6p_6p::step_voltage_control()
 {
-    if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent) {
-        // V/Hz control: voltage proportional to mechanical speed
-        const speed_pu_t speed_input_pu = _mechanical_load.get_speed_pu();
-        _speed_voltage_relationship.update(speed_input_pu);
+    if (_voltage_mode == plant_model_voltage_control_mode::variable_speed) {
+        // Variable speed voltage control with enhanced physical model
+        // At standstill: V ≈ V_offset × Φ (resistive voltage for flux establishment)
+        // At high speed: V ≈ Φ × ω (back-EMF dominant)
+        // Smooth blending between resistive-dominant and EMF-dominant regions
+
+        // Step 1: Update field current regulator (PI control + field circuit dynamics)
+        const current_pu_t actual_field_current = _field_current_regulator.update(_field_current_reference_pu);
+
+        // Step 2: Calculate flux from field current
+        // Assumes linear magnetization curve: Φ = k × i_f
+        // TODO: Add saturation effects via lookup table for more accuracy
+        const real_t flux_pu = actual_field_current.value();
+
+        // Step 3: Filter the mechanical speed to reduce back-EMF oscillations
+        // Raw speed from mechanical dynamics can have high-frequency oscillations
+        const speed_pu_t raw_speed = _mechanical_load.get_speed_pu();
+        const speed_pu_t filtered_speed = _speed_filter.update(raw_speed);
+
+        // Step 4: Calculate voltage with smooth transition from resistive to EMF regions
+        const real_t speed_pu_abs = std::abs(filtered_speed.value());
+        constexpr real_t transition_speed = 0.05;  // Transition occurs between 0 and 0.15 pu speed
+
+        // Blending factor: 0 at standstill, 1 at transition_speed and above
+        const real_t blend = std::min(speed_pu_abs / transition_speed, 1.0f);
+
+        // Resistive voltage component (dominant at low speed): V_r = V_offset × Φ
+        const real_t resistive_voltage_pu = _voltage_control_params.voltage_offset * flux_pu;
+
+        // Back-EMF component (dominant at high speed): E = Φ × ω
+        const real_t back_emf_pu = flux_pu * filtered_speed.value();
+
+        // Total voltage with smooth blending: V = V_r × (1-blend) + E × blend
+        const real_t total_voltage_pu = resistive_voltage_pu * (1.0f - blend) + back_emf_pu * blend;
+
+        // Step 5: Store the calculated voltage magnitude
+        _machine_back_emf_pu = voltage_pu_t{total_voltage_pu};
     }
-    else if (_voltage_mode == plant_model_voltage_control_mode::external_control) {
-        // External excitation control: filter external setpoint through first-order dynamics
-        // This represents realistic field winding L/R time constant (τ_exc)
-        // If time constant = 0, this becomes perfect tracking (backward compatible)
-        // If time constant > 0, this adds realistic exciter dynamics (e.g., 2.5s for LCI)
-        const speed_pu_t external_voltage_as_speed =
-            per_unit_cast<speed_pu_t>(_external_excitation_voltage_setpoint_pu);
-        _speed_voltage_relationship.update(external_voltage_as_speed);
-    }
+    // else: fixed_voltage mode - no voltage control needed
 }
 
 void sfc_plant_model_augmented_6p_6p::update_plant_parameters()
@@ -429,15 +457,11 @@ frequency_t sfc_plant_model_augmented_6p_6p::resolve_machine_frequency() const n
 
 voltage_t sfc_plant_model_augmented_6p_6p::resolve_machine_voltage() const noexcept
 {
-    if (_voltage_mode == plant_model_voltage_control_mode::speed_dependent ||
-        _voltage_mode == plant_model_voltage_control_mode::external_control) {
-        // Both modes use the speed_voltage_relationship output
-        // speed_dependent: voltage follows mechanical speed with V/Hz control
-        // external_control: voltage follows external setpoint with exciter dynamics
-        const voltage_pu_t vm_pu = voltage_pu_t{_speed_voltage_relationship.get_voltage_magnitude_pu()};
-        return to_si(vm_pu, _nominal_machine_voltage_rms);
+    if (_voltage_mode == plant_model_voltage_control_mode::variable_speed) {
+        // Variable speed mode: voltage calculated by field current regulator (E = Φ × ω)
+        return to_si(_machine_back_emf_pu, _nominal_machine_voltage_rms);
     }
-    // Default: fixed_voltage mode
+    // fixed_voltage mode: use configured voltage
     return voltage_t(_machine_voltage_pu.value() * _nominal_machine_voltage_rms.value());
 }
 
@@ -461,6 +485,23 @@ frequency_pu_t sfc_plant_model_augmented_6p_6p::get_machine_frequency_pu() const
         return per_unit_cast<frequency_pu_t>(_mechanical_load.get_speed_pu());
     }
     return _machine_frequency_pu;
+}
+
+current_pu_t sfc_plant_model_augmented_6p_6p::get_field_current() const noexcept
+{
+    return _field_current_regulator.get_field_current();
+}
+
+voltage_pu_t sfc_plant_model_augmented_6p_6p::get_exciter_voltage() const noexcept
+{
+    return _field_current_regulator.get_exciter_voltage();
+}
+
+real_t sfc_plant_model_augmented_6p_6p::get_flux_pu() const noexcept
+{
+    // Flux is proportional to field current (assuming linear magnetization)
+    // Φ = k × i_f, where k is absorbed into per-unit system
+    return _field_current_regulator.get_field_current().value();
 }
 
 }  // namespace yeet::application::sfc

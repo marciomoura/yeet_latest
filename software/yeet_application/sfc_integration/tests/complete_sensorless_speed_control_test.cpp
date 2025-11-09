@@ -48,7 +48,9 @@ public:
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_generator);
         register_complete_logger(simulator, system.grid_side_control.state_machine);
-        // register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
+        register_complete_logger(simulator, system.plant);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
         // register_complete_logger(simulator, system.grid_side_control.grid_side_observer);
         // register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
@@ -182,14 +184,6 @@ public:
 // Profile 1 (Creep) -> Profile 2 (Purge) -> Profile 3 (Ignition) -> Profile 4 (Assist)
 TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 {
-    // Configure plant starting from near-zero speed (realistic turbine starting condition)
-    yeet::application::sfc::integration::test::variable_speed_config config{};
-    config.initial_speed = speed_pu_t{0.001f};  // Starting condition: nearly stationary
-    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
-
-    // Configure realistic load torque profile (increases with speed)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
-
     // ==================== Configure Speed Generator Profiles ====================
     // Configure acceleration times to match test expectations (defaults are much longer)
     // Profile 1 & 2 use defaults (30s, 120s), but Profile 3 & 4 need shorter times for testing
@@ -216,7 +210,12 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+
+    // NOTE: The plant is configured for external_control mode by default in the builder.
+    // The excitation controller will manage the field current reference to regulate machine flux.
+    // If speed_dependent mode is used instead, the plant uses V/Hz relationship and ignores
+    // the excitation controller (resulting in zero flux/field current outputs in telemetry).
+    // system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     bool success = true;
 
@@ -227,6 +226,9 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 
     set_run_creep_speed(true);
     success &= simulator.simulate_for(0.1);  // Allow edge detection to process rising edge
+
+    // Configure realistic load torque profile (increases with speed)
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
 
     // Allow acceleration to complete (30s acceleration time + 5s settling + 0.2s from above)
     success &= simulator.simulate_for(34.8);
@@ -355,17 +357,23 @@ TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
 TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequenceTest)
 {
     // Configure plant starting from near-zero speed
-    yeet::application::sfc::integration::test::variable_speed_config config{};
-    config.initial_speed = speed_pu_t{0.001f};
-    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
-
-    // Configure realistic load torque
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+    // yeet::application::sfc::integration::test::variable_speed_config config{};
+    // config.initial_speed = speed_pu_t{0.001f};
+    // config.voltage_control_mode = std::nullopt;  // Preserve external_control mode from builder
+    // yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
     // ==================== Configure Speed Generator Profiles ====================
     // Reduce acceleration times for faster test execution
     system.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time = duration_t{20.0f};
     system.machine_side_control.speed_generator.get_parameters().profile_3_acceleration_time = duration_t{40.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration = duration_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_2_boost_duration = duration_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_3_boost_duration = duration_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_4_boost_duration = duration_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost = torque_pu_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_2_initial_torque_boost = torque_pu_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_3_initial_torque_boost = torque_pu_t{0.0f};
+    // system.machine_side_control.speed_generator.get_parameters().profile_4_initial_torque_boost = torque_pu_t{0.0f};
 
     // Speed tracking tolerance
     const speed_pu_t speed_error_max_value{0.08f};
@@ -383,7 +391,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     bool success = true;
 
@@ -393,6 +400,9 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequence
 
     set_run_creep_speed(true);
     success &= simulator.simulate_for(0.1);
+
+    // Configure realistic load torque
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
 
     // Wait for profile completion (20s acceleration + 3s settling)
     success &= simulator.simulate_for(22.9);
@@ -480,6 +490,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
     // Configure plant starting from low speed
     yeet::application::sfc::integration::test::variable_speed_config config{};
     config.initial_speed = speed_pu_t{0.01f};
+    config.voltage_control_mode = std::nullopt;  // Preserve external_control mode from builder
     yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
     // Configure Profile 2 with faster acceleration for testing
@@ -500,7 +511,8 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+    // Using external_control mode (default from builder) to enable excitation controller
+    // system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     // Initial load
     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
@@ -605,17 +617,15 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
 TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostTest)
 {
     // Configure plant at near-standstill (simulates sticky bearings)
-    yeet::application::sfc::integration::test::variable_speed_config config{};
-    config.initial_speed = speed_pu_t{0.001f};
-    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
+    // yeet::application::sfc::integration::test::variable_speed_config config{};
+    // config.initial_speed = speed_pu_t{0.001f};
+    // config.voltage_control_mode = std::nullopt;  // Preserve external_control mode from builder
+    // yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
 
     // Configure Profile 1 with faster acceleration and explicit boost settings
     system.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time = duration_t{15.0f};
     system.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost = torque_pu_t{0.20f};
     system.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration = duration_t{2.0f};
-
-    // High load simulating static friction
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
 
     // Wider tolerance for low-speed ripple
     const speed_pu_t speed_err_margin{0.10f};
@@ -632,11 +642,15 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
 
     // ==================== State Machine Startup ====================
     execute_startup_sequence();
-    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+    // Using external_control mode (default from builder) to enable excitation controller
+    // system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
 
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read());
 
     bool success = true;
+
+    // High load simulating static friction
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
 
     // ==================== Activate Profile 1 with Boost Monitoring ====================
     set_idle(false);

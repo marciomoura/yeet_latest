@@ -14,6 +14,7 @@ target_sources(
            include/yeet_control/dual_sogi_srf_pll.hpp
            include/yeet_control/edge_detector.hpp
            include/yeet_control/elapsed_timer.hpp
+           include/yeet_control/field_current_regulator.hpp
            include/yeet_control/first_order_low_pass_filter.hpp
            include/yeet_control/integrator.hpp
            include/yeet_control/interval_timer.hpp
@@ -50,6 +51,7 @@ target_sources(
             src/dual_sogi_srf_pll.cpp
             src/edge_detector.cpp
             src/elapsed_timer.cpp
+            src/field_current_regulator.cpp
             src/mechanical_load.cpp
             src/interval_timer.cpp
             src/off_delay.cpp

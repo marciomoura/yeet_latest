@@ -178,30 +178,24 @@ public:
     // Direct getters below are provided for advanced/diagnostic use only.
 
     /**
-     * @brief Get excitation voltage setpoint from excitation controller
+     * @brief Get field current reference from excitation controller
      * Prefer: get_io().grid_side_outputs (for cross-coupling to grid side)
      */
-    const signal_output<voltage_pu_t>& get_excitation_voltage_setpoint() const
+    const signal_output<current_pu_t>& get_field_current_reference() const
     {
         return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
             .get_outputs()
-            .excitation_voltage_setpoint;
+            .field_current_reference;
     }
 
     /**
-     * @brief Get excitation enable command from excitation controller
+     * @brief Get prefluxing elapsed time from excitation controller
      */
-    const signal_output<bool>& get_enable_excitation() const
+    const signal_output<duration_t>& get_prefluxing_elapsed_time() const
     {
-        return const_cast<sfc_excitation_controller_runner&>(excitation_controller).get_outputs().enable_excitation;
-    }
-
-    /**
-     * @brief Get field established status from excitation controller
-     */
-    const signal_output<bool>& get_is_field_established() const
-    {
-        return const_cast<sfc_excitation_controller_runner&>(excitation_controller).get_outputs().is_field_established;
+        return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
+            .get_outputs()
+            .prefluxing_elapsed_time;
     }
 
     /**

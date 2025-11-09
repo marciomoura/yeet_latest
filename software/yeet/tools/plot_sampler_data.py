@@ -139,10 +139,35 @@ def create_plot(input_path: str, output_path: str, decimate_factor: int = 1):
 
     # Extract time data
     time_entry = next(entry for entry in data["test_data"] if entry["name"] == "time")
-    time_timeseries = time_entry["data"]
+    time_timeseries_raw = time_entry["data"]
     
-    # Get all non-time data entries and sort alphabetically
-    data_timeseries = [entry for entry in data["test_data"] if entry["name"] != "time"]
+    # Filter out invalid entries where time is not strictly increasing
+    # Find the last valid index where time is increasing
+    last_valid_index = len(time_timeseries_raw)
+    for i in range(1, len(time_timeseries_raw)):
+        if time_timeseries_raw[i] <= time_timeseries_raw[i-1]:
+            last_valid_index = i
+            break
+    
+    # Truncate time series to only valid increasing data
+    time_timeseries = time_timeseries_raw[:last_valid_index]
+    
+    # Get all non-time data entries and truncate them to match the valid time range
+    data_timeseries = []
+    for entry in data["test_data"]:
+        if entry["name"] != "time":
+            entry_copy = entry.copy()
+            # Truncate the data to match the valid time range
+            if "data" in entry_copy:
+                if entry_copy.get("dimension", 1) > 1:
+                    # For multi-dimensional data, truncate each row
+                    entry_copy["data"] = entry_copy["data"][:last_valid_index]
+                else:
+                    # For scalar data, truncate the list
+                    entry_copy["data"] = entry_copy["data"][:last_valid_index]
+            data_timeseries.append(entry_copy)
+    
+    # Sort alphabetically
     data_timeseries.sort(key=lambda x: x["name"])
     
     # Group signals by category

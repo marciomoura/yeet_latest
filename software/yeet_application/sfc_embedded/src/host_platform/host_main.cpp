@@ -386,7 +386,7 @@ int main(int argc, char* argv[])
     yeet::mock_signal_input::write(
         simulator_builder.machine_side_control.speed_controller.get_inputs().release_pulses, true);
     simulator_builder.plant.get_plant_model().set_voltage_control_mode(
-        yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
+        yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
 
     std::cout << "[INIT] State machine startup complete" << std::endl;
 

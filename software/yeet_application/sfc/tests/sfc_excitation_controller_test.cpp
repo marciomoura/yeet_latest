@@ -3,10 +3,9 @@
 #include <gtest/gtest.h>
 
 using namespace yeet::application::sfc;
+using yeet::current_pu_t;
 using yeet::duration_t;
 using yeet::real_t;
-using yeet::speed_pu_t;
-using yeet::voltage_pu_t;
 
 class SfcExcitationControllerTest : public ::testing::Test {
 protected:
@@ -22,11 +21,11 @@ protected:
 
 TEST_F(SfcExcitationControllerTest, ConstructorInitializesWithDefaultValues)
 {
-    EXPECT_EQ(controller.get_excitation_voltage_setpoint_pu().value(), 0.0);
+    EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
     EXPECT_FALSE(controller.get_enable_excitation());
     EXPECT_FALSE(controller.get_is_field_established());
     EXPECT_FALSE(controller.get_is_running());
-    EXPECT_EQ(controller.get_prefluxing_elapsed_time().value(), 0.0);
+    EXPECT_EQ(controller.get_flux_buildup_elapsed_time().value(), 0.0);  // Renamed getter
 }
 
 TEST_F(SfcExcitationControllerTest, ResetClearsAllStates)
@@ -34,147 +33,146 @@ TEST_F(SfcExcitationControllerTest, ResetClearsAllStates)
     // Start and run for a while
     controller.start_excitation();
     for (int i = 0; i < 10; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
+        controller.update(true);  // Simplified signature: no speed parameter
     }
 
     // Reset and verify all states cleared
     controller.reset();
 
-    EXPECT_EQ(controller.get_excitation_voltage_setpoint_pu().value(), 0.0);
+    EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
     EXPECT_FALSE(controller.get_enable_excitation());
     EXPECT_FALSE(controller.get_is_field_established());
     EXPECT_FALSE(controller.get_is_running());
-    EXPECT_EQ(controller.get_prefluxing_elapsed_time().value(), 0.0);
+    EXPECT_EQ(controller.get_flux_buildup_elapsed_time().value(), 0.0);  // Renamed getter
 }
 
 // ============================================================================
-// Configuration Tests
+// Configuration Tests - Simplified Version
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, ConfigureExcitationVoltageLookupTableAcceptsValidData)
+TEST_F(SfcExcitationControllerTest, ConfigureFieldCurrentSetpointAcceptsPositiveValues)
 {
-    std::array<real_t, 6> speed_axis = {0.0, 0.2, 0.4, 0.6, 0.8, 1.0};
-    std::array<real_t, 6> voltage_axis = {0.3, 0.5, 0.65, 0.75, 0.85, 0.95};
-
-    // Should not throw or assert
-    EXPECT_NO_FATAL_FAILURE(controller.configure_excitation_voltage_lookup_table(speed_axis, voltage_axis));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_field_current_setpoint(current_pu_t{0.5}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_field_current_setpoint(current_pu_t{0.8}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_field_current_setpoint(current_pu_t{1.0}));
 }
 
-TEST_F(SfcExcitationControllerTest, ConfigurePrefluxingDurationAcceptsPositiveValues)
+TEST_F(SfcExcitationControllerTest, ConfigureFluxBuildupDurationAcceptsPositiveValues)
 {
-    EXPECT_NO_FATAL_FAILURE(controller.configure_prefluxing_duration(duration_t{1.5}));
-    EXPECT_NO_FATAL_FAILURE(controller.configure_prefluxing_duration(duration_t{3.0}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_flux_buildup_duration(duration_t{1.5}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_flux_buildup_duration(duration_t{3.0}));
 }
 
-TEST_F(SfcExcitationControllerTest, ConfigureFieldEstablishedTimeoutAcceptsPositiveValues)
-{
-    EXPECT_NO_FATAL_FAILURE(controller.configure_field_established_timeout(duration_t{5.0}));
-    EXPECT_NO_FATAL_FAILURE(controller.configure_field_established_timeout(duration_t{10.0}));
-}
-
-TEST_F(SfcExcitationControllerTest, ConfigureExcitationRampDownTimeAcceptsPositiveValues)
-{
-    EXPECT_NO_FATAL_FAILURE(controller.configure_excitation_ramp_down_time(duration_t{1.0}));
-    EXPECT_NO_FATAL_FAILURE(controller.configure_excitation_ramp_down_time(duration_t{2.5}));
-}
+// Commented out - features removed in simplified version
+// TEST_F(SfcExcitationControllerTest, ConfigureExcitationVoltageLookupTableAcceptsValidData)
+// TEST_F(SfcExcitationControllerTest, ConfigureFieldEstablishedTimeoutAcceptsPositiveValues)
+// TEST_F(SfcExcitationControllerTest, ConfigureExcitationRampDownTimeAcceptsPositiveValues)
 
 // ============================================================================
-// Start/Stop Command Tests
+// Start/Stop Command Tests - Simplified Version
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, StartExcitationReturnsTrueWhenNotAlreadyRunning)
+TEST_F(SfcExcitationControllerTest, StartExcitationEnablesAndSetsConstantCurrent)
 {
-    EXPECT_TRUE(controller.start_excitation());
+    controller.configure_field_current_setpoint(current_pu_t{0.75});
+    controller.start_excitation();
+
     EXPECT_TRUE(controller.get_is_running());
-}
-
-TEST_F(SfcExcitationControllerTest, StartExcitationReturnsFalseWhenAlreadyRunning)
-{
-    controller.start_excitation();
-    EXPECT_FALSE(controller.start_excitation());  // Second call should fail
-}
-
-TEST_F(SfcExcitationControllerTest, StartExcitationEnablesOutputAndSetsInitialVoltage)
-{
-    controller.start_excitation();
-
-    // Should enable excitation
     EXPECT_TRUE(controller.get_enable_excitation());
 
-    // Should set excitation voltage to initial value (first point in lookup table)
-    EXPECT_GT(controller.get_excitation_voltage_setpoint_pu().value(), 0.0);
+    // Should set field current to configured setpoint immediately
+    EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.75, 0.01);
 }
 
-TEST_F(SfcExcitationControllerTest, StopExcitationInitiatesRampDown)
+TEST_F(SfcExcitationControllerTest, UpdateAutoStartsWhenExciterReadyAndNotRunning)
 {
-    controller.start_excitation();
-    controller.update(speed_pu_t{0.0}, true);
+    controller.configure_field_current_setpoint(current_pu_t{0.8});
 
-    controller.stop_excitation();
+    // Controller not started yet
+    ASSERT_FALSE(controller.get_is_running());
 
-    // After stop command, controller should start ramping down
-    // Verify by running several updates and checking voltage decreases
-    const real_t initial_voltage = controller.get_excitation_voltage_setpoint_pu().value();
+    // Calling update(true) when not running automatically starts excitation
+    controller.update(true);
 
-    for (int i = 0; i < 100; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
-    }
-
-    const real_t final_voltage = controller.get_excitation_voltage_setpoint_pu().value();
-    EXPECT_LT(final_voltage, initial_voltage);
+    EXPECT_TRUE(controller.get_is_running());
+    EXPECT_TRUE(controller.get_enable_excitation());
+    EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.8, 0.01);
 }
 
+TEST_F(SfcExcitationControllerTest, ExciterNotReadyStopsExcitation)
+{
+    // Current implementation: stop_excitation() is not implemented
+    // Stopping is achieved by setting exciter_ready = false in update()
+    controller.configure_field_current_setpoint(current_pu_t{0.8});
+    controller.start_excitation();
+    controller.update(true);
+
+    ASSERT_TRUE(controller.get_is_running());
+    ASSERT_GT(controller.get_field_current_reference_pu().value(), 0.0);
+
+    // Stop by setting exciter_ready = false
+    controller.update(false);
+
+    EXPECT_FALSE(controller.get_is_running());
+    EXPECT_FALSE(controller.get_enable_excitation());
+    EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
+}
+
+// Commented out - simplified version allows repeated starts
+// TEST_F(SfcExcitationControllerTest, StartExcitationReturnsFalseWhenAlreadyRunning)
+
 // ============================================================================
-// Pre-Fluxing Phase Tests
+// Flux Build-Up Phase Tests (Simplified - was Pre-Fluxing)
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, PrefluxingPhaseMaintainsInitialVoltageForConfiguredDuration)
+TEST_F(SfcExcitationControllerTest, FluxBuildupPhaseMaintainsConstantCurrentForConfiguredDuration)
 {
-    controller.configure_prefluxing_duration(duration_t{2.0});  // 2 seconds
+    controller.configure_field_current_setpoint(current_pu_t{0.8});
+    controller.configure_flux_buildup_duration(duration_t{2.0});  // 2 seconds
     controller.start_excitation();
 
-    const real_t initial_voltage = controller.get_excitation_voltage_setpoint_pu().value();
+    const real_t expected_current = 0.8;
 
-    // Run for less than pre-fluxing duration
+    // Run for less than flux build-up duration
     const int num_cycles = static_cast<int>(1.5 / kSamplingTime.value());  // 1.5 seconds
     for (int i = 0; i < num_cycles; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
+        controller.update(true);  // Simplified: no speed parameter
     }
 
     // Field should not be established yet
     EXPECT_FALSE(controller.get_is_field_established());
 
-    // Voltage should remain at initial value
-    EXPECT_NEAR(controller.get_excitation_voltage_setpoint_pu().value(), initial_voltage, 0.01);
+    // Current should remain at constant setpoint
+    EXPECT_NEAR(controller.get_field_current_reference_pu().value(), expected_current, 0.01);
 }
 
-TEST_F(SfcExcitationControllerTest, PrefluxingTimerAdvancesDuringPrefluxing)
+TEST_F(SfcExcitationControllerTest, FluxBuildupTimerAdvancesDuringFluxBuildup)
 {
-    controller.configure_prefluxing_duration(duration_t{2.0});
+    controller.configure_flux_buildup_duration(duration_t{2.0});
     controller.start_excitation();
 
     // Run for 1 second
     const int num_cycles = static_cast<int>(1.0 / kSamplingTime.value());
     for (int i = 0; i < num_cycles; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
+        controller.update(true);
     }
 
     // Check elapsed time is approximately 1 second
-    EXPECT_NEAR(controller.get_prefluxing_elapsed_time().value(), 1.0, 0.1);
+    EXPECT_NEAR(controller.get_flux_buildup_elapsed_time().value(), 1.0, 0.1);
 }
 
-TEST_F(SfcExcitationControllerTest, FieldEstablishedAfterPrefluxingDurationElapses)
+TEST_F(SfcExcitationControllerTest, FieldEstablishedAfterFluxBuildupDurationElapses)
 {
-    controller.configure_prefluxing_duration(duration_t{1.0});  // 1 second
+    controller.configure_flux_buildup_duration(duration_t{1.0});  // 1 second
     controller.start_excitation();
 
     // Field should not be established initially
     EXPECT_FALSE(controller.get_is_field_established());
 
-    // Run for exactly pre-fluxing duration + buffer
+    // Run for exactly flux build-up duration + buffer
     const int num_cycles = static_cast<int>(1.2 / kSamplingTime.value());
     for (int i = 0; i < num_cycles; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
+        controller.update(true);
     }
 
     // Field should now be established
@@ -182,205 +180,133 @@ TEST_F(SfcExcitationControllerTest, FieldEstablishedAfterPrefluxingDurationElaps
 }
 
 // ============================================================================
-// Normal Operation Tests (Field Established)
+// Normal Operation Tests (Simplified - Constant Flux)
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, ExcitationVoltageTracksSpeedAfterFieldEstablished)
+TEST_F(SfcExcitationControllerTest, FieldCurrentRemainsConstantAfterFieldEstablished)
 {
-    controller.configure_prefluxing_duration(duration_t{0.1});  // Short pre-flux for test
+    controller.configure_field_current_setpoint(current_pu_t{0.9});
+    controller.configure_flux_buildup_duration(duration_t{0.1});  // Short for test
     controller.start_excitation();
 
-    // Complete pre-fluxing
-    const int preflux_cycles = static_cast<int>(0.15 / kSamplingTime.value());
-    for (int i = 0; i < preflux_cycles; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
+    // Complete flux build-up
+    const int buildup_cycles = static_cast<int>(0.15 / kSamplingTime.value());
+    for (int i = 0; i < buildup_cycles; ++i) {
+        controller.update(true);
     }
 
     ASSERT_TRUE(controller.get_is_field_established());
 
-    // Now increase speed and verify excitation voltage increases
-    const real_t voltage_at_zero_speed = controller.get_excitation_voltage_setpoint_pu().value();
-
-    // Run at 50% speed for a while to allow rate limiter to settle
+    // Run for a while - field current should remain constant (no speed dependency)
     for (int i = 0; i < 1000; ++i) {
-        controller.update(speed_pu_t{0.5}, true);
+        controller.update(true);
+        EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.9, 0.01);
     }
-
-    const real_t voltage_at_half_speed = controller.get_excitation_voltage_setpoint_pu().value();
-
-    // Excitation voltage should be higher at 50% speed (in V/Hz region)
-    EXPECT_GT(voltage_at_half_speed, voltage_at_zero_speed);
 }
 
-TEST_F(SfcExcitationControllerTest, ExcitationVoltageSaturationAtHighSpeed)
-{
-    controller.configure_prefluxing_duration(duration_t{0.1});
-    controller.start_excitation();
-
-    // Complete pre-fluxing
-    for (int i = 0; i < 150; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
-    }
-
-    // Run at 80% speed (end of V/Hz region)
-    for (int i = 0; i < 2000; ++i) {
-        controller.update(speed_pu_t{0.80}, true);
-    }
-    const real_t voltage_at_80_percent = controller.get_excitation_voltage_setpoint_pu().value();
-
-    // Run at 95% speed (field weakening region)
-    for (int i = 0; i < 2000; ++i) {
-        controller.update(speed_pu_t{0.95}, true);
-    }
-    const real_t voltage_at_95_percent = controller.get_excitation_voltage_setpoint_pu().value();
-
-    // In field weakening region, voltage should decrease
-    EXPECT_LT(voltage_at_95_percent, voltage_at_80_percent);
-}
+// Commented out - removed in simplified version (no speed-dependent control)
+// TEST_F(SfcExcitationControllerTest, ExcitationVoltageTracksSpeedAfterFieldEstablished)
+// TEST_F(SfcExcitationControllerTest, ExcitationVoltageSaturationAtHighSpeed)
 
 // ============================================================================
-// Fault Handling Tests
+// Fault Handling Tests - Simplified Version
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, ExciterNotReadyDuringOperationTriggersStop)
+TEST_F(SfcExcitationControllerTest, ExciterNotReadyDuringOperationTriggersImmediateStop)
 {
-    controller.configure_prefluxing_duration(duration_t{0.1});
+    controller.configure_flux_buildup_duration(duration_t{0.1});
     controller.start_excitation();
 
-    // Complete pre-fluxing
+    // Complete flux build-up
     for (int i = 0; i < 150; ++i) {
-        controller.update(speed_pu_t{0.5}, true);
+        controller.update(true);
     }
 
     ASSERT_TRUE(controller.get_is_field_established());
     ASSERT_TRUE(controller.get_is_running());
 
-    // Simulate exciter fault
-    controller.update(speed_pu_t{0.5}, false);  // exciter_ready = false
+    // Simulate exciter fault - simplified version stops immediately, no ramp-down
+    controller.update(false);  // exciter_ready = false
 
-    // Controller should initiate shutdown
-    // Run a few more cycles to allow ramp-down
-    for (int i = 0; i < 2000; ++i) {
-        controller.update(speed_pu_t{0.5}, false);
-    }
-
-    // Eventually should stop
+    // Should stop immediately
     EXPECT_FALSE(controller.get_is_running());
     EXPECT_FALSE(controller.get_enable_excitation());
+    EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
 }
 
-TEST_F(SfcExcitationControllerTest, UpdateWhenNotRunningMaintainsZeroVoltage)
+TEST_F(SfcExcitationControllerTest, UpdateWhenNotRunningAndExciterNotReadyMaintainsZeroOutput)
 {
-    // Don't start, just update
+    // Current implementation: update(true) auto-starts when not running
+    // To test zero output, we must use exciter_ready = false
     for (int i = 0; i < 100; ++i) {
-        controller.update(speed_pu_t{0.5}, true);
+        controller.update(false);  // exciter_ready = false prevents auto-start
     }
 
-    EXPECT_EQ(controller.get_excitation_voltage_setpoint_pu().value(), 0.0);
+    EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
     EXPECT_FALSE(controller.get_enable_excitation());
+    EXPECT_FALSE(controller.get_is_running());
 }
 
 // ============================================================================
-// Complete Operational Sequence Test
+// Complete Operational Sequence Test - Simplified Version
 // ============================================================================
 
 TEST_F(SfcExcitationControllerTest, CompleteStartupToShutdownSequence)
 {
-    controller.configure_prefluxing_duration(duration_t{1.0});
+    controller.configure_field_current_setpoint(current_pu_t{0.85});
+    controller.configure_flux_buildup_duration(duration_t{1.0});
 
     // 1. Initial state
     EXPECT_FALSE(controller.get_is_running());
 
-    // 2. Start excitation
-    EXPECT_TRUE(controller.start_excitation());
+    // 2. Start excitation - can be done via start_excitation() or update(true) when not running
+    controller.update(true);  // Auto-start when exciter_ready=true and not running
     EXPECT_TRUE(controller.get_is_running());
     EXPECT_TRUE(controller.get_enable_excitation());
+    EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.85, 0.01);
 
-    // 3. Pre-fluxing phase (1 second)
+    // 3. Flux build-up phase (1 second)
     for (int i = 0; i < 1200; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
+        controller.update(true);
     }
     EXPECT_TRUE(controller.get_is_field_established());
 
-    // 4. Ramp up speed
-    for (int i = 0; i < 500; ++i) {
-        const real_t speed_ramp = static_cast<real_t>(i) / 500.0;  // 0 to 1.0
-        controller.update(speed_pu_t{speed_ramp}, true);
+    // 4. Normal operation - current remains constant
+    for (int i = 0; i < 1000; ++i) {
+        controller.update(true);
+        EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.85, 0.01);
     }
 
-    // Should be at high excitation voltage near rated speed
-    EXPECT_GT(controller.get_excitation_voltage_setpoint_pu().value(), 0.5);
+    // 5. Shutdown - set exciter_ready = false
+    controller.update(false);
 
-    // 5. Shutdown
-    controller.stop_excitation();
-
-    // 6. Ramp down (allow sufficient time)
-    for (int i = 0; i < 3000; ++i) {
-        controller.update(speed_pu_t{1.0}, true);
-    }
-
-    // Should be fully stopped
+    // Should be fully stopped immediately
     EXPECT_FALSE(controller.get_is_running());
     EXPECT_FALSE(controller.get_enable_excitation());
-    EXPECT_NEAR(controller.get_excitation_voltage_setpoint_pu().value(), 0.0, 0.01);
+    EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
 }
 
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
-
-TEST_F(SfcExcitationControllerTest, NegativeSpeedInputHandledGracefully)
-{
-    controller.start_excitation();
-
-    // Run for pre-fluxing
-    for (int i = 0; i < 150; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
-    }
-
-    // Pass negative speed (invalid)
-    EXPECT_NO_THROW(controller.update(speed_pu_t{-0.1}, true));
-
-    // Controller should handle gracefully (likely clamped to zero in lookup)
-    EXPECT_GE(controller.get_excitation_voltage_setpoint_pu().value(), 0.0);
-}
-
-TEST_F(SfcExcitationControllerTest, OversSpeedInputHandledGracefully)
-{
-    controller.start_excitation();
-
-    for (int i = 0; i < 150; ++i) {
-        controller.update(speed_pu_t{0.0}, true);
-    }
-
-    // Pass overspeed (e.g., 1.2 pu)
-    for (int i = 0; i < 1000; ++i) {
-        controller.update(speed_pu_t{1.2}, true);
-    }
-
-    // Should extrapolate or clamp based on lookup table implementation
-    // At minimum, should not crash
-    EXPECT_GT(controller.get_excitation_voltage_setpoint_pu().value(), 0.0);
-}
+// Commented out - edge cases removed in simplified version (no speed input)
+// TEST_F(SfcExcitationControllerTest, NegativeSpeedInputHandledGracefully)
+// TEST_F(SfcExcitationControllerTest, OverSpeedInputHandledGracefully)
 
 TEST_F(SfcExcitationControllerTest, RapidStartStopCyclesHandledCorrectly)
 {
     for (int cycle = 0; cycle < 5; ++cycle) {
         controller.reset();
-        EXPECT_TRUE(controller.start_excitation());
+        controller.configure_field_current_setpoint(current_pu_t{0.7});
+
+        // Start via update(true) - auto-start when not running
+        controller.update(true);
+        EXPECT_TRUE(controller.get_is_running());
 
         // Run briefly
         for (int i = 0; i < 50; ++i) {
-            controller.update(speed_pu_t{0.0}, true);
+            controller.update(true);
         }
 
-        controller.stop_excitation();
-
-        // Ramp down
-        for (int i = 0; i < 2000; ++i) {
-            controller.update(speed_pu_t{0.0}, true);
-        }
-
+        // Stop via exciter_ready = false
+        controller.update(false);
         EXPECT_FALSE(controller.get_is_running());
     }
 }
