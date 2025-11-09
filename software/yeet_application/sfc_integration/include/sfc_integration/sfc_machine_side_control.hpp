@@ -14,6 +14,7 @@
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_integration/sfc_startup_sequencer_runner.hpp"
 #include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
@@ -43,6 +44,7 @@ public:
           speed_generator(),
           speed_controller(),
           torque_controller(),
+          startup_sequencer(),
           machine_integrator_supervisor(),
           machine_side_controller(),
           machine_side_observer(),
@@ -139,6 +141,9 @@ public:
 
     sfc_torque_controller_runner& get_torque_controller() { return torque_controller; }
     const sfc_torque_controller_runner& get_torque_controller() const { return torque_controller; }
+
+    sfc_startup_sequencer_runner& get_startup_sequencer() { return startup_sequencer; }
+    const sfc_startup_sequencer_runner& get_startup_sequencer() const { return startup_sequencer; }
 
     sfc_machine_side_controller_runner& get_machine_side_controller() { return machine_side_controller; }
     const sfc_machine_side_controller_runner& get_machine_side_controller() const { return machine_side_controller; }
@@ -286,6 +291,7 @@ public:
     sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
+    sfc_startup_sequencer_runner startup_sequencer;
     sfc_machine_side_integrator_supervisor_runner machine_integrator_supervisor;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;

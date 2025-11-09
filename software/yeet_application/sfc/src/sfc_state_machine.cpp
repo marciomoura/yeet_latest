@@ -160,23 +160,33 @@ sfc_state_outputs operation_off_state::get_outputs() const noexcept
 
 sfc_state_type* operation_on_state::update(const sfc_state_inputs& inputs) noexcept
 {
+    // Clear first cycle flag after first update
+    if (_is_first_cycle) {
+        _is_first_cycle = false;
+    }
+
     if (!inputs.breakers_are_on_event.is_true()) {
+        _is_first_cycle = true;  // Reset for next entry
         return _shutdown_requested_state;
     }
 
     if (!inputs.auxiliaries_are_on_event.is_true()) {
+        _is_first_cycle = true;  // Reset for next entry
         return _shutdown_requested_state;
     }
 
     if (inputs.stop_command.is_true()) {
+        _is_first_cycle = true;  // Reset for next entry
         return _shutdown_requested_state;
     }
 
     if (inputs.shutdown_request.is_true()) {
+        _is_first_cycle = true;  // Reset for next entry
         return _shutdown_requested_state;
     }
 
     if (!inputs.start_command.is_true()) {
+        _is_first_cycle = true;  // Reset for next entry
         return _shutdown_requested_state;
     }
 
@@ -189,6 +199,7 @@ sfc_state_outputs operation_on_state::get_outputs() const noexcept
 
     outputs.pulse_releases = true;  // Enable pulse generation in OPERATION_ON
     outputs.freeze_integrator = false;
+    outputs.reset_controllers = _is_first_cycle;  // Pulse reset on state entry
 
     return outputs;
 }

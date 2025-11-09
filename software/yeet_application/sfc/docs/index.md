@@ -67,6 +67,11 @@ Detailed guide on the high-speed current controller responsible for regulating D
 
 Comprehensive explanation of the speed control loop, including its role in the cascaded architecture, PI controller design, anti-windup mechanisms, and speed profile generation for soft-starters.
 
+#### 🚀 [Startup Sequencer](startup_sequencer.md)
+**Complete machine-side startup state machine**
+
+Detailed guide to the startup sequencer that coordinates the complete startup procedure from standstill to normal closed-loop operation. Covers flux build-up (pre-fluxing), virtual reference frame control with V/Hz ramping, torque ramping strategies, reference frame switching, and transition to observer-based speed control.
+
 ## 🎯 Quick Navigation
 
 ### For New Users

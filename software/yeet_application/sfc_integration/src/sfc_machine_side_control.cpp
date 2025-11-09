@@ -8,6 +8,7 @@ void sfc_machine_side_control::initialize()
     speed_generator.initialize();
     speed_controller.initialize();
     torque_controller.initialize();
+    startup_sequencer.initialize();
     machine_integrator_supervisor.initialize();
     machine_side_controller.initialize();
     machine_side_observer.initialize();
@@ -27,8 +28,9 @@ void sfc_machine_side_control::update_10ms()
 
 void sfc_machine_side_control::update_1ms()
 {
-    // 1ms sampling: Excitation controller, machine-side controller
+    // 1ms sampling: Excitation controller, startup sequencer, machine-side controller
     excitation_controller.run();
+    startup_sequencer.run();
     machine_side_controller.run();
 }
 
@@ -81,6 +83,7 @@ void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry
     speed_generator.register_datamodel(registry);
     speed_controller.register_datamodel(registry);
     torque_controller.register_datamodel(registry);
+    startup_sequencer.register_datamodel(registry);
     machine_side_controller.register_datamodel(registry);
     machine_side_observer.register_datamodel(registry);
     machine_side_modulator.register_datamodel(registry);
@@ -126,6 +129,16 @@ void sfc_machine_side_control::connect_internal_signals()
         external_ios.get_excitation_outputs().excitation_stop_command, excitation_controller.get_inputs().stop_command);
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, excitation_controller.get_inputs().machine_rotor_speed_pu);
+
+    // ==================== Startup Sequencer Inputs ====================
+    signals_connector::connect_output_to_input(
+        excitation_controller.get_outputs().is_field_established, startup_sequencer.get_inputs().is_field_established);
+    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
+        startup_sequencer.get_inputs().estimated_rotor_angle);
+    signals_connector::connect_output_to_input(
+        external_ios.get_startup_sequencer_outputs().start_command, startup_sequencer.get_inputs().start_command);
+    signals_connector::connect_output_to_input(
+        external_ios.get_startup_sequencer_outputs().stop_command, startup_sequencer.get_inputs().stop_command);
 
     // ==================== Speed Generator Inputs ====================
     signals_connector::connect_output_to_input(

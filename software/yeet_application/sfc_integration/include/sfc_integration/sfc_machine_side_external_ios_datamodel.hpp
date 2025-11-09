@@ -189,6 +189,21 @@ public:
         signal_output<bool> idle;                ///< Idle mode (zero torque/speed outputs)
     };
 
+    // ==================== STARTUP SEQUENCER OUTPUTS (Startup Control) ====================
+
+    /**
+     * @brief Startup sequencer control signals
+     *
+     * These signals control the startup sequencer which manages the complete startup sequence
+     * from IDLE through flux buildup, virtual reference generation, to closed-loop operation.
+     *
+     * Flow: External supervisory controller → machine_side_external_ios → startup_sequencer
+     */
+    struct startup_sequencer_outputs_t {
+        signal_output<bool> start_command;  ///< Start the startup sequence
+        signal_output<bool> stop_command;   ///< Stop the startup sequence
+    };
+
     // ==================== THYRISTOR OUTPUT (Pulse Control) ====================
 
     /**
@@ -270,6 +285,18 @@ public:
      * @return Mutable reference to speed generator outputs
      */
     speed_generator_outputs_t& get_speed_generator_outputs() { return _speed_generator_outputs; }
+
+    /**
+     * @brief Get startup sequencer output signals (const)
+     * @return Const reference to startup sequencer outputs
+     */
+    const startup_sequencer_outputs_t& get_startup_sequencer_outputs() const { return _startup_sequencer_outputs; }
+
+    /**
+     * @brief Get startup sequencer output signals (mutable)
+     * @return Mutable reference to startup sequencer outputs
+     */
+    startup_sequencer_outputs_t& get_startup_sequencer_outputs() { return _startup_sequencer_outputs; }
 
     /**
      * @brief Get thyristor output structure (mutable)
@@ -430,6 +457,7 @@ private:
     fiber_optics_inputs_t _fiber_optics_inputs;
     excitation_outputs_t _excitation_outputs;
     speed_generator_outputs_t _speed_generator_outputs;
+    startup_sequencer_outputs_t _startup_sequencer_outputs;
     thyristor_control_output_t _thyristor_output;
 };
 
