@@ -23,12 +23,18 @@ void sfc_machine_side_modulator_runner::run()
     // Read inputs from the datamodel
     const sfc_operating_mode_t operating_mode = _inputs.operating_mode.read();
     const bool force_commutation_acknowledged = _inputs.force_commutation_acknowledged.read();
-    const angle_t rotor_position_rad = _inputs.machine_reference_angle.read();
+    const angle_t estimated_rotor_angle = _inputs.machine_reference_angle.read();
+    const angle_t virtual_rotor_angle = _inputs.virtual_rotor_angle.read();
+    const reference_frame_source_t frame_source = _inputs.reference_frame_source.read();
     const angle_t firing_angle_from_lut = _inputs.firing_angle.read();
+
+    // Select rotor angle based on reference frame source from startup sequencer
+    const angle_t selected_rotor_angle =
+        (frame_source == reference_frame_source_t::VIRTUAL) ? virtual_rotor_angle : estimated_rotor_angle;
 
     // Update the modulator - pass true for enable (control is via parameters)
     _sfc_machine_side_modulator.update(_inputs.release_pulses, operating_mode, force_commutation_acknowledged,
-        rotor_position_rad, firing_angle_from_lut);
+        selected_rotor_angle, firing_angle_from_lut);
 
     // Write outputs to the datamodel
     _outputs.firing_angle = _sfc_machine_side_modulator.get_firing_angle_rad();
@@ -38,7 +44,7 @@ void sfc_machine_side_modulator_runner::run()
 
     // Calculate current rotor sector (1-6) for diagnostics
     // Each sector is 60 degrees (π/3 radians) wide
-    const real_t rotor_degrees = rotor_position_rad.value() * 180.0 / 3.14159265359;
+    const real_t rotor_degrees = selected_rotor_angle.value() * 180.0 / 3.14159265359;
     const real_t normalized_degrees = std::fmod(rotor_degrees, 360.0);
     const uint8_t sector = static_cast<uint8_t>(normalized_degrees / 60.0) + 1;
     _outputs.current_rotor_sector = (sector > 6) ? 1 : sector;

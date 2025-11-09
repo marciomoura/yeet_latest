@@ -28,6 +28,9 @@ public:
 
             system.machine_side_control.external_ios.update_speed_generator_inputs(_run_creep_speed, _run_purge_accel,
                 _run_ignition_accel, _run_assist_accel, _hold_speed, _decelerate, _idle);
+
+            system.machine_side_control.external_ios.update_startup_sequencer_inputs(
+                _startup_sequencer_start_command, _startup_sequencer_stop_command);
         });
 
         // Initialize the system - allocates plant model and all components
@@ -121,6 +124,10 @@ public:
 
     void set_excitation_stop_command(bool stop) { _excitation_stop_command = stop; }
 
+    void set_startup_sequencer_start_command(bool start) { _startup_sequencer_start_command = start; }
+
+    void set_startup_sequencer_stop_command(bool stop) { _startup_sequencer_stop_command = stop; }
+
     // Complete startup sequence following state machine logic
     void execute_startup_sequence()
     {
@@ -175,6 +182,10 @@ public:
     bool _exciter_ready = true;
     bool _excitation_start_command = true;
     bool _excitation_stop_command = false;
+
+    // Startup sequencer control commands (simulates external digital inputs)
+    bool _startup_sequencer_start_command = false;
+    bool _startup_sequencer_stop_command = false;
 };
 
 // Test gas turbine soft-start sequence using speed generator profiles
@@ -697,4 +708,134 @@ TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostT
 
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "Pulse releases should remain active during low-speed creep operation";
+}
+
+/**
+ * @test StartupSequencerIntegrationTest
+ * @brief Validates startup sequencer coordinated startup to 0.2 pu speed
+ *
+ * This test validates the integration of the startup sequencer with the complete
+ * control system. It tests the complete startup procedure including:
+ * - Flux buildup phase (field excitation establishment)
+ * - Virtual reference frame startup procedure (V/Hz control)
+ * - Transition to closed-loop observer-based control
+ * - Speed reference tracking to 0.2 pu
+ *
+ * Configuration:
+ * - Virtual frequency ramp: 1 Hz → 10 Hz in 20 seconds
+ * - Virtual torque ramp: 0.1 pu → 0.4 pu in 5 seconds
+ * - Target speed: 0.2 pu
+ *
+ * Note: This test documents the current startup sequencer behavior and validates
+ * that the parallel integration with speed generator works correctly.
+ */
+TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
+{
+    // Configure plant starting from standstill
+    yeet::application::sfc::integration::test::variable_speed_config config{};
+    config.initial_speed = speed_pu_t{0.0f};  // Complete standstill
+    yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, config);
+
+    // Configure moderate load torque
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
+
+    // ==================== Configure Startup Sequencer ====================
+    // Virtual frequency profile: 1 Hz to 10 Hz in 20 seconds (start from 1 Hz to avoid zero frequency)
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_t{1.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_t{10.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{20.0f};
+
+    // Virtual torque profile: 0.1 pu to 0.4 pu in 5 seconds
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.1f};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.4f};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{5.0f};
+
+    // ==================== Configure Speed Generator for Final Speed ====================
+    // Configure Profile 1 (Creep) to reach 0.2 pu in reasonable time
+    system.machine_side_control.speed_generator.get_parameters().profile_1_target_speed = speed_pu_t{0.2f};
+    system.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time = duration_t{15.0f};
+    system.machine_side_control.speed_generator.get_parameters().profile_1_torque_limit_max = torque_pu_t{0.5f};
+    system.machine_side_control.speed_generator.get_parameters().profile_1_torque_limit_min = torque_pu_t{-0.2f};
+
+    // Speed tracking checker for steady-state validation
+    const speed_pu_t speed_error_tolerance{0.08f};  // Relaxed for startup transients
+    auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "speed tracking error",
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.speed_generator.get_outputs().speed_reference.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
+        -speed_error_tolerance, speed_error_tolerance, yeet::checker_activation_always{}));
+
+    speed_tracking_checker->deactivate();  // Will activate during steady-state phase
+
+    // ==================== Execute State Machine Startup ====================
+    execute_startup_sequence();
+    system.plant.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
+
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "State machine should enable pulse releases after startup sequence";
+
+    bool success = true;
+
+    // ==================== Trigger Startup Sequencer ====================
+    // Send start command to the startup sequencer to begin the coordinated startup sequence
+    set_startup_sequencer_start_command(true);
+    success &= simulator.simulate_for(0.1);
+
+    // ==================== Wait for Flux Buildup and Virtual Startup ====================
+    // The startup sequencer will progress through:
+    // IDLE → FLUX_BUILDUP → STARTING_PROCEDURE → CLOSED_LOOP_OPERATION
+    // Allow time for flux build and virtual frequency ramp (20s) + settling
+    success &= simulator.simulate_for(25.0);
+
+    // Verify startup sequencer completed its sequence
+    auto final_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(final_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
+
+    // Verify reference frame switched to estimated (observer-based)
+    auto ref_frame = system.machine_side_control.startup_sequencer.get_outputs().reference_frame_source.read();
+    EXPECT_EQ(ref_frame, reference_frame_source_t::ESTIMATED)
+        << "Reference frame should be ESTIMATED during closed-loop operation";
+
+    // Verify torque control mode is back to speed control
+    auto torque_mode = system.machine_side_control.startup_sequencer.get_outputs().torque_control_mode.read();
+    EXPECT_EQ(torque_mode, sfc_torque_controller::control_mode::SPEED_CONTROL)
+        << "Torque controller should be in SPEED_CONTROL mode";
+
+    // ==================== Command Speed Profile to Reach 0.2 pu ====================
+    // Now that startup is complete, command speed generator to reach final speed
+    set_idle(false);
+    success &= simulator.simulate_for(0.1);
+
+    set_run_creep_speed(true);
+    success &= simulator.simulate_for(0.1);
+
+    // Allow acceleration to 0.2 pu (15s acceleration + 3s settling)
+    success &= simulator.simulate_for(18.0);
+
+    // ==================== Verify Final Speed ====================
+    auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(final_speed.value(), 0.2f, 0.05f)
+        << "Machine should reach approximately 0.2 pu after startup sequence and speed profile";
+
+    auto speed_ref = system.machine_side_control.speed_generator.get_outputs().speed_reference.read();
+    EXPECT_NEAR(speed_ref.value(), 0.2f, 0.02f) << "Speed generator should output 0.2 pu reference";
+
+    // ==================== Steady-State Validation ====================
+    speed_tracking_checker->activate();
+    success &= simulator.simulate_for(5.0);
+    speed_tracking_checker->deactivate();
+
+    // ==================== Final Validation ====================
+    EXPECT_TRUE(success) << "Startup sequencer integration test completed with simulation errors";
+
+    // Verify system remains in operation
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "System should maintain pulse releases during steady-state operation";
+
+    // Verify startup complete flag
+    auto startup_complete = system.machine_side_control.startup_sequencer.get_outputs().is_startup_complete.read();
+    EXPECT_TRUE(startup_complete) << "Startup sequencer should indicate startup complete";
 }

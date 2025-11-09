@@ -90,6 +90,12 @@ void sfc_machine_side_external_ios_datamodel::update_speed_generator_inputs(bool
     }
 }
 
+void sfc_machine_side_external_ios_datamodel::update_startup_sequencer_inputs(bool start_command, bool stop_command)
+{
+    _startup_sequencer_outputs.start_command.write(start_command);
+    _startup_sequencer_outputs.stop_command.write(stop_command);
+}
+
 bool sfc_machine_side_external_ios_datamodel::write_excitation_overrides()
 {
     if (!_parameters.override_excitation_inputs.read()) {

@@ -409,6 +409,17 @@ public:
         bool idle);
 
     /**
+     * @brief Update startup sequencer control inputs (test/sim interface)
+     *
+     * Sets the external command signals for the startup sequencer from a test bench
+     * or simulator. These signals control the startup sequence execution.
+     *
+     * @param start_command Start the startup sequence
+     * @param stop_command Stop the startup sequence
+     */
+    void update_startup_sequencer_inputs(bool start_command, bool stop_command);
+
+    /**
      * @brief Get thyristor pulse outputs
      *
      * Returns the current 6-pulse firing signals for external gate driver consumption.

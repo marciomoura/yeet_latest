@@ -192,6 +192,11 @@ void sfc_machine_side_control::connect_internal_signals()
     // Saturation signal from grid-side
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().is_saturated, torque_controller.get_inputs().is_saturated);
+    // Control mode and manual torque reference from startup sequencer
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().torque_control_mode, torque_controller.get_inputs().control_mode);
+    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().virtual_torque_reference,
+        torque_controller.get_inputs().manual_torque_reference);
 
     // ==================== Machine-Side Controller Inputs ====================
     signals_connector::connect_output_to_input(
@@ -208,6 +213,11 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_side_modulator.get_inputs().force_commutation_acknowledged);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().operating_mode, machine_side_modulator.get_inputs().operating_mode);
+    // Reference frame source and virtual angle from startup sequencer
+    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().reference_frame_source,
+        machine_side_modulator.get_inputs().reference_frame_source);
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().virtual_rotor_angle, machine_side_modulator.get_inputs().virtual_rotor_angle);
 
     // ==================== Machine-Side Pulse Generator Inputs ====================
     signals_connector::connect_output_to_input(

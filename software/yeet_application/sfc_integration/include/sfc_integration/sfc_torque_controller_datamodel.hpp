@@ -42,6 +42,12 @@ public:
 
         /// Saturation feedback from downstream current controller
         signal_input<bool> is_saturated;
+
+        /// Control mode selection (SPEED_CONTROL or MANUAL_TORQUE) from startup sequencer
+        signal_input<sfc::sfc_torque_controller::control_mode> control_mode;
+
+        /// Manual torque reference for virtual reference frame (startup phase) [pu]
+        signal_input<torque_pu_t> manual_torque_reference;
     };
 
     /**
