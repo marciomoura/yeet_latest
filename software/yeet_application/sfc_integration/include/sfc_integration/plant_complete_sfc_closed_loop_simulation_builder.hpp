@@ -316,9 +316,13 @@ private:
 
     void configure_plant_for_external_excitation_control()
     {
-        // Configure plant model to use external excitation voltage control mode
+        // Configure plant model for variable-speed operation with external excitation control
+        // The excitation controller provides field current reference to regulate machine flux
+        // This enables dynamic voltage control (E = Φ × ω) where both flux and speed vary
+        plant.get_parameters().operation_mode = sfc_plant_model_datamodel::machine_operation_mode::variable_speed;
         plant.get_parameters().voltage_control_mode =
-            sfc_plant_model_datamodel::machine_voltage_control_mode::external_control;
+            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed;
+        plant.get_parameters().initial_speed = speed_pu_t{0.001f};  // Near-standstill initial condition
     }
 
     void connect_all_components()
@@ -355,11 +359,12 @@ private:
             machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,
             plant.get_inputs().machine_firing_pulses);
 
-        // Excitation voltage command: Controls the excitation system of the synchronous machine
-        // Modulates the machine field voltage for flux and torque control
+        // Excitation control: Connect field current reference from excitation controller to plant model
+        // The plant model contains an integrated field current regulator that converts the reference
+        // to exciter voltage using PI control with realistic field circuit L/R dynamics
         signals_connector::connect_output_to_input(
-            machine_side_control.excitation_controller.get_outputs().excitation_voltage_setpoint,
-            plant.get_inputs().excitation_voltage_setpoint);
+            machine_side_control.get_excitation_controller().get_outputs().field_current_reference,
+            plant.get_inputs().field_current_reference);
 
         // ==================== External Disturbances → Plant ====================
         // External inputs to the plant model for testing and simulation scenarios

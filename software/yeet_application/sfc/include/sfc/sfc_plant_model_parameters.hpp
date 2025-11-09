@@ -16,9 +16,8 @@ enum class plant_model_machine_operation_mode {
  * @brief Defines the voltage control mode for the machine side.
  */
 enum class plant_model_voltage_control_mode {
-    fixed_voltage,    // Machine voltage is fixed at nominal value.
-    speed_dependent,  // Machine voltage varies with speed using speed-voltage relationship.
-    external_control  // Machine voltage is set externally (e.g., from excitation controller).
+    fixed_voltage,  // Machine voltage is fixed at nominal value.
+    variable_speed  // Machine voltage controlled by field current regulator with E = Φ × ω relationship.
 };
 
 /**

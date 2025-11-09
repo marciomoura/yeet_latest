@@ -22,31 +22,16 @@ public:
         /// Machine rotor speed [pu]
         signal_input<speed_pu_t> machine_rotor_speed_pu;
 
-        /// Exciter ready status [bool]
-        signal_input<bool> exciter_ready;
-
-        /// Start command [bool]
-        signal_input<bool> start_command;
-
-        /// Stop command [bool]
-        signal_input<bool> stop_command;
+        /// Release excitation command (enables field current output) [bool]
+        signal_input<bool> release_excitation;
     };
 
     /**
      * @brief Output signals from the excitation controller component
      */
     struct outputs {
-        /// Excitation voltage setpoint [pu]
-        signal_output<voltage_pu_t> excitation_voltage_setpoint;
-
-        /// Enable command to external exciter [bool]
-        signal_output<bool> enable_excitation;
-
-        /// Field established status [bool]
-        signal_output<bool> is_field_established;
-
-        /// Controller running status [bool]
-        signal_output<bool> is_running;
+        /// Field current reference [pu]
+        signal_output<current_pu_t> field_current_reference;
 
         /// Pre-fluxing elapsed time [s]
         signal_output<duration_t> prefluxing_elapsed_time;
@@ -56,21 +41,16 @@ public:
      * @brief Configuration parameters for the excitation controller
      */
     struct parameters {
+        /// Constant field current setpoint [pu]
+        parameter<current_pu_t> field_current_setpoint = current_pu_t{1.0};
+
+        /// Speed threshold for constant flux region [pu]
+        /// Below this speed, field current remains constant regardless of speed
+        parameter<speed_pu_t> constant_flux_speed_threshold = speed_pu_t{1.0};
+
         /// Pre-fluxing duration [s]
+        /// Time required to establish the magnetic field before releasing excitation
         parameter<duration_t> prefluxing_duration = duration_t{2.0};
-
-        /// Field established timeout [s]
-        parameter<duration_t> field_established_timeout = duration_t{5.0};
-
-        /// Excitation ramp-down time during shutdown [s]
-        parameter<duration_t> excitation_ramp_down_time = duration_t{1.0};
-
-        /// Speed axis for lookup table [pu]
-        parameter<std::array<real_t, 6>> speed_axis_pu = std::array<real_t, 6>{0.0, 0.05, 0.80, 0.95, 1.00, 1.05};
-
-        /// Excitation voltage axis for lookup table [pu]
-        parameter<std::array<real_t, 6>> excitation_voltage_axis_pu =
-            std::array<real_t, 6>{0.30, 0.30, 1.00, 0.80, 0.73, 0.70};
     };
 
 private:
@@ -92,37 +72,11 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         entry.parameters.insert(
+            "field_current_setpoint", yeet::utils::make_units_accessor(_model_parameters->field_current_setpoint));
+        entry.parameters.insert("constant_flux_speed_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->constant_flux_speed_threshold));
+        entry.parameters.insert(
             "prefluxing_duration", yeet::utils::make_units_accessor(_model_parameters->prefluxing_duration));
-        entry.parameters.insert("field_established_timeout",
-            yeet::utils::make_units_accessor(_model_parameters->field_established_timeout));
-        entry.parameters.insert("excitation_ramp_down_time",
-            yeet::utils::make_units_accessor(_model_parameters->excitation_ramp_down_time));
-
-        // Register speed axis lookup table entries individually
-        auto& speed_axis = _model_parameters->speed_axis_pu;
-        for (std::size_t i = 0; i < 6; ++i) {
-            std::string param_name = "speed_axis_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(
-                param_name, low_level_access([&speed_axis, i]() -> float { return speed_axis.read()[i]; },
-                                [&speed_axis, i](float value) {
-                                    auto table = speed_axis.read();
-                                    table[i] = real_t(value);
-                                    speed_axis.write(table);
-                                }));
-        }
-
-        // Register excitation voltage axis lookup table entries individually
-        auto& excitation_voltage_axis = _model_parameters->excitation_voltage_axis_pu;
-        for (std::size_t i = 0; i < 6; ++i) {
-            std::string param_name = "excitation_voltage_axis_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
-                low_level_access([&excitation_voltage_axis, i]() -> float { return excitation_voltage_axis.read()[i]; },
-                    [&excitation_voltage_axis, i](float value) {
-                        auto table = excitation_voltage_axis.read();
-                        table[i] = real_t(value);
-                        excitation_voltage_axis.write(table);
-                    }));
-        }
 
         registry.insert("excitation_controller", std::move(entry));
     }

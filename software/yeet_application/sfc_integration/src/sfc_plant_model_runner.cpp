@@ -12,6 +12,11 @@ sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit
 
 void sfc_plant_model_runner::initialize()
 {
+    // Parameters are initialized by the datamodel struct defaults
+    // Tests may override these parameters BEFORE initialize() is called
+    // The parameter<T> class default values are set in the struct definition
+    // No need to write them again here - let read() use the defaults
+
     // Configure the plant's grid and machine parameters from the shared per-unit system
     const auto& grid_bases = _per_unit_system->get_grid_bases();
     const auto& machine_bases = _per_unit_system->get_machine_bases();
@@ -44,9 +49,10 @@ void sfc_plant_model_runner::run()
     _plant.set_machine_side_pulses(_inputs.machine_firing_pulses.read().to_array());
     _plant.set_load_torque_pu(_inputs.load_torque.read());
 
-    // Set excitation voltage setpoint if in external control mode
-    if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::external_control) {
-        _plant.set_excitation_voltage_setpoint_pu(_inputs.excitation_voltage_setpoint.read());
+    // Always set field current reference in variable speed mode
+    // In fixed_voltage mode, this input is ignored by the plant
+    if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::variable_speed) {
+        _plant.set_field_current_reference_pu(_inputs.field_current_reference.read());
     }
 
     // Execute one simulation step
@@ -64,12 +70,16 @@ void sfc_plant_model_runner::run()
     _outputs.machine_speed =
         speed_pu_t{to_pu(_plant.get_machine_frequency(), _per_unit_system->get_machine_bases().base_frequency)};
     _outputs.grid_frequency = _plant.get_grid_frequency();
+    _outputs.machine_flux_pu = _plant.get_flux_pu();
+    _outputs.field_current_pu = _plant.get_field_current();
 }
 
 void sfc_plant_model_runner::stop() {}
 
 void sfc_plant_model_runner::set_parameters()
 {
+    // Ensure parameters have been written at least once
+    // (tests may have written different values before initialize() was called)
     if (_parameters.operation_mode.read() == datamodel::machine_operation_mode::variable_speed) {
         _plant.set_operation_mode(sfc::plant_model_machine_operation_mode::variable_speed);
     }
@@ -81,11 +91,8 @@ void sfc_plant_model_runner::set_parameters()
     if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::fixed_voltage) {
         _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::fixed_voltage);
     }
-    else if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::speed_dependent) {
-        _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::speed_dependent);
-    }
-    else if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::external_control) {
-        _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::external_control);
+    else if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::variable_speed) {
+        _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::variable_speed);
     }
 
     _plant.configure_mechanical_load(

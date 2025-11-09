@@ -7,178 +7,173 @@ namespace yeet::application::sfc {
 
 sfc_excitation_controller::sfc_excitation_controller(duration_t sampling_time)
     : _sampling_time(sampling_time),
-      _excitation_voltage_rate_limiter(10000.0, sampling_time.value()),  // High default rate for fast tracking
-      _prefluxing_timer(sampling_time)
+      // _field_current_rate_limiter(10000.0, sampling_time.value()),  // Commented out - not used in simplified version
+      _flux_buildup_timer(sampling_time)
 {
-    // Configure default lookup table with safe initial values
-    _excitation_voltage_lookup_table.configure(kDefaultSpeedAxisPu, kDefaultExcitationVoltageSetpointPu);
+    // Simplified constructor - no lookup table initialization needed
+    // _field_current_lookup_table.configure(kDefaultSpeedAxisPu, kDefaultFieldCurrentReferencePu);
 }
 
-void sfc_excitation_controller::configure_excitation_voltage_lookup_table(
-    const std::array<real_t, NUM_LOOKUP_POINTS>& speed_axis_pu,
-    const std::array<real_t, NUM_LOOKUP_POINTS>& excitation_voltage_setpoint)
+void sfc_excitation_controller::configure_field_current_setpoint(current_pu_t field_current_setpoint)
 {
-    // Verify that speed axis is sorted
-    assert(
-        std::is_sorted(speed_axis_pu.begin(), speed_axis_pu.end()) && "Speed axis must be sorted in ascending order.");
+    assert(field_current_setpoint.value() >= 0.0 && "Field current setpoint must be non-negative.");
 
-    // Verify that all excitation voltages are non-negative
-    for (const auto& voltage : excitation_voltage_setpoint) {
-        assert(voltage >= 0.0 && "Excitation voltage setpoint values must be non-negative.");
-    }
+    _field_current_setpoint = field_current_setpoint;
 
-    _excitation_voltage_lookup_table.configure(speed_axis_pu, excitation_voltage_setpoint);
+    // Commented out - simplified version doesn't use lookup table
+    // std::array<real_t, NUM_LOOKUP_POINTS> constant_table;
+    // constant_table.fill(field_current_setpoint.value());
+    // _field_current_lookup_table.configure(kDefaultSpeedAxisPu, constant_table);
 }
 
-void sfc_excitation_controller::configure_prefluxing_duration(duration_t prefluxing_duration)
+// Commented out - not used in simplified version
+// void sfc_excitation_controller::configure_constant_flux_speed_threshold(speed_pu_t speed_threshold_pu)
+// {
+//     assert(speed_threshold_pu.value() >= 0.0 && speed_threshold_pu.value() <= 1.0 &&
+//            "Constant flux speed threshold must be between 0.0 and 1.0 pu.");
+//     if (speed_threshold_pu.value() < 0.0 || speed_threshold_pu.value() > 1.0) {
+//         return;
+//     }
+//
+//     _constant_flux_speed_threshold = speed_threshold_pu;
+// }
+
+void sfc_excitation_controller::configure_flux_buildup_duration(duration_t flux_buildup_duration)
 {
-    assert(prefluxing_duration.value() > 0.0 && "Pre-fluxing duration must be positive.");
-    if (prefluxing_duration.value() <= 0.0) {
+    assert(flux_buildup_duration.value() > 0.0 && "Flux build-up duration must be positive.");
+    if (flux_buildup_duration.value() <= 0.0) {
         return;
     }
 
-    _prefluxing_duration = prefluxing_duration;
-}
-
-void sfc_excitation_controller::configure_field_established_timeout(duration_t timeout)
-{
-    assert(timeout.value() > 0.0 && "Field established timeout must be positive.");
-    if (timeout.value() <= 0.0) {
-        return;
-    }
-
-    _field_established_timeout = timeout;
-}
-
-void sfc_excitation_controller::configure_excitation_ramp_down_time(duration_t ramp_down_time)
-{
-    assert(ramp_down_time.value() > 0.0 && "Ramp down time must be positive.");
-    if (ramp_down_time.value() <= 0.0) {
-        return;
-    }
-
-    // Configure rate limiter for excitation voltage ramp-down
-    // Calculate rate in pu/s needed to reach zero from max voltage in specified time
-    // Using a conservative estimate of max excitation voltage from lookup table
-    const real_t max_excitation_voltage =
-        *std::max_element(kDefaultExcitationVoltageSetpointPu.begin(), kDefaultExcitationVoltageSetpointPu.end());
-    const real_t ramp_rate = max_excitation_voltage / ramp_down_time.value();
-
-    _excitation_voltage_rate_limiter.configure(ramp_rate);
+    _flux_buildup_duration = flux_buildup_duration;
 }
 
 bool sfc_excitation_controller::start_excitation()
 {
-    // Precondition: controller must not already be running
-    if (_is_running) {
-        return false;
-    }
-
-    // Start the excitation sequence
+    // Simplified: just enable and set constant field current
     _is_running = true;
     _is_field_established = false;
-    _is_ramping_down = false;
     _enable_excitation = true;
 
-    // Set excitation voltage setpoint to initial value (0% speed point from lookup table)
-    _excitation_voltage_setpoint_pu = voltage_pu_t{kDefaultExcitationVoltageSetpointPu[0]};
+    // Set field current reference to configured constant value
+    _field_current_reference_pu = _field_current_setpoint;
 
-    // Start pre-fluxing timer
-    _prefluxing_timer.reset();
+    // Start flux build-up timer
+    _flux_buildup_timer.reset();
+
+    // Commented out - simplified version doesn't track ramp-down state
+    // _is_ramping_down = false;
 
     return true;
 }
 
 void sfc_excitation_controller::stop_excitation()
 {
-    // Initiate controlled ramp-down
-    _is_ramping_down = true;
-    _is_field_established = false;
+    // Simplified: immediate disable, no ramp-down
+    // _is_running = false;
+    // _is_field_established = false;
+    // _enable_excitation = false;
+    // _field_current_reference_pu = current_pu_t{0.0};
+    // _flux_buildup_timer.reset();
 
-    // Note: actual ramp-down and disable happens in update()
+    // Commented out - simplified version doesn't use ramp-down
+    // _is_ramping_down = true;
 }
 
-void sfc_excitation_controller::update(speed_pu_t machine_rotor_speed_pu, bool exciter_ready)
+void sfc_excitation_controller::update(bool exciter_ready)
 {
-    // Store last valid speed for fault handling
-    if (machine_rotor_speed_pu.value() >= 0.0) {
-        _last_valid_speed = machine_rotor_speed_pu;
+    // Commented out - simplified version doesn't track speed for fault handling
+    // if (machine_rotor_speed_pu.value() >= 0.0) {
+    //     _last_valid_speed = machine_rotor_speed_pu;
+    // }
+    if (!_is_running && exciter_ready) {
+        // Simplified: just enable and set constant field current
+        _is_running = true;
+        _is_field_established = false;
+        _enable_excitation = true;
+        // Set field current reference to configured constant value
+        _field_current_reference_pu = _field_current_setpoint;
+        // Start flux build-up timer
+        _flux_buildup_timer.reset();
+        return;
     }
 
     // Handle exciter fault - stop immediately if exciter not ready while running
     if (_is_running && !exciter_ready) {
-        stop_excitation();
+        _is_running = false;
+        _is_field_established = false;
+        _enable_excitation = false;
+        _field_current_reference_pu = current_pu_t{0.0};
+        _flux_buildup_timer.reset();
+        return;
     }
 
     // If not running, ensure outputs are disabled
-    if (!_is_running && !_is_ramping_down) {
-        _excitation_voltage_setpoint_pu = voltage_pu_t{0.0};
+    if (!_is_running) {
+        _field_current_reference_pu = current_pu_t{0.0};
         _enable_excitation = false;
         return;
     }
 
-    // Handle ramp-down sequence
-    if (_is_ramping_down) {
-        // Ramp excitation voltage to zero using rate limiter
-        _excitation_voltage_rate_limiter.update(0.0);
-        _excitation_voltage_setpoint_pu = voltage_pu_t{_excitation_voltage_rate_limiter.get_output()};
+    // Commented out - simplified version doesn't use ramp-down
+    // if (_is_ramping_down) {
+    //     _field_current_rate_limiter.update(0.0);
+    //     _field_current_reference_pu = current_pu_t{_field_current_rate_limiter.get_output()};
+    //     if (_field_current_reference_pu.value() <= 0.01) {
+    //         _field_current_reference_pu = current_pu_t{0.0};
+    //         _enable_excitation = false;
+    //         _is_running = false;
+    //         _is_ramping_down = false;
+    //         _prefluxing_timer.reset();
+    //     }
+    //     return;
+    // }
 
-        // Once reached zero, disable excitation and clear running flag
-        if (_excitation_voltage_setpoint_pu.value() <= 0.01) {  // Small threshold for numerical stability
-            _excitation_voltage_setpoint_pu = voltage_pu_t{0.0};
-            _enable_excitation = false;
-            _is_running = false;
-            _is_ramping_down = false;
-            _prefluxing_timer.reset();
-        }
-        return;
-    }
-
-    // Pre-fluxing phase: maintain initial excitation voltage and wait for timer
+    // Flux build-up phase: maintain constant field current and wait for timer
     if (!_is_field_established) {
-        // Update pre-fluxing timer
-        _prefluxing_timer.update(true);
+        // Update flux build-up timer
+        _flux_buildup_timer.update(true);
 
-        // Check if pre-fluxing duration has elapsed
-        if (_prefluxing_timer.has_elapsed(_prefluxing_duration)) {
+        // Check if flux build-up duration has elapsed
+        if (_flux_buildup_timer.has_elapsed(_flux_buildup_duration)) {
             _is_field_established = true;
         }
-
-        // Maintain initial excitation voltage (0% speed point)
-        _excitation_voltage_setpoint_pu = voltage_pu_t{kDefaultExcitationVoltageSetpointPu[0]};
-        _enable_excitation = true;
-        return;
     }
 
-    // Normal operation: field established, update from lookup table
-    // Evaluate lookup table with current rotor speed
-    const real_t excitation_voltage_setpoint =
-        _excitation_voltage_lookup_table.get_value(machine_rotor_speed_pu.value());
-
-    // Apply rate limiting for smooth transitions
-    _excitation_voltage_rate_limiter.update(excitation_voltage_setpoint);
-    _excitation_voltage_setpoint_pu = voltage_pu_t{_excitation_voltage_rate_limiter.get_output()};
-
-    // Maintain excitation enable
+    // Normal operation: field established, maintain constant field current
+    _field_current_reference_pu = _field_current_setpoint;
     _enable_excitation = true;
+
+    // Commented out - simplified version doesn't use lookup table or rate limiter
+    // real_t field_current_reference;
+    // if (machine_rotor_speed_pu.value() < _constant_flux_speed_threshold.value()) {
+    //     field_current_reference = kDefaultFieldCurrentReferencePu[0];
+    // }
+    // else {
+    //     field_current_reference = _field_current_lookup_table.get_value(machine_rotor_speed_pu.value());
+    // }
+    // _field_current_rate_limiter.update(field_current_reference);
+    // _field_current_reference_pu = current_pu_t{_field_current_rate_limiter.get_output()};
 }
 
 void sfc_excitation_controller::reset()
 {
     _is_running = false;
     _is_field_established = false;
-    _is_ramping_down = false;
     _enable_excitation = false;
-    _excitation_voltage_setpoint_pu = voltage_pu_t{0.0};
-    _last_valid_speed = speed_pu_t{0.0};
+    _field_current_reference_pu = current_pu_t{0.0};
 
-    _excitation_voltage_rate_limiter.reset(0.0);
-    _prefluxing_timer.reset();
+    _flux_buildup_timer.reset();
+
+    // Commented out - simplified version doesn't use these
+    // _is_ramping_down = false;
+    // _last_valid_speed = speed_pu_t{0.0};
+    // _field_current_rate_limiter.reset(0.0);
 }
 
-voltage_pu_t sfc_excitation_controller::get_excitation_voltage_setpoint_pu() const noexcept
+current_pu_t sfc_excitation_controller::get_field_current_reference_pu() const noexcept
 {
-    return _excitation_voltage_setpoint_pu;
+    return _field_current_reference_pu;
 }
 
 bool sfc_excitation_controller::get_enable_excitation() const noexcept { return _enable_excitation; }
@@ -187,9 +182,49 @@ bool sfc_excitation_controller::get_is_field_established() const noexcept { retu
 
 bool sfc_excitation_controller::get_is_running() const noexcept { return _is_running; }
 
-duration_t sfc_excitation_controller::get_prefluxing_elapsed_time() const noexcept
+duration_t sfc_excitation_controller::get_flux_buildup_elapsed_time() const noexcept
 {
-    return _prefluxing_timer.get_elapsed_time();
+    return _flux_buildup_timer.get_elapsed_time();
 }
+
+// Commented out - legacy compatibility methods not used in simplified version
+// void sfc_excitation_controller::configure_field_current_lookup_table(
+//     const std::array<real_t, NUM_LOOKUP_POINTS>& speed_axis_pu,
+//     const std::array<real_t, NUM_LOOKUP_POINTS>& field_current_reference)
+// {
+//     assert(
+//         std::is_sorted(speed_axis_pu.begin(), speed_axis_pu.end()) && "Speed axis must be sorted in ascending
+//         order.");
+//
+//     for (const auto& current : field_current_reference) {
+//         assert(current >= 0.0 && "Field current reference values must be non-negative.");
+//     }
+//
+//     _field_current_lookup_table.configure(speed_axis_pu, field_current_reference);
+// }
+//
+// void sfc_excitation_controller::configure_field_established_timeout(duration_t timeout)
+// {
+//     assert(timeout.value() > 0.0 && "Field established timeout must be positive.");
+//     if (timeout.value() <= 0.0) {
+//         return;
+//     }
+//
+//     _field_established_timeout = timeout;
+// }
+//
+// void sfc_excitation_controller::configure_field_current_ramp_down_time(duration_t ramp_down_time)
+// {
+//     assert(ramp_down_time.value() > 0.0 && "Ramp down time must be positive.");
+//     if (ramp_down_time.value() <= 0.0) {
+//         return;
+//     }
+//
+//     const real_t max_field_current =
+//         *std::max_element(kDefaultFieldCurrentReferencePu.begin(), kDefaultFieldCurrentReferencePu.end());
+//     const real_t ramp_rate = max_field_current / ramp_down_time.value();
+//
+//     _field_current_rate_limiter.configure(ramp_rate);
+// }
 
 }  // namespace yeet::application::sfc

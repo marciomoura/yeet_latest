@@ -82,11 +82,9 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(37, speed_generator.get_outputs().is_profile_complete.read() ? 1.0f : 0.0f);
     packet.add_signal(38, speed_generator.get_outputs().is_breakaway_boost_active.read() ? 1.0f : 0.0f);
 
-    // === Excitation Controller Group (39-42) ===
-    packet.add_signal(39, static_cast<float>(excitation_controller.get_outputs().excitation_voltage_setpoint.read()));
-    packet.add_signal(40, excitation_controller.get_outputs().enable_excitation.read() ? 1.0f : 0.0f);
-    packet.add_signal(41, excitation_controller.get_outputs().is_field_established.read() ? 1.0f : 0.0f);
-    packet.add_signal(42, excitation_controller.get_outputs().is_running.read() ? 1.0f : 0.0f);
+    // === Excitation Controller Group (39-40) ===
+    packet.add_signal(39, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
+    packet.add_signal(40, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);

@@ -25,13 +25,8 @@ public:
 private:
     void set_parameters();
     void set_parameter_callback();
-    void handle_start_stop_commands();
 
     sfc::sfc_excitation_controller _sfc_excitation_controller;
-
-    // Edge detection for start/stop commands
-    bool _prev_start_command{false};
-    bool _prev_stop_command{false};
 };
 
 }  // namespace yeet::application::sfc::integration

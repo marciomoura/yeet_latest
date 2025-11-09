@@ -4,9 +4,10 @@
 #include "sfc_plant_model_6p_6p.hpp"
 #include "sfc_plant_model_parameters.hpp"
 #include "yeet_control/angle_wrapped.hpp"
+#include "yeet_control/field_current_regulator.hpp"
+#include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/mechanical_load.hpp"
 #include "yeet_control/reference_frame.hpp"
-#include "yeet_control/speed_voltage_relationship.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -73,21 +74,6 @@ public:
      */
     void configure_mechanical_load(
         inertia_constant_t inertia_constant_seconds, damping_coefficient_pu_t damping_coefficient);
-
-    /**
-     * @brief Configures the speed-voltage relationship parameters.
-     * @param coefficient The voltage-speed coefficient [pu/pu].
-     * @param offset_pu The voltage offset in per-unit.
-     * @param time_constant_seconds The time constant for dynamics [s]. Use 0.0 for algebraic response.
-     */
-    void configure_speed_voltage_relationship(real_t coefficient, real_t offset_pu, real_t time_constant_seconds = 0.0);
-
-    /**
-     * @brief Configures the voltage limits for the speed-voltage relationship.
-     * @param min_voltage_pu Minimum voltage magnitude [pu].
-     * @param max_voltage_pu Maximum voltage magnitude [pu].
-     */
-    void configure_voltage_limits_pu(real_t min_voltage_pu, real_t max_voltage_pu);
 
     /**
      * @brief Initializes the underlying Simulink model.
@@ -202,16 +188,22 @@ public:
     void set_voltage_control_mode(plant_model_voltage_control_mode mode);
 
     /**
-     * @brief Sets the excitation voltage setpoint for external control mode.
+     * @brief Sets the field current reference for external control mode.
      *
-     * This method allows direct control of the machine-side voltage magnitude from an external
-     * excitation controller. The setpoint is only used when voltage_control_mode is set to
-     * external_control. This simulates a "perfect exciter" with instantaneous tracking.
+     * This method allows direct control of the machine-side field current from an external
+     * excitation controller. The field current is regulated through a PI controller with
+     * realistic field winding dynamics (L/R time constant), then converted to terminal voltage
+     * using the proper synchronous machine relationship: E = k × Φ × ω.
      *
-     * @param excitation_voltage_setpoint The excitation voltage setpoint in per-unit [pu].
-     *        This value is multiplied by the nominal machine voltage to produce the actual voltage.
+     * The field current regulator accounts for:
+     * - Field winding resistance and inductance (typical τ_f = 0.5-5 seconds)
+     * - PI control with anti-windup
+     * - Exciter voltage limits
+     * - Flux-speed relationship for back-EMF generation
+     *
+     * @param field_current_reference The field current reference in per-unit [pu].
      */
-    void set_excitation_voltage_setpoint_pu(voltage_pu_t excitation_voltage_setpoint);
+    void set_field_current_reference_pu(current_pu_t field_current_reference);
 
     /**
      * @brief Sets the initial mechanical speed for the load.
@@ -243,6 +235,11 @@ public:
     torque_pu_t get_electromagnetic_torque_pu() const noexcept;
     torque_pu_t get_load_torque_pu() const noexcept;
 
+    // Field current and excitation getters
+    current_pu_t get_field_current() const noexcept;
+    voltage_pu_t get_exciter_voltage() const noexcept;
+    real_t get_flux_pu() const noexcept;
+
     // Voltage control getters
     voltage_t get_machine_voltage() const noexcept;
     real_t get_voltage_magnitude_pu() const noexcept;
@@ -255,8 +252,6 @@ public:
     // Component access getters
     const control::mechanical_load& get_mechanical_load() const noexcept;
     control::mechanical_load& get_mechanical_load() noexcept;
-    const control::speed_voltage_relationship& get_speed_voltage_relationship() const noexcept;
-    control::speed_voltage_relationship& get_speed_voltage_relationship() noexcept;
     const sfc_per_unit_system& get_per_unit_system() const noexcept;
 
     // Operation mode getters
@@ -321,14 +316,17 @@ private:
     frequency_pu_t _grid_frequency_pu{frequency_pu_t{1.0f}};
     frequency_pu_t _machine_frequency_pu{frequency_pu_t{1.0f}};  // used only when not variable_speed
 
-    voltage_pu_t _external_excitation_voltage_setpoint_pu{voltage_pu_t{1.0f}};  // Used in external_control mode
+    current_pu_t _field_current_reference_pu{current_pu_t{1.0f}};  // Field current reference for external control
 
     torque_pu_t _load_torque_pu = torque_pu_t{0.0};  // Current load torque in per-unit
 
-    sfc_plant_model_6p_6p _plant;                                     /// The underlying plant model instance
-    control::mechanical_load _mechanical_load;                        /// The mechanical load model instance
-    control::speed_voltage_relationship _speed_voltage_relationship;  /// The speed-voltage relationship model instance
-    sfc_per_unit_system _pu_system;                                   /// The per-unit system instance
+    voltage_pu_t _machine_back_emf_pu{voltage_pu_t{0.0}};  // Calculated back-EMF: E = Φ × ω (variable_speed mode)
+
+    sfc_plant_model_6p_6p _plant;                                    /// The underlying plant model instance
+    control::mechanical_load _mechanical_load;                       /// The mechanical load model instance
+    control::field_current_regulator _field_current_regulator;       /// The field current regulator instance
+    control::first_order_low_pass_filter<speed_pu_t> _speed_filter;  /// Speed filter to smooth back-EMF oscillations
+    sfc_per_unit_system _pu_system;                                  /// The per-unit system instance
 
     // Configuration parameters
     sfc_plant_model_electrical_parameters _electrical_params;

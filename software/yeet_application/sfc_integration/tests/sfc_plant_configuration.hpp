@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "sfc/sfc_plant_model_parameters.hpp"
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
@@ -23,16 +25,15 @@ struct variable_speed_config {
     /// Motor inertia constant
     inertia_constant_t inertia_constant{0.5f};
 
-    /// Speed-voltage relationship parameters
-    real_t voltage_at_base_speed{0.8f};
-    real_t voltage_slope{0.2f};
-    real_t voltage_offset{0.0f};
-
     /// Initial mechanical speed in per-unit
     speed_pu_t initial_speed{0.01f};
 
     /// Load torque in per-unit
     torque_pu_t load_torque{0.2f};
+
+    /// Voltage control mode (set to nullopt to preserve existing mode)
+    std::optional<plant_model_voltage_control_mode> voltage_control_mode{
+        plant_model_voltage_control_mode::variable_speed};
 };
 
 /**
@@ -55,9 +56,28 @@ inline void configure_variable_speed_plant(
 {
     // Configure underlying plant model
     plant_runner.get_plant_model().set_operation_mode(plant_model_machine_operation_mode::variable_speed);
-    plant_runner.get_plant_model().set_voltage_control_mode(plant_model_voltage_control_mode::speed_dependent);
-    plant_runner.get_plant_model().configure_speed_voltage_relationship(
-        config.voltage_at_base_speed, config.voltage_slope, config.voltage_offset);
+
+    // Set voltage control mode in both datamodel parameter AND plant model
+    // If config.voltage_control_mode is nullopt, preserve the builder's setting (variable_speed)
+    if (config.voltage_control_mode.has_value()) {
+        // Update both the plant model AND the datamodel parameter for consistency
+        plant_runner.get_plant_model().set_voltage_control_mode(config.voltage_control_mode.value());
+
+        // Map to datamodel enum
+        if (config.voltage_control_mode.value() == plant_model_voltage_control_mode::fixed_voltage) {
+            plant_runner.get_parameters().voltage_control_mode.write(
+                sfc_plant_model_datamodel::machine_voltage_control_mode::fixed_voltage);
+        }
+        else if (config.voltage_control_mode.value() == plant_model_voltage_control_mode::variable_speed) {
+            plant_runner.get_parameters().voltage_control_mode.write(
+                sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
+        }
+    }
+    // else: preserve whatever voltage_control_mode was set by the builder in both places
+
+    // Note: configure_speed_voltage_relationship removed - back-EMF calculated directly from E = Φ × ω
+    // The voltage_slope and voltage_offset parameters are no longer used
+
     plant_runner.get_plant_model().set_initial_mechanical_speed_pu(config.initial_speed);
     plant_runner.get_plant_model().set_load_torque_pu(config.load_torque);
 

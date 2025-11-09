@@ -30,9 +30,8 @@ public:
      * @brief Defines the voltage control mode for the machine side excitation.
      */
     enum class machine_voltage_control_mode {
-        fixed_voltage,    ///< Machine voltage is fixed (no V/Hz control).
-        speed_dependent,  ///< Machine voltage follows internal speed-voltage relationship.
-        external_control  ///< Machine voltage is controlled by external excitation controller.
+        fixed_voltage,  ///< Machine voltage is fixed (no V/Hz control).
+        variable_speed  ///< Machine voltage controlled by field current regulator (E = Φ × ω).
     };
 
     /**
@@ -48,8 +47,8 @@ public:
         /// Mechanical load torque on motor shaft [pu]
         signal_input<torque_pu_t> load_torque;
 
-        /// Excitation voltage setpoint from external controller [pu]
-        signal_input<voltage_pu_t> excitation_voltage_setpoint;
+        /// Field current reference from external excitation controller [pu]
+        signal_input<current_pu_t> field_current_reference;
     };
 
     /**
@@ -88,6 +87,12 @@ public:
 
         /// Grid frequency (Hz)
         signal_output<frequency_t> grid_frequency;
+
+        /// Machine flux [pu]
+        signal_output<real_t> machine_flux_pu;
+
+        /// Field current [pu]
+        signal_output<current_pu_t> field_current_pu;
     };
 
     /**
@@ -96,21 +101,37 @@ public:
      * These parameters reflect the configurable aspects of the sfc_plant_model_simulator.
      */
     struct parameters {
-        parameter<real_t> initial_speed = real_t(1.0);
+        parameter<real_t> initial_speed;
 
         /// Defines if the machine runs at a fixed speed or if speed is determined by the load model.
-        parameter<machine_operation_mode> operation_mode = machine_operation_mode::fixed_speed;
+        parameter<machine_operation_mode> operation_mode;
 
         /// Defines the voltage control mode for machine-side excitation
-        parameter<machine_voltage_control_mode> voltage_control_mode = machine_voltage_control_mode::fixed_voltage;
+        parameter<machine_voltage_control_mode> voltage_control_mode;
 
         /// Motor inertia constant (H).
         /// Default: 2.5 s
-        parameter<inertia_constant_t> motor_inertia_constant = inertia_constant_t(2.5);
+        parameter<inertia_constant_t> motor_inertia_constant;
 
         /// Motor damping factor (D) in per-unit.
         /// Default: 0.01 pu
-        parameter<damping_coefficient_pu_t> motor_damping_factor = damping_coefficient_pu_t(0.01);
+        parameter<damping_coefficient_pu_t> motor_damping_factor;
+
+        /// Explicit constructor to initialize all parameters with their default values
+        parameters()
+        {
+            initial_speed.write(real_t(1.0));
+            operation_mode.write(machine_operation_mode::fixed_speed);
+            voltage_control_mode.write(machine_voltage_control_mode::fixed_voltage);
+            motor_inertia_constant.write(inertia_constant_t(2.5));
+            motor_damping_factor.write(damping_coefficient_pu_t(0.01));
+        }
+
+        // Allow default copy/move since parameter<T> handles state correctly
+        parameters(const parameters&) = default;
+        parameters(parameters&&) = default;
+        parameters& operator=(const parameters&) = default;
+        parameters& operator=(parameters&&) = default;
     };
 
 private:

@@ -128,6 +128,9 @@ public:
     signal_output<angle_wrapped> firing_angle;
     signal_output<angle_wrapped> grid_side_firing_angle;
 
+    // Field current reference for variable-speed operation (no excitation controller in this builder)
+    signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
+
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
     {
@@ -149,6 +152,10 @@ private:
             grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
             machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
+
+        // Field current reference for variable-speed voltage control
+        signals_connector::connect_output_to_input(
+            field_current_reference_pu, plant.get_inputs().field_current_reference);
 
         // ==================== Plant Model → Pulse Generators ====================
         signals_connector::connect_output_to_input(

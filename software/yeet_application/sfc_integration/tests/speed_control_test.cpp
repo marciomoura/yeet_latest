@@ -36,7 +36,7 @@ public:
     void SetUp() override
     {
         // Direct literal for sampler period
-        sim.configure_sampler_sampling_rate(5.0e-4);
+        sim.configure_sampler_sampling_rate(1e-3);
         system.register_applications(sim);
         configure_variable_speed_plant_if_supported();
         system.initialize();
@@ -86,19 +86,19 @@ protected:
         std::visit(overloaded{[&](plant_speed_control_simulation_builder* sys) {
                                   application::sfc::integration::test::variable_speed_config cfg;
                                   cfg.initial_speed = speed_pu_t{0.0f};
-                                  cfg.voltage_at_base_speed = 0.9f;
+                                  // cfg.voltage_at_base_speed removed - back-EMF calculated directly from E = Φ × ω
                                   application::sfc::integration::test::configure_variable_speed_plant(sys->plant, cfg);
                               },
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
                            application::sfc::integration::test::variable_speed_config cfg;
                            cfg.initial_speed = speed_pu_t{0.0f};
-                           cfg.voltage_at_base_speed = 0.90f;
+                           // cfg.voltage_at_base_speed removed - back-EMF calculated directly from E = Φ × ω
                            application::sfc::integration::test::configure_variable_speed_plant(sys->plant, cfg);
                        },
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
                            application::sfc::integration::test::variable_speed_config cfg;
                            cfg.initial_speed = speed_pu_t{0.0f};
-                           cfg.voltage_at_base_speed = 0.90f;
+                           // cfg.voltage_at_base_speed removed - back-EMF calculated directly from E = Φ × ω
                            application::sfc::integration::test::configure_variable_speed_plant(sys->plant, cfg);
                        }},
             speed_system_variant_t{&system});
@@ -109,11 +109,11 @@ protected:
         std::visit(overloaded{[&](plant_speed_control_simulation_builder* /*sys*/) {},
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
                            sys->plant.get_plant_model().set_voltage_control_mode(
-                               yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
+                               yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
                        },
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
                            sys->plant.get_plant_model().set_voltage_control_mode(
-                               yeet::application::sfc::plant_model_voltage_control_mode::speed_dependent);
+                               yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
                        }},
             speed_system_variant_t{&system});
     }
@@ -125,6 +125,7 @@ protected:
                                   register_complete_logger(sim, sys->current_controller);
                                   register_complete_logger(sim, sys->machine_side_controller);
                                   register_complete_logger(sim, sys->dc_link_measurements);
+                                  register_complete_logger(sim, sys->plant);
                               },
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
                            register_complete_logger(sim, sys->speed_controller);
@@ -132,6 +133,7 @@ protected:
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->grid_side_observer);
                            register_complete_logger(sim, sys->machine_side_observer);
+                           register_complete_logger(sim, sys->plant);
                        },
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
                            register_complete_logger(sim, sys->speed_controller);
@@ -139,6 +141,7 @@ protected:
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->grid_side_observer);
                            register_complete_logger(sim, sys->machine_side_observer);
+                           register_complete_logger(sim, sys->plant);
                        }},
             speed_system_variant_t{&system});
     }

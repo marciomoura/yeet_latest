@@ -122,13 +122,9 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // ==================== Excitation Controller Inputs ====================
     signals_connector::connect_output_to_input(
-        external_ios.get_excitation_outputs().exciter_ready, excitation_controller.get_inputs().exciter_ready);
-    signals_connector::connect_output_to_input(external_ios.get_excitation_outputs().excitation_start_command,
-        excitation_controller.get_inputs().start_command);
-    signals_connector::connect_output_to_input(
-        external_ios.get_excitation_outputs().excitation_stop_command, excitation_controller.get_inputs().stop_command);
-    signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, excitation_controller.get_inputs().machine_rotor_speed_pu);
+    signals_connector::connect_output_to_input(machine_integrator_supervisor.get_outputs().release_pulses,
+        excitation_controller.get_inputs().release_excitation);
 
     // ==================== Startup Sequencer Inputs ====================
     signals_connector::connect_output_to_input(

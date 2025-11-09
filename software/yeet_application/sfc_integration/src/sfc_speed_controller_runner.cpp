@@ -38,7 +38,7 @@ void sfc_speed_controller_runner::run()
     }
 
     // Execute controller update
-    _sfc_speed_controller.freeze_integrator(freeze_integrator);
+    // _sfc_speed_controller.freeze_integrator(freeze_integrator);
     _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
 
     // Write output signals
