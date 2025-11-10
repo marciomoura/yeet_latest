@@ -152,7 +152,7 @@ class TelemetryPlotMapper:
                 )
             },
             'startup_sequencer': {
-                'startup_sequencer_outputs': PlotConfig(
+                'startup_outputs': PlotConfig(
                     title='Startup Sequencer',
                     y_label='Speed Ref (pu) / Virtual Torque / Release Flags',
                     signals=[

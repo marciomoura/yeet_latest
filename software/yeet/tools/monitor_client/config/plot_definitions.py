@@ -187,11 +187,12 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.STARTUP_SPEED_REFERENCE},
                     {'name': 'virtual rotor freq.', 'color': 'r', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_FREQUENCY},
+                    {'name': 'virtual rotor angle', 'color': 'b', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_ANGLE},
                     {'name': 'virtual torque ref.', 'color': 'c', 'index': MachineSignalIndex.STARTUP_VIRTUAL_TORQUE_REFERENCE},
                     {'name': 'release speed ctrl', 'color': 'm', 'index': MachineSignalIndex.STARTUP_RELEASE_SPEED_CONTROLLER},
                     {'name': 'release excitation', 'color': 'y', 'index': MachineSignalIndex.STARTUP_RELEASE_EXCITATION},
                     {'name': 'release torque ctrl', 'color': 'w', 'index': MachineSignalIndex.STARTUP_RELEASE_TORQUE_CONTROLLER},
-                    {'name': 'release pulses', 'color': 'b', 'index': MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES},
+                    {'name': 'release pulses', 'color': 'cyan', 'index': MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES},
                     {'name': 'startup complete', 'color': 'orange', 'index': MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE},
                 ]
             }
