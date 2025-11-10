@@ -67,7 +67,7 @@ public:
         parameter<duration_t> ti = duration_t{ms(2200.0)};
 
         /// Torque reference magnitude limit [pu]
-        parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{2.0};
+        parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{1.2};
 
         /// Initial speed for controller reset [pu]
         parameter<speed_pu_t> initial_speed{speed_pu_t{0.0}};

@@ -15,6 +15,8 @@ void sfc_speed_controller_runner::initialize()
     set_parameter_callback();
 
     // Initialize to initial speed
+    _sfc_speed_controller.configure_torque_limits_pu(
+        torque_pu_t{0.0}, _parameters.torque_reference_magnitude_limit.read());
     _sfc_speed_controller.reset(_parameters.initial_speed);
 }
 
@@ -33,7 +35,7 @@ void sfc_speed_controller_runner::run()
     previous_release_state = current_release_state;
 
     // Combine: freeze if downstream is saturated
-    const bool freeze_integrator = _inputs.is_saturated || _inputs.freeze_integrator;
+    const bool freeze_integrator = _inputs.freeze_integrator;  //_inputs.is_saturated | _inputs.freeze_integrator;
 
     // Execute controller update
     _sfc_speed_controller.freeze_integrator(freeze_integrator);

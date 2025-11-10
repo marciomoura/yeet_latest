@@ -64,7 +64,7 @@ inline variable_speed_config create_gas_turbine_config()
     config.inertia_constant = inertia_constant_t{3.0f};       // Large rotational mass
     config.damping_factor = damping_coefficient_pu_t{0.02f};  // Low friction
     config.linear_load_coefficient = 0.0f;                    // Minimal viscous losses
-    config.quadratic_load_coefficient = 0.3f;                 // Compressor load ∝ speed²
+    config.quadratic_load_coefficient = 0.2f;                 // Compressor load ∝ speed²
     config.load_torque = torque_pu_t{0.0f};                   // No constant load
     config.initial_speed = speed_pu_t{0.001f};                // Near standstill
     config.voltage_control_mode = plant_model_voltage_control_mode::variable_speed;
