@@ -19,7 +19,7 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     const auto& torque_controller = _control.get_torque_controller();
     const auto& speed_controller = _control.get_speed_controller();
     const auto& excitation_controller = _control.get_excitation_controller();
-    const auto& speed_generator = _control.get_speed_generator();
+    const auto& startup_sequencer = _control.get_startup_sequencer();
     const auto& pulse_generator = _control.get_machine_side_pulse_generator();
 
     // === Machine Measurements Group (0-6) ===
@@ -75,16 +75,20 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(32, static_cast<float>(speed_controller.get_outputs().pi_output.read()));
     packet.add_signal(33, speed_controller.get_outputs().is_saturated.read() ? 1.0f : 0.0f);
 
-    // === Speed Generator Group (34-38) ===
-    packet.add_signal(34, static_cast<float>(speed_generator.get_outputs().speed_reference.read()));
-    packet.add_signal(35, static_cast<float>(speed_generator.get_outputs().torque_limit_max_pu.read()));
-    packet.add_signal(36, static_cast<float>(speed_generator.get_outputs().torque_limit_min_pu.read()));
-    packet.add_signal(37, speed_generator.get_outputs().is_profile_complete.read() ? 1.0f : 0.0f);
-    packet.add_signal(38, speed_generator.get_outputs().is_breakaway_boost_active.read() ? 1.0f : 0.0f);
+    // === Startup Sequencer Group (34-42) ===
+    packet.add_signal(34, static_cast<float>(startup_sequencer.get_outputs().speed_reference.read()));
+    packet.add_signal(35, static_cast<float>(startup_sequencer.get_outputs().virtual_rotor_frequency.read()));
+    packet.add_signal(36, static_cast<float>(startup_sequencer.get_outputs().virtual_rotor_angle.read().get_pu()));
+    packet.add_signal(37, static_cast<float>(startup_sequencer.get_outputs().virtual_torque_reference.read()));
+    packet.add_signal(38, startup_sequencer.get_outputs().release_speed_controller.read() ? 1.0f : 0.0f);
+    packet.add_signal(39, startup_sequencer.get_outputs().release_excitation.read() ? 1.0f : 0.0f);
+    packet.add_signal(40, startup_sequencer.get_outputs().release_torque_controller.read() ? 1.0f : 0.0f);
+    packet.add_signal(41, startup_sequencer.get_outputs().release_machine_side_pulses.read() ? 1.0f : 0.0f);
+    packet.add_signal(42, startup_sequencer.get_outputs().is_startup_complete.read() ? 1.0f : 0.0f);
 
-    // === Excitation Controller Group (39-40) ===
-    packet.add_signal(39, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
-    packet.add_signal(40, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
+    // === Excitation Controller Group (43-44) ===
+    packet.add_signal(43, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
+    packet.add_signal(44, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);

@@ -33,7 +33,7 @@ def _get_section_order() -> List[str]:
     return [
         'system',
         'measurements',
-        'speed_generator',
+        'startup_sequencer',
         'speed_controller',
         'torque_controller',
         'controller',
@@ -54,7 +54,7 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'modulator release pulses', 'index': MachineSignalIndex.MODULATOR_RELEASE_PULSES_INPUT, 'type': 'bool', 'format': 'bool'},
                 {'name': 'torque is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'excitation enable', 'index': MachineSignalIndex.EXCITATION_ENABLE, 'type': 'bool', 'format': 'bool'}
+                {'name': 'startup complete', 'index': MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE, 'type': 'bool', 'format': 'bool'}
             ]
         },
         'measurements': {
@@ -105,22 +105,25 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'is saturated', 'index': MachineSignalIndex.SPEED_IS_SATURATED, 'type': 'bool', 'format': 'bool'},
             ]
         },
-        'speed_generator': {
-            'title': 'Speed Generator',
+        'startup_sequencer': {
+            'title': 'Startup Sequencer',
             'fields': [
-                {'name': 'speed ref.', 'index': MachineSignalIndex.SPEED_GEN_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'torque limit max', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MAX, 'type': 'float', 'format': '.4f'},
-                {'name': 'torque limit min', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MIN, 'type': 'float', 'format': '.4f'},
-                {'name': 'profile complete', 'index': MachineSignalIndex.SPEED_GEN_IS_PROFILE_COMPLETE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'breakaway boost active', 'index': MachineSignalIndex.SPEED_GEN_IS_BREAKAWAY_BOOST_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'speed ref.', 'index': MachineSignalIndex.STARTUP_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'virtual rotor freq.', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_FREQUENCY, 'type': 'float', 'format': '.4f'},
+                {'name': 'virtual rotor angle', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'virtual torque ref.', 'index': MachineSignalIndex.STARTUP_VIRTUAL_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'release speed ctrl', 'index': MachineSignalIndex.STARTUP_RELEASE_SPEED_CONTROLLER, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release excitation', 'index': MachineSignalIndex.STARTUP_RELEASE_EXCITATION, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release torque ctrl', 'index': MachineSignalIndex.STARTUP_RELEASE_TORQUE_CONTROLLER, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release pulses', 'index': MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES, 'type': 'bool', 'format': 'bool'},
+                {'name': 'startup complete', 'index': MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'excitation_controller': {
             'title': 'Excitation Controller',
             'fields': [
-                {'name': 'excitation is running', 'index': MachineSignalIndex.EXCITATION_IS_RUNNING, 'type': 'bool', 'format': 'bool'},
-                {'name': 'field established', 'index': MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED, 'type': 'bool', 'format': 'bool'},
-                {'name': 'excitation voltage setpoint', 'index': MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT, 'type': 'float', 'format': '.4f'}
+                {'name': 'field current ref.', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'prefluxing elapsed time', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME, 'type': 'float', 'format': '.4f'}
             ]
         }
     }
@@ -142,7 +145,6 @@ def get_default_visible_sections() -> list:
         List of section names that should be visible by default
     """
     section_order = _get_section_order()
-    # Machine-side has: system, speed_controller, torque_controller, measurements, observer, modulator
-    # (no controller or operation_mode at this side)
-    visible = ['system', 'speed_controller', 'torque_controller', 'measurements', 'observer']
+    # Machine-side has: system, startup_sequencer, speed_controller, torque_controller, measurements, observer, modulator
+    visible = ['system', 'startup_sequencer', 'speed_controller', 'torque_controller', 'measurements', 'observer']
     return [s for s in section_order if s in visible]

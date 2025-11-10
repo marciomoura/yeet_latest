@@ -38,8 +38,10 @@ void sfc_startup_sequencer_runner::run()
     // Read estimated rotor angle and convert from angle_wrapped to angle_t
     angle_t estimated_angle = _inputs.estimated_rotor_angle.read().get_radians();
 
-    // Read external speed reference
-    speed_pu_t external_speed_reference = _inputs.external_speed_reference.read();
+    // Read external speed reference with override support
+    speed_pu_t external_speed_reference = _parameters.override_enable_speed_reference.read()
+                                              ? _parameters.override_value_speed_reference.read()
+                                              : _inputs.external_speed_reference.read();
 
     // Get the base frequency from the per-unit system
     frequency_t base_frequency = _per_unit_system->get_machine_bases().base_frequency.value();

@@ -26,7 +26,7 @@ public:
 
     // Default y-axis (inverter firing angle in degrees)
     static constexpr std::array<real_t, NUM_POINTS> kDefaultFiringAngleDeg = {
-        real_t{150.0}, real_t{150.0}, real_t{150.0}, real_t{145.0}, real_t{140.0}, real_t{140.0}};
+        real_t{150.0}, real_t{145.0}, real_t{140.0}, real_t{140.0}, real_t{135.0}, real_t{135.0}};
 
     /**
      * @brief Constructs the firing angle lookup table, initializing with default values.

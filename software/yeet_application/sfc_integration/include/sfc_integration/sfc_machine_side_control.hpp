@@ -41,7 +41,7 @@ public:
      */
     explicit sfc_machine_side_control()
         : excitation_controller(),
-          speed_generator(),
+          //   speed_generator(),
           speed_controller(),
           torque_controller(),
           startup_sequencer(per_unit_system),
@@ -133,8 +133,8 @@ public:
     sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }
     const sfc_excitation_controller_runner& get_excitation_controller() const { return excitation_controller; }
 
-    sfc_soft_starter_speed_generator_runner& get_speed_generator() { return speed_generator; }
-    const sfc_soft_starter_speed_generator_runner& get_speed_generator() const { return speed_generator; }
+    // sfc_soft_starter_speed_generator_runner& get_speed_generator() { return speed_generator; }
+    // const sfc_soft_starter_speed_generator_runner& get_speed_generator() const { return speed_generator; }
 
     sfc_speed_controller_runner& get_speed_controller() { return speed_controller; }
     const sfc_speed_controller_runner& get_speed_controller() const { return speed_controller; }
@@ -282,7 +282,7 @@ public:
 
     // Machine-side control components (made public for intermediate integration)
     sfc_excitation_controller_runner excitation_controller;
-    sfc_soft_starter_speed_generator_runner speed_generator;
+    // sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
     sfc_startup_sequencer_runner startup_sequencer;

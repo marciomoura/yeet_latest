@@ -5,7 +5,7 @@ namespace yeet::application::sfc::integration {
 void sfc_machine_side_control::initialize()
 {
     excitation_controller.initialize();
-    speed_generator.initialize();
+    // speed_generator.initialize();
     speed_controller.initialize();
     torque_controller.initialize();
     startup_sequencer.initialize();
@@ -80,7 +80,7 @@ void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry
 
     machine_integrator_supervisor.register_datamodel(registry);
     excitation_controller.register_datamodel(registry);
-    speed_generator.register_datamodel(registry);
+    // speed_generator.register_datamodel(registry);
     speed_controller.register_datamodel(registry);
     torque_controller.register_datamodel(registry);
     startup_sequencer.register_datamodel(registry);

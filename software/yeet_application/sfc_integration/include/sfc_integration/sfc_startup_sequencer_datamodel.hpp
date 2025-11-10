@@ -129,6 +129,12 @@ public:
         /// Forced field established value when override is enabled
         parameter<bool> override_value_field_established = false;
 
+        /// Enable override for external speed reference testing
+        parameter<bool> override_enable_speed_reference = false;
+
+        /// Forced speed reference value when override is enabled [pu]
+        parameter<speed_pu_t> override_value_speed_reference = speed_pu_t{0.0};
+
         /// Speed reference rate limit in seconds per per-unit speed change
         /// (e.g., 10.0 means 10 seconds to ramp from 0 to 1.0 pu = 0.1 pu/s)
         parameter<real_t> speed_reference_rate_limit_seconds_per_pu = real_t{10.0};
@@ -180,6 +186,10 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->override_enable_field_established));
         entry.parameters.insert("override_value_field_established",
             yeet::utils::make_bool_accessor(_model_parameters->override_value_field_established));
+        entry.parameters.insert("override_enable_speed_reference",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_speed_reference));
+        entry.parameters.insert("override_value_speed_reference",
+            yeet::utils::make_units_accessor(_model_parameters->override_value_speed_reference));
         entry.parameters.insert("speed_reference_rate_limit_seconds_per_pu",
             yeet::utils::make_units_accessor(_model_parameters->speed_reference_rate_limit_seconds_per_pu));
         entry.parameters.insert("speed_reference_rate_limit_enabled",

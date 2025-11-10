@@ -63,6 +63,10 @@ static inline void register_complete_current_controller_logger(
         group + "output is_active", [&]() { return current_controller.get_outputs().is_active.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
         [&]() { return current_controller.get_outputs().firing_angle.read().get_pu(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
+        group + "output pi_output", [&]() { return current_controller.get_outputs().pi_output.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_saturated", [&]() { return current_controller.get_outputs().is_saturated.read(); }));
 }
 
 static inline void register_minimal_speed_controller_logger(

@@ -26,6 +26,11 @@ void sfc_speed_controller_runner::run()
     static bool previous_release_state = false;
     const bool current_release_state = _inputs.release_pulses.read();
 
+    if (!current_release_state) {
+        // Not enabled - reset controller state
+        _sfc_speed_controller.preset_with_torque({});
+    }
+
     // Detect rising edge (false → true transition) for bumpless transfer
     if (!previous_release_state && current_release_state) {
         // First release: initialize integrator with torque reference for smooth transition
@@ -34,17 +39,25 @@ void sfc_speed_controller_runner::run()
 
     previous_release_state = current_release_state;
 
-    // Combine: freeze if downstream is saturated
-    const bool freeze_integrator = _inputs.freeze_integrator;  //_inputs.is_saturated | _inputs.freeze_integrator;
-
     // Execute controller update
-    _sfc_speed_controller.freeze_integrator(freeze_integrator);
-    _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
+    if (current_release_state) {
+        // Combine: freeze if downstream is saturated
+        const bool freeze_integrator = _inputs.freeze_integrator;  //_inputs.is_saturated | _inputs.freeze_integrator;
 
-    // Write output signals
-    _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
-    _outputs.pi_output = _sfc_speed_controller.get_pi_output();
-    _outputs.is_saturated = _sfc_speed_controller.is_saturated();
+        _sfc_speed_controller.freeze_integrator(freeze_integrator);
+        _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
+
+        // Write output signals
+        _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
+        _outputs.pi_output = _sfc_speed_controller.get_pi_output();
+        _outputs.is_saturated = _sfc_speed_controller.is_saturated();
+    }
+    else {
+        // Write zero outputs when not enabled
+        _outputs.torque_reference = torque_pu_t{0.0};
+        _outputs.pi_output = real_t{0.0};
+        _outputs.is_saturated = false;
+    }
 }
 
 void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }

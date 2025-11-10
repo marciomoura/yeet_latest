@@ -151,43 +151,47 @@ class TelemetryPlotMapper:
                     )
                 )
             },
-            'speed_generator': {
-                'speed_gen_outputs': PlotConfig(
-                    title='Speed Generator',
-                    y_label='Speed Ref (pu) / Torque Limit (pu) / State',
+            'startup_sequencer': {
+                'startup_sequencer_outputs': PlotConfig(
+                    title='Startup Sequencer',
+                    y_label='Speed Ref (pu) / Virtual Torque / Release Flags',
                     signals=[
                         {'name': 'Speed Ref (pu)', 'color': 'g', 'index': 34},
-                        {'name': 'Torque Limit Max', 'color': 'r', 'index': 35},
-                        {'name': 'Torque Limit Min', 'color': 'c', 'index': 36},
-                        {'name': 'Profile Complete', 'color': 'm', 'index': 37},
-                        {'name': 'Breakaway Boost Active', 'color': 'y', 'index': 38},
+                        {'name': 'Virtual Rotor Freq (pu)', 'color': 'b', 'index': 35},
+                        {'name': 'Virtual Rotor Angle (pu)', 'color': 'c', 'index': 36},
+                        {'name': 'Virtual Torque Ref (pu)', 'color': 'r', 'index': 37},
+                        {'name': 'Release Speed Ctrl', 'color': 'm', 'index': 38},
+                        {'name': 'Release Excitation', 'color': 'y', 'index': 39},
+                        {'name': 'Release Torque Ctrl', 'color': 'orange', 'index': 40},
+                        {'name': 'Release Machine Pulses', 'color': 'purple', 'index': 41},
+                        {'name': 'Startup Complete', 'color': 'lime', 'index': 42},
                     ],
                     mapper=lambda sample_idx, pkt: (
                         sample_idx,
-                        pkt.speed_generator.speed_reference_pu,
-                        pkt.speed_generator.torque_limit_max_pu,
-                        pkt.speed_generator.torque_limit_min_pu,
-                        float(pkt.speed_generator.is_profile_complete),
-                        float(pkt.speed_generator.is_breakaway_boost_active),
+                        pkt.startup_sequencer.speed_reference_pu,
+                        pkt.startup_sequencer.virtual_rotor_frequency_pu,
+                        pkt.startup_sequencer.virtual_rotor_angle_pu,
+                        pkt.startup_sequencer.virtual_torque_reference_pu,
+                        float(pkt.startup_sequencer.release_speed_controller),
+                        float(pkt.startup_sequencer.release_excitation),
+                        float(pkt.startup_sequencer.release_torque_controller),
+                        float(pkt.startup_sequencer.release_machine_side_pulses),
+                        float(pkt.startup_sequencer.is_startup_complete),
                     )
                 )
             },
             'excitation': {
                 'excitation_control': PlotConfig(
                     title='Excitation Controller',
-                    y_label='Voltage (pu) / State',
+                    y_label='Field Current (pu) / Time (s)',
                     signals=[
-                        {'name': 'Excitation V Setpoint', 'color': 'g', 'index': 39},
-                        {'name': 'Enable Excitation', 'color': 'r', 'index': 40},
-                        {'name': 'Field Established', 'color': 'c', 'index': 41},
-                        {'name': 'Is Running', 'color': 'm', 'index': 42},
+                        {'name': 'Field Current Reference', 'color': 'g', 'index': 43},
+                        {'name': 'Prefluxing Elapsed Time', 'color': 'b', 'index': 44},
                     ],
                     mapper=lambda sample_idx, pkt: (
                         sample_idx,
-                        pkt.excitation_controller.voltage_setpoint_pu,
-                        float(pkt.excitation_controller.enable),
-                        float(pkt.excitation_controller.is_field_established),
-                        float(pkt.excitation_controller.is_running),
+                        pkt.excitation_controller.field_current_reference_pu,
+                        pkt.excitation_controller.prefluxing_elapsed_time_s,
                     )
                 )
             },
@@ -218,5 +222,5 @@ class TelemetryPlotMapper:
         if target == 'grid':
             return ['measurements', 'observer', 'current_controller']
         if target == 'machine':
-            return ['measurements', 'observer', 'torque_controller', 'speed_controller']
+            return ['startup_sequencer', 'torque_controller', 'speed_controller']
         return []

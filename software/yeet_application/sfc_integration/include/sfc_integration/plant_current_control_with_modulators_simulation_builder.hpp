@@ -62,6 +62,11 @@ public:
         // Machine-side modulator pulse release
         yeet::mock_signal_input::write(machine_side_modulator.get_inputs().release_pulses, true);
 
+        // Machine-side modulator startup sequencer inputs (no startup sequencer in this builder)
+        yeet::mock_signal_input::write(machine_side_modulator.get_inputs().virtual_rotor_angle, angle_wrapped{0.0});
+        yeet::mock_signal_input::write(
+            machine_side_modulator.get_inputs().reference_frame_source, reference_frame_source_t::ESTIMATED);
+
         // Pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
         yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);

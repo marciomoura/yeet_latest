@@ -16,6 +16,9 @@ sfc_current_controller::sfc_current_controller(duration_t sampling_time) : _pi_c
     configure_pi_gains(0.7, duration_t(ms(100.0)));
     configure_current_limits_pu(current_pu_t(-1.5), current_pu_t(1.5));
     configure_firing_angle_limits_radians(angle_t(deg_to_rad(0.0)), angle_t(deg_to_rad(90.0)));
+
+    // Enable anti-windup to prevent integrator from going extremely negative/positive
+    _pi_controller.enable_integrator_clamping(true);
 }
 
 void sfc_current_controller::configure_pi_gains(real_t proportional_gain, duration_t integral_time)
@@ -40,6 +43,30 @@ void sfc_current_controller::configure_firing_angle_limits_radians(angle_t min_a
     // The relationship is reversed: min angle -> max cos, max angle -> min cos.
     _cos_alpha_max = std::cos(_grid_firing_angle_min_radians.value());
     _cos_alpha_min = std::cos(_grid_firing_angle_max_radians.value());
+
+    // Update PI controller output limits to prevent integrator windup
+    recompute_internal_limits();
+}
+
+void sfc_current_controller::recompute_internal_limits()
+{
+    // The PI controller output represents the control voltage (before feedforward compensation).
+    // To prevent integrator windup, we need to limit the PI output based on the physical constraints.
+    //
+    // The control voltage is added to the machine voltage magnitude (feedforward), then divided by
+    // grid voltage to get cos(alpha). The cos(alpha) is then clamped to [_cos_alpha_min, _cos_alpha_max].
+    //
+    // To prevent windup, we set PI output limits that correspond to achievable cos(alpha) values.
+    // Since the actual voltage division happens dynamically, we use conservative limits based on
+    // typical operating conditions (grid voltage ~1.0 pu).
+    //
+    // Approximate PI output range: cos(alpha) * V_grid - V_machine_feedforward
+    // For anti-windup, we use symmetric limits around a reasonable voltage range.
+
+    // Set PI output limits to ±2.0 pu (covers normal operating range)
+    // This prevents the integrator from going to extreme values when frozen or saturated
+    const real_t pi_output_limit = real_t{2.0};
+    _pi_controller.set_output_limits(-pi_output_limit, pi_output_limit);
 }
 
 void sfc_current_controller::reset()

@@ -57,6 +57,9 @@ public:
         yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
         yeet::mock_signal_input::write(speed_controller.get_inputs().preset_request, false);
 
+        // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
+        yeet::mock_signal_input::write(speed_controller.get_inputs().applied_torque_reference, torque_pu_t{0.0});
+
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
         yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);

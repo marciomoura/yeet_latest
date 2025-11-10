@@ -180,28 +180,29 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 ]
             }
         },
-        'speed_generator': {
-            'speed_gen_outputs': {
-                'title': 'Speed Generator',
-                'y_label': 'Speed Ref (pu) / Torque Limit (pu) / State',
+        'startup_sequencer': {
+            'startup_outputs': {
+                'title': 'Startup Sequencer',
+                'y_label': 'Speed Ref (pu) / Virtual Freq (pu) / Virtual Torque (pu) / State',
                 'signals': [
-                    {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.SPEED_GEN_SPEED_REFERENCE},
-                    {'name': 'torque limit max', 'color': 'r', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MAX},
-                    {'name': 'torque limit min', 'color': 'c', 'index': MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MIN},
-                    {'name': 'profile complete', 'color': 'm', 'index': MachineSignalIndex.SPEED_GEN_IS_PROFILE_COMPLETE},
-                    {'name': 'breakaway boost active', 'color': 'y', 'index': MachineSignalIndex.SPEED_GEN_IS_BREAKAWAY_BOOST_ACTIVE},
+                    {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.STARTUP_SPEED_REFERENCE},
+                    {'name': 'virtual rotor freq.', 'color': 'r', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_FREQUENCY},
+                    {'name': 'virtual torque ref.', 'color': 'c', 'index': MachineSignalIndex.STARTUP_VIRTUAL_TORQUE_REFERENCE},
+                    {'name': 'release speed ctrl', 'color': 'm', 'index': MachineSignalIndex.STARTUP_RELEASE_SPEED_CONTROLLER},
+                    {'name': 'release excitation', 'color': 'y', 'index': MachineSignalIndex.STARTUP_RELEASE_EXCITATION},
+                    {'name': 'release torque ctrl', 'color': 'w', 'index': MachineSignalIndex.STARTUP_RELEASE_TORQUE_CONTROLLER},
+                    {'name': 'release pulses', 'color': 'b', 'index': MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES},
+                    {'name': 'startup complete', 'color': 'orange', 'index': MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE},
                 ]
             }
         },
         'excitation': {
             'excitation_control': {
                 'title': 'Excitation Controller',
-                'y_label': 'Voltage (pu) / State',
+                'y_label': 'Current (pu) / Time (s)',
                 'signals': [
-                    {'name': 'excitation v setpoint', 'color': 'g', 'index': MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT},
-                    {'name': 'enable excitation', 'color': 'r', 'index': MachineSignalIndex.EXCITATION_ENABLE},
-                    {'name': 'field established', 'color': 'c', 'index': MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED},
-                    {'name': 'is running', 'color': 'm', 'index': MachineSignalIndex.EXCITATION_IS_RUNNING},
+                    {'name': 'field current ref.', 'color': 'g', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE},
+                    {'name': 'prefluxing elapsed time', 'color': 'r', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME},
                 ]
             }
         }
@@ -220,5 +221,5 @@ def get_default_visible_groups(target: str) -> list:
     if target == 'grid':
         return ['observer', 'measurements', 'controller'] 
     if target == 'machine':
-        return ['torque_controller', 'speed_controller', 'speed_generator']
+        return ['startup_sequencer', 'torque_controller', 'speed_controller']
     return []
