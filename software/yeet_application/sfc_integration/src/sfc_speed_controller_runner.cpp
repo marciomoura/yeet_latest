@@ -24,13 +24,6 @@ void sfc_speed_controller_runner::run()
     static bool previous_release_state = false;
     const bool current_release_state = _inputs.release_pulses.read();
 
-    if (!current_release_state) {
-        // When disabled, reset controller to initial speed
-        _sfc_speed_controller.reset(_parameters.initial_speed);
-        previous_release_state = false;
-        return;  // Skip update when disabled
-    }
-
     // Detect rising edge (false → true transition) for bumpless transfer
     if (!previous_release_state && current_release_state) {
         // First release: initialize integrator with torque reference for smooth transition
@@ -40,10 +33,10 @@ void sfc_speed_controller_runner::run()
     previous_release_state = current_release_state;
 
     // Combine: freeze if downstream is saturated
-    const bool freeze_integrator = _inputs.is_saturated;
+    const bool freeze_integrator = _inputs.is_saturated || _inputs.freeze_integrator;
 
     // Execute controller update
-    // _sfc_speed_controller.freeze_integrator(freeze_integrator);
+    _sfc_speed_controller.freeze_integrator(freeze_integrator);
     _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
 
     // Write output signals

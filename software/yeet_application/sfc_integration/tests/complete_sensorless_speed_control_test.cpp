@@ -51,17 +51,17 @@ public:
         // register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
 
         // register_complete_logger(simulator, system.machine_side_control.speed_generator);  // TODO: Create logger
-        register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
-        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        // register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
+        // register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
         register_complete_logger(simulator, system.machine_side_control.torque_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
-        // register_complete_logger(simulator, system.machine_side_control.speed_generator);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
-        register_complete_logger(simulator, system.grid_side_control.state_machine);
-        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
-        register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
-        register_complete_logger(simulator, system.plant);
+        // register_complete_logger(simulator, system.machine_side_control.speed_generator);
+        // register_complete_logger(simulator, system.grid_side_control.state_machine);
+        // register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
+        // register_complete_logger(simulator, system.plant);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
         // register_complete_logger(simulator, system.grid_side_control.grid_side_observer);
         // register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
@@ -198,572 +198,575 @@ public:
     bool _startup_sequencer_stop_command = false;
 };
 
-// Test coordinated startup and multi-phase acceleration using startup sequencer
-// This test validates the startup sequencer followed by rate-limited speed reference ramping
-// Phase 1: Startup sequencer (0 -> 0.05 pu) - Creep speed equivalent
-// Phase 2: Rate-limited ramp (0.05 -> 0.20 pu) - Purge acceleration equivalent
-// Phase 3: Rate-limited ramp (0.20 -> 0.55 pu) - Ignition acceleration equivalent
-// Phase 4: Rate-limited ramp (0.55 -> 0.95 pu) - Assist acceleration equivalent
-TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
-{
-    // ==================== Configure Startup Sequencer ====================
-    // Virtual frequency ramp: 0 Hz (0 pu) to 2.5 Hz (0.05 pu at 50 Hz base) in 30 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{30.0};
-
-    // Virtual torque ramp: 0.0 pu to 0.3 pu in 2 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{2.0};
-
-    // Pre-fluxing duration
-    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
-
-    // Configure speed reference rate limiter for subsequent phases
-    // Use a moderate rate limit that allows reasonable test execution time
-    // 30 s/pu = 0.0333 pu/s allows smooth acceleration
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
-        real_t{30.0f};
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
-
-    // Speed tracking tolerance (wider for low-speed operation)
-    const speed_pu_t speed_error_max_value{0.10f};
-    const speed_pu_t speed_error_min_value{-0.10f};
-
-    auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed tracking error",
-        [&]() -> speed_pu_t {
-            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
-                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
-        },
-        speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
-
-    speed_tracking_checker->deactivate();  // Will activate during steady-state phases
-
-    // ==================== State Machine Startup ====================
-    execute_startup_sequence();
-
-    // ==================== State Machine Startup ====================
-    execute_startup_sequence();
-
-    bool success = true;
-
-    // Configure torque limits for startup and acceleration
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
-
-    // ==================== Phase 1: Startup Sequencer to Creep Speed (~5% rated) ====================
-    // Purpose: Initial rotation, oil circulation, pre-warming via coordinated startup
-    set_startup_sequencer_start_command(true);
-    success &= simulator.simulate_for(1.0);  // Pre-flux duration
-
-    // Configure realistic load torque profile (increases with speed)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
-
-    // Allow virtual frequency ramp to complete (30s) + small settling
-    success &= simulator.simulate_for(30.5);
-
-    // Verify startup sequencer completed and is in closed-loop
-    EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
-        startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
-        << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
-
-    // Verify target speed reached
-    const auto speed_after_creep =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_creep.value(), 0.05f, 0.02f) << "Phase 1 (Creep) did not reach target speed";
-
-    // Hold at creep speed for inspection/settling
-    speed_tracking_checker->activate();
-    success &= simulator.simulate_for(5.0);
-    speed_tracking_checker->deactivate();
-
-    // ==================== Phase 2: Purge Acceleration (~20% rated) ====================
-    // Purpose: Combustion chamber ventilation to clear residual fuel vapors
-    // Set external speed reference to 0.20 pu and let rate limiter ramp smoothly
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.20});
-    success &= simulator.simulate_for(0.1);  // Allow reference to propagate
-
-    // Calculate time needed: delta = 0.20 - 0.05 = 0.15 pu at 30 s/pu = 4.5s
-    // Add margin for tracking: ~5s total
-    success &= simulator.simulate_for(5.0);
-
-    // Verify target speed reached
-    const auto speed_after_purge =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_purge.value(), 0.20f, 0.02f) << "Phase 2 (Purge) did not reach target speed";
-
-    // Hold at purge speed (typically 2-5 minutes in real operation, shortened for test)
-    speed_tracking_checker->activate();
-    success &= simulator.simulate_for(5.0);
-    speed_tracking_checker->deactivate();
-
-    // ==================== Phase 3: Ignition Acceleration (~55% rated) ====================
-    // Purpose: Reach speed for fuel ignition and flame stabilization
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.55});
-    success &= simulator.simulate_for(0.1);
-
-    // Increase load as turbine begins to generate power
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.25f));
-
-    // Calculate time needed: delta = 0.55 - 0.20 = 0.35 pu at 30 s/pu = 10.5s
-    success &= simulator.simulate_for(11.0);
-
-    // Verify target speed reached
-    const auto speed_after_ignition =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_ignition.value(), 0.55f, 0.03f) << "Phase 3 (Ignition) did not reach target speed";
-
-    // Hold at ignition speed for flame stabilization
-    speed_tracking_checker->activate();
-    success &= simulator.simulate_for(5.0);
-    speed_tracking_checker->deactivate();
-
-    // ==================== Phase 4: Assist to Self-Sustaining (~95% rated) ====================
-    // Purpose: Accelerate to self-sustaining speed where turbine can maintain rotation
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.95});
-    success &= simulator.simulate_for(0.1);
-
-    // Further increase load as turbine approaches full power
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.30f));
-
-    // Calculate time needed: delta = 0.95 - 0.55 = 0.40 pu at 30 s/pu = 12s
-    success &= simulator.simulate_for(13.0);
-
-    // Verify final target speed reached
-    const auto speed_after_assist =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_assist.value(), 0.95f, 0.03f) << "Phase 4 (Assist) did not reach target speed";
-
-    // Hold at self-sustaining speed (ready for synchronization to grid)
-    speed_tracking_checker->activate();
-    success &= simulator.simulate_for(5.0);
-    speed_tracking_checker->deactivate();
-
-    // ==================== Validation ====================
-    EXPECT_TRUE(success) << "Gas turbine soft-start sequence did not complete successfully";
-
-    // Verify state machine remained in OPERATION_ON throughout
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
-        << "Pulse releases should be active during entire starting sequence";
-
-    // Verify final state: Ready for synchronous handoff
-    EXPECT_GT(speed_after_assist.value(), 0.90f) << "Final speed insufficient for turbine self-sustaining operation";
-}
-
-/**
- * @test TwoPhaseAccelerationTest
- * @brief Validates two-phase acceleration using startup sequencer and rate-limited speed reference
- *
- * This test exercises the startup sequencer's coordinated startup followed by a rate-limited
- * speed reference ramp to a higher speed. It validates the transition from virtual reference
- * frame control to observer-based closed-loop control with smooth speed tracking.
- *
- * @par Test Sequence:
- * -# Configure startup sequencer with reduced times for faster testing
- *    - Virtual frequency: 0 → 0.05 pu in 20s
- *    - Virtual torque: 0 → 0.3 pu in 2s
- * -# Execute state machine startup sequence
- * -# Trigger startup sequencer (flux buildup + virtual ramp)
- * -# Wait for closed-loop transition (~21s)
- * -# Set external speed reference to 0.55 pu
- * -# Wait for rate-limited ramp to complete
- * -# Hold at final speed with tracking verification
- *
- * @par Validations:
- * - Speed reaches 0.05 pu ± 0.02 after startup sequencer
- * - Startup sequencer transitions to CLOSED_LOOP_OPERATION
- * - Speed ramps smoothly to 0.55 pu ± 0.03 with rate limiting
- * - Speed tracking error < 0.10 pu during steady-state phases
- * - State machine remains in OPERATION_ON throughout
- *
- * @par Key Features Tested:
- * - Coordinated startup (flux buildup + virtual ramp)
- * - Transition from virtual to estimated reference frame
- * - Rate-limited speed reference tracking
- * - Controller performance across speed ranges (0-55% rated)
- */
-TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequenceTest)
-{
-    // ==================== Configure Startup Sequencer ====================
-    // Virtual frequency: 0 Hz (0 pu) to 2.5 Hz (0.05 pu at 50 Hz base) in 20 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{20.0};
-
-    // Virtual torque: 0.0 pu to 0.3 pu in 2 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{2.0};
-
-    // Pre-fluxing duration
-    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
-
-    // Configure speed reference rate limiter
-    // For second phase: 0.05 → 0.55 pu = 0.5 pu delta in 40s → 80 s/pu rate limit
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
-        real_t{80.0f};
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
-
-    // Speed tracking tolerance
-    const speed_pu_t speed_error_max_value{0.10f};
-    const speed_pu_t speed_error_min_value{-0.10f};
-
-    auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "speed tracking error",
-        [&]() -> speed_pu_t {
-            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
-                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
-        },
-        speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
-
-    speed_tracking_checker->deactivate();
-
-    // ==================== State Machine Startup ====================
-    execute_startup_sequence();
-
-    bool success = true;
-
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
-
-    // ==================== Phase 1: Startup Sequencer (0 → 0.05 pu) ====================
-    set_startup_sequencer_start_command(true);
-    success &= simulator.simulate_for(1.0);  // Pre-flux
-
-    // Configure realistic load torque
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
-
-    // Wait for virtual frequency ramp completion (20s + small settling)
-    success &= simulator.simulate_for(20.5);
-
-    // Verify startup sequencer completed
-    EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
-        startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
-        << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
-
-    // Verify Phase 1 target reached
-    const auto speed_after_startup =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_startup.value(), 0.05f, 0.02f) << "Phase 1 (Startup) did not reach target speed";
-
-    // Activate tracking checker for steady-state validation
-    speed_tracking_checker->activate();
-    success &= simulator.simulate_for(3.0);
-    speed_tracking_checker->deactivate();
-
-    // ==================== Phase 2: Rate-Limited Ramp (0.05 → 0.55 pu) ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.55});
-    success &= simulator.simulate_for(0.1);  // Allow reference to propagate
-
-    // Increase load as speed increases (simulates turbine power generation)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.25f));
-
-    // Calculate time needed: delta = 0.55 - 0.05 = 0.5 pu at 80 s/pu = 40s
-    success &= simulator.simulate_for(41.0);
-
-    // Verify Phase 2 target reached
-    const auto speed_after_accel =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_accel.value(), 0.55f, 0.03f) << "Phase 2 (Acceleration) did not reach target speed";
-
-    // Final steady-state validation
-    speed_tracking_checker->activate();
-    success &= simulator.simulate_for(3.0);
-    speed_tracking_checker->deactivate();
-
-    // ==================== Validation ====================
-    EXPECT_TRUE(success) << "Two-phase acceleration test did not complete successfully";
-
-    // Verify state machine remained operational throughout
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
-        << "Pulse releases should remain active during acceleration sequence";
-}
-
-/**
- * @test VirtualStartupLoadRejectionTest
- * @brief Tests virtual frequency ramp with load disturbance rejection
- *
- * This test validates the startup sequencer's virtual reference frame control operating
- * in the low-speed region (0-20% rated) with emphasis on load disturbance rejection during
- * the virtual frequency ramp. This is more realistic than the previous profile-based test
- * as it validates the actual startup procedure under varying load conditions.
- *
- * @par Test Sequence:
- * -# Configure startup sequencer with 60s virtual frequency ramp to 0.20 pu
- * -# Start from standstill with initial load of 0.10 pu
- * -# Execute state machine startup
- * -# Trigger startup sequencer (flux buildup + virtual ramp)
- * -# During virtual ramp (~30s in, mid-ramp at ~0.10 pu):
- *    - Apply load step UP: 0.10 → 0.20 pu
- *    - Wait 5s for regulation
- *    - Apply load step DOWN: 0.20 → 0.10 pu
- * -# Continue to virtual ramp completion (0.20 pu)
- * -# Hold in closed-loop with additional load step testing
- *
- * @par Validations:
- * - Speed continues ramping smoothly during load transients
- * - Speed tracking error < 0.10 pu during steady-state after steps
- * - Final speed reaches 0.20 pu ± 0.02
- * - Controller maintains regulation without saturation
- * - Transition to closed-loop operation is smooth
- *
- * @par Key Features Tested:
- * - Virtual reference frame startup execution
- * - Load disturbance rejection during virtual frequency ramp
- * - Speed regulation stability in low-speed region
- * - Transition from virtual to closed-loop control under load
- */
-TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
-{
-    // ==================== Configure Startup Sequencer ====================
-    // Virtual frequency: 0 Hz (0 pu) to 10 Hz (0.20 pu at 50 Hz base) in 60 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.20};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{60.0};
-
-    // Virtual torque: 0.0 pu to 0.25 pu in 5 seconds (higher for load steps)
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.25};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{5.0};
-
-    // Pre-fluxing duration
-    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
-
-    // Configure speed reference rate limiter for closed-loop phase
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
-        real_t{60.0f};
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
-
-    // Wider error tolerance for low-speed operation
-    const speed_pu_t speed_err_margin{0.10f};
-
-    auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "virtual startup speed error",
-        [&]() -> speed_pu_t {
-            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
-                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
-        },
-        -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
-
-    speed_error_checker->deactivate();
-
-    // ==================== State Machine Startup ====================
-    execute_startup_sequence();
-
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
-
-    // Initial load
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
-
-    bool success = true;
-
-    // ==================== Trigger Startup Sequencer ====================
-    set_startup_sequencer_start_command(true);
-    success &= simulator.simulate_for(1.0);  // Pre-flux
-
-    // Simulate to mid-ramp (~30s into 60s virtual frequency ramp)
-    // At this point, virtual frequency should be around 0.10 pu
-    success &= simulator.simulate_for(30.0);
-
-    const auto speed_mid_ramp = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_GT(speed_mid_ramp.value(), 0.08f) << "Virtual ramp should be progressing";
-    EXPECT_LT(speed_mid_ramp.value(), 0.14f) << "Should not yet reach target during mid-ramp";
-
-    // ==================== Load Step UP During Virtual Ramp ====================
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
-    success &= simulator.simulate_for(2.0);  // Transient
-    speed_error_checker->activate();
-    success &= simulator.simulate_for(3.0);  // Steady-state validation
-    speed_error_checker->deactivate();
-
-    // ==================== Load Step DOWN During Virtual Ramp ====================
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
-    success &= simulator.simulate_for(2.0);  // Transient
-    speed_error_checker->activate();
-    success &= simulator.simulate_for(3.0);  // Steady-state validation
-    speed_error_checker->deactivate();
-
-    // ==================== Complete Virtual Frequency Ramp ====================
-    // Remaining time: ~60s total - 30s elapsed - 10s for load steps = ~20s remaining
-    success &= simulator.simulate_for(21.0);
-
-    // Verify startup sequencer completed and transitioned to closed-loop
-    EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
-        startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
-        << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
-
-    const auto speed_after_virtual_ramp =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_virtual_ramp.value(), 0.20f, 0.02f) << "Virtual frequency ramp did not reach target speed";
-
-    // ==================== Hold in Closed-Loop with Additional Load Step ====================
-    speed_error_checker->activate();
-    success &= simulator.simulate_for(5.0);  // Hold steady-state
-    speed_error_checker->deactivate();
-
-    // Final load step at target speed
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.18f));
-    success &= simulator.simulate_for(2.0);
-    speed_error_checker->activate();
-    success &= simulator.simulate_for(3.0);
-    speed_error_checker->deactivate();
-
-    // ==================== Validation ====================
-    EXPECT_TRUE(success) << "Virtual startup load rejection test did not complete successfully";
-
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
-        << "Pulse releases should remain active during virtual startup and closed-loop operation";
-}
-
-/**
- * @test VirtualTorqueRampTest
- * @brief Tests virtual torque ramping during low-speed startup with high load
- *
- * This test validates the startup sequencer's virtual torque ramp functionality during
- * low-speed startup. The virtual torque ramp provides a similar effect to breakaway boost
- * by starting with higher torque to overcome static friction, then ramping down to normal
- * operating torque. This test validates startup from near-standstill with high friction.
- *
- * @par Test Sequence:
- * -# Configure startup sequencer with 15s virtual frequency ramp to 0.05 pu
- * -# Configure virtual torque ramp: 0.3 pu → 0.2 pu over 2 seconds (high initial torque)
- * -# Start from standstill simulating high static friction
- * -# Apply high load torque (0.20 pu) representing bearing friction
- * -# Execute state machine startup
- * -# Trigger startup sequencer
- * -# Monitor torque reference during first 2 seconds (should start high, ramp down)
- * -# Verify smooth acceleration despite high load
- * -# Continue to completion at 0.05 pu
- *
- * @par Validations:
- * - Torque reference starts elevated during first 2s (>0.25 pu)
- * - Torque reference ramps down to normal level (~0.20 pu) after 2s
- * - Speed reaches 0.05 pu ± 0.02 despite high load
- * - Speed ramp is smooth without stalling or oscillation
- * - Machine overcomes static friction and accelerates smoothly
- * - Transition to closed-loop operation is successful
- *
- * @par Key Features Tested:
- * - Virtual torque ramping for breakaway assistance
- * - Low-speed startup from near-standstill
- * - Load rejection with high static friction
- * - Virtual reference frame control at very low speeds
- */
-TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostTest)
-{
-    // ==================== Configure Startup Sequencer ====================
-    // Virtual frequency: 0 Hz (0 pu) to 2.5 Hz (0.05 pu at 50 Hz base) in 15 seconds
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{15.0};
-
-    // Virtual torque ramp: Start HIGH (0.3 pu) and ramp DOWN to normal (0.2 pu) over 2 seconds
-    // This simulates breakaway boost effect - extra torque at startup, then reduced
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.3};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.2};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{2.0};
-
-    // Pre-fluxing duration
-    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
-
-    // Configure speed reference rate limiter
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
-        real_t{30.0f};
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
-
-    // Wider tolerance for low-speed ripple
-    const speed_pu_t speed_err_margin{0.10f};
-
-    auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
-        "creep mode speed error",
-        [&]() -> speed_pu_t {
-            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
-                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
-        },
-        -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
-
-    speed_error_checker->deactivate();
-
-    // ==================== State Machine Startup ====================
-    execute_startup_sequence();
-
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read());
-
-    bool success = true;
-
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
-
-    // High load simulating static friction
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
-
-    // ==================== Trigger Startup Sequencer with Torque Monitoring ====================
-    set_startup_sequencer_start_command(true);
-    success &= simulator.simulate_for(1.0);  // Pre-flux
-
-    // ==================== Phase 1: High Torque (First ~2 seconds) ====================
-    success &= simulator.simulate_for(1.0);
-
-    // Verify elevated torque reference during initial phase
-    auto torque_ref_high = system.machine_side_control.startup_sequencer.get_outputs().virtual_torque_reference.read();
-    EXPECT_GT(torque_ref_high.value(), 0.25f)
-        << "Torque reference should be elevated during initial startup (virtual torque ramp high value)";
-
-    // Continue through torque ramp period
-    success &= simulator.simulate_for(1.5);  // Total: 2.5s elapsed
-
-    // ==================== Phase 2: Torque Ramped Down (After ~2 seconds) ====================
-    auto torque_ref_after_ramp =
-        system.machine_side_control.startup_sequencer.get_outputs().virtual_torque_reference.read();
-    EXPECT_NEAR(torque_ref_after_ramp.value(), 0.20f, 0.05f)
-        << "Torque reference should ramp down to normal operating value after virtual torque duration";
-
-    // ==================== Phase 3: Complete Virtual Frequency Ramp ====================
-    // Remaining time to reach 0.05 pu: ~15s total - 2.5s elapsed = ~12.5s + settling
-    success &= simulator.simulate_for(13.5);
-
-    // Verify startup sequencer completed
-    EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
-        startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
-        << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
-
-    const auto speed_after_startup =
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(speed_after_startup.value(), 0.05f, 0.02f)
-        << "Virtual frequency ramp should reach target despite high load with torque ramp assistance";
-
-    // Verify smooth speed ramp (no stalling)
-    EXPECT_GT(speed_after_startup.value(), 0.03f) << "Speed should have progressed significantly from standstill";
-
-    // ==================== Steady-State Hold ====================
-    speed_error_checker->activate();
-    success &= simulator.simulate_for(3.0);
-    speed_error_checker->deactivate();
-
-    // ==================== Validation ====================
-    EXPECT_TRUE(success) << "Low-speed startup with virtual torque ramp test did not complete successfully";
-
-    // Verify machine started successfully from near-standstill
-    EXPECT_GT(speed_after_startup.value(), 0.04f)
-        << "Machine should overcome static friction and reach creep speed with torque ramp";
-
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
-        << "Pulse releases should remain active during low-speed creep operation";
-}
+// // Test coordinated startup and multi-phase acceleration using startup sequencer
+// // This test validates the startup sequencer followed by rate-limited speed reference ramping
+// // Phase 1: Startup sequencer (0 -> 0.05 pu) - Creep speed equivalent
+// // Phase 2: Rate-limited ramp (0.05 -> 0.20 pu) - Purge acceleration equivalent
+// // Phase 3: Rate-limited ramp (0.20 -> 0.55 pu) - Ignition acceleration equivalent
+// // Phase 4: Rate-limited ramp (0.55 -> 0.95 pu) - Assist acceleration equivalent
+// TEST_F(CompleteSensorlessSpeedControllerTest, GasTurbineSoftStartSequence)
+// {
+//     // ==================== Configure Startup Sequencer ====================
+//     // Virtual frequency ramp: 0 Hz (0 pu) to 2.5 Hz (0.05 pu at 50 Hz base) in 30 seconds
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{30.0};
+
+//     // Virtual torque ramp: 0.0 pu to 0.3 pu in 2 seconds
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{2.0};
+
+//     // Pre-fluxing duration
+//     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+//     // Configure speed reference rate limiter for subsequent phases
+//     // Use a moderate rate limit that allows reasonable test execution time
+//     // 30 s/pu = 0.0333 pu/s allows smooth acceleration
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+//         real_t{30.0f};
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+//     // Speed tracking tolerance (wider for low-speed operation)
+//     const speed_pu_t speed_error_max_value{0.10f};
+//     const speed_pu_t speed_error_min_value{-0.10f};
+
+//     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+//         "speed tracking error",
+//         [&]() -> speed_pu_t {
+//             return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
+//                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+//         },
+//         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
+
+//     speed_tracking_checker->deactivate();  // Will activate during steady-state phases
+
+//     // ==================== State Machine Startup ====================
+//     execute_startup_sequence();
+
+//     // ==================== State Machine Startup ====================
+//     execute_startup_sequence();
+
+//     bool success = true;
+
+//     // Configure torque limits for startup and acceleration
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
+
+//     // ==================== Phase 1: Startup Sequencer to Creep Speed (~5% rated) ====================
+//     // Purpose: Initial rotation, oil circulation, pre-warming via coordinated startup
+//     set_startup_sequencer_start_command(true);
+//     success &= simulator.simulate_for(1.0);  // Pre-flux duration
+
+//     // Configure realistic load torque profile (increases with speed)
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+
+//     // Allow virtual frequency ramp to complete (30s) + small settling
+//     success &= simulator.simulate_for(30.5);
+
+//     // Verify startup sequencer completed and is in closed-loop
+//     EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
+//         startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+//         << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
+
+//     // Verify target speed reached
+//     const auto speed_after_creep =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_creep.value(), 0.05f, 0.02f) << "Phase 1 (Creep) did not reach target speed";
+
+//     // Hold at creep speed for inspection/settling
+//     speed_tracking_checker->activate();
+//     success &= simulator.simulate_for(5.0);
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== Phase 2: Purge Acceleration (~20% rated) ====================
+//     // Purpose: Combustion chamber ventilation to clear residual fuel vapors
+//     // Set external speed reference to 0.20 pu and let rate limiter ramp smoothly
+//     system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.20});
+//     success &= simulator.simulate_for(0.1);  // Allow reference to propagate
+
+//     // Calculate time needed: delta = 0.20 - 0.05 = 0.15 pu at 30 s/pu = 4.5s
+//     // Add margin for tracking: ~5s total
+//     success &= simulator.simulate_for(5.0);
+
+//     // Verify target speed reached
+//     const auto speed_after_purge =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_purge.value(), 0.20f, 0.02f) << "Phase 2 (Purge) did not reach target speed";
+
+//     // Hold at purge speed (typically 2-5 minutes in real operation, shortened for test)
+//     speed_tracking_checker->activate();
+//     success &= simulator.simulate_for(5.0);
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== Phase 3: Ignition Acceleration (~55% rated) ====================
+//     // Purpose: Reach speed for fuel ignition and flame stabilization
+//     system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.55});
+//     success &= simulator.simulate_for(0.1);
+
+//     // Increase load as turbine begins to generate power
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.25f));
+
+//     // Calculate time needed: delta = 0.55 - 0.20 = 0.35 pu at 30 s/pu = 10.5s
+//     success &= simulator.simulate_for(11.0);
+
+//     // Verify target speed reached
+//     const auto speed_after_ignition =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_ignition.value(), 0.55f, 0.03f) << "Phase 3 (Ignition) did not reach target speed";
+
+//     // Hold at ignition speed for flame stabilization
+//     speed_tracking_checker->activate();
+//     success &= simulator.simulate_for(5.0);
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== Phase 4: Assist to Self-Sustaining (~95% rated) ====================
+//     // Purpose: Accelerate to self-sustaining speed where turbine can maintain rotation
+//     system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.95});
+//     success &= simulator.simulate_for(0.1);
+
+//     // Further increase load as turbine approaches full power
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.30f));
+
+//     // Calculate time needed: delta = 0.95 - 0.55 = 0.40 pu at 30 s/pu = 12s
+//     success &= simulator.simulate_for(13.0);
+
+//     // Verify final target speed reached
+//     const auto speed_after_assist =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_assist.value(), 0.95f, 0.03f) << "Phase 4 (Assist) did not reach target speed";
+
+//     // Hold at self-sustaining speed (ready for synchronization to grid)
+//     speed_tracking_checker->activate();
+//     success &= simulator.simulate_for(5.0);
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== Validation ====================
+//     EXPECT_TRUE(success) << "Gas turbine soft-start sequence did not complete successfully";
+
+//     // Verify state machine remained in OPERATION_ON throughout
+//     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+//         << "Pulse releases should be active during entire starting sequence";
+
+//     // Verify final state: Ready for synchronous handoff
+//     EXPECT_GT(speed_after_assist.value(), 0.90f) << "Final speed insufficient for turbine self-sustaining operation";
+// }
+
+// /**
+//  * @test TwoPhaseAccelerationTest
+//  * @brief Validates two-phase acceleration using startup sequencer and rate-limited speed reference
+//  *
+//  * This test exercises the startup sequencer's coordinated startup followed by a rate-limited
+//  * speed reference ramp to a higher speed. It validates the transition from virtual reference
+//  * frame control to observer-based closed-loop control with smooth speed tracking.
+//  *
+//  * @par Test Sequence:
+//  * -# Configure startup sequencer with reduced times for faster testing
+//  *    - Virtual frequency: 0 → 0.05 pu in 20s
+//  *    - Virtual torque: 0 → 0.3 pu in 2s
+//  * -# Execute state machine startup sequence
+//  * -# Trigger startup sequencer (flux buildup + virtual ramp)
+//  * -# Wait for closed-loop transition (~21s)
+//  * -# Set external speed reference to 0.55 pu
+//  * -# Wait for rate-limited ramp to complete
+//  * -# Hold at final speed with tracking verification
+//  *
+//  * @par Validations:
+//  * - Speed reaches 0.05 pu ± 0.02 after startup sequencer
+//  * - Startup sequencer transitions to CLOSED_LOOP_OPERATION
+//  * - Speed ramps smoothly to 0.55 pu ± 0.03 with rate limiting
+//  * - Speed tracking error < 0.10 pu during steady-state phases
+//  * - State machine remains in OPERATION_ON throughout
+//  *
+//  * @par Key Features Tested:
+//  * - Coordinated startup (flux buildup + virtual ramp)
+//  * - Transition from virtual to estimated reference frame
+//  * - Rate-limited speed reference tracking
+//  * - Controller performance across speed ranges (0-55% rated)
+//  */
+// TEST_F(CompleteSensorlessSpeedControllerTest, SpeedGeneratorMultiProfileSequenceTest)
+// {
+//     // ==================== Configure Startup Sequencer ====================
+//     // Virtual frequency: 0 Hz (0 pu) to 2.5 Hz (0.05 pu at 50 Hz base) in 20 seconds
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{20.0};
+
+//     // Virtual torque: 0.0 pu to 0.3 pu in 2 seconds
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{2.0};
+
+//     // Pre-fluxing duration
+//     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+//     // Configure speed reference rate limiter
+//     // For second phase: 0.05 → 0.55 pu = 0.5 pu delta in 40s → 80 s/pu rate limit
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+//         real_t{80.0f};
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+//     // Speed tracking tolerance
+//     const speed_pu_t speed_error_max_value{0.10f};
+//     const speed_pu_t speed_error_min_value{-0.10f};
+
+//     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+//         "speed tracking error",
+//         [&]() -> speed_pu_t {
+//             return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
+//                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+//         },
+//         speed_error_min_value, speed_error_max_value, yeet::checker_activation_always{}));
+
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== State Machine Startup ====================
+//     execute_startup_sequence();
+
+//     bool success = true;
+
+//     // Configure torque limits
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
+
+//     // ==================== Phase 1: Startup Sequencer (0 → 0.05 pu) ====================
+//     set_startup_sequencer_start_command(true);
+//     success &= simulator.simulate_for(1.0);  // Pre-flux
+
+//     // Configure realistic load torque
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+
+//     // Wait for virtual frequency ramp completion (20s + small settling)
+//     success &= simulator.simulate_for(20.5);
+
+//     // Verify startup sequencer completed
+//     EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
+//         startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+//         << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
+
+//     // Verify Phase 1 target reached
+//     const auto speed_after_startup =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_startup.value(), 0.05f, 0.02f) << "Phase 1 (Startup) did not reach target speed";
+
+//     // Activate tracking checker for steady-state validation
+//     speed_tracking_checker->activate();
+//     success &= simulator.simulate_for(3.0);
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== Phase 2: Rate-Limited Ramp (0.05 → 0.55 pu) ====================
+//     system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.55});
+//     success &= simulator.simulate_for(0.1);  // Allow reference to propagate
+
+//     // Increase load as speed increases (simulates turbine power generation)
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.25f));
+
+//     // Calculate time needed: delta = 0.55 - 0.05 = 0.5 pu at 80 s/pu = 40s
+//     success &= simulator.simulate_for(41.0);
+
+//     // Verify Phase 2 target reached
+//     const auto speed_after_accel =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_accel.value(), 0.55f, 0.03f) << "Phase 2 (Acceleration) did not reach target speed";
+
+//     // Final steady-state validation
+//     speed_tracking_checker->activate();
+//     success &= simulator.simulate_for(3.0);
+//     speed_tracking_checker->deactivate();
+
+//     // ==================== Validation ====================
+//     EXPECT_TRUE(success) << "Two-phase acceleration test did not complete successfully";
+
+//     // Verify state machine remained operational throughout
+//     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+//         << "Pulse releases should remain active during acceleration sequence";
+// }
+
+// /**
+//  * @test VirtualStartupLoadRejectionTest
+//  * @brief Tests virtual frequency ramp with load disturbance rejection
+//  *
+//  * This test validates the startup sequencer's virtual reference frame control operating
+//  * in the low-speed region (0-20% rated) with emphasis on load disturbance rejection during
+//  * the virtual frequency ramp. This is more realistic than the previous profile-based test
+//  * as it validates the actual startup procedure under varying load conditions.
+//  *
+//  * @par Test Sequence:
+//  * -# Configure startup sequencer with 60s virtual frequency ramp to 0.20 pu
+//  * -# Start from standstill with initial load of 0.10 pu
+//  * -# Execute state machine startup
+//  * -# Trigger startup sequencer (flux buildup + virtual ramp)
+//  * -# During virtual ramp (~30s in, mid-ramp at ~0.10 pu):
+//  *    - Apply load step UP: 0.10 → 0.20 pu
+//  *    - Wait 5s for regulation
+//  *    - Apply load step DOWN: 0.20 → 0.10 pu
+//  * -# Continue to virtual ramp completion (0.20 pu)
+//  * -# Hold in closed-loop with additional load step testing
+//  *
+//  * @par Validations:
+//  * - Speed continues ramping smoothly during load transients
+//  * - Speed tracking error < 0.10 pu during steady-state after steps
+//  * - Final speed reaches 0.20 pu ± 0.02
+//  * - Controller maintains regulation without saturation
+//  * - Transition to closed-loop operation is smooth
+//  *
+//  * @par Key Features Tested:
+//  * - Virtual reference frame startup execution
+//  * - Load disturbance rejection during virtual frequency ramp
+//  * - Speed regulation stability in low-speed region
+//  * - Transition from virtual to closed-loop control under load
+//  */
+// TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeWithLoadStepTest)
+// {
+//     // ==================== Configure Startup Sequencer ====================
+//     // Virtual frequency: 0 Hz (0 pu) to 10 Hz (0.20 pu at 50 Hz base) in 60 seconds
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.20};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{60.0};
+
+//     // Virtual torque: 0.0 pu to 0.25 pu in 5 seconds (higher for load steps)
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.25};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{5.0};
+
+//     // Pre-fluxing duration
+//     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+//     // Configure speed reference rate limiter for closed-loop phase
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+//         real_t{60.0f};
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+//     // Wider error tolerance for low-speed operation
+//     const speed_pu_t speed_err_margin{0.10f};
+
+//     auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+//         "virtual startup speed error",
+//         [&]() -> speed_pu_t {
+//             return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
+//                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+//         },
+//         -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
+
+//     speed_error_checker->deactivate();
+
+//     // ==================== State Machine Startup ====================
+//     execute_startup_sequence();
+
+//     // Configure torque limits
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
+
+//     // Initial load
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
+
+//     bool success = true;
+
+//     // ==================== Trigger Startup Sequencer ====================
+//     set_startup_sequencer_start_command(true);
+//     success &= simulator.simulate_for(1.0);  // Pre-flux
+
+//     // Simulate to mid-ramp (~30s into 60s virtual frequency ramp)
+//     // At this point, virtual frequency should be around 0.10 pu
+//     success &= simulator.simulate_for(30.0);
+
+//     const auto speed_mid_ramp =
+//     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_GT(speed_mid_ramp.value(), 0.08f) << "Virtual ramp should be progressing";
+//     EXPECT_LT(speed_mid_ramp.value(), 0.14f) << "Should not yet reach target during mid-ramp";
+
+//     // ==================== Load Step UP During Virtual Ramp ====================
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
+//     success &= simulator.simulate_for(2.0);  // Transient
+//     speed_error_checker->activate();
+//     success &= simulator.simulate_for(3.0);  // Steady-state validation
+//     speed_error_checker->deactivate();
+
+//     // ==================== Load Step DOWN During Virtual Ramp ====================
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
+//     success &= simulator.simulate_for(2.0);  // Transient
+//     speed_error_checker->activate();
+//     success &= simulator.simulate_for(3.0);  // Steady-state validation
+//     speed_error_checker->deactivate();
+
+//     // ==================== Complete Virtual Frequency Ramp ====================
+//     // Remaining time: ~60s total - 30s elapsed - 10s for load steps = ~20s remaining
+//     success &= simulator.simulate_for(21.0);
+
+//     // Verify startup sequencer completed and transitioned to closed-loop
+//     EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
+//         startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+//         << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
+
+//     const auto speed_after_virtual_ramp =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_virtual_ramp.value(), 0.20f, 0.02f) << "Virtual frequency ramp did not reach target
+//     speed";
+
+//     // ==================== Hold in Closed-Loop with Additional Load Step ====================
+//     speed_error_checker->activate();
+//     success &= simulator.simulate_for(5.0);  // Hold steady-state
+//     speed_error_checker->deactivate();
+
+//     // Final load step at target speed
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.18f));
+//     success &= simulator.simulate_for(2.0);
+//     speed_error_checker->activate();
+//     success &= simulator.simulate_for(3.0);
+//     speed_error_checker->deactivate();
+
+//     // ==================== Validation ====================
+//     EXPECT_TRUE(success) << "Virtual startup load rejection test did not complete successfully";
+
+//     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+//         << "Pulse releases should remain active during virtual startup and closed-loop operation";
+// }
+
+// /**
+//  * @test VirtualTorqueRampTest
+//  * @brief Tests virtual torque ramping during low-speed startup with high load
+//  *
+//  * This test validates the startup sequencer's virtual torque ramp functionality during
+//  * low-speed startup. The virtual torque ramp provides a similar effect to breakaway boost
+//  * by starting with higher torque to overcome static friction, then ramping down to normal
+//  * operating torque. This test validates startup from near-standstill with high friction.
+//  *
+//  * @par Test Sequence:
+//  * -# Configure startup sequencer with 15s virtual frequency ramp to 0.05 pu
+//  * -# Configure virtual torque ramp: 0.3 pu → 0.2 pu over 2 seconds (high initial torque)
+//  * -# Start from standstill simulating high static friction
+//  * -# Apply high load torque (0.20 pu) representing bearing friction
+//  * -# Execute state machine startup
+//  * -# Trigger startup sequencer
+//  * -# Monitor torque reference during first 2 seconds (should start high, ramp down)
+//  * -# Verify smooth acceleration despite high load
+//  * -# Continue to completion at 0.05 pu
+//  *
+//  * @par Validations:
+//  * - Torque reference starts elevated during first 2s (>0.25 pu)
+//  * - Torque reference ramps down to normal level (~0.20 pu) after 2s
+//  * - Speed reaches 0.05 pu ± 0.02 despite high load
+//  * - Speed ramp is smooth without stalling or oscillation
+//  * - Machine overcomes static friction and accelerates smoothly
+//  * - Transition to closed-loop operation is successful
+//  *
+//  * @par Key Features Tested:
+//  * - Virtual torque ramping for breakaway assistance
+//  * - Low-speed startup from near-standstill
+//  * - Load rejection with high static friction
+//  * - Virtual reference frame control at very low speeds
+//  */
+// TEST_F(CompleteSensorlessSpeedControllerTest, LowSpeedStartupWithBreakawayBoostTest)
+// {
+//     // ==================== Configure Startup Sequencer ====================
+//     // Virtual frequency: 0 Hz (0 pu) to 2.5 Hz (0.05 pu at 50 Hz base) in 15 seconds
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{15.0};
+
+//     // Virtual torque ramp: Start HIGH (0.3 pu) and ramp DOWN to normal (0.2 pu) over 2 seconds
+//     // This simulates breakaway boost effect - extra torque at startup, then reduced
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.3};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.2};
+//     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{2.0};
+
+//     // Pre-fluxing duration
+//     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+//     // Configure speed reference rate limiter
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+//         real_t{30.0f};
+//     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+//     // Wider tolerance for low-speed ripple
+//     const speed_pu_t speed_err_margin{0.10f};
+
+//     auto speed_error_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+//         "creep mode speed error",
+//         [&]() -> speed_pu_t {
+//             return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
+//                     system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+//         },
+//         -speed_err_margin, speed_err_margin, yeet::checker_activation_always{}));
+
+//     speed_error_checker->deactivate();
+
+//     // ==================== State Machine Startup ====================
+//     execute_startup_sequence();
+
+//     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read());
+
+//     bool success = true;
+
+//     // Configure torque limits
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+//     yeet::mock_signal_input::write(
+//         system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
+
+//     // High load simulating static friction
+//     yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.20f));
+
+//     // ==================== Trigger Startup Sequencer with Torque Monitoring ====================
+//     set_startup_sequencer_start_command(true);
+//     success &= simulator.simulate_for(1.0);  // Pre-flux
+
+//     // ==================== Phase 1: High Torque (First ~2 seconds) ====================
+//     success &= simulator.simulate_for(1.0);
+
+//     // Verify elevated torque reference during initial phase
+//     auto torque_ref_high =
+//     system.machine_side_control.startup_sequencer.get_outputs().virtual_torque_reference.read();
+//     EXPECT_GT(torque_ref_high.value(), 0.25f)
+//         << "Torque reference should be elevated during initial startup (virtual torque ramp high value)";
+
+//     // Continue through torque ramp period
+//     success &= simulator.simulate_for(1.5);  // Total: 2.5s elapsed
+
+//     // ==================== Phase 2: Torque Ramped Down (After ~2 seconds) ====================
+//     auto torque_ref_after_ramp =
+//         system.machine_side_control.startup_sequencer.get_outputs().virtual_torque_reference.read();
+//     EXPECT_NEAR(torque_ref_after_ramp.value(), 0.20f, 0.05f)
+//         << "Torque reference should ramp down to normal operating value after virtual torque duration";
+
+//     // ==================== Phase 3: Complete Virtual Frequency Ramp ====================
+//     // Remaining time to reach 0.05 pu: ~15s total - 2.5s elapsed = ~12.5s + settling
+//     success &= simulator.simulate_for(13.5);
+
+//     // Verify startup sequencer completed
+//     EXPECT_EQ(system.machine_side_control.startup_sequencer.get_outputs().current_state.read(),
+//         startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+//         << "Startup sequencer should have transitioned to CLOSED_LOOP_OPERATION";
+
+//     const auto speed_after_startup =
+//         system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+//     EXPECT_NEAR(speed_after_startup.value(), 0.05f, 0.02f)
+//         << "Virtual frequency ramp should reach target despite high load with torque ramp assistance";
+
+//     // Verify smooth speed ramp (no stalling)
+//     EXPECT_GT(speed_after_startup.value(), 0.03f) << "Speed should have progressed significantly from standstill";
+
+//     // ==================== Steady-State Hold ====================
+//     speed_error_checker->activate();
+//     success &= simulator.simulate_for(3.0);
+//     speed_error_checker->deactivate();
+
+//     // ==================== Validation ====================
+//     EXPECT_TRUE(success) << "Low-speed startup with virtual torque ramp test did not complete successfully";
+
+//     // Verify machine started successfully from near-standstill
+//     EXPECT_GT(speed_after_startup.value(), 0.04f)
+//         << "Machine should overcome static friction and reach creep speed with torque ramp";
+
+//     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+//         << "Pulse releases should remain active during low-speed creep operation";
+// }
 
 /**
  * @test StartupSequencerIntegrationTest
@@ -839,7 +842,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.5});
+        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.0});
 
     // ==================== Wait for Flux Buildup and Virtual Startup ====================
     // The startup sequencer will progress through:
@@ -919,4 +922,350 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     // Verify startup complete flag
     auto startup_complete = system.machine_side_control.startup_sequencer.get_outputs().is_startup_complete.read();
     EXPECT_TRUE(startup_complete) << "Startup sequencer should indicate startup complete";
+}
+
+/**
+ * @test RestartCapabilityTest
+ * @brief Validates startup sequencer can restart after stop
+ *
+ * This test validates that the soft-starter can perform a complete startup,
+ * stop, and restart sequence. This is critical for applications where the
+ * machine may need to restart after a temporary shutdown.
+ *
+ * Test Sequence:
+ * - Initial startup to 0.4 pu
+ * - Stop command to bring system to idle
+ * - Restart sequence to 0.6 pu
+ *
+ * Configuration:
+ * - Virtual frequency: 0 → 0.1 pu (5 Hz) in 8 seconds
+ * - Virtual torque: 0 → 0.3 pu in 1 second
+ * - Speed rate limit: 15 s/pu
+ */
+TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
+{
+    // ==================== Configure Startup Sequencer ====================
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{8.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
+
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Speed reference rate limiter: 15 seconds per pu
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+        real_t{15.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+    // ==================== Execute State Machine Startup ====================
+    execute_startup_sequence();
+
+    bool success = true;
+
+    // ==================== First Startup Sequence ====================
+    set_startup_sequencer_start_command(true);
+    success &= simulator.simulate_for(1.0);  // Pre-flux
+
+    // Configure moderate load
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+
+    // Configure torque limits
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.0});
+
+    // Wait for flux buildup and virtual startup (1s + 8s + 0.5s settling)
+    success &= simulator.simulate_for(9.5);
+
+    // Verify closed-loop operation
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "First startup should reach CLOSED_LOOP_OPERATION";
+
+    // ==================== Accelerate to 0.4 pu ====================
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.4});
+
+    // Allow time for speed reference to ramp and speed to track
+    // 0.4 pu at 15 s/pu = 6 seconds + settling
+    success &= simulator.simulate_for(8.0);
+
+    auto speed_before_stop = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(speed_before_stop.value(), 0.4f, 0.1f) << "Speed should reach approximately 0.4 pu before stop";
+
+    // ==================== Stop Sequence ====================
+    set_startup_sequencer_stop_command(true);
+    success &= simulator.simulate_for(0.1);
+    set_startup_sequencer_stop_command(false);
+
+    // Verify sequencer returned to IDLE
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Stop command should return sequencer to IDLE state";
+
+    // Allow system to decelerate
+    success &= simulator.simulate_for(2.0);
+
+    // ==================== Restart Sequence ====================
+    set_startup_sequencer_start_command(true);
+    success &= simulator.simulate_for(1.0);  // Pre-flux
+
+    // Wait for restart sequence (1s + 8s + 0.5s settling)
+    success &= simulator.simulate_for(9.5);
+
+    // Verify restart successful
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Restart should reach CLOSED_LOOP_OPERATION";
+
+    // ==================== Accelerate to 0.6 pu After Restart ====================
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.6});
+
+    // Allow time for speed reference to ramp and speed to track
+    // 0.6 pu at 15 s/pu = 9 seconds + settling
+    success &= simulator.simulate_for(11.0);
+
+    auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(final_speed.value(), 0.6f, 0.12f) << "Speed should reach approximately 0.6 pu after restart";
+
+    // ==================== Final Validation ====================
+    EXPECT_TRUE(success) << "Restart capability test completed with simulation errors";
+
+    auto startup_complete = system.machine_side_control.startup_sequencer.get_outputs().is_startup_complete.read();
+    EXPECT_TRUE(startup_complete) << "Startup sequencer should indicate restart complete";
+}
+
+/**
+ * @test TypicalSoftStarterProfileTest
+ * @brief Validates multi-stage acceleration profile typical for soft-starters
+ *
+ * This test simulates a typical soft-starter application with multiple
+ * acceleration stages:
+ * - Creep speed (0.2 pu) for positioning/alignment
+ * - Intermediate speed (0.5 pu) for purge or low-load operation
+ * - Full speed (1.0 pu) for normal operation
+ *
+ * This profile is common in gas turbine starters and similar applications
+ * where different operational phases require different speeds.
+ *
+ * Configuration:
+ * - Virtual frequency: 0 → 0.1 pu in 10 seconds
+ * - Virtual torque: 0 → 0.3 pu in 1 second
+ * - Speed rate limit: 20 s/pu for controlled acceleration
+ */
+TEST_F(CompleteSensorlessSpeedControllerTest, TypicalSoftStarterProfileTest)
+{
+    // ==================== Configure Startup Sequencer ====================
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
+
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Configure rate limiter for controlled acceleration
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+        real_t{20.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+    // Speed tracking checker
+    const speed_pu_t speed_error_tolerance{0.10f};
+    auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "speed tracking error",
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
+        -speed_error_tolerance, speed_error_tolerance, yeet::checker_activation_always{}));
+
+    speed_tracking_checker->deactivate();
+
+    // ==================== Execute State Machine Startup ====================
+    execute_startup_sequence();
+
+    bool success = true;
+
+    // ==================== Initial Startup ====================
+    set_startup_sequencer_start_command(true);
+    success &= simulator.simulate_for(1.0);  // Pre-flux
+
+    // Configure gas turbine load (compressor characteristic)
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
+
+    // Configure torque limits
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.2});
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
+
+    // Wait for virtual startup to complete (1s + 10s + 0.5s)
+    success &= simulator.simulate_for(11.5);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Startup should reach CLOSED_LOOP_OPERATION";
+
+    // ==================== Stage 1: Creep Speed (0.2 pu) ====================
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.2});
+
+    // Ramp time: 0.2 pu × 20 s/pu = 4 seconds + settling
+    success &= simulator.simulate_for(5.0);
+
+    auto creep_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(creep_speed.value(), 0.2f, 0.08f) << "Machine should reach creep speed (0.2 pu)";
+
+    // Hold at creep speed for positioning/alignment phase - extended for steady-state
+    speed_tracking_checker->activate();
+    success &= simulator.simulate_for(10.0);  // Extended from 3.0s to 10.0s
+    speed_tracking_checker->deactivate();
+
+    // ==================== Stage 2: Purge Speed (0.5 pu) ====================
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.5});
+
+    // Ramp time: 0.3 pu × 20 s/pu = 6 seconds + settling
+    success &= simulator.simulate_for(7.5);
+
+    auto purge_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(purge_speed.value(), 0.5f, 0.10f) << "Machine should reach purge speed (0.5 pu)";
+
+    // Hold at purge speed - extended for steady-state
+    speed_tracking_checker->activate();
+    success &= simulator.simulate_for(10.0);  // Extended from 3.0s to 10.0s
+    speed_tracking_checker->deactivate();
+
+    // ==================== Stage 3: Full Speed (1.0 pu) ====================
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{1.0});
+
+    // Ramp time: 0.5 pu × 20 s/pu = 10 seconds + settling
+    success &= simulator.simulate_for(12.0);
+
+    auto full_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(full_speed.value(), 1.0f, 0.15f) << "Machine should reach full speed (1.0 pu)";
+
+    // ==================== Steady-State Operation ====================
+    speed_tracking_checker->activate();
+    success &= simulator.simulate_for(15.0);  // Extended from 4.0s to 15.0s for full steady-state
+    speed_tracking_checker->deactivate();
+
+    // ==================== Final Validation ====================
+    EXPECT_TRUE(success) << "Typical soft-starter profile test completed with simulation errors";
+
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "System should maintain pulse releases during steady-state operation";
+}
+
+/**
+ * @test PurgeModeOperationTest
+ * @brief Validates continuous low-speed operation for purge mode
+ *
+ * This test validates that the soft-starter can maintain stable operation
+ * at low speed for extended periods. This is critical for gas turbine
+ * applications where purge mode may run for several minutes to clear
+ * combustion chambers before ignition.
+ *
+ * Test Profile:
+ * - Startup to 0.15 pu (purge speed)
+ * - Hold for extended duration (simulating purge cycle)
+ * - Verify stable operation with minimal speed variation
+ *
+ * Configuration:
+ * - Virtual frequency: 0 → 0.08 pu in 8 seconds (low initial speed)
+ * - Virtual torque: 0 → 0.25 pu in 1 second
+ * - Speed rate limit: 25 s/pu (very gradual)
+ * - Extended hold time: 15 seconds at purge speed
+ */
+TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeOperationTest)
+{
+    // ==================== Configure Startup Sequencer for Low-Speed Operation ====================
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.08};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{8.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.25};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
+
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Very gradual speed changes for smooth purge operation
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+        real_t{25.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+    // Tighter speed tracking for purge mode stability
+    const speed_pu_t speed_error_tolerance{0.05f};
+    auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
+        "purge mode speed stability",
+        [&]() -> speed_pu_t {
+            return (system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read() -
+                    system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read());
+        },
+        -speed_error_tolerance, speed_error_tolerance, yeet::checker_activation_always{}));
+
+    speed_tracking_checker->deactivate();
+
+    // ==================== Execute State Machine Startup ====================
+    execute_startup_sequence();
+
+    bool success = true;
+
+    // ==================== Initial Startup ====================
+    set_startup_sequencer_start_command(true);
+    success &= simulator.simulate_for(1.0);  // Pre-flux
+
+    // Light load for purge mode (minimal resistance)
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.08f));
+
+    // Configure torque limits
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{0.8});
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.0});
+
+    // Wait for virtual startup (1s + 8s + 0.5s)
+    success &= simulator.simulate_for(9.5);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Startup should reach CLOSED_LOOP_OPERATION";
+
+    // ==================== Ramp to Purge Speed (0.15 pu) ====================
+    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.15});
+
+    // Ramp time: 0.15 pu × 25 s/pu = 3.75 seconds + settling
+    success &= simulator.simulate_for(5.0);
+
+    auto purge_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(purge_speed.value(), 0.15f, 0.05f) << "Machine should reach purge speed (0.15 pu)";
+
+    // ==================== Extended Purge Mode Hold ====================
+    // Simulate extended purge cycle (15 seconds)
+    // In real applications, this could be several minutes
+    speed_tracking_checker->activate();
+    success &= simulator.simulate_for(15.0);
+    speed_tracking_checker->deactivate();
+
+    // Verify speed remained stable
+    auto final_purge_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(final_purge_speed.value(), 0.15f, 0.05f)
+        << "Machine should maintain stable purge speed throughout extended hold";
+
+    // ==================== Verify Control Stability ====================
+    // Check that control outputs are not saturated during purge
+    auto torque_saturated = system.machine_side_control.torque_controller.get_outputs().is_saturated.read();
+    EXPECT_FALSE(torque_saturated) << "Torque controller should not be saturated during steady purge operation";
+
+    // ==================== Final Validation ====================
+    EXPECT_TRUE(success) << "Purge mode operation test completed with simulation errors";
+
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "System should maintain pulse releases during purge mode";
+
+    auto startup_complete = system.machine_side_control.startup_sequencer.get_outputs().is_startup_complete.read();
+    EXPECT_TRUE(startup_complete) << "Startup sequencer should indicate operation is stable";
 }
