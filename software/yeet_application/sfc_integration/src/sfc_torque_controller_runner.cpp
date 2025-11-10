@@ -26,6 +26,7 @@ void sfc_torque_controller_runner::run()
         _outputs.is_saturated.write(false);
         _outputs.is_breakaway_boost_active.write(false);
         _outputs.is_active.write(true);
+        _outputs.torque_reference.write(torque_reference);
         return;
     }
 
@@ -53,6 +54,7 @@ void sfc_torque_controller_runner::run()
     _outputs.is_saturated.write(_sfc_torque_controller.is_saturated());
     _outputs.is_breakaway_boost_active.write(_sfc_torque_controller.is_breakaway_boost_active());
     _outputs.is_active.write(true);  // Always active when run() is called
+    _outputs.torque_reference.write(_sfc_torque_controller.get_limited_torque_reference());
 }
 
 void sfc_torque_controller_runner::stop() { _sfc_torque_controller.reset(); }

@@ -95,8 +95,8 @@ void sfc_plant_model_runner::set_parameters()
         _plant.set_voltage_control_mode(sfc::plant_model_voltage_control_mode::variable_speed);
     }
 
-    _plant.configure_mechanical_load(
-        _parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read());
+    _plant.configure_mechanical_load(_parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read(),
+        _parameters.motor_linear_load_coefficient.read(), _parameters.motor_quadratic_load_coefficient.read());
 }
 
 void sfc_plant_model_runner::set_parameter_callback()
@@ -105,6 +105,8 @@ void sfc_plant_model_runner::set_parameter_callback()
     _parameters.voltage_control_mode.register_callback([&]() { set_parameters(); });
     _parameters.motor_inertia_constant.register_callback([&]() { set_parameters(); });
     _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
+    _parameters.motor_linear_load_coefficient.register_callback([&]() { set_parameters(); });
+    _parameters.motor_quadratic_load_coefficient.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -96,6 +96,8 @@ static inline void register_complete_speed_controller_logger(
         group + "input is_saturated", [&]() { return speed_controller.get_inputs().is_saturated.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(
         group + "output torque_reference", [&]() { return speed_controller.get_outputs().torque_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "input applied_torque_reference",
+        [&]() { return speed_controller.get_inputs().applied_torque_reference.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
         group + "output pi_output", [&]() { return speed_controller.get_outputs().pi_output.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(

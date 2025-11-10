@@ -195,10 +195,6 @@ void sfc_startup_sequencer::transition_to_closed_loop_operation()
     _previous_state = _current_state;
     _current_state = startup_sequencer_state_t::CLOSED_LOOP_OPERATION;
 
-    // Stop virtual generation
-    _virtual_frequency = frequency_pu_t{0.0};
-    _virtual_torque = torque_pu_t{0.0};
-
     // Reset state elapsed timer
     _state_elapsed_timer.reset();
 }

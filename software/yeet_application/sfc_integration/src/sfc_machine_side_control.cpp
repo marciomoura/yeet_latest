@@ -178,6 +178,10 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         startup_sequencer.get_outputs().release_speed_controller, speed_controller.get_inputs().release_pulses);
 
+    // Applied torque reference for bumpless transfer (actual torque from torque controller)
+    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().virtual_torque_reference,
+        speed_controller.get_inputs().applied_torque_reference);
+
     // Keep machine_integrator_supervisor for anti-windup freeze logic
     signals_connector::connect_output_to_input(
         machine_integrator_supervisor.get_outputs().freeze_integrator, speed_controller.get_inputs().freeze_integrator);

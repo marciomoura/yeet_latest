@@ -101,6 +101,21 @@ void sfc_speed_controller::reset(speed_pu_t initial_speed_pu)
     _torque_ref_unclamped = torque_pu_t{0.0};
 }
 
+void sfc_speed_controller::preset_with_torque(torque_pu_t initial_torque_pu)
+{
+    // Initialize the PI controller's integrator with the torque value for bumpless transfer.
+    // The integrator stores the integral term which directly contributes to the torque output.
+    _pi_controller.reset(initial_torque_pu.value());
+
+    // Reset the derivative calculator to zero since we're starting speed control.
+    _speed_ref_derivative.reset(0.0f);
+
+    // Initialize outputs with the preset torque value.
+    _torque_ref_pu = initial_torque_pu;
+    _pi_output = initial_torque_pu.value();
+    _torque_ref_unclamped = initial_torque_pu;
+}
+
 void sfc_speed_controller::freeze_integrator(bool status) { _pi_controller.enable_integrator(!status); }
 
 }  // namespace yeet::application::sfc

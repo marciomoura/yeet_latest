@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 using namespace yeet;
 using namespace yeet::control;
 using namespace yeet;
@@ -169,6 +171,182 @@ TEST(MechanicalLoadTest, UpdateWithZeroTorques)
 
     // Speed should decrease due to damping
     EXPECT_LT(new_speed.value(), initial_speed.value());
+}
+
+// ========== Speed-Dependent Load Tests ==========
+
+// Test linear load: T_load = k1 * omega (typical for fans/blowers at low speed)
+TEST(MechanicalLoadTest, LinearLoadSteadyState)
+{
+    mechanical_load load(kSamplingTime);
+    const inertia_constant_t inertia_constant = inertia_constant_t{1.0f};
+    const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.0f};  // No damping
+    const real_t k1 = 0.5f;  // Linear load coefficient [pu/pu]
+
+    load.configure(inertia_constant, damping_coefficient, k1, 0.0f);
+    load.reset();
+
+    const torque_pu_t em_torque = torque_pu_t{1.0f};
+
+    // Steady state: T_e = k1 * omega => omega_ss = T_e / k1 = 1.0 / 0.5 = 2.0 pu
+    const real_t expected_steady_state_speed = em_torque.value() / k1;
+
+    // Simulate to steady state (10 time constants)
+    const int simulation_steps = static_cast<int>((10.0f * (2.0f * inertia_constant.value() / k1)) / kSamplingTime);
+    for (int i = 0; i < simulation_steps; ++i) {
+        load.update(em_torque);
+    }
+
+    EXPECT_NEAR(load.get_speed_pu().value(), expected_steady_state_speed, 1e-2f);
+}
+
+// Test quadratic load: T_load = k2 * omega^2 (typical for centrifugal pumps/compressors)
+TEST(MechanicalLoadTest, QuadraticLoadSteadyState)
+{
+    mechanical_load load(kSamplingTime);
+    const inertia_constant_t inertia_constant = inertia_constant_t{1.0f};
+    const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.0f};  // No damping
+    const real_t k2 = 0.25f;  // Quadratic load coefficient [pu/pu^2]
+
+    load.configure(inertia_constant, damping_coefficient, 0.0f, k2);
+    load.reset();
+
+    const torque_pu_t em_torque = torque_pu_t{1.0f};
+
+    // Steady state: T_e = k2 * omega^2 => omega_ss = sqrt(T_e / k2) = sqrt(1.0 / 0.25) = 2.0 pu
+    const real_t expected_steady_state_speed = std::sqrt(em_torque.value() / k2);
+
+    // Simulate to steady state (longer for quadratic load)
+    const int simulation_steps = 100000;  // Extended simulation for quadratic convergence
+    for (int i = 0; i < simulation_steps; ++i) {
+        load.update(em_torque);
+    }
+
+    EXPECT_NEAR(load.get_speed_pu().value(), expected_steady_state_speed, 5e-2f);
+}
+
+// Test combined constant + linear + quadratic load (realistic gas turbine compressor)
+TEST(MechanicalLoadTest, CombinedSpeedDependentLoad)
+{
+    mechanical_load load(kSamplingTime);
+    const inertia_constant_t inertia_constant = inertia_constant_t{2.0f};
+    const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.1f};  // Small damping
+    const real_t k1 = 0.2f;                                                               // Linear load coefficient
+    const real_t k2 = 0.1f;                                                               // Quadratic load coefficient
+
+    load.configure(inertia_constant, damping_coefficient, k1, k2);
+    load.reset();
+
+    const torque_pu_t em_torque = torque_pu_t{0.8f};
+    const torque_pu_t external_load = torque_pu_t{0.1f};  // Constant external load
+
+    // Simulate to steady state
+    const int simulation_steps = 200000;
+    for (int i = 0; i < simulation_steps; ++i) {
+        load.update(em_torque, external_load);
+    }
+
+    // Steady state: T_e = T_external + k1*omega + k2*omega^2 + D*omega
+    // At steady state: 0.8 = 0.1 + 0.2*omega + 0.1*omega^2 + 0.1*omega
+    // => 0.1*omega^2 + 0.3*omega - 0.7 = 0
+    // Solving: omega = (-0.3 + sqrt(0.09 + 0.28)) / 0.2 = (-0.3 + 0.608) / 0.2 ≈ 1.54 pu
+    const real_t omega_ss = load.get_speed_pu().value();
+
+    // Verify steady state equation is satisfied
+    const real_t total_load =
+        external_load.value() + k1 * omega_ss + k2 * omega_ss * omega_ss + damping_coefficient.value() * omega_ss;
+    EXPECT_NEAR(total_load, em_torque.value(), 5e-2f);
+}
+
+// Test gas turbine soft-start scenario with increasing quadratic load
+TEST(MechanicalLoadTest, GasTurbineSoftStartScenario)
+{
+    mechanical_load load(kSamplingTime);
+    const inertia_constant_t inertia_constant = inertia_constant_t{3.0f};                  // Large inertia
+    const damping_coefficient_pu_t damping_coefficient = damping_coefficient_pu_t{0.05f};  // Low damping
+    const real_t k1 = 0.0f;                                                                // Minimal linear load
+    const real_t k2 = 0.3f;  // Dominant quadratic load (compressor characteristic)
+
+    load.configure(inertia_constant, damping_coefficient, k1, k2);
+    load.reset();
+
+    // Phase 1: Low-speed startup with constant torque
+    const torque_pu_t startup_torque = torque_pu_t{0.2f};
+    for (int i = 0; i < 5000; ++i) {
+        load.update(startup_torque);
+    }
+
+    const real_t speed_after_startup = load.get_speed_pu().value();
+    EXPECT_GT(speed_after_startup, 0.0f);
+    EXPECT_LT(speed_after_startup, 1.0f);  // Should not reach high speed with low torque
+
+    // Phase 2: Increase torque for acceleration (turbine starting to produce power)
+    const torque_pu_t acceleration_torque = torque_pu_t{0.6f};
+    for (int i = 0; i < 20000; ++i) {
+        load.update(acceleration_torque);
+    }
+
+    const real_t speed_after_accel = load.get_speed_pu().value();
+    EXPECT_GT(speed_after_accel, speed_after_startup);
+
+    // With T_e = 0.6, steady state: 0.6 = 0.3*omega^2 + 0.05*omega
+    // Quadratic dominates at higher speeds
+    EXPECT_LT(speed_after_accel, 1.6f);  // Reasonable speed range
+}
+
+// Test that linear coefficient validation works
+TEST(MechanicalLoadTest, LinearCoefficientValidation)
+{
+    mechanical_load load(kSamplingTime);
+    EXPECT_NO_THROW(load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f}, 0.0f, 0.0f));
+    EXPECT_NO_THROW(load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f}, 0.5f, 0.0f));
+    EXPECT_NO_THROW(load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f}, 0.0f, 0.25f));
+    EXPECT_NO_THROW(load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f}, 0.2f, 0.1f));
+}
+
+// Test backward compatibility: default speed-dependent coefficients are zero
+TEST(MechanicalLoadTest, BackwardCompatibilityDefaultCoefficients)
+{
+    mechanical_load load(kSamplingTime);
+    load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.1f});  // Old API without coefficients
+    load.reset();
+
+    const torque_pu_t em_torque = torque_pu_t{0.5f};
+    const torque_pu_t external_load = torque_pu_t{0.2f};
+
+    // Simulate to steady state (10 time constants: tau = 2H/D = 2*1.0/0.1 = 20s)
+    const int simulation_steps = static_cast<int>((10.0f * 20.0f) / kSamplingTime);
+    for (int i = 0; i < simulation_steps; ++i) {
+        load.update(em_torque, external_load);
+    }
+
+    // Steady state with only damping: T_e - T_load = D * omega
+    // 0.5 - 0.2 = 0.1 * omega => omega = 3.0 pu
+    const real_t expected_speed = (em_torque.value() - external_load.value()) / 0.1f;
+    EXPECT_NEAR(load.get_speed_pu().value(), expected_speed, 1e-2f);
+}
+
+// Test that quadratic load prevents overspeed even with high torque
+TEST(MechanicalLoadTest, QuadraticLoadPreventsOverspeed)
+{
+    mechanical_load load(kSamplingTime);
+    const real_t k2 = 1.0f;  // Strong quadratic load
+
+    load.configure(inertia_constant_t{1.0f}, damping_coefficient_pu_t{0.0f}, 0.0f, k2);
+    load.reset();
+
+    const torque_pu_t high_torque = torque_pu_t{2.0f};
+
+    // Simulate
+    const int simulation_steps = 100000;
+    for (int i = 0; i < simulation_steps; ++i) {
+        load.update(high_torque);
+    }
+
+    // Steady state: T_e = k2 * omega^2 => omega = sqrt(2.0 / 1.0) = 1.414 pu
+    const real_t expected_speed = std::sqrt(high_torque.value() / k2);
+    EXPECT_NEAR(load.get_speed_pu().value(), expected_speed, 5e-2f);
+    EXPECT_LT(load.get_speed_pu().value(), 1.5f);  // Natural speed limiting
 }
 
 }  // namespace

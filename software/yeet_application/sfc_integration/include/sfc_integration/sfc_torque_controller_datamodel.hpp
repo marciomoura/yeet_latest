@@ -65,6 +65,9 @@ public:
 
         /// Control loop active status
         signal_output<bool> is_active;
+
+        /// Applied torque reference output (after limiting and boost) for bumpless transfer [pu]
+        signal_output<torque_pu_t> torque_reference;
     };
 
     /**

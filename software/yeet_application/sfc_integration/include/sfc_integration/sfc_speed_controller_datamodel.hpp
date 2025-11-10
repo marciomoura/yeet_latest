@@ -37,6 +37,9 @@ public:
 
         /// Saturation status feedback
         signal_input<bool> is_saturated;
+
+        /// Applied torque reference from torque controller for bumpless transfer initialization
+        signal_input<torque_pu_t> applied_torque_reference;
     };
 
     /**

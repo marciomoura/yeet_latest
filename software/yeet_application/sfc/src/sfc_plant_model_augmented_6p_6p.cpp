@@ -113,7 +113,8 @@ void sfc_plant_model_augmented_6p_6p::configure_mechanical_parameters(
     const sfc_plant_model_mechanical_parameters& mechanical_params)
 {
     _mechanical_params = mechanical_params;
-    _mechanical_load.configure(mechanical_params.inertia_constant_h, mechanical_params.damping_factor_d);
+    _mechanical_load.configure(mechanical_params.inertia_constant_h, mechanical_params.damping_factor_d,
+        mechanical_params.linear_load_coefficient, mechanical_params.quadratic_load_coefficient);
 }
 
 void sfc_plant_model_augmented_6p_6p::configure_voltage_control_parameters(
@@ -124,12 +125,16 @@ void sfc_plant_model_augmented_6p_6p::configure_voltage_control_parameters(
     // Back-EMF is calculated directly from E = Φ × ω in step_voltage_control()
 }
 
-void sfc_plant_model_augmented_6p_6p::configure_mechanical_load(
-    inertia_constant_t inertia_constant_seconds, damping_coefficient_pu_t damping_coefficient)
+void sfc_plant_model_augmented_6p_6p::configure_mechanical_load(inertia_constant_t inertia_constant_seconds,
+    damping_coefficient_pu_t damping_coefficient,
+    real_t linear_load_coeff,
+    real_t quadratic_load_coeff)
 {
     _mechanical_params.inertia_constant_h = inertia_constant_seconds;
     _mechanical_params.damping_factor_d = damping_coefficient;
-    _mechanical_load.configure(inertia_constant_seconds, damping_coefficient);
+    _mechanical_params.linear_load_coefficient = linear_load_coeff;
+    _mechanical_params.quadratic_load_coefficient = quadratic_load_coeff;
+    _mechanical_load.configure(inertia_constant_seconds, damping_coefficient, linear_load_coeff, quadratic_load_coeff);
 }
 
 void sfc_plant_model_augmented_6p_6p::initialize()

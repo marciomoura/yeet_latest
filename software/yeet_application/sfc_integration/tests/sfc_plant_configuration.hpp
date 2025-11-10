@@ -31,6 +31,13 @@ struct variable_speed_config {
     /// Load torque in per-unit
     torque_pu_t load_torque{0.2f};
 
+    /// Linear load coefficient k1 [pu/pu] for T_load = k1*omega
+    real_t linear_load_coefficient{0.0f};
+
+    /// Quadratic load coefficient k2 [pu/pu^2] for T_load = k2*omega^2
+    /// For gas turbine compressors, typical: 0.2-0.4
+    real_t quadratic_load_coefficient{0.0f};
+
     /// Voltage control mode (set to nullopt to preserve existing mode)
     std::optional<plant_model_voltage_control_mode> voltage_control_mode{
         plant_model_voltage_control_mode::variable_speed};
@@ -40,6 +47,29 @@ struct variable_speed_config {
  * @brief Default variable speed configuration for most tests
  */
 static constexpr variable_speed_config default_variable_speed_config{};
+
+/**
+ * @brief Gas turbine starter configuration with realistic compressor load characteristics
+ *
+ * This configuration models a large gas turbine with:
+ * - High inertia (3.0 s): Large rotor and compressor assembly
+ * - Low damping (0.02 pu): Low friction bearings
+ * - Dominant quadratic load (0.3 pu/pu^2): Compressor aerodynamic drag proportional to speed^2
+ * - Low external load (0.0 pu): No mechanical load at standstill
+ * - Variable speed voltage control: Back-EMF proportional to speed and flux
+ */
+inline variable_speed_config create_gas_turbine_config()
+{
+    variable_speed_config config{};
+    config.inertia_constant = inertia_constant_t{3.0f};       // Large rotational mass
+    config.damping_factor = damping_coefficient_pu_t{0.02f};  // Low friction
+    config.linear_load_coefficient = 0.0f;                    // Minimal viscous losses
+    config.quadratic_load_coefficient = 0.3f;                 // Compressor load ∝ speed²
+    config.load_torque = torque_pu_t{0.0f};                   // No constant load
+    config.initial_speed = speed_pu_t{0.001f};                // Near standstill
+    config.voltage_control_mode = plant_model_voltage_control_mode::variable_speed;
+    return config;
+}
 
 /**
  * @brief Configures a plant model for variable speed operation with standard test parameters
@@ -85,6 +115,8 @@ inline void configure_variable_speed_plant(
         sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
     plant_runner.get_parameters().motor_damping_factor.write(config.damping_factor);
     plant_runner.get_parameters().motor_inertia_constant.write(config.inertia_constant);
+    plant_runner.get_parameters().motor_linear_load_coefficient.write(config.linear_load_coefficient);
+    plant_runner.get_parameters().motor_quadratic_load_coefficient.write(config.quadratic_load_coefficient);
 }
 
 /**
