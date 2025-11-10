@@ -750,7 +750,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     // Virtual frequency profile: 0 Hz (0 pu) to 20 Hz (0.4 pu) in 50 seconds
     // Parameters are in per-unit and will be converted to SI using the per-unit system (base = 50 Hz)
     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
-    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.2};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.1};
     system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
 
     // Virtual torque profile: 0.0 pu to 0.3 pu in 2 seconds

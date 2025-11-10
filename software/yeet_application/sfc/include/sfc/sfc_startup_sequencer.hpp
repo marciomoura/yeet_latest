@@ -38,9 +38,9 @@ enum class reference_frame_source_t {
  * @brief Virtual frequency profile configuration
  */
 struct virtual_frequency_config {
-    frequency_t initial{1.0};   ///< Initial virtual frequency [Hz]
-    frequency_t final{10.0};    ///< Final virtual frequency [Hz]
-    duration_t duration{10.0};  ///< Duration of frequency ramp [s], 0 = skip virtual flux phase
+    frequency_pu_t initial{0.02};  ///< Initial virtual frequency [pu] (e.g., 0.02 = 1Hz at 50Hz base)
+    frequency_pu_t final{0.20};    ///< Final virtual frequency [pu] (e.g., 0.20 = 10Hz at 50Hz base)
+    duration_t duration{10.0};     ///< Duration of frequency ramp [s], 0 = skip virtual flux phase
 };
 
 /**
@@ -72,9 +72,9 @@ struct flux_buildup_outputs {
  * @brief Virtual reference frame outputs
  */
 struct virtual_reference_outputs {
-    angle_wrapped rotor_angle{0.0};     ///< Virtual rotor angle [rad]
-    frequency_t rotor_frequency{0.0};   ///< Virtual rotor frequency [Hz]
-    torque_pu_t torque_reference{0.0};  ///< Virtual torque reference [pu]
+    angle_wrapped rotor_angle{0.0};       ///< Virtual rotor angle [rad]
+    frequency_pu_t rotor_frequency{0.0};  ///< Virtual rotor frequency [pu]
+    torque_pu_t torque_reference{0.0};    ///< Virtual torque reference [pu]
 };
 
 /**
@@ -195,8 +195,12 @@ public:
      * @param is_field_established Field excitation established flag from excitation controller
      * @param estimated_rotor_angle Angle from observer [rad]
      * @param external_speed_reference External speed reference input [pu]
+     * @param base_frequency Nominal machine base frequency [Hz] for angle integration
      */
-    void update(bool is_field_established, angle_wrapped estimated_rotor_angle, speed_pu_t external_speed_reference);
+    void update(bool is_field_established,
+        angle_wrapped estimated_rotor_angle,
+        speed_pu_t external_speed_reference,
+        frequency_t base_frequency);
 
     /**
      * @brief Resets the sequencer to initial state
@@ -237,9 +241,9 @@ public:
      *
      * Useful for monitoring and diagnostics during starting procedure.
      *
-     * @return Virtual frequency [Hz]
+     * @return Virtual frequency [pu]
      */
-    frequency_t get_virtual_frequency() const noexcept;
+    frequency_pu_t get_virtual_frequency() const noexcept;
 
     /**
      * @brief Gets elapsed time in current state
@@ -255,7 +259,7 @@ private:
     const duration_t _sampling_time;
 
     // Control components
-    linear_ramp<frequency_t> _virtual_frequency_ramp;
+    linear_ramp<frequency_pu_t> _virtual_frequency_ramp;
     linear_ramp<torque_pu_t> _virtual_torque_ramp;
     control::elapsed_timer _state_elapsed_timer;
     control::integrator<angle_wrapped> _virtual_angle_integrator;
@@ -272,7 +276,7 @@ private:
     startup_sequencer_outputs _outputs;
 
     // Virtual reference frame generation
-    frequency_t _virtual_frequency{0.0};
+    frequency_pu_t _virtual_frequency{0.0};
     angle_wrapped _virtual_rotor_angle{0.0};
     torque_pu_t _virtual_torque{0.0};
 
@@ -285,11 +289,11 @@ private:
     // State update methods
     void update_idle();
     void update_flux_buildup(bool is_field_established);
-    void update_starting_procedure();
+    void update_starting_procedure(frequency_t base_frequency);
     void update_closed_loop_operation(speed_pu_t external_speed_reference);
 
     // Virtual reference frame generation
-    bool update_virtual_reference_frame();
+    bool update_virtual_reference_frame(frequency_t base_frequency);
     bool update_virtual_torque_reference();
     void synchronize_virtual_to_estimated(angle_wrapped estimated_angle);
 

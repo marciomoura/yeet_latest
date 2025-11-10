@@ -41,8 +41,11 @@ void sfc_startup_sequencer_runner::run()
     // Read external speed reference
     speed_pu_t external_speed_reference = _inputs.external_speed_reference.read();
 
+    // Get the base frequency from the per-unit system
+    frequency_t base_frequency = _per_unit_system->get_machine_bases().base_frequency.value();
+
     // Update the sequencer with measured signals
-    _sequencer.update(is_field_established, estimated_angle, external_speed_reference);
+    _sequencer.update(is_field_established, estimated_angle, external_speed_reference, base_frequency);
     const sfc::startup_sequencer_outputs sequencer_outputs = _sequencer.get_outputs();
 
     _outputs.current_state.write(sequencer_outputs.controller_commands.current_state);
@@ -55,10 +58,7 @@ void sfc_startup_sequencer_runner::run()
     _outputs.release_torque_controller.write(sequencer_outputs.controller_commands.release_torque_controller);
 
     _outputs.virtual_rotor_angle.write(sequencer_outputs.virtual_reference.rotor_angle);
-    // Convert SI frequency back to per-unit for datamodel output
-    const frequency_pu_t freq_pu{sequencer_outputs.virtual_reference.rotor_frequency.value() /
-                                 _per_unit_system->get_machine_bases().base_frequency.value()};
-    _outputs.virtual_rotor_frequency.write(freq_pu);
+    _outputs.virtual_rotor_frequency.write(sequencer_outputs.virtual_reference.rotor_frequency);
     _outputs.virtual_torque_reference.write(sequencer_outputs.virtual_reference.torque_reference);
     _outputs.speed_reference.write(sequencer_outputs.speed_control.speed_reference);
 
@@ -75,16 +75,10 @@ void sfc_startup_sequencer_runner::stop()
 
 void sfc_startup_sequencer_runner::set_parameters()
 {
-    // Convert frequency parameters from per-unit to SI (Hz) using the machine-side per-unit system
-    const frequency_t freq_initial_si =
-        to_si(_parameters.virtual_frequency_initial.read(), _per_unit_system->get_machine_bases().base_frequency);
-    const frequency_t freq_final_si =
-        to_si(_parameters.virtual_frequency_final.read(), _per_unit_system->get_machine_bases().base_frequency);
-
-    // Configure virtual frequency phase (in SI units)
+    // Configure virtual frequency phase (already in per-unit from datamodel)
     sfc::virtual_frequency_config freq_cfg;
-    freq_cfg.initial = freq_initial_si;
-    freq_cfg.final = freq_final_si;
+    freq_cfg.initial = _parameters.virtual_frequency_initial.read();
+    freq_cfg.final = _parameters.virtual_frequency_final.read();
     freq_cfg.duration = _parameters.virtual_frequency_duration.read();
     _sequencer.configure_virtual_frequency(freq_cfg);
 

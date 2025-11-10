@@ -22,16 +22,17 @@ protected:
     void run_cycles(int count, bool field_established = true, angle_t estimated_angle = angle_t{0.0})
     {
         for (int i = 0; i < count; ++i) {
-            sequencer->update(field_established, estimated_angle, speed_pu_t{1.0});
+            sequencer->update(field_established, estimated_angle, speed_pu_t{1.0}, base_frequency);
         }
     }
 
     const duration_t sampling_time{ms(1.0)};  // 1 ms
+    const frequency_t base_frequency{50.0};   // 50 Hz base frequency
 
     virtual_frequency_config virtual_freq_cfg{
-        .initial = frequency_t{1.0},  // 1 Hz start
-        .final = frequency_t{10.0},   // 10 Hz end
-        .duration = duration_t{1.0}   // 1 second ramp
+        .initial = frequency_pu_t{0.02},  // 0.02 pu = 1 Hz at 50 Hz base
+        .final = frequency_pu_t{0.2},     // 0.2 pu = 10 Hz at 50 Hz base
+        .duration = duration_t{1.0}       // 1 second ramp
     };
 
     virtual_torque_config virtual_torque_cfg{
@@ -151,7 +152,7 @@ TEST_F(SfcStartupSequencerTest, FluxBuildupOutputsAreCorrect)
 {
     sequencer->start_sequence();
     // Run one cycle without field established to verify FLUX_BUILDUP outputs
-    sequencer->update(false, angle_t{0.0}, speed_pu_t{1.0});  // is_field_established = false
+    sequencer->update(false, angle_t{0.0}, speed_pu_t{1.0}, base_frequency);  // is_field_established = false
     auto outputs = sequencer->get_outputs();
 
     // Should still be in FLUX_BUILDUP state
@@ -216,15 +217,15 @@ TEST_F(SfcStartupSequencerTest, VirtualFrequencyRampsLinearly)
 
     ASSERT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
 
-    // Check frequency at start (should be initial)
-    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), 1.0f, 0.01f);
+    // Check frequency at start (should be initial: 0.02 pu)
+    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), 0.02f, 0.001f);
 
     // Check frequency at 50% (500ms into 1000ms ramp)
     run_cycles(500, true);
-    real_t expected_mid = 1.0f + (10.0f - 1.0f) * 0.5f;  // 5.5 Hz
-    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), expected_mid, 0.1f);
+    real_t expected_mid = 0.02f + (0.2f - 0.02f) * 0.5f;  // 0.11 pu
+    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), expected_mid, 0.01f);
 
-    // Check frequency at end (should be final)
+    // Check frequency at end (should be final: 0.2 pu)
     run_cycles(500, true);
     // Note: We're now in CLOSED_LOOP, so virtual frequency stops
 }
@@ -252,7 +253,7 @@ TEST_F(SfcStartupSequencerTest, VirtualAngleWrapsToTwoPi)
 
     // Run for full duration in STARTING_PROCEDURE
     for (int i = 0; i < 1000; ++i) {
-        sequencer->update(true, angle_t{0.0}, speed_pu_t{1.0});
+        sequencer->update(true, angle_t{0.0}, speed_pu_t{1.0}, base_frequency);
         auto outputs = sequencer->get_outputs();
         // Angle should always be in [0, 2π]
         EXPECT_GE(outputs.virtual_reference.rotor_angle.get_radians(), 0.0f);
@@ -278,8 +279,8 @@ TEST_F(SfcStartupSequencerTest, ZeroDurationVirtualFluxSkipsToClosedLoop)
 
 TEST_F(SfcStartupSequencerTest, ConstantFrequencyMaintainedWhenInitialEqualsFinal)
 {
-    virtual_freq_cfg.initial = frequency_t{5.0};
-    virtual_freq_cfg.final = frequency_t{5.0};
+    virtual_freq_cfg.initial = frequency_pu_t{0.1};  // 0.1 pu = 5 Hz at 50 Hz base
+    virtual_freq_cfg.final = frequency_pu_t{0.1};
     virtual_freq_cfg.duration = duration_t{1.0};
     sequencer->configure_virtual_frequency(virtual_freq_cfg);
 
@@ -287,11 +288,11 @@ TEST_F(SfcStartupSequencerTest, ConstantFrequencyMaintainedWhenInitialEqualsFina
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     // Check frequency at start
-    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), 5.0f, 0.01f);
+    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), 0.1f, 0.01f);
 
     // Check frequency at middle
     run_cycles(500, true);
-    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), 5.0f, 0.01f);
+    EXPECT_NEAR(sequencer->get_virtual_frequency().value(), 0.1f, 0.01f);
 
     // Should transition after duration (need 1001 cycles total in STARTING_PROCEDURE)
     run_cycles(501, true);  // 501 more = 1001 total in STARTING_PROCEDURE
@@ -434,8 +435,9 @@ TEST_F(SfcStartupSequencerTest, TimeInCurrentStateTracksCorrectly)
 TEST_F(SfcStartupSequencerTest, ConfigurationIsApplied)
 {
     // Create new configurations for virtual frequency and torque
-    virtual_frequency_config new_freq_cfg{
-        .initial = frequency_t{2.0}, .final = frequency_t{8.0}, .duration = duration_t{0.5}};
+    virtual_frequency_config new_freq_cfg{.initial = frequency_pu_t{0.04},  // 0.04 pu = 2 Hz at 50 Hz base
+        .final = frequency_pu_t{0.16},                                      // 0.16 pu = 8 Hz at 50 Hz base
+        .duration = duration_t{0.5}};
 
     virtual_torque_config new_torque_cfg{
         .initial = torque_pu_t{0.4}, .final = torque_pu_t{0.4}, .duration = duration_t{0.5}};
@@ -452,7 +454,7 @@ TEST_F(SfcStartupSequencerTest, ConfigurationIsApplied)
 
     auto outputs = sequencer->get_outputs();
     EXPECT_NEAR(outputs.virtual_reference.torque_reference.value(), 0.4f, 0.01f);
-    EXPECT_NEAR(outputs.virtual_reference.rotor_frequency.value(), 2.0f, 0.01f);
+    EXPECT_NEAR(outputs.virtual_reference.rotor_frequency.value(), 0.04f, 0.01f);  // Per-unit value
 }
 
 // ========== Edge Case Tests ==========

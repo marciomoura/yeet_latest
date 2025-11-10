@@ -22,8 +22,8 @@ void sfc_startup_sequencer::configure_virtual_frequency(const virtual_frequency_
 {
     _virtual_frequency_config = config;
 
-    // Configure the frequency ramp
-    linear_ramp<frequency_t>::config ramp_cfg{
+    // Configure the frequency ramp (already in per-unit)
+    linear_ramp<frequency_pu_t>::config ramp_cfg{
         .initial = config.initial, .final = config.final, .duration = config.duration};
     _virtual_frequency_ramp.configure(ramp_cfg);
 }
@@ -63,8 +63,10 @@ bool sfc_startup_sequencer::start_sequence()
 
 void sfc_startup_sequencer::stop_sequence() { transition_to_idle(); }
 
-void sfc_startup_sequencer::update(
-    bool is_field_established, angle_wrapped estimated_rotor_angle, speed_pu_t external_speed_reference)
+void sfc_startup_sequencer::update(bool is_field_established,
+    angle_wrapped estimated_rotor_angle,
+    speed_pu_t external_speed_reference,
+    frequency_t base_frequency)
 {
     // Update state elapsed timer (always enabled)
     _state_elapsed_timer.update(true);
@@ -80,7 +82,7 @@ void sfc_startup_sequencer::update(
             break;
 
         case startup_sequencer_state_t::STARTING_PROCEDURE:
-            update_starting_procedure();
+            update_starting_procedure(base_frequency);
             break;
 
         case startup_sequencer_state_t::CLOSED_LOOP_OPERATION:
@@ -112,7 +114,7 @@ void sfc_startup_sequencer::reset()
     reset_timers();
 
     // Reset virtual reference frame
-    _virtual_frequency = frequency_t{0.0};
+    _virtual_frequency = frequency_pu_t{0.0};
     _virtual_rotor_angle = angle_t{0.0};
     _virtual_torque = torque_pu_t{0.0};
     _virtual_angle_integrator.reset();
@@ -130,7 +132,7 @@ bool sfc_startup_sequencer::is_startup_complete() const noexcept
     return _current_state == startup_sequencer_state_t::CLOSED_LOOP_OPERATION;
 }
 
-frequency_t sfc_startup_sequencer::get_virtual_frequency() const noexcept { return _virtual_frequency; }
+frequency_pu_t sfc_startup_sequencer::get_virtual_frequency() const noexcept { return _virtual_frequency; }
 
 duration_t sfc_startup_sequencer::get_time_in_current_state() const noexcept
 {
@@ -194,11 +196,8 @@ void sfc_startup_sequencer::transition_to_closed_loop_operation()
     _current_state = startup_sequencer_state_t::CLOSED_LOOP_OPERATION;
 
     // Stop virtual generation
-    _virtual_frequency = frequency_t{0.0};
+    _virtual_frequency = frequency_pu_t{0.0};
     _virtual_torque = torque_pu_t{0.0};
-
-    // Reset speed reference limiter to start from 0 for closed-loop ramp-up
-    _speed_reference_limiter.reset();
 
     // Reset state elapsed timer
     _state_elapsed_timer.reset();
@@ -213,7 +212,7 @@ void sfc_startup_sequencer::transition_to_idle()
     reset_timers();
 
     // Reset virtual references
-    _virtual_frequency = frequency_t{0.0};
+    _virtual_frequency = frequency_pu_t{0.0};
     _virtual_rotor_angle = angle_t{0.0};
     _virtual_torque = torque_pu_t{0.0};
     _virtual_angle_integrator.reset();
@@ -239,10 +238,14 @@ void sfc_startup_sequencer::update_flux_buildup(bool is_field_established)
     }
 }
 
-void sfc_startup_sequencer::update_starting_procedure()
+void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency)
 {
-    bool has_elapsed = update_virtual_reference_frame();
+    bool has_elapsed = update_virtual_reference_frame(base_frequency);
     has_elapsed &= update_virtual_torque_reference();
+
+    // Keep speed reference tracking virtual frequency during starting procedure
+    // Since both are in per-unit, freq_pu directly maps to speed_pu
+    _speed_reference_limiter.reset(_virtual_frequency.value());
 
     // Check if duration has elapsed
     if (has_elapsed) {
@@ -262,16 +265,18 @@ void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t external_spe
 
 // ========== Virtual Reference Frame Generation ==========
 
-bool sfc_startup_sequencer::update_virtual_reference_frame()
+bool sfc_startup_sequencer::update_virtual_reference_frame(frequency_t base_frequency)
 {
-    // Update frequency ramp and get current frequency
+    // Update frequency ramp and get current frequency (in per-unit)
     _virtual_frequency = _virtual_frequency_ramp.update(true);
 
-    // Convert frequency to angular velocity (rad/s)
-    real_t omega = two_pi * _virtual_frequency.value();
+    // Convert per-unit frequency to SI angular velocity (rad/s)
+    // freq_si = freq_pu * base_frequency
+    // omega_si = 2*pi * freq_si = 2*pi * freq_pu * base_frequency
+    real_t omega_si = two_pi * _virtual_frequency.value() * base_frequency.value();
 
     // Integrate to get angle (wrapping handled automatically by angle_wrapped)
-    angle_wrapped angle_increment = _virtual_angle_integrator.update(omega);
+    angle_wrapped angle_increment = _virtual_angle_integrator.update(omega_si);
     _virtual_rotor_angle = angle_increment.get_radians();
 
     // Check if ramp has completed
