@@ -73,7 +73,6 @@ void sfc_plant_model_runner::run()
     _outputs.machine_flux_pu = _plant.get_flux_pu();
     _outputs.field_current_pu = _plant.get_field_current();
 }
-
 void sfc_plant_model_runner::stop() {}
 
 void sfc_plant_model_runner::set_parameters()

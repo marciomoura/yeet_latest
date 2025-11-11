@@ -16,6 +16,8 @@ constexpr angle_t deg_to_rad(real_t degrees) { return angle_t{degrees * pi / rea
 
 constexpr real_t rad_to_deg(angle_t radians) { return radians.value() * real_t(180.0) / pi; }
 
+constexpr angular_frequency_t hz_to_rad_per_sec(real_t hertz) { return angular_frequency_t{hertz * two_pi}; }
+
 // --- RMS/Peak Conversions ---
 constexpr real_t rms_to_peak_factor = 1.41421356237;  // std::sqrt(2.0);
 constexpr real_t peak_to_rms_factor = 1.0 / rms_to_peak_factor;

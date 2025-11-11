@@ -291,16 +291,19 @@ int main(int argc, char* argv[])
 
     // ==================== External I/O Lambda Runner (EXACT from test fixture) ====================
     // External input command variables (simulates external digital I/O)
-    bool run_creep_speed = false;
-    bool run_purge_accel = false;
-    bool run_ignition_accel = false;
-    bool run_assist_accel = false;
-    bool hold_speed = false;
-    bool decelerate = false;
-    bool idle = true;
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // bool run_creep_speed = false;
+    // bool run_purge_accel = false;
+    // bool run_ignition_accel = false;
+    // bool run_assist_accel = false;
+    // bool hold_speed = false;
+    // bool decelerate = false;
+    // bool idle = true;
     bool exciter_ready = true;
     bool excitation_start_command = true;
     bool excitation_stop_command = false;
+    bool startup_sequencer_start_command = false;
+    bool startup_sequencer_stop_command = false;
 
     // Register lambda runner for external speed profile commands (SAME as test fixture)
     std::cout << "[INIT] Registering external I/O lambda runner (10ms)..." << std::endl;
@@ -308,8 +311,12 @@ int main(int argc, char* argv[])
         simulator_builder.machine_side_control.external_ios.update_excitation_inputs(
             exciter_ready, excitation_start_command, excitation_stop_command);
 
-        simulator_builder.machine_side_control.external_ios.update_speed_generator_inputs(
-            run_creep_speed, run_purge_accel, run_ignition_accel, run_assist_accel, hold_speed, decelerate, idle);
+        // DISABLED: Speed generator replaced by startup_sequencer
+        // simulator_builder.machine_side_control.external_ios.update_speed_generator_inputs(
+        //     run_creep_speed, run_purge_accel, run_ignition_accel, run_assist_accel, hold_speed, decelerate, idle);
+
+        simulator_builder.machine_side_control.external_ios.update_startup_sequencer_inputs(
+            startup_sequencer_start_command, startup_sequencer_stop_command);
     });
 
     // Initialize the system (SAME as test fixture SetUp())

@@ -29,7 +29,8 @@ protected:
     void run_cycles(int count, bool field_established = true, speed_pu_t external_speed_ref = speed_pu_t{1.0})
     {
         for (int i = 0; i < count; ++i) {
-            sequencer->update(field_established, angle_t{0.0}, external_speed_ref, base_frequency);
+            sequencer->update(field_established, angle_t{0.0}, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON,
+                external_speed_ref, base_frequency);
         }
     }
 
@@ -88,7 +89,7 @@ TEST_F(SfcStartupSequencerRateLimiterTest, RateLimiterCanBeDisabled)
     ASSERT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 
     // When disabled, step input should pass through immediately
-    sequencer->update(true, angle_t{0.0}, speed_pu_t{1.0}, base_frequency);
+    sequencer->update(true, angle_t{0.0}, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON, speed_pu_t{1.0}, base_frequency);
     auto outputs = sequencer->get_outputs();
     EXPECT_NEAR(outputs.speed_control.speed_reference.value(), 1.0f, 0.001f);
 }

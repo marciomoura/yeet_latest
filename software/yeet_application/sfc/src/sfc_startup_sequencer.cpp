@@ -49,6 +49,11 @@ void sfc_startup_sequencer::configure_speed_reference_rate_limit(const speed_ref
     _speed_reference_limiter.configure_enable(config.enabled);
 }
 
+void sfc_startup_sequencer::configure_flying_restart(const flying_restart_config& config)
+{
+    _flying_restart_config = config;
+}
+
 bool sfc_startup_sequencer::start_sequence()
 {
     // Can only start from IDLE state
@@ -65,16 +70,30 @@ void sfc_startup_sequencer::stop_sequence() { transition_to_idle(); }
 
 void sfc_startup_sequencer::update(bool is_field_established,
     angle_wrapped estimated_rotor_angle,
+    speed_pu_t measured_speed,
+    sfc_state_id current_state_id,
     speed_pu_t external_speed_reference,
     frequency_t base_frequency)
 {
+    // Handle automatic start/stop coordination with state machine
+    if (_flying_restart_config.auto_start_stop_enabled) {
+        update_state_machine_coordination(measured_speed, current_state_id, external_speed_reference);
+    }
+
+    // Apply shutdown speed override if active
+    // This forces speed reference to zero during SHUTDOWN_REQUESTED and OPERATION_OFF states
+    speed_pu_t effective_speed_reference = external_speed_reference;
+    if (_shutdown_speed_override_active) {
+        effective_speed_reference = speed_pu_t{0.0};
+    }
+
     // Update state elapsed timer (always enabled)
     _state_elapsed_timer.update(true);
 
     // Execute current state logic
     switch (_current_state) {
         case startup_sequencer_state_t::IDLE:
-            update_idle();
+            update_idle(effective_speed_reference);
             break;
 
         case startup_sequencer_state_t::FLUX_BUILDUP:
@@ -86,7 +105,7 @@ void sfc_startup_sequencer::update(bool is_field_established,
             break;
 
         case startup_sequencer_state_t::CLOSED_LOOP_OPERATION:
-            update_closed_loop_operation(external_speed_reference);
+            update_closed_loop_operation(effective_speed_reference);
             break;
     }
 
@@ -109,6 +128,8 @@ void sfc_startup_sequencer::reset()
     // Reset to IDLE state
     _current_state = startup_sequencer_state_t::IDLE;
     _previous_state = startup_sequencer_state_t::IDLE;
+    _previous_state_machine_state = sfc_state_id::IDLE;
+    _shutdown_speed_override_active = false;
 
     // Reset all timers
     reset_timers();
@@ -188,7 +209,9 @@ void sfc_startup_sequencer::transition_to_starting_procedure()
 
 void sfc_startup_sequencer::transition_to_closed_loop_operation()
 {
-    if (_current_state != startup_sequencer_state_t::STARTING_PROCEDURE) {
+    // Allow transition from STARTING_PROCEDURE (normal path) or IDLE (flying restart path)
+    if (_current_state != startup_sequencer_state_t::STARTING_PROCEDURE &&
+        _current_state != startup_sequencer_state_t::IDLE) {
         return;
     }
 
@@ -219,10 +242,13 @@ void sfc_startup_sequencer::transition_to_idle()
 
 // ========== State Update Methods ==========
 
-void sfc_startup_sequencer::update_idle()
+void sfc_startup_sequencer::update_idle(speed_pu_t external_speed_reference)
 {
-    // Idle state - no action required
-    // Waiting for start_sequence() to be called
+    // Update speed reference limiter even in IDLE to handle shutdown scenarios
+    // When shutdown override is active (OPERATION_OFF), we need to ramp speed to zero
+    _speed_reference_limiter.update(external_speed_reference.value());
+
+    // Idle state - waiting for start_sequence() to be called
 }
 
 void sfc_startup_sequencer::update_flux_buildup(bool is_field_established)
@@ -269,10 +295,10 @@ bool sfc_startup_sequencer::update_virtual_reference_frame(frequency_t base_freq
     // Convert per-unit frequency to SI angular velocity (rad/s)
     // freq_si = freq_pu * base_frequency
     // omega_si = 2*pi * freq_si = 2*pi * freq_pu * base_frequency
-    real_t omega_si = two_pi * _virtual_frequency.value() * base_frequency.value();
+    angular_frequency_t omega_si = hz_to_rad_per_sec(_virtual_frequency.value() * base_frequency.value());
 
     // Integrate to get angle (wrapping handled automatically by angle_wrapped)
-    angle_wrapped angle_increment = _virtual_angle_integrator.update(omega_si);
+    angle_wrapped angle_increment = _virtual_angle_integrator.update(omega_si.value());
     _virtual_rotor_angle = angle_increment.get_radians();
 
     // Check if ramp has completed
@@ -317,7 +343,8 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::SPEED_CONTROL;
             _outputs.controller_commands.release_machine_side_pulses = false;
             _outputs.controller_commands.release_excitation = false;
-            _outputs.controller_commands.release_machine_observer = false;
+            _outputs.controller_commands.release_machine_observer =
+                true;  // Keep observer running for shutdown coordination
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = false;
             break;
@@ -354,6 +381,46 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
     }
 }
 
+// ========== Automatic Start/Stop Coordination ==========
+
+void sfc_startup_sequencer::update_state_machine_coordination(
+    speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t& external_speed_reference)
+{
+    // Detect transition TO OPERATION_ON -> start sequence
+    if (transitioned_to(sfc_state_id::OPERATION_ON, current_state_id)) {
+        // Check for flying restart condition
+        if (measured_speed.value() >= _flying_restart_config.speed_threshold.value() && measured_speed.value() > 0.0f) {
+            // Skip directly to closed-loop operation
+            if (_current_state == startup_sequencer_state_t::IDLE) {
+                transition_to_closed_loop_operation();
+            }
+        }
+        else {
+            // Normal startup sequence
+            start_sequence();
+        }
+    }
+
+    // Detect SHUTDOWN_REQUESTED or OPERATION_OFF state -> activate speed override to zero
+    // This allows controlled deceleration while maintaining commutation during SHUTDOWN_REQUESTED
+    // and keeps speed at zero during OPERATION_OFF
+    if (current_state_id == sfc_state_id::SHUTDOWN_REQUESTED || current_state_id == sfc_state_id::OPERATION_OFF) {
+        _shutdown_speed_override_active = true;
+    }
+    else {
+        _shutdown_speed_override_active = false;
+    }
+
+    // When in OPERATION_OFF state, ensure sequencer is in IDLE
+    // This allows grid-side to extinguish current safely before machine-side stops
+    if (current_state_id == sfc_state_id::OPERATION_OFF && _current_state != startup_sequencer_state_t::IDLE) {
+        stop_sequence();
+    }
+
+    // Store current state for next cycle edge detection
+    _previous_state_machine_state = current_state_id;
+}
+
 // ========== Helper Methods ==========
 
 void sfc_startup_sequencer::reset_timers()
@@ -361,6 +428,22 @@ void sfc_startup_sequencer::reset_timers()
     _virtual_frequency_ramp.reset();
     _virtual_torque_ramp.reset();
     _state_elapsed_timer.reset();
+}
+
+bool sfc_startup_sequencer::transitioned_from(sfc_state_id from_state, sfc_state_id current_state) const noexcept
+{
+    return _previous_state_machine_state == from_state && current_state != from_state;
+}
+
+bool sfc_startup_sequencer::transitioned_to(sfc_state_id to_state, sfc_state_id current_state) const noexcept
+{
+    return _previous_state_machine_state != to_state && current_state == to_state;
+}
+
+bool sfc_startup_sequencer::transition(
+    sfc_state_id from_state, sfc_state_id to_state, sfc_state_id current_state) const noexcept
+{
+    return _previous_state_machine_state == from_state && current_state == to_state;
 }
 
 }  // namespace yeet::application::sfc

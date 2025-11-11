@@ -32,10 +32,16 @@ public:
         /// Rotor angle estimate from machine-side observer [rad]
         signal_input<angle_wrapped> estimated_rotor_angle;
 
-        /// Start command signal
+        /// Measured rotor speed from machine-side observer [pu]
+        signal_input<speed_pu_t> measured_speed;
+
+        /// Grid-side state machine current state ID
+        signal_input<yeet::application::sfc::sfc_state_id> current_state_id;
+
+        /// Start command signal (manual override)
         signal_input<bool> start_command;
 
-        /// Stop command signal
+        /// Stop command signal (manual override)
         signal_input<bool> stop_command;
 
         /// External speed reference [pu]
@@ -141,6 +147,13 @@ public:
 
         /// Enable/disable speed reference rate limiting
         parameter<bool> speed_reference_rate_limit_enabled = true;
+
+        /// Minimum speed threshold for flying restart [pu]
+        /// (e.g., 0.05 = 5% rated speed)
+        parameter<speed_pu_t> flying_restart_speed_threshold = speed_pu_t{0.05};
+
+        /// Enable automatic start/stop based on state machine state
+        parameter<bool> auto_start_stop_enabled = true;
     };
 
 private:
@@ -194,6 +207,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->speed_reference_rate_limit_seconds_per_pu));
         entry.parameters.insert("speed_reference_rate_limit_enabled",
             yeet::utils::make_bool_accessor(_model_parameters->speed_reference_rate_limit_enabled));
+        entry.parameters.insert("flying_restart_speed_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->flying_restart_speed_threshold));
+        entry.parameters.insert(
+            "auto_start_stop_enabled", yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
 
         registry.insert("startup_sequencer", std::move(entry));
     }

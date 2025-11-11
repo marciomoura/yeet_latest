@@ -7,13 +7,13 @@
  *
  * **Inputs:**
  * - Analog measurements (ADC counts from hardware mock)
- * - Fiber-optic signals from grid-side (operating_mode, current_reference, pulse_releases, etc.)
+ * - Fiber-optic signals from grid-side (operating_mode, current_reference, pulse_releases, state_id, etc.)
  * - Excitation control commands (start, stop, ready status)
- * - Speed generator profile commands (creep, purge, ignition, assist, hold, decelerate, idle)
+ * - Startup sequencer control commands (coordinated with grid-side state machine)
  *
  * **Outputs:**
  * - Excitation controller bridge signals
- * - Speed generator profile selection signals
+ * - Startup sequencer control signals
  * - Thyristor firing pulses to external I/O
  *
  * **Override Capability:**
@@ -24,7 +24,7 @@
  * 1. Plant builder calls update_analog_inputs() with raw ADC counts at 200µs
  * 2. Plant builder calls update_fiber_optics_inputs() at 1ms with grid-side outputs
  * 3. Plant builder calls update_excitation_inputs() at 10ms with excitation commands
- * 4. Plant builder calls update_speed_generator_inputs() at 10ms with profile commands
+ * 4. Plant builder calls update_startup_sequencer_inputs() at 10ms with sequencer commands
  * 5. Plant builder reads from get_thyristor_pulse_outputs() for external I/O
  *
  * @see sfc_grid_side_external_ios_datamodel for parallel grid-side implementation
@@ -71,7 +71,8 @@ public:
      *
      * Override flags enable parameter-based mocking:
      * - override_excitation_inputs: Mock excitation control commands
-     * - override_speed_generator_profiles: Mock speed generator profile commands
+     * - override_speed_generator_profiles: Mock speed generator profile commands (DISABLED - replaced by
+     * startup_sequencer)
      * - override_fiber_optics_inputs: Mock grid-side cross-coupling signals
      *
      * When override flag is enabled, the corresponding update_*() method will use
@@ -85,14 +86,15 @@ public:
         yeet::parameter<bool> excitation_stop_command{false};
 
         // Speed generator profile selection overrides (turbine starting sequence)
-        yeet::parameter<bool> override_speed_generator_profiles{false};
-        yeet::parameter<bool> run_creep_speed{false};     ///< Profile 1: Creep speed (~5% rated)
-        yeet::parameter<bool> run_purge_accel{false};     ///< Profile 2: Purge acceleration (~20% rated)
-        yeet::parameter<bool> run_ignition_accel{false};  ///< Profile 3: Ignition acceleration (~55% rated)
-        yeet::parameter<bool> run_assist_accel{false};    ///< Profile 4: Assist to self-sustaining (~95% rated)
-        yeet::parameter<bool> hold_speed{false};          ///< Hold current speed setpoint
-        yeet::parameter<bool> decelerate{false};          ///< Controlled deceleration to zero
-        yeet::parameter<bool> idle{false};                ///< Idle mode (zero torque/speed outputs)
+        // DISABLED: Speed generator replaced by startup_sequencer - these parameters are no longer used
+        // yeet::parameter<bool> override_speed_generator_profiles{false};
+        // yeet::parameter<bool> run_creep_speed{false};     ///< Profile 1: Creep speed (~5% rated)
+        // yeet::parameter<bool> run_purge_accel{false};     ///< Profile 2: Purge acceleration (~20% rated)
+        // yeet::parameter<bool> run_ignition_accel{false};  ///< Profile 3: Ignition acceleration (~55% rated)
+        // yeet::parameter<bool> run_assist_accel{false};    ///< Profile 4: Assist to self-sustaining (~95% rated)
+        // yeet::parameter<bool> hold_speed{false};          ///< Hold current speed setpoint
+        // yeet::parameter<bool> decelerate{false};          ///< Controlled deceleration to zero
+        // yeet::parameter<bool> idle{false};                ///< Idle mode (zero torque/speed outputs)
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================
@@ -170,24 +172,25 @@ public:
     };
 
     // ==================== SPEED GENERATOR OUTPUTS (Profile Selection) ====================
+    // DISABLED: Speed generator replaced by startup_sequencer - these signals are no longer used
 
-    /**
-     * @brief Speed generator profile selection output signals (turbine starting sequence)
-     *
-     * These signals select which turbine starting profile the speed generator uses.
-     * Each profile defines a specific acceleration ramp with distinct speed targets.
-     *
-     * Flow: External turbine controller → machine_side_external_ios → speed_generator
-     */
-    struct speed_generator_outputs_t {
-        signal_output<bool> run_creep_speed;     ///< Profile 1: Creep speed (~5% rated)
-        signal_output<bool> run_purge_accel;     ///< Profile 2: Purge acceleration (~20% rated)
-        signal_output<bool> run_ignition_accel;  ///< Profile 3: Ignition acceleration (~55% rated)
-        signal_output<bool> run_assist_accel;    ///< Profile 4: Assist to self-sustaining (~95% rated)
-        signal_output<bool> hold_speed;          ///< Hold current speed setpoint
-        signal_output<bool> decelerate;          ///< Controlled deceleration to zero
-        signal_output<bool> idle;                ///< Idle mode (zero torque/speed outputs)
-    };
+    // /**
+    //  * @brief Speed generator profile selection output signals (turbine starting sequence)
+    //  *
+    //  * These signals select which turbine starting profile the speed generator uses.
+    //  * Each profile defines a specific acceleration ramp with distinct speed targets.
+    //  *
+    //  * Flow: External turbine controller → machine_side_external_ios → speed_generator
+    //  */
+    // struct speed_generator_outputs_t {
+    //     signal_output<bool> run_creep_speed;     ///< Profile 1: Creep speed (~5% rated)
+    //     signal_output<bool> run_purge_accel;     ///< Profile 2: Purge acceleration (~20% rated)
+    //     signal_output<bool> run_ignition_accel;  ///< Profile 3: Ignition acceleration (~55% rated)
+    //     signal_output<bool> run_assist_accel;    ///< Profile 4: Assist to self-sustaining (~95% rated)
+    //     signal_output<bool> hold_speed;          ///< Hold current speed setpoint
+    //     signal_output<bool> decelerate;          ///< Controlled deceleration to zero
+    //     signal_output<bool> idle;                ///< Idle mode (zero torque/speed outputs)
+    // };
 
     // ==================== STARTUP SEQUENCER OUTPUTS (Startup Control) ====================
 
@@ -274,17 +277,18 @@ public:
      */
     excitation_outputs_t& get_excitation_outputs() { return _excitation_outputs; }
 
-    /**
-     * @brief Get speed generator output signals (const)
-     * @return Const reference to speed generator outputs
-     */
-    const speed_generator_outputs_t& get_speed_generator_outputs() const { return _speed_generator_outputs; }
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // /**
+    //  * @brief Get speed generator output signals (const)
+    //  * @return Const reference to speed generator outputs
+    //  */
+    // const speed_generator_outputs_t& get_speed_generator_outputs() const { return _speed_generator_outputs; }
 
-    /**
-     * @brief Get speed generator output signals (mutable)
-     * @return Mutable reference to speed generator outputs
-     */
-    speed_generator_outputs_t& get_speed_generator_outputs() { return _speed_generator_outputs; }
+    // /**
+    //  * @brief Get speed generator output signals (mutable)
+    //  * @return Mutable reference to speed generator outputs
+    //  */
+    // speed_generator_outputs_t& get_speed_generator_outputs() { return _speed_generator_outputs; }
 
     /**
      * @brief Get startup sequencer output signals (const)
@@ -380,33 +384,34 @@ public:
      */
     void update_excitation_inputs(bool exciter_ready, bool excitation_start_command, bool excitation_stop_command);
 
-    /**
-     * @brief Update speed generator profile selection inputs
-     *
-     * Called at 10ms with profile selection commands for the turbine starting sequence.
-     * Respects override_speed_generator_profiles flag if set for test injection.
-     *
-     * **Parameters:**
-     * @param run_creep_speed Profile 1: Creep speed
-     * @param run_purge_accel Profile 2: Purge acceleration
-     * @param run_ignition_accel Profile 3: Ignition acceleration
-     * @param run_assist_accel Profile 4: Assist to self-sustaining
-     * @param hold_speed Hold current speed setpoint
-     * @param decelerate Controlled deceleration to zero
-     * @param idle Idle mode (zero torque/speed outputs)
-     *
-     * **Timing:** Called at 10ms from plant builder
-     *
-     * **Override Logic:** When override_speed_generator_profiles is true,
-     * uses parameter values instead of the values provided to this method.
-     */
-    void update_speed_generator_inputs(bool run_creep_speed,
-        bool run_purge_accel,
-        bool run_ignition_accel,
-        bool run_assist_accel,
-        bool hold_speed,
-        bool decelerate,
-        bool idle);
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // /**
+    //  * @brief Update speed generator profile selection inputs
+    //  *
+    //  * Called at 10ms with profile selection commands for the turbine starting sequence.
+    //  * Respects override_speed_generator_profiles flag if set for test injection.
+    //  *
+    //  * **Parameters:**
+    //  * @param run_creep_speed Profile 1: Creep speed
+    //  * @param run_purge_accel Profile 2: Purge acceleration
+    //  * @param run_ignition_accel Profile 3: Ignition acceleration
+    //  * @param run_assist_accel Profile 4: Assist to self-sustaining
+    //  * @param hold_speed Hold current speed setpoint
+    //  * @param decelerate Controlled deceleration to zero
+    //  * @param idle Idle mode (zero torque/speed outputs)
+    //  *
+    //  * **Timing:** Called at 10ms from plant builder
+    //  *
+    //  * **Override Logic:** When override_speed_generator_profiles is true,
+    //  * uses parameter values instead of the values provided to this method.
+    //  */
+    // void update_speed_generator_inputs(bool run_creep_speed,
+    //     bool run_purge_accel,
+    //     bool run_ignition_accel,
+    //     bool run_assist_accel,
+    //     bool hold_speed,
+    //     bool decelerate,
+    //     bool idle);
 
     /**
      * @brief Update startup sequencer control inputs (test/sim interface)
@@ -465,11 +470,12 @@ private:
      */
     bool write_excitation_overrides();
 
-    /**
-     * @brief Apply speed generator profile overrides if enabled
-     * @return true if overrides were applied, false if real signals should be used
-     */
-    bool write_speed_generator_overrides();
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // /**
+    //  * @brief Apply speed generator profile overrides if enabled
+    //  * @return true if overrides were applied, false if real signals should be used
+    //  */
+    // bool write_speed_generator_overrides();
 
     // ==================== MEMBER STATE ====================
 
@@ -477,7 +483,7 @@ private:
     analog_inputs_t _analog_inputs;
     fiber_optics_inputs_t _fiber_optics_inputs;
     excitation_outputs_t _excitation_outputs;
-    speed_generator_outputs_t _speed_generator_outputs;
+    // speed_generator_outputs_t _speed_generator_outputs;  // DISABLED: Replaced by startup_sequencer
     startup_sequencer_outputs_t _startup_sequencer_outputs;
     thyristor_control_output_t _thyristor_output;
 

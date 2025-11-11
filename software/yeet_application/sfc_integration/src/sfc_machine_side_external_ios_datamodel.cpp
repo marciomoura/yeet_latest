@@ -12,20 +12,22 @@ void sfc_machine_side_external_ios_datamodel::register_callbacks()
 {
     auto excitation_inputs_callback = [this]() { write_excitation_overrides(); };
 
-    auto speed_generator_profiles_callback = [this]() { write_speed_generator_overrides(); };
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // auto speed_generator_profiles_callback = [this]() { write_speed_generator_overrides(); };
 
     _parameters.override_excitation_inputs.register_callback(excitation_inputs_callback);
     _parameters.exciter_ready.register_callback(excitation_inputs_callback);
     _parameters.excitation_start_command.register_callback(excitation_inputs_callback);
     _parameters.excitation_stop_command.register_callback(excitation_inputs_callback);
 
-    _parameters.run_creep_speed.register_callback(excitation_inputs_callback);
-    _parameters.run_purge_accel.register_callback(excitation_inputs_callback);
-    _parameters.run_ignition_accel.register_callback(excitation_inputs_callback);
-    _parameters.run_assist_accel.register_callback(excitation_inputs_callback);
-    _parameters.hold_speed.register_callback(excitation_inputs_callback);
-    _parameters.decelerate.register_callback(excitation_inputs_callback);
-    _parameters.idle.register_callback(excitation_inputs_callback);
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // _parameters.run_creep_speed.register_callback(excitation_inputs_callback);
+    // _parameters.run_purge_accel.register_callback(excitation_inputs_callback);
+    // _parameters.run_ignition_accel.register_callback(excitation_inputs_callback);
+    // _parameters.run_assist_accel.register_callback(excitation_inputs_callback);
+    // _parameters.hold_speed.register_callback(excitation_inputs_callback);
+    // _parameters.decelerate.register_callback(excitation_inputs_callback);
+    // _parameters.idle.register_callback(excitation_inputs_callback);
 }
 
 void sfc_machine_side_external_ios_datamodel::update_analog_inputs(
@@ -70,25 +72,26 @@ void sfc_machine_side_external_ios_datamodel::update_excitation_inputs(
     }
 }
 
-void sfc_machine_side_external_ios_datamodel::update_speed_generator_inputs(bool run_creep_speed,
-    bool run_purge_accel,
-    bool run_ignition_accel,
-    bool run_assist_accel,
-    bool hold_speed,
-    bool decelerate,
-    bool idle)
-{
-    const bool speed_generator_overrides_written = write_speed_generator_overrides();
-    if (!speed_generator_overrides_written) {
-        _speed_generator_outputs.run_creep_speed.write(run_creep_speed);
-        _speed_generator_outputs.run_purge_accel.write(run_purge_accel);
-        _speed_generator_outputs.run_ignition_accel.write(run_ignition_accel);
-        _speed_generator_outputs.run_assist_accel.write(run_assist_accel);
-        _speed_generator_outputs.hold_speed.write(hold_speed);
-        _speed_generator_outputs.decelerate.write(decelerate);
-        _speed_generator_outputs.idle.write(idle);
-    }
-}
+// DISABLED: Speed generator replaced by startup_sequencer
+// void sfc_machine_side_external_ios_datamodel::update_speed_generator_inputs(bool run_creep_speed,
+//     bool run_purge_accel,
+//     bool run_ignition_accel,
+//     bool run_assist_accel,
+//     bool hold_speed,
+//     bool decelerate,
+//     bool idle)
+// {
+//     const bool speed_generator_overrides_written = write_speed_generator_overrides();
+//     if (!speed_generator_overrides_written) {
+//         _speed_generator_outputs.run_creep_speed.write(run_creep_speed);
+//         _speed_generator_outputs.run_purge_accel.write(run_purge_accel);
+//         _speed_generator_outputs.run_ignition_accel.write(run_ignition_accel);
+//         _speed_generator_outputs.run_assist_accel.write(run_assist_accel);
+//         _speed_generator_outputs.hold_speed.write(hold_speed);
+//         _speed_generator_outputs.decelerate.write(decelerate);
+//         _speed_generator_outputs.idle.write(idle);
+//     }
+// }
 
 void sfc_machine_side_external_ios_datamodel::update_startup_sequencer_inputs(bool start_command, bool stop_command)
 {
@@ -108,21 +111,22 @@ bool sfc_machine_side_external_ios_datamodel::write_excitation_overrides()
     return true;
 }
 
-bool sfc_machine_side_external_ios_datamodel::write_speed_generator_overrides()
-{
-    if (!_parameters.override_speed_generator_profiles.read()) {
-        return false;
-    }
+// DISABLED: Speed generator replaced by startup_sequencer
+// bool sfc_machine_side_external_ios_datamodel::write_speed_generator_overrides()
+// {
+//     if (!_parameters.override_speed_generator_profiles.read()) {
+//         return false;
+//     }
 
-    _speed_generator_outputs.run_creep_speed.write(_parameters.run_creep_speed.read());
-    _speed_generator_outputs.run_purge_accel.write(_parameters.run_purge_accel.read());
-    _speed_generator_outputs.run_ignition_accel.write(_parameters.run_ignition_accel.read());
-    _speed_generator_outputs.run_assist_accel.write(_parameters.run_assist_accel.read());
-    _speed_generator_outputs.hold_speed.write(_parameters.hold_speed.read());
-    _speed_generator_outputs.decelerate.write(_parameters.decelerate.read());
-    _speed_generator_outputs.idle.write(_parameters.idle.read());
-    return true;
-}
+//     _speed_generator_outputs.run_creep_speed.write(_parameters.run_creep_speed.read());
+//     _speed_generator_outputs.run_purge_accel.write(_parameters.run_purge_accel.read());
+//     _speed_generator_outputs.run_ignition_accel.write(_parameters.run_ignition_accel.read());
+//     _speed_generator_outputs.run_assist_accel.write(_parameters.run_assist_accel.read());
+//     _speed_generator_outputs.hold_speed.write(_parameters.hold_speed.read());
+//     _speed_generator_outputs.decelerate.write(_parameters.decelerate.read());
+//     _speed_generator_outputs.idle.write(_parameters.idle.read());
+//     return true;
+// }
 
 void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
 {
@@ -137,17 +141,19 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
     entry.parameters.insert(
         "exc_excitation_stop_command", yeet::utils::make_bool_accessor(_parameters.excitation_stop_command));
 
-    entry.parameters.insert("speed_ref_override_speed_generator_profiles",
-        yeet::utils::make_bool_accessor(_parameters.override_speed_generator_profiles));
-    entry.parameters.insert("speed_ref_run_creep_speed", yeet::utils::make_bool_accessor(_parameters.run_creep_speed));
-    entry.parameters.insert("speed_ref_run_purge_accel", yeet::utils::make_bool_accessor(_parameters.run_purge_accel));
-    entry.parameters.insert(
-        "speed_ref_run_ignition_accel", yeet::utils::make_bool_accessor(_parameters.run_ignition_accel));
-    entry.parameters.insert(
-        "speed_ref_run_assist_accel", yeet::utils::make_bool_accessor(_parameters.run_assist_accel));
-    entry.parameters.insert("speed_ref_hold_speed", yeet::utils::make_bool_accessor(_parameters.hold_speed));
-    entry.parameters.insert("speed_ref_decelerate", yeet::utils::make_bool_accessor(_parameters.decelerate));
-    entry.parameters.insert("speed_ref_idle", yeet::utils::make_bool_accessor(_parameters.idle));
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // entry.parameters.insert("speed_ref_override_speed_generator_profiles",
+    //     yeet::utils::make_bool_accessor(_parameters.override_speed_generator_profiles));
+    // entry.parameters.insert("speed_ref_run_creep_speed",
+    // yeet::utils::make_bool_accessor(_parameters.run_creep_speed));
+    // entry.parameters.insert("speed_ref_run_purge_accel",
+    // yeet::utils::make_bool_accessor(_parameters.run_purge_accel)); entry.parameters.insert(
+    //     "speed_ref_run_ignition_accel", yeet::utils::make_bool_accessor(_parameters.run_ignition_accel));
+    // entry.parameters.insert(
+    //     "speed_ref_run_assist_accel", yeet::utils::make_bool_accessor(_parameters.run_assist_accel));
+    // entry.parameters.insert("speed_ref_hold_speed", yeet::utils::make_bool_accessor(_parameters.hold_speed));
+    // entry.parameters.insert("speed_ref_decelerate", yeet::utils::make_bool_accessor(_parameters.decelerate));
+    // entry.parameters.insert("speed_ref_idle", yeet::utils::make_bool_accessor(_parameters.idle));
 
     // Register the entry with the model registry
     registry.insert("machine_side_external_ios", std::move(entry));
