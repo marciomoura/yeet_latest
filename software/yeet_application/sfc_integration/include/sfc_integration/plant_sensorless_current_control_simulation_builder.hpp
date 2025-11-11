@@ -58,6 +58,9 @@ public:
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
         yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
+        // Mock machine-side observer release signal (no startup sequencer in this builder)
+        yeet::mock_signal_input::write(machine_side_observer.get_inputs().release_observer, true);
+
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
         yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);

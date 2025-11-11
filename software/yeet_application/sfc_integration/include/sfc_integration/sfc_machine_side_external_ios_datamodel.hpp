@@ -189,6 +189,21 @@ public:
         signal_output<bool> idle;                ///< Idle mode (zero torque/speed outputs)
     };
 
+    // ==================== STARTUP SEQUENCER OUTPUTS (Startup Control) ====================
+
+    /**
+     * @brief Startup sequencer control signals
+     *
+     * These signals control the startup sequencer which manages the complete startup sequence
+     * from IDLE through flux buildup, virtual reference generation, to closed-loop operation.
+     *
+     * Flow: External supervisory controller → machine_side_external_ios → startup_sequencer
+     */
+    struct startup_sequencer_outputs_t {
+        signal_output<bool> start_command;  ///< Start the startup sequence
+        signal_output<bool> stop_command;   ///< Stop the startup sequence
+    };
+
     // ==================== THYRISTOR OUTPUT (Pulse Control) ====================
 
     /**
@@ -270,6 +285,18 @@ public:
      * @return Mutable reference to speed generator outputs
      */
     speed_generator_outputs_t& get_speed_generator_outputs() { return _speed_generator_outputs; }
+
+    /**
+     * @brief Get startup sequencer output signals (const)
+     * @return Const reference to startup sequencer outputs
+     */
+    const startup_sequencer_outputs_t& get_startup_sequencer_outputs() const { return _startup_sequencer_outputs; }
+
+    /**
+     * @brief Get startup sequencer output signals (mutable)
+     * @return Mutable reference to startup sequencer outputs
+     */
+    startup_sequencer_outputs_t& get_startup_sequencer_outputs() { return _startup_sequencer_outputs; }
 
     /**
      * @brief Get thyristor output structure (mutable)
@@ -382,6 +409,17 @@ public:
         bool idle);
 
     /**
+     * @brief Update startup sequencer control inputs (test/sim interface)
+     *
+     * Sets the external command signals for the startup sequencer from a test bench
+     * or simulator. These signals control the startup sequence execution.
+     *
+     * @param start_command Start the startup sequence
+     * @param stop_command Stop the startup sequence
+     */
+    void update_startup_sequencer_inputs(bool start_command, bool stop_command);
+
+    /**
      * @brief Get thyristor pulse outputs
      *
      * Returns the current 6-pulse firing signals for external gate driver consumption.
@@ -389,6 +427,16 @@ public:
      * @return Current machine-side firing pulses
      */
     yeet::control::six_pulse_generator::pulses get_thyristor_pulse_outputs() const;
+
+    /**
+     * @brief Get fixed speed reference output (temporary for startup sequencer testing)
+     *
+     * Provides a constant 1.0 pu speed reference while speed_generator is disconnected.
+     * This will be removed when speed_generator is reintegrated.
+     *
+     * @return Signal output with fixed 1.0 pu speed reference
+     */
+    signal_output<speed_pu_t>& get_fixed_speed_reference() { return _fixed_speed_reference; }
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access
@@ -430,7 +478,11 @@ private:
     fiber_optics_inputs_t _fiber_optics_inputs;
     excitation_outputs_t _excitation_outputs;
     speed_generator_outputs_t _speed_generator_outputs;
+    startup_sequencer_outputs_t _startup_sequencer_outputs;
     thyristor_control_output_t _thyristor_output;
+
+    // Fixed speed reference for startup sequencer testing (temporary until speed_generator reintegration)
+    signal_output<speed_pu_t> _fixed_speed_reference{speed_pu_t{1.0}};
 };
 
 }  // namespace yeet::application::sfc::integration

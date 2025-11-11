@@ -33,7 +33,7 @@ from ..config.machine_side_telemetry_protocol import (
     TorqueControllerInputsData,
     TorqueControllerOutputsData,
     SpeedControllerData,
-    SpeedGeneratorData,
+    StartupSequencerData,
     ExcitationControllerData,
 )
 
@@ -265,24 +265,26 @@ class MachineSideTelemetryPacket:
         )
     
     @property
-    def speed_generator(self) -> SpeedGeneratorData:
-        """Extract speed generator state from signal array."""
-        return SpeedGeneratorData(
-            speed_reference_pu=self.get_signal(MachineSignalIndex.SPEED_GEN_SPEED_REFERENCE),
-            torque_limit_max_pu=self.get_signal(MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MAX),
-            torque_limit_min_pu=self.get_signal(MachineSignalIndex.SPEED_GEN_TORQUE_LIMIT_MIN),
-            is_profile_complete=self.get_bool_signal(MachineSignalIndex.SPEED_GEN_IS_PROFILE_COMPLETE),
-            is_breakaway_boost_active=self.get_bool_signal(MachineSignalIndex.SPEED_GEN_IS_BREAKAWAY_BOOST_ACTIVE),
+    def startup_sequencer(self) -> StartupSequencerData:
+        """Extract startup sequencer state from signal array."""
+        return StartupSequencerData(
+            speed_reference_pu=self.get_signal(MachineSignalIndex.STARTUP_SPEED_REFERENCE),
+            virtual_rotor_frequency_pu=self.get_signal(MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_FREQUENCY),
+            virtual_rotor_angle_pu=self.get_signal(MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_ANGLE),
+            virtual_torque_reference_pu=self.get_signal(MachineSignalIndex.STARTUP_VIRTUAL_TORQUE_REFERENCE),
+            release_speed_controller=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_SPEED_CONTROLLER),
+            release_excitation=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_EXCITATION),
+            release_torque_controller=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_TORQUE_CONTROLLER),
+            release_machine_side_pulses=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES),
+            is_startup_complete=self.get_bool_signal(MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE),
         )
     
     @property
     def excitation_controller(self) -> ExcitationControllerData:
         """Extract excitation controller state from signal array."""
         return ExcitationControllerData(
-            voltage_setpoint_pu=self.get_signal(MachineSignalIndex.EXCITATION_VOLTAGE_SETPOINT),
-            enable=self.get_bool_signal(MachineSignalIndex.EXCITATION_ENABLE),
-            is_field_established=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_FIELD_ESTABLISHED),
-            is_running=self.get_bool_signal(MachineSignalIndex.EXCITATION_IS_RUNNING),
+            field_current_reference_pu=self.get_signal(MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE),
+            prefluxing_elapsed_time_s=self.get_signal(MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME),
         )
     
     @property

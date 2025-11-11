@@ -73,6 +73,7 @@ struct sfc_state_outputs {
     bool pulse_releases{false};
     bool freeze_integrator{false};
     bool request_extinguish_dc_current{false};
+    bool reset_controllers{false};  ///< Command to reset all controllers to initial state
 };
 
 // Type aliases for convenience
@@ -84,8 +85,6 @@ class idle_state;
 class auxiliaries_on_state;
 class breakers_off_state;
 class breakers_on_state;
-// class excitation_off_state;
-// class excitation_on_state
 class operation_off_state;
 class operation_on_state;
 class shutdown_requested_state;
@@ -199,6 +198,7 @@ public:
 
 private:
     shutdown_requested_state* _shutdown_requested_state{nullptr};
+    bool _is_first_cycle{true};  ///< Flag to detect state entry
 };
 
 /**

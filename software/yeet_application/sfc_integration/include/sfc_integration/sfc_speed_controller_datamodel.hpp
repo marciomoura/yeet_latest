@@ -37,6 +37,9 @@ public:
 
         /// Saturation status feedback
         signal_input<bool> is_saturated;
+
+        /// Applied torque reference from torque controller for bumpless transfer initialization
+        signal_input<torque_pu_t> applied_torque_reference;
     };
 
     /**
@@ -64,7 +67,7 @@ public:
         parameter<duration_t> ti = duration_t{ms(2200.0)};
 
         /// Torque reference magnitude limit [pu]
-        parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{2.0};
+        parameter<torque_pu_t> torque_reference_magnitude_limit = torque_pu_t{1.2};
 
         /// Initial speed for controller reset [pu]
         parameter<speed_pu_t> initial_speed{speed_pu_t{0.0}};

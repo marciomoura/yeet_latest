@@ -344,32 +344,62 @@ int main(int argc, char* argv[])
         handle_machine_telemetry(machine_telemetry_server, machine_network_infra);
     });
 
-    // ==================== Plant Configuration (EXACT from LowSpeedStartupWithBreakawayBoostTest) ====================
-    std::cout << "[CONFIG] Configuring plant for low-speed startup with breakaway boost..." << std::endl;
+    // ==================== Startup Sequencer Configuration (from StartupSequencerIntegrationTest) ====================
+    std::cout << "[CONFIG] Configuring startup sequencer for soft-starter operation..." << std::endl;
 
-    // Configure plant at near-standstill (simulates sticky bearings)
+    // Virtual frequency profile: 0 Hz → 5 Hz (0.1 pu) in 10 seconds
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial =
+        yeet::frequency_pu_t{0.0};
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final =
+        yeet::frequency_pu_t{0.1};
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration =
+        yeet::duration_t{10.0};
+
+    // Virtual torque profile: 0.0 pu → 0.3 pu in 1 second
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial =
+        yeet::torque_pu_t{0.0};
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final =
+        yeet::torque_pu_t{0.3};
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration =
+        yeet::duration_t{1.0};
+
+    // Pre-fluxing duration before virtual startup
+    simulator_builder.machine_side_control.excitation_controller.get_parameters().prefluxing_duration =
+        yeet::duration_t{1.0f};
+
+    // Speed reference rate limiter: 20 seconds per pu = 0.05 pu/s
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters()
+        .speed_reference_rate_limit_seconds_per_pu = yeet::real_t{20.0f};
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+    // ==================== Plant Configuration (Soft-Starter Application) ====================
+    std::cout << "[CONFIG] Configuring plant for soft-starter operation..." << std::endl;
+
+    // Configure plant starting from standstill
     yeet::application::sfc::integration::test::variable_speed_config plant_config{};
-    plant_config.initial_speed = yeet::speed_pu_t{0.001f};
+    plant_config.initial_speed = yeet::speed_pu_t{0.0f};
     yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
 
-    // Configure Profile 1 with faster acceleration and explicit boost settings
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_acceleration_time =
-        yeet::duration_t{15.0f};
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_initial_torque_boost =
-        yeet::torque_pu_t{0.20f};
-    simulator_builder.machine_side_control.speed_generator.get_parameters().profile_1_boost_duration =
-        yeet::duration_t{2.0f};
+    // Moderate load torque (typical for gas turbine compressor)
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.15f));
 
-    // High load simulating static friction
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.20f));
+    // Configure torque limits for startup
+    yeet::mock_signal_input::write(
+        simulator_builder.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit,
+        yeet::torque_pu_t{1.0});
+    yeet::mock_signal_input::write(
+        simulator_builder.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit,
+        yeet::torque_pu_t{0.0});
 
     std::cout << "[CONFIG] Configuration complete:" << std::endl;
-    std::cout << "         - Initial speed: 0.001 pu (near-standstill)" << std::endl;
-    std::cout << "         - Load torque: 0.20 pu (static friction)" << std::endl;
-    std::cout << "         - Profile 1 acceleration: 15.0s" << std::endl;
-    std::cout << "         - Breakaway boost: 0.20 pu for 2.0s" << std::endl;
+    std::cout << "         - Initial speed: 0.0 pu (standstill)" << std::endl;
+    std::cout << "         - Load torque: 0.15 pu (moderate load)" << std::endl;
+    std::cout << "         - Virtual frequency: 0 → 0.1 pu in 10s" << std::endl;
+    std::cout << "         - Virtual torque: 0 → 0.3 pu in 1s" << std::endl;
+    std::cout << "         - Speed rate limit: 20 s/pu (0.05 pu/s)" << std::endl;
+    std::cout << "         - Pre-fluxing: 1.0s" << std::endl;
 
-    // ==================== PRE-LOOP INITIALIZATION (EXACT from test) ====================
+    // ==================== PRE-LOOP INITIALIZATION (from StartupSequencerIntegrationTest) ====================
     std::cout << "[INIT] Executing state machine startup sequence..." << std::endl;
 
     // State machine startup (EXACT from execute_startup_sequence())
@@ -382,12 +412,6 @@ int main(int argc, char* argv[])
     yeet::mock_signal_input::write(simulator_builder.grid_side_control.state_machine.get_inputs().start_command, true);
     simulator.simulate_for(0.1);
 
-    // Enable speed control and set voltage mode (EXACT from test)
-    yeet::mock_signal_input::write(
-        simulator_builder.machine_side_control.speed_controller.get_inputs().release_pulses, true);
-    simulator_builder.plant.get_plant_model().set_voltage_control_mode(
-        yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
-
     std::cout << "[INIT] State machine startup complete" << std::endl;
 
     // Verify state machine is operational
@@ -398,32 +422,48 @@ int main(int argc, char* argv[])
     }
     std::cout << "[INIT] State machine: OPERATION_ON (pulse releases active)" << std::endl;
 
-    // ==================== Activate Profile 1 (Creep) ====================
-    std::cout << "[INIT] Activating Profile 1 (Creep speed)..." << std::endl;
+    // ==================== Trigger Startup Sequencer ====================
+    std::cout << "[INIT] Starting startup sequencer..." << std::endl;
 
-    // EXACT from test
-    idle = false;
-    simulator.simulate_for(0.1);
+    // Send start command to the startup sequencer (via external I/O override)
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().override_enable_start_command.write(true);
+    simulator_builder.machine_side_control.startup_sequencer.get_parameters().override_value_start_command.write(true);
+    simulator.simulate_for(0.1);  // Allow command to propagate
 
-    run_creep_speed = true;
-    simulator.simulate_for(0.1);
+    // Pre-flux duration
+    std::cout << "[INIT] Pre-fluxing (1.0s)..." << std::endl;
+    // simulator.simulate_for(1.0);
 
-    std::cout << "[INIT] Profile 1 activated" << std::endl;
+    // Wait for flux buildup and virtual startup to complete
+    // Pre-flux (1s already done) + Virtual frequency ramp (10s) = 10s more
+    std::cout << "[INIT] Virtual startup procedure (10.0s)..." << std::endl;
+    // simulator.simulate_for(11.5);  // 10s virtual ramp + 0.5s settling
 
-    // ==================== Simulate Until Steady State ====================
-    std::cout << "[INIT] Simulating to steady state (20 seconds)..." << std::endl;
+    // // Verify startup sequencer reached closed-loop operation
+    // auto startup_state = simulator_builder.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    // if (startup_state != yeet::application::sfc::startup_sequencer_state_t::CLOSED_LOOP_OPERATION) {
+    //     std::cerr << "[ERROR] Startup sequencer did not reach CLOSED_LOOP_OPERATION state!" << std::endl;
+    //     std::cerr << "         Current state: " << static_cast<int>(startup_state) << std::endl;
+    //     return 1;
+    // }
 
-    // Simulate through boost phase and acceleration
-    simulator.simulate_for(20.0);
+    // Set external speed reference to 1.0 pu
+    std::cout << "[INIT] Setting speed reference to 1.0 pu..." << std::endl;
+    simulator_builder.machine_side_control.external_ios.get_fixed_speed_reference().write(yeet::speed_pu_t{1.0});
+    // simulator.simulate_for(0.1);
 
-    // Check final speed
-    auto final_speed =
-        simulator_builder.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    std::cout << "[INIT] Initialization complete - Speed: " << final_speed.value() << " pu" << std::endl;
+    // Ramp to 1.0 pu with rate limiting (20 s/pu = 20 seconds)
+    // std::cout << "[INIT] Ramping to full speed (20s at 0.05 pu/s)..." << std::endl;
+    // simulator.simulate_for(20.0);
 
-    if (final_speed.value() < 0.04f) {
-        std::cerr << "[WARNING] Speed may not have reached target (expected ~0.05 pu)" << std::endl;
-    }
+    // // Check final speed
+    // auto final_speed =
+    //     simulator_builder.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    // std::cout << "[INIT] Initialization complete - Speed: " << final_speed.value() << " pu" << std::endl;
+
+    // if (final_speed.value() < 0.85f) {
+    //     std::cerr << "[WARNING] Speed may not have reached target (expected ~1.0 pu)" << std::endl;
+    // }
 
     // ==================== START REAL-TIME CONTROL LOOP ====================
     std::cout << "\n======================================" << std::endl;

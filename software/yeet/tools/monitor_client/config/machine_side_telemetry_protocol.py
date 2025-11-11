@@ -60,18 +60,20 @@ class MachineSignalIndex(IntEnum):
     SPEED_PI_OUTPUT = 32
     SPEED_IS_SATURATED = 33
     
-    # Speed Generator Group (34-38)
-    SPEED_GEN_SPEED_REFERENCE = 34
-    SPEED_GEN_TORQUE_LIMIT_MAX = 35
-    SPEED_GEN_TORQUE_LIMIT_MIN = 36
-    SPEED_GEN_IS_PROFILE_COMPLETE = 37
-    SPEED_GEN_IS_BREAKAWAY_BOOST_ACTIVE = 38
+    # Startup Sequencer Group (34-42)
+    STARTUP_SPEED_REFERENCE = 34
+    STARTUP_VIRTUAL_ROTOR_FREQUENCY = 35
+    STARTUP_VIRTUAL_ROTOR_ANGLE = 36
+    STARTUP_VIRTUAL_TORQUE_REFERENCE = 37
+    STARTUP_RELEASE_SPEED_CONTROLLER = 38
+    STARTUP_RELEASE_EXCITATION = 39
+    STARTUP_RELEASE_TORQUE_CONTROLLER = 40
+    STARTUP_RELEASE_MACHINE_SIDE_PULSES = 41
+    STARTUP_IS_STARTUP_COMPLETE = 42
     
-    # Excitation Controller Group (39-42)
-    EXCITATION_VOLTAGE_SETPOINT = 39
-    EXCITATION_ENABLE = 40
-    EXCITATION_IS_FIELD_ESTABLISHED = 41
-    EXCITATION_IS_RUNNING = 42
+    # Excitation Controller Group (43-44)
+    EXCITATION_FIELD_CURRENT_REFERENCE = 43
+    EXCITATION_PREFLUXING_ELAPSED_TIME = 44
 
 
 @dataclass
@@ -147,19 +149,21 @@ class SpeedControllerData:
 
 
 @dataclass
-class SpeedGeneratorData:
-    """Speed generator configuration and state (34-38)."""
+class StartupSequencerData:
+    """Startup sequencer configuration and state (34-42)."""
     speed_reference_pu: float = 0.0
-    torque_limit_max_pu: float = 0.0
-    torque_limit_min_pu: float = 0.0
-    is_profile_complete: bool = False
-    is_breakaway_boost_active: bool = False
+    virtual_rotor_frequency_pu: float = 0.0
+    virtual_rotor_angle_pu: float = 0.0
+    virtual_torque_reference_pu: float = 0.0
+    release_speed_controller: bool = False
+    release_excitation: bool = False
+    release_torque_controller: bool = False
+    release_machine_side_pulses: bool = False
+    is_startup_complete: bool = False
 
 
 @dataclass
 class ExcitationControllerData:
-    """Excitation controller state and outputs (39-42)."""
-    voltage_setpoint_pu: float = 0.0
-    enable: bool = False
-    is_field_established: bool = False
-    is_running: bool = False
+    """Excitation controller state and outputs (43-44)."""
+    field_current_reference_pu: float = 0.0
+    prefluxing_elapsed_time_s: float = 0.0

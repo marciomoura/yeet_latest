@@ -23,6 +23,14 @@ void sfc_machine_side_observer_runner::initialize()
 
 void sfc_machine_side_observer_runner::run()
 {
+    // Check if observer is enabled by startup sequencer
+    if (!_inputs.release_observer.read()) {
+        // Observer disabled - reset to initial state
+        _sfc_machine_side_observer.reset(_parameters.initial_frequency);
+        return;
+    }
+
+    // Normal observer execution when enabled
     _sfc_machine_side_observer.update(_inputs.machine_voltage_pu.read());
 
     _outputs.estimated_voltage_magnitude = _sfc_machine_side_observer.get_estimated_voltage_magnitude();

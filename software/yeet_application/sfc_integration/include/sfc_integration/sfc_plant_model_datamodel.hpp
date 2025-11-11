@@ -117,6 +117,16 @@ public:
         /// Default: 0.01 pu
         parameter<damping_coefficient_pu_t> motor_damping_factor;
 
+        /// Linear load coefficient k1 [pu/pu] for speed-dependent load torque
+        /// T_load = T_external + k1*omega + k2*omega^2
+        /// Default: 0.0 (no linear load)
+        parameter<real_t> motor_linear_load_coefficient;
+
+        /// Quadratic load coefficient k2 [pu/pu^2] for speed-dependent load torque
+        /// Typical for gas turbine compressors: 0.2-0.4
+        /// Default: 0.0 (no quadratic load)
+        parameter<real_t> motor_quadratic_load_coefficient;
+
         /// Explicit constructor to initialize all parameters with their default values
         parameters()
         {
@@ -125,6 +135,8 @@ public:
             voltage_control_mode.write(machine_voltage_control_mode::fixed_voltage);
             motor_inertia_constant.write(inertia_constant_t(2.5));
             motor_damping_factor.write(damping_coefficient_pu_t(0.01));
+            motor_linear_load_coefficient.write(real_t(0.0));
+            motor_quadratic_load_coefficient.write(real_t(0.0));
         }
 
         // Allow default copy/move since parameter<T> handles state correctly
@@ -179,6 +191,10 @@ public:
             "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
         entry.parameters.insert(
             "motor_damping_factor", yeet::utils::make_units_accessor(_model_parameters->motor_damping_factor));
+        entry.parameters.insert("motor_linear_load_coefficient",
+            yeet::utils::make_units_accessor(_model_parameters->motor_linear_load_coefficient));
+        entry.parameters.insert("motor_quadratic_load_coefficient",
+            yeet::utils::make_units_accessor(_model_parameters->motor_quadratic_load_coefficient));
 
         registry.insert("plant_model", std::move(entry));
     }

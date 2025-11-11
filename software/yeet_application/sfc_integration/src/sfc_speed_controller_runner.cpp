@@ -15,36 +15,49 @@ void sfc_speed_controller_runner::initialize()
     set_parameter_callback();
 
     // Initialize to initial speed
+    _sfc_speed_controller.configure_torque_limits_pu(
+        torque_pu_t{0.0}, _parameters.torque_reference_magnitude_limit.read());
     _sfc_speed_controller.reset(_parameters.initial_speed);
 }
 
 void sfc_speed_controller_runner::run()
 {
-    // CRITICAL: Use composite saturation from torque controller, which includes
-    // both torque-level and current-level saturation
-    // const bool downstream_saturated = _inputs.is_saturated.read();
+    // Track previous release state for edge detection
+    static bool previous_release_state = false;
+    const bool current_release_state = _inputs.release_pulses.read();
 
-    // // CRITICAL: Also freeze during external events from supervisor
-    // const bool external_freeze_requested = _inputs.freeze_integrator.read();
-
-    // Combine: freeze if EITHER downstream is saturated OR external freeze requested
-    const bool freeze_integrator = _inputs.is_saturated;
-
-    if (!_inputs.release_pulses.read()) {
-        // When disabled, controller is inactive (no output updates)
-        // When re-enabling, could reset to current measured speed to prevent bump
-        // _sfc_speed_controller.reset(_inputs.measured_speed.read());
-        return;  // Skip update when disabled
+    if (!current_release_state) {
+        // Not enabled - reset controller state
+        _sfc_speed_controller.preset_with_torque({});
     }
 
-    // Execute controller update
-    // _sfc_speed_controller.freeze_integrator(freeze_integrator);
-    _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
+    // Detect rising edge (false → true transition) for bumpless transfer
+    if (!previous_release_state && current_release_state) {
+        // First release: initialize integrator with torque reference for smooth transition
+        _sfc_speed_controller.preset_with_torque(_inputs.applied_torque_reference);
+    }
 
-    // Write output signals
-    _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
-    _outputs.pi_output = _sfc_speed_controller.get_pi_output();
-    _outputs.is_saturated = _sfc_speed_controller.is_saturated();
+    previous_release_state = current_release_state;
+
+    // Execute controller update
+    if (current_release_state) {
+        // Combine: freeze if downstream is saturated
+        const bool freeze_integrator = _inputs.freeze_integrator;  //_inputs.is_saturated | _inputs.freeze_integrator;
+
+        _sfc_speed_controller.freeze_integrator(freeze_integrator);
+        _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);
+
+        // Write output signals
+        _outputs.torque_reference = _sfc_speed_controller.get_torque_ref_pu();
+        _outputs.pi_output = _sfc_speed_controller.get_pi_output();
+        _outputs.is_saturated = _sfc_speed_controller.is_saturated();
+    }
+    else {
+        // Write zero outputs when not enabled
+        _outputs.torque_reference = torque_pu_t{0.0};
+        _outputs.pi_output = real_t{0.0};
+        _outputs.is_saturated = false;
+    }
 }
 
 void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }

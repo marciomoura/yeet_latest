@@ -21,6 +21,7 @@ target_sources(
             integrator_test.cpp
             interval_timer_test.cpp
             limit_tests.cpp
+            linear_ramp_test.cpp
             lookup_table_1d_test.cpp
             lookup_table_2d_test.cpp
             mechanical_load_test.cpp

@@ -14,6 +14,7 @@
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_integration/sfc_startup_sequencer_runner.hpp"
 #include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
@@ -40,9 +41,10 @@ public:
      */
     explicit sfc_machine_side_control()
         : excitation_controller(),
-          speed_generator(),
+          //   speed_generator(),
           speed_controller(),
           torque_controller(),
+          startup_sequencer(per_unit_system),
           machine_integrator_supervisor(),
           machine_side_controller(),
           machine_side_observer(),
@@ -131,14 +133,17 @@ public:
     sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }
     const sfc_excitation_controller_runner& get_excitation_controller() const { return excitation_controller; }
 
-    sfc_soft_starter_speed_generator_runner& get_speed_generator() { return speed_generator; }
-    const sfc_soft_starter_speed_generator_runner& get_speed_generator() const { return speed_generator; }
+    // sfc_soft_starter_speed_generator_runner& get_speed_generator() { return speed_generator; }
+    // const sfc_soft_starter_speed_generator_runner& get_speed_generator() const { return speed_generator; }
 
     sfc_speed_controller_runner& get_speed_controller() { return speed_controller; }
     const sfc_speed_controller_runner& get_speed_controller() const { return speed_controller; }
 
     sfc_torque_controller_runner& get_torque_controller() { return torque_controller; }
     const sfc_torque_controller_runner& get_torque_controller() const { return torque_controller; }
+
+    sfc_startup_sequencer_runner& get_startup_sequencer() { return startup_sequencer; }
+    const sfc_startup_sequencer_runner& get_startup_sequencer() const { return startup_sequencer; }
 
     sfc_machine_side_controller_runner& get_machine_side_controller() { return machine_side_controller; }
     const sfc_machine_side_controller_runner& get_machine_side_controller() const { return machine_side_controller; }
@@ -277,9 +282,10 @@ public:
 
     // Machine-side control components (made public for intermediate integration)
     sfc_excitation_controller_runner excitation_controller;
-    sfc_soft_starter_speed_generator_runner speed_generator;
+    // sfc_soft_starter_speed_generator_runner speed_generator;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
+    sfc_startup_sequencer_runner startup_sequencer;
     sfc_machine_side_integrator_supervisor_runner machine_integrator_supervisor;
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;
@@ -294,6 +300,9 @@ private:
     // Fiber-optic communication buffers (internal storage)
     std::array<std::uint32_t, fiber_optic::max_payload_words> _fiber_optic_tx_payload{};
     std::uint8_t _fiber_optic_tx_length{0};
+
+    // Fixed speed reference for startup sequencer coordination (temporary, until speed_generator reintegration)
+    speed_pu_t _fixed_speed_reference{1.0};
 
     /**
      * @brief Connect internal signals between machine-side components

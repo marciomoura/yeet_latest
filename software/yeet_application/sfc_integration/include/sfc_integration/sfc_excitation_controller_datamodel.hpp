@@ -35,6 +35,9 @@ public:
 
         /// Pre-fluxing elapsed time [s]
         signal_output<duration_t> prefluxing_elapsed_time;
+
+        /// Field established flag - true when flux buildup timer has elapsed [bool]
+        signal_output<bool> is_field_established;
     };
 
     /**

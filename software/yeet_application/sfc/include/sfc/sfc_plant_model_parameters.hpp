@@ -41,10 +41,15 @@ struct sfc_plant_model_electrical_parameters {
 
 /**
  * @brief Mechanical parameters configuration structure
+ *
+ * Includes inertia, damping, and speed-dependent load torque coefficients
+ * for realistic modeling of turbomachinery loads (fans, pumps, compressors).
  */
 struct sfc_plant_model_mechanical_parameters {
     inertia_constant_t inertia_constant_h;
     damping_coefficient_pu_t damping_factor_d;
+    real_t linear_load_coefficient{0.0};     ///< k1: Linear load term [pu/pu] (viscous, windage)
+    real_t quadratic_load_coefficient{0.0};  ///< k2: Quadratic load term [pu/pu^2] (fan, pump, compressor)
 };
 
 /**

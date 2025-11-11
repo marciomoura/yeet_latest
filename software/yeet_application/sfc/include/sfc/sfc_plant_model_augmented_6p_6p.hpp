@@ -69,11 +69,23 @@ public:
 
     /**
      * @brief Configures the parameters of the mechanical load model.
+     *
+     * This method directly configures the mechanical load's inertia, damping, and
+     * speed-dependent load coefficients. For gas turbine applications, typical values:
+     * - Inertia: 2.0-5.0 s (large rotational mass)
+     * - Damping: 0.01-0.05 pu (low friction)
+     * - Linear load: 0.0-0.1 pu/pu (minimal viscous losses)
+     * - Quadratic load: 0.2-0.4 pu/pu^2 (compressor aerodynamic drag)
+     *
      * @param inertia_constant_seconds The inertia constant in seconds.
      * @param damping_coefficient The damping factor in per-unit.
+     * @param linear_load_coeff Linear load coefficient k1 [pu/pu]. Defaults to 0.0.
+     * @param quadratic_load_coeff Quadratic load coefficient k2 [pu/pu^2]. Defaults to 0.0.
      */
-    void configure_mechanical_load(
-        inertia_constant_t inertia_constant_seconds, damping_coefficient_pu_t damping_coefficient);
+    void configure_mechanical_load(inertia_constant_t inertia_constant_seconds,
+        damping_coefficient_pu_t damping_coefficient,
+        real_t linear_load_coeff = 0.0,
+        real_t quadratic_load_coeff = 0.0);
 
     /**
      * @brief Initializes the underlying Simulink model.

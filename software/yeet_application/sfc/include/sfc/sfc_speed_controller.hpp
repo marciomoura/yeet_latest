@@ -79,6 +79,16 @@ public:
     void reset(speed_pu_t initial_speed_pu = speed_pu_t{0.0});
 
     /**
+     * @brief Presets the controller integrator with a specific torque value for bumpless transfer.
+     * @param initial_torque_pu The initial torque to preset the integrator with [pu].
+     *
+     * This method enables smooth transition from manual torque control (e.g., startup sequencer)
+     * to automatic speed control by initializing the PI controller's integrator with the current
+     * manual torque value, preventing output discontinuity.
+     */
+    void preset_with_torque(torque_pu_t initial_torque_pu);
+
+    /**
      * @brief Enables or disables the integrator state.
      * @param status True to enable, false to disable.
      */

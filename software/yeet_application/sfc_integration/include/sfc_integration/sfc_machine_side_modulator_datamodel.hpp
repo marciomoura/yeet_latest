@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "sfc/sfc_machine_side_modulator.hpp"
+#include "sfc/sfc_startup_sequencer.hpp"
 #include "sfc/sfc_types.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
@@ -34,8 +35,14 @@ public:
         /// Acknowledgment signal from grid-side modulator [bool]
         signal_input<bool> force_commutation_acknowledged;
 
-        /// Rotor electrical angle for sector tracking [rad]
+        /// Rotor electrical angle from observer for sector tracking [rad]
         signal_input<angle_wrapped> machine_reference_angle;
+
+        /// Virtual rotor angle from startup sequencer [rad]
+        signal_input<angle_wrapped> virtual_rotor_angle;
+
+        /// Reference frame source selection (VIRTUAL or ESTIMATED)
+        signal_input<reference_frame_source_t> reference_frame_source;
 
         /// Machine-side firing angle reference [rad]
         signal_input<angle_wrapped> firing_angle;
