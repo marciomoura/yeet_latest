@@ -65,7 +65,7 @@ void sfc_current_controller::recompute_internal_limits()
 
     // Set PI output limits to ±2.0 pu (covers normal operating range)
     // This prevents the integrator from going to extreme values when frozen or saturated
-    const real_t pi_output_limit = real_t{2.0};
+    const real_t pi_output_limit = real_t{1.0};
     _pi_controller.set_output_limits(-pi_output_limit, pi_output_limit);
 }
 
@@ -163,6 +163,11 @@ bool sfc_current_controller::is_current_measured_above_magnitude_limit() const
 {
     // Return the stored boolean flag that was updated during the last update() call
     return _is_current_measured_above_magnitude_limit;
+}
+
+bool sfc_current_controller::is_integrator_frozen_for_zero_reference() const
+{
+    return _is_integrator_frozen_for_zero_reference;
 }
 
 }  // namespace yeet::application::sfc

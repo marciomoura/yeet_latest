@@ -137,6 +137,12 @@ public:
      */
     bool is_current_measured_above_magnitude_limit() const;
 
+    /**
+     * @brief Checks if integration is currently disabled due to near-zero current reference.
+     * @return True if integrator is frozen because current reference is below minimum controllable threshold.
+     */
+    bool is_integrator_frozen_for_zero_reference() const;
+
 private:
     void recompute_internal_limits();
 
@@ -161,6 +167,7 @@ private:
     real_t _pi_output{};
     bool _is_reference_current_limited{false};
     bool _is_current_measured_above_magnitude_limit{false};
+    bool _is_integrator_frozen_for_zero_reference{false};
 };
 
 }  // namespace yeet::application::sfc

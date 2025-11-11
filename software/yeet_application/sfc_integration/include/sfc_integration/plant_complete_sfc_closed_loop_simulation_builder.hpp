@@ -66,7 +66,14 @@ public:
         plant_hardware::stage_transformer_ratios_for_machine_side_measurements(
             machine_side_control.machine_measurements, *_per_unit_system);
 
-        // Configure plant model to use external excitation voltage control
+        // Configure controllers
+        /// PI controller proportional gain
+        // parameter<real_t> kp = real_t(6.32);
+        /// PI controller integral time constant [s]
+        // parameter<duration_t> ti = duration_t{ms(2200.0)};
+        machine_side_control.speed_controller.get_parameters().kp = 3.0;
+        //  machine_side_control.speed_controller.get_parameters().ti = duration_t{1.5};
+        //  Configure plant model to use external excitation voltage control
         configure_plant_for_external_excitation_control();
 
         // Connect all signal flows between control classes and plant

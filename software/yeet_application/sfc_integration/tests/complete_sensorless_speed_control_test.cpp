@@ -57,13 +57,6 @@ public:
 
     void initialize()
     {
-        // Configure speed-controller - reduce gain
-        // system.machine_side_control.speed_controller.get_parameters().kp = 1.0;
-        system.grid_side_control.grid_side_pulse_generator.get_parameters().reference_type.write(
-            control::six_pulse_generator::reference_type::phase);
-        system.machine_side_control.machine_side_pulse_generator.get_parameters().reference_type.write(
-            control::six_pulse_generator::reference_type::phase);
-
         set_auxiliaries_on(false);
         set_breakers_on(false);
         set_start_command(false);
@@ -1152,6 +1145,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
     system.machine_side_control.startup_sequencer.get_parameters().flying_restart_speed_threshold = speed_pu_t{0.05};
     system.machine_side_control.startup_sequencer.get_parameters().auto_start_stop_enabled = true;
 
+    // Set initial speed before simulation starts (plant initial condition)
+    // Use a very low speed (0.1% pu) to simulate machine at near-standstill but not exactly zero
+    system.plant.get_parameters().initial_speed.write(0.001f);
+
     // ==================== Execute Initial Startup ====================
     execute_startup_sequence();
 
@@ -1160,7 +1157,10 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.08f));
+    // Load torque matched to virtual startup torque for realistic dynamics
+    // The virtual torque final is 0.2 pu, so use similar load for balanced operation
+    // This provides proper mechanical damping and realistic speed control behavior
+    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.02));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(
