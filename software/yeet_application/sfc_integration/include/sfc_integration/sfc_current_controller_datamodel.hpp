@@ -92,6 +92,12 @@ public:
         /// Current reference magnitude limit [pu]
         parameter<current_pu_t> current_reference_magnitude_limit = current_pu_t(2.0);
 
+        /// Minimum PI controller output limit [pu voltage]
+        parameter<real_t> pi_output_min = real_t(-1.0);
+
+        /// Maximum PI controller output limit [pu voltage]
+        parameter<real_t> pi_output_max = real_t(1.0);
+
         /// Current reference for rectifier operation [pu]
         parameter<current_pu_t> current_reference_rectifier_operation = current_pu_t(0.0);
     };
@@ -122,6 +128,8 @@ public:
             "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
         entry.parameters.insert("current_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_magnitude_limit));
+        entry.parameters.insert("pi_output_min", yeet::utils::make_units_accessor(_model_parameters->pi_output_min));
+        entry.parameters.insert("pi_output_max", yeet::utils::make_units_accessor(_model_parameters->pi_output_max));
         entry.parameters.insert("current_reference_rectifier_operation",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_rectifier_operation));
 

@@ -29,6 +29,7 @@ public:
 private:
     void set_controller_parameters();
     void set_limit_parameters();
+    void set_pi_output_limits();
 
     void set_parameter_callback();
 
