@@ -168,14 +168,20 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
             inputs->digital_inputs.signals[1],                                             // DI2: Excitation start
             inputs->digital_inputs.signals[2]);                                            // DI3: Excitation stop
 
-        // Update speed generator digital inputs from hardware I/O
-        control->external_ios.update_speed_generator_inputs(inputs->digital_inputs.signals[3],  // DI4: Run creep speed
-            inputs->digital_inputs.signals[4],   // DI5: Run purge acceleration
-            inputs->digital_inputs.signals[5],   // DI6: Run ignition acceleration
-            inputs->digital_inputs.signals[6],   // DI7: Run assist acceleration
-            inputs->digital_inputs.signals[7],   // DI8: Hold current speed
-            inputs->digital_inputs.signals[8],   // DI9: Decelerate to zero
-            inputs->digital_inputs.signals[9]);  // DI10: Idle mode
+        // DISABLED: Speed generator replaced by startup_sequencer
+        // // Update speed generator digital inputs from hardware I/O
+        // control->external_ios.update_speed_generator_inputs(inputs->digital_inputs.signals[3],  // DI4: Run creep
+        // speed
+        //     inputs->digital_inputs.signals[4],   // DI5: Run purge acceleration
+        //     inputs->digital_inputs.signals[5],   // DI6: Run ignition acceleration
+        //     inputs->digital_inputs.signals[6],   // DI7: Run assist acceleration
+        //     inputs->digital_inputs.signals[7],   // DI8: Hold current speed
+        //     inputs->digital_inputs.signals[8],   // DI9: Decelerate to zero
+        //     inputs->digital_inputs.signals[9]);  // DI10: Idle mode
+
+        // Update startup sequencer digital inputs from hardware I/O
+        control->external_ios.update_startup_sequencer_inputs(inputs->digital_inputs.signals[3],  // DI4: Start command
+            inputs->digital_inputs.signals[4]);                                                   // DI5: Stop command
     }
 
     // Process fiber-optic RX data from grid-side controller

@@ -15,12 +15,21 @@ void sfc_current_controller_runner::initialize()
 
     set_controller_parameters();
     set_limit_parameters();
+    set_pi_output_limits();
     set_parameter_callback();
 }
 
 void sfc_current_controller_runner::run()
 {
-    const bool freeze_integrator = _inputs.freeze_integrator.read();
+    // Disable integrator when current reference is at or near zero
+    // The LCI cannot actually achieve zero current (requires minimum current for commutation).
+    // Integrating this persistent error would cause the integrator to wind down to negative values.
+    // This is a physical constraint - we cannot impress zero current in a thyristor-based system.
+    // Threshold set conservatively low to only prevent windup at true zero reference.
+    constexpr current_pu_t minimum_controllable_current{0.001};  // 0.1% of base current
+    bool is_integrator_frozen_for_zero_reference = _inputs.current_reference.read() <= minimum_controllable_current;
+
+    const bool freeze_integrator = _inputs.freeze_integrator.read() || is_integrator_frozen_for_zero_reference;
     _sfc_current_controller.freeze_integrator(freeze_integrator);
 
     const voltage_pu_t reflected_machine_voltage_magnitude =
@@ -59,6 +68,14 @@ void sfc_current_controller_runner::set_limit_parameters()
         -current_reference_magnitude_limit, current_reference_magnitude_limit);
 }
 
+void sfc_current_controller_runner::set_pi_output_limits()
+{
+    const real_t pi_output_min = _parameters.pi_output_min.read();
+    const real_t pi_output_max = _parameters.pi_output_max.read();
+
+    _sfc_current_controller.configure_pi_output_limits(pi_output_min, pi_output_max);
+}
+
 void sfc_current_controller_runner::set_controller_parameters()
 {
     const real_t kp = _parameters.kp.read();
@@ -74,6 +91,8 @@ void sfc_current_controller_runner::set_parameter_callback()
     _parameters.min_firing_angle.register_callback([&]() { set_limit_parameters(); });
     _parameters.max_firing_angle.register_callback([&]() { set_limit_parameters(); });
     _parameters.current_reference_magnitude_limit.register_callback([&]() { set_limit_parameters(); });
+    _parameters.pi_output_min.register_callback([&]() { set_pi_output_limits(); });
+    _parameters.pi_output_max.register_callback([&]() { set_pi_output_limits(); });
 }
 
 }  // namespace yeet::application::sfc::integration

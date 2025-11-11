@@ -43,6 +43,13 @@ public:
     void configure_firing_angle_limits_radians(angle_t min_angle, angle_t max_angle);
 
     /**
+     * @brief Sets the output limits for the PI controller.
+     * @param min_output The minimum allowed PI output [pu voltage].
+     * @param max_output The maximum allowed PI output [pu voltage].
+     */
+    void configure_pi_output_limits(real_t min_output, real_t max_output);
+
+    /**
      * @brief Freezes the integrator state.
      * @param status True to freeze, false to unfreeze.
      */
@@ -137,9 +144,13 @@ public:
      */
     bool is_current_measured_above_magnitude_limit() const;
 
-private:
-    void recompute_internal_limits();
+    /**
+     * @brief Checks if integration is currently disabled due to near-zero current reference.
+     * @return True if integrator is frozen because current reference is below minimum controllable threshold.
+     */
+    bool is_integrator_frozen_for_zero_reference() const;
 
+private:
     yeet::control::pi_controller<real_t> _pi_controller;
 
     // Configuration
@@ -161,6 +172,7 @@ private:
     real_t _pi_output{};
     bool _is_reference_current_limited{false};
     bool _is_current_measured_above_magnitude_limit{false};
+    bool _is_integrator_frozen_for_zero_reference{false};
 };
 
 }  // namespace yeet::application::sfc

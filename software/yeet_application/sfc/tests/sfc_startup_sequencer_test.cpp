@@ -22,7 +22,8 @@ protected:
     void run_cycles(int count, bool field_established = true, angle_t estimated_angle = angle_t{0.0})
     {
         for (int i = 0; i < count; ++i) {
-            sequencer->update(field_established, estimated_angle, speed_pu_t{1.0}, base_frequency);
+            sequencer->update(field_established, estimated_angle, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON,
+                speed_pu_t{1.0}, base_frequency);
         }
     }
 
@@ -152,7 +153,8 @@ TEST_F(SfcStartupSequencerTest, FluxBuildupOutputsAreCorrect)
 {
     sequencer->start_sequence();
     // Run one cycle without field established to verify FLUX_BUILDUP outputs
-    sequencer->update(false, angle_t{0.0}, speed_pu_t{1.0}, base_frequency);  // is_field_established = false
+    sequencer->update(false, angle_t{0.0}, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON, speed_pu_t{1.0},
+        base_frequency);  // is_field_established = false
     auto outputs = sequencer->get_outputs();
 
     // Should still be in FLUX_BUILDUP state
@@ -253,7 +255,8 @@ TEST_F(SfcStartupSequencerTest, VirtualAngleWrapsToTwoPi)
 
     // Run for full duration in STARTING_PROCEDURE
     for (int i = 0; i < 1000; ++i) {
-        sequencer->update(true, angle_t{0.0}, speed_pu_t{1.0}, base_frequency);
+        sequencer->update(
+            true, angle_t{0.0}, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON, speed_pu_t{1.0}, base_frequency);
         auto outputs = sequencer->get_outputs();
         // Angle should always be in [0, 2π]
         EXPECT_GE(outputs.virtual_reference.rotor_angle.get_radians(), 0.0f);

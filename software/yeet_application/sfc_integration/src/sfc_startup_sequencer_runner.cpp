@@ -38,6 +38,12 @@ void sfc_startup_sequencer_runner::run()
     // Read estimated rotor angle and convert from angle_wrapped to angle_t
     angle_t estimated_angle = _inputs.estimated_rotor_angle.read().get_radians();
 
+    // Read measured speed from observer
+    speed_pu_t measured_speed = _inputs.measured_speed.read();
+
+    // Read current state ID from grid-side state machine
+    sfc_state_id current_state_id = _inputs.current_state_id.read();
+
     // Read external speed reference with override support
     speed_pu_t external_speed_reference = _parameters.override_enable_speed_reference.read()
                                               ? _parameters.override_value_speed_reference.read()
@@ -47,7 +53,8 @@ void sfc_startup_sequencer_runner::run()
     frequency_t base_frequency = _per_unit_system->get_machine_bases().base_frequency.value();
 
     // Update the sequencer with measured signals
-    _sequencer.update(is_field_established, estimated_angle, external_speed_reference, base_frequency);
+    _sequencer.update(is_field_established, estimated_angle, measured_speed, current_state_id, external_speed_reference,
+        base_frequency);
     const sfc::startup_sequencer_outputs sequencer_outputs = _sequencer.get_outputs();
 
     _outputs.current_state.write(sequencer_outputs.controller_commands.current_state);
@@ -96,6 +103,12 @@ void sfc_startup_sequencer_runner::set_parameters()
     rate_limit_cfg.seconds_per_pu = _parameters.speed_reference_rate_limit_seconds_per_pu.read();
     rate_limit_cfg.enabled = _parameters.speed_reference_rate_limit_enabled.read();
     _sequencer.configure_speed_reference_rate_limit(rate_limit_cfg);
+
+    // Configure flying restart
+    sfc::flying_restart_config flying_restart_cfg;
+    flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
+    flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+    _sequencer.configure_flying_restart(flying_restart_cfg);
 }
 
 void sfc_startup_sequencer_runner::set_parameter_callback()
@@ -113,6 +126,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
     // Register callbacks for speed reference rate limit parameters
     _parameters.speed_reference_rate_limit_seconds_per_pu.register_callback([&]() { set_parameters(); });
     _parameters.speed_reference_rate_limit_enabled.register_callback([&]() { set_parameters(); });
+
+    // Register callbacks for flying restart parameters
+    _parameters.flying_restart_speed_threshold.register_callback([&]() { set_parameters(); });
+    _parameters.auto_start_stop_enabled.register_callback([&]() { set_parameters(); });
 }
 
 void sfc_startup_sequencer_runner::handle_commands()

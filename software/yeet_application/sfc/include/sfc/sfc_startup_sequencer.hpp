@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_torque_controller.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/elapsed_timer.hpp"
@@ -58,6 +59,14 @@ struct virtual_torque_config {
 struct speed_reference_rate_limit_config {
     real_t seconds_per_pu{10.0};  ///< Rate limit in seconds per per-unit speed change
     bool enabled{true};           ///< Enable/disable rate limiting
+};
+
+/**
+ * @brief Flying restart configuration
+ */
+struct flying_restart_config {
+    speed_pu_t speed_threshold{0.05};    ///< Minimum speed for flying restart [pu] (5% rated)
+    bool auto_start_stop_enabled{true};  ///< Enable automatic start/stop based on state machine
 };
 
 /**
@@ -165,14 +174,24 @@ public:
     void configure_speed_reference_rate_limit(const speed_reference_rate_limit_config& config);
 
     /**
+     * @brief Configures the flying restart parameters
+     *
+     * Flying restart allows the sequencer to skip the virtual reference phase
+     * and jump directly to closed-loop operation if the machine is already spinning.
+     *
+     * @param config Flying restart configuration
+     */
+    void configure_flying_restart(const flying_restart_config& config);
+
+    /**
      * @brief Starts the startup sequence
      *
-     * Called when the main state machine enters OPERATION_ON.
-     * Transitions from IDLE to FLUX_BUILDUP state.
+     * Called when the main state machine enters OPERATION_ON or by manual command.
+     * Transitions from IDLE to FLUX_BUILDUP or directly to CLOSED_LOOP if flying restart.
      *
      * Preconditions:
-     * - System must be in safe state (standstill)
-     * - Excitation system must be ready
+     * - System must be in safe state
+     * - Excitation system must be ready (for normal start)
      *
      * @return True if sequence started successfully, false if preconditions not met
      */
@@ -191,14 +210,19 @@ public:
      *
      * Must be called every control cycle with current measurements.
      * Advances through states based on conditions and timers.
+     * Implements automatic start/stop based on state machine state if enabled.
      *
      * @param is_field_established Field excitation established flag from excitation controller
      * @param estimated_rotor_angle Angle from observer [rad]
+     * @param measured_speed Speed from observer [pu] for flying restart detection
+     * @param current_state_id Grid-side state machine state for auto-start/stop
      * @param external_speed_reference External speed reference input [pu]
      * @param base_frequency Nominal machine base frequency [Hz] for angle integration
      */
     void update(bool is_field_established,
         angle_wrapped estimated_rotor_angle,
+        speed_pu_t measured_speed,
+        sfc_state_id current_state_id,
         speed_pu_t external_speed_reference,
         frequency_t base_frequency);
 
@@ -269,10 +293,13 @@ private:
     virtual_frequency_config _virtual_frequency_config;
     virtual_torque_config _virtual_torque_config;
     speed_reference_rate_limit_config _speed_reference_rate_limit_config;
+    flying_restart_config _flying_restart_config;
 
     // State
     startup_sequencer_state_t _current_state{startup_sequencer_state_t::IDLE};
     startup_sequencer_state_t _previous_state{startup_sequencer_state_t::IDLE};
+    sfc_state_id _previous_state_machine_state{sfc_state_id::IDLE};
+    bool _shutdown_speed_override_active{false};
     startup_sequencer_outputs _outputs;
 
     // Virtual reference frame generation
@@ -287,10 +314,19 @@ private:
     void transition_to_idle();
 
     // State update methods
-    void update_idle();
+    void update_idle(speed_pu_t external_speed_reference);
     void update_flux_buildup(bool is_field_established);
     void update_starting_procedure(frequency_t base_frequency);
     void update_closed_loop_operation(speed_pu_t external_speed_reference);
+
+    // Automatic start/stop coordination
+    void update_state_machine_coordination(
+        speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t& external_speed_reference);
+
+    // State transition detection helpers
+    bool transitioned_from(sfc_state_id from_state, sfc_state_id current_state) const noexcept;
+    bool transitioned_to(sfc_state_id to_state, sfc_state_id current_state) const noexcept;
+    bool transition(sfc_state_id from_state, sfc_state_id to_state, sfc_state_id current_state) const noexcept;
 
     // Virtual reference frame generation
     bool update_virtual_reference_frame(frequency_t base_frequency);

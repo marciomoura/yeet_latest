@@ -78,7 +78,7 @@ void signal_handler(int signal)
 struct config {
     int grid_port = 7000;           // Telemetry port for grid-side
     int machine_port = 7001;        // Telemetry port for machine-side
-    float frequency_hz = 10000.0f;  // Control frequency (5 kHz recommended for plant simulation)
+    float frequency_hz = 40000.0f;  // Control frequency (5 kHz recommended for plant simulation)
     bool verbose = false;           // Verbose logging
 };
 
@@ -291,16 +291,19 @@ int main(int argc, char* argv[])
 
     // ==================== External I/O Lambda Runner (EXACT from test fixture) ====================
     // External input command variables (simulates external digital I/O)
-    bool run_creep_speed = false;
-    bool run_purge_accel = false;
-    bool run_ignition_accel = false;
-    bool run_assist_accel = false;
-    bool hold_speed = false;
-    bool decelerate = false;
-    bool idle = true;
+    // DISABLED: Speed generator replaced by startup_sequencer
+    // bool run_creep_speed = false;
+    // bool run_purge_accel = false;
+    // bool run_ignition_accel = false;
+    // bool run_assist_accel = false;
+    // bool hold_speed = false;
+    // bool decelerate = false;
+    // bool idle = true;
     bool exciter_ready = true;
     bool excitation_start_command = true;
     bool excitation_stop_command = false;
+    bool startup_sequencer_start_command = false;
+    bool startup_sequencer_stop_command = false;
 
     // Register lambda runner for external speed profile commands (SAME as test fixture)
     std::cout << "[INIT] Registering external I/O lambda runner (10ms)..." << std::endl;
@@ -308,8 +311,12 @@ int main(int argc, char* argv[])
         simulator_builder.machine_side_control.external_ios.update_excitation_inputs(
             exciter_ready, excitation_start_command, excitation_stop_command);
 
-        simulator_builder.machine_side_control.external_ios.update_speed_generator_inputs(
-            run_creep_speed, run_purge_accel, run_ignition_accel, run_assist_accel, hold_speed, decelerate, idle);
+        // DISABLED: Speed generator replaced by startup_sequencer
+        // simulator_builder.machine_side_control.external_ios.update_speed_generator_inputs(
+        //     run_creep_speed, run_purge_accel, run_ignition_accel, run_assist_accel, hold_speed, decelerate, idle);
+
+        simulator_builder.machine_side_control.external_ios.update_startup_sequencer_inputs(
+            startup_sequencer_start_command, startup_sequencer_stop_command);
     });
 
     // Initialize the system (SAME as test fixture SetUp())
@@ -353,13 +360,13 @@ int main(int argc, char* argv[])
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final =
         yeet::frequency_pu_t{0.1};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration =
-        yeet::duration_t{10.0};
+        yeet::duration_t{2.0};
 
     // Virtual torque profile: 0.0 pu → 0.3 pu in 1 second
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial =
         yeet::torque_pu_t{0.0};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final =
-        yeet::torque_pu_t{0.3};
+        yeet::torque_pu_t{0.1};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration =
         yeet::duration_t{1.0};
 
@@ -369,7 +376,7 @@ int main(int argc, char* argv[])
 
     // Speed reference rate limiter: 20 seconds per pu = 0.05 pu/s
     simulator_builder.machine_side_control.startup_sequencer.get_parameters()
-        .speed_reference_rate_limit_seconds_per_pu = yeet::real_t{20.0f};
+        .speed_reference_rate_limit_seconds_per_pu = yeet::real_t{2.0f};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
     // ==================== Plant Configuration (Soft-Starter Application) ====================
@@ -381,7 +388,8 @@ int main(int argc, char* argv[])
     yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
 
     // Moderate load torque (typical for gas turbine compressor)
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.15f));
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.2));
+    simulator_builder.plant.get_parameters().initial_speed.write(yeet::speed_pu_t(0.01));
 
     // Configure torque limits for startup
     yeet::mock_signal_input::write(
@@ -389,7 +397,7 @@ int main(int argc, char* argv[])
         yeet::torque_pu_t{1.0});
     yeet::mock_signal_input::write(
         simulator_builder.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit,
-        yeet::torque_pu_t{0.0});
+        yeet::torque_pu_t{-1.0});
 
     std::cout << "[CONFIG] Configuration complete:" << std::endl;
     std::cout << "         - Initial speed: 0.0 pu (standstill)" << std::endl;
