@@ -78,7 +78,7 @@ void signal_handler(int signal)
 struct config {
     int grid_port = 7000;           // Telemetry port for grid-side
     int machine_port = 7001;        // Telemetry port for machine-side
-    float frequency_hz = 10000.0f;  // Control frequency (5 kHz recommended for plant simulation)
+    float frequency_hz = 40000.0f;  // Control frequency (5 kHz recommended for plant simulation)
     bool verbose = false;           // Verbose logging
 };
 
@@ -388,7 +388,7 @@ int main(int argc, char* argv[])
     yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
 
     // Moderate load torque (typical for gas turbine compressor)
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.1));
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.2));
     simulator_builder.plant.get_parameters().initial_speed.write(yeet::speed_pu_t(0.01));
 
     // Configure torque limits for startup
@@ -397,7 +397,7 @@ int main(int argc, char* argv[])
         yeet::torque_pu_t{1.0});
     yeet::mock_signal_input::write(
         simulator_builder.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit,
-        yeet::torque_pu_t{0.0});
+        yeet::torque_pu_t{-1.0});
 
     std::cout << "[CONFIG] Configuration complete:" << std::endl;
     std::cout << "         - Initial speed: 0.0 pu (standstill)" << std::endl;
