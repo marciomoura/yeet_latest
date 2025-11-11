@@ -343,8 +343,7 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::SPEED_CONTROL;
             _outputs.controller_commands.release_machine_side_pulses = false;
             _outputs.controller_commands.release_excitation = false;
-            _outputs.controller_commands.release_machine_observer =
-                true;  // Keep observer running for shutdown coordination
+            _outputs.controller_commands.release_machine_observer = false;
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = false;
             break;
