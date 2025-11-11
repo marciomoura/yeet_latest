@@ -362,12 +362,21 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             self._reorganize_subplot_layout()
     
     def set_window_size(self, samples: int):
-        """Update visible X-axis window size.
+        """Update visible X-axis window size and resize buffers accordingly.
         
         Args:
             samples: Number of samples to display on X-axis
         """
         self.window_size = max(1, samples)
+        
+        # Resize all buffers to accommodate the new window size
+        # Keep at least 2x window_size or 1000, whichever is larger
+        new_maxlen = max(self.window_size * 2, 1000)
+        
+        for buffer_name, buffer in self.buffers.items():
+            # Create new buffer with updated maxlen
+            new_buffer = deque(buffer, maxlen=new_maxlen)
+            self.buffers[buffer_name] = new_buffer
     
     def set_layout_mode(self, mode: str):
         """Switch layout mode and reorganize plots.

@@ -30,8 +30,7 @@ from monitor_client.core.parameter_protocol import ParameterMetadata
 from monitor_client.core.data_persistence import DataPersistence, TelemetrySample
 from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
 from monitor_client.ui.telemetry_panel import GridSideTelemetryPanel, MachineSideTelemetryPanel
-from monitor_client.config import get_machine_side_plots, get_default_visible_groups
-from monitor_client.config.telemetry_plot_mapper import TelemetryPlotMapper
+from monitor_client.config import get_machine_side_plots, get_grid_side_plots, get_default_visible_groups
 from monitor_client.utils.telemetry_buffer_mapper import TelemetryBufferMapper
 
 logger = logging.getLogger(__name__)
@@ -967,11 +966,11 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             logger.error(f"Packet error: {e}", exc_info=True)
     
     def _on_machine_packet(self, packet: MachineSideTelemetryPacket):
-        """Handle machine-side telemetry packet using unified plot mappers.
+        """Handle machine-side telemetry packet using plot definitions.
         
-        Extract machine measurements, observer data, and controller states
+        Extract measurements, observer data, and controller states from the packet
         and populate oscilloscope buffers for real-time visualization.
-        Uses TelemetryPlotMapper to automatically extract data based on plot definitions.
+        Uses signal indices from plot_definitions.py to extract data directly.
         """
         try:
             self.packet_counter += 1
@@ -991,22 +990,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             
             # Only update oscilloscope on decimated samples
             if self.packet_counter % self.decimate_factor == 0 and self.oscilloscope is not None:
-                # Get unified plot configuration with mappers
-                plot_config = TelemetryPlotMapper.get_machine_side_plots()
+                # Get plot definitions
+                plot_definitions = get_machine_side_plots()
                 
                 # Extract and add data for each plot group
-                for group_name, plots_dict in plot_config.items():
-                    for plot_name, plot_config_obj in plots_dict.items():
-                        # Skip if no mapper defined
-                        if plot_config_obj.mapper is None:
-                            continue
-                        
-                        # Call mapper to extract data from packet
+                for group_name, plots_dict in plot_definitions.items():
+                    for plot_name, plot_config in plots_dict.items():
+                        # Build data tuple from signal indices
                         buffer_key = f"{group_name}_{plot_name}"
-                        data_tuple = plot_config_obj.mapper(self.sample_index, packet)
+                        data_values = [self.sample_index]
+                        
+                        for signal in plot_config['signals']:
+                            signal_index = signal['index']
+                            data_values.append(packet.get_signal(signal_index))
                         
                         # Add to oscilloscope buffer
-                        self.oscilloscope.add_sample_to_buffer(buffer_key, data_tuple)
+                        self.oscilloscope.add_sample_to_buffer(buffer_key, tuple(data_values))
                 
                 self.sample_index += 1
         
