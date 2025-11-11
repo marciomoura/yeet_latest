@@ -360,13 +360,13 @@ int main(int argc, char* argv[])
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final =
         yeet::frequency_pu_t{0.1};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration =
-        yeet::duration_t{10.0};
+        yeet::duration_t{2.0};
 
     // Virtual torque profile: 0.0 pu → 0.3 pu in 1 second
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial =
         yeet::torque_pu_t{0.0};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final =
-        yeet::torque_pu_t{0.3};
+        yeet::torque_pu_t{0.1};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration =
         yeet::duration_t{1.0};
 
@@ -376,7 +376,7 @@ int main(int argc, char* argv[])
 
     // Speed reference rate limiter: 20 seconds per pu = 0.05 pu/s
     simulator_builder.machine_side_control.startup_sequencer.get_parameters()
-        .speed_reference_rate_limit_seconds_per_pu = yeet::real_t{20.0f};
+        .speed_reference_rate_limit_seconds_per_pu = yeet::real_t{2.0f};
     simulator_builder.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
     // ==================== Plant Configuration (Soft-Starter Application) ====================
@@ -388,7 +388,8 @@ int main(int argc, char* argv[])
     yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
 
     // Moderate load torque (typical for gas turbine compressor)
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.15f));
+    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.1));
+    simulator_builder.plant.get_parameters().initial_speed.write(yeet::speed_pu_t(0.01));
 
     // Configure torque limits for startup
     yeet::mock_signal_input::write(

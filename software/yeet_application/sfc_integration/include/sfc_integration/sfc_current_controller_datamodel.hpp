@@ -81,7 +81,8 @@ public:
         parameter<real_t> kp{0.7439 / 1.35};
 
         /// PI controller integral time constant [s]
-        parameter<duration_t> ti{ms(101.64)};
+        // parameter<duration_t> ti{ms(101.64)};
+        parameter<duration_t> ti{ms(201.64)};
 
         /// Minimum firing angle limit [rad]
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
