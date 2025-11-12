@@ -44,9 +44,6 @@ public:
         /// Machine-side firing pulses (6-pulse inverter)
         signal_input<control::six_pulse_generator::pulses> machine_firing_pulses;
 
-        /// Mechanical load torque on motor shaft [pu]
-        signal_input<torque_pu_t> load_torque;
-
         /// Field current reference from external excitation controller [pu]
         signal_input<current_pu_t> field_current_reference;
     };
@@ -127,6 +124,12 @@ public:
         /// Default: 0.0 (no quadratic load)
         parameter<real_t> motor_quadratic_load_coefficient;
 
+        /// Constant torque load [pu]
+        /// This parameter sets a constant torque load on the machine shaft
+        /// Positive values represent motor load, negative values represent generating load
+        /// Default: 0.0 (no constant torque load)
+        parameter<torque_pu_t> constant_torque;
+
         /// Explicit constructor to initialize all parameters with their default values
         parameters()
         {
@@ -137,6 +140,7 @@ public:
             motor_damping_factor.write(damping_coefficient_pu_t(0.01));
             motor_linear_load_coefficient.write(real_t(0.0));
             motor_quadratic_load_coefficient.write(real_t(0.0));
+            constant_torque.write(torque_pu_t(0.0));
         }
 
         // Allow default copy/move since parameter<T> handles state correctly
@@ -166,26 +170,27 @@ public:
 
         entry.parameters.insert("initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
 
-        // Register operation_mode enum parameter
-        auto& operation_mode_param = _model_parameters->operation_mode;
-        entry.parameters.insert("operation_mode",
-            low_level_access([&operation_mode_param]()
-                                 -> float { return static_cast<float>(static_cast<int>(operation_mode_param.read())); },
-                [&operation_mode_param](float value) {
-                    operation_mode_param.write(static_cast<machine_operation_mode>(static_cast<int>(value)));
-                }));
+        // // Register operation_mode enum parameter
+        // auto& operation_mode_param = _model_parameters->operation_mode;
+        // entry.parameters.insert("operation_mode",
+        //     low_level_access([&operation_mode_param]()
+        //                          -> float { return static_cast<float>(static_cast<int>(operation_mode_param.read()));
+        //                          },
+        //         [&operation_mode_param](float value) {
+        //             operation_mode_param.write(static_cast<machine_operation_mode>(static_cast<int>(value)));
+        //         }));
 
-        // Register voltage_control_mode enum parameter
-        auto& voltage_control_mode_param = _model_parameters->voltage_control_mode;
-        entry.parameters.insert("voltage_control_mode",
-            low_level_access(
-                [&voltage_control_mode_param]() -> float {
-                    return static_cast<float>(static_cast<int>(voltage_control_mode_param.read()));
-                },
-                [&voltage_control_mode_param](float value) {
-                    voltage_control_mode_param.write(
-                        static_cast<machine_voltage_control_mode>(static_cast<int>(value)));
-                }));
+        // // Register voltage_control_mode enum parameter
+        // auto& voltage_control_mode_param = _model_parameters->voltage_control_mode;
+        // entry.parameters.insert("voltage_control_mode",
+        //     low_level_access(
+        //         [&voltage_control_mode_param]() -> float {
+        //             return static_cast<float>(static_cast<int>(voltage_control_mode_param.read()));
+        //         },
+        //         [&voltage_control_mode_param](float value) {
+        //             voltage_control_mode_param.write(
+        //                 static_cast<machine_voltage_control_mode>(static_cast<int>(value)));
+        //         }));
 
         entry.parameters.insert(
             "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
@@ -195,6 +200,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->motor_linear_load_coefficient));
         entry.parameters.insert("motor_quadratic_load_coefficient",
             yeet::utils::make_units_accessor(_model_parameters->motor_quadratic_load_coefficient));
+        entry.parameters.insert(
+            "constant_torque", yeet::utils::make_units_accessor(_model_parameters->constant_torque));
 
         registry.insert("plant_model", std::move(entry));
     }

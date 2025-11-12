@@ -93,9 +93,6 @@ public:
         // machine_side_control.external_ios.get_parameters().hold_speed.write(false);
         // machine_side_control.external_ios.get_parameters().decelerate.write(false);
         // machine_side_control.external_ios.get_parameters().idle.write(false);
-
-        // Mock plant inputs
-        load_torque.write(torque_pu_t{0.0});
     }
 
     void initialize()
@@ -289,9 +286,6 @@ public:
     // Plant model
     sfc_plant_model_runner plant;
 
-    // External control signals
-    signal_output<torque_pu_t> load_torque;
-
     // External control signals for state machine
     signal_output<bool> auxiliaries_are_on;
     signal_output<bool> breakers_are_on;
@@ -368,11 +362,8 @@ private:
             plant.get_inputs().field_current_reference);
 
         // ==================== External Disturbances → Plant ====================
-        // External inputs to the plant model for testing and simulation scenarios
-
-        // Load torque: Applied load on the machine shaft
-        // Simulates the gas turbine load or other mechanical loads
-        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
+        // Note: Load torque is now configured via plant.get_parameters().constant_torque parameter
+        // instead of a signal connection. This allows runtime configuration via telemetry interface.
     }
 };
 

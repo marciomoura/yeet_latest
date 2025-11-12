@@ -65,8 +65,10 @@ struct speed_reference_rate_limit_config {
  * @brief Flying restart configuration
  */
 struct flying_restart_config {
-    speed_pu_t speed_threshold{0.05};    ///< Minimum speed for flying restart [pu] (5% rated)
-    bool auto_start_stop_enabled{true};  ///< Enable automatic start/stop based on state machine
+    speed_pu_t speed_threshold{0.05};        ///< Minimum speed for flying restart [pu] (5% rated)
+    voltage_pu_t voltage_threshold{0.1};     ///< Voltage threshold for detection [pu] (10% rated)
+    duration_t observer_settling_time{2.0};  ///< Observer settling duration [s]
+    bool auto_start_stop_enabled{true};      ///< Enable automatic start/stop based on state machine
 };
 
 /**
@@ -215,6 +217,7 @@ public:
      * @param is_field_established Field excitation established flag from excitation controller
      * @param estimated_rotor_angle Angle from observer [rad]
      * @param measured_speed Speed from observer [pu] for flying restart detection
+     * @param measured_voltage_magnitude Voltage magnitude from observer [pu] for flying restart detection
      * @param current_state_id Grid-side state machine state for auto-start/stop
      * @param external_speed_reference External speed reference input [pu]
      * @param base_frequency Nominal machine base frequency [Hz] for angle integration
@@ -222,6 +225,7 @@ public:
     void update(bool is_field_established,
         angle_wrapped estimated_rotor_angle,
         speed_pu_t measured_speed,
+        voltage_pu_t measured_voltage_magnitude,
         sfc_state_id current_state_id,
         speed_pu_t external_speed_reference,
         frequency_t base_frequency);
@@ -288,6 +292,7 @@ private:
     control::elapsed_timer _state_elapsed_timer;
     control::integrator<angle_wrapped> _virtual_angle_integrator;
     control::rate_of_change_limiter _speed_reference_limiter;
+    control::elapsed_timer _observer_settling_timer;
 
     // Configuration
     virtual_frequency_config _virtual_frequency_config;
@@ -300,6 +305,7 @@ private:
     startup_sequencer_state_t _previous_state{startup_sequencer_state_t::IDLE};
     sfc_state_id _previous_state_machine_state{sfc_state_id::IDLE};
     bool _shutdown_speed_override_active{false};
+    bool _start_requested{false};
     startup_sequencer_outputs _outputs;
 
     // Virtual reference frame generation
@@ -314,7 +320,8 @@ private:
     void transition_to_idle();
 
     // State update methods
-    void update_idle(speed_pu_t external_speed_reference);
+    void update_idle(
+        speed_pu_t external_speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
     void update_flux_buildup(bool is_field_established);
     void update_starting_procedure(frequency_t base_frequency);
     void update_closed_loop_operation(speed_pu_t external_speed_reference);

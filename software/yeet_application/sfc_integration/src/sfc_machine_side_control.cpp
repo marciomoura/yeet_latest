@@ -137,6 +137,8 @@ void sfc_machine_side_control::connect_internal_signals()
         startup_sequencer.get_inputs().estimated_rotor_angle);
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, startup_sequencer.get_inputs().measured_speed);
+    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
+        startup_sequencer.get_inputs().machine_voltage_magnitude);
     signals_connector::connect_output_to_input(
         external_ios.get_fiber_optics_inputs().current_state_id, startup_sequencer.get_inputs().current_state_id);
     signals_connector::connect_output_to_input(

@@ -10,6 +10,13 @@ sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit
     assert(per_unit_system != nullptr);
 }
 
+void sfc_plant_model_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_plant_model_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_plant_model_runner::initialize()
 {
     // Parameters are initialized by the datamodel struct defaults
@@ -47,7 +54,9 @@ void sfc_plant_model_runner::run()
     // Set inputs to the plant model
     _plant.set_grid_side_pulses(_inputs.grid_firing_pulses.read().to_array());
     _plant.set_machine_side_pulses(_inputs.machine_firing_pulses.read().to_array());
-    _plant.set_load_torque_pu(_inputs.load_torque.read());
+
+    // Set load torque from constant torque parameter
+    _plant.set_load_torque_pu(_parameters.constant_torque.read());
 
     // Always set field current reference in variable speed mode
     // In fixed_voltage mode, this input is ignored by the plant

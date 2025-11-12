@@ -852,8 +852,7 @@ static inline void register_minimal_plant_model_logger(yeet::simulator& simulato
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input machine_firing_pulses",
             [&]() { return plant_model.get_inputs().machine_firing_pulses.read().to_array(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(
-        group + "input load_torque", [&]() { return plant_model.get_inputs().load_torque.read(); }));
+    // Note: load_torque is now a parameter, not an input signal
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(
         group + "output dc_link_current", [&]() { return plant_model.get_outputs().dc_link_current.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(

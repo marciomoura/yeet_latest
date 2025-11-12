@@ -147,7 +147,7 @@ public:
 
         // 3. Turn off breakers (OPERATION_OFF -> BREAKERS_ON)
         // Remove load torque when power is disconnected to prevent negative speed
-        yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.0f));
+        system.plant.get_parameters().constant_torque.write( torque_pu_t(0.0f));
         set_breakers_on(false);
         set_start_command(false);  // Remove start command
         simulate_for(0.1);
@@ -254,7 +254,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     success &= simulator.simulate_for(1.0);  // Pre-flux duration
 
     // Configure moderate load torque
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.15f));
 
     // Configure torque limits for startup
     yeet::mock_signal_input::write(
@@ -406,7 +406,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeOperationTest)
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Light load for purge mode (minimal resistance)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.08f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.08f));
 
     // Configure torque limits
     yeet::mock_signal_input::write(
@@ -514,7 +514,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TypicalSoftStarterProfileTest)
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Configure gas turbine load (compressor characteristic)
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.10f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.10f));
 
     // Configure torque limits
     yeet::mock_signal_input::write(
@@ -626,7 +626,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Configure moderate load
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.15f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.15f));
 
     // Configure torque limits
     yeet::mock_signal_input::write(
@@ -758,7 +758,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StateMachineControlledShutdownTest
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.1f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.1f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(
@@ -874,7 +874,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnAuxiliariesOffTest)
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.08f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.08f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{0.8});
     yeet::mock_signal_input::write(
@@ -965,7 +965,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnStopCommandTest)
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.1f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.1f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(
@@ -1051,7 +1051,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnBreakersOffTest)
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.09f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.09f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{0.9});
     yeet::mock_signal_input::write(
@@ -1160,7 +1160,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
     // Load torque matched to virtual startup torque for realistic dynamics
     // The virtual torque final is 0.2 pu, so use similar load for balanced operation
     // This provides proper mechanical damping and realistic speed control behavior
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.02));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.02));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(
@@ -1310,7 +1310,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, AutoStartOnOperationOnTest)
         << "Auto-start should progress through normal startup states";
 
     // ==================== Complete Startup Sequence ====================
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.06f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.06f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{0.8});
     yeet::mock_signal_input::write(
@@ -1373,7 +1373,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedReferenceZeroOverrideDuringSh
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.1f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.1f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(
@@ -1462,7 +1462,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartWithAutoStartTest)
     set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
-    yeet::mock_signal_input::write(system.plant.get_inputs().load_torque, torque_pu_t(0.08f));
+    system.plant.get_parameters().constant_torque.write( torque_pu_t(0.08f));
     yeet::mock_signal_input::write(
         system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
     yeet::mock_signal_input::write(

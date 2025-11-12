@@ -128,6 +128,22 @@ public:
      */
     void register_datamodel(yeet::model_registry& registry);
 
+    /**
+     * @brief Register plant model datamodel with the model registry (for host application only)
+     *
+     * This registers plant model parameters when running in host simulation mode.
+     * Should be called after register_datamodel() to add plant parameters to the registry.
+     * Only available when building the host application (not for embedded targets).
+     *
+     * @param registry The model registry to populate with plant parameters
+     * @param plant_runner Reference to the plant model runner
+     */
+    template <typename PlantRunner>
+    void register_plant_datamodel(yeet::model_registry& registry, PlantRunner& plant_runner)
+    {
+        plant_runner.register_datamodel(registry);
+    }
+
     // ==================== Component Access ====================
 
     sfc_excitation_controller_runner& get_excitation_controller() { return excitation_controller; }

@@ -526,75 +526,6 @@ model "sfc_back_to_back_synchronous_machine" {
             position = 10000, 8772
         ]
 
-        component "core/Voltage Measurement" voltage_machine_ab {
-        }
-        [
-            position = 10764, 8200
-            rotation = right
-            scale = -1, 1
-            size = 64, 32
-        ]
-
-        component "core/Voltage Measurement" voltage_machine_bc {
-        }
-        [
-            position = 10764, 8296
-            rotation = right
-            scale = -1, 1
-            size = 64, 32
-        ]
-
-        component "core/Voltage Measurement" voltage_machine_ca {
-        }
-        [
-            position = 10708, 8296
-            rotation = left
-            scale = -1, 1
-            size = 64, 32
-        ]
-
-        component "core/Resistor" R5 {
-            resistance = "0.0066e-1"
-        }
-        [
-            position = 10432, 8152
-        ]
-
-        component "core/Inductor" L5 {
-            inductance = "0.2508e-6"
-        }
-        [
-            position = 10552, 8152
-        ]
-
-        component "core/Resistor" R6 {
-            resistance = "0.0066e-1"
-        }
-        [
-            position = 10432, 8248
-        ]
-
-        component "core/Inductor" L6 {
-            inductance = "0.2508e-6"
-        }
-        [
-            position = 10552, 8248
-        ]
-
-        component "core/Resistor" R7 {
-            resistance = "0.0066e-1"
-        }
-        [
-            position = 10432, 8344
-        ]
-
-        component "core/Inductor" L7 {
-            inductance = "0.2508e-6"
-        }
-        [
-            position = 10552, 8344
-        ]
-
         component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier2" {
             PESB_Optimization = "False"
             Sa_bot = "30"
@@ -624,6 +555,8 @@ model "sfc_back_to_back_synchronous_machine" {
         ]
 
         component "core/Single Phase Core Coupling" "Core Coupling 1" {
+            R2 = "0.01"
+            snb_type_i = "R1"
         }
         [
             position = 9760, 8248
@@ -634,7 +567,7 @@ model "sfc_back_to_back_synchronous_machine" {
         component "core/Voltage Measurement" voltage_bridge_machine_side_ab {
         }
         [
-            position = 10244, 8200
+            position = 10288, 8200
             rotation = right
             size = 64, 32
         ]
@@ -642,7 +575,7 @@ model "sfc_back_to_back_synchronous_machine" {
         component "core/Voltage Measurement" voltage_bridge_machine_side_bc {
         }
         [
-            position = 10244, 8296
+            position = 10288, 8296
             rotation = right
             size = 64, 32
         ]
@@ -650,37 +583,150 @@ model "sfc_back_to_back_synchronous_machine" {
         component "core/Voltage Measurement" voltage_bridge_machine_side_ca {
         }
         [
-            position = 10292, 8296
+            position = 10344, 8300
             rotation = left
             size = 64, 32
         ]
 
-        component "core/Three Phase Wound Rotor Synchronous Machine (Generic)" "3 ph WRSYNC Generic1" {
-            Freq = "50"
-            Power = "42000000"
-            RPM = "3000"
-            S = "52000000"
-            Vll = "10500"
+        component "core/Analog Input" AI9 {
+            addr = "9"
         }
         [
-            position = 10976, 8248
+            position = 11104, 8464
+        ]
+
+        component "core/Analog Input" AI10 {
+            addr = "10"
+        }
+        [
+            position = 11100, 8524
+        ]
+
+        component "core/Analog Input" AI11 {
+            addr = "11"
+        }
+        [
+            position = 11096, 8580
+        ]
+
+        component "core/Analog Input" AI12 {
+            addr = "12"
+        }
+        [
+            position = 11096, 8640
+        ]
+
+        component "core/Probe" machine_ai9 {
+        }
+        [
+            position = 11320, 8464
+        ]
+
+        component "core/Probe" machine_ai10 {
+        }
+        [
+            position = 11176, 8524
+        ]
+
+        component "core/Probe" machine_ai11 {
+        }
+        [
+            position = 11176, 8580
+        ]
+
+        component "core/Probe" machine_ai12 {
+        }
+        [
+            position = 11176, 8640
+        ]
+
+        component "core/Gain" Gain2 {
+            gain = "100"
+        }
+        [
+            position = 11180, 8464
+        ]
+
+        component "core/Sum" Sum1 {
+        }
+        [
+            position = 11296, 8380
+        ]
+
+        component "core/SCADA Input" excitation {
+            unit = ""
+        }
+        [
+            position = 11180, 8372
+        ]
+
+        component "core/SCADA Input" load_torque {
+            unit = ""
+        }
+        [
+            position = 11192, 8128
+            rotation = down
+        ]
+
+        component "core/Three Phase Wound Rotor Synchronous Machine (Generic)" "3 ph WRSYNC Generic1" {
+            Freq = "50"
+            J = "200"
+            Power = "0.75e6"
+            RPM = "3000"
+            S = "1e6"
+            Vll = "1980"
+        }
+        [
+            position = 11060, 8248
             size = 175, 175
         ]
 
-        component "core/SCADA Input" electrical_torque {
-            unit = ""
+        component "core/Capacitor" C1 {
+            capacitance = "1000e-6"
         }
         [
-            position = 11136, 8104
-            rotation = down
+            position = 10468, 8400
+            rotation = right
         ]
 
-        component "core/SCADA Input" field_voltage {
-            unit = ""
+        component "core/Resistor" R5 {
+            resistance = "4"
         }
         [
-            position = 11144, 8248
-            rotation = down
+            position = 10468, 8488
+            rotation = right
+        ]
+
+        component "core/Capacitor" C2 {
+            capacitance = "1000e-6"
+        }
+        [
+            position = 10548, 8400
+            rotation = right
+        ]
+
+        component "core/Resistor" R6 {
+            resistance = "4"
+        }
+        [
+            position = 10548, 8488
+            rotation = right
+        ]
+
+        component "core/Capacitor" C3 {
+            capacitance = "1000e-6"
+        }
+        [
+            position = 10624, 8404
+            rotation = right
+        ]
+
+        component "core/Resistor" R7 {
+            resistance = "4"
+        }
+        [
+            position = 10624, 8492
+            rotation = right
         ]
 
         junction Junction3 pe
@@ -738,59 +784,59 @@ model "sfc_back_to_back_synchronous_machine" {
             position = 8948, 8152
         ]
 
-        junction Junction17 pe
-        [
-            position = 10708, 8152
-        ]
-
-        junction Junction18 pe
-        [
-            position = 10764, 8248
-        ]
-
-        junction Junction19 pe
-        [
-            position = 10708, 8344
-        ]
-
         junction Junction23 pe
         [
-            position = 10244, 8152
+            position = 10288, 8152
         ]
 
         junction Junction24 pe
         [
-            position = 10244, 8344
+            position = 10288, 8344
         ]
 
         junction Junction25 pe
         [
-            position = 10244, 8248
+            position = 10288, 8248
         ]
 
-        junction Junction26 pe
+        junction Junction31 sp
         [
-            position = 10292, 8152
+            position = 11240, 8464
         ]
 
-        junction Junction27 pe
+        junction Junction32 pe
         [
-            position = 10292, 8344
+            position = 10288, 8104
         ]
 
-        junction Junction28 pe
+        junction Junction33 pe
         [
-            position = 10764, 8248
+            position = 10276, 8248
         ]
 
-        junction Junction29 pe
+        junction Junction34 pe
         [
-            position = 10768, 8152
+            position = 10288, 8380
         ]
 
-        junction Junction30 pe
+        junction Junction35 pe
         [
-            position = 10764, 8344
+            position = 10468, 8216
+        ]
+
+        junction Junction36 pe
+        [
+            position = 10632, 8280
+        ]
+
+        junction Junction37 pe
+        [
+            position = 10544, 8248
+        ]
+
+        junction Junction38 pe
+        [
+            position = 10548, 8528
         ]
 
         comment Comment1 START <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Arial'; font-size:12pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; line-height:19px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T1 (A+) → p1 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T2 (B-) → p2 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T3 (B+) → p3</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T4 (A-) → p4</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T5 (C+) → p5</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T6 (C-) → p6</span></p></body></html> ENDCOMMENT 
@@ -880,77 +926,65 @@ model "sfc_back_to_back_synchronous_machine" {
         connect machine_pulse_t1.in DI27.out as Connection95
         connect DI29.out machine_pulse_t5.in as Connection96
         connect DI31.out machine_pulse_t6.in as Connection97
-        connect R5.n_node L5.p_node as Connection111
-        connect R6.n_node L6.p_node as Connection112
-        connect R7.n_node L7.p_node as Connection113
-        connect voltage_machine_ca.n_node Junction17 as Connection121
-        connect L5.n_node Junction17 as Connection123
-        connect voltage_machine_bc.p_node Junction18 as Connection124
-        connect L6.n_node Junction18 as Connection126
-        connect Junction19 voltage_machine_ca.p_node as Connection128
-        [
-            breakpoints = 10708, 8344
-        ]
-        connect L7.n_node Junction19 as Connection129
         connect "Core Coupling 1.b_in" "Three Phase Thyristor Rectifier2.pos_out" as Connection131
         connect "Three Phase Thyristor Rectifier2.neg_out" "Core Coupling 1.a_in" as Connection132
         connect "Core Coupling 1.a_out" L4.n_node as Connection133
         connect "Core Coupling 1.b_out" "Three Phase Thyristor Rectifier1.neg_out" as Connection134
         connect voltage_bridge_machine_side_ab.p_node Junction23 as Connection146
-        connect "Three Phase Thyristor Rectifier2.a_in" Junction23 as Connection148
-        [
-            breakpoints = 10144, 8344; 10144, 8152; 10244, 8152
-        ]
         connect Junction24 voltage_bridge_machine_side_bc.n_node as Connection151
         [
-            breakpoints = 10244, 8344
-        ]
-        connect "Three Phase Thyristor Rectifier2.c_in" Junction24 as Connection152
-        [
-            breakpoints = 10144, 8152; 10144, 8256
+            breakpoints = 10288, 8344
         ]
         connect voltage_bridge_machine_side_ab.n_node Junction25 as Connection154
         connect Junction25 voltage_bridge_machine_side_bc.p_node as Connection155
-        connect "Three Phase Thyristor Rectifier2.b_in" Junction25 as Connection156
-        connect R6.p_node Junction25 as Connection157
-        connect Junction23 Junction26 as Connection158
+        connect machine_ai10.in AI10.out as Connection234
+        connect machine_ai11.in AI11.out as Connection235
+        connect machine_ai12.in AI12.out as Connection236
+        connect Gain2.in AI9.out as Connection241
+        connect machine_ai9.in Junction31 as Connection247
+        connect Junction31 Gain2.out as Connection248
+        connect Sum1.in1 Junction31 as Connection249
+        connect excitation.out Sum1.in as Connection250
+        connect Junction23 voltage_bridge_machine_side_ca.n_node as Connection279
         [
-            breakpoints = 10244, 8152
+            breakpoints = 10344, 8256
         ]
-        connect Junction26 voltage_bridge_machine_side_ca.n_node as Connection159
+        connect voltage_bridge_machine_side_ca.p_node Junction24 as Connection278
         [
-            breakpoints = 10292, 8152
+            breakpoints = 10340, 8344; 10336, 8344
         ]
-        connect R5.p_node Junction26 as Connection160
-        connect voltage_bridge_machine_side_ca.p_node Junction27 as Connection161
-        connect Junction27 Junction24 as Connection162
+        connect "3 ph WRSYNC Generic1._" load_torque.out as Connection280
+        connect "3 ph WRSYNC Generic1.Vfd" Sum1.out as Connection281
+        connect "Three Phase Thyristor Rectifier2.a_in" Junction32 as Connection282
         [
-            breakpoints = 10292, 8344
+            breakpoints = 10104, 8344; 10104, 8152; 10104, 8152; 10104, 8104
         ]
-        connect R7.p_node Junction27 as Connection163
-        connect Junction18 Junction28 as Connection166
-        connect Junction28 voltage_machine_ab.n_node as Connection167
-        connect "3 ph WRSYNC Generic1.B" Junction28 as Connection168
-        connect Junction17 Junction29 as Connection169
+        connect Junction32 Junction23 as Connection283
         [
-            breakpoints = 10708, 8152
+            breakpoints = 10288, 8104; 10288, 8104
         ]
-        connect "3 ph WRSYNC Generic1.A" Junction29 as Connection171
+        connect "Three Phase Thyristor Rectifier2.b_in" Junction33 as Connection285
+        connect Junction33 Junction25 as Connection286
+        connect Junction24 Junction34 as Connection288
+        connect Junction34 "Three Phase Thyristor Rectifier2.c_in" as Connection289
         [
-            breakpoints = 10828, 8216; 10828, 8152
+            breakpoints = 10288, 8380; 10144, 8380; 10144, 8256; 10144, 8256; 10144, 8152
         ]
-        connect Junction19 Junction30 as Connection172
-        connect Junction30 voltage_machine_bc.n_node as Connection173
-        [
-            breakpoints = 10764, 8344
-        ]
-        connect "3 ph WRSYNC Generic1.C" Junction30 as Connection174
-        [
-            breakpoints = 10828, 8280; 10828, 8344
-        ]
-        connect electrical_torque.out "3 ph WRSYNC Generic1._" as Connection175
-        connect voltage_machine_ab.p_node Junction29 as Connection176
-        connect field_voltage.out "3 ph WRSYNC Generic1.Vfd" as Connection177
+        connect R5.p_node C1.n_node as Connection291
+        connect "3 ph WRSYNC Generic1.A" Junction35 as Connection292
+        connect Junction35 Junction32 as Connection293
+        connect C1.p_node Junction35 as Connection294
+        connect R6.p_node C2.n_node as Connection295
+        connect R7.p_node C3.n_node as Connection296
+        connect "3 ph WRSYNC Generic1.C" Junction36 as Connection297
+        connect Junction36 Junction34 as Connection298
+        connect C3.p_node Junction36 as Connection299
+        connect "3 ph WRSYNC Generic1.B" Junction37 as Connection300
+        connect Junction37 Junction33 as Connection301
+        connect C2.p_node Junction37 as Connection302
+        connect R5.n_node Junction38 as Connection304
+        connect Junction38 R6.n_node as Connection305
+        connect R7.n_node Junction38 as Connection306
     }
 
     default {
@@ -961,11 +995,26 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "100e-6"
         }
 
+        "core/Capacitor" {
+            signal_access = "inherit"
+            capacitance = "1e-6"
+            initial_voltage = "0"
+            pole_shift_ignore = "False"
+            visible = "True"
+        }
+
         "core/Digital Input" {
             addr = "1"
             invert = "false"
             signal_type = "uint"
             execution_rate = "100e-6"
+        }
+
+        "core/Gain" {
+            gain = "1"
+            multiplication = "Element-wise(K.*u)"
+            _tunable = "False"
+            execution_rate = "inherit"
         }
 
         "core/Inductor" {
@@ -1004,6 +1053,11 @@ model "sfc_back_to_back_synchronous_machine" {
             def_value = "0"
             unit = " "
             execution_rate = "100e-6"
+        }
+
+        "core/Sum" {
+            signs = "2"
+            execution_rate = "inherit"
         }
 
         "core/Current Measurement" {
