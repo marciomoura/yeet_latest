@@ -53,6 +53,19 @@
             }
         },
         {
+            "name": "mingw-cc",
+            "displayName": "mingw-cc configuration",
+            "toolchainFile": "cmake/toolchain/x86_64-w64-mingw32.cmake",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "cacheVariables": {
+                "YEET_SFC_HOST_BUILD": "ON"
+            }
+        },
+        {
             "name": "embedded-base",
             "hidden": true,
             "description": "Base configuration for embedded builds",

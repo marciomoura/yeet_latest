@@ -237,12 +237,12 @@ jobs:
   #         BOARD_SHORT=$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')
   #         SIDE_LOWER=$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')
   #         BUILD_DIR="build-embedded-${BOARD_SHORT}-${SIDE_LOWER}"
-          
+
   #         echo "=== Build Artifacts ==="
   #         ls -lh ${BUILD_DIR}/bin/${{ matrix.build_type }}/*.elf || true
   #         ls -lh ${BUILD_DIR}/bin/${{ matrix.build_type }}/*.bin || true
   #         ls -lh ${BUILD_DIR}/bin/${{ matrix.build_type }}/*.hex || true
-          
+
   #         echo ""
   #         echo "=== Flash Memory Usage ==="
   #         if [ -f "${BUILD_DIR}/bin/${{ matrix.build_type }}/yeet_embedded_app_${SIDE_LOWER}.elf" ]; then
@@ -293,7 +293,7 @@ jobs:
           PID2=$!
           ./build/bin/yeet_control_tests --gtest_color=yes &
           PID3=$!
-          
+
           # Wait for all tests and capture exit codes
           wait $PID1
           EXIT1=$?
@@ -301,7 +301,7 @@ jobs:
           EXIT2=$?
           wait $PID3
           EXIT3=$?
-          
+
           # Exit with failure if any test failed
           if [ $EXIT1 -ne 0 ] || [ $EXIT2 -ne 0 ] || [ $EXIT3 -ne 0 ]; then
             echo "One or more tests failed!"
@@ -334,13 +334,13 @@ jobs:
           PID1=$!
           ./build/bin/yeet_application_sfc_integration_tests --gtest_color=yes &
           PID2=$!
-          
+
           # Wait for all tests and capture exit codes
           wait $PID1
           EXIT1=$?
           wait $PID2
           EXIT2=$?
-          
+
           # Exit with failure if any test failed
           if [ $EXIT1 -ne 0 ] || [ $EXIT2 -ne 0 ]; then
             echo "One or more tests failed!"
@@ -448,6 +448,97 @@ jobs:
             valgrind-*.log
           retention-days: 7
         if: always()
+
+  # Job 8: Build and Release Virtual Controller (Windows)
+  release-virtual-controller:
+    if: github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Print Build Configuration
+        run: |
+          echo "Building Virtual Controller Release for Windows"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          location: C:/msys64
+          release: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-ccache
+            zip
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ runner.os }}
+          max-size: 500M
+          verbose: 2
+
+      - name: Build Virtual Controller (Release)
+        shell: bash
+        run: |
+          cmake --preset=host-gcc-sfc
+          cmake --build --preset host-gcc-release --target sfc_host_simulator
+          cp C:/msys64/mingw64/bin/{libgcc_s_seh-1.dll,libstdc++-6.dll,libwinpthread-1.dll} build-host/bin/Release/
+          ldd build-host/bin/Release/sfc_host_simulator.exe
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          $TAG = "master"
+          echo "tag=$TAG" >> $env:GITHUB_OUTPUT
+          echo "Generated tag: $TAG"
+
+      - name: List build artifacts
+        shell: bash
+        run: |
+          ls build-host/bin/Release
+          C:/msys64/usr/bin/zip -j "virtual_controller_${{ steps.tag.outputs.tag }}.zip" build-host/bin/Release/*
+
+      - name: Delete existing Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete ${{ steps.tag.outputs.tag }} --yes --cleanup-tag || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Virtual Controller ${{ steps.tag.outputs.tag }}"
+          prerelease: true
+          body: |
+            # Virtual Controller Release
+
+            ## Build Information
+            - **Commit**: ${{ github.sha }}
+            - **Build Date**: ${{ github.run_timestamp }}
+            - **Platform**: Windows x64
+            - **Compiler**: MinGW-w64 GCC
+
+            ## What's Included
+            - `sfc_host_simulator.exe` - The virtual controller executable for Windows
+            - Supporting DLLs required for execution
+
+            ## How to Use
+            1. Download `virtual_controller_${{ steps.tag.outputs.tag }}.zip`
+            2. Extract the contents to a desired location.
+            3. Run `sfc_host_simulator --help` for usage options.
+          files: |
+            virtual_controller_${{ steps.tag.outputs.tag }}.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
