@@ -17,6 +17,15 @@ protected:
         // Configure with default test parameters
         sequencer->configure_virtual_frequency(virtual_freq_cfg);
         sequencer->configure_virtual_torque(virtual_torque_cfg);
+
+        // Disable observer settling time for unit tests to get immediate transitions
+        flying_restart_config flying_cfg{
+            .speed_threshold = speed_pu_t{0.05},
+            .voltage_threshold = voltage_pu_t{0.1},
+            .observer_settling_time = duration_t{0.0},  // Zero settling time for unit tests
+            .auto_start_stop_enabled = false            // Disable auto-start for unit tests
+        };
+        sequencer->configure_flying_restart(flying_cfg);
     }
 
     void run_cycles(int count, bool field_established = true, angle_t estimated_angle = angle_t{0.0})
@@ -71,12 +80,14 @@ TEST_F(SfcStartupSequencerTest, InitialOutputsAreSafe)
 TEST_F(SfcStartupSequencerTest, StartSequenceTransitionsToFluxBuildup)
 {
     EXPECT_TRUE(sequencer->start_sequence());
+    run_cycles(1);  // Allow observer settling time check (even with 0.0s, needs 1 cycle)
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::FLUX_BUILDUP);
 }
 
 TEST_F(SfcStartupSequencerTest, CannotStartSequenceFromNonIDLEState)
 {
     sequencer->start_sequence();                // Move to FLUX_BUILDUP
+    run_cycles(1);                              // Allow transition
     EXPECT_FALSE(sequencer->start_sequence());  // Should fail
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::FLUX_BUILDUP);
 }
@@ -84,6 +95,7 @@ TEST_F(SfcStartupSequencerTest, CannotStartSequenceFromNonIDLEState)
 TEST_F(SfcStartupSequencerTest, FluxBuildupTransitionsToStartingProcedureWhenComplete)
 {
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::FLUX_BUILDUP);
 
     // Field not yet established - should stay in FLUX_BUILDUP
@@ -99,6 +111,7 @@ TEST_F(SfcStartupSequencerTest, StartingProcedureTransitionsAutomaticallyAfterDu
 {
     // Start and get through flux buildup (transitions when is_field_established=true)
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
     ASSERT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
 
@@ -114,6 +127,7 @@ TEST_F(SfcStartupSequencerTest, StartingProcedureTransitionsAutomaticallyAfterDu
 TEST_F(SfcStartupSequencerTest, StopSequenceReturnsToIDLEFromAnyState)
 {
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::FLUX_BUILDUP);
 
     sequencer->stop_sequence();
@@ -121,6 +135,7 @@ TEST_F(SfcStartupSequencerTest, StopSequenceReturnsToIDLEFromAnyState)
 
     // Test from STARTING_PROCEDURE
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
 
@@ -129,6 +144,7 @@ TEST_F(SfcStartupSequencerTest, StopSequenceReturnsToIDLEFromAnyState)
 
     // Test from CLOSED_LOOP_OPERATION
     sequencer->start_sequence();
+    run_cycles(1);           // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);     // Flux buildup completes when is_field_established=true
     run_cycles(1001, true);  // Starting procedure (need 1001 cycles for timer > comparison)
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
@@ -152,6 +168,7 @@ TEST_F(SfcStartupSequencerTest, IDLEStateReleaseCommandsAreCorrect)
 TEST_F(SfcStartupSequencerTest, FluxBuildupOutputsAreCorrect)
 {
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
     // Run one cycle without field established to verify FLUX_BUILDUP outputs
     sequencer->update(false, angle_t{0.0}, speed_pu_t{0.0}, voltage_pu_t{0.0}, sfc_state_id::OPERATION_ON,
         speed_pu_t{1.0}, base_frequency);  // is_field_established = false
@@ -175,6 +192,7 @@ TEST_F(SfcStartupSequencerTest, FluxBuildupOutputsAreCorrect)
 TEST_F(SfcStartupSequencerTest, StartingProcedureOutputsAreCorrect)
 {
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
     auto outputs = sequencer->get_outputs();
 
@@ -194,6 +212,7 @@ TEST_F(SfcStartupSequencerTest, StartingProcedureOutputsAreCorrect)
 TEST_F(SfcStartupSequencerTest, ClosedLoopOperationOutputsAreCorrect)
 {
     sequencer->start_sequence();
+    run_cycles(1);           // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);     // Flux buildup completes when is_field_established=true
     run_cycles(1001, true);  // Starting procedure (need 1001 cycles for timer > comparison)
 
@@ -215,6 +234,7 @@ TEST_F(SfcStartupSequencerTest, ClosedLoopOperationOutputsAreCorrect)
 TEST_F(SfcStartupSequencerTest, VirtualFrequencyRampsLinearly)
 {
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     ASSERT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
@@ -235,6 +255,7 @@ TEST_F(SfcStartupSequencerTest, VirtualFrequencyRampsLinearly)
 TEST_F(SfcStartupSequencerTest, VirtualAngleIntegratesCorrectly)
 {
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true, enter STARTING_PROCEDURE
 
     angle_t initial_angle = sequencer->get_outputs().virtual_reference.rotor_angle;
@@ -251,6 +272,7 @@ TEST_F(SfcStartupSequencerTest, VirtualAngleIntegratesCorrectly)
 TEST_F(SfcStartupSequencerTest, VirtualAngleWrapsToTwoPi)
 {
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true, enter STARTING_PROCEDURE
 
     // Run for full duration in STARTING_PROCEDURE
@@ -272,6 +294,7 @@ TEST_F(SfcStartupSequencerTest, ZeroDurationVirtualFluxSkipsToClosedLoop)
     sequencer->configure_virtual_frequency(virtual_freq_cfg);
 
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     // Should skip STARTING_PROCEDURE and go directly to CLOSED_LOOP
@@ -288,6 +311,7 @@ TEST_F(SfcStartupSequencerTest, ConstantFrequencyMaintainedWhenInitialEqualsFina
     sequencer->configure_virtual_frequency(virtual_freq_cfg);
 
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     // Check frequency at start
@@ -307,6 +331,7 @@ TEST_F(SfcStartupSequencerTest, ConstantFrequencyMaintainedWhenInitialEqualsFina
 TEST_F(SfcStartupSequencerTest, VirtualTorqueRampsLinearly)
 {
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     ASSERT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
@@ -333,6 +358,7 @@ TEST_F(SfcStartupSequencerTest, ZeroDurationTorqueJumpsToFinal)
     sequencer->configure_virtual_torque(virtual_torque_cfg);
 
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     // Torque should immediately be at final value
@@ -350,6 +376,7 @@ TEST_F(SfcStartupSequencerTest, ConstantTorqueWhenInitialEqualsFinal)
     sequencer->configure_virtual_torque(virtual_torque_cfg);
 
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     // Check torque at start
@@ -367,6 +394,7 @@ TEST_F(SfcStartupSequencerTest, ConstantTorqueWhenInitialEqualsFinal)
 TEST_F(SfcStartupSequencerTest, ResetReturnsToIDLE)
 {
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
     run_cycles(500, true);
     ASSERT_NE(sequencer->get_current_state(), startup_sequencer_state_t::IDLE);
 
@@ -377,6 +405,7 @@ TEST_F(SfcStartupSequencerTest, ResetReturnsToIDLE)
 TEST_F(SfcStartupSequencerTest, ResetClearsVirtualReferenceFrame)
 {
     sequencer->start_sequence();
+    run_cycles(1);          // Allow transition to FLUX_BUILDUP
     run_cycles(500, true);  // Flux buildup
     run_cycles(500, true);  // Half of starting procedure
 
@@ -395,6 +424,7 @@ TEST_F(SfcStartupSequencerTest, IsStartupCompleteOnlyTrueInClosedLoop)
     EXPECT_FALSE(sequencer->is_startup_complete());
 
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
     EXPECT_FALSE(sequencer->is_startup_complete());
 
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
@@ -410,6 +440,7 @@ TEST_F(SfcStartupSequencerTest, IsStartupCompleteOnlyTrueInClosedLoop)
 TEST_F(SfcStartupSequencerTest, TimeInCurrentStateTracksCorrectly)
 {
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
 
     run_cycles(100, true);  // Still in FLUX_BUILDUP, is_field_established = true
     // Time in FLUX_BUILDUP should be near 100ms (will transition on first cycle)
@@ -421,6 +452,7 @@ TEST_F(SfcStartupSequencerTest, TimeInCurrentStateTracksCorrectly)
     sequencer->stop_sequence();
     sequencer->reset();
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
 
     run_cycles(100, false);  // Keep field NOT established to stay in FLUX_BUILDUP
     EXPECT_NEAR(sequencer->get_time_in_current_state().value(), 0.1, 0.001);
@@ -451,6 +483,7 @@ TEST_F(SfcStartupSequencerTest, ConfigurationIsApplied)
     sequencer->configure_virtual_torque(new_torque_cfg);
 
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes when is_field_established=true
 
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
@@ -465,6 +498,7 @@ TEST_F(SfcStartupSequencerTest, ConfigurationIsApplied)
 TEST_F(SfcStartupSequencerTest, FieldNotEstablishedKeepsInFluxBuildup)
 {
     sequencer->start_sequence();
+    run_cycles(1);  // Allow transition to FLUX_BUILDUP
 
     // Run for longer than configured duration but field never establishes
     run_cycles(1000, false);  // false = field not established
@@ -484,6 +518,7 @@ TEST_F(SfcStartupSequencerTest, VeryShortDurationsHandledCorrectly)
     sequencer->configure_virtual_torque(virtual_torque_cfg);
 
     sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
     run_cycles(1, true);  // Flux buildup completes immediately when is_field_established=true
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
 
