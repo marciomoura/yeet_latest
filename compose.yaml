@@ -1,0 +1,17 @@
+services:
+  yeet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/techperts/yeet:latest
+    container_name: yeet
+    hostname: yeet
+    volumes:
+      - .:/home/user/ws
+    working_dir: /home/user/ws
+    networks:
+      - yeet
+
+networks:
+  yeet:
+    name: yeet

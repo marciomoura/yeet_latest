@@ -111,3 +111,11 @@ ENV UV_LINK_MODE=copy
 ENV VIRTUAL_ENV=/home/${USER}/.venv
 
 RUN mkdir -p ${CCACHE_DIR} ${UV_CACHE_DIR} ${VIRTUAL_ENV}
+
+USER root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    mingw-w64 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+USER ${USER}
