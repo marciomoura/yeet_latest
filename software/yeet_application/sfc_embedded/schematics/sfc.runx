@@ -278,7 +278,7 @@
                 <scale>300.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
-                <ao_limiting_enabled>False</ao_limiting_enabled>
+                <ao_limiting_enabled>True</ao_limiting_enabled>
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
@@ -293,7 +293,7 @@
                 <scale>300.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
-                <ao_limiting_enabled>False</ao_limiting_enabled>
+                <ao_limiting_enabled>True</ao_limiting_enabled>
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
@@ -1871,12 +1871,12 @@
         </batteries>
         <scada_inputs>
             <scada_input>
-                <name>electrical_torque</name>
+                <name>excitation</name>
                 <device>0</device>
-                <value>0.0</value>
+                <value>100.0</value>
             </scada_input>
             <scada_input>
-                <name>field_voltage</name>
+                <name>load_torque</name>
                 <device>0</device>
                 <value>0.0</value>
             </scada_input>

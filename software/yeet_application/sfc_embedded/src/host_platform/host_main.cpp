@@ -78,7 +78,7 @@ void signal_handler(int signal)
 struct config {
     int grid_port = 7000;           // Telemetry port for grid-side
     int machine_port = 7001;        // Telemetry port for machine-side
-    float frequency_hz = 40000.0f;  // Control frequency (5 kHz recommended for plant simulation)
+    float frequency_hz = 30000.0f;  // Control frequency (5 kHz recommended for plant simulation)
     bool verbose = false;           // Verbose logging
 };
 
@@ -336,6 +336,12 @@ int main(int argc, char* argv[])
     grid_side_network_infrastructure grid_network_infra(simulator_builder.grid_side_control);
     machine_side_network_infrastructure machine_network_infra(simulator_builder.machine_side_control);
 
+    // Register plant model parameters in machine-side registry (for host application only)
+    std::cout << "[INIT] Registering plant model parameters in machine-side registry..." << std::endl;
+    simulator_builder.machine_side_control.register_plant_datamodel(
+        machine_network_infra.registry, simulator_builder.plant);
+    machine_network_infra.parameter_handler.rebuild_parameter_cache();
+
     // ==================== Telemetry Lambda Runner (50µs = 20 kHz) ====================
     std::cout << "[INIT] Registering telemetry lambda runner (20 kHz / 50 µs)..." << std::endl;
     constexpr double telemetry_period = 50e-6;  // 50 microseconds
@@ -388,7 +394,7 @@ int main(int argc, char* argv[])
     yeet::application::sfc::integration::test::configure_variable_speed_plant(simulator_builder.plant, plant_config);
 
     // Moderate load torque (typical for gas turbine compressor)
-    yeet::mock_signal_input::write(simulator_builder.plant.get_inputs().load_torque, yeet::torque_pu_t(0.2));
+    simulator_builder.plant.get_parameters().constant_torque.write(yeet::torque_pu_t(0.2));
     simulator_builder.plant.get_parameters().initial_speed.write(yeet::speed_pu_t(0.01));
 
     // Configure torque limits for startup

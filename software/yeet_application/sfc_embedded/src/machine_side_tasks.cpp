@@ -87,7 +87,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
 {
     // ==================== INITIALIZE DIGITAL INPUTS ====================
 
-#if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+    // #if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
     //  Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware
     //  staging)
     control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
@@ -95,7 +95,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
         yeet::control::six_pulse_generator::reference_type::line);
     control->machine_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
-#endif
+    // #endif
 
     // Initialize machine-side control subsystem
     control->initialize();
@@ -119,7 +119,7 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     //   AI2 (X1-2): Machine voltage Vbc
 
     // Write ADC values directly to I/O interface analog inputs
-    if (inputs != nullptr && inputs->analog_inputs.valid) {
+    if (inputs->analog_inputs.valid) {
         control->external_ios.update_analog_inputs(
             yeet::control::adc_counts{static_cast<std::int32_t>(inputs->analog_inputs.channels[1])},
             yeet::control::adc_counts{static_cast<std::int32_t>(inputs->analog_inputs.channels[2])});
@@ -137,16 +137,13 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     //   PWM4 (PC9) → a_minus (Phase A negative arm, T4)
     //   PWM5 (PB0) → c_plus  (Phase C positive arm, T5)
     //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
-    if (outputs != nullptr) {
-        const auto& firing_pulses = control->get_firing_pulses().read();
-
-        outputs->thyristor_pulses.a_plus = firing_pulses.p1;
-        outputs->thyristor_pulses.c_minus = firing_pulses.p2;
-        outputs->thyristor_pulses.b_plus = firing_pulses.p3;
-        outputs->thyristor_pulses.a_minus = firing_pulses.p4;
-        outputs->thyristor_pulses.c_plus = firing_pulses.p5;
-        outputs->thyristor_pulses.b_minus = firing_pulses.p6;
-    }
+    const auto& firing_pulses = control->get_firing_pulses().read();
+    outputs->thyristor_pulses.a_plus = firing_pulses.p1;
+    outputs->thyristor_pulses.c_minus = firing_pulses.p2;
+    outputs->thyristor_pulses.b_plus = firing_pulses.p3;
+    outputs->thyristor_pulses.a_minus = firing_pulses.p4;
+    outputs->thyristor_pulses.c_plus = firing_pulses.p5;
+    outputs->thyristor_pulses.b_minus = firing_pulses.p6;
 }
 
 ARM_FUNCTION
@@ -162,11 +159,11 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
 
     // ==================== DIGITAL INPUTS → CONTROL COMMANDS ====================
     // Map hardware digital inputs to state machine control signals via I/O interface
-    if (inputs != nullptr && inputs->digital_inputs.valid) {
+    if (inputs->digital_inputs.valid) {
         // Update excitation digital inputs from hardware I/O
-        control->external_ios.update_excitation_inputs(inputs->digital_inputs.signals[0],  // DI1: Exciter ready
-            inputs->digital_inputs.signals[1],                                             // DI2: Excitation start
-            inputs->digital_inputs.signals[2]);                                            // DI3: Excitation stop
+        // control->external_ios.update_excitation_inputs(inputs->digital_inputs.signals[0],  // DI1: Exciter ready
+        // inputs->digital_inputs.signals[1],                                             // DI2: Excitation start
+        // inputs->digital_inputs.signals[2]);                                            // DI3: Excitation stop
 
         // DISABLED: Speed generator replaced by startup_sequencer
         // // Update speed generator digital inputs from hardware I/O
@@ -180,13 +177,14 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         //     inputs->digital_inputs.signals[9]);  // DI10: Idle mode
 
         // Update startup sequencer digital inputs from hardware I/O
-        control->external_ios.update_startup_sequencer_inputs(inputs->digital_inputs.signals[3],  // DI4: Start command
-            inputs->digital_inputs.signals[4]);                                                   // DI5: Stop command
+        // control->external_ios.update_startup_sequencer_inputs(inputs->digital_inputs.signals[3],  // DI4: Start
+        // command inputs->digital_inputs.signals[4]);                                                   // DI5: Stop
+        // command
     }
 
     // Process fiber-optic RX data from grid-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
-    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
+    if (inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Use control class method to decode all signals (ensures consistency with host simulator)
         // This updates external_ios with: mode, state_id, force_commutation_acknowledged, current_is_zero,
         // is_saturated, pulse_releases, dc_link_current, preset_request
@@ -199,31 +197,52 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // ==================== FIBER-OPTIC TX → GRID-SIDE CONTROLLER ====================
     // Prepare fiber-optic TX data to send to grid-side board via I/O interface outputs
     // Transmit machine-side status and cross-coupled signals
-    if (outputs != nullptr) {
-        // Use control class method to encode all signals (ensures consistency with host simulator)
-        // This includes: measured_speed, dc_link_current_reference_pu, machine_voltage_magnitude_pu,
-        // force_commutation_request, shutdown_request
-        uint8_t payload_words = control->encode_fiber_optic_tx_to_grid();
-        outputs->fiber_optic_tx.payload_length = payload_words;
+    // Use control class method to encode all signals (ensures consistency with host simulator)
+    // This includes: measured_speed, dc_link_current_reference_pu, machine_voltage_magnitude_pu,
+    // force_commutation_request, shutdown_request
+    uint8_t payload_words = control->encode_fiber_optic_tx_to_grid();
+    outputs->fiber_optic_tx.payload_length = payload_words;
 
-        // Copy encoded payload from control class to output buffer
-        // Note: payload_length is in uint32_t words, memcpy needs bytes
-        std::memcpy(
-            outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
-        outputs->fiber_optic_tx.transmit_request = true;
-    }
+    // Copy encoded payload from control class to output buffer
+    // Note: payload_length is in uint32_t words, memcpy needs bytes
+    std::memcpy(
+        outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
+    outputs->fiber_optic_tx.transmit_request = true;
 
     // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
     // Map control system status to hardware digital outputs for HMI/supervisory system
-    if (outputs != nullptr) {
-        // Fiber link status from RX (direct pass-through)
-        outputs->digital_outputs.signals[0] = inputs->fiber_optic_rx.link_ok;  // DO1: Fiber link status
+    // Fiber link status from RX (direct pass-through)
+    outputs->digital_outputs.signals[0] = inputs->fiber_optic_rx.link_ok;  // DO1: Fiber link status
 
-        // Machine-side control status outputs
-        // These could be used for HMI display, diagnostics, or interlocks
-        // Populated from get_io().digital_inputs/outputs as needed
-        // DO3-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
-    }
+    // Machine-side control status outputs
+    // These could be used for HMI display, diagnostics, or interlocks
+    // Populated from get_io().digital_inputs/outputs as needed
+    // DO3-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
+
+    // ==================== OPTIONAL: ANALOG OUTPUTS → MONITORING/TESTING ====================
+    // Map control system signals to DAC outputs for monitoring and testing
+    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
+
+    // Example DAC output mappings (customize based on your application):
+    // Channel A: Speed error or speed setpoint
+    // Channel B: Current reference
+    // Channel C: Excitation voltage
+    // Channel D: Reserved
+
+    // Note: These are for diagnostics/monitoring only
+    // The actual control signals are routed via get_io() interface
+    outputs->analog_outputs.channels[0] =
+        control->get_excitation_controller().get_outputs().field_current_reference.read().value();  // CH A
+    outputs->analog_outputs.channels[1] = outputs->analog_outputs.channels[0];
+    outputs->analog_outputs.channels[2] = outputs->analog_outputs.channels[0];
+    outputs->analog_outputs.channels[3] = outputs->analog_outputs.channels[0];
+
+    //     outputs->analog_outputs.channels[1] = control->get_current_reference().read().value();          // ...  // CH
+    //     B
+    // outputs->analog_outputs.channels[2] =
+    //     control->get_speed_controller().get_outputs().torque_reference.read().value();        // ...  // CH C
+    // outputs->analog_outputs.channels[3] = control->get_estimated_position().read().get_pu();  // ...  // CH D
+    outputs->analog_outputs.valid = true;
 }
 
 ARM_FUNCTION
@@ -241,25 +260,6 @@ void machine_task_10000us(yeet::application::sfc::integration::sfc_machine_side_
     // ==================== SPEED CONTROLLER EXECUTION ====================
     // Execute low-frequency speed regulation control
     control->update_10ms();
-
-    // ==================== OPTIONAL: ANALOG OUTPUTS → MONITORING/TESTING ====================
-    // Map control system signals to DAC outputs for monitoring and testing
-    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
-    if (outputs != nullptr) {
-        // Example DAC output mappings (customize based on your application):
-        // Channel A: Speed error or speed setpoint
-        // Channel B: Current reference
-        // Channel C: Excitation voltage
-        // Channel D: Reserved
-
-        // Note: These are for diagnostics/monitoring only
-        // The actual control signals are routed via get_io() interface
-        // outputs->analog_outputs.channels[0] = ...  // CH A
-        // outputs->analog_outputs.channels[1] = ...  // CH B
-        // outputs->analog_outputs.channels[2] = ...  // CH C
-        // outputs->analog_outputs.channels[3] = ...  // CH D
-        // outputs->analog_outputs.valid = true;
-    }
 
     (void)inputs;   // Suppress unused parameter warning if inputs not needed
     (void)outputs;  // Suppress unused parameter warning if outputs not needed

@@ -35,6 +35,9 @@ public:
         /// Measured rotor speed from machine-side observer [pu]
         signal_input<speed_pu_t> measured_speed;
 
+        /// Measured voltage magnitude from machine-side observer [pu]
+        signal_input<voltage_pu_t> machine_voltage_magnitude;
+
         /// Grid-side state machine current state ID
         signal_input<yeet::application::sfc::sfc_state_id> current_state_id;
 
@@ -152,6 +155,13 @@ public:
         /// (e.g., 0.05 = 5% rated speed)
         parameter<speed_pu_t> flying_restart_speed_threshold = speed_pu_t{0.05};
 
+        /// Voltage magnitude threshold for flying restart detection [pu]
+        /// (e.g., 0.1 = 10% rated voltage)
+        parameter<voltage_pu_t> flying_restart_voltage_threshold = voltage_pu_t{0.1};
+
+        /// Observer settling time before flying restart decision [s]
+        parameter<duration_t> flying_restart_observer_settling_time = duration_t{2.0};
+
         /// Enable automatic start/stop based on state machine state
         parameter<bool> auto_start_stop_enabled = true;
     };
@@ -209,6 +219,10 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->speed_reference_rate_limit_enabled));
         entry.parameters.insert("flying_restart_speed_threshold",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_speed_threshold));
+        entry.parameters.insert("flying_restart_voltage_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->flying_restart_voltage_threshold));
+        entry.parameters.insert("flying_restart_observer_settling_time",
+            yeet::utils::make_units_accessor(_model_parameters->flying_restart_observer_settling_time));
         entry.parameters.insert(
             "auto_start_stop_enabled", yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
 

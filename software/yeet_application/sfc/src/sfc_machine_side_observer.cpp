@@ -67,8 +67,10 @@ void sfc_machine_side_observer::update(const abc<voltage_pu_t>& grid_voltage_abc
 void sfc_machine_side_observer::reset(frequency_pu_t initial_frequency)
 {
     _pll.reset(initial_frequency);
+    _filtered_voltage_filter.reset();
+    _filtered_frequency.reset();
     _estimated_angle = angle_wrapped{0.0f};
-    _estimated_frequency = _nominal_frequency;
+    _estimated_frequency = to_si(initial_frequency, _nominal_frequency);
     _estimated_frequency_pu = initial_frequency;
     _estimated_voltage_magnitude = voltage_pu_t{0.0f};
     _filtered_voltage_alphabeta = alphabeta<voltage_pu_t>{voltage_pu_t{0.0f}, voltage_pu_t{0.0f}};

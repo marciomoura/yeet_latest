@@ -41,6 +41,9 @@ void sfc_startup_sequencer_runner::run()
     // Read measured speed from observer
     speed_pu_t measured_speed = _inputs.measured_speed.read();
 
+    // Read measured voltage magnitude from observer for flying restart detection
+    voltage_pu_t measured_voltage_magnitude = _inputs.machine_voltage_magnitude.read();
+
     // Read current state ID from grid-side state machine
     sfc_state_id current_state_id = _inputs.current_state_id.read();
 
@@ -53,8 +56,8 @@ void sfc_startup_sequencer_runner::run()
     frequency_t base_frequency = _per_unit_system->get_machine_bases().base_frequency.value();
 
     // Update the sequencer with measured signals
-    _sequencer.update(is_field_established, estimated_angle, measured_speed, current_state_id, external_speed_reference,
-        base_frequency);
+    _sequencer.update(is_field_established, estimated_angle, measured_speed, measured_voltage_magnitude,
+        current_state_id, external_speed_reference, base_frequency);
     const sfc::startup_sequencer_outputs sequencer_outputs = _sequencer.get_outputs();
 
     _outputs.current_state.write(sequencer_outputs.controller_commands.current_state);
@@ -107,6 +110,8 @@ void sfc_startup_sequencer_runner::set_parameters()
     // Configure flying restart
     sfc::flying_restart_config flying_restart_cfg;
     flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
+    flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
+    flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
     flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
     _sequencer.configure_flying_restart(flying_restart_cfg);
 }
@@ -129,6 +134,8 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
 
     // Register callbacks for flying restart parameters
     _parameters.flying_restart_speed_threshold.register_callback([&]() { set_parameters(); });
+    _parameters.flying_restart_voltage_threshold.register_callback([&]() { set_parameters(); });
+    _parameters.flying_restart_observer_settling_time.register_callback([&]() { set_parameters(); });
     _parameters.auto_start_stop_enabled.register_callback([&]() { set_parameters(); });
 }
 
