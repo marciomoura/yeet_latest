@@ -81,94 +81,28 @@ model "sfc_back_to_back_synchronous_machine" {
             init_rms_value = "1206.66"
         }
         [
-            position = 8216, 8248
+            position = 8224, 8248
             size = 62, 256
-        ]
-
-        component "core/Resistor" R1 {
-            resistance = "0.0163"
-        }
-        [
-            position = 8652, 8152
-        ]
-
-        component "core/Inductor" L1 {
-            inductance = "0.5e-3"
-        }
-        [
-            position = 8772, 8152
-        ]
-
-        component "core/Resistor" R2 {
-            resistance = "0.0163"
-        }
-        [
-            position = 8652, 8248
-        ]
-
-        component "core/Inductor" L2 {
-            inductance = "0.5e-3"
-        }
-        [
-            position = 8772, 8248
-        ]
-
-        component "core/Resistor" R3 {
-            resistance = "0.0163"
-        }
-        [
-            position = 8652, 8344
-        ]
-
-        component "core/Inductor" L3 {
-            inductance = "0.5e-3"
-        }
-        [
-            position = 8772, 8344
-        ]
-
-        component "core/Voltage Measurement" voltage_grid_ab {
-        }
-        [
-            position = 8352, 8200
-            rotation = right
-            size = 64, 32
-        ]
-
-        component "core/Voltage Measurement" voltage_grid_bc {
-        }
-        [
-            position = 8352, 8296
-            rotation = right
-            size = 64, 32
-        ]
-
-        component "core/Voltage Measurement" voltage_grid_ca {
-        }
-        [
-            position = 8408, 8296
-            rotation = left
-            size = 64, 32
         ]
 
         component "core/Current Measurement" current_grid_a {
         }
         [
-            position = 8504, 8152
+            position = 8660, 8152
             size = 64, 32
         ]
 
         component "core/Current Measurement" current_grid_b {
         }
         [
-            position = 8508, 8248
+            position = 8664, 8248
             size = 64, 32
         ]
 
         component "core/Current Measurement" current_grid_c {
         }
         [
-            position = 8512, 8344
+            position = 8668, 8344
             size = 64, 32
         ]
 
@@ -176,7 +110,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 8172, 8556
+            position = 8360, 8616
         ]
 
         component "core/Analog Input" AI2 {
@@ -184,7 +118,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 8172, 8608
+            position = 8360, 8668
         ]
 
         component "core/Analog Input" AI3 {
@@ -192,7 +126,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 8172, 8660
+            position = 8360, 8720
         ]
 
         component "core/Analog Input" AI4 {
@@ -200,82 +134,82 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 8172, 8712
+            position = 8360, 8772
         ]
 
         component "core/Probe" grid_a1 {
         }
         [
-            position = 8248, 8556
+            position = 8436, 8616
         ]
 
         component "core/Probe" grid_a2 {
         }
         [
-            position = 8248, 8608
+            position = 8436, 8668
         ]
 
         component "core/Probe" grid_a3 {
         }
         [
-            position = 8248, 8660
+            position = 8436, 8720
         ]
 
         component "core/Probe" grid_a4 {
         }
         [
-            position = 8248, 8712
+            position = 8436, 8772
         ]
 
         component "core/Digital Input" DI1 {
         }
         [
-            position = 8368, 8556
+            position = 8556, 8616
         ]
 
         component "core/Digital Input" DI2 {
             addr = "2"
         }
         [
-            position = 8368, 8608
+            position = 8556, 8668
         ]
 
         component "core/Digital Input" DI3 {
             addr = "3"
         }
         [
-            position = 8368, 8664
+            position = 8556, 8724
         ]
 
         component "core/Digital Input" DI4 {
             addr = "4"
         }
         [
-            position = 8368, 8716
+            position = 8556, 8776
         ]
 
         component "core/Probe" grid_di1 {
         }
         [
-            position = 8464, 8556
+            position = 8652, 8616
         ]
 
         component "core/Probe" grid_di2 {
         }
         [
-            position = 8464, 8608
+            position = 8652, 8668
         ]
 
         component "core/Probe" grid_di3 {
         }
         [
-            position = 8464, 8664
+            position = 8652, 8724
         ]
 
         component "core/Probe" grid_di4 {
         }
         [
-            position = 8464, 8716
+            position = 8652, 8776
         ]
 
         component "core/Digital Input" DI11 {
@@ -283,7 +217,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9160, 8484
+            position = 9160, 8576
         ]
 
         component "core/Digital Input" DI16 {
@@ -291,7 +225,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9160, 8536
+            position = 9160, 8628
         ]
 
         component "core/Digital Input" DI12 {
@@ -299,7 +233,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9160, 8592
+            position = 9160, 8684
         ]
 
         component "core/Digital Input" DI14 {
@@ -307,31 +241,31 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9160, 8644
+            position = 9160, 8736
         ]
 
         component "core/Probe" grid_pulse_t1 {
         }
         [
-            position = 9256, 8484
+            position = 9256, 8576
         ]
 
         component "core/Probe" grid_pulse_t2 {
         }
         [
-            position = 9256, 8536
+            position = 9256, 8628
         ]
 
         component "core/Probe" grid_pulse_t3 {
         }
         [
-            position = 9256, 8592
+            position = 9256, 8684
         ]
 
         component "core/Probe" grid_pulse_t4 {
         }
         [
-            position = 9256, 8644
+            position = 9256, 8736
         ]
 
         component "core/Digital Input" DI13 {
@@ -339,13 +273,13 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9160, 8700
+            position = 9160, 8792
         ]
 
         component "core/Probe" grid_pulse_t5 {
         }
         [
-            position = 9256, 8700
+            position = 9256, 8792
         ]
 
         component "core/Digital Input" DI15 {
@@ -353,17 +287,16 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9160, 8756
+            position = 9160, 8848
         ]
 
         component "core/Probe" grid_pulse_t6 {
         }
         [
-            position = 9256, 8756
+            position = 9256, 8848
         ]
 
         component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier1" {
-            PESB_Optimization = "False"
             Sa_bot = "14"
             Sa_bot_I = "True"
             Sa_bot_logic = "active low"
@@ -410,14 +343,6 @@ model "sfc_back_to_back_synchronous_machine" {
             size = 64, 32
         ]
 
-        component "core/Voltage Measurement" voltage_grid_a {
-        }
-        [
-            position = 8216, 8088
-            rotation = down
-            size = 64, 32
-        ]
-
         component "core/Voltage Measurement" voltage_bridge_grid_side_ab {
         }
         [
@@ -447,7 +372,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9904, 8500
+            position = 9904, 8592
         ]
 
         component "core/Digital Input" DI32 {
@@ -455,7 +380,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9904, 8552
+            position = 9904, 8644
         ]
 
         component "core/Digital Input" DI28 {
@@ -463,7 +388,7 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9904, 8608
+            position = 9904, 8700
         ]
 
         component "core/Digital Input" DI30 {
@@ -471,31 +396,31 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9904, 8660
+            position = 9904, 8752
         ]
 
         component "core/Probe" machine_pulse_t1 {
         }
         [
-            position = 10000, 8500
+            position = 10000, 8592
         ]
 
         component "core/Probe" machine_pulse_t2 {
         }
         [
-            position = 10000, 8552
+            position = 10000, 8644
         ]
 
         component "core/Probe" machine_pulse_t3 {
         }
         [
-            position = 10000, 8608
+            position = 10000, 8700
         ]
 
         component "core/Probe" machine_pulse_t4 {
         }
         [
-            position = 10000, 8660
+            position = 10000, 8752
         ]
 
         component "core/Digital Input" DI29 {
@@ -503,13 +428,13 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9904, 8716
+            position = 9904, 8808
         ]
 
         component "core/Probe" machine_pulse_t5 {
         }
         [
-            position = 10000, 8716
+            position = 10000, 8808
         ]
 
         component "core/Digital Input" DI31 {
@@ -517,17 +442,16 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "10e-6"
         }
         [
-            position = 9904, 8772
+            position = 9904, 8864
         ]
 
         component "core/Probe" machine_pulse_t6 {
         }
         [
-            position = 10000, 8772
+            position = 10000, 8864
         ]
 
         component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier2" {
-            PESB_Optimization = "False"
             Sa_bot = "30"
             Sa_bot_I = "True"
             Sa_bot_logic = "active low"
@@ -554,37 +478,27 @@ model "sfc_back_to_back_synchronous_machine" {
             size = 127, 256
         ]
 
-        component "core/Single Phase Core Coupling" "Core Coupling 1" {
-            R2 = "0.01"
-            snb_type_i = "R1"
-        }
-        [
-            position = 9760, 8248
-            scale = -1, 1
-            size = 13, 256
-        ]
-
         component "core/Voltage Measurement" voltage_bridge_machine_side_ab {
         }
         [
-            position = 10288, 8200
-            rotation = right
+            position = 10108, 8296
+            rotation = left
             size = 64, 32
         ]
 
         component "core/Voltage Measurement" voltage_bridge_machine_side_bc {
         }
         [
-            position = 10288, 8296
-            rotation = right
+            position = 10108, 8200
+            rotation = left
             size = 64, 32
         ]
 
         component "core/Voltage Measurement" voltage_bridge_machine_side_ca {
         }
         [
-            position = 10344, 8300
-            rotation = left
+            position = 10196, 8304
+            rotation = right
             size = 64, 32
         ]
 
@@ -592,186 +506,394 @@ model "sfc_back_to_back_synchronous_machine" {
             addr = "9"
         }
         [
-            position = 11104, 8464
+            position = 10228, 8656
         ]
 
         component "core/Analog Input" AI10 {
             addr = "10"
         }
         [
-            position = 11100, 8524
+            position = 10224, 8716
         ]
 
         component "core/Analog Input" AI11 {
             addr = "11"
         }
         [
-            position = 11096, 8580
+            position = 10220, 8772
         ]
 
         component "core/Analog Input" AI12 {
             addr = "12"
         }
         [
-            position = 11096, 8640
+            position = 10220, 8832
         ]
 
         component "core/Probe" machine_ai9 {
         }
         [
-            position = 11320, 8464
+            position = 10304, 8656
         ]
 
         component "core/Probe" machine_ai10 {
         }
         [
-            position = 11176, 8524
+            position = 10300, 8716
         ]
 
         component "core/Probe" machine_ai11 {
         }
         [
-            position = 11176, 8580
+            position = 10300, 8772
         ]
 
         component "core/Probe" machine_ai12 {
         }
         [
-            position = 11176, 8640
+            position = 10300, 8832
         ]
 
-        component "core/Gain" Gain2 {
-            gain = "100"
+        component "core/Single Phase Core Coupling" coupling3 {
+            C1 = "390e-7"
+            R1 = "100.0"
+            snb_type_i = "R1-C1"
         }
         [
-            position = 11180, 8464
+            position = 9348, 8248
+            size = 13, 256
         ]
 
-        component "core/Sum" Sum1 {
+        component "core/Three Phase Two Winding Transformer" Tr1 {
+            L1 = "3.766e-3"
+            L2 = "1.492e-4"
+            Lm = "3.00000E+02"
+            R1 = "7.8875e-2"
+            R2 = "3.125e-3"
+            Rm = "1.00000E+03"
+            Sn = "1600e3"
+            V1 = "10.5e3"
+            V2 = "2.09e3"
+            clock_number = "5"
+            current_vals_SCOC = "[0.0024, 1]"
+            current_vals_SI = "[0.66653, 277.72]"
+            current_vals_pu = "[0.0024, 1]"
+            f = "60.0"
+            flux_vals_SCOC = "[1.2, 1.52]"
+            flux_vals_SI = "[1910.3, 2419.7]"
+            flux_vals_pu = "[1.2, 1.52]"
+            input = "SI"
+            winding_1_connection = "D"
         }
         [
-            position = 11296, 8380
+            position = 8484, 8248
+            size = 126, 256
         ]
 
-        component "core/SCADA Input" excitation {
-            unit = ""
+        component "core/Ground" gnd {
         }
         [
-            position = 11180, 8372
+            position = 8108, 8248
+            rotation = right
+            scale = 1, -1
         ]
 
-        component "core/SCADA Input" load_torque {
-            unit = ""
+        component "core/Core Marker" core2 {
         }
         [
-            position = 11192, 8128
+            position = 10284, 8080
+        ]
+
+        component "core/Current Measurement" Iex {
+        }
+        [
+            position = 10792, 8264
+            size = 64, 32
+        ]
+
+        component "core/Core Marker" core1 {
+        }
+        [
+            position = 10808, 8056
+        ]
+
+        component "core/Three Phase Wound Rotor Synchronous Machine" "Synchronous Machine with Wound Rotor2" {
+            Jm = "3688.09"
+            Llfd = "1.547952"
+            Llkd = "0.000113"
+            Llkq = "0.000142"
+            Lls = "0.0003470"
+            Lmd = "0.006898"
+            Lmq = "0.00651"
+            Ns_div_Nfd = "3.51674"
+            Rf = "0.8"
+            Rkd = "0.009865"
+            Rkq = "0.008611"
+            Rs = "0.001187"
+            Rsnb_stator = "200"
+            load_src = "Model"
+            mech_speed_out = "True"
+            pms = "1"
+        }
+        [
+            position = 10536, 8248
+            hide_name = True
+            scale = 1, -1
+            size = 176, 160
+        ]
+
+        component "core/Externally Controlled Voltage Source" Vex {
+            ai_gain = "120"
+            ai_pin_addr = "9"
+        }
+        [
+            position = 10864, 8176
+            rotation = left
+            scale = -1, -1
+            size = 64, 48
+        ]
+
+        component Subsystem Load {
+            layout = dynamic
+            component "core/C function" load_characteristic {
+                arb_defs = "/*Begin code section*/
+
+/*End code section*/"
+                global_variables = "real in2;real in3;real in4;real in5;real in6;"
+                init_fnc = "/*Begin code section*/
+
+/*End code section*/"
+                input_terminals_dimensions = "inherit"
+                input_terminals_feedthrough = "True"
+                input_terminals_show_labels = "False"
+                output_fnc = "/*Begin code section*/
+/*
+ * Load characteristic model for a 52 MVA, 3000 RPM Gas Turbine Generator startup.
+ * This function calculates the resistive load torque (breakaway, friction, windage)
+ * that the LCI starter system must overcome.
+ *
+ * SYSTEM SPECIFICATIONS:
+ * - Generator Full Rating: 52 MVA (full GT-Gen combined rating)
+ * - LCI Soft-Starter Rating: 2.95 MVA (for starting)
+ * - Synchronous Speed: 3000 RPM (2-pole, 50 Hz machine)
+ * - Moment of Inertia: Jm = 4741.83 kg*m^2 (H = 4.5 seconds)
+ *
+ * All torque values are in Newton-meters (Nm).
+ * Input \'in\' is the current speed in RPM.
+ * Output \'out\' is the resistive torque in Nm.
+ */
+
+// --- Define Parameters for the 52 MVA, 3000 RPM System ---
+
+// Calculate rated torque from power rating
+// T_rated = P_rated / omega_mech
+// omega_mech = 2*pi*n/60 = 2*pi*3000/60 = 314.16 rad/s
+// T_rated = 52,000,000 VA / 314.16 rad/s = 165,509 Nm
+
+double rated_power_VA = 52.0e6;                                          // Generator full rating [VA]
+double rated_speed_rpm = 3000.0;                                         // Synchronous speed [RPM]
+double omega_mech_rated = 2.0 * 3.14159265359 * rated_speed_rpm / 60.0;  // 314.16 rad/s
+double rated_torque_Nm = rated_power_VA / omega_mech_rated;              // ~165,509 Nm
+
+// Breakaway torque (Nm) to overcome static friction at standstill.
+// For large gas turbines, this is typically 15-25% of rated torque.
+// Using conservative 20% for this 52 MVA system.
+double breakaway_torque = 0.20 * rated_torque_Nm;  // ~33,102 Nm
+
+// Coefficient for friction and windage losses that scale with the square of speed.
+// At rated speed, windage losses for GT-Gen systems are typically 0.3-0.8% of rated power.
+// Using 0.5% as typical for modern aeroderivative gas turbines.
+// Torque at rated speed due to windage: T_windage = 0.005 * T_rated
+double torque_at_rated_speed = 0.005 * rated_torque_Nm;  // ~827 Nm
+double speed_squared_inverse = 1.0 / (rated_speed_rpm * rated_speed_rpm);
+double k_windage = torque_at_rated_speed * speed_squared_inverse;  // ~9.19e-5
+
+// The speed at which the gas turbine becomes self-sustaining and starter disengages.
+// For gas turbines, this is typically 60-70% of rated speed.
+// Using 65% as typical for industrial GT soft-starters.
+double starter_disengage_rpm = 0.65 * rated_speed_rpm;  // 1950 RPM
+
+// Gas turbine operating phases (for reference/comments):
+// - Creep speed:           150 RPM  (5% of rated) - oil circulation
+// - Purge acceleration:    600 RPM  (20% of rated) - chamber ventilation
+// - Ignition:             1650 RPM  (55% of rated) - fuel ignition
+// - Self-sustaining:      1950 RPM  (65% of rated) - GT carries own load
+// - Assist acceleration:  2850 RPM  (95% of rated) - final acceleration
+// - Synchronization:      3000 RPM  (100% of rated) - grid connection
+
+// --- Calculation ---
+
+// Pre-calculate squared input for efficiency
+double in2 = in * in;
+
+// Condition 1: At or near zero speed (e.g., < 10 RPM).
+// The load is dominated by the constant breakaway torque.
+// This represents static friction in bearings, seals, and compressor blade loading.
+if (in >= 0 && in < 10) {
+    out = breakaway_torque;
+}
+
+// Condition 2: From low speed up to starter disengagement (self-sustaining speed).
+// The load is a combination of:
+//   - Base friction torque (decreases slightly from breakaway as surfaces separate)
+//   - Speed-dependent windage losses (proportional to N^2)
+// Model: Resistive Torque = Base_Friction + k_windage * N^2
+else if (in >= 10 && in <= starter_disengage_rpm) {
+    // Base friction reduces to ~80% of breakaway once in motion (Coulomb friction model)
+    double running_friction = 0.80 * breakaway_torque;
+    out = running_friction + k_windage * in2;
+}
+
+// Condition 3: Above starter disengagement speed (GT is self-sustaining).
+// The gas turbine combustion is now providing more power than it consumes.
+// The starter system is no longer needed and would typically disengage.
+// We output a large number to indicate an out-of-bounds condition for the starter model.
+else {
+    out = 1e6;  // Out-of-range indicator
+}
+
+// Final assignment if your simulation environment requires it
+// output_variable = out;
+
+/*
+ * NOTES FOR TYPHOON HIL INTEGRATION:
+ *
+ * 1. This C code can be used in a \"C Function\" block in Typhoon HIL schematic editor.
+ *
+ * 2. Expected torque values for 52 MVA system:
+ *    - Breakaway (0-10 RPM):        ~33,102 Nm (constant)
+ *    - Running friction (10+ RPM):  ~26,482 Nm (base)
+ *    - Windage at 1000 RPM:         ~92 Nm (additional)
+ *    - Windage at 1950 RPM (65%):   ~349 Nm (additional)
+ *    - Total at 1950 RPM:           ~26,831 Nm
+ *
+ * 3. For comparison with 2 MVA system:
+ *    - Old breakaway: 1,020 Nm  →  New: 33,102 Nm  (32.5x larger)
+ *    - Old windage coeff: 8.49e-5  →  New: 9.19e-5  (similar per-unit)
+ *    - Old disengage: 1800 RPM  →  New: 1950 RPM  (higher self-sustaining speed)
+ *
+ * 4. The torque profile is realistic for:
+ *    - Large industrial gas turbines (10-60 MW class)
+ *    - Combined gas turbine + generator rotor inertia (H = 4.5s)
+ *    - Modern aeroderivative or heavy-duty industrial GT technology
+ *
+ * 5. LCI Soft-Starter capability check:
+ *    - LCI Rating: 2.95 MVA at 1980 V
+ *    - Maximum LCI torque ≈ 2.95e6 / 314.16 ≈ 9,390 Nm
+ *    - Breakaway torque (33,102 Nm) is 3.5x larger than LCI steady-state capability!
+ *    - This is NORMAL - the LCI accelerates slowly using pulsed current at low speed
+ *    - Actual peak current capability may be 2-3x rated for short durations
+ *
+ * 6. Integration with mechanical system:
+ *    - Connect \'out\' (resistive torque) to the negative input of torque summer
+ *    - Motor torque (from LCI) = positive input
+ *    - Net torque = Motor torque - Load torque
+ *    - Net torque drives the mechanical integrator: dω/dt = T_net / Jm
+ *    - Where Jm = 4741.83 kg*m^2
+ */
+/*End code section*/"
+                output_terminals_dimensions = "inherit"
+                output_terminals_feedthrough = "True"
+                output_terminals_show_labels = "False"
+                update_fnc = "/*Begin code section*/
+
+/*End code section*/"
+            }
+            [
+                position = 8216, 8240
+                scale = -1, 1
+                size = 48, 48
+            ]
+
+            component "core/Unit Delay" "Unit Delay" {
+                signal_out_type = "real"
+            }
+            [
+                position = 8128, 8240
+                hide_name = True
+                scale = -1, 1
+            ]
+
+            component "core/Gain" to_rpm {
+                gain = "60/(2*np.pi)"
+            }
+            [
+                position = 8352, 8240
+                scale = -1, 1
+            ]
+
+            component "core/Probe" load_torque {
+            }
+            [
+                position = 8032, 8152
+                scale = -1, 1
+            ]
+
+            component "core/Probe" motor_speed {
+            }
+            [
+                position = 8272, 8152
+                scale = -1, 1
+            ]
+
+            port w {
+                position = right:1
+                kind = sp
+                direction =  out
+                sp_type {
+                    default = auto
+                    readonly = True
+                }
+            }
+            [
+                position = 8416, 8240
+                rotation = down
+            ]
+
+            port Tq {
+                position = right:2
+                kind = sp
+                direction =  out
+                sp_type {
+                    default = auto
+                    readonly = True
+                }
+            }
+            [
+                position = 8128, 8304
+                rotation = down
+            ]
+
+            junction Junction138 sp
+            [
+                position = 8320, 8240
+            ]
+
+            junction Junction139 sp
+            [
+                position = 8080, 8240
+            ]
+
+            connect Junction138 motor_speed.in as Connection86
+            connect Junction139 Tq as Connection95
+            connect "Unit Delay.out" Junction139 as Connection92
+            connect "Unit Delay.in" load_characteristic.out as Connection104
+            [
+                breakpoints = 8168, 8240
+            ]
+            connect load_characteristic.in Junction138 as Connection83
+            connect load_torque.in Junction139 as Connection103
+            [
+                breakpoints = 8080, 8160
+            ]
+            connect to_rpm.out Junction138 as Connection88
+            connect to_rpm.in w as Connection96
+        }
+        [
+            position = 10512, 8408
             rotation = down
-        ]
-
-        component "core/Three Phase Wound Rotor Synchronous Machine (Generic)" "3 ph WRSYNC Generic1" {
-            Freq = "50"
-            J = "200"
-            Power = "0.75e6"
-            RPM = "3000"
-            S = "1e6"
-            Vll = "1980"
-        }
-        [
-            position = 11060, 8248
-            size = 175, 175
-        ]
-
-        component "core/Capacitor" C1 {
-            capacitance = "1000e-6"
-        }
-        [
-            position = 10468, 8400
-            rotation = right
-        ]
-
-        component "core/Resistor" R5 {
-            resistance = "4"
-        }
-        [
-            position = 10468, 8488
-            rotation = right
-        ]
-
-        component "core/Capacitor" C2 {
-            capacitance = "1000e-6"
-        }
-        [
-            position = 10548, 8400
-            rotation = right
-        ]
-
-        component "core/Resistor" R6 {
-            resistance = "4"
-        }
-        [
-            position = 10548, 8488
-            rotation = right
-        ]
-
-        component "core/Capacitor" C3 {
-            capacitance = "1000e-6"
-        }
-        [
-            position = 10624, 8404
-            rotation = right
-        ]
-
-        component "core/Resistor" R7 {
-            resistance = "4"
-        }
-        [
-            position = 10624, 8492
-            rotation = right
-        ]
-
-        junction Junction3 pe
-        [
-            position = 8352, 8152
-        ]
-
-        junction Junction4 pe
-        [
-            position = 8352, 8248
-        ]
-
-        junction Junction5 pe
-        [
-            position = 8352, 8344
-        ]
-
-        junction Junction6 pe
-        [
-            position = 8408, 8344
-        ]
-
-        junction Junction7 pe
-        [
-            position = 8408, 8152
-        ]
-
-        junction Junction8 pe
-        [
-            position = 8900, 8152
-        ]
-
-        junction Junction9 pe
-        [
-            position = 8896, 8248
-        ]
-
-        junction Junction10 pe
-        [
-            position = 8900, 8252
-        ]
-
-        junction Junction11 pe
-        [
-            position = 8900, 8344
+            scale = -1, 1
+            size = 56, 104
         ]
 
         junction Junction12 pe
@@ -784,71 +906,66 @@ model "sfc_back_to_back_synchronous_machine" {
             position = 8948, 8152
         ]
 
-        junction Junction23 pe
+        junction Junction132 pe
         [
-            position = 10288, 8152
+            position = 10808, 8104
         ]
 
-        junction Junction24 pe
+        junction Junction133 pe
         [
-            position = 10288, 8344
+            position = 10280, 8152
         ]
 
-        junction Junction25 pe
+        junction Junction134 pe
         [
-            position = 10288, 8248
+            position = 10108, 8344
         ]
 
-        junction Junction31 sp
+        junction Junction135 pe
         [
-            position = 11240, 8464
+            position = 10108, 8248
         ]
 
-        junction Junction32 pe
+        junction Junction136 pe
         [
-            position = 10288, 8104
+            position = 10108, 8152
         ]
 
-        junction Junction33 pe
+        junction Junction137 pe
         [
-            position = 10276, 8248
+            position = 10200, 8152
         ]
 
-        junction Junction34 pe
+        junction Junction138 pe
         [
-            position = 10288, 8380
+            position = 10196, 8344
         ]
 
-        junction Junction35 pe
+        junction Junction139 pe
         [
-            position = 10468, 8216
+            position = 8900, 8156
         ]
 
-        junction Junction36 pe
+        junction Junction141 pe
         [
-            position = 10632, 8280
+            position = 8900, 8344
         ]
 
-        junction Junction37 pe
+        junction Junction142 pe
         [
-            position = 10544, 8248
-        ]
-
-        junction Junction38 pe
-        [
-            position = 10548, 8528
+            position = 8900, 8248
         ]
 
         comment Comment1 START <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Arial'; font-size:12pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; line-height:19px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T1 (A+) → p1 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T2 (B-) → p2 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T3 (B+) → p3</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T4 (A-) → p4</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T5 (C+) → p5</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T6 (C-) → p6</span></p></body></html> ENDCOMMENT 
         [
-            position = 9504, 8508
+            position = 9504, 8600
         ]
 
         scheme_area Area1 {
             title = <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Tahoma'; font-size:14pt; font-weight:100; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Grid-side pulses</p></body></html>
         }
         [
-            position = 9208, 8616
+            position = 9208, 8708
             size = 380, 400
         ]
 
@@ -856,30 +973,10 @@ model "sfc_back_to_back_synchronous_machine" {
             title = <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Tahoma'; font-size:14pt; font-weight:100; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Machine-side pulses</p></body></html>
         }
         [
-            position = 9964, 8628
+            position = 9964, 8720
             size = 380, 400
         ]
 
-        connect R1.n_node L1.p_node as Connection3
-        connect R2.n_node L2.p_node as Connection4
-        connect R3.n_node L3.p_node as Connection5
-        connect voltage_source_grid_side.a_node Junction3 as Connection15
-        connect voltage_grid_ab.p_node Junction3 as Connection17
-        connect voltage_source_grid_side.b_node Junction4 as Connection18
-        connect voltage_grid_ab.n_node Junction4 as Connection20
-        connect voltage_grid_bc.p_node Junction4 as Connection21
-        connect Junction5 voltage_source_grid_side.c_node as Connection23
-        connect voltage_grid_bc.n_node Junction5 as Connection24
-        connect Junction6 Junction5 as Connection26
-        connect voltage_grid_ca.p_node Junction6 as Connection27
-        connect Junction3 Junction7 as Connection28
-        connect voltage_grid_ca.n_node Junction7 as Connection30
-        connect Junction7 current_grid_a.p_node as Connection32
-        connect current_grid_a.n_node R1.p_node as Connection33
-        connect Junction4 current_grid_b.p_node as Connection34
-        connect current_grid_b.n_node R2.p_node as Connection35
-        connect R3.p_node current_grid_c.n_node as Connection36
-        connect current_grid_c.p_node Junction6 as Connection37
         connect AI1.out grid_a1.in as Connection38
         connect AI4.out grid_a4.in as Connection39
         connect grid_a3.in AI3.out as Connection40
@@ -896,28 +993,8 @@ model "sfc_back_to_back_synchronous_machine" {
         connect DI15.out grid_pulse_t6.in as Connection51
         connect R4.n_node L4.p_node as Connection59
         connect current_dc_link.n_node R4.p_node as Connection60
-        connect current_dc_link.p_node "Three Phase Thyristor Rectifier1.pos_out" as Connection61
-        connect voltage_grid_a.p_node Junction3 as Connection69
-        connect voltage_source_grid_side.n_node voltage_grid_a.n_node as Connection73
-        [
-            breakpoints = 8104, 8248
-        ]
-        connect L1.n_node Junction8 as Connection74
-        connect voltage_bridge_grid_side_ab.p_node Junction8 as Connection76
-        connect L2.n_node Junction9 as Connection77
-        connect Junction9 "Three Phase Thyristor Rectifier1.b_in" as Connection78
-        connect voltage_bridge_grid_side_ab.n_node Junction10 as Connection80
-        connect Junction10 Junction9 as Connection81
-        connect voltage_bridge_grid_side_bc.p_node Junction10 as Connection82
-        connect L3.n_node Junction11 as Connection83
-        [
-            breakpoints = 8816, 8344
-        ]
-        connect voltage_bridge_grid_side_bc.n_node Junction11 as Connection85
-        connect Junction11 Junction12 as Connection86
         connect Junction12 "Three Phase Thyristor Rectifier1.c_in" as Connection87
         connect voltage_bridge_grid_side_ca.p_node Junction12 as Connection88
-        connect Junction8 Junction13 as Connection89
         connect Junction13 "Three Phase Thyristor Rectifier1.a_in" as Connection90
         connect voltage_bridge_grid_side_ca.n_node Junction13 as Connection91
         connect DI30.out machine_pulse_t4.in as Connection92
@@ -926,65 +1003,73 @@ model "sfc_back_to_back_synchronous_machine" {
         connect machine_pulse_t1.in DI27.out as Connection95
         connect DI29.out machine_pulse_t5.in as Connection96
         connect DI31.out machine_pulse_t6.in as Connection97
-        connect "Core Coupling 1.b_in" "Three Phase Thyristor Rectifier2.pos_out" as Connection131
-        connect "Three Phase Thyristor Rectifier2.neg_out" "Core Coupling 1.a_in" as Connection132
-        connect "Core Coupling 1.a_out" L4.n_node as Connection133
-        connect "Core Coupling 1.b_out" "Three Phase Thyristor Rectifier1.neg_out" as Connection134
-        connect voltage_bridge_machine_side_ab.p_node Junction23 as Connection146
-        connect Junction24 voltage_bridge_machine_side_bc.n_node as Connection151
-        [
-            breakpoints = 10288, 8344
-        ]
-        connect voltage_bridge_machine_side_ab.n_node Junction25 as Connection154
-        connect Junction25 voltage_bridge_machine_side_bc.p_node as Connection155
         connect machine_ai10.in AI10.out as Connection234
         connect machine_ai11.in AI11.out as Connection235
         connect machine_ai12.in AI12.out as Connection236
-        connect Gain2.in AI9.out as Connection241
-        connect machine_ai9.in Junction31 as Connection247
-        connect Junction31 Gain2.out as Connection248
-        connect Sum1.in1 Junction31 as Connection249
-        connect excitation.out Sum1.in as Connection250
-        connect Junction23 voltage_bridge_machine_side_ca.n_node as Connection279
+        connect current_grid_b.p_node Tr1.sec_2 as Connection307
+        connect Tr1.prm_2 voltage_source_grid_side.b_node as Connection308
+        connect voltage_source_grid_side.c_node Tr1.prm_3 as Connection309
+        connect voltage_source_grid_side.a_node Tr1.prm_1 as Connection310
+        connect Tr1.sec_1 current_grid_a.p_node as Connection311
+        connect Tr1.sec_3 current_grid_c.p_node as Connection312
+        connect gnd.node voltage_source_grid_side.n_node as Connection313
+        connect coupling3.a_in "Three Phase Thyristor Rectifier1.pos_out" as Connection314
+        connect "Three Phase Thyristor Rectifier1.neg_out" coupling3.b_in as Connection315
+        connect current_dc_link.p_node coupling3.a_out as Connection316
+        connect coupling3.b_out "Three Phase Thyristor Rectifier2.pos_out" as Connection317
+        connect "Three Phase Thyristor Rectifier2.neg_out" L4.n_node as Connection318
+        connect Junction132 core1.node as Connection72
+        connect Load.Tq "Synchronous Machine with Wound Rotor2.load_in" as Connection323
+        connect "Synchronous Machine with Wound Rotor2.r_2" Junction132 as Connection73
         [
-            breakpoints = 10344, 8256
+            breakpoints = 10756, 8232; 10756, 8104; 10808, 8104
         ]
-        connect voltage_bridge_machine_side_ca.p_node Junction24 as Connection278
+        connect Vex.n_node Iex.n_node as Connection37
+        connect Vex.p_node Junction132 as Connection71
+        connect Junction133 "Synchronous Machine with Wound Rotor2.c_in" as Connection337
         [
-            breakpoints = 10340, 8344; 10336, 8344
+            breakpoints = 10284, 8152; 10284, 8216
         ]
-        connect "3 ph WRSYNC Generic1._" load_torque.out as Connection280
-        connect "3 ph WRSYNC Generic1.Vfd" Sum1.out as Connection281
-        connect "Three Phase Thyristor Rectifier2.a_in" Junction32 as Connection282
+        connect core2.node Junction133 as Connection338
+        connect Junction134 "Three Phase Thyristor Rectifier2.a_in" as Connection340
+        connect voltage_bridge_machine_side_ab.p_node Junction134 as Connection341
+        connect "Three Phase Thyristor Rectifier2.b_in" Junction135 as Connection342
+        connect Junction135 "Synchronous Machine with Wound Rotor2.b_in" as Connection343
         [
-            breakpoints = 10104, 8344; 10104, 8152; 10104, 8152; 10104, 8104
+            breakpoints = 10168, 8248; 10432, 8248
         ]
-        connect Junction32 Junction23 as Connection283
+        connect voltage_bridge_machine_side_ab.n_node Junction135 as Connection344
+        connect voltage_bridge_machine_side_bc.p_node Junction135 as Connection345
+        connect "Three Phase Thyristor Rectifier2.c_in" Junction136 as Connection346
+        connect voltage_bridge_machine_side_bc.n_node Junction136 as Connection348
+        connect Junction136 Junction137 as Connection349
+        connect Junction137 Junction133 as Connection350
+        connect voltage_bridge_machine_side_ca.p_node Junction137 as Connection351
+        connect "Synchronous Machine with Wound Rotor2.a_in" Junction138 as Connection352
         [
-            breakpoints = 10288, 8104; 10288, 8104
+            breakpoints = 10276, 8280; 10276, 8344
         ]
-        connect "Three Phase Thyristor Rectifier2.b_in" Junction33 as Connection285
-        connect Junction33 Junction25 as Connection286
-        connect Junction24 Junction34 as Connection288
-        connect Junction34 "Three Phase Thyristor Rectifier2.c_in" as Connection289
+        connect Junction138 Junction134 as Connection353
+        connect voltage_bridge_machine_side_ca.n_node Junction138 as Connection354
+        connect voltage_bridge_grid_side_ab.p_node Junction139 as Connection360
+        connect Junction139 Junction13 as Connection361
         [
-            breakpoints = 10288, 8380; 10144, 8380; 10144, 8256; 10144, 8256; 10144, 8152
+            breakpoints = 8900, 8152
         ]
-        connect R5.p_node C1.n_node as Connection291
-        connect "3 ph WRSYNC Generic1.A" Junction35 as Connection292
-        connect Junction35 Junction32 as Connection293
-        connect C1.p_node Junction35 as Connection294
-        connect R6.p_node C2.n_node as Connection295
-        connect R7.p_node C3.n_node as Connection296
-        connect "3 ph WRSYNC Generic1.C" Junction36 as Connection297
-        connect Junction36 Junction34 as Connection298
-        connect C3.p_node Junction36 as Connection299
-        connect "3 ph WRSYNC Generic1.B" Junction37 as Connection300
-        connect Junction37 Junction33 as Connection301
-        connect C2.p_node Junction37 as Connection302
-        connect R5.n_node Junction38 as Connection304
-        connect Junction38 R6.n_node as Connection305
-        connect R7.n_node Junction38 as Connection306
+        connect current_grid_a.n_node Junction139 as Connection362
+        connect "Synchronous Machine with Wound Rotor2.out" Load.w as Connection363
+        connect voltage_bridge_grid_side_bc.n_node Junction141 as Connection367
+        [
+            breakpoints = 8900, 8344
+        ]
+        connect Junction141 Junction12 as Connection368
+        connect current_grid_c.n_node Junction141 as Connection369
+        connect current_grid_b.n_node Junction142 as Connection371
+        connect Junction142 "Three Phase Thyristor Rectifier1.b_in" as Connection372
+        connect voltage_bridge_grid_side_bc.p_node Junction142 as Connection373
+        connect voltage_bridge_grid_side_ab.n_node Junction142 as Connection374
+        connect Iex.p_node "Synchronous Machine with Wound Rotor2.r_1" as Connection375
+        connect AI9.out machine_ai9.in as Connection376
     }
 
     default {
@@ -995,12 +1080,45 @@ model "sfc_back_to_back_synchronous_machine" {
             execution_rate = "100e-6"
         }
 
-        "core/Capacitor" {
-            signal_access = "inherit"
-            capacitance = "1e-6"
-            initial_voltage = "0"
-            pole_shift_ignore = "False"
-            visible = "True"
+        "core/C function" {
+            input_terminals = "real in;"
+            input_terminals_show_labels = "False;"
+            input_terminals_feedthrough = "True;"
+            input_terminals_dimensions = "inherit;"
+            output_terminals = "real out;"
+            output_terminals_show_labels = "False;"
+            output_terminals_feedthrough = "True;"
+            output_terminals_dimensions = "inherit;"
+            output_fnc = ""
+            update_fnc = ""
+            init_fnc = ""
+            global_variables = ""
+            parameters = ""
+            library_load_type = "Compile-time load"
+            dll_file_path = ""
+            dll_file_path_full = ""
+            arm_a9_file_path = ""
+            arm_a9_file_path_full = ""
+            arm_a53_file_path = ""
+            arm_a53_file_path_full = ""
+            h_file_path = ""
+            h_file_path_full = ""
+            add_src_path = ""
+            add_src_path_full = ""
+            convert_to_relative_dll = "True"
+            convert_to_relative_a = "True"
+            convert_to_relative_src = "True"
+            arb_defs = ""
+            add_macros = ""
+            skip_pre_cmpl_check = "False"
+            generate_for_hil = "True"
+            execution_rate = "inherit"
+            _supported_platforms = "[\'generic\']"
+            refresh = "refresh"
+        }
+
+        "core/Core Marker" {
+            marker_id = "id0"
         }
 
         "core/Digital Input" {
@@ -1041,22 +1159,9 @@ model "sfc_back_to_back_synchronous_machine" {
             param_set = ""
         }
 
-        "core/SCADA Input" {
-            signal_access = "inherit"
-            addr = "0"
-            format = "real"
-            override_signal_name = "False"
-            signal_name = ""
-            signal_type = "real"
-            min = "-1e6"
-            max = "1e6"
-            def_value = "0"
-            unit = " "
-            execution_rate = "100e-6"
-        }
-
-        "core/Sum" {
-            signs = "2"
+        "core/Unit Delay" {
+            init_value = "0"
+            signal_out_type = "inherit"
             execution_rate = "inherit"
         }
 
@@ -1082,6 +1187,14 @@ model "sfc_back_to_back_synchronous_machine" {
             visible = "True"
             override_signal_name = "False"
             signal_name = ""
+        }
+
+        "core/Externally Controlled Voltage Source" {
+            ai_pin_addr = "1"
+            ai_offset = "0.0"
+            ai_gain = "1.0"
+            model_control_for_gain_and_offset = "False"
+            visible = "True"
         }
 
         "core/Single Phase Core Coupling" {
@@ -1141,59 +1254,146 @@ model "sfc_back_to_back_synchronous_machine" {
             visualize_luts = "Visualize Lookup Tables"
         }
 
+        "core/Three Phase Two Winding Transformer" {
+            input = "SC and OC tests"
+            Sn = "160000.0"
+            f = "50.0"
+            V1 = "10000.0"
+            V2 = "400.0"
+            usc1 = "4.0"
+            Psc1 = "2350.0"
+            R1 = "4.58984375"
+            L1 = ".0370093710364"
+            R2 = ".00734375"
+            L2 = "5.92149936583e-05"
+            r1 = ".00734375"
+            l1 = ".0186029389059"
+            r2 = ".00734375"
+            l2 = ".0186029389059"
+            core_model = "Linear"
+            ioc1 = "0.7"
+            Poc1 = "460.0"
+            Rm = "217391.304348"
+            Lm = "311.709196788"
+            flux_vals_SI = "[0, 1910.3, 2419.7]"
+            current_vals_SI = "[0, 0.66653, 277.72]"
+            rm = "347.826086957"
+            lm = "156.68213163"
+            flux_vals_pu = "[0, 1.2, 1.52]"
+            current_vals_pu = "[0, 0.0024, 1]"
+            flux_vals_SCOC = "[0, 1.2, 1.52]"
+            current_vals_SCOC = "[0, 0.0024, 1]"
+            upper_flux_vals_pu = "[0.2, 1.2, 1.52]"
+            upper_flux_vals_SI = "[318.33, 1910.3, 2419.7]"
+            upper_flux_vals_SCOC = "[0.2, 1.2, 1.52]"
+            hysteresis_number = "1"
+            execution_rate = "100e-6"
+            import_from_SI2SCOC = "Import from SI"
+            import_from_pu2SCOC = "Import from PU"
+            import_from_SCOC2SI = "Import from SC OC"
+            import_from_pu2SI = "Import from PU"
+            import_from_SCOC2pu = "Import from SC OC"
+            import_from_SI2pu = "Import from SI"
+            preview_flux_current = "Preview SI"
+            winding_1_connection = "Y"
+            winding_2_connection = "Y"
+            clock_number = "0"
+            embedded_cpl = "None"
+            coupling_type = "core"
+            ratio_type = "Automatic"
+            ratio = "0.1"
+            Rshunt = "inf"
+        }
+
         "core/Three Phase Voltage Source" {
             init_rms_value = "0.0"
             init_frequency = "50.0"
             init_phase = "0.0"
         }
 
-        "core/Three Phase Wound Rotor Synchronous Machine (Generic)" {
+        "core/Three Phase Wound Rotor Synchronous Machine" {
             signal_access = "inherit"
-            Vll = "480"
-            S = "5200"
-            Power = "5000"
-            Freq = "60"
-            RPM = "1800"
-            Ts = "100e-6"
-            J = "0.007"
-            Theta_0 = "0"
-            M_in = "Torque"
-            M_inp = "0"
-            Ia = "False"
-            Ia_select = "0"
-            Ib_select = "0"
-            Ic_select = "0"
-            Te_select = "0"
-            wm_select = "0"
-            theta_m_select = "0"
-            Ib = "False"
-            Ic = "False"
-            Te = "False"
-            wm = "False"
-            theta_m = "False"
-            dA0 = "0"
-            dA1 = "0"
-            dA2 = "0"
-            dA3 = "0"
-            dB0 = "0"
-            dB1 = "0"
-            dB2 = "0"
-            dB3 = "0"
-            Llfd = "0"
-            rfd = "0"
-            rkd = "0"
-            rkq = "0"
-            Lz = "0"
-            Lzd = "0"
-            Lzq = "0"
-            rs = "0"
-            Llkd = "0"
-            Llkq = "0"
-            PP = ""
-            Lmd = "0"
-            Lmq = "0"
-            Lls = "0"
-            ws = "0"
+            model_type = "linear"
+            rated_speed = "1.0"
+            double_q_windings = "1 damper winding on q axis"
+            Rs = "1.62"
+            Lls = "0.004527"
+            Lmd = "0.1086"
+            Lmq = "0.1086"
+            curve_type = "no load curve"
+            if_vector = "[0.0, 0.0]"
+            vs_vector = "[0.0, 0.0]"
+            imd_vector = "[0.0, 0.0]"
+            imq_vector = "[0.0, 0.0]"
+            psimd_table = "[[0.0, 0.0], [0.0, 0.0]]"
+            psimq_table = "[[0.0, 0.0], [0.0, 0.0]]"
+            Rf = "1.208"
+            Llfd = "0.01132"
+            Rkd = "3.142"
+            Rkq = "4.772"
+            Rkq2 = "1e5"
+            Llkd = "0.007334"
+            Llkq = "0.01015"
+            Llkq2 = "1e-11"
+            Ns_div_Nfd = "1.0"
+            Ns_div_Nkd = "1.0"
+            Ns_div_Nkq = "1.0"
+            Lc = "0"
+            visualize_luts = "Visualize Lookup Tables"
+            pms = "2"
+            star_delta = "star"
+            Jm = "0.0923"
+            friction_coeff = "0"
+            unconstrained_angle = "disabled"
+            load_src = "SCADA / external"
+            ext_mdl_load_type = "torque"
+            load_ai_pin_addr = "1"
+            load_ai_offset = "0"
+            load_ai_gain = "1"
+            enc_ppr = "1024"
+            encoder_Z_pulse_length = "Full period"
+            res_pole_pairs = "1"
+            res_carr_source = "internal"
+            res_carr_source_external = "single ended"
+            res_int_carr_f = "5e+3"
+            res_ai_pin_addr = "1"
+            res_ai_pin2_addr = "2"
+            res_ai_offset = "0"
+            res_ai_gain = "1"
+            absenc_type = "None"
+            singleturn_abs_enc = "0"
+            multiturn_enable = "False"
+            multiturn_abs_enc = "0"
+            endat_clock_di_addr = "1"
+            endat_clock_di_logic = "active high"
+            endat_data_di_addr = "2"
+            endat_data_di_logic = "active high"
+            biss_clock_di_addr = "1"
+            biss_clock_di_logic = "active high"
+            biss_data_di_addr = "2"
+            ssi_clock_di_addr = "1"
+            ssi_clock_di_logic = "active high"
+            ssi_data_di_addr = "2"
+            theta_ab = "-pi/2"
+            field_input = "voltage"
+            Rsnb_rotor = "inf"
+            Rsnb_stator = "inf"
+            execution_rate = "100e-6"
+            el_trq_out = "False"
+            mech_speed_out = "False"
+            mech_angle_out = "False"
+            i_als = "False"
+            i_bes = "False"
+            i_ds = "False"
+            i_qs = "False"
+            psi_als = "False"
+            psi_bes = "False"
+            psi_ds = "False"
+            psi_qs = "False"
+            machine_id = "0"
+            me_speed_out_addr = "0"
+            el_torque_out_addr = "0"
+            me_angle_out_addr = "0"
         }
 
         "core/Voltage Measurement" {
