@@ -205,11 +205,11 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     //   DI7-DI16: System status and interlocks
     if (inputs->digital_inputs.valid) {
         // Update supervisory digital inputs from hardware I/O
-        control->external_ios.update_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
-            inputs->digital_inputs.signals[1],                                          // DI2: Grid breakers closed
-            inputs->digital_inputs.signals[2],                                          // DI3: Start command
-            inputs->digital_inputs.signals[3],                                          // DI4: Stop command
-            inputs->digital_inputs.signals[4]);                                         // DI5: Emergency shutdown
+        control->external_ios.set_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
+            inputs->digital_inputs.signals[1],                                       // DI2: Grid breakers closed
+            inputs->digital_inputs.signals[2],                                       // DI3: Start command
+            inputs->digital_inputs.signals[3],                                       // DI4: Stop command
+            inputs->digital_inputs.signals[4]);                                      // DI5: Emergency shutdown
     }
 
     // Process fiber-optic RX data from machine-side controller

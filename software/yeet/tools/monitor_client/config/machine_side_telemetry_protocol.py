@@ -74,6 +74,19 @@ class MachineSignalIndex(IntEnum):
     # Excitation Controller Group (43-44)
     EXCITATION_FIELD_CURRENT_REFERENCE = 43
     EXCITATION_PREFLUXING_ELAPSED_TIME = 44
+    
+    # === Machine-Side Protections Group (45-55) ===
+    PROTECTION_IS_TRIPPED = 45
+    PROTECTION_IS_INHIBITED = 46
+    PROTECTION_ANY_FAULT_ACTIVE = 47
+    PROTECTION_OVER_FLUX_TRIPPED = 48
+    PROTECTION_UNDER_FLUX_TRIPPED = 49
+    PROTECTION_STALL_TRIPPED = 50
+    PROTECTION_OVER_FLUX_WARNING = 51
+    PROTECTION_UNDER_FLUX_WARNING = 52
+    PROTECTION_STALL_WARNING = 53
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 54
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 55
 
 
 @dataclass
@@ -167,3 +180,19 @@ class ExcitationControllerData:
     """Excitation controller state and outputs (43-44)."""
     field_current_reference_pu: float = 0.0
     prefluxing_elapsed_time_s: float = 0.0
+
+
+@dataclass
+class MachineProtectionsData:
+    """Machine-side protection system (45-55)."""
+    is_tripped: bool = False
+    is_inhibited: bool = False
+    any_fault_active: bool = False
+    over_flux_tripped: bool = False
+    under_flux_tripped: bool = False
+    stall_tripped: bool = False
+    over_flux_warning: bool = False
+    under_flux_warning: bool = False
+    stall_warning: bool = False
+    communication_loss_tripped: bool = False
+    communication_loss_warning: bool = False

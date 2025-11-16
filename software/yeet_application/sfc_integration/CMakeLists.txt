@@ -40,6 +40,8 @@ set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_grid_side_pulse_generator_runner.hpp
     include/sfc_integration/sfc_grid_side_integrator_supervisor_datamodel.hpp
     include/sfc_integration/sfc_grid_side_integrator_supervisor_runner.hpp
+    include/sfc_integration/sfc_grid_side_protections_datamodel.hpp
+    include/sfc_integration/sfc_grid_side_protections_runner.hpp
     include/sfc_integration/sfc_machine_side_control.hpp
     include/sfc_integration/sfc_machine_side_controller_datamodel.hpp
     include/sfc_integration/sfc_machine_side_controller_runner.hpp
@@ -55,6 +57,8 @@ set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_machine_side_pulse_generator_runner.hpp
     include/sfc_integration/sfc_machine_side_integrator_supervisor_datamodel.hpp
     include/sfc_integration/sfc_machine_side_integrator_supervisor_runner.hpp
+    include/sfc_integration/sfc_machine_side_protections_datamodel.hpp
+    include/sfc_integration/sfc_machine_side_protections_runner.hpp
     include/sfc_integration/sfc_operation_mode_monitor_datamodel.hpp
     include/sfc_integration/sfc_operation_mode_monitor_runner.hpp
     include/sfc_integration/sfc_per_unit_system_datamodel.hpp
@@ -82,6 +86,7 @@ set(SFC_CORE_SOURCES
     src/sfc_grid_side_measurements_runner.cpp
     src/sfc_grid_side_modulator_runner.cpp
     src/sfc_grid_side_observer_runner.cpp
+    src/sfc_grid_side_protections_runner.cpp
     src/sfc_grid_side_pulse_generator_runner.cpp
     src/sfc_grid_side_integrator_supervisor_runner.cpp
     src/sfc_machine_side_control.cpp
@@ -93,6 +98,7 @@ set(SFC_CORE_SOURCES
     src/sfc_machine_side_observer_runner.cpp
     src/sfc_machine_side_pulse_generator_runner.cpp
     src/sfc_machine_side_integrator_supervisor_runner.cpp
+    src/sfc_machine_side_protections_runner.cpp
     src/sfc_operation_mode_monitor_runner.cpp
     src/sfc_per_unit_system_datamodel.cpp
     src/sfc_plant_model_runner.cpp

@@ -142,9 +142,9 @@ using resistance_t = quantity<resistance_dim, si>;
 using impedance_t = quantity<resistance_dim, si>;
 using capacitance_t = quantity<capacitance_dim, si>;
 using inductance_t = quantity<inductance_dim, si>;
-using magnetic_flux_t = quantity<magnetic_flux_dim, si>;
+using flux_t = quantity<magnetic_flux_dim, si>;
 using magnetic_field_strength_t = quantity<mag_field_strength_dim, si>;
-using magnetic_flux_density_t = quantity<flux_density_dim, si>;
+using flux_density_t = quantity<flux_density_dim, si>;
 ```
 
 #### Per-Unit Equivalents
@@ -171,9 +171,9 @@ using resistance_pu_t = quantity<resistance_dim, per_unit>;
 using impedance_pu_t = quantity<impedance_dim, per_unit>;
 using capacitance_pu_t = quantity<capacitance_dim, per_unit>;
 using inductance_pu_t = quantity<inductance_dim, per_unit>;
-using magnetic_flux_pu_t = quantity<magnetic_flux_dim, per_unit>;
+using flux_pu_t = quantity<magnetic_flux_dim, per_unit>;
 using magnetic_field_strength_pu_t = quantity<mag_field_strength_dim, per_unit>;
-using magnetic_flux_density_pu_t = quantity<flux_density_dim, per_unit>;
+using flux_density_pu_t = quantity<flux_density_dim, per_unit>;
 
 // Dimensionless quantities
 using angle_pu_t = quantity<dimensionless_dim, per_unit>;
@@ -462,8 +462,8 @@ using real_t = double;
 - `speed_t`, `acceleration_t`, `frequency_t`, `angular_frequency_t`
 - `force_t`, `torque_t`, `moment_of_inertia_t`
 - `voltage_t`, `power_t`, `resistance_t`, `impedance_t`
-- `capacitance_t`, `inductance_t`, `magnetic_flux_t`
-- `magnetic_field_strength_t`, `magnetic_flux_density_t`
+- `capacitance_t`, `inductance_t`, `flux_t`
+- `magnetic_field_strength_t`, `flux_density_t`
 - `angle_t`, `damping_coefficient_t`, `inertia_constant_t`
 
 **Per-Unit Types** (suffix `_pu_t`):

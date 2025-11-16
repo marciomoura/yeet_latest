@@ -35,6 +35,8 @@ protected:
         mock_signal_input::write(inputs.stop_command, false);
         mock_signal_input::write(inputs.shutdown_request, false);
         mock_signal_input::write(inputs.is_current_extinguished, false);
+        mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
+        mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
     }
 
     void disable_all_overrides()
@@ -246,7 +248,9 @@ TEST_F(SfcStateMachineRunnerTest, ShutdownRequestedToOperationOff)
     // Signal current extinguished and remove stop command
     set_current_extinguished(true);
     set_stop_command(false);
-    run_cycle();
+    run_cycle();                                                // First cycle: sets acknowledgment flag
+    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, true);  // Still in SHUTDOWN_REQUESTED
+    run_cycle();                                                // Second cycle: acknowledgment sent, now transitions
     verify_state(sfc::sfc_state_id::OPERATION_OFF, false);
     verify_transition_occurred();
 }
@@ -310,8 +314,10 @@ TEST_F(SfcStateMachineRunnerTest, CompleteShutdownSequence)
 
     // 2. Current extinguished
     set_current_extinguished(true);
-    set_stop_command(false);  // Remove stop command
-    run_cycle();
+    set_stop_command(false);                                    // Remove stop command
+    run_cycle();                                                // First cycle: sets acknowledgment flag
+    verify_state(sfc::sfc_state_id::SHUTDOWN_REQUESTED, true);  // Still in SHUTDOWN_REQUESTED
+    run_cycle();                                                // Second cycle: acknowledgment sent, now transitions
     verify_state(sfc::sfc_state_id::OPERATION_OFF, false);
 
     // 3. Turn off breakers

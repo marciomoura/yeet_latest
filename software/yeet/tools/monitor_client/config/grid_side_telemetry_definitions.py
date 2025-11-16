@@ -23,6 +23,7 @@ def _get_section_order() -> List[str]:
     return [
         'state_machine',
         'system',
+        'protections',
         'operation_mode',
         'modulator',
         'measurements',
@@ -103,6 +104,22 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'current extinguished', 'index': GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'shutdown request', 'index': GridSignalIndex.STATE_MACHINE_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
                 {'name': 'stop command', 'index': GridSignalIndex.STATE_MACHINE_STOP_COMMAND, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
+        'protections': {
+            'title': 'Grid-Side Protections',
+            'fields': [
+                {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'any fault active', 'index': GridSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overcurrent tripped', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overvoltage tripped', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'undervoltage tripped', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overcurrent warning', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overvoltage warning', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'undervoltage warning', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss tripped', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss warning', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
             ]
         }
     }

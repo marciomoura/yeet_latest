@@ -367,9 +367,9 @@ using resistance_t = quantity<resistance_dim, si>;
 using impedance_t = quantity<resistance_dim, si>;  // Same dimension as resistance
 using capacitance_t = quantity<capacitance_dim, si>;
 using inductance_t = quantity<inductance_dim, si>;
-using magnetic_flux_t = quantity<magnetic_flux_dim, si>;
+using flux_t = quantity<magnetic_flux_dim, si>;
 using magnetic_field_strength_t = quantity<mag_field_strength_dim, si>;
-using magnetic_flux_density_t = quantity<flux_density_dim, si>;
+using flux_density_t = quantity<flux_density_dim, si>;
 
 // Add missing unit types for power electronics applications
 using angle_t = quantity<dimensionless_dim, si>;                // Angles are dimensionless in SI
@@ -401,9 +401,9 @@ using resistance_pu_t = quantity<resistance_dim, per_unit>;
 using impedance_pu_t = quantity<resistance_dim, per_unit>;
 using capacitance_pu_t = quantity<capacitance_dim, per_unit>;
 using inductance_pu_t = quantity<inductance_dim, per_unit>;
-using magnetic_flux_pu_t = quantity<magnetic_flux_dim, per_unit>;
+using flux_pu_t = quantity<magnetic_flux_dim, per_unit>;
 using magnetic_field_strength_pu_t = quantity<mag_field_strength_dim, per_unit>;
-using magnetic_flux_density_pu_t = quantity<flux_density_dim, per_unit>;
+using flux_density_pu_t = quantity<flux_density_dim, per_unit>;
 
 // Add per-unit equivalents for the new types
 using angle_pu_t = quantity<dimensionless_dim, per_unit>;

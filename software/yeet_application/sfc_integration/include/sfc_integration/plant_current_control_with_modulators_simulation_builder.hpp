@@ -57,6 +57,7 @@ public:
 
         // Grid-side modulator inputs
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().shutdown_request, false);
+        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().protection_trip, false);
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().release_pulses, true);
 
         // Machine-side modulator pulse release

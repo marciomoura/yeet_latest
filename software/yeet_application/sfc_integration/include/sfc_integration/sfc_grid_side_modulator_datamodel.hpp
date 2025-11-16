@@ -45,6 +45,9 @@ public:
         /// External shutdown/trip signal [bool]
         signal_input<bool> shutdown_request;
 
+        /// Fast protection trip signal (direct from protection system) [bool]
+        signal_input<bool> protection_trip;
+
         /// Pulse release command from supervisor [bool]
         signal_input<bool> release_pulses;
     };

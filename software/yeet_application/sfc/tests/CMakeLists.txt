@@ -12,9 +12,12 @@ target_sources(
     PRIVATE grid_side_hardware_mock_test.cpp
             machine_side_hardware_mock_test.cpp
             sfc_combined_modulators_test.cpp
+            sfc_communication_watchdog_test.cpp
             sfc_commutation_mask_test.cpp
+            sfc_current_protection_test.cpp
             sfc_discontinuous_conduction_detector_test.cpp
             sfc_excitation_controller_test.cpp
+            sfc_fiber_optic_protocol_test.cpp
             sfc_grid_side_measurements_test.cpp
             sfc_grid_side_modulator_test.cpp
             sfc_machine_side_lookup_table_test.cpp
@@ -23,10 +26,13 @@ target_sources(
             sfc_mode_detector_test.cpp
             sfc_per_unit_system_test.cpp
             sfc_soft_starter_speed_generator_test.cpp
+            sfc_stall_protection_test.cpp
             sfc_startup_sequencer_test.cpp
             sfc_startup_sequencer_rate_limiter_test.cpp
             sfc_state_machine_test.cpp
-            sfc_torque_controller_test.cpp)
+            sfc_torque_controller_test.cpp
+            sfc_vhz_protection_test.cpp
+            sfc_voltage_protections_test.cpp)
 
 # Link dependencies
 target_link_libraries(

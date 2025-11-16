@@ -29,6 +29,7 @@
 #include <optional>
 
 #include "sfc/sfc_types.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc::fiber_optic {
 
@@ -40,7 +41,7 @@ namespace yeet::application::sfc::fiber_optic {
 static constexpr std::size_t max_payload_words = 5;
 
 /** @brief Grid → Machine payload length (uint32_t words) */
-static constexpr std::size_t grid_to_machine_payload_length = 2;
+static constexpr std::size_t grid_to_machine_payload_length = 3;
 
 /** @brief Machine → Grid payload length (uint32_t words) */
 static constexpr std::size_t machine_to_grid_payload_length = 4;
@@ -56,50 +57,67 @@ static constexpr std::size_t machine_to_grid_payload_length = 4;
  * Includes both status/measurements and control synchronization signals.
  */
 struct grid_to_machine_message {
-    yeet::application::sfc::sfc_operating_mode_t mode{
-        yeet::application::sfc::sfc_operating_mode_t::natural_commutation}; /**< Current operating mode */
-    float dc_link_current{0.0f};                                            /**< DC link current measurement [pu] */
-    bool current_is_zero{false};                                            /**< DC link current is zero */
-    bool is_saturated{false};                                               /**< Current controller is saturated */
-    bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
-    bool pulse_releases{false};                 /**< Thyristor pulses are enabled */
-    std::uint8_t state_id{0};                   /**< Current grid-side state machine state */
-    bool preset_request{false};                 /**< Preset request to machine-side controllers */
+    yeet::current_pu_t dc_link_current{0.0f};        /**< DC link current measurement [pu] */
+    yeet::voltage_pu_t grid_voltage_magnitude{0.0f}; /**< Grid voltage magnitude [pu] */
+    bool is_forced_commutation{false};               /**< System operating in forced commutation mode */
+    bool force_commutation_acknowledged{false};      /**< Force commutation request acknowledged */
+    bool release_pulses{false};                      /**< Thyristor pulses are enabled */
+    bool grid_release_protections{false};            /**< Grid-side protection release (from state machine) */
+    bool grid_trip_acknowledged{false};              /**< Grid-side trip acknowledgment (from state machine) */
+    std::uint8_t state_id{0};                        /**< Current grid-side state machine state */
+
+    // Bit field layout for Word 2 encoding
+    // Boolean flags occupy bits 0-4, state_id occupies bits 25-31, unused bits 5-24
+    enum bit_positions : std::uint8_t {
+        is_forced_commutation_bit_pos = 0,     // Bit 0
+        force_comm_ack_bit_pos = 1,            // Bit 1
+        release_pulses_bit_pos = 2,            // Bit 2
+        grid_release_protections_bit_pos = 3,  // Bit 3
+        grid_trip_acknowledged_bit_pos = 4,    // Bit 4
+        unused_bits_start = 5,                 // Bits 5-24 reserved
+        unused_bits_end = 24
+    };
+
+    enum bit_shifts : std::uint8_t {
+        state_id_shift = 25  // Bits 25-31 (7 bits for state_id, 0-127)
+    };
+
+    enum bit_masks : std::uint32_t {
+        state_id_mask = 0x7FU  // 7-bit mask for state_id (0-127)
+    };
 };
 
 /**
  * @brief Encode Grid → Machine message into packed uint32_t payload
  *
  * Packs all grid-side status, measurements, and control synchronization signals
- * into 2 uint32_t words for transmission over fiber-optic link:
+ * into 3 uint32_t words for transmission over fiber-optic link:
  * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
- * - Word 1: Packed control flags and state
- *   - Bits 0-7:   Operating mode (enum, 0-255)
- *   - Bit 8:      Is current zero
- *   - Bit 9:      Current controller is saturated
- *   - Bit 10:     Force commutation acknowledged
- *   - Bit 11:     Pulse releases
- *   - Bits 12-18: State machine state ID (0-127)
- *   - Bit 19:     Preset request
- *   - Bits 20-31: Reserved for future use
+ * - Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
+ * - Word 2: Packed control flags and state
+ *   - Bit 0:      Is forced commutation mode
+ *   - Bit 1:      Force commutation acknowledged
+ *   - Bit 2:      Release pulses
+ *   - Bit 3:      Grid release protections
+ *   - Bit 4:      Grid trip acknowledged
+ *   - Bits 5-24:  Reserved for future use
+ *   - Bits 25-31: State machine state ID (0-127)
  *
  * @param[in]  msg      Message structure to encode
- * @param[out] payload  Array to receive encoded data (min 2 words)
- * @return Number of uint32_t words written to payload (always 2)
+ * @param[out] payload  Array to receive encoded data (min 3 words)
+ * @return Number of uint32_t words written to payload (always 3)
  *
  * @note Float values are transmitted as IEEE 754 bit patterns using bit_cast
  *
  * Example:
  * @code
  * grid_to_machine_message msg{
- *     .mode = operating_mode::natural_commutation,
- *     .dc_link_current = 0.75f,
- *     .current_is_zero = false,
- *     .is_saturated = false,
+ *     .dc_link_current = yeet::current_pu_t{0.75f},
+ *     .grid_voltage_magnitude = yeet::voltage_pu_t{1.0f},
+ *     .is_forced_commutation = false,
  *     .force_commutation_acknowledged = true,
- *     .pulse_releases = true,
- *     .state_id = 5,
- *     .preset_request = false
+ *     .release_pulses = true,
+ *     .state_id = 5
  * };
  * std::array<std::uint32_t, max_payload_words> payload;
  * encode_grid_to_machine(msg, payload);
@@ -111,16 +129,17 @@ struct grid_to_machine_message {
  * @brief Decode Grid → Machine message from packed uint32_t payload
  *
  * Unpacks grid-side status, measurements, and control synchronization signals
- * from 2 uint32_t words received over fiber-optic link:
+ * from 3 uint32_t words received over fiber-optic link:
  * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
- * - Word 1: Packed control flags and state
- *   - Bits 0-7:   Operating mode (enum)
- *   - Bit 8:      Is current zero
- *   - Bit 9:      Current controller is saturated
- *   - Bit 10:     Force commutation acknowledged
- *   - Bit 11:     Pulse releases
- *   - Bits 12-18: State machine state ID (0-127)
- *   - Bit 19:     Preset request
+ * - Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
+ * - Word 2: Packed control flags and state
+ *   - Bit 0:      Is forced commutation mode
+ *   - Bit 1:      Force commutation acknowledged
+ *   - Bit 2:      Release pulses
+ *   - Bit 3:      Grid release protections
+ *   - Bit 4:      Grid trip acknowledged
+ *   - Bits 5-24:  Reserved (unused)
+ *   - Bits 25-31: State machine state ID (0-127)
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
@@ -149,11 +168,23 @@ struct grid_to_machine_message {
  * Contains all signals transmitted from machine-side to grid-side controller.
  */
 struct machine_to_grid_message {
-    float measured_speed{0.0f};               /**< Measured rotor speed [pu] */
-    float dc_link_current_reference_pu{0.0f}; /**< DC link current reference [pu] */
-    float machine_voltage_magnitude_pu{0.0f}; /**< Machine voltage magnitude [pu] */
-    bool force_commutation_request{false};    /**< Force commutation requested by machine side */
-    bool shutdown_request{false};             /**< Shutdown request from machine side (brings current to zero) */
+    yeet::speed_pu_t measured_speed{0.0f};              /**< Measured rotor speed [pu] */
+    yeet::current_pu_t dc_link_current_reference{0.0f}; /**< DC link current reference [pu] */
+    yeet::voltage_pu_t machine_voltage_magnitude{0.0f}; /**< Machine voltage magnitude [pu] */
+    bool force_commutation_request{false};              /**< Force commutation requested by machine side */
+    bool shutdown_request{false};           /**< Shutdown request from machine side (brings current to zero) */
+    bool machine_protection_tripped{false}; /**< Machine-side protections have tripped */
+    bool protection_inhibit{false};         /**< Protection system inhibited (awaiting user acknowledgment) */
+    bool machine_trip_acknowledged{false};  /**< Machine-side trip acknowledgment */
+
+    // Bit field layout for Word 3 encoding
+    enum bit_positions : std::uint8_t {
+        force_comm_req_bit_pos = 0,              // Bit 0
+        shutdown_request_bit_pos = 1,            // Bit 1
+        machine_protection_tripped_bit_pos = 2,  // Bit 2
+        protection_inhibit_bit_pos = 3,          // Bit 3
+        machine_trip_acknowledged_bit_pos = 4    // Bit 4
+    };
 };
 
 /**
@@ -167,6 +198,10 @@ struct machine_to_grid_message {
  * - Word 3: Packed control flags
  *   - Bit 0: Force commutation request
  *   - Bit 1: Shutdown request
+ *   - Bit 2: Machine protection tripped
+ *   - Bit 3: Protection inhibit (awaiting acknowledgment)
+ *   - Bit 4: Machine trip acknowledged
+ *   - Bits 5-31: Reserved for future use
  *
  * @param[in]  msg      Message structure to encode
  * @param[out] payload  Array to receive encoded data (min 4 words)
@@ -177,9 +212,9 @@ struct machine_to_grid_message {
  * Example:
  * @code
  * machine_to_grid_message msg{
- *     .measured_speed = 0.5f,
- *     .dc_link_current_reference_pu = 0.8f,
- *     .machine_voltage_magnitude_pu = 1.0f,
+ *     .measured_speed = yeet::speed_pu_t{0.5f},
+ *     .dc_link_current_reference = yeet::current_pu_t{0.8f},
+ *     .machine_voltage_magnitude = yeet::voltage_pu_t{1.0f},
  *     .force_commutation_request = false
  * };
  * std::array<std::uint32_t, max_payload_words> payload;
@@ -199,6 +234,10 @@ struct machine_to_grid_message {
  * - Word 3: Packed control flags
  *   - Bit 0: Force commutation request
  *   - Bit 1: Shutdown request
+ *   - Bit 2: Machine protection tripped
+ *   - Bit 3: Protection inhibit (awaiting acknowledgment)
+ *   - Bit 4: Machine trip acknowledged
+ *   - Bits 5-31: Reserved for future use
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
@@ -209,32 +248,11 @@ struct machine_to_grid_message {
  * Example:
  * @code
  * if (auto msg = decode_machine_to_grid(rx_payload, rx_length)) {
- *     // Use decoded msg->measured_speed, msg->dc_link_current_reference_pu, etc.
+ *     // Use decoded msg->measured_speed, msg->dc_link_current_reference, etc.
  * }
  * @endcode
  */
 [[nodiscard]] std::optional<machine_to_grid_message> decode_machine_to_grid(
     const std::uint32_t* payload, std::uint8_t payload_length) noexcept;
-
-/* ============================================================================
- * Bit Field Definitions (for reference and testing)
- * ============================================================================ */
-
-namespace detail {
-// Grid → Machine bit field layout (Word 1)
-static constexpr std::uint32_t g2m_operating_mode_mask = 0x000000FFU;  // Bits 0-7
-static constexpr std::uint8_t g2m_operating_mode_shift = 0;
-static constexpr std::uint32_t g2m_is_current_zero_bit = (1U << 8);               // Bit 8
-static constexpr std::uint32_t g2m_current_controller_saturated_bit = (1U << 9);  // Bit 9
-static constexpr std::uint32_t g2m_force_comm_ack_bit = (1U << 10);               // Bit 10
-static constexpr std::uint32_t g2m_pulse_releases_bit = (1U << 11);               // Bit 11
-static constexpr std::uint32_t g2m_state_id_mask = 0x0007F000U;                   // Bits 12-18
-static constexpr std::uint8_t g2m_state_id_shift = 12;
-static constexpr std::uint32_t g2m_preset_request_bit = (1U << 19);  // Bit 19
-
-// Machine → Grid bit field layout (Word 3)
-static constexpr std::uint32_t m2g_force_comm_req_bit = (1U << 0);    // Bit 0
-static constexpr std::uint32_t m2g_shutdown_request_bit = (1U << 1);  // Bit 1
-}  // namespace detail
 
 }  // namespace yeet::application::sfc::fiber_optic

@@ -16,50 +16,50 @@ namespace yeet::application::sfc::fiber_optic {
 [[nodiscard]] std::uint8_t encode_grid_to_machine(const grid_to_machine_message& msg, std::uint32_t* payload) noexcept
 {
     // Word 0: DC link current measurement [pu] (IEEE 754 float bits)
-    // Word 1: Packed control flags and state
-    //   Bits 0-7:   Operating mode (enum, 0-255)
-    //   Bit 8:      Is current zero
-    //   Bit 9:      Current controller is saturated
-    //   Bit 10:     Force commutation acknowledged
-    //   Bit 11:     Pulse releases
-    //   Bits 12-18: State machine state ID (0-127)
-    //   Bit 19:     Preset request
-    //   Bits 20-31: Reserved for future use
+    // Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
+    // Word 2: Packed control flags and state
+    //   Bit 0:      Is forced commutation mode
+    //   Bit 1:      Force commutation acknowledged
+    //   Bit 2:      Release pulses
+    //   Bit 3:      Grid release protections
+    //   Bit 4:      Grid trip acknowledged
+    //   Bits 5-24:  Reserved for future use
+    //   Bits 25-31: State machine state ID (0-127)
 
-    // Encode DC link current float value
-    std::memcpy(&payload[0], &msg.dc_link_current, sizeof(float));
+    // Encode DC link current float value (extract from typed unit)
+    const float current_value = msg.dc_link_current.value();
+    std::memcpy(&payload[0], &current_value, sizeof(float));
 
-    // Pack control flags into word 1
+    // Encode grid voltage magnitude float value (extract from typed unit)
+    const float voltage_value = msg.grid_voltage_magnitude.value();
+    std::memcpy(&payload[1], &voltage_value, sizeof(float));
+
+    // Pack control flags into word 2
     std::uint32_t packed_flags = 0;
 
-    // Encode operating mode (bits 0-7)
-    packed_flags |= (static_cast<std::uint32_t>(msg.mode) & detail::g2m_operating_mode_mask)
-                    << detail::g2m_operating_mode_shift;
-
-    // Encode boolean flags
-    if (msg.current_is_zero) {
-        packed_flags |= detail::g2m_is_current_zero_bit;
-    }
-    if (msg.is_saturated) {
-        packed_flags |= detail::g2m_current_controller_saturated_bit;
+    // Encode boolean flags at the beginning (bits 0-4)
+    if (msg.is_forced_commutation) {
+        packed_flags |= (1U << grid_to_machine_message::is_forced_commutation_bit_pos);
     }
     if (msg.force_commutation_acknowledged) {
-        packed_flags |= detail::g2m_force_comm_ack_bit;
+        packed_flags |= (1U << grid_to_machine_message::force_comm_ack_bit_pos);
     }
-    if (msg.pulse_releases) {
-        packed_flags |= detail::g2m_pulse_releases_bit;
+    if (msg.release_pulses) {
+        packed_flags |= (1U << grid_to_machine_message::release_pulses_bit_pos);
+    }
+    if (msg.grid_release_protections) {
+        packed_flags |= (1U << grid_to_machine_message::grid_release_protections_bit_pos);
+    }
+    if (msg.grid_trip_acknowledged) {
+        packed_flags |= (1U << grid_to_machine_message::grid_trip_acknowledged_bit_pos);
     }
 
-    // Encode state ID (bits 12-18)
-    packed_flags |= (static_cast<std::uint32_t>(msg.state_id) & 0x7FU) << detail::g2m_state_id_shift;
-
-    // Encode preset request flag
-    if (msg.preset_request) {
-        packed_flags |= detail::g2m_preset_request_bit;
-    }
+    // Encode state ID at the end (bits 25-31)
+    packed_flags |= (static_cast<std::uint32_t>(msg.state_id) & grid_to_machine_message::state_id_mask)
+                    << grid_to_machine_message::state_id_shift;
 
     // Write packed word to payload
-    payload[1] = packed_flags;
+    payload[2] = packed_flags;
 
     return grid_to_machine_payload_length;
 }
@@ -74,27 +74,30 @@ namespace yeet::application::sfc::fiber_optic {
 
     grid_to_machine_message msg;
 
-    // Decode DC link current float value
-    std::memcpy(&msg.dc_link_current, &payload[0], sizeof(float));
+    // Decode DC link current float value and construct typed unit
+    float current_value;
+    std::memcpy(&current_value, &payload[0], sizeof(float));
+    msg.dc_link_current = yeet::current_pu_t{current_value};
 
-    // Extract packed word 1
-    const std::uint32_t packed_flags = payload[1];
+    // Decode grid voltage magnitude float value and construct typed unit
+    float voltage_value;
+    std::memcpy(&voltage_value, &payload[1], sizeof(float));
+    msg.grid_voltage_magnitude = yeet::voltage_pu_t{voltage_value};
 
-    // Decode operating mode (bits 0-7)
-    msg.mode = static_cast<yeet::application::sfc::sfc_operating_mode_t>(
-        (packed_flags >> detail::g2m_operating_mode_shift) & detail::g2m_operating_mode_mask);
+    // Extract packed word 2
+    const std::uint32_t packed_flags = payload[2];
 
-    // Decode boolean flags
-    msg.current_is_zero = (packed_flags & detail::g2m_is_current_zero_bit) != 0;
-    msg.is_saturated = (packed_flags & detail::g2m_current_controller_saturated_bit) != 0;
-    msg.force_commutation_acknowledged = (packed_flags & detail::g2m_force_comm_ack_bit) != 0;
-    msg.pulse_releases = (packed_flags & detail::g2m_pulse_releases_bit) != 0;
+    // Decode boolean flags from the beginning (bits 0-4)
+    msg.is_forced_commutation = (packed_flags & (1U << grid_to_machine_message::is_forced_commutation_bit_pos)) != 0;
+    msg.force_commutation_acknowledged = (packed_flags & (1U << grid_to_machine_message::force_comm_ack_bit_pos)) != 0;
+    msg.release_pulses = (packed_flags & (1U << grid_to_machine_message::release_pulses_bit_pos)) != 0;
+    msg.grid_release_protections =
+        (packed_flags & (1U << grid_to_machine_message::grid_release_protections_bit_pos)) != 0;
+    msg.grid_trip_acknowledged = (packed_flags & (1U << grid_to_machine_message::grid_trip_acknowledged_bit_pos)) != 0;
 
-    // Decode state ID (bits 12-18)
-    msg.state_id = static_cast<std::uint8_t>((packed_flags >> detail::g2m_state_id_shift) & 0x7FU);
-
-    // Decode preset request flag
-    msg.preset_request = (packed_flags & detail::g2m_preset_request_bit) != 0;
+    // Decode state ID from the end (bits 25-31)
+    msg.state_id = static_cast<std::uint8_t>(
+        (packed_flags >> grid_to_machine_message::state_id_shift) & grid_to_machine_message::state_id_mask);
 
     return msg;
 }
@@ -110,19 +113,33 @@ namespace yeet::application::sfc::fiber_optic {
     // Word 2: Machine voltage magnitude [pu] (IEEE 754 float bits)
     // Word 3: Packed control flags
 
-    // Encode float values using standards-compliant type punning
+    // Encode float values using standards-compliant type punning (extract from typed units)
     // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
-    std::memcpy(&payload[0], &msg.measured_speed, sizeof(float));
-    std::memcpy(&payload[1], &msg.dc_link_current_reference_pu, sizeof(float));
-    std::memcpy(&payload[2], &msg.machine_voltage_magnitude_pu, sizeof(float));
+    const float speed_value = msg.measured_speed.value();
+    std::memcpy(&payload[0], &speed_value, sizeof(float));
+
+    const float current_value = msg.dc_link_current_reference.value();
+    std::memcpy(&payload[1], &current_value, sizeof(float));
+
+    const float voltage_value = msg.machine_voltage_magnitude.value();
+    std::memcpy(&payload[2], &voltage_value, sizeof(float));
 
     // Pack control flags into word 3
     std::uint32_t packed_flags = 0;
     if (msg.force_commutation_request) {
-        packed_flags |= detail::m2g_force_comm_req_bit;
+        packed_flags |= (1U << machine_to_grid_message::force_comm_req_bit_pos);
     }
     if (msg.shutdown_request) {
-        packed_flags |= detail::m2g_shutdown_request_bit;
+        packed_flags |= (1U << machine_to_grid_message::shutdown_request_bit_pos);
+    }
+    if (msg.machine_protection_tripped) {
+        packed_flags |= (1U << machine_to_grid_message::machine_protection_tripped_bit_pos);
+    }
+    if (msg.protection_inhibit) {
+        packed_flags |= (1U << machine_to_grid_message::protection_inhibit_bit_pos);
+    }
+    if (msg.machine_trip_acknowledged) {
+        packed_flags |= (1U << machine_to_grid_message::machine_trip_acknowledged_bit_pos);
     }
     payload[3] = packed_flags;
 
@@ -139,16 +156,29 @@ namespace yeet::application::sfc::fiber_optic {
 
     machine_to_grid_message msg;
 
-    // Decode float values using standards-compliant type punning
+    // Decode float values using standards-compliant type punning and construct typed units
     // Note: C++20 would use std::bit_cast, but memcpy is standards-compliant for C++17
-    std::memcpy(&msg.measured_speed, &payload[0], sizeof(float));
-    std::memcpy(&msg.dc_link_current_reference_pu, &payload[1], sizeof(float));
-    std::memcpy(&msg.machine_voltage_magnitude_pu, &payload[2], sizeof(float));
+    float speed_value;
+    std::memcpy(&speed_value, &payload[0], sizeof(float));
+    msg.measured_speed = yeet::speed_pu_t{speed_value};
+
+    float current_value;
+    std::memcpy(&current_value, &payload[1], sizeof(float));
+    msg.dc_link_current_reference = yeet::current_pu_t{current_value};
+
+    float voltage_value;
+    std::memcpy(&voltage_value, &payload[2], sizeof(float));
+    msg.machine_voltage_magnitude = yeet::voltage_pu_t{voltage_value};
 
     // Decode packed control flags from word 3
     const std::uint32_t packed_flags = payload[3];
-    msg.force_commutation_request = (packed_flags & detail::m2g_force_comm_req_bit) != 0;
-    msg.shutdown_request = (packed_flags & detail::m2g_shutdown_request_bit) != 0;
+    msg.force_commutation_request = (packed_flags & (1U << machine_to_grid_message::force_comm_req_bit_pos)) != 0;
+    msg.shutdown_request = (packed_flags & (1U << machine_to_grid_message::shutdown_request_bit_pos)) != 0;
+    msg.machine_protection_tripped =
+        (packed_flags & (1U << machine_to_grid_message::machine_protection_tripped_bit_pos)) != 0;
+    msg.protection_inhibit = (packed_flags & (1U << machine_to_grid_message::protection_inhibit_bit_pos)) != 0;
+    msg.machine_trip_acknowledged =
+        (packed_flags & (1U << machine_to_grid_message::machine_trip_acknowledged_bit_pos)) != 0;
 
     return msg;
 }

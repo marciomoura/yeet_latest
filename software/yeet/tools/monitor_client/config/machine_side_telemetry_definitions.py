@@ -33,6 +33,7 @@ def _get_section_order() -> List[str]:
     return [
         'system',
         'measurements',
+        'protections',
         'startup_sequencer',
         'speed_controller',
         'torque_controller',
@@ -124,6 +125,22 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'field current ref.', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
                 {'name': 'prefluxing elapsed time', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME, 'type': 'float', 'format': '.4f'}
+            ]
+        },
+        'protections': {
+            'title': 'Machine-Side Protections',
+            'fields': [
+                {'name': 'is tripped', 'index': MachineSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is inhibited', 'index': MachineSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'any fault active', 'index': MachineSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'over flux tripped', 'index': MachineSignalIndex.PROTECTION_OVER_FLUX_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'under flux tripped', 'index': MachineSignalIndex.PROTECTION_UNDER_FLUX_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'stall tripped', 'index': MachineSignalIndex.PROTECTION_STALL_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'over flux warning', 'index': MachineSignalIndex.PROTECTION_OVER_FLUX_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'under flux warning', 'index': MachineSignalIndex.PROTECTION_UNDER_FLUX_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'stall warning', 'index': MachineSignalIndex.PROTECTION_STALL_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss tripped', 'index': MachineSignalIndex.PROTECTION_COMMUNICATION_LOSS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss warning', 'index': MachineSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
             ]
         }
     }
