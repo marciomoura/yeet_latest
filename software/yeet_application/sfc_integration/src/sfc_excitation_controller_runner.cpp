@@ -27,6 +27,11 @@ void sfc_excitation_controller_runner::run()
     _outputs.prefluxing_elapsed_time.write(
         _sfc_excitation_controller.get_flux_buildup_elapsed_time());  // Renamed getter
     _outputs.is_field_established.write(_sfc_excitation_controller.get_is_field_established());
+
+    // Write command outputs
+    const bool enable_excitation = _sfc_excitation_controller.get_enable_excitation();
+    _outputs.excitation_start_command.write(enable_excitation);
+    _outputs.excitation_stop_command.write(!enable_excitation);
 }
 
 void sfc_excitation_controller_runner::stop() { _sfc_excitation_controller.reset(); }

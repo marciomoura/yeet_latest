@@ -41,6 +41,7 @@ target_sources(
             sogi_filter_sequence_extractor_test.cpp
             sogi_filter_test.cpp
             srf_pll_test.cpp
+            threshold_protection_test.cpp
             three_phase_pll_test.cpp
             # three_phase_waveform_generator_test.cpp - Temporarily disabled due
             # to test issues

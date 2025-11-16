@@ -24,10 +24,15 @@ void sfc_grid_side_modulator_runner::run()
     const angle_t firing_angle_from_main_pi = _inputs.firing_angle.read();
     const sfc_operating_mode_t operating_mode = _inputs.operating_mode.read();
     const bool shutdown_request = _inputs.shutdown_request.read();
+    const bool protection_trip = _inputs.protection_trip.read();
 
-    // Update the modulator logic - pass true for enable (control is via parameters and shutdown_request)
+    // OR all shutdown sources: state machine, supervisor, and protection system
+    const bool request_extinguish_current =
+        _inputs.request_extinguish_dc_current.read() || shutdown_request || protection_trip;
+
+    // Update the modulator logic
     _sfc_grid_side_modulator.update(_inputs.release_pulses, operating_mode, request_force_commutation, current_is_zero,
-        firing_angle_from_main_pi, _inputs.request_extinguish_dc_current);
+        firing_angle_from_main_pi, request_extinguish_current);
 
     // Apply enable parameter override to release_pulses
     // const bool enable_override = _parameters.enable.read();

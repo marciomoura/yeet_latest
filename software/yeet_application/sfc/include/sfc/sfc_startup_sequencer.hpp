@@ -219,7 +219,7 @@ public:
      * @param measured_speed Speed from observer [pu] for flying restart detection
      * @param measured_voltage_magnitude Voltage magnitude from observer [pu] for flying restart detection
      * @param current_state_id Grid-side state machine state for auto-start/stop
-     * @param external_speed_reference External speed reference input [pu]
+     * @param speed_reference Speed reference input [pu]
      * @param base_frequency Nominal machine base frequency [Hz] for angle integration
      */
     void update(bool is_field_established,
@@ -227,7 +227,7 @@ public:
         speed_pu_t measured_speed,
         voltage_pu_t measured_voltage_magnitude,
         sfc_state_id current_state_id,
-        speed_pu_t external_speed_reference,
+        speed_pu_t speed_reference,
         frequency_t base_frequency);
 
     /**
@@ -324,11 +324,11 @@ private:
         speed_pu_t external_speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
     void update_flux_buildup(bool is_field_established);
     void update_starting_procedure(frequency_t base_frequency);
-    void update_closed_loop_operation(speed_pu_t external_speed_reference);
+    void update_closed_loop_operation(speed_pu_t speed_reference);
 
     // Automatic start/stop coordination
     void update_state_machine_coordination(
-        speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t& external_speed_reference);
+        speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t speed_reference);
 
     // State transition detection helpers
     bool transitioned_from(sfc_state_id from_state, sfc_state_id current_state) const noexcept;

@@ -13,6 +13,7 @@ void sfc_grid_side_control::initialize()
     grid_side_pulse_generator.initialize();
     grid_measurements.initialize();
     dc_link_measurements.initialize();
+    grid_protections.initialize();
 
     // Register callbacks for external_ios parameter changes (allows test overrides)
     external_ios.register_callbacks();
@@ -38,7 +39,10 @@ void sfc_grid_side_control::register_datamodel(yeet::model_registry& registry)
     dc_link_measurements.register_datamodel(registry);
     state_machine.register_datamodel(registry);
     operation_mode_monitor.register_datamodel(registry);
+    grid_protections.register_datamodel(registry);
 }
+
+void sfc_grid_side_control::reset() { grid_protections.reset(); }
 
 void sfc_grid_side_control::update_10ms() { state_machine.run(); }
 
@@ -53,6 +57,7 @@ void sfc_grid_side_control::update_200us()
     grid_measurements.run();
     dc_link_measurements.run();
     operation_mode_monitor.run();
+    grid_protections.run();
     grid_side_observer.run();
     grid_side_modulator.run();
     grid_side_pulse_generator.run();
@@ -62,15 +67,16 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
 {
     // Encode grid-side signals into fiber-optic protocol
     fiber_optic::grid_to_machine_message tx_msg;
-    tx_msg.mode = get_operating_mode().read();
-    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value();
-    tx_msg.current_is_zero = operation_mode_monitor.get_outputs().current_is_zero.read();
-    tx_msg.is_saturated = current_controller.get_outputs().is_saturated.read();
+    tx_msg.is_forced_commutation = (get_operating_mode().read() == sfc_operating_mode_t::forced_commutation);
+    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_filtered_pu.read();
+    tx_msg.grid_voltage_magnitude = grid_side_observer.get_outputs().estimated_voltage_magnitude.read();
     tx_msg.force_commutation_acknowledged = grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
-    tx_msg.pulse_releases = state_machine.get_outputs().release_pulses.read();
+    tx_msg.release_pulses = state_machine.get_outputs().release_pulses.read();
     // Include synchronization signals in fiber-optic protocol
     tx_msg.state_id = static_cast<std::uint8_t>(state_machine.get_outputs().current_state_id.read());
-    tx_msg.preset_request = grid_integrator_supervisor.get_outputs().preset_controller.read();
+    // Include protection signals from grid-side state machine
+    tx_msg.grid_release_protections = state_machine.get_outputs().release_protections.read();
+    tx_msg.grid_trip_acknowledged = state_machine.get_outputs().trip_acknowledged.read();
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
@@ -85,10 +91,8 @@ bool sfc_grid_side_control::decode_fiber_optic_rx_from_machine(
         return false;
     }
 
-    // Update external_ios with decoded signals
-    external_ios.update_fiber_optics_inputs_from_machine(speed_pu_t{rx_msg->measured_speed},
-        current_pu_t{rx_msg->dc_link_current_reference_pu}, voltage_pu_t{rx_msg->machine_voltage_magnitude_pu},
-        rx_msg->force_commutation_request, rx_msg->shutdown_request);
+    // Update external_ios with decoded message
+    external_ios.set_fiber_optics_rx(*rx_msg);
 
     return true;
 }
@@ -160,6 +164,36 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().measured_speed,
         operation_mode_monitor.get_inputs().measured_speed);
 
+    // ==================== Grid Protections Inputs ====================
+    signals_connector::connect_output_to_input(
+        dc_link_measurements.get_outputs().dc_current_filtered_pu, grid_protections.get_inputs().dc_link_current_pu);
+    signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
+        grid_protections.get_inputs().grid_voltage_magnitude_pu);
+    // Connect state machine's continuous release signal (active when not in IDLE)
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().release_protections, grid_protections.get_inputs().release_protections);
+    // Connect trip acknowledgment from state machine to protection (handshake)
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().trip_acknowledged, grid_protections.get_inputs().trip_acknowledged);
+
+    // Protection shutdown request fed to grid integrator supervisor
+    signals_connector::connect_output_to_input(grid_protections.get_outputs().is_tripped,
+        grid_integrator_supervisor.get_inputs().grid_protection_shutdown_request);
+
+    // Protection inhibit status fed to state machine (blocks OPERATION_OFF -> OPERATION_ON transition)
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().is_inhibited, state_machine.get_inputs().protection_inhibited);
+
+    // Protection active fault status (not latched) fed to state machine for trip acknowledgment logic
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().any_fault_active, state_machine.get_inputs().any_protection_fault_active);
+
+    // Protection trip also connects to state machine for coordinated response
+    // Note: State machine shutdown_request input is already connected to external_ios.
+    // In a real system, these would be ORed together. For this implementation,
+    // protection trips flow through supervisor -> modulator (fast path) and
+    // external shutdown comes through external_ios -> state_machine.
+
     // ==================== Current Controller Inputs ====================
     // Freeze now comes from Grid Integrator Supervisor (unified and ORed)
     signals_connector::connect_output_to_input(
@@ -189,6 +223,8 @@ void sfc_grid_side_control::connect_internal_signals()
         grid_side_modulator.get_inputs().request_extinguish_dc_current);
     signals_connector::connect_output_to_input(
         grid_integrator_supervisor.get_outputs().shutdown_request, grid_side_modulator.get_inputs().shutdown_request);
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().is_tripped, grid_side_modulator.get_inputs().protection_trip);
     signals_connector::connect_output_to_input(
         operation_mode_monitor.get_outputs().operating_mode, grid_side_modulator.get_inputs().operating_mode);
     signals_connector::connect_output_to_input(

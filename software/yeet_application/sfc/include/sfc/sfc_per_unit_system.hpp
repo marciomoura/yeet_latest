@@ -55,7 +55,7 @@ public:
         precomputed_divisor<angular_frequency_t> base_angular_frequency;  ///< Base angular frequency [rad/s]
         precomputed_divisor<inductance_t> base_inductance;                ///< Base inductance [H]
         precomputed_divisor<torque_t> base_torque;                        ///< Base mechanical torque [Nm]
-        precomputed_divisor<magnetic_flux_t> base_flux_linkage;           ///< Base flux linkage [Vs/rad]
+        precomputed_divisor<flux_t> base_flux_linkage;                    ///< Base flux linkage [Vs/rad]
     };
 
     /**

@@ -38,6 +38,12 @@ public:
 
         /// Field established flag - true when flux buildup timer has elapsed [bool]
         signal_output<bool> is_field_established;
+
+        /// Excitation start command - true when excitation should be energized [bool]
+        signal_output<bool> excitation_start_command;
+
+        /// Excitation stop command - true when excitation should be de-energized [bool]
+        signal_output<bool> excitation_stop_command;
     };
 
     /**

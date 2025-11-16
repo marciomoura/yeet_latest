@@ -14,7 +14,9 @@ set(SFC_CORE_HEADERS
     include/sfc/grid_side_hardware_mock.hpp
     include/sfc/machine_side_hardware_mock.hpp
     include/sfc/sfc_commutation_mask.hpp
+    include/sfc/sfc_communication_watchdog.hpp
     include/sfc/sfc_current_controller.hpp
+    include/sfc/sfc_current_protection.hpp
     include/sfc/sfc_excitation_controller.hpp
     include/sfc/sfc_fiber_optic_protocol.hpp
     include/sfc/sfc_machine_side_filtering.hpp
@@ -31,20 +33,26 @@ set(SFC_CORE_HEADERS
     include/sfc/sfc_commutation_monitor.hpp
     include/sfc/sfc_machine_side_lookup_table.hpp
     include/sfc/sfc_mode_detector.hpp
+    include/sfc/sfc_overvoltage_protection.hpp
     include/sfc/sfc_per_unit_system.hpp
     include/sfc/sfc_soft_starter_speed_generator.hpp
     include/sfc/sfc_speed_controller.hpp
+    include/sfc/sfc_stall_protection.hpp
     include/sfc/sfc_startup_sequencer.hpp
     include/sfc/sfc_torque_controller.hpp
     include/sfc/sfc_types.hpp
-    include/sfc/sfc_state_machine.hpp)
+    include/sfc/sfc_state_machine.hpp
+    include/sfc/sfc_undervoltage_protection.hpp
+    include/sfc/sfc_vhz_protection.hpp)
 
 # Core SFC sources (always needed)
 set(SFC_CORE_SOURCES
     src/grid_side_hardware_mock.cpp
     src/machine_side_hardware_mock.cpp
     src/sfc_commutation_mask.cpp
+    src/sfc_communication_watchdog.cpp
     src/sfc_current_controller.cpp
+    src/sfc_current_protection.cpp
     src/sfc_excitation_controller.cpp
     src/sfc_fiber_optic_protocol.cpp
     src/sfc_machine_side_filtering.cpp
@@ -58,15 +66,19 @@ set(SFC_CORE_SOURCES
     src/sfc_grid_side_modulator.cpp
     src/sfc_machine_side_measurements.cpp
     src/sfc_machine_side_modulator.cpp
+    src/sfc_overvoltage_protection.cpp
+    src/sfc_undervoltage_protection.cpp
     src/sfc_dc_link_measurements.cpp
     src/sfc_commutation_monitor.cpp
     src/sfc_mode_detector.cpp
     src/sfc_per_unit_system.cpp
     src/sfc_soft_starter_speed_generator.cpp
     src/sfc_speed_controller.cpp
+    src/sfc_stall_protection.cpp
     src/sfc_startup_sequencer.cpp
     src/sfc_torque_controller.cpp
-    src/sfc_state_machine.cpp)
+    src/sfc_state_machine.cpp
+    src/sfc_vhz_protection.cpp)
 
 # Plant model files (only needed for testing/simulation)
 set(SFC_PLANT_MODEL_HEADERS

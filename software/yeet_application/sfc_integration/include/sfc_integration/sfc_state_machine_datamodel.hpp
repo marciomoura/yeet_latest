@@ -37,6 +37,12 @@ public:
 
         /// Current has been extinguished [bool]
         signal_input<bool> is_current_extinguished;
+
+        /// Protection system inhibited (trip pending alarm confirmation) [bool]
+        signal_input<bool> protection_inhibited;
+
+        /// Any protection currently detecting active fault condition (NOT latched) [bool]
+        signal_input<bool> any_protection_fault_active;
     };
 
     /**
@@ -57,6 +63,12 @@ public:
 
         /// State transition flag (true when transitioned in this cycle) [bool]
         signal_output<bool> has_transitioned;
+
+        /// Enable protection release mechanism (true when not in IDLE state) [bool]
+        signal_output<bool> release_protections;
+
+        /// Trip acknowledged by state machine (rising edge on protection_inhibited) [bool]
+        signal_output<bool> trip_acknowledged;
 
         /// Auxiliaries power systems operational [bool]
         signal_output<bool> auxiliaries_are_on;

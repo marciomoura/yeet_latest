@@ -80,17 +80,17 @@ void sfc_startup_sequencer::update(bool is_field_established,
     speed_pu_t measured_speed,
     voltage_pu_t measured_voltage_magnitude,
     sfc_state_id current_state_id,
-    speed_pu_t external_speed_reference,
+    speed_pu_t speed_reference,
     frequency_t base_frequency)
 {
     // Handle automatic start/stop coordination with state machine
     if (_flying_restart_config.auto_start_stop_enabled) {
-        update_state_machine_coordination(measured_speed, current_state_id, external_speed_reference);
+        update_state_machine_coordination(measured_speed, current_state_id, speed_reference);
     }
 
     // Apply shutdown speed override if active
     // This forces speed reference to zero during SHUTDOWN_REQUESTED and OPERATION_OFF states
-    speed_pu_t effective_speed_reference = external_speed_reference;
+    speed_pu_t effective_speed_reference = speed_reference;
     if (_shutdown_speed_override_active) {
         effective_speed_reference = speed_pu_t{0.0};
     }
@@ -257,11 +257,11 @@ void sfc_startup_sequencer::transition_to_idle()
 // ========== State Update Methods ==========
 
 void sfc_startup_sequencer::update_idle(
-    speed_pu_t external_speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude)
+    speed_pu_t speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude)
 {
     // Update speed reference limiter even in IDLE to handle shutdown scenarios
     // When shutdown override is active (OPERATION_OFF), we need to ramp speed to zero
-    _speed_reference_limiter.update(external_speed_reference.value());
+    _speed_reference_limiter.update(speed_reference);
 
     // If start has been requested, wait for observer settling
     if (_start_requested) {
@@ -315,10 +315,10 @@ void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency
     }
 }
 
-void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t external_speed_reference)
+void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t speed_reference)
 {
     // Update speed reference limiter with external reference (only in closed-loop)
-    _speed_reference_limiter.update(external_speed_reference.value());
+    _speed_reference_limiter.update(speed_reference.value());
 
     // Closed-loop operation - speed control is active
     // System is running normally under speed control
@@ -423,7 +423,7 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
 // ========== Automatic Start/Stop Coordination ==========
 
 void sfc_startup_sequencer::update_state_machine_coordination(
-    speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t& external_speed_reference)
+    speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t speed_reference)
 {
     // Detect transition TO OPERATION_ON -> start sequence
     if (transitioned_to(sfc_state_id::OPERATION_ON, current_state_id)) {

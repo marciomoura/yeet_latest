@@ -31,6 +31,9 @@ public:
         /// Trip signal from external sources (operator or fault)
         signal_input<bool> machine_side_shutdown_request;
 
+        /// Trip signal from grid-side protections (overcurrent, overvoltage, undervoltage)
+        signal_input<bool> grid_protection_shutdown_request;
+
         /// Pulse release command from state machine
         signal_input<bool> state_machine_release_pulses;
 

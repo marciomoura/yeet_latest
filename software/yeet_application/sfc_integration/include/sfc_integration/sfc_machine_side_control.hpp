@@ -10,6 +10,7 @@
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
+#include "sfc_integration/sfc_machine_side_protections_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
@@ -308,6 +309,7 @@ public:
     sfc_machine_side_modulator_runner machine_side_modulator;
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
     sfc_machine_side_measurements_runner machine_measurements;
+    sfc_machine_side_protections_runner machine_protections;
 
     // I/O interface for external connections (must be last as it references all components)
     sfc_machine_side_external_ios_datamodel external_ios;

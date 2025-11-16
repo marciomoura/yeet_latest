@@ -77,6 +77,19 @@ class GridSignalIndex(IntEnum):
     PULSE_GENERATOR_RELEASE_PULSES = 44
     PULSE_GENERATOR_ACTUAL_FIRING_ANGLE = 45
     PULSE_GENERATOR_RELEASE_PULSES_INPUT = 46
+    
+    # === Grid-Side Protections Group (47-57) ===
+    PROTECTION_IS_TRIPPED = 47
+    PROTECTION_IS_INHIBITED = 48
+    PROTECTION_ANY_FAULT_ACTIVE = 49
+    PROTECTION_OVERCURRENT_TRIPPED = 50
+    PROTECTION_OVERVOLTAGE_TRIPPED = 51
+    PROTECTION_UNDERVOLTAGE_TRIPPED = 52
+    PROTECTION_OVERCURRENT_WARNING = 53
+    PROTECTION_OVERVOLTAGE_WARNING = 54
+    PROTECTION_UNDERVOLTAGE_WARNING = 55
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 56
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 57
 
 
 @dataclass
@@ -164,3 +177,19 @@ class PulseGeneratorData:
     release_pulses: bool = False
     actual_firing_angle_pu: float = 0.0
     release_pulses_input: bool = False
+
+
+@dataclass
+class GridProtectionsData:
+    """Grid-side protection system (47-57)."""
+    is_tripped: bool = False
+    is_inhibited: bool = False
+    any_fault_active: bool = False
+    overcurrent_tripped: bool = False
+    overvoltage_tripped: bool = False
+    undervoltage_tripped: bool = False
+    overcurrent_warning: bool = False
+    overvoltage_warning: bool = False
+    undervoltage_warning: bool = False
+    communication_loss_tripped: bool = False
+    communication_loss_warning: bool = False

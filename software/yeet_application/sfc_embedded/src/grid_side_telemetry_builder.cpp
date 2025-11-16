@@ -88,6 +88,20 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(45, static_cast<float>(pulse_generator.get_outputs().actual_firing_angle.read().get_pu()));
     packet.add_signal(46, static_cast<float>(pulse_generator.get_inputs().release_pulses.read()));
 
+    // === Grid-Side Protections Group (47-57) ===
+    const auto& protections = _control.grid_protections;
+    packet.add_signal(47, protections.get_outputs().is_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(48, protections.get_outputs().is_inhibited.read() ? 1.0f : 0.0f);
+    packet.add_signal(49, protections.get_outputs().any_fault_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(50, protections.get_outputs().overcurrent_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(51, protections.get_outputs().overvoltage_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(52, protections.get_outputs().undervoltage_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(53, protections.get_outputs().overcurrent_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(54, protections.get_outputs().overvoltage_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(55, protections.get_outputs().undervoltage_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(56, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(57, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
 

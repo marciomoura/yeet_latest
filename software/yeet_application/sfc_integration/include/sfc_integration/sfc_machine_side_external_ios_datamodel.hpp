@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_types.hpp"
@@ -69,32 +70,14 @@ public:
     /**
      * @brief Parameters for test/simulation signal injection
      *
-     * Override flags enable parameter-based mocking:
-     * - override_excitation_inputs: Mock excitation control commands
-     * - override_speed_generator_profiles: Mock speed generator profile commands (DISABLED - replaced by
-     * startup_sequencer)
-     * - override_fiber_optics_inputs: Mock grid-side cross-coupling signals
-     *
-     * When override flag is enabled, the corresponding update_*() method will use
-     * parameter values instead of the signals provided to the update call.
+     * Override flags enable parameter-based mocking for testing.
+     * When override flag is enabled, parameter values are used instead of
+     * values from the excitation controller.
      */
     struct parameters {
-        // Excitation control input overrides
-        yeet::parameter<bool> override_excitation_inputs{false};
-        yeet::parameter<bool> exciter_ready{false};
+        yeet::parameter<bool> override_excitation_outputs{false};
         yeet::parameter<bool> excitation_start_command{false};
         yeet::parameter<bool> excitation_stop_command{false};
-
-        // Speed generator profile selection overrides (turbine starting sequence)
-        // DISABLED: Speed generator replaced by startup_sequencer - these parameters are no longer used
-        // yeet::parameter<bool> override_speed_generator_profiles{false};
-        // yeet::parameter<bool> run_creep_speed{false};     ///< Profile 1: Creep speed (~5% rated)
-        // yeet::parameter<bool> run_purge_accel{false};     ///< Profile 2: Purge acceleration (~20% rated)
-        // yeet::parameter<bool> run_ignition_accel{false};  ///< Profile 3: Ignition acceleration (~55% rated)
-        // yeet::parameter<bool> run_assist_accel{false};    ///< Profile 4: Assist to self-sustaining (~95% rated)
-        // yeet::parameter<bool> hold_speed{false};          ///< Hold current speed setpoint
-        // yeet::parameter<bool> decelerate{false};          ///< Controlled deceleration to zero
-        // yeet::parameter<bool> idle{false};                ///< Idle mode (zero torque/speed outputs)
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================
@@ -117,94 +100,87 @@ public:
         signal_output<yeet::control::adc_counts> v_bc_counts{};  ///< Machine voltage BC (ADC counts)
     };
 
+    // ==================== FIBER-OPTICS OUTPUTS TO GRID-SIDE ====================
+
+    /**
+     * @brief Signals FROM machine-side TO grid-side (via fiber-optics)
+     *
+     * These are **outputs** from the machine-side datamodel perspective.
+     * These are **inputs** to the grid-side datamodel perspective (fiber_optics_inputs_from_machine).
+     *
+     * **Signal Sources (Machine-Side Components):**
+     * - measured_speed: From machine_side_observer.estimated_speed
+     * - dc_link_current_reference: From torque_controller.current_reference
+     * - machine_voltage_magnitude: From machine_side_observer.estimated_voltage_magnitude
+     * - force_commutation_request: From machine_side_modulator (when low-speed assist needed)
+     * - shutdown_request: From machine_side_supervisor (emergency shutdown)
+     * - machine_protection_tripped: From protection system
+     * - protection_inhibit: Protection system inhibited (awaiting acknowledgment)
+     * - machine_trip_acknowledged: Machine-side trip acknowledgment
+     *
+     * **Timing:** Updated at 1ms (after machine-side update, before grid-side update)
+     *
+     * Flow: Machine-side components → fiber_optics_outputs_to_grid → fiber optic protocol → grid-side
+     */
+    struct fiber_optics_outputs_to_grid_t {
+        signal_output<speed_pu_t> measured_speed{speed_pu_t{0.0}};                 ///< Measured rotor speed [pu]
+        signal_output<current_pu_t> dc_link_current_reference{current_pu_t{0.0}};  ///< DC link current reference [pu]
+        signal_output<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};  ///< Machine voltage magnitude [pu]
+        signal_output<bool> force_commutation_request{false};                      ///< Force commutation requested
+        signal_output<bool> shutdown_request{false};            ///< Shutdown request from machine side
+        signal_output<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
+        signal_output<bool> protection_inhibit{false};          ///< Protection inhibited (awaiting ack)
+        signal_output<bool> machine_trip_acknowledged{false};   ///< Machine-side trip acknowledgment
+    };
+
     // ==================== FIBER-OPTICS INPUTS FROM GRID-SIDE ====================
 
     /**
      * @brief Signals FROM grid-side TO machine-side (via fiber-optics)
      *
-     * These are **inputs** to the machine-side datamodel perspective.
-     * These are **outputs** from the grid-side datamodel perspective.
+     * These are **inputs** to the machine-side control system.
+     * These are **outputs** from the grid-side control system.
      *
      * **Signal Sources (Grid-Side Components):**
-     * - operating_mode: Grid-side operating_mode_monitor (pulse or natural commutation)
+     * - operating_mode: Grid-side state machine (pulse or natural commutation mode)
      * - force_commutation_acknowledged: Grid-side state machine handshake ACK
-     * - is_current_zero: Grid-side current detection (used for force commutation)
-     * - is_saturated: Grid current controller saturation flag
-     * - pulse_releases: Grid-side state machine enable (system running)
+     * - release_pulses: Grid-side state machine enable (system running)
      * - dc_link_current: Grid-side DC link measurements (machine-side is sensorless)
-     * - preset_request: Preset request from grid-side supervisor
-     * - current_state_id: Grid-side state machine state (for profile awareness)
+     * - grid_voltage_magnitude: Grid-side voltage magnitude observer output
+     * - current_state_id: Grid-side state machine current state ID
+     * - grid_release_protections: Grid-side protection release signal (from state machine)
+     * - grid_trip_acknowledged: Grid-side trip acknowledgment (from state machine)
      *
      * **Timing:** Updated at 1ms (after grid-side update, before machine-side uses them)
      *
-     * **Override Capability:** Tests can set override_fiber_optics_inputs flag
-     * to inject mock values instead of real grid-side outputs.
-     *
-     * Flow: Grid-side components → machine-side external_ios → internal components
+     * Flow: Grid-side components → fiber optic protocol → machine-side external_ios → internal components
      */
-    struct fiber_optics_inputs_t {
-        signal_output<sfc_operating_mode_t> operating_mode{
-            sfc_operating_mode_t::natural_commutation};                  ///< SFC operating mode
-        signal_output<bool> force_commutation_acknowledged{false};       ///< Forced commutation ACK
-        signal_output<bool> current_is_zero{false};                      ///< DC current zero indicator
-        signal_output<bool> is_saturated{false};                         ///< Grid controller saturated
-        signal_output<bool> pulse_releases{false};                       ///< Grid system running
-        signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< Grid-measured DC current [pu]
-        signal_output<bool> preset_request{false};                       ///< Preset request from grid-side
-        signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
-            yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state ID
+    struct fiber_optics_inputs_from_grid_t {
+        external_signal<sfc_operating_mode_t> operating_mode{
+            sfc_operating_mode_t::natural_commutation};                    ///< SFC operating mode
+        external_signal<bool> force_commutation_acknowledged{false};       ///< Forced commutation ACK
+        external_signal<bool> release_pulses{false};                       ///< Grid system running / pulses released
+        external_signal<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< Grid-measured DC current [pu]
+        external_signal<voltage_pu_t> grid_voltage_magnitude{voltage_pu_t{0.0}};  ///< Grid voltage magnitude [pu]
+        external_signal<yeet::application::sfc::sfc_state_id> current_state_id{
+            yeet::application::sfc::sfc_state_id::IDLE};        ///< Grid-side state ID
+        external_signal<bool> grid_release_protections{false};  ///< Grid protection release (from grid state machine)
+        external_signal<bool> grid_trip_acknowledged{false};    ///< Grid trip acknowledgment (from grid state machine)
     };
 
-    // ==================== EXCITATION OUTPUTS (Bridge Signals) ====================
+    // ==================== EXCITATION OUTPUTS (Commands to External System) ====================
 
     /**
-     * @brief Excitation control output signals (bridge to external excitation controller)
+     * @brief Excitation control command outputs
      *
-     * These signals drive the external excitation controller through a bridge interface.
-     * Allows external systems to monitor exciter status and issue control commands.
+     * These are OUTPUT commands from the excitation controller to the external excitation system.
+     * The excitation_controller_runner generates these commands based on control logic.
      *
-     * Flow: External excitation system → machine_side_external_ios → excitation_controller
+     * Flow: excitation_controller → external_ios → embedded/hardware → excitation system
      */
     struct excitation_outputs_t {
-        signal_output<bool> exciter_ready;             ///< Excitation system ready status
-        signal_output<bool> excitation_start_command;  ///< Start excitation command
-        signal_output<bool> excitation_stop_command;   ///< Stop excitation command
-    };
-
-    // ==================== SPEED GENERATOR OUTPUTS (Profile Selection) ====================
-    // DISABLED: Speed generator replaced by startup_sequencer - these signals are no longer used
-
-    // /**
-    //  * @brief Speed generator profile selection output signals (turbine starting sequence)
-    //  *
-    //  * These signals select which turbine starting profile the speed generator uses.
-    //  * Each profile defines a specific acceleration ramp with distinct speed targets.
-    //  *
-    //  * Flow: External turbine controller → machine_side_external_ios → speed_generator
-    //  */
-    // struct speed_generator_outputs_t {
-    //     signal_output<bool> run_creep_speed;     ///< Profile 1: Creep speed (~5% rated)
-    //     signal_output<bool> run_purge_accel;     ///< Profile 2: Purge acceleration (~20% rated)
-    //     signal_output<bool> run_ignition_accel;  ///< Profile 3: Ignition acceleration (~55% rated)
-    //     signal_output<bool> run_assist_accel;    ///< Profile 4: Assist to self-sustaining (~95% rated)
-    //     signal_output<bool> hold_speed;          ///< Hold current speed setpoint
-    //     signal_output<bool> decelerate;          ///< Controlled deceleration to zero
-    //     signal_output<bool> idle;                ///< Idle mode (zero torque/speed outputs)
-    // };
-
-    // ==================== STARTUP SEQUENCER OUTPUTS (Startup Control) ====================
-
-    /**
-     * @brief Startup sequencer control signals
-     *
-     * These signals control the startup sequencer which manages the complete startup sequence
-     * from IDLE through flux buildup, virtual reference generation, to closed-loop operation.
-     *
-     * Flow: External supervisory controller → machine_side_external_ios → startup_sequencer
-     */
-    struct startup_sequencer_outputs_t {
-        signal_output<bool> start_command;  ///< Start the startup sequence
-        signal_output<bool> stop_command;   ///< Stop the startup sequence
+        signal_input<bool> excitation_start_command;  ///< Start excitation command (from controller)
+        signal_input<bool> excitation_stop_command;   ///< Stop excitation command (from controller)
     };
 
     // ==================== THYRISTOR OUTPUT (Pulse Control) ====================
@@ -251,19 +227,40 @@ public:
     analog_inputs_t& get_analog_inputs() { return _analog_inputs; }
 
     /**
+     * @brief Get fiber-optics outputs to grid-side (const)
+     *
+     * Grid-side reads these signals via this getter to know machine-side state
+     *
+     * @return Const reference to fiber_optics_outputs_to_grid
+     */
+    const fiber_optics_outputs_to_grid_t& get_fiber_optics_outputs_to_grid() const
+    {
+        return _fiber_optics_outputs_to_grid;
+    }
+
+    /**
+     * @brief Get fiber-optics outputs to grid-side (mutable)
+     * @return Mutable reference to fiber_optics_outputs_to_grid
+     */
+    fiber_optics_outputs_to_grid_t& get_fiber_optics_outputs_to_grid() { return _fiber_optics_outputs_to_grid; }
+
+    /**
      * @brief Get fiber-optics inputs from grid-side (const)
      *
      * Machine-side reads these signals via this getter to know grid-side state
      *
-     * @return Const reference to fiber_optics_inputs
+     * @return Const reference to fiber_optics_inputs_from_grid
      */
-    const fiber_optics_inputs_t& get_fiber_optics_inputs() const { return _fiber_optics_inputs; }
+    const fiber_optics_inputs_from_grid_t& get_fiber_optics_inputs_from_grid() const
+    {
+        return _fiber_optics_inputs_from_grid;
+    }
 
     /**
      * @brief Get fiber-optics inputs from grid-side (mutable)
-     * @return Mutable reference to fiber_optics_inputs
+     * @return Mutable reference to fiber_optics_inputs_from_grid
      */
-    fiber_optics_inputs_t& get_fiber_optics_inputs() { return _fiber_optics_inputs; }
+    fiber_optics_inputs_from_grid_t& get_fiber_optics_inputs_from_grid() { return _fiber_optics_inputs_from_grid; }
 
     /**
      * @brief Get excitation output signals (const)
@@ -277,152 +274,64 @@ public:
      */
     excitation_outputs_t& get_excitation_outputs() { return _excitation_outputs; }
 
-    // DISABLED: Speed generator replaced by startup_sequencer
-    // /**
-    //  * @brief Get speed generator output signals (const)
-    //  * @return Const reference to speed generator outputs
-    //  */
-    // const speed_generator_outputs_t& get_speed_generator_outputs() const { return _speed_generator_outputs; }
-
-    // /**
-    //  * @brief Get speed generator output signals (mutable)
-    //  * @return Mutable reference to speed generator outputs
-    //  */
-    // speed_generator_outputs_t& get_speed_generator_outputs() { return _speed_generator_outputs; }
-
-    /**
-     * @brief Get startup sequencer output signals (const)
-     * @return Const reference to startup sequencer outputs
-     */
-    const startup_sequencer_outputs_t& get_startup_sequencer_outputs() const { return _startup_sequencer_outputs; }
-
-    /**
-     * @brief Get startup sequencer output signals (mutable)
-     * @return Mutable reference to startup sequencer outputs
-     */
-    startup_sequencer_outputs_t& get_startup_sequencer_outputs() { return _startup_sequencer_outputs; }
-
     /**
      * @brief Get thyristor output structure (mutable)
      * @return Mutable reference to thyristor_control_output
      */
     thyristor_control_output_t& get_thyristor_control_output() { return _thyristor_output; }
 
-    // ==================== UPDATE METHODS (Called from Plant Builder) ====================
+    // ==================== SIMPLIFIED SETTERS (Called from Embedded/Plant) ====================
 
     /**
-     * @brief Update analog inputs from hardware mock ADC
+     * @brief Set analog inputs from hardware ADC
      *
-     * Called at 200µs (5 kHz) with raw ADC counts from machine-side hardware mock.
-     * Stores counts in analog_inputs struct for measurement runner consumption.
+     * Called from embedded code or plant builder at 200µs with raw ADC measurements.
+     * This is the ONLY method the embedded code should call for analog inputs.
      *
-     * **Parameters:**
      * @param v_ab_counts Machine voltage AB differential (ADC counts)
      * @param v_bc_counts Machine voltage BC differential (ADC counts)
-     *
-     * **Timing:** Called at 200µs from plant builder
-     *
-     * **Override Capability:** Not overrideable (ADC measurements are primary)
      */
-    void update_analog_inputs(yeet::control::adc_counts v_ab_counts, yeet::control::adc_counts v_bc_counts);
+    void set_analog_inputs(yeet::control::adc_counts v_ab_counts, yeet::control::adc_counts v_bc_counts);
 
     /**
-     * @brief Update fiber-optics inputs from grid-side
+     * @brief Set fiber-optics inputs from grid-side using protocol message
      *
-     * Called at 1ms (after grid-side update) to capture grid-side outputs for
-     * machine-side use. Respects override_fiber_optics_inputs flag if set for test injection.
+     * Called from embedded code or plant builder after decoding fiber optic RX.
+     * Accepts the decoded grid_to_machine_message directly from the fiber optic protocol.
+     * This is the ONLY method the embedded code should call for fiber optic inputs.
      *
-     * **Parameters:**
-     * @param operating_mode Grid operating mode (pulse or natural commutation)
-     * @param current_state_id Grid-side state machine current state ID
-     * @param force_commutation_acknowledged Forced commutation handshake acknowledgement
-     * @param current_is_zero DC link current below threshold indicator
-     * @param is_saturated Grid current controller at output limits
-     * @param pulse_releases Pulses enabled / grid system running flag
-     * @param dc_link_current Measured DC link current in per-unit
-     * @param freeze_integrator Speed controller integrator freeze signal
-     * @param is_tripped Grid-side trip status
-     *
-     * **Timing:** Called at 1ms after grid-side update
-     *
-     * **Override Logic:** When override_fiber_optics_inputs is true,
-     * uses parameter values instead of the values provided to this method.
-     *
-     * **Plant Builder Usage:**
-     * ```cpp
-     * machine_side_control.external_ios.update_fiber_optics_inputs(
-     *     grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().operating_mode.read(),
-     *     grid_side_control.get_external_ios().get_fiber_optics_outputs_to_machine().current_state_id.read(),
-     *     // ... etc (7 signals total)
-     * );
-     * ```
+     * @param msg Decoded message from grid-side (from fiber_optic::decode_grid_to_machine)
      */
-    void update_fiber_optics_inputs(sfc_operating_mode_t operating_mode,
-        yeet::application::sfc::sfc_state_id current_state_id,
-        bool force_commutation_acknowledged,
-        bool current_is_zero,
-        bool is_saturated,
-        bool pulse_releases,
-        current_pu_t dc_link_current,
-        bool preset_request);
+    void set_fiber_optics_rx(const fiber_optic::grid_to_machine_message& msg);
 
     /**
-     * @brief Update excitation control inputs
+     * @brief Get fiber-optics message to transmit to grid-side
      *
-     * Called at 10ms with excitation system status and control commands.
-     * Respects override_excitation_inputs flag if set for test injection.
+     * Called from embedded code or plant builder to get the encoded message
+     * for fiber optic transmission to grid-side.
+     * Internal components write to fiber_optics_outputs_to_grid via signals_connector.
      *
-     * **Parameters:**
-     * @param exciter_ready Excitation system ready status
-     * @param excitation_start_command Start excitation command
-     * @param excitation_stop_command Stop excitation command
-     *
-     * **Timing:** Called at 10ms from plant builder
-     *
-     * **Override Logic:** When override_excitation_inputs is true,
-     * uses parameter values instead of the values provided to this method.
+     * @return Encoded machine_to_grid_message for fiber optic transmission
      */
-    void update_excitation_inputs(bool exciter_ready, bool excitation_start_command, bool excitation_stop_command);
-
-    // DISABLED: Speed generator replaced by startup_sequencer
-    // /**
-    //  * @brief Update speed generator profile selection inputs
-    //  *
-    //  * Called at 10ms with profile selection commands for the turbine starting sequence.
-    //  * Respects override_speed_generator_profiles flag if set for test injection.
-    //  *
-    //  * **Parameters:**
-    //  * @param run_creep_speed Profile 1: Creep speed
-    //  * @param run_purge_accel Profile 2: Purge acceleration
-    //  * @param run_ignition_accel Profile 3: Ignition acceleration
-    //  * @param run_assist_accel Profile 4: Assist to self-sustaining
-    //  * @param hold_speed Hold current speed setpoint
-    //  * @param decelerate Controlled deceleration to zero
-    //  * @param idle Idle mode (zero torque/speed outputs)
-    //  *
-    //  * **Timing:** Called at 10ms from plant builder
-    //  *
-    //  * **Override Logic:** When override_speed_generator_profiles is true,
-    //  * uses parameter values instead of the values provided to this method.
-    //  */
-    // void update_speed_generator_inputs(bool run_creep_speed,
-    //     bool run_purge_accel,
-    //     bool run_ignition_accel,
-    //     bool run_assist_accel,
-    //     bool hold_speed,
-    //     bool decelerate,
-    //     bool idle);
+    fiber_optic::machine_to_grid_message get_fiber_optics_tx() const;
 
     /**
-     * @brief Update startup sequencer control inputs (test/sim interface)
+     * @brief Get excitation start command output
      *
-     * Sets the external command signals for the startup sequencer from a test bench
-     * or simulator. These signals control the startup sequence execution.
+     * Read by embedded code to send start command to external excitation system.
      *
-     * @param start_command Start the startup sequence
-     * @param stop_command Stop the startup sequence
+     * @return true if excitation controller requests start
      */
-    void update_startup_sequencer_inputs(bool start_command, bool stop_command);
+    bool get_excitation_start_command() const;
+
+    /**
+     * @brief Get excitation stop command output
+     *
+     * Read by embedded code to send stop command to external excitation system.
+     *
+     * @return true if excitation controller requests stop
+     */
+    bool get_excitation_stop_command() const;
 
     /**
      * @brief Get thyristor pulse outputs
@@ -432,16 +341,6 @@ public:
      * @return Current machine-side firing pulses
      */
     yeet::control::six_pulse_generator::pulses get_thyristor_pulse_outputs() const;
-
-    /**
-     * @brief Get fixed speed reference output (temporary for startup sequencer testing)
-     *
-     * Provides a constant 1.0 pu speed reference while speed_generator is disconnected.
-     * This will be removed when speed_generator is reintegrated.
-     *
-     * @return Signal output with fixed 1.0 pu speed reference
-     */
-    signal_output<speed_pu_t>& get_fixed_speed_reference() { return _fixed_speed_reference; }
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access
@@ -462,33 +361,18 @@ public:
     void register_callbacks();
 
 private:
-    // ==================== PRIVATE OVERRIDE METHODS ====================
-
     /**
-     * @brief Apply excitation input overrides if enabled
-     * @return true if overrides were applied, false if real signals should be used
+     * @brief Apply excitation output overrides if enabled
+     * @return true if overrides were applied, false if controller outputs should be used
      */
-    bool write_excitation_overrides();
-
-    // DISABLED: Speed generator replaced by startup_sequencer
-    // /**
-    //  * @brief Apply speed generator profile overrides if enabled
-    //  * @return true if overrides were applied, false if real signals should be used
-    //  */
-    // bool write_speed_generator_overrides();
-
-    // ==================== MEMBER STATE ====================
+    bool apply_excitation_overrides();
 
     parameters _parameters;
     analog_inputs_t _analog_inputs;
-    fiber_optics_inputs_t _fiber_optics_inputs;
+    fiber_optics_outputs_to_grid_t _fiber_optics_outputs_to_grid;
+    fiber_optics_inputs_from_grid_t _fiber_optics_inputs_from_grid;
     excitation_outputs_t _excitation_outputs;
-    // speed_generator_outputs_t _speed_generator_outputs;  // DISABLED: Replaced by startup_sequencer
-    startup_sequencer_outputs_t _startup_sequencer_outputs;
     thyristor_control_output_t _thyristor_output;
-
-    // Fixed speed reference for startup sequencer testing (temporary until speed_generator reintegration)
-    signal_output<speed_pu_t> _fixed_speed_reference{speed_pu_t{1.0}};
 };
 
 }  // namespace yeet::application::sfc::integration

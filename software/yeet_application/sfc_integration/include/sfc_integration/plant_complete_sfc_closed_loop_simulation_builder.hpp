@@ -77,9 +77,7 @@ public:
     void mock_inputs()
     {
         // Configure machine-side excitation control via datamodel overrides
-        machine_side_control.external_ios.get_parameters().override_excitation_inputs.write(true);
-        machine_side_control.external_ios.get_parameters().exciter_ready.write(
-            true);  // Exciter is ready (perfect exciter)
+        machine_side_control.external_ios.get_parameters().override_excitation_outputs.write(true);
         machine_side_control.external_ios.get_parameters().excitation_start_command.write(true);
         machine_side_control.external_ios.get_parameters().excitation_stop_command.write(false);
 
@@ -158,7 +156,7 @@ public:
 
             // Grid-side measurements: Voltage (V_ab, V_bc) and current (I_a, I_c) in ADC counts
             // These are fed to the measurement runner for reconstruction in per-unit
-            grid_side_control.get_external_ios().update_analog_inputs(
+            grid_side_control.get_external_ios().set_analog_inputs(
                 grid_side_hardware_mock.get_outputs().v_ab_counts.read(),
                 grid_side_hardware_mock.get_outputs().v_bc_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_a_counts.read(),
@@ -168,7 +166,7 @@ public:
             // The plant provides 3-phase voltage, mocks convert to ADC counts
             auto debug_ab = machine_side_hardware_mock.get_outputs().v_ab_counts.read();
             auto debug_bc = machine_side_hardware_mock.get_outputs().v_bc_counts.read();
-            machine_side_control.external_ios.update_analog_inputs(debug_ab, debug_bc);
+            machine_side_control.external_ios.set_analog_inputs(debug_ab, debug_bc);
 
             // ========== SIGNAL PROCESSING & OBSERVATION ==========
             // Measurement runners process raw ADC counts:
@@ -208,8 +206,11 @@ public:
             //   - Freeze integrator: When grid is frozen, machine must freeze too
             //   - PI reset: When grid modulator resets its PI, machine must reset its PI
             // This ensures tight synchronization between the two converters
-            machine_side_control.decode_fiber_optic_rx_from_grid(
+            bool machine_comm_valid = machine_side_control.decode_fiber_optic_rx_from_grid(
                 grid_side_control.get_fiber_optic_tx_payload(), grid_side_control.get_fiber_optic_tx_length());
+
+            // Update protection system with communication status for watchdog monitoring
+            machine_side_control.machine_protections.update_communication_status(machine_comm_valid);
 
             // ========== MACHINE-SIDE CONTROL UPDATE ==========
             // Machine-side inner control loop:

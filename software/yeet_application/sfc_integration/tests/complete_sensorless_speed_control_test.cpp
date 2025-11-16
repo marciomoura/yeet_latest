@@ -27,21 +27,6 @@ public:
         auto gas_turbine_config = yeet::application::sfc::integration::test::create_gas_turbine_config();
         yeet::application::sfc::integration::test::configure_variable_speed_plant(system.plant, gas_turbine_config);
 
-        // Register test input update lambda (10ms - same rate as speed controller and excitation)
-        // This simulates external digital inputs being transferred to the control system
-        simulator.register_lambda_runner(10e-3, [&]() {
-            system.machine_side_control.external_ios.update_excitation_inputs(
-                _exciter_ready, _excitation_start_command, _excitation_stop_command);
-
-            // DISABLED: Speed generator replaced by startup_sequencer
-            // system.machine_side_control.external_ios.update_speed_generator_inputs(_run_creep_speed,
-            // _run_purge_accel,
-            //     _run_ignition_accel, _run_assist_accel, _hold_speed, _decelerate, _idle);
-
-            system.machine_side_control.external_ios.update_startup_sequencer_inputs(
-                _startup_sequencer_start_command, _startup_sequencer_stop_command);
-        });
-
         // Initialize the system - allocates plant model and all components
         initialize();
 
@@ -101,28 +86,6 @@ public:
             system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
     }
 
-    // DISABLED: Speed generator replaced by startup_sequencer - these helper methods are no longer used
-    // // Speed profile command helpers using datamodel override parameters
-    // void set_idle(bool idle) { _idle = idle; }
-
-    // void set_run_creep_speed(bool run) { _run_creep_speed = run; }
-
-    // void set_run_purge_accel(bool run) { _run_purge_accel = run; }
-
-    // void set_run_ignition_accel(bool run) { _run_ignition_accel = run; }
-
-    // void set_run_assist_accel(bool run) { _run_assist_accel = run; }
-
-    void set_exciter_ready(bool ready) { _exciter_ready = ready; }
-
-    void set_excitation_start_command(bool start) { _excitation_start_command = start; }
-
-    void set_excitation_stop_command(bool stop) { _excitation_stop_command = stop; }
-
-    void set_startup_sequencer_start_command(bool start) { _startup_sequencer_start_command = start; }
-
-    void set_startup_sequencer_stop_command(bool stop) { _startup_sequencer_stop_command = stop; }
-
     // Complete startup sequence following state machine logic
     void execute_startup_sequence()
     {
@@ -165,25 +128,6 @@ public:
 
     // Test simulator
     yeet::simulator simulator = yeet::make_gtest_simulator();
-
-    // DISABLED: Speed generator replaced by startup_sequencer - these variables are no longer used
-    // // Speed generator profile commands (simulates external digital inputs)
-    // bool _idle = true;
-    // bool _run_creep_speed = false;
-    // bool _run_purge_accel = false;
-    // bool _run_ignition_accel = false;
-    // bool _run_assist_accel = false;
-    // bool _hold_speed = false;
-    // bool _decelerate = false;
-
-    // Excitation control commands (simulates external digital inputs)
-    bool _exciter_ready = true;
-    bool _excitation_start_command = true;
-    bool _excitation_stop_command = false;
-
-    // Startup sequencer control commands (simulates external digital inputs)
-    bool _startup_sequencer_start_command = false;
-    bool _startup_sequencer_stop_command = false;
 };
 
 /**
@@ -250,7 +194,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
 
     // ==================== Trigger Startup Sequencer ====================
     // Send start command to the startup sequencer to begin the coordinated startup sequence
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(1.0);  // Pre-flux duration
 
     // Configure moderate load torque
@@ -288,7 +231,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     // After virtual startup, the speed reference limiter is reset to 0 when transitioning to closed-loop.
     // The limiter has been running since the transition (about 0.5s ago with 0 input).
     // Now set external speed reference to 1.0 pu and track the ramp from 0.
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{1.0});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
 
     // Simulate a small step to allow the new reference to propagate
     success &= simulator.simulate_for(0.1);
@@ -377,7 +320,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeOperationTest)
     duration_t{0.0};  // Directly move to closed-loop control
     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
     // ==================== Ramp to Purge Speed (0.15 pu) ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.15});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.15});
 
     // Very gradual speed changes for smooth purge operation
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
@@ -402,7 +345,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, PurgeModeOperationTest)
     bool success = true;
 
     // ==================== Initial Startup ====================
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Light load for purge mode (minimal resistance)
@@ -510,7 +452,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TypicalSoftStarterProfileTest)
     bool success = true;
 
     // ==================== Initial Startup ====================
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Configure gas turbine load (compressor characteristic)
@@ -530,7 +471,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TypicalSoftStarterProfileTest)
         << "Startup should reach CLOSED_LOOP_OPERATION";
 
     // ==================== Stage 1: Creep Speed (0.2 pu) ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.2});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2});
 
     // Ramp time: 0.2 pu × 40 s/pu = 8 seconds + settling
     success &= simulator.simulate_for(10.0);
@@ -544,7 +485,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TypicalSoftStarterProfileTest)
     speed_tracking_checker->deactivate();
 
     // ==================== Stage 2: Purge Speed (0.5 pu) ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.5});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.5});
 
     // Ramp time: 0.3 pu × 40 s/pu = 12 seconds + settling
     success &= simulator.simulate_for(14.0);
@@ -558,7 +499,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, TypicalSoftStarterProfileTest)
     speed_tracking_checker->deactivate();
 
     // ==================== Stage 3: Full Speed (1.0 pu) ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{1.0});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
 
     // Ramp time: 0.5 pu × 40 s/pu = 20 seconds + settling
     success &= simulator.simulate_for(23.0);
@@ -622,7 +563,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
     bool success = true;
 
     // ==================== First Startup Sequence ====================
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Configure moderate load
@@ -643,7 +583,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
         << "First startup should reach CLOSED_LOOP_OPERATION";
 
     // ==================== Accelerate to 0.4 pu ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.4});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.4});
 
     // Allow time for speed reference to ramp and speed to track
     // 0.4 pu at 30 s/pu = 12 seconds + settling
@@ -652,18 +592,14 @@ TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
     auto speed_before_stop = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_NEAR(speed_before_stop.value(), 0.4f, 0.1f) << "Speed should reach approximately 0.4 pu before stop";
 
-    // ==================== Stop Sequence ====================
-    // Stop the startup sequencer first
-    set_startup_sequencer_stop_command(true);
-    success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
-
-    // Verify startup sequencer returned to IDLE
-    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
-    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Startup sequencer should return to IDLE state";
-
-    // Execute complete shutdown sequence
+    // ==================== Execute Shutdown Sequence ====================
+    // Startup sequencer will automatically stop when state machine enters OPERATION_OFF
     execute_shutdown_sequence();
+
+    // Verify startup sequencer returned to IDLE after shutdown
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE)
+        << "Startup sequencer should return to IDLE after shutdown";
 
     // Verify complete shutdown
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
@@ -693,7 +629,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
         << "State machine should enable pulse releases in OPERATION_ON";
 
     // Step 2: Start the startup sequencer
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(1.0);  // Pre-flux
 
     // Wait for restart sequence (1s + 8s + 0.5s settling)
@@ -705,7 +640,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, RestartCapabilityTest)
         << "Restart should reach CLOSED_LOOP_OPERATION";
 
     // ==================== Accelerate to 0.6 pu After Restart ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.6});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.6});
 
     // Allow time for speed reference to ramp and speed to track
     // 0.6 pu at 30 s/pu = 18 seconds + settling
@@ -755,7 +690,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StateMachineControlledShutdownTest
     bool success = true;
 
     // ==================== Startup and Accelerate to 0.3 pu ====================
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
@@ -770,7 +704,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StateMachineControlledShutdownTest
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION) << "Should reach CLOSED_LOOP_OPERATION";
 
     // Accelerate to 0.3 pu
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.3});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.3});
     success &= simulator.simulate_for(5.0);  // 0.3 pu * 10 s/pu = 3s + settling
 
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -782,9 +716,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StateMachineControlledShutdownTest
 
     // ==================== Execute Complete Shutdown Sequence ====================
     // Stop the startup sequencer first to trigger speed reference override
-    set_startup_sequencer_stop_command(true);
     success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
 
     // Use the helper function which follows the correct state machine sequence
     execute_shutdown_sequence();
@@ -827,7 +759,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, StateMachineControlledShutdownTest
         << "State machine should enable pulses when returning to OPERATION_ON";
 
     // Step 4: Restart startup sequencer
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     success &= simulator.simulate_for(9.0);  // Complete virtual startup and observer convergence
@@ -871,7 +802,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnAuxiliariesOffTest)
 
     bool success = true;
 
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.08f));
@@ -886,7 +816,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnAuxiliariesOffTest)
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 
     // Accelerate to 0.2 pu
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.2});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2});
     success &= simulator.simulate_for(3.0);
 
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -898,9 +828,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnAuxiliariesOffTest)
     success &= simulator.simulate_for(0.2);
 
     // Stop startup sequencer
-    set_startup_sequencer_stop_command(true);
     success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
 
     // Verify sequencer went to IDLE
     startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
@@ -962,7 +890,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnStopCommandTest)
 
     bool success = true;
 
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
@@ -977,24 +904,20 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnStopCommandTest)
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 
     // Accelerate to 0.4 pu
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.4});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.4});
     success &= simulator.simulate_for(6.0);  // 0.4 * 12 = 4.8s + settling
 
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_NEAR(operating_speed.value(), 0.4f, 0.1f) << "Should reach 0.4 pu operating speed";
 
     // ==================== Execute Complete Shutdown via Helper ====================
-    // Stop the startup sequencer first
-    set_startup_sequencer_stop_command(true);
-    success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
-
-    // Verify startup sequencer went to IDLE
-    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
-    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Startup sequencer should be in IDLE after stop";
-
+    // Startup sequencer will automatically stop when state machine enters OPERATION_OFF
     // Execute the complete state machine shutdown sequence
     execute_shutdown_sequence();
+
+    // Verify startup sequencer returned to IDLE after shutdown
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Startup sequencer should be in IDLE after shutdown";
 
     // Allow system to settle
     success &= simulator.simulate_for(0.5);
@@ -1048,7 +971,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnBreakersOffTest)
 
     bool success = true;
 
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.09f));
@@ -1063,7 +985,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnBreakersOffTest)
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 
     // Accelerate to 0.25 pu
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.25});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.25});
     success &= simulator.simulate_for(4.0);
 
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -1075,9 +997,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, ShutdownOnBreakersOffTest)
     success &= simulator.simulate_for(0.2);
 
     // Stop startup sequencer
-    set_startup_sequencer_stop_command(true);
     success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
 
     // Verify sequencer went to IDLE
     startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
@@ -1154,7 +1074,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
 
     bool success = true;
 
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     // Load torque matched to virtual startup torque for realistic dynamics
@@ -1171,24 +1090,21 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
     auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION) << "Initial startup should complete";
 
-    // Accelerate to 0.3 pu
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.3});
-    success &= simulator.simulate_for(4.0);
+    // Accelerate to 0.35 pu (higher than before to ensure machine stays above 5% during shutdown sequence)
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.35});
+    success &= simulator.simulate_for(5.0);
 
     auto initial_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
-    EXPECT_NEAR(initial_speed.value(), 0.3f, 0.1f) << "Should reach 0.3 pu before simulated interruption";
+    EXPECT_NEAR(initial_speed.value(), 0.35f, 0.1f) << "Should reach 0.35 pu before simulated interruption";
 
     // ==================== Simulate Brief Interruption with Complete Shutdown ====================
-    // Stop startup sequencer first (transitions to IDLE)
-    set_startup_sequencer_stop_command(true);
-    success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
-
-    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
-    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Sequencer should be in IDLE after stop";
-
+    // Startup sequencer will automatically stop when state machine enters OPERATION_OFF
     // Complete shutdown sequence (required before restart per state machine rules)
     execute_shutdown_sequence();
+
+    // Verify startup sequencer returned to IDLE after shutdown
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Sequencer should be in IDLE after shutdown";
 
     // Verify complete shutdown
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
@@ -1198,9 +1114,8 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().breakers_are_on.read())
         << "Breakers should be off after shutdown";
 
-    // Allow brief coasting (machine will slow down slightly but remain above 5% threshold)
-    success &= simulator.simulate_for(0.5);
-
+    // Machine should coast without significant deceleration (load was removed during shutdown)
+    // No additional simulation time needed - shutdown already allowed coasting
     auto coasting_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_GT(coasting_speed.value(), 0.05f) << "Machine should remain above flying restart threshold (5%)";
 
@@ -1219,7 +1134,8 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
     // Verify state machine reached OPERATION_ON
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "State machine should enable pulses when returning to OPERATION_ON";  // Trigger startup sequencer
-    set_startup_sequencer_start_command(true);
+    success &= simulator.simulate_for(0.1);  // Allow one control cycle for state transition
+    set_start_command(true);
 
     // Wait for observer settling time (2.0s default) before flying restart detection
     // During this time, sequencer stays in IDLE with observer running
@@ -1236,7 +1152,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartCapabilityTest)
 
     // ==================== Verify Normal Operation After Flying Restart ====================
     // Set new speed reference
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.4});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.4});
     success &= simulator.simulate_for(5.0);
 
     auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -1281,7 +1197,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, AutoStartOnOperationOnTest)
 
     // Set desired speed reference early (before entering OPERATION_ON)
     // Fixed speed reference defaults to 1.0 pu, which causes rate limiter to ramp high during startup
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.2});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2});
 
     // ==================== Progress State Machine to OPERATION_ON ====================
     bool success = true;
@@ -1338,6 +1254,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, AutoStartOnOperationOnTest)
     auto initial_speed_ref = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
 
     // ==================== Verify Normal Operation ====================
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2});
     // Speed reference was set to 0.2 pu before startup began
     // Rate limiter: 8.0s/pu from virtual_final (0.08) to target (0.2) = 0.12 pu change takes 0.96s
     // Allow extra time for speed controller to settle after the ramp
@@ -1389,7 +1306,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedReferenceZeroOverrideDuringSh
 
     bool success = true;
 
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
@@ -1401,24 +1317,20 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedReferenceZeroOverrideDuringSh
     success &= simulator.simulate_for(6.0);  // Complete startup
 
     // Accelerate to 0.35 pu
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.35});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.35});
     success &= simulator.simulate_for(5.0);  // 0.35 pu * 10 s/pu = 3.5s + settling
 
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_NEAR(operating_speed.value(), 0.35f, 0.1f) << "Should reach operating speed";
 
     // ==================== Initiate Shutdown and Observe Passive Deceleration ====================
-    // Stop the startup sequencer to begin shutdown
-    set_startup_sequencer_stop_command(true);
-    success &= simulator.simulate_for(0.1);
-    set_startup_sequencer_stop_command(false);
-
-    // Verify startup sequencer went to IDLE
-    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
-    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Startup sequencer should be in IDLE after stop";
-
+    // Startup sequencer will automatically stop when state machine enters OPERATION_OFF
     // Execute complete shutdown sequence (this will zero load torque when breakers turn off)
     execute_shutdown_sequence();
+
+    // Verify startup sequencer returned to IDLE after shutdown
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Startup sequencer should be in IDLE after shutdown";
 
     // Verify complete shutdown
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
@@ -1478,7 +1390,6 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartWithAutoStartTest)
 
     bool success = true;
 
-    set_startup_sequencer_start_command(true);
     success &= simulator.simulate_for(0.5);  // Pre-flux
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.08f));
@@ -1489,16 +1400,14 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartWithAutoStartTest)
 
     success &= simulator.simulate_for(6.0);
 
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.3});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.3});
     success &= simulator.simulate_for(4.0);
 
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_NEAR(operating_speed.value(), 0.3f, 0.1f);
 
     // ==================== Shutdown Sequence ====================
-    set_startup_sequencer_stop_command(true);
     success &= simulator.simulate_for(0.3);
-    set_startup_sequencer_stop_command(false);
 
     set_stop_command(true);
     success &= simulator.simulate_for(0.2);
@@ -1535,7 +1444,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, FlyingRestartWithAutoStartTest)
     EXPECT_LT(time_in_state.value(), 3.0) << "Should be recently transitioned (within settling period + margin)";
 
     // ==================== Verify Normal Operation After Flying Restart ====================
-    system.machine_side_control.external_ios.get_fixed_speed_reference().write(speed_pu_t{0.4});
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.4});
     success &= simulator.simulate_for(5.0);
 
     auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
