@@ -372,6 +372,60 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.dashboard_timer.timeout.connect(self._update_dashboard)
         self.dashboard_timer.start(200)
     
+    def eventFilter(self, obj, event):
+        """Handle keyboard events for parameter search."""
+        if obj == self.param_tree and event.type() == QtCore.QEvent.KeyPress:
+            # Ctrl+F to focus search box
+            if event.key() == QtCore.Qt.Key_F and event.modifiers() == QtCore.Qt.ControlModifier:
+                self.param_search_box.setFocus()
+                self.param_search_box.selectAll()
+                return True
+        
+        if obj == self.param_search_box and event.type() == QtCore.QEvent.KeyPress:
+            # Esc to clear search and return focus to tree
+            if event.key() == QtCore.Qt.Key_Escape:
+                self.param_search_box.clear()
+                self.param_tree.setFocus()
+                return True
+        
+        return super().eventFilter(obj, event)
+    
+    def _on_parameter_search_changed(self, search_text: str):
+        """Filter parameter groups based on search text.
+        
+        Shows only groups (components) whose names contain the search text.
+        All children of matching groups are shown.
+        """
+        search_text = search_text.lower().strip()
+        
+        # If search is empty, show all groups
+        if not search_text:
+            for i in range(self.param_tree.topLevelItemCount()):
+                self.param_tree.topLevelItem(i).setHidden(False)
+            return
+        
+        # Filter groups by name
+        visible_count = 0
+        for i in range(self.param_tree.topLevelItemCount()):
+            group_item = self.param_tree.topLevelItem(i)
+            group_name = group_item.text(0).lower()
+            
+            # Check if group name contains search text
+            if search_text in group_name:
+                group_item.setHidden(False)
+                group_item.setExpanded(True)  # Expand matching groups
+                visible_count += 1
+            else:
+                group_item.setHidden(True)
+        
+        # Update status to show filter results
+        if visible_count == 0:
+            self.param_status_label.setText(f"No groups match '{search_text}'")
+        elif visible_count == 1:
+            self.param_status_label.setText(f"1 group matches")
+        else:
+            self.param_status_label.setText(f"{visible_count} groups match")
+    
     def _build_parameter_panel(self) -> QtWidgets.QWidget:
         """Build parameter configuration panel."""
         panel = QtWidgets.QWidget()
@@ -382,6 +436,27 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         header = QtWidgets.QLabel("PARAMETERS")
         header.setStyleSheet("color: #00ffff; font-size: 14pt; font-weight: bold; padding: 5px;")
         layout.addWidget(header)
+        
+        # Search box for filtering parameter groups
+        search_layout = QtWidgets.QHBoxLayout()
+        search_label = QtWidgets.QLabel("🔍")
+        search_label.setStyleSheet("font-size: 14pt;")
+        search_layout.addWidget(search_label)
+        
+        self.param_search_box = QtWidgets.QLineEdit()
+        self.param_search_box.setPlaceholderText("Search groups (Ctrl+F)...")
+        self.param_search_box.setToolTip("Filter parameter groups by name (Ctrl+F to focus)")
+        self.param_search_box.textChanged.connect(self._on_parameter_search_changed)
+        self.param_search_box.setClearButtonEnabled(True)
+        search_layout.addWidget(self.param_search_box)
+        
+        self.clear_search_btn = QtWidgets.QPushButton("✕")
+        self.clear_search_btn.setMaximumWidth(30)
+        self.clear_search_btn.setToolTip("Clear search (Esc)")
+        self.clear_search_btn.clicked.connect(lambda: self.param_search_box.clear())
+        search_layout.addWidget(self.clear_search_btn)
+        
+        layout.addLayout(search_layout)
         
         # Button row 1: Load from controller
         self.load_params_btn = QtWidgets.QPushButton("Load from Controller")
@@ -419,6 +494,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.param_tree.setHeaderLabels(["Parameter", "Value"])
         self.param_tree.setColumnWidth(0, 200)
         self.param_tree.itemDoubleClicked.connect(self._on_parameter_double_clicked)
+        self.param_tree.installEventFilter(self)  # Install event filter for keyboard shortcuts
         layout.addWidget(self.param_tree)
         
         # Status
@@ -1139,6 +1215,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                     self.param_loading = False
                     self.load_params_btn.setEnabled(True)
                     self.network_client.set_packet_timeout_enabled(True)
+                    self.param_status_label.setText("No parameters available")
             
             elif response_type == 'get_by_index_response':
                 # Received parameter metadata
@@ -1156,8 +1233,16 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                         self.load_params_btn.setEnabled(True)
                         self.refresh_params_btn.setEnabled(True)  # Enable refresh after load
                         self.save_params_btn.setEnabled(True)  # Enable save after load
-                        self.param_status_label.setText(f"Loaded {len(self.parameters)} parameters")
-                        logger.info(f"All parameters loaded: {len(self.parameters)}")
+                        
+                        # Update status and apply any active search filter
+                        group_count = self.param_tree.topLevelItemCount()
+                        if self.param_search_box.text().strip():
+                            # Re-apply filter after loading
+                            self._on_parameter_search_changed(self.param_search_box.text())
+                        else:
+                            self.param_status_label.setText(f"Loaded {len(self.parameters)} parameters ({group_count} groups)")
+                        
+                        logger.info(f"All parameters loaded: {len(self.parameters)} parameters in {group_count} groups")
                         
                         # Stop request timer and clear queue
                         self.param_request_timer.stop()

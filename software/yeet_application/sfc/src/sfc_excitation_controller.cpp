@@ -80,26 +80,11 @@ void sfc_excitation_controller::stop_excitation()
     // _is_ramping_down = true;
 }
 
-void sfc_excitation_controller::update(bool exciter_ready)
+void sfc_excitation_controller::update(bool enable_excitation_command)
 {
-    // Commented out - simplified version doesn't track speed for fault handling
-    // if (machine_rotor_speed_pu.value() >= 0.0) {
-    //     _last_valid_speed = machine_rotor_speed_pu;
-    // }
-    if (!_is_running && exciter_ready) {
-        // Simplified: just enable and set constant field current
-        _is_running = true;
-        _is_field_established = false;
-        _enable_excitation = true;
-        // Set field current reference to configured constant value
-        _field_current_reference_pu = _field_current_setpoint;
-        // Start flux build-up timer
-        _flux_buildup_timer.reset();
-        return;
-    }
-
-    // Handle exciter fault - stop immediately if exciter not ready while running
-    if (_is_running && !exciter_ready) {
+    // Handle enable/disable command directly
+    if (!enable_excitation_command) {
+        // Excitation disabled - reset all states
         _is_running = false;
         _is_field_established = false;
         _enable_excitation = false;
@@ -108,11 +93,11 @@ void sfc_excitation_controller::update(bool exciter_ready)
         return;
     }
 
-    // If not running, ensure outputs are disabled
+    // Excitation enabled - detect rising edge to reset timer
     if (!_is_running) {
-        _field_current_reference_pu = current_pu_t{0.0};
-        _enable_excitation = false;
-        return;
+        _is_running = true;
+        _is_field_established = false;
+        _flux_buildup_timer.reset();
     }
 
     // Commented out - simplified version doesn't use ramp-down

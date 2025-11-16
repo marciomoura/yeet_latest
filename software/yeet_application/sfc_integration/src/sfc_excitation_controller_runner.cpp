@@ -18,12 +18,21 @@ void sfc_excitation_controller_runner::initialize()
 
 void sfc_excitation_controller_runner::run()
 {
-    // Update the excitation controller with release command
-    const bool release_excitation = _inputs.release_excitation.read();
-    _sfc_excitation_controller.update(release_excitation);  // Simplified: no speed parameter
+    // Update the excitation controller with enable command from startup sequencer
+    const bool enable_excitation_command = _inputs.release_excitation.read();
+    _sfc_excitation_controller.update(enable_excitation_command);
+
+    // Determine field current reference (apply override if enabled)
+    current_pu_t field_current_reference;
+    if (_parameters.override_field_current_reference.read()) {
+        field_current_reference = _parameters.field_current_reference_override_value.read();
+    }
+    else {
+        field_current_reference = _sfc_excitation_controller.get_field_current_reference_pu();
+    }
 
     // Write outputs
-    _outputs.field_current_reference.write(_sfc_excitation_controller.get_field_current_reference_pu());
+    _outputs.field_current_reference.write(field_current_reference);
     _outputs.prefluxing_elapsed_time.write(
         _sfc_excitation_controller.get_flux_buildup_elapsed_time());  // Renamed getter
     _outputs.is_field_established.write(_sfc_excitation_controller.get_is_field_established());

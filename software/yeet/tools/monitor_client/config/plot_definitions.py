@@ -152,8 +152,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Firing Angle (rad) / Current (pu) / Speed (pu)',
                 'signals': [
                     {'name': 'firing angle (rad)', 'color': 'g', 'index': MachineSignalIndex.CONTROLLER_FIRING_ANGLE},
-                    {'name': 'dc link current', 'color': 'r', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT},
-                    {'name': 'machine speed', 'color': 'c', 'index': MachineSignalIndex.CONTROLLER_MACHINE_SPEED},
+                    {'name': 'dc link current', 'color': 'r', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT}
                 ]
             }
         },
@@ -163,9 +162,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Reference (pu) / Limit (pu) / State',
                 'signals': [
                     {'name': 'torque ref.', 'color': 'g', 'index': MachineSignalIndex.TORQUE_TORQUE_REFERENCE},
-                    {'name': 'current reference', 'color': 'c', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE},
-                    {'name': 'is saturated', 'color': 'w', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_OUTPUT},
-                    {'name': 'is active', 'color': 'y', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE}
+                    {'name': 'current reference', 'color': 'c', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE}
                 ]
             },
         },
@@ -175,8 +172,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Speed Ref (pu) / Measured Speed (pu) / Torque Ref (pu)',
                 'signals': [
                     {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.SPEED_SPEED_REFERENCE},
-                    {'name': 'measured speed', 'color': 'r', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED},
-                    {'name': 'torque reference', 'color': 'c', 'index': MachineSignalIndex.SPEED_TORQUE_REFERENCE},
+                    {'name': 'measured speed', 'color': 'r', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED}
                 ]
             }
         },
@@ -222,5 +218,5 @@ def get_default_visible_groups(target: str) -> list:
     if target == 'grid':
         return ['observer', 'measurements', 'controller'] 
     if target == 'machine':
-        return ['startup_sequencer', 'torque_controller', 'speed_controller']
+        return ['excitation', 'startup_sequencer', 'torque_controller', 'speed_controller']
     return []

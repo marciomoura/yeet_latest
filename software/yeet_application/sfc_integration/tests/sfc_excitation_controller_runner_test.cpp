@@ -136,4 +136,68 @@ TEST_F(SfcExcitationControllerRunnerTest, FieldCurrentTracksSpeed)
     EXPECT_GT(current_at_high_speed.value(), 0.0);
 }
 
+// ============================================================================
+// Override Tests
+// ============================================================================
+
+TEST_F(SfcExcitationControllerRunnerTest, OverrideFieldCurrentReferenceAppliesCustomValue)
+{
+    auto& parameters = _runner->get_parameters();
+
+    // First run normally
+    set_release_excitation(true);
+    run_cycle();
+    const auto normal_current = get_field_current_reference();
+    EXPECT_GT(normal_current.value(), 0.0);
+
+    // Enable override with custom value
+    parameters.override_field_current_reference.write(true);
+    parameters.field_current_reference_override_value.write(current_pu_t{0.5});
+    run_cycle();
+
+    // Should output override value
+    EXPECT_NEAR(get_field_current_reference().value(), 0.5, 0.001);
+}
+
+TEST_F(SfcExcitationControllerRunnerTest, OverrideFieldCurrentReferenceReturnsToNormalWhenDisabled)
+{
+    auto& parameters = _runner->get_parameters();
+
+    // Enable excitation
+    set_release_excitation(true);
+    run_cycle();
+
+    // Enable override
+    parameters.override_field_current_reference.write(true);
+    parameters.field_current_reference_override_value.write(current_pu_t{0.3});
+    run_cycle();
+    EXPECT_NEAR(get_field_current_reference().value(), 0.3, 0.001);
+
+    // Disable override - should return to normal operation
+    parameters.override_field_current_reference.write(false);
+    run_cycle();
+
+    const auto normal_current = get_field_current_reference();
+    EXPECT_GT(normal_current.value(), 0.0);
+    EXPECT_NE(normal_current.value(), 0.3);  // Should be different from override value
+}
+
+TEST_F(SfcExcitationControllerRunnerTest, OverrideFieldCurrentReferenceWorksEvenWhenExcitationNotReleased)
+{
+    auto& parameters = _runner->get_parameters();
+
+    // Do NOT release excitation
+    set_release_excitation(false);
+    run_cycle();
+    EXPECT_EQ(get_field_current_reference().value(), 0.0);
+
+    // Enable override with custom value
+    parameters.override_field_current_reference.write(true);
+    parameters.field_current_reference_override_value.write(current_pu_t{0.7});
+    run_cycle();
+
+    // Should output override value even when excitation not released
+    EXPECT_NEAR(get_field_current_reference().value(), 0.7, 0.001);
+}
+
 }  // namespace yeet::application::sfc::integration

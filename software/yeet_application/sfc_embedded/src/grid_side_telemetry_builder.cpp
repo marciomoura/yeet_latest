@@ -83,7 +83,6 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(43, static_cast<float>(mode_monitor.get_outputs().is_discontinuous_mode.read()));
 
     // === Pulse Generator Group (44-46) ===
-    const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
     packet.add_signal(44, static_cast<float>(pulse_generator.get_outputs().release_pulses.read()));
     packet.add_signal(45, static_cast<float>(pulse_generator.get_outputs().actual_firing_angle.read().get_pu()));
     packet.add_signal(46, static_cast<float>(pulse_generator.get_inputs().release_pulses.read()));

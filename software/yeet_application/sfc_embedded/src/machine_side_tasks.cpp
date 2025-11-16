@@ -128,6 +128,12 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     control->update_200us();
 
+    // Mark analog outputs as valid (required by I/O interface)
+    outputs->analog_outputs.channels[0] = control->excitation_controller.get_outputs().field_current_reference.read();
+    outputs->analog_outputs.channels[1] = control->excitation_controller.get_outputs().field_current_reference.read();
+    outputs->analog_outputs.channels[2] = control->excitation_controller.get_outputs().field_current_reference.read();
+    outputs->analog_outputs.channels[3] = control->excitation_controller.get_outputs().field_current_reference.read();
+    outputs->analog_outputs.valid = true;
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:

@@ -409,14 +409,14 @@
         {
             "label": "Launch SFC Simulator",
             "type": "shell",
-            "command": "${workspaceFolder}/build-host/bin/Debug/sfc_host_simulator.exe",
+            "command": "${workspaceFolder}/build-host/bin/${input:buildConfigurationCapitalized}/sfc_host_simulator.exe",
             "args": [
                 "--grid-port",
                 "7000",
                 "--machine-port",
                 "7001",
                 "--frequency",
-                "5000",
+                "3000",
                 "--verbose"
             ],
             "group": {

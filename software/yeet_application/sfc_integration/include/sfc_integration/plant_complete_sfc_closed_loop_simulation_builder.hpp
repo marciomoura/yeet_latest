@@ -298,15 +298,16 @@ public:
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
     {
-        // Standard per-unit system for SFC applications
-        // Grid side: 2090V RMS, 50Hz, DC link: 1044A, Machine: 1980V RMS, 2950kW
+        // 3 MVA per-unit system for Typhoon HIL testing
+        // Grid side: 2090V RMS, 50Hz, DC link: 1036A, Machine: 1980V RMS, 3.0 MVA
+        // Machine parameters match Typhoon synchronous machine model
         return std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid line-to-line voltage (V RMS)
             frequency_t(50.0),                                                // Grid frequency (Hz)
-            current_t(1044.0),                                                // DC link current base (A)
-            power_t(2950e3),                                                  // Rated power (W)
+            current_t(1036.3),                                                // DC link current base (A) - for 3 MVA
+            power_t(3.0e6),                                                   // Rated power (VA) - 3 MVA
             voltage_t(1980.0),                                                // Machine line-to-line voltage (V RMS)
             frequency_t(50.0),                                                // Machine base frequency (Hz)
-            2                                                                 // Number of pole pairs
+            2                                                                 // Number of poles (2-pole, 3000 RPM)
         );
     }
 

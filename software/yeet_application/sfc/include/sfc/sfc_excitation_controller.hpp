@@ -146,13 +146,13 @@ public:
      * This method must be called every control cycle.
      *
      * Behavior:
-     * - If not running: outputs remain disabled
-     * - If running: maintains constant field current, monitors flux build-up timer
-     * - Monitors exciter health, stops automatically on fault
+     * - When enable_excitation_command = false: outputs disabled, states reset
+     * - When enable_excitation_command = true: outputs field current setpoint
+     * - Monitors flux build-up timer to set is_field_established flag
      *
-     * @param exciter_ready Health status from external exciter (true = healthy).
+     * @param enable_excitation_command Command to enable/disable excitation output (true = enable).
      */
-    void update(bool exciter_ready);
+    void update(bool enable_excitation_command);
 
     /**
      * @brief Resets all internal states.
