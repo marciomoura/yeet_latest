@@ -1,0 +1,1449 @@
+version = 4.2
+
+//
+// Saved by sw version: 2025.3
+//
+
+model "sfc_back_to_back_synchronous_machine" {
+    configuration {
+        hil_device = "HIL604"
+        hil_configuration_id = 1
+        simulation_method = bilinear
+        simulation_time_step = 1e-6
+        simulation_discret_scaling = 1.0
+        dsp_timer_periods = 100e-6, 50e-3
+        ss_calc_method = "systematic elimination"
+        enb_pole_shift = True
+        enb_gds_oversampling = True
+        show_modes = False
+        device_ao_limit_enable = False
+        reset_analog_outputs_on_sim_stop = True
+        reset_analog_outputs_on_sim_stop_mode = Offset values
+        reset_digital_outputs_on_sim_stop = True
+        vhil_adio_loopback = False
+        cpl_stb = False
+        enb_dep_sw_detect = False
+        code_section = "internal memory"
+        data_section = "internal memory"
+        sys_sp_rate_1 = 0.0001
+        sys_sp_rate_2 = 0.05
+        sys_real_type_precision = "default"
+        user_real_type_precision = "default"
+        sys_cpu_optimization = "high"
+        user_cpu_optimization = "high"
+        user_cpu_part_option = "default"
+        matrix_based_reduction = True
+        cpl_dynamics_analysis = False
+        export_ss_to_pickle = False
+        ground_scope_core = False
+        dss_num_tol = 1e-15
+        cce_platform = "generic"
+        cce_use_relative_names = False
+        cce_type_mapping_real = "double"
+        cce_type_mapping_uint = "unsigned int"
+        cce_type_mapping_int = "int"
+        cce_platform = "generic"
+        cce_use_relative_names = False
+        cce_type_mapping_real = "double"
+        cce_type_mapping_uint = "unsigned int"
+        cce_type_mapping_int = "int"
+        cce_term_var_location = "local"
+        cce_directory = ""
+        cce_custom_type_int = ""
+        cce_custom_type_uint = ""
+        cce_custom_type_real = ""
+        tunable_params = "component defined"
+        sp_compiler_type = "C compiler"
+        sig_stim = "off"
+        export_resource_list = ""
+        export_dependency_list = ""
+        excluded_resource_list = ""
+        excluded_component_from_locking_list = ""
+        export_out_file = ""
+        export_lock_top_level = True
+        export_encrypt_library = True
+        export_encrypt_resources = True
+        solver_type = "DAE"
+        integration_method = "BDF"
+        max_sim_step = 1e-4
+        simulation_time = 1.0
+        abs_tol = 1e-3
+        rel_tol = 1e-3
+        init_sim_step = 1e-6
+        r_on_sw = 1e-3
+        v_on_diode = 0.1
+        data_sampling_rate = 0
+        feedthrough_validation_error_level = error
+    }
+
+    component Subsystem Root {
+        component "core/Three Phase Voltage Source" voltage_source_grid_side {
+            init_rms_value = "1206.66"
+        }
+        [
+            position = 8192, 8248
+            size = 62, 256
+        ]
+
+        component "core/Current Measurement" current_grid_a {
+        }
+        [
+            position = 8360, 8152
+            size = 64, 32
+        ]
+
+        component "core/Current Measurement" current_grid_b {
+        }
+        [
+            position = 8368, 8248
+            size = 64, 32
+        ]
+
+        component "core/Current Measurement" current_grid_c {
+        }
+        [
+            position = 8368, 8344
+            size = 64, 32
+        ]
+
+        component "core/Analog Input" AI1 {
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8360, 8616
+        ]
+
+        component "core/Analog Input" AI2 {
+            addr = "2"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8360, 8668
+        ]
+
+        component "core/Analog Input" AI3 {
+            addr = "3"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8360, 8720
+        ]
+
+        component "core/Analog Input" AI4 {
+            addr = "4"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 8360, 8772
+        ]
+
+        component "core/Probe" grid_a1 {
+        }
+        [
+            position = 8436, 8616
+        ]
+
+        component "core/Probe" grid_a2 {
+        }
+        [
+            position = 8436, 8668
+        ]
+
+        component "core/Probe" grid_a3 {
+        }
+        [
+            position = 8436, 8720
+        ]
+
+        component "core/Probe" grid_a4 {
+        }
+        [
+            position = 8436, 8772
+        ]
+
+        component "core/Digital Input" DI1 {
+        }
+        [
+            position = 8556, 8616
+        ]
+
+        component "core/Digital Input" DI2 {
+            addr = "2"
+        }
+        [
+            position = 8556, 8668
+        ]
+
+        component "core/Digital Input" DI3 {
+            addr = "3"
+        }
+        [
+            position = 8556, 8724
+        ]
+
+        component "core/Digital Input" DI4 {
+            addr = "4"
+        }
+        [
+            position = 8556, 8776
+        ]
+
+        component "core/Probe" grid_di1 {
+        }
+        [
+            position = 8652, 8616
+        ]
+
+        component "core/Probe" grid_di2 {
+        }
+        [
+            position = 8652, 8668
+        ]
+
+        component "core/Probe" grid_di3 {
+        }
+        [
+            position = 8652, 8724
+        ]
+
+        component "core/Probe" grid_di4 {
+        }
+        [
+            position = 8652, 8776
+        ]
+
+        component "core/Digital Input" DI11 {
+            addr = "11"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8576
+        ]
+
+        component "core/Digital Input" DI16 {
+            addr = "16"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8628
+        ]
+
+        component "core/Digital Input" DI12 {
+            addr = "12"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8684
+        ]
+
+        component "core/Digital Input" DI14 {
+            addr = "14"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8736
+        ]
+
+        component "core/Probe" grid_pulse_t1 {
+        }
+        [
+            position = 9256, 8576
+        ]
+
+        component "core/Probe" grid_pulse_t2 {
+        }
+        [
+            position = 9256, 8628
+        ]
+
+        component "core/Probe" grid_pulse_t3 {
+        }
+        [
+            position = 9256, 8684
+        ]
+
+        component "core/Probe" grid_pulse_t4 {
+        }
+        [
+            position = 9256, 8736
+        ]
+
+        component "core/Digital Input" DI13 {
+            addr = "13"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8792
+        ]
+
+        component "core/Probe" grid_pulse_t5 {
+        }
+        [
+            position = 9256, 8792
+        ]
+
+        component "core/Digital Input" DI15 {
+            addr = "15"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9160, 8848
+        ]
+
+        component "core/Probe" grid_pulse_t6 {
+        }
+        [
+            position = 9256, 8848
+        ]
+
+        component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier1" {
+            PESB_Optimization = "False"
+            Sa_bot = "14"
+            Sa_bot_logic = "active low"
+            Sa_top = "11"
+            Sa_top_logic = "active low"
+            Sb_bot = "15"
+            Sb_bot_logic = "active low"
+            Sb_top = "12"
+            Sb_top_logic = "active low"
+            Sc_bot = "16"
+            Sc_bot_logic = "active low"
+            Sc_top = "13"
+            Sc_top_logic = "active low"
+            _control_property = "all low"
+        }
+        [
+            position = 9216, 8248
+            size = 127, 256
+        ]
+
+        component "core/Resistor" R4 {
+            resistance = "0.0503"
+        }
+        [
+            position = 9572, 8152
+        ]
+
+        component "core/Inductor" L4 {
+            inductance = "8e-3"
+        }
+        [
+            position = 9692, 8152
+        ]
+
+        component "core/Current Measurement" current_dc_link {
+        }
+        [
+            position = 9440, 8152
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_grid_side_ab {
+        }
+        [
+            position = 8904, 8200
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_grid_side_bc {
+        }
+        [
+            position = 8904, 8292
+            rotation = right
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_grid_side_ca {
+        }
+        [
+            position = 8948, 8296
+            rotation = left
+            size = 64, 32
+        ]
+
+        component "core/Digital Input" DI27 {
+            addr = "27"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8592
+        ]
+
+        component "core/Digital Input" DI32 {
+            addr = "32"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8644
+        ]
+
+        component "core/Digital Input" DI28 {
+            addr = "28"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8700
+        ]
+
+        component "core/Digital Input" DI30 {
+            addr = "30"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8752
+        ]
+
+        component "core/Probe" machine_pulse_t1 {
+        }
+        [
+            position = 10000, 8592
+        ]
+
+        component "core/Probe" machine_pulse_t2 {
+        }
+        [
+            position = 10000, 8644
+        ]
+
+        component "core/Probe" machine_pulse_t3 {
+        }
+        [
+            position = 10000, 8700
+        ]
+
+        component "core/Probe" machine_pulse_t4 {
+        }
+        [
+            position = 10000, 8752
+        ]
+
+        component "core/Digital Input" DI29 {
+            addr = "29"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8808
+        ]
+
+        component "core/Probe" machine_pulse_t5 {
+        }
+        [
+            position = 10000, 8808
+        ]
+
+        component "core/Digital Input" DI31 {
+            addr = "31"
+            execution_rate = "10e-6"
+        }
+        [
+            position = 9904, 8864
+        ]
+
+        component "core/Probe" machine_pulse_t6 {
+        }
+        [
+            position = 10000, 8864
+        ]
+
+        component "core/Three Phase Thyristor Rectifier" "Three Phase Thyristor Rectifier2" {
+            PESB_Optimization = "False"
+            Sa_bot = "30"
+            Sa_bot_logic = "active low"
+            Sa_top = "27"
+            Sa_top_logic = "active low"
+            Sb_bot = "31"
+            Sb_bot_logic = "active low"
+            Sb_top = "28"
+            Sb_top_logic = "active low"
+            Sc_bot = "32"
+            Sc_bot_logic = "active low"
+            Sc_top = "29"
+            Sc_top_logic = "active low"
+            _control_property = "all low"
+        }
+        [
+            position = 9944, 8248
+            rotation = down
+            size = 127, 256
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_machine_side_ab {
+        }
+        [
+            position = 10108, 8296
+            rotation = left
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_machine_side_bc {
+        }
+        [
+            position = 10108, 8200
+            rotation = left
+            size = 64, 32
+        ]
+
+        component "core/Voltage Measurement" voltage_bridge_machine_side_ca {
+        }
+        [
+            position = 10320, 8260
+            rotation = right
+            scale = -1, 1
+            size = 64, 32
+        ]
+
+        component "core/Analog Input" AI9 {
+            addr = "9"
+        }
+        [
+            position = 10228, 8656
+        ]
+
+        component "core/Analog Input" AI10 {
+            addr = "10"
+        }
+        [
+            position = 10224, 8716
+        ]
+
+        component "core/Analog Input" AI11 {
+            addr = "11"
+        }
+        [
+            position = 10220, 8772
+        ]
+
+        component "core/Analog Input" AI12 {
+            addr = "12"
+        }
+        [
+            position = 10220, 8832
+        ]
+
+        component "core/Probe" machine_ai9 {
+        }
+        [
+            position = 10304, 8656
+        ]
+
+        component "core/Probe" machine_ai10 {
+        }
+        [
+            position = 10300, 8716
+        ]
+
+        component "core/Probe" machine_ai11 {
+        }
+        [
+            position = 10300, 8772
+        ]
+
+        component "core/Probe" machine_ai12 {
+        }
+        [
+            position = 10300, 8832
+        ]
+
+        component "core/Single Phase Core Coupling" coupling3 {
+            C1 = "6.7e-7"
+            R1 = "15"
+            snb_type_i = "R1-C1"
+            snb_type_u = "R2"
+        }
+        [
+            position = 9344, 8248
+            size = 13, 256
+        ]
+
+        component "core/Current Measurement" Iex {
+        }
+        [
+            position = 11288, 8320
+            rotation = down
+            size = 64, 32
+        ]
+
+        component "core/Externally Controlled Voltage Source" Vex {
+            ai_gain = "100"
+            ai_pin_addr = "9"
+        }
+        [
+            position = 11408, 8272
+            rotation = right
+            scale = -1, -1
+            size = 64, 48
+        ]
+
+        component Subsystem Load {
+            layout = dynamic
+            component "core/C function" load_characteristic {
+                arb_defs = "/*Begin code section*/
+
+/*End code section*/"
+                global_variables = "real in2;real in3;real in4;real in5;real in6;"
+                init_fnc = "/*Begin code section*/
+
+/*End code section*/"
+                input_terminals_dimensions = "inherit"
+                input_terminals_feedthrough = "True"
+                input_terminals_show_labels = "False"
+                output_fnc = "/*Begin code section*/
+/*
+ * Load characteristic model for a 52 MVA, 3000 RPM Gas Turbine Generator startup.
+ * This function calculates the resistive load torque (breakaway, friction, windage)
+ * that the LCI starter system must overcome.
+ *
+ * SYSTEM SPECIFICATIONS:
+ * - Generator Full Rating: 52 MVA (full GT-Gen combined rating)
+ * - LCI Soft-Starter Rating: 2.95 MVA (for starting)
+ * - Synchronous Speed: 3000 RPM (2-pole, 50 Hz machine)
+ * - Moment of Inertia: Jm = 4741.83 kg*m^2 (H = 4.5 seconds)
+ *
+ * All torque values are in Newton-meters (Nm).
+ * Input \'in\' is the current speed in RPM.
+ * Output \'out\' is the resistive torque in Nm.
+ */
+
+// --- Define Parameters for the 52 MVA, 3000 RPM System ---
+
+// Calculate rated torque from power rating
+// T_rated = P_rated / omega_mech
+// omega_mech = 2*pi*n/60 = 2*pi*3000/60 = 314.16 rad/s
+// T_rated = 52,000,000 VA / 314.16 rad/s = 165,509 Nm
+
+double rated_power_VA = 2.95e6;                                          // Generator full rating [VA]
+double rated_speed_rpm = 3000.0;                                         // Synchronous speed [RPM]
+double omega_mech_rated = 2.0 * 3.14159265359 * rated_speed_rpm / 60.0;  // 314.16 rad/s
+double rated_torque_Nm = rated_power_VA / omega_mech_rated;              // ~165,509 Nm
+
+// Breakaway torque (Nm) to overcome static friction at standstill.
+// For large gas turbines, this is typically 15-25% of rated torque.
+// Using conservative 20% for this 52 MVA system.
+double breakaway_torque = 0.20 * rated_torque_Nm;  // ~33,102 Nm
+
+// Coefficient for friction and windage losses that scale with the square of speed.
+// At rated speed, windage losses for GT-Gen systems are typically 0.3-0.8% of rated power.
+// Using 0.5% as typical for modern aeroderivative gas turbines.
+// Torque at rated speed due to windage: T_windage = 0.005 * T_rated
+double torque_at_rated_speed = 0.005 * rated_torque_Nm;  // ~827 Nm
+double speed_squared_inverse = 1.0 / (rated_speed_rpm * rated_speed_rpm);
+double k_windage = torque_at_rated_speed * speed_squared_inverse;  // ~9.19e-5
+
+// The speed at which the gas turbine becomes self-sustaining and starter disengages.
+// For gas turbines, this is typically 60-70% of rated speed.
+// Using 65% as typical for industrial GT soft-starters.
+double starter_disengage_rpm = 0.65 * rated_speed_rpm;  // 1950 RPM
+
+// Gas turbine operating phases (for reference/comments):
+// - Creep speed:           150 RPM  (5% of rated) - oil circulation
+// - Purge acceleration:    600 RPM  (20% of rated) - chamber ventilation
+// - Ignition:             1650 RPM  (55% of rated) - fuel ignition
+// - Self-sustaining:      1950 RPM  (65% of rated) - GT carries own load
+// - Assist acceleration:  2850 RPM  (95% of rated) - final acceleration
+// - Synchronization:      3000 RPM  (100% of rated) - grid connection
+
+// --- Calculation ---
+
+// Pre-calculate squared input for efficiency
+double in2 = in * in;
+
+// Condition 1: At or near zero speed (e.g., < 10 RPM).
+// The load is dominated by the constant breakaway torque.
+// This represents static friction in bearings, seals, and compressor blade loading.
+if (in >= 0 && in < 10) {
+    out = breakaway_torque;
+}
+
+// Condition 2: From low speed up to starter disengagement (self-sustaining speed).
+// The load is a combination of:
+//   - Base friction torque (decreases slightly from breakaway as surfaces separate)
+//   - Speed-dependent windage losses (proportional to N^2)
+// Model: Resistive Torque = Base_Friction + k_windage * N^2
+else if (in >= 10 && in <= starter_disengage_rpm) {
+    // Base friction reduces to ~80% of breakaway once in motion (Coulomb friction model)
+    double running_friction = 0.80 * breakaway_torque;
+    out = running_friction + k_windage * in2;
+}
+
+// Condition 3: Above starter disengagement speed (GT is self-sustaining).
+// The gas turbine combustion is now providing more power than it consumes.
+// The starter system is no longer needed and would typically disengage.
+// We output a large number to indicate an out-of-bounds condition for the starter model.
+else {
+    out = 1e6;  // Out-of-range indicator
+}
+
+// Final assignment if your simulation environment requires it
+// output_variable = out;
+
+/*
+ * NOTES FOR TYPHOON HIL INTEGRATION:
+ *
+ * 1. This C code can be used in a \"C Function\" block in Typhoon HIL schematic editor.
+ *
+ * 2. Expected torque values for 52 MVA system:
+ *    - Breakaway (0-10 RPM):        ~33,102 Nm (constant)
+ *    - Running friction (10+ RPM):  ~26,482 Nm (base)
+ *    - Windage at 1000 RPM:         ~92 Nm (additional)
+ *    - Windage at 1950 RPM (65%):   ~349 Nm (additional)
+ *    - Total at 1950 RPM:           ~26,831 Nm
+ *
+ * 3. For comparison with 2 MVA system:
+ *    - Old breakaway: 1,020 Nm  →  New: 33,102 Nm  (32.5x larger)
+ *    - Old windage coeff: 8.49e-5  →  New: 9.19e-5  (similar per-unit)
+ *    - Old disengage: 1800 RPM  →  New: 1950 RPM  (higher self-sustaining speed)
+ *
+ * 4. The torque profile is realistic for:
+ *    - Large industrial gas turbines (10-60 MW class)
+ *    - Combined gas turbine + generator rotor inertia (H = 4.5s)
+ *    - Modern aeroderivative or heavy-duty industrial GT technology
+ *
+ * 5. LCI Soft-Starter capability check:
+ *    - LCI Rating: 2.95 MVA at 1980 V
+ *    - Maximum LCI torque ≈ 2.95e6 / 314.16 ≈ 9,390 Nm
+ *    - Breakaway torque (33,102 Nm) is 3.5x larger than LCI steady-state capability!
+ *    - This is NORMAL - the LCI accelerates slowly using pulsed current at low speed
+ *    - Actual peak current capability may be 2-3x rated for short durations
+ *
+ * 6. Integration with mechanical system:
+ *    - Connect \'out\' (resistive torque) to the negative input of torque summer
+ *    - Motor torque (from LCI) = positive input
+ *    - Net torque = Motor torque - Load torque
+ *    - Net torque drives the mechanical integrator: dω/dt = T_net / Jm
+ *    - Where Jm = 4741.83 kg*m^2
+ */
+/*End code section*/"
+                output_terminals_dimensions = "inherit"
+                output_terminals_feedthrough = "True"
+                output_terminals_show_labels = "False"
+                update_fnc = "/*Begin code section*/
+
+/*End code section*/"
+            }
+            [
+                position = 8216, 8240
+                scale = -1, 1
+                size = 48, 48
+            ]
+
+            component "core/Unit Delay" "Unit Delay" {
+                signal_out_type = "real"
+            }
+            [
+                position = 8128, 8240
+                hide_name = True
+                scale = -1, 1
+            ]
+
+            component "core/Gain" to_rpm {
+                gain = "60/(2*np.pi)"
+            }
+            [
+                position = 8352, 8240
+                scale = -1, 1
+            ]
+
+            component "core/Probe" load_torque {
+            }
+            [
+                position = 8032, 8152
+                scale = -1, 1
+            ]
+
+            component "core/Probe" motor_speed {
+            }
+            [
+                position = 8272, 8152
+                scale = -1, 1
+            ]
+
+            port w {
+                position = right:1
+                kind = sp
+                direction =  out
+                sp_type {
+                    default = auto
+                    readonly = True
+                }
+            }
+            [
+                position = 8416, 8240
+                rotation = down
+            ]
+
+            port Tq {
+                position = right:2
+                kind = sp
+                direction =  out
+                sp_type {
+                    default = auto
+                    readonly = True
+                }
+            }
+            [
+                position = 8128, 8304
+                rotation = down
+            ]
+
+            junction Junction138 sp
+            [
+                position = 8320, 8240
+            ]
+
+            junction Junction139 sp
+            [
+                position = 8080, 8240
+            ]
+
+            connect Junction138 motor_speed.in as Connection86
+            connect Junction139 Tq as Connection95
+            connect "Unit Delay.out" Junction139 as Connection92
+            connect "Unit Delay.in" load_characteristic.out as Connection104
+            [
+                breakpoints = 8168, 8240
+            ]
+            connect load_characteristic.in Junction138 as Connection83
+            connect load_torque.in Junction139 as Connection103
+            [
+                breakpoints = 8080, 8160
+            ]
+            connect to_rpm.out Junction138 as Connection88
+            connect to_rpm.in w as Connection96
+        }
+        [
+            position = 11544, 8552
+            rotation = down
+            scale = -1, 1
+            size = 56, 104
+        ]
+
+        component "core/Three Phase Wound Rotor Synchronous Machine" "3 ph WRSYNC1" {
+            Jm = "182.38"
+            Lc = "0.0"
+            Llfd = "0.00077"
+            Llkd = "0.000148"
+            Llkq = "0.000190"
+            Lls = "0.000635"
+            Lmd = "0.006898"
+            Lmq = "0.00651"
+            Ns_div_Nfd = "0.9478"
+            Rf = "0.2"
+            Rkd = "0.01995"
+            Rkq = "0.0266"
+            Rs = "0.00399"
+            Rsnb_rotor = "1000.0"
+            Rsnb_stator = "1000.0"
+            execution_rate = "0.0001"
+            ext_mdl_load_type = "speed"
+            friction_coeff = "0.0"
+            load_ai_gain = "0.0"
+            load_ai_offset = "0.0"
+            pms = "1"
+            res_int_carr_f = "5000.0"
+        }
+        [
+            position = 11664, 8288
+            scale = 1, -1
+            size = 176, 152
+        ]
+
+        component "core/Core Marker" core1 {
+        }
+        [
+            position = 11288, 8064
+        ]
+
+        component "core/Resistor" R5 {
+            resistance = "0.0163"
+        }
+        [
+            position = 8504, 8152
+        ]
+
+        component "core/Inductor" L5 {
+            inductance = "0.4941e-3"
+        }
+        [
+            position = 8624, 8152
+        ]
+
+        component "core/Resistor" R6 {
+            resistance = "0.0163"
+        }
+        [
+            position = 8504, 8248
+        ]
+
+        component "core/Inductor" L6 {
+            inductance = "0.4941e-3"
+        }
+        [
+            position = 8624, 8248
+        ]
+
+        component "core/Resistor" R7 {
+            resistance = "0.0163"
+        }
+        [
+            position = 8508, 8344
+        ]
+
+        component "core/Inductor" L7 {
+            inductance = "0.4941e-3"
+        }
+        [
+            position = 8628, 8344
+        ]
+
+        component "core/Resistor" R8 {
+            resistance = "0.0066"
+        }
+        [
+            position = 10460, 8152
+        ]
+
+        component "core/Inductor" L8 {
+            inductance = "0.2508e-3"
+        }
+        [
+            position = 10580, 8152
+        ]
+
+        component "core/Resistor" R9 {
+            resistance = "0.0066"
+        }
+        [
+            position = 10460, 8248
+        ]
+
+        component "core/Inductor" L9 {
+            inductance = "0.2508e-3"
+        }
+        [
+            position = 10580, 8248
+        ]
+
+        component "core/Resistor" R10 {
+            resistance = "0.0066"
+        }
+        [
+            position = 10464, 8344
+        ]
+
+        component "core/Inductor" L10 {
+            inductance = "0.2508e-3"
+        }
+        [
+            position = 10584, 8344
+        ]
+
+        component "core/Three Phase Voltage Source" voltage_source_machine_side {
+            init_rms_value = "1143.153533"
+        }
+        [
+            position = 10712, 8248
+            rotation = down
+            size = 62, 256
+        ]
+
+        junction Junction12 pe
+        [
+            position = 8948, 8344
+        ]
+
+        junction Junction13 pe
+        [
+            position = 8948, 8152
+        ]
+
+        junction Junction139 pe
+        [
+            position = 8904, 8152
+        ]
+
+        junction Junction142 pe
+        [
+            position = 8904, 8248
+        ]
+
+        junction Junction147 pe
+        [
+            position = 10108, 8152
+        ]
+
+        junction Junction148 pe
+        [
+            position = 10320, 8152
+        ]
+
+        junction Junction150 pe
+        [
+            position = 10108, 8344
+        ]
+
+        junction Junction153 pe
+        [
+            position = 10108, 8248
+        ]
+
+        junction Junction156 pe
+        [
+            position = 8904, 8152
+        ]
+
+        junction Junction157 pe
+        [
+            position = 8904, 8344
+        ]
+
+        junction Junction158 pe
+        [
+            position = 8904, 8248
+        ]
+
+        junction Junction159 pe
+        [
+            position = 10316, 8344
+        ]
+
+        comment Comment1 START <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Arial'; font-size:12pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; line-height:19px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T1 (A+) → p1 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T2 (B-) → p2 </span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T3 (B+) → p3</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T4 (A-) → p4</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T5 (C+) → p5</span></p><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; background-color:#1e1e1e;"><span style=" font-family:'Consolas','Courier New','monospace'; font-size:14px; color:#6a9955;">T6 (C-) → p6</span></p></body></html> ENDCOMMENT 
+        [
+            position = 9504, 8600
+        ]
+
+        scheme_area Area1 {
+            title = <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Tahoma'; font-size:14pt; font-weight:100; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Grid-side pulses</p></body></html>
+        }
+        [
+            position = 9208, 8708
+            size = 380, 400
+        ]
+
+        scheme_area Area2 {
+            title = <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"><html><head><meta name="qrichtext" content="1" /><meta charset="utf-8" /><style type="text/css">p, li { white-space: pre-wrap; }hr { height: 1px; border-width: 0; }li.unchecked::marker { content: "\2610"; }li.checked::marker { content: "\2612"; }</style></head><body style=" font-family:'Tahoma'; font-size:14pt; font-weight:100; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Machine-side pulses</p></body></html>
+        }
+        [
+            position = 9964, 8720
+            size = 380, 400
+        ]
+
+        connect AI1.out grid_a1.in as Connection38
+        connect AI4.out grid_a4.in as Connection39
+        connect grid_a3.in AI3.out as Connection40
+        connect AI2.out grid_a2.in as Connection41
+        connect DI4.out grid_di4.in as Connection42
+        connect grid_di3.in DI3.out as Connection43
+        connect DI2.out grid_di2.in as Connection44
+        connect grid_di1.in DI1.out as Connection45
+        connect DI14.out grid_pulse_t4.in as Connection46
+        connect grid_pulse_t3.in DI12.out as Connection47
+        connect DI16.out grid_pulse_t2.in as Connection48
+        connect grid_pulse_t1.in DI11.out as Connection49
+        connect DI13.out grid_pulse_t5.in as Connection50
+        connect DI15.out grid_pulse_t6.in as Connection51
+        connect R4.n_node L4.p_node as Connection59
+        connect current_dc_link.n_node R4.p_node as Connection60
+        connect Junction12 "Three Phase Thyristor Rectifier1.c_in" as Connection87
+        connect voltage_bridge_grid_side_ca.p_node Junction12 as Connection88
+        connect Junction13 "Three Phase Thyristor Rectifier1.a_in" as Connection90
+        connect voltage_bridge_grid_side_ca.n_node Junction13 as Connection91
+        connect DI30.out machine_pulse_t4.in as Connection92
+        connect machine_pulse_t3.in DI28.out as Connection93
+        connect DI32.out machine_pulse_t2.in as Connection94
+        connect machine_pulse_t1.in DI27.out as Connection95
+        connect DI29.out machine_pulse_t5.in as Connection96
+        connect DI31.out machine_pulse_t6.in as Connection97
+        connect machine_ai10.in AI10.out as Connection234
+        connect machine_ai11.in AI11.out as Connection235
+        connect machine_ai12.in AI12.out as Connection236
+        connect Junction139 Junction13 as Connection361
+        [
+            breakpoints = 8900, 8152
+        ]
+        connect Junction142 "Three Phase Thyristor Rectifier1.b_in" as Connection372
+        connect voltage_bridge_grid_side_bc.p_node Junction142 as Connection373
+        connect AI9.out machine_ai9.in as Connection376
+        connect "Three Phase Thyristor Rectifier2.c_in" Junction147 as Connection412
+        connect Junction147 voltage_bridge_machine_side_bc.n_node as Connection413
+        [
+            breakpoints = 10108, 8152
+        ]
+        connect Junction148 Junction147 as Connection417
+        [
+            breakpoints = 10140, 8152
+        ]
+        connect voltage_bridge_machine_side_ab.p_node Junction150 as Connection422
+        connect Junction150 "Three Phase Thyristor Rectifier2.a_in" as Connection423
+        [
+            breakpoints = 10108, 8344
+        ]
+        connect "Three Phase Thyristor Rectifier2.b_in" Junction153 as Connection432
+        connect voltage_bridge_machine_side_ab.n_node Junction153 as Connection434
+        connect voltage_bridge_machine_side_ca.p_node Junction148 as Connection436
+        [
+            breakpoints = 10284, 8152
+        ]
+        connect current_grid_a.p_node voltage_source_grid_side.a_node as Connection443
+        connect voltage_source_grid_side.b_node current_grid_b.p_node as Connection444
+        connect current_grid_c.p_node voltage_source_grid_side.c_node as Connection445
+        connect "Three Phase Thyristor Rectifier1.neg_out" coupling3.b_in as Connection448
+        connect coupling3.a_out current_dc_link.p_node as Connection451
+        connect "Three Phase Thyristor Rectifier1.pos_out" coupling3.a_in as Connection452
+        connect Junction156 Junction139 as Connection460
+        connect Junction139 Junction156 as Connection461
+        connect voltage_bridge_grid_side_ab.p_node Junction156 as Connection463
+        connect R5.n_node L5.p_node as Connection464
+        connect L5.n_node Junction156 as Connection465
+        connect R5.p_node current_grid_a.n_node as Connection466
+        connect R6.n_node L6.p_node as Connection467
+        connect R7.n_node L7.p_node as Connection468
+        connect current_grid_b.n_node R6.p_node as Connection470
+        connect R7.p_node current_grid_c.n_node as Connection471
+        connect voltage_bridge_grid_side_bc.n_node Junction157 as Connection472
+        connect Junction157 Junction12 as Connection473
+        [
+            breakpoints = 8900, 8344
+        ]
+        connect L7.n_node Junction157 as Connection474
+        connect voltage_bridge_grid_side_ab.n_node Junction158 as Connection475
+        connect Junction158 Junction142 as Connection476
+        connect L6.n_node Junction158 as Connection477
+        connect Iex.p_node Vex.p_node as Connection488
+        connect L4.n_node "Three Phase Thyristor Rectifier2.neg_out" as Connection510
+        connect "Three Phase Thyristor Rectifier2.pos_out" coupling3.b_out as Connection511
+        connect Vex.n_node core1.node as Connection516
+        [
+            breakpoints = 11284, 8224; 11288, 8200
+        ]
+        connect voltage_bridge_machine_side_bc.p_node Junction153 as Connection513
+        [
+            breakpoints = 10108, 8248
+        ]
+        connect R8.n_node L8.p_node as Connection517
+        connect R9.n_node L9.p_node as Connection521
+        connect R9.p_node Junction153 as Connection522
+        connect R10.n_node L10.p_node as Connection523
+        connect L9.n_node voltage_source_machine_side.b_node as Connection527
+        connect voltage_source_machine_side.a_node L10.n_node as Connection528
+        connect L8.n_node voltage_source_machine_side.c_node as Connection529
+        connect Junction148 R8.p_node as Connection530
+        connect voltage_bridge_machine_side_ca.n_node Junction159 as Connection532
+        [
+            breakpoints = 10320, 8344
+        ]
+        connect Junction159 Junction150 as Connection533
+        [
+            breakpoints = 10408, 8344; 10140, 8344
+        ]
+        connect R10.p_node Junction159 as Connection534
+    }
+
+    logically_deleted {
+        "Iex"
+        "Vex"
+        "Load"
+        "core1"
+        "Connection488"
+        "Connection516"
+        "3 ph WRSYNC1"
+    }
+
+    default {
+        "core/Analog Input" {
+            addr = "1"
+            ai_offset = "0"
+            ai_gain = "1"
+            execution_rate = "100e-6"
+        }
+
+        "core/C function" {
+            input_terminals = "real in;"
+            input_terminals_show_labels = "False;"
+            input_terminals_feedthrough = "True;"
+            input_terminals_dimensions = "inherit;"
+            output_terminals = "real out;"
+            output_terminals_show_labels = "False;"
+            output_terminals_feedthrough = "True;"
+            output_terminals_dimensions = "inherit;"
+            output_fnc = ""
+            update_fnc = ""
+            init_fnc = ""
+            global_variables = ""
+            parameters = ""
+            library_load_type = "Compile-time load"
+            dll_file_path = ""
+            dll_file_path_full = ""
+            arm_a9_file_path = ""
+            arm_a9_file_path_full = ""
+            arm_a53_file_path = ""
+            arm_a53_file_path_full = ""
+            h_file_path = ""
+            h_file_path_full = ""
+            add_src_path = ""
+            add_src_path_full = ""
+            convert_to_relative_dll = "True"
+            convert_to_relative_a = "True"
+            convert_to_relative_src = "True"
+            arb_defs = ""
+            add_macros = ""
+            skip_pre_cmpl_check = "False"
+            generate_for_hil = "True"
+            execution_rate = "inherit"
+            _supported_platforms = "[\'generic\']"
+            refresh = "refresh"
+        }
+
+        "core/Core Marker" {
+            marker_id = "id0"
+        }
+
+        "core/Digital Input" {
+            addr = "1"
+            invert = "false"
+            signal_type = "uint"
+            execution_rate = "100e-6"
+        }
+
+        "core/Gain" {
+            gain = "1"
+            multiplication = "Element-wise(K.*u)"
+            _tunable = "False"
+            execution_rate = "inherit"
+        }
+
+        "core/Inductor" {
+            signal_access = "inherit"
+            inductance = "1e-3"
+            initial_current = "0.0"
+            pole_shift_ignore = "False"
+            visible = "True"
+        }
+
+        "core/Probe" {
+            signal_access = "inherit"
+            addr = "0"
+            override_signal_name = "False"
+            signal_name = ""
+            signal_type = "generic"
+            streaming_en = "False"
+            streaming_er_idx = "0"
+            execution_rate = "inherit"
+        }
+
+        "core/Resistor" {
+            resistance = "1"
+            param_set = ""
+        }
+
+        "core/Unit Delay" {
+            init_value = "0"
+            signal_out_type = "inherit"
+            execution_rate = "inherit"
+        }
+
+        "core/Current Measurement" {
+            signal_access = "inherit"
+            bw_limit = "False"
+            frequency = "10e3"
+            comparator_enable = "False"
+            operator = "greater"
+            threshold = "0"
+            cmp_abs_value = "False"
+            feed_forward = "false"
+            sig_output = "False"
+            sig_output_filt_and_full_bw = "False"
+            execution_rate = "100e-6"
+            addr = "0"
+            nd_msr_estimation = "false"
+            dev_cpl_msr = "false"
+            host_device = "0"
+            output_to_device = "0"
+            dev_cpl_index = "0"
+            dev_cpl_var_nb = "0"
+            visible = "True"
+            override_signal_name = "False"
+            signal_name = ""
+        }
+
+        "core/Externally Controlled Voltage Source" {
+            ai_pin_addr = "1"
+            ai_offset = "0.0"
+            ai_gain = "1.0"
+            model_control_for_gain_and_offset = "False"
+            visible = "True"
+        }
+
+        "core/Single Phase Core Coupling" {
+            snb_type_i = "none"
+            R1 = "100000.0"
+            C1 = "1e-06"
+            C2 = "1e-06"
+            fixed_snb_i = "false"
+            snb_type_u = "none"
+            R2 = "0.1"
+            L1 = "0.1"
+            L2 = "0.1"
+            fixed_snb_u = "false"
+        }
+
+        "core/Three Phase Thyristor Rectifier" {
+            signal_access = "inherit"
+            ctrl_src = "Digital inputs"
+            Sa_top = "1"
+            Sa_top_logic = "active high"
+            Sa_bot = "2"
+            Sa_bot_logic = "active high"
+            Sb_top = "3"
+            Sb_top_logic = "active high"
+            Sb_bot = "4"
+            Sb_bot_logic = "active high"
+            Sc_top = "5"
+            Sc_top_logic = "active high"
+            Sc_bot = "6"
+            Sc_bot_logic = "active high"
+            _overridable_switches = "[\'Sa_top\', \'Sa_bot\', \'Sb_top\', \'Sb_bot\', \'Sc_top\', \'Sc_bot\']"
+            execution_rate = "inherit"
+            show_monitoring = "False"
+            PESB_Optimization = "True"
+            _control_property = "all high"
+            pwm_enabling = "False"
+            pwm_enable_di = "13"
+            pwm_enable_inv = "active high"
+            Sa_top_I = "False"
+            Sa_bot_I = "False"
+            Sb_top_I = "False"
+            Sb_bot_I = "False"
+            Sc_top_I = "False"
+            Sc_bot_I = "False"
+            losses_estimation = "False"
+            i_sw = "[0.0, 6.0, 12.0, 18.0, 24.0]"
+            v_sw = "[0.0, 600.0]"
+            temp_sw = "[25.0, 50.0, 75.0, 100.0, 125.0]"
+            vd_table_out = "[1.2, 1.2, 1.2, 1.2, 1.2]"
+            et_on_table_out = "[[0.0, 0.0275e-3, 0.15e-3, 0.275e-3, 0.3e-3], [0.35*2.2e-3, 0.4*2.2e-3, 0.8*2.2e-3, 0.68*2.2e-3, 0.9*2.2e-3], [0.65*2.2e-3, 0.9*2.2e-3, 1.2*2.2e-3, 1.5*2.2e-3, 1.7*2.2e-3], [0.9*2.2e-3, 1.3*2.2e-3, 1.7*2.2e-3, 1.9*2.2e-3, 2.25*2.2e-3], [1.1*2.2e-3, 1.7*2.2e-3, 2.1*2.2e-3, 2.3*2.2e-3, 2.5*2.2e-3]]"
+            temp_estimation = "False"
+            thermal_networks_type = "Foster"
+            diode_Rth = "[0.159, 0.133, 0.120, 0.038]"
+            diode_Tth = "[1.1e-1, 1.56e-2, 1.35e-3, 1.51e-4]"
+            diode_Cth = "[0.0029, 0.0097, 0.1068, 0.8500]"
+            loss_exec_rate = "100e-6"
+            visualize_luts = "Visualize Lookup Tables"
+        }
+
+        "core/Three Phase Voltage Source" {
+            init_rms_value = "0.0"
+            init_frequency = "50.0"
+            init_phase = "0.0"
+        }
+
+        "core/Three Phase Wound Rotor Synchronous Machine" {
+            signal_access = "inherit"
+            model_type = "linear"
+            rated_speed = "1.0"
+            double_q_windings = "1 damper winding on q axis"
+            Rs = "1.62"
+            Lls = "0.004527"
+            Lmd = "0.1086"
+            Lmq = "0.1086"
+            curve_type = "no load curve"
+            if_vector = "[0.0, 0.0]"
+            vs_vector = "[0.0, 0.0]"
+            imd_vector = "[0.0, 0.0]"
+            imq_vector = "[0.0, 0.0]"
+            psimd_table = "[[0.0, 0.0], [0.0, 0.0]]"
+            psimq_table = "[[0.0, 0.0], [0.0, 0.0]]"
+            Rf = "1.208"
+            Llfd = "0.01132"
+            Rkd = "3.142"
+            Rkq = "4.772"
+            Rkq2 = "1e5"
+            Llkd = "0.007334"
+            Llkq = "0.01015"
+            Llkq2 = "1e-11"
+            Ns_div_Nfd = "1.0"
+            Ns_div_Nkd = "1.0"
+            Ns_div_Nkq = "1.0"
+            Lc = "0"
+            visualize_luts = "Visualize Lookup Tables"
+            pms = "2"
+            star_delta = "star"
+            Jm = "0.0923"
+            friction_coeff = "0"
+            unconstrained_angle = "disabled"
+            load_src = "SCADA / external"
+            ext_mdl_load_type = "torque"
+            load_ai_pin_addr = "1"
+            load_ai_offset = "0"
+            load_ai_gain = "1"
+            enc_ppr = "1024"
+            encoder_Z_pulse_length = "Full period"
+            res_pole_pairs = "1"
+            res_carr_source = "internal"
+            res_carr_source_external = "single ended"
+            res_int_carr_f = "5e+3"
+            res_ai_pin_addr = "1"
+            res_ai_pin2_addr = "2"
+            res_ai_offset = "0"
+            res_ai_gain = "1"
+            absenc_type = "None"
+            singleturn_abs_enc = "0"
+            multiturn_enable = "False"
+            multiturn_abs_enc = "0"
+            endat_clock_di_addr = "1"
+            endat_clock_di_logic = "active high"
+            endat_data_di_addr = "2"
+            endat_data_di_logic = "active high"
+            biss_clock_di_addr = "1"
+            biss_clock_di_logic = "active high"
+            biss_data_di_addr = "2"
+            ssi_clock_di_addr = "1"
+            ssi_clock_di_logic = "active high"
+            ssi_data_di_addr = "2"
+            theta_ab = "-pi/2"
+            field_input = "voltage"
+            Rsnb_rotor = "inf"
+            Rsnb_stator = "inf"
+            execution_rate = "100e-6"
+            el_trq_out = "False"
+            mech_speed_out = "False"
+            mech_angle_out = "False"
+            i_als = "False"
+            i_bes = "False"
+            i_ds = "False"
+            i_qs = "False"
+            psi_als = "False"
+            psi_bes = "False"
+            psi_ds = "False"
+            psi_qs = "False"
+            machine_id = "0"
+            me_speed_out_addr = "0"
+            el_torque_out_addr = "0"
+            me_angle_out_addr = "0"
+        }
+
+        "core/Voltage Measurement" {
+            signal_access = "inherit"
+            bw_limit = "False"
+            frequency = "10e3"
+            comparator_enable = "False"
+            operator = "greater"
+            threshold = "0"
+            cmp_abs_value = "False"
+            feed_forward = "false"
+            sig_output = "False"
+            sig_output_filt_and_full_bw = "False"
+            execution_rate = "100e-6"
+            addr = "0"
+            nd_msr_estimation = "false"
+            dev_cpl_msr = "false"
+            host_device = "0"
+            output_to_device = "0"
+            dev_cpl_index = "0"
+            dev_cpl_var_nb = "0"
+            visible = "True"
+            override_signal_name = "False"
+            signal_name = ""
+        }
+    }
+}
