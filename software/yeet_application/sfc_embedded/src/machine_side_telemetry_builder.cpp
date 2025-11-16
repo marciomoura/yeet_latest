@@ -90,19 +90,31 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(43, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
     packet.add_signal(44, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
 
-    // === Machine-Side Protections Group (45-55) ===
+    // === Pulse Generator Group (45-53) ===
+    packet.add_signal(45, pulse_generator.get_outputs().virtual_reference_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(46, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));
+    packet.add_signal(47, pulse_generator.get_outputs().individual_override_active.read() ? 1.0f : 0.0f);
+    const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
+    packet.add_signal(48, firing_pulses.p1 ? 1.0f : 0.0f);
+    packet.add_signal(49, firing_pulses.p2 ? 1.0f : 0.0f);
+    packet.add_signal(50, firing_pulses.p3 ? 1.0f : 0.0f);
+    packet.add_signal(51, firing_pulses.p4 ? 1.0f : 0.0f);
+    packet.add_signal(52, firing_pulses.p5 ? 1.0f : 0.0f);
+    packet.add_signal(53, firing_pulses.p6 ? 1.0f : 0.0f);
+
+    // === Machine-Side Protections Group (54-64) ===
     const auto& protections = _control.machine_protections;
-    packet.add_signal(45, protections.get_outputs().is_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(46, protections.get_outputs().is_inhibited.read() ? 1.0f : 0.0f);
-    packet.add_signal(47, protections.get_outputs().any_fault_active.read() ? 1.0f : 0.0f);
-    packet.add_signal(48, protections.get_outputs().over_flux_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(49, protections.get_outputs().under_flux_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(50, protections.get_outputs().stall_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(51, protections.get_outputs().over_flux_warning.read() ? 1.0f : 0.0f);
-    packet.add_signal(52, protections.get_outputs().under_flux_warning.read() ? 1.0f : 0.0f);
-    packet.add_signal(53, protections.get_outputs().stall_warning.read() ? 1.0f : 0.0f);
-    packet.add_signal(54, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(55, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(54, protections.get_outputs().is_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(55, protections.get_outputs().is_inhibited.read() ? 1.0f : 0.0f);
+    packet.add_signal(56, protections.get_outputs().any_fault_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(57, protections.get_outputs().over_flux_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(58, protections.get_outputs().under_flux_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(59, protections.get_outputs().stall_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(60, protections.get_outputs().over_flux_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(61, protections.get_outputs().under_flux_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(62, protections.get_outputs().stall_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(63, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(64, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);

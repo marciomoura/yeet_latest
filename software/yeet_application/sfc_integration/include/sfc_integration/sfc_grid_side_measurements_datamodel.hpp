@@ -135,7 +135,7 @@ public:
         entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
         entry.parameters.insert("ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
 
-        registry.insert("grid_side_measurements_ideal", std::move(entry));
+        registry.insert("measurements_ideal", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }
@@ -298,7 +298,7 @@ public:
         entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
         entry.parameters.insert("ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
 
-        registry.insert("grid_side_measurements", std::move(entry));
+        registry.insert("measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

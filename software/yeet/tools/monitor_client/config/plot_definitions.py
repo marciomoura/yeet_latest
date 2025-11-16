@@ -91,6 +91,29 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'force commutation ack', 'color': 'y', 'index': GridSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK},
                 ]
             }
+        },
+        'pulse_generator': {
+            'firing_pulses': {
+                'title': 'Firing Pulses (P1-P6)',
+                'y_label': 'Pulse State',
+                'signals': [
+                    {'name': 'pulse 1', 'color': 'r', 'index': GridSignalIndex.PULSE_GENERATOR_P1},
+                    {'name': 'pulse 2', 'color': 'g', 'index': GridSignalIndex.PULSE_GENERATOR_P2},
+                    {'name': 'pulse 3', 'color': 'b', 'index': GridSignalIndex.PULSE_GENERATOR_P3},
+                    {'name': 'pulse 4', 'color': 'c', 'index': GridSignalIndex.PULSE_GENERATOR_P4},
+                    {'name': 'pulse 5', 'color': 'm', 'index': GridSignalIndex.PULSE_GENERATOR_P5},
+                    {'name': 'pulse 6', 'color': 'y', 'index': GridSignalIndex.PULSE_GENERATOR_P6},
+                ]
+            },
+            'virtual_reference': {
+                'title': 'Virtual Reference Generator',
+                'y_label': 'Angle (pu) / State',
+                'signals': [
+                    {'name': 'virtual ref. angle', 'color': 'g', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE},
+                    {'name': 'virtual ref. active', 'color': 'r', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE},
+                    {'name': 'individual override active', 'color': 'c', 'index': GridSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE},
+                ]
+            }
         }
     }
 
@@ -200,6 +223,29 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'field current ref.', 'color': 'g', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE},
                     {'name': 'prefluxing elapsed time', 'color': 'r', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME},
+                ]
+            }
+        },
+        'pulse_generator': {
+            'firing_pulses': {
+                'title': 'Firing Pulses (P1-P6)',
+                'y_label': 'Pulse State',
+                'signals': [
+                    {'name': 'pulse 1', 'color': 'r', 'index': MachineSignalIndex.PULSE_GENERATOR_P1},
+                    {'name': 'pulse 2', 'color': 'g', 'index': MachineSignalIndex.PULSE_GENERATOR_P2},
+                    {'name': 'pulse 3', 'color': 'b', 'index': MachineSignalIndex.PULSE_GENERATOR_P3},
+                    {'name': 'pulse 4', 'color': 'c', 'index': MachineSignalIndex.PULSE_GENERATOR_P4},
+                    {'name': 'pulse 5', 'color': 'm', 'index': MachineSignalIndex.PULSE_GENERATOR_P5},
+                    {'name': 'pulse 6', 'color': 'y', 'index': MachineSignalIndex.PULSE_GENERATOR_P6},
+                ]
+            },
+            'virtual_reference': {
+                'title': 'Virtual Reference Generator',
+                'y_label': 'Angle (pu) / State',
+                'signals': [
+                    {'name': 'virtual ref. angle', 'color': 'g', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE},
+                    {'name': 'virtual ref. active', 'color': 'r', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE},
+                    {'name': 'individual override active', 'color': 'c', 'index': MachineSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE},
                 ]
             }
         }

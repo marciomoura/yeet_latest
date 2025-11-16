@@ -1,5 +1,9 @@
 #pragma once
 
+#include "yeet/parameter.hpp"
+#include "yeet/utils/low_level_access.hpp"
+#include "yeet_control/angle_wrapped.hpp"  // For angle_wrapped and angle_t
+
 /**
  * @file parameter_accessors.hpp
  * @brief Reusable parameter accessor factories to eliminate lambda boilerplate in datamodels
@@ -84,6 +88,55 @@ inline low_level_access make_bool_accessor(parameter<bool>& param) noexcept
     return make_parameter_accessor(
         param, [](bool v) -> float { return v ? 1.0f : 0.0f; },
         [](float f) -> bool { return f > 0.0f ? true : false; });
+}
+
+/**
+ * @brief Creates low_level_access for enumeration parameters
+ *
+ * Converts between enum and float using integer casting:
+ * - enum to float: static_cast<int>(enum_value) -> float
+ * - float to enum: static_cast<EnumT>(static_cast<int>(float_value))
+ *
+ * This template works with any enumeration type and eliminates the need for
+ * manual lambda definitions.
+ *
+ * @tparam EnumT The enumeration type
+ * @param param Reference to the parameter<EnumT> object
+ * @return low_level_access configured for enumeration type
+ *
+ * @example
+ *     parameter<my_enum> enum_param;
+ *     entry.parameters.insert("mode", make_enum_accessor(enum_param));
+ */
+template <typename EnumT>
+inline low_level_access make_enum_accessor(parameter<EnumT>& param) noexcept
+{
+    return make_parameter_accessor(
+        param, [](const EnumT& v) -> float { return static_cast<float>(static_cast<int>(v)); },
+        [](float f) -> EnumT { return static_cast<EnumT>(static_cast<int>(f)); });
+}
+
+}  // namespace yeet::utils
+
+namespace yeet::utils {
+
+/**
+ * @brief Creates low_level_access for angle_wrapped parameters
+ *
+ * Converts between angle_wrapped and float (radians):
+ * - angle_wrapped to float: extract radians via get_radians()
+ * - float to angle_wrapped: construct from radians via from_radians()
+ *
+ * This specialized accessor is necessary because angle_wrapped does not have an
+ * implicit float conversion operator.
+ *
+ * @param param Reference to the parameter<yeet::angle_wrapped> object
+ * @return low_level_access configured for angle_wrapped type
+ */
+inline low_level_access make_angle_accessor(parameter<yeet::angle_wrapped>& param) noexcept
+{
+    return low_level_access([&param]() -> float { return static_cast<float>(param.read().get_radians()); },
+        [&param](float value_rad) { param.write(yeet::angle_wrapped::from_radians(yeet::angle_t{value_rad})); });
 }
 
 }  // namespace yeet::utils

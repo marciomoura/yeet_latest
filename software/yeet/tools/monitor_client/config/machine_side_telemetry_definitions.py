@@ -40,6 +40,7 @@ def _get_section_order() -> List[str]:
         'controller',
         'modulator',
         'excitation_controller',
+        'pulse_generator',
     ]
 
 
@@ -125,6 +126,20 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'field current ref.', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
                 {'name': 'prefluxing elapsed time', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME, 'type': 'float', 'format': '.4f'}
+            ]
+        },
+        'pulse_generator': {
+            'title': 'Pulse Generator',
+            'fields': [
+                {'name': 'virtual ref. active', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'virtual ref. angle (pu)', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'individual override active', 'index': MachineSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 1', 'index': MachineSignalIndex.PULSE_GENERATOR_P1, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 2', 'index': MachineSignalIndex.PULSE_GENERATOR_P2, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 3', 'index': MachineSignalIndex.PULSE_GENERATOR_P3, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 4', 'index': MachineSignalIndex.PULSE_GENERATOR_P4, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 5', 'index': MachineSignalIndex.PULSE_GENERATOR_P5, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 6', 'index': MachineSignalIndex.PULSE_GENERATOR_P6, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'protections': {

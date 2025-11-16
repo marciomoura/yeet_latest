@@ -75,18 +75,29 @@ class MachineSignalIndex(IntEnum):
     EXCITATION_FIELD_CURRENT_REFERENCE = 43
     EXCITATION_PREFLUXING_ELAPSED_TIME = 44
     
-    # === Machine-Side Protections Group (45-55) ===
-    PROTECTION_IS_TRIPPED = 45
-    PROTECTION_IS_INHIBITED = 46
-    PROTECTION_ANY_FAULT_ACTIVE = 47
-    PROTECTION_OVER_FLUX_TRIPPED = 48
-    PROTECTION_UNDER_FLUX_TRIPPED = 49
-    PROTECTION_STALL_TRIPPED = 50
-    PROTECTION_OVER_FLUX_WARNING = 51
-    PROTECTION_UNDER_FLUX_WARNING = 52
-    PROTECTION_STALL_WARNING = 53
-    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 54
-    PROTECTION_COMMUNICATION_LOSS_WARNING = 55
+    # === Pulse Generator Group (45-53) ===
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 45
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE = 46
+    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 47
+    PULSE_GENERATOR_P1 = 48
+    PULSE_GENERATOR_P2 = 49
+    PULSE_GENERATOR_P3 = 50
+    PULSE_GENERATOR_P4 = 51
+    PULSE_GENERATOR_P5 = 52
+    PULSE_GENERATOR_P6 = 53
+    
+    # === Machine-Side Protections Group (54-64) ===
+    PROTECTION_IS_TRIPPED = 54
+    PROTECTION_IS_INHIBITED = 55
+    PROTECTION_ANY_FAULT_ACTIVE = 56
+    PROTECTION_OVER_FLUX_TRIPPED = 57
+    PROTECTION_UNDER_FLUX_TRIPPED = 58
+    PROTECTION_STALL_TRIPPED = 59
+    PROTECTION_OVER_FLUX_WARNING = 60
+    PROTECTION_UNDER_FLUX_WARNING = 61
+    PROTECTION_STALL_WARNING = 62
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 63
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 64
 
 
 @dataclass
@@ -183,8 +194,22 @@ class ExcitationControllerData:
 
 
 @dataclass
+class PulseGeneratorData:
+    """Pulse generator outputs (45-53)."""
+    virtual_reference_active: bool = False
+    virtual_reference_angle_pu: float = 0.0
+    individual_override_active: bool = False
+    p1: bool = False
+    p2: bool = False
+    p3: bool = False
+    p4: bool = False
+    p5: bool = False
+    p6: bool = False
+
+
+@dataclass
 class MachineProtectionsData:
-    """Machine-side protection system (45-55)."""
+    """Machine-side protection system (54-64)."""
     is_tripped: bool = False
     is_inhibited: bool = False
     any_fault_active: bool = False

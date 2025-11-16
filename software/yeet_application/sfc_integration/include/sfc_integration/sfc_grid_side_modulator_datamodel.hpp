@@ -48,7 +48,7 @@ public:
         /// Fast protection trip signal (direct from protection system) [bool]
         signal_input<bool> protection_trip;
 
-        /// Pulse release command from supervisor [bool]
+        /// Release pulses control signal from integrator supervisor [bool]
         signal_input<bool> release_pulses;
     };
 
@@ -76,9 +76,6 @@ public:
      * @brief Configuration parameters for the grid-side modulator
      */
     struct parameters {
-        /// Master enable override [bool]
-        parameter<bool> enable{true};
-
         /// Firing angle for forced commutation [rad]
         parameter<angle_wrapped> force_commutation_angle = angle_wrapped(2.6180);
 
@@ -104,13 +101,12 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
         entry.parameters.insert(
             "force_commutation_angle", yeet::utils::make_units_accessor(_model_parameters->force_commutation_angle));
         entry.parameters.insert(
             "commutation_timeout", yeet::utils::make_units_accessor(_model_parameters->commutation_timeout));
 
-        registry.insert("grid_side_modulator", std::move(entry));
+        registry.insert("modulator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

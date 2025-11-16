@@ -149,7 +149,7 @@ public:
             "voltage_transducer_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
         entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
 
-        registry.insert("machine_side_measurements_ideal", std::move(entry));
+        registry.insert("measurements_ideal", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }
@@ -241,7 +241,7 @@ public:
             "voltage_transducer_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
         entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
 
-        registry.insert("machine_side_measurements", std::move(entry));
+        registry.insert("measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -45,6 +45,7 @@ target_sources(
            include/yeet_control/speed_voltage_relationship.hpp
            include/yeet_control/srf_pll.hpp
            include/yeet_control/hysteresis_limiter.hpp
+           include/yeet_control/virtual_angle_reference_generator.hpp
     PRIVATE src/adc_value.cpp
             src/adc_mock.cpp
             src/derivative.cpp
@@ -66,7 +67,8 @@ target_sources(
             src/three_phase_pll.cpp
             src/speed_voltage_relationship.cpp
             src/srf_pll.cpp
-            src/hysteresis_limiter.cpp)
+            src/hysteresis_limiter.cpp
+            src/virtual_angle_reference_generator.cpp)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

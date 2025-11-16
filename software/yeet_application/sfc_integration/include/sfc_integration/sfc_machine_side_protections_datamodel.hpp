@@ -209,7 +209,7 @@ public:
         // Manual reset override
         entry.parameters.insert("force_reset_all", yeet::utils::make_bool_accessor(_model_parameters->force_reset_all));
 
-        registry.insert("machine_side_protections", std::move(entry));
+        registry.insert("protections", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

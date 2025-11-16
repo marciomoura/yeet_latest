@@ -26,6 +26,7 @@ def _get_section_order() -> List[str]:
         'protections',
         'operation_mode',
         'modulator',
+        'pulse_generator',
         'measurements',
         'controller',
         'observer',
@@ -80,6 +81,21 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'request extinguish dc', 'index': GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC, 'type': 'bool', 'format': 'bool'},
                 {'name': 'request force commutation', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
                 {'name': 'force commutation ack', 'index': GridSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
+        'pulse_generator': {
+            'title': 'Pulse Generator',
+            'fields': [
+                {'name': 'release pulses', 'index': GridSignalIndex.PULSE_GENERATOR_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
+                {'name': 'virtual ref. active', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'virtual ref. angle (pu)', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'individual override active', 'index': GridSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 1', 'index': GridSignalIndex.PULSE_GENERATOR_P1, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 2', 'index': GridSignalIndex.PULSE_GENERATOR_P2, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 3', 'index': GridSignalIndex.PULSE_GENERATOR_P3, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 4', 'index': GridSignalIndex.PULSE_GENERATOR_P4, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 5', 'index': GridSignalIndex.PULSE_GENERATOR_P5, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 6', 'index': GridSignalIndex.PULSE_GENERATOR_P6, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'operation_mode': {

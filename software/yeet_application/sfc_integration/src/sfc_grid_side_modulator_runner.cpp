@@ -19,6 +19,7 @@ void sfc_grid_side_modulator_runner::initialize()
 void sfc_grid_side_modulator_runner::run()
 {
     // Read inputs from the datamodel
+    const bool enable = _inputs.release_pulses.read();
     const bool request_force_commutation = _inputs.request_force_commutation.read();
     const bool current_is_zero = _inputs.current_is_zero.read();
     const angle_t firing_angle_from_main_pi = _inputs.firing_angle.read();
@@ -30,12 +31,9 @@ void sfc_grid_side_modulator_runner::run()
     const bool request_extinguish_current =
         _inputs.request_extinguish_dc_current.read() || shutdown_request || protection_trip;
 
-    // Update the modulator logic
-    _sfc_grid_side_modulator.update(_inputs.release_pulses, operating_mode, request_force_commutation, current_is_zero,
+    // Update the modulator logic - enable controlled by supervisor via release_pulses
+    _sfc_grid_side_modulator.update(enable, operating_mode, request_force_commutation, current_is_zero,
         firing_angle_from_main_pi, request_extinguish_current);
-
-    // Apply enable parameter override to release_pulses
-    // const bool enable_override = _parameters.enable.read();
 
     // Write outputs to the datamodel
     _outputs.firing_angle = _sfc_grid_side_modulator.get_firing_angle_rad();
@@ -49,13 +47,12 @@ void sfc_grid_side_modulator_runner::stop() { _sfc_grid_side_modulator.reset(); 
 
 void sfc_grid_side_modulator_runner::set_parameters()
 {
-    // Configure the modulator with the force commutation angle
-    // const angle_t force_commutation_angle = _parameters.force_commutation_angle.read();
-    // _sfc_grid_side_modulator.configure_force_commutation_angle_rad(force_commutation_angle);
-
-    // Note: commutation_timeout is not used by the core component yet, but is read here for completeness.
-    // const duration_t commutation_timeout = _parameters.commutation_timeout.read();
-    // _sfc_grid_side_modulator.configure_commutation_timeout(commutation_timeout); // Future implementation
+    // Note: force_commutation_angle and commutation_timeout parameters exist in datamodel
+    // but are not yet configurable in the core sfc_grid_side_modulator component.
+    // These are currently hardcoded in the core implementation:
+    // - force_commutation_angle: 150° (hardcoded)
+    // - commutation_timeout: Not yet implemented
+    // Future enhancement: Add configure methods to the core component.
 }
 
 void sfc_grid_side_modulator_runner::set_parameter_callback()

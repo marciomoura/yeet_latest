@@ -73,23 +73,32 @@ class GridSignalIndex(IntEnum):
     MODE_MONITOR_CURRENT_IS_ZERO = 42
     MODE_MONITOR_IS_DISCONTINUOUS_MODE = 43
     
-    # === Pulse Generator Group (44-46) ===
+    # === Pulse Generator Group (44-55) ===
     PULSE_GENERATOR_RELEASE_PULSES = 44
     PULSE_GENERATOR_ACTUAL_FIRING_ANGLE = 45
     PULSE_GENERATOR_RELEASE_PULSES_INPUT = 46
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 47
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE = 48
+    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 49
+    PULSE_GENERATOR_P1 = 50
+    PULSE_GENERATOR_P2 = 51
+    PULSE_GENERATOR_P3 = 52
+    PULSE_GENERATOR_P4 = 53
+    PULSE_GENERATOR_P5 = 54
+    PULSE_GENERATOR_P6 = 55
     
-    # === Grid-Side Protections Group (47-57) ===
-    PROTECTION_IS_TRIPPED = 47
-    PROTECTION_IS_INHIBITED = 48
-    PROTECTION_ANY_FAULT_ACTIVE = 49
-    PROTECTION_OVERCURRENT_TRIPPED = 50
-    PROTECTION_OVERVOLTAGE_TRIPPED = 51
-    PROTECTION_UNDERVOLTAGE_TRIPPED = 52
-    PROTECTION_OVERCURRENT_WARNING = 53
-    PROTECTION_OVERVOLTAGE_WARNING = 54
-    PROTECTION_UNDERVOLTAGE_WARNING = 55
-    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 56
-    PROTECTION_COMMUNICATION_LOSS_WARNING = 57
+    # === Grid-Side Protections Group (56-66) ===
+    PROTECTION_IS_TRIPPED = 56
+    PROTECTION_IS_INHIBITED = 57
+    PROTECTION_ANY_FAULT_ACTIVE = 58
+    PROTECTION_OVERCURRENT_TRIPPED = 59
+    PROTECTION_OVERVOLTAGE_TRIPPED = 60
+    PROTECTION_UNDERVOLTAGE_TRIPPED = 61
+    PROTECTION_OVERCURRENT_WARNING = 62
+    PROTECTION_OVERVOLTAGE_WARNING = 63
+    PROTECTION_UNDERVOLTAGE_WARNING = 64
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 65
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 66
 
 
 @dataclass
@@ -173,15 +182,24 @@ class OperationModeMonitorData:
 
 @dataclass
 class PulseGeneratorData:
-    """Pulse generator outputs (44-46)."""
+    """Pulse generator outputs (44-55)."""
     release_pulses: bool = False
     actual_firing_angle_pu: float = 0.0
     release_pulses_input: bool = False
+    virtual_reference_active: bool = False
+    virtual_reference_angle_pu: float = 0.0
+    individual_override_active: bool = False
+    p1: bool = False
+    p2: bool = False
+    p3: bool = False
+    p4: bool = False
+    p5: bool = False
+    p6: bool = False
 
 
 @dataclass
 class GridProtectionsData:
-    """Grid-side protection system (47-57)."""
+    """Grid-side protection system (56-66)."""
     is_tripped: bool = False
     is_inhibited: bool = False
     any_fault_active: bool = False

@@ -106,7 +106,7 @@ public:
         entry.parameters.insert(
             "is_tripped_value", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_value));
 
-        registry.insert("machine_side_integrator_supervisor", std::move(entry));
+        registry.insert("integrator_supervisor", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }
