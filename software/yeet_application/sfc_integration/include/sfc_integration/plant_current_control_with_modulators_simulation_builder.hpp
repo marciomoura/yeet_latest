@@ -50,12 +50,11 @@ public:
         // Controller integrator freeze stubs (no higher-level state machine here)
         yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
 
-        // Enable path: set via parameters (not signals) - always true for this simplified builder
-        grid_side_modulator.get_parameters().enable = true;
-        machine_side_modulator.get_parameters().enable = true;
+        // Enable path: operation mode monitor always enabled
         yeet::mock_signal_input::write(operation_mode_monitor.get_inputs().enable, true);
 
         // Grid-side modulator inputs
+        yeet::mock_signal_input::write(grid_side_modulator.get_inputs().release_pulses, true);
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().shutdown_request, false);
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().protection_trip, false);
         yeet::mock_signal_input::write(grid_side_modulator.get_inputs().release_pulses, true);

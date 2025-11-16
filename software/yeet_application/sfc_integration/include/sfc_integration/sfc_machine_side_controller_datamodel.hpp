@@ -89,7 +89,7 @@ public:
                     }));
         }
 
-        registry.insert("machine_side_controller", std::move(entry));
+        registry.insert("controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

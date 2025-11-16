@@ -100,6 +100,17 @@ public:
      */
     machine_side_commutation_state_t get_commutation_state() const noexcept;
 
+    /**
+     * @brief Gets the current rotor sector (0-5).
+     *
+     * Returns the electrical sector of the rotor based on the last update.
+     * Each sector is 60 degrees (π/3 radians) wide. Sector 0 corresponds to
+     * [0°, 60°), sector 1 to [60°, 120°), and so on.
+     *
+     * @return Current sector number (0-5), or -1 if not yet initialized.
+     */
+    int get_current_rotor_sector() const noexcept;
+
 private:
     // Configuration parameters
     const angle_t _forced_commutation_firing_angle_rad{

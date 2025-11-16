@@ -102,7 +102,7 @@ public:
         entry.parameters.insert("commutation_detection_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_detection_threshold));
 
-        registry.insert("machine_side_observer", std::move(entry));
+        registry.insert("observer", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

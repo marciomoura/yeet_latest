@@ -87,7 +87,7 @@ public:
         entry.parameters.insert(
             "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
 
-        registry.insert("grid_side_observer", std::move(entry));
+        registry.insert("observer", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

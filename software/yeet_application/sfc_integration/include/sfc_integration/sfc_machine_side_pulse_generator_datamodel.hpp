@@ -42,6 +42,15 @@ public:
 
         /// Pulse generator active status [bool]
         signal_output<bool> release_pulses;
+
+        /// Virtual reference mode active indicator [bool]
+        signal_output<bool> virtual_reference_active;
+
+        /// Virtual reference angle [rad]
+        signal_output<angle_wrapped> virtual_reference_angle;
+
+        /// Individual pulse override mode active indicator [bool]
+        signal_output<bool> individual_override_active;
     };
 
     /**
@@ -57,6 +66,23 @@ public:
         /// Reference voltage type (line or phase)
         parameter<control::six_pulse_generator::reference_type> reference_type =
             control::six_pulse_generator::reference_type::phase;
+
+        /// Enable virtual reference generator mode [bool]
+        parameter<bool> enable_virtual_reference{false};
+
+        /// Virtual reference frequency [Hz]
+        parameter<frequency_t> virtual_reference_frequency = frequency_t{50.0};
+
+        /// Enable individual pulse override mode [bool]
+        parameter<bool> enable_individual_pulse_override{false};
+
+        /// Individual pulse overrides [bool]
+        parameter<bool> override_p1{false};
+        parameter<bool> override_p2{false};
+        parameter<bool> override_p3{false};
+        parameter<bool> override_p4{false};
+        parameter<bool> override_p5{false};
+        parameter<bool> override_p6{false};
     };
 
 private:
@@ -81,31 +107,29 @@ public:
         // bool parameter - use make_bool_accessor
         entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
 
-        // angle_wrapped parameter - convert to/from radians
-        auto& pulse_width_param = _model_parameters->pulse_width;
-        entry.parameters.insert("pulse_width",
-            low_level_access(
-                // Read: angle_wrapped -> float (radians)
-                [&pulse_width_param]() -> float { return static_cast<float>(pulse_width_param.read().get_radians()); },
-                // Write: float (radians) -> angle_wrapped
-                [&pulse_width_param](
-                    float value_rad) { pulse_width_param.write(angle_wrapped::from_radians(angle_t{value_rad})); }));
+        // angle_wrapped parameter - use make_angle_accessor
+        entry.parameters.insert("pulse_width", yeet::utils::make_angle_accessor(_model_parameters->pulse_width));
 
-        // Enum parameter - convert to/from int
-        auto& reference_type_param = _model_parameters->reference_type;
-        entry.parameters.insert("reference_type",
-            low_level_access(
-                // Read: enum -> float (as int)
-                [&reference_type_param]() -> float {
-                    return static_cast<float>(static_cast<int>(reference_type_param.read()));
-                },
-                // Write: float (as int) -> enum
-                [&reference_type_param](float value) {
-                    reference_type_param.write(
-                        static_cast<control::six_pulse_generator::reference_type>(static_cast<int>(value)));
-                }));
+        // Enum parameter - use make_enum_accessor
+        entry.parameters.insert("reference_type", yeet::utils::make_enum_accessor(_model_parameters->reference_type));
 
-        registry.insert("machine_side_pulse_generator", std::move(entry));
+        // Virtual reference mode parameters
+        entry.parameters.insert(
+            "enable_virtual_reference", yeet::utils::make_bool_accessor(_model_parameters->enable_virtual_reference));
+        entry.parameters.insert("virtual_reference_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_reference_frequency));
+
+        // Individual pulse override mode parameters
+        entry.parameters.insert("enable_individual_pulse_override",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_individual_pulse_override));
+        entry.parameters.insert("override_p1", yeet::utils::make_bool_accessor(_model_parameters->override_p1));
+        entry.parameters.insert("override_p2", yeet::utils::make_bool_accessor(_model_parameters->override_p2));
+        entry.parameters.insert("override_p3", yeet::utils::make_bool_accessor(_model_parameters->override_p3));
+        entry.parameters.insert("override_p4", yeet::utils::make_bool_accessor(_model_parameters->override_p4));
+        entry.parameters.insert("override_p5", yeet::utils::make_bool_accessor(_model_parameters->override_p5));
+        entry.parameters.insert("override_p6", yeet::utils::make_bool_accessor(_model_parameters->override_p6));
+
+        registry.insert("pulse_generator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

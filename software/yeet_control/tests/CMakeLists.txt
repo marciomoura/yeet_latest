@@ -46,7 +46,8 @@ target_sources(
             # three_phase_waveform_generator_test.cpp - Temporarily disabled due
             # to test issues
             units_test.cpp
-            speed_voltage_relationship_test.cpp)
+            speed_voltage_relationship_test.cpp
+            virtual_angle_reference_generator_test.cpp)
 
 # Link dependencies
 target_link_libraries(
