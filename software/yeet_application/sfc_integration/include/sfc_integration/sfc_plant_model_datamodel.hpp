@@ -143,15 +143,6 @@ public:
         /// Used to simulate voltage sags, swells, or off-nominal conditions
         /// Default: 1.0 pu (nominal voltage)
         parameter<voltage_pu_t> grid_voltage_pu = voltage_pu_t(1.0);
-
-        /// Explicit constructor to initialize all parameters with their default values
-        parameters() = default;
-
-        // Allow default copy/move since parameter<T> handles state correctly
-        parameters(const parameters&) = default;
-        parameters(parameters&&) = default;
-        parameters& operator=(const parameters&) = default;
-        parameters& operator=(parameters&&) = default;
     };
 
 private:
