@@ -22,6 +22,7 @@ protected:
 
         // Configure protection thresholds for testing
         auto& params = _runner->get_parameters();
+        params.protection_module_enabled.write(true);
         params.overcurrent_trip_threshold.write(current_pu_t{1.2f});
         params.overvoltage_trip_threshold.write(voltage_pu_t{1.15f});
         params.undervoltage_trip_threshold.write(voltage_pu_t{0.85f});
@@ -354,6 +355,104 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ResetClearsAlarm)
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Reset should clear latched alarm";
     EXPECT_FALSE(is_tripped());
+}
+
+/**
+ * @brief Test disabling protection module immediately clears all outputs
+ *
+ * When protection_module_enabled=false, all trip states, alarms, and warnings
+ * should be immediately cleared, allowing system restart without acknowledgment.
+ */
+TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllOutputs)
+{
+    // Trigger overcurrent fault
+    trigger_overcurrent();
+    run_cycle();
+    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(is_inhibited());
+
+    const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
+    ASSERT_TRUE(outputs.overcurrent_tripped.read()) << "Individual overcurrent trip should be set";
+    ASSERT_TRUE(outputs.any_fault_active.read()) << "Fault active flag should be set";
+
+    // Disable protection module
+    auto& params = _runner->get_parameters();
+    params.protection_module_enabled.write(false);
+    run_cycle();
+
+    // Verify ALL outputs are cleared
+    EXPECT_FALSE(outputs.is_tripped.read()) << "is_tripped should clear when module disabled";
+    EXPECT_FALSE(outputs.is_inhibited.read()) << "is_inhibited should clear when module disabled";
+    EXPECT_FALSE(outputs.any_fault_active.read()) << "any_fault_active should clear when module disabled";
+    EXPECT_FALSE(outputs.overcurrent_tripped.read()) << "overcurrent_tripped should clear";
+    EXPECT_FALSE(outputs.overvoltage_tripped.read()) << "overvoltage_tripped should clear";
+    EXPECT_FALSE(outputs.undervoltage_tripped.read()) << "undervoltage_tripped should clear";
+    EXPECT_FALSE(outputs.overcurrent_warning.read()) << "overcurrent_warning should clear";
+    EXPECT_FALSE(outputs.overvoltage_warning.read()) << "overvoltage_warning should clear";
+    EXPECT_FALSE(outputs.undervoltage_warning.read()) << "undervoltage_warning should clear";
+    EXPECT_FALSE(outputs.communication_loss_tripped.read()) << "communication_loss_tripped should clear";
+    EXPECT_FALSE(outputs.communication_loss_warning.read()) << "communication_loss_warning should clear";
+
+    // Re-enable module with fault still present
+    params.protection_module_enabled.write(true);
+    run_cycle();
+
+    // Protections should detect fault and trip again
+    EXPECT_TRUE(outputs.is_tripped.read()) << "Should trip again when re-enabled with fault present";
+    EXPECT_TRUE(outputs.is_inhibited.read()) << "Should latch alarm again";
+}
+
+/**
+ * @brief Test disabling module allows immediate restart without acknowledgment
+ *
+ * This verifies that disabling protections bypasses the normal trip acknowledgment
+ * and alarm confirmation workflow, enabling emergency recovery.
+ */
+TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImmediateRestart)
+{
+    // Trigger fault and create latched alarm
+    trigger_overvoltage();
+    run_cycle();
+    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(is_inhibited());
+
+    // Normally, restart would be blocked by is_inhibited requiring alarm confirmation
+    // But disabling the module should clear everything
+    auto& params = _runner->get_parameters();
+    params.protection_module_enabled.write(false);
+    run_cycle();
+
+    EXPECT_FALSE(is_tripped()) << "Trip cleared by disabling module";
+    EXPECT_FALSE(is_inhibited()) << "Inhibit cleared - no acknowledgment needed";
+
+    // Clear fault condition and re-enable protections
+    clear_fault_conditions();
+    params.protection_module_enabled.write(true);
+    run_cycle();
+
+    // System should be ready to operate (no trips, no alarms)
+    EXPECT_FALSE(is_tripped()) << "No trip with fault cleared";
+    EXPECT_FALSE(is_inhibited()) << "No inhibit - ready for restart";
+}
+
+/**
+ * @brief Test module stays disabled across multiple cycles
+ */
+TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
+{
+    auto& params = _runner->get_parameters();
+    params.protection_module_enabled.write(false);
+
+    // Inject severe fault conditions
+    trigger_overcurrent();
+    trigger_overvoltage();
+
+    // Run multiple cycles
+    for (int i = 0; i < 10; ++i) {
+        run_cycle();
+        EXPECT_FALSE(is_tripped()) << "Should not trip while module disabled (cycle " << i << ")";
+        EXPECT_FALSE(is_inhibited()) << "Should not inhibit while module disabled (cycle " << i << ")";
+    }
 }
 
 }  // namespace yeet::application::sfc::integration

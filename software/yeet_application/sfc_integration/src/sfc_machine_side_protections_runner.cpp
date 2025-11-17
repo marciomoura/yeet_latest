@@ -57,6 +57,7 @@ void sfc_machine_side_protections_runner::run()
     if (_parameters.force_reset_all) {
         reset();
         _parameters.force_reset_all = false;  // Clear flag after reset
+        return;                               // Skip normal protection logic this cycle to allow clean reset
     }
 
     // Only update protections when both module is enabled AND release signal is active
