@@ -34,6 +34,9 @@ public:
 
         /// Saturation signal from torque controller (anti-windup freeze)
         signal_input<bool> torque_saturated;
+
+        /// Trip signal from machine-side protections (V/Hz, stall, communication loss)
+        signal_input<bool> protection_shutdown_request;
     };
 
     /**

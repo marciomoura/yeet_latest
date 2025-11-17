@@ -98,6 +98,19 @@ class MachineSignalIndex(IntEnum):
     PROTECTION_STALL_WARNING = 62
     PROTECTION_COMMUNICATION_LOSS_TRIPPED = 63
     PROTECTION_COMMUNICATION_LOSS_WARNING = 64
+    
+    # === Fiber Optic RX from Grid-Side Group (65-75) ===
+    FIBER_RX_DC_LINK_CURRENT = 65
+    FIBER_RX_GRID_VOLTAGE_MAGNITUDE = 66
+    FIBER_RX_IS_FORCED_COMMUTATION = 67
+    FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED = 68
+    FIBER_RX_RELEASE_PULSES = 69
+    FIBER_RX_GRID_RELEASE_PROTECTIONS = 70
+    FIBER_RX_GRID_TRIP_ACKNOWLEDGED = 71
+    FIBER_RX_STATE_ID = 72
+    FIBER_RX_GRID_VOLTAGE_MAGNITUDE_DUP = 73
+    FIBER_RX_DC_LINK_CURRENT_DUP = 74
+    FIBER_RX_STATE_ID_DUP = 75
 
 
 @dataclass
@@ -221,3 +234,16 @@ class MachineProtectionsData:
     stall_warning: bool = False
     communication_loss_tripped: bool = False
     communication_loss_warning: bool = False
+
+
+@dataclass
+class FiberOpticRxFromGridData:
+    """Fiber optic signals received from grid-side (65-75)."""
+    dc_link_current_pu: float = 0.0
+    grid_voltage_magnitude_pu: float = 0.0
+    is_forced_commutation: bool = False
+    force_commutation_acknowledged: bool = False
+    release_pulses: bool = False
+    grid_release_protections: bool = False
+    grid_trip_acknowledged: bool = False
+    state_id: int = 0

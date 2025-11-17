@@ -116,6 +116,21 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(63, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
     packet.add_signal(64, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
 
+    // === Fiber Optic RX from Grid-Side Group (65-75) ===
+    const auto& fiber_rx = _control.external_ios.get_fiber_optics_inputs_from_grid();
+    packet.add_signal(65, static_cast<float>(fiber_rx.dc_link_current.read()));
+    packet.add_signal(66, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));
+    packet.add_signal(67, (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation) ? 1.0f : 0.0f);
+    packet.add_signal(68, fiber_rx.force_commutation_acknowledged.read() ? 1.0f : 0.0f);
+    packet.add_signal(69, fiber_rx.release_pulses.read() ? 1.0f : 0.0f);
+    packet.add_signal(70, fiber_rx.grid_release_protections.read() ? 1.0f : 0.0f);
+    packet.add_signal(71, fiber_rx.grid_trip_acknowledged.read() ? 1.0f : 0.0f);
+    packet.add_signal(72, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));
+    packet.add_signal(73, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));  // Duplicate for convenience
+    packet.add_signal(74, static_cast<float>(fiber_rx.dc_link_current.read()));         // Duplicate for convenience
+    packet.add_signal(
+        75, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));  // Duplicate for convenience
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);
 

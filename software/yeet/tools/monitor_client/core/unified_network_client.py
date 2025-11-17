@@ -115,7 +115,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._packet_timeout_ms = 10000  # 10 seconds without packets = timeout
         self._packet_timeout_enabled = True  # Can be disabled during parameter loading
         self._telemetry_streaming = False  # Track if telemetry should be streaming
-        self._recv_buffer_max_size = 100000  # 100KB max buffer
+        self._recv_buffer_max_size = 500000  # 500KB max buffer (handle high-rate bursts)
         
         # Qt timer for polling socket
         self._poll_timer = QtCore.QTimer(self)
@@ -130,7 +130,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Qt timer for deferred packet processing (separate from polling)
         self._process_timer = QtCore.QTimer(self)
         self._process_timer.timeout.connect(self._process_receive_buffer_deferred)
-        self._process_timer.setInterval(1)  # 1ms - very frequent but doesn't block polling
+        self._process_timer.setInterval(0)  # 0ms = process as fast as possible (Qt event loop limited)
         
         # Flag to control processing
         self._processing_enabled = True
@@ -474,7 +474,7 @@ class UnifiedNetworkClient(QtCore.QObject):
             # With large window sizes (1800+ samples), UI updates are heavy,
             # so we need aggressive packet processing to prevent buffer overflow
             packets_processed = 0
-            max_packets_per_tick = 50  # Increased from 10 to handle bursts
+            max_packets_per_tick = 200  # Aggressively process packets to prevent buffer overflow
             
             while (len(self._recv_buffer) >= 4 and  # Minimum size for sync frame or packet header
                    packets_processed < max_packets_per_tick and
@@ -706,6 +706,40 @@ class UnifiedNetworkClient(QtCore.QObject):
             True if packet was consumed (or should be removed), False if need more data
         """
         try:
+            # Need at least 16 bytes for header to validate
+            if len(self._recv_buffer) < 16:
+                return False  # Need more data
+            
+            # Validate protocol version (byte 1) before attempting decode
+            protocol_version = self._recv_buffer[1]
+            if protocol_version != 0x01:
+                # This is likely telemetry data being misidentified as a parameter packet
+                # Don't spam warnings - this happens with batched telemetry packets
+                if self.verbose:
+                    logger.debug(f"Invalid protocol version 0x{protocol_version:02x} for parameter packet type 0x{packet_type:02x}, likely telemetry data")
+                
+                # Search for next sync frame or valid packet within reasonable distance
+                found_valid = False
+                for i in range(1, min(64, len(self._recv_buffer))):
+                    # Check for sync frame
+                    if i + 3 < len(self._recv_buffer):
+                        if self._telemetry_decoder.is_sync_frame(bytes(self._recv_buffer[i:i+4])):
+                            del self._recv_buffer[:i]  # Discard up to sync frame
+                            found_valid = True
+                            break
+                    # Check for valid telemetry packet type
+                    if self._recv_buffer[i] in [0x01, 0x02]:
+                        del self._recv_buffer[:i]  # Discard up to telemetry packet
+                        found_valid = True
+                        break
+                
+                if not found_valid:
+                    # No valid marker found in search window - discard search window
+                    discard_count = min(64, len(self._recv_buffer))
+                    del self._recv_buffer[:discard_count]
+                
+                return True
+            
             response_data = None
             bytes_consumed = 0
             
@@ -723,6 +757,13 @@ class UnifiedNetworkClient(QtCore.QObject):
                 result = self._param_decoder.decode_get_by_index_response(bytes(self._recv_buffer))
                 if result:
                     metadata, bytes_consumed = result
+                    
+                    # Validate metadata for garbage data
+                    if not self._validate_parameter_metadata(metadata):
+                        logger.warning(f"Received invalid parameter metadata (garbage data), discarding packet")
+                        del self._recv_buffer[:bytes_consumed]
+                        return True  # Consumed but don't emit
+                    
                     response_data = {
                         'type': 'get_by_index_response',
                         'metadata': metadata
@@ -766,6 +807,68 @@ class UnifiedNetworkClient(QtCore.QObject):
             if len(self._recv_buffer) > 0:
                 del self._recv_buffer[0]
             return True
+    
+    def _validate_parameter_metadata(self, metadata) -> bool:
+        """Validate parameter metadata to detect garbage data.
+        
+        Args:
+            metadata: ParameterMetadata object to validate
+            
+        Returns:
+            True if metadata appears valid, False if likely garbage
+        """
+        try:
+            # Check for reasonable index bounds
+            if metadata.parameter_index < 0 or metadata.parameter_index > 10000:
+                logger.debug(f"Invalid parameter_index: {metadata.parameter_index}")
+                return False
+            
+            if metadata.total_parameters < 0 or metadata.total_parameters > 10000:
+                logger.debug(f"Invalid total_parameters: {metadata.total_parameters}")
+                return False
+            
+            # Check that index is within total
+            if metadata.parameter_index >= metadata.total_parameters:
+                logger.debug(f"Index {metadata.parameter_index} >= total {metadata.total_parameters}")
+                return False
+            
+            # Check for printable ASCII strings (no null bytes in middle, reasonable length)
+            if not metadata.component or len(metadata.component) > 63:
+                logger.debug(f"Invalid component: '{metadata.component}'")
+                return False
+            
+            if not metadata.name or len(metadata.name) > 63:
+                logger.debug(f"Invalid name: '{metadata.name}'")
+                return False
+            
+            # Check for non-printable characters in critical fields
+            if not all(32 <= ord(c) <= 126 or c == '\x00' for c in metadata.component):
+                logger.debug(f"Non-printable chars in component")
+                return False
+            
+            if not all(32 <= ord(c) <= 126 or c == '\x00' for c in metadata.name):
+                logger.debug(f"Non-printable chars in name")
+                return False
+            
+            # Check for reasonable numeric values (not NaN or Inf)
+            import math
+            if math.isnan(metadata.current_value) or math.isinf(metadata.current_value):
+                logger.debug(f"Invalid current_value: {metadata.current_value}")
+                return False
+            
+            if math.isnan(metadata.min_value) or math.isinf(metadata.min_value):
+                logger.debug(f"Invalid min_value: {metadata.min_value}")
+                return False
+            
+            if math.isnan(metadata.max_value) or math.isinf(metadata.max_value):
+                logger.debug(f"Invalid max_value: {metadata.max_value}")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.debug(f"Exception during metadata validation: {e}")
+            return False
     
     def get_statistics(self) -> dict:
         """Get reception statistics.

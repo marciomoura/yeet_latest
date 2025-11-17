@@ -163,9 +163,12 @@ public:
         external_signal<speed_pu_t> measured_speed{speed_pu_t{0.0}};         ///< Machine rotor speed [pu]
         external_signal<current_pu_t> current_reference{current_pu_t{0.0}};  ///< Current ref from torque controller
         external_signal<voltage_pu_t> machine_voltage_magnitude{
-            voltage_pu_t{0.0}};                                  ///< Machine back-EMF magnitude [pu]
-        external_signal<bool> request_force_commutation{false};  ///< Force commutation request
-        external_signal<bool> shutdown_request{false};           ///< Shutdown request from machine side
+            voltage_pu_t{0.0}};                                   ///< Machine back-EMF magnitude [pu]
+        external_signal<bool> request_force_commutation{false};   ///< Force commutation request
+        external_signal<bool> shutdown_request{false};            ///< Shutdown request from machine side
+        external_signal<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
+        external_signal<bool> protection_inhibit{false};          ///< Protection system inhibited (awaiting ack)
+        external_signal<bool> machine_trip_acknowledged{false};   ///< Machine-side trip acknowledgment
     };
 
     // ==================== PUBLIC INTERFACE ====================

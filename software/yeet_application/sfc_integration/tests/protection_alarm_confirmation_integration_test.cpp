@@ -50,6 +50,7 @@ public:
         // Register loggers for debugging
         register_complete_logger(simulator, system.grid_side_control.state_machine);
         register_complete_logger(simulator, system.grid_side_control.grid_protections);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
         register_minimal_plant_model_logger(simulator, system.plant);
     }
@@ -381,9 +382,11 @@ TEST_F(ProtectionAlarmConfirmationIntegrationTest, OvervoltageRecoveryWithAlarmC
     simulate_for(0.05);
     EXPECT_TRUE(is_in_operation()) << "System enters OPERATION_ON after alarm confirmed";
 
-    // Clear start command to complete the test cleanly
-    set_start_command(false);
-    simulate_for(0.05);
+    // Simulate for a while to ensure stability
+    simulate_for(10.0);
+    EXPECT_TRUE(is_in_operation()) << "System enters OPERATION_ON after alarm confirmed";
+    EXPECT_FALSE(is_protection_inhibited()) << "Alarm cleared after confirmation";
+    EXPECT_FALSE(is_protection_tripped()) << "Trip remains cleared";
 } /**
    * @brief Test undervoltage fault recovery with alarm confirmation workflow
    *
@@ -463,9 +466,11 @@ TEST_F(ProtectionAlarmConfirmationIntegrationTest, UndervoltageRecoveryWithAlarm
     simulate_for(0.05);
     EXPECT_TRUE(is_in_operation()) << "System enters OPERATION_ON after alarm confirmed";
 
-    // Clear start command to complete the test cleanly
-    set_start_command(false);
-    simulate_for(0.05);
+    // Simulate for a while to ensure stability
+    simulate_for(10.0);
+    EXPECT_TRUE(is_in_operation()) << "System enters OPERATION_ON after alarm confirmed";
+    EXPECT_FALSE(is_protection_inhibited()) << "Alarm cleared after confirmation";
+    EXPECT_FALSE(is_protection_tripped()) << "Trip remains cleared";
 }
 
 /**

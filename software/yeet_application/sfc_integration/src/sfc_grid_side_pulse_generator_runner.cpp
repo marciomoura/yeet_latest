@@ -43,7 +43,7 @@ void sfc_grid_side_pulse_generator_runner::run()
 
     // Step 2: Get firing angle command
     const angle_wrapped firing_angle_command = _inputs.firing_angle.read();
-    const bool release_pulses_input = _inputs.release_pulses.read();
+    const bool release_pulses_input = _inputs.release_pulses.read() || using_virtual_reference;
 
     // Step 3: Generate pulses using the six-pulse generator
     control::six_pulse_generator::pulses pulses =

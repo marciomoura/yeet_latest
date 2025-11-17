@@ -99,6 +99,16 @@ class GridSignalIndex(IntEnum):
     PROTECTION_UNDERVOLTAGE_WARNING = 64
     PROTECTION_COMMUNICATION_LOSS_TRIPPED = 65
     PROTECTION_COMMUNICATION_LOSS_WARNING = 66
+    
+    # === Fiber Optic RX from Machine-Side Group (67-74) ===
+    FIBER_RX_MEASURED_SPEED = 67
+    FIBER_RX_DC_LINK_CURRENT_REFERENCE = 68
+    FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE = 69
+    FIBER_RX_FORCE_COMMUTATION_REQUEST = 70
+    FIBER_RX_SHUTDOWN_REQUEST = 71
+    FIBER_RX_MACHINE_PROTECTION_TRIPPED = 72
+    FIBER_RX_PROTECTION_INHIBIT = 73
+    FIBER_RX_MACHINE_TRIP_ACKNOWLEDGED = 74
 
 
 @dataclass
@@ -211,3 +221,16 @@ class GridProtectionsData:
     undervoltage_warning: bool = False
     communication_loss_tripped: bool = False
     communication_loss_warning: bool = False
+
+
+@dataclass
+class FiberOpticRxFromMachineData:
+    """Fiber optic signals received from machine-side (67-74)."""
+    measured_speed_pu: float = 0.0
+    dc_link_current_reference_pu: float = 0.0
+    machine_voltage_magnitude_pu: float = 0.0
+    force_commutation_request: bool = False
+    shutdown_request: bool = False
+    machine_protection_tripped: bool = False
+    protection_inhibit: bool = False
+    machine_trip_acknowledged: bool = False
