@@ -129,6 +129,10 @@ void sfc_machine_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         torque_controller.get_outputs().is_saturated, machine_integrator_supervisor.get_inputs().torque_saturated);
 
+    // Connect machine-side protections trip signal (propagate to grid-side via fiber optics)
+    signals_connector::connect_output_to_input(machine_protections.get_outputs().is_tripped,
+        machine_integrator_supervisor.get_inputs().protection_shutdown_request);
+
     // ==================== Excitation Controller Inputs ====================
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, excitation_controller.get_inputs().machine_rotor_speed_pu);
@@ -145,8 +149,8 @@ void sfc_machine_side_control::connect_internal_signals()
         machine_side_observer.get_outputs().estimated_speed, startup_sequencer.get_inputs().measured_speed);
     signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
         startup_sequencer.get_inputs().machine_voltage_magnitude);
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_grid().current_state_id, startup_sequencer.get_inputs().current_state_id);
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().current_state_id,
+        startup_sequencer.get_inputs().current_state_id);
 
     // ==================== Speed Controller Inputs ====================
     // Speed reference from startup sequencer (rate-limited)
@@ -192,18 +196,19 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== Machine-Side Controller Inputs ====================
     signals_connector::connect_output_to_input(
         machine_side_observer.get_outputs().estimated_speed, machine_side_controller.get_inputs().machine_speed);
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_grid().dc_link_current, machine_side_controller.get_inputs().dc_link_current);
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current,
+        machine_side_controller.get_inputs().dc_link_current);
 
     // ==================== Machine-Side Modulator Inputs ====================
     signals_connector::connect_output_to_input(
         machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
     signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
         machine_side_modulator.get_inputs().machine_reference_angle);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().force_commutation_acknowledged,
-        machine_side_modulator.get_inputs().force_commutation_acknowledged);
     signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_grid().operating_mode, machine_side_modulator.get_inputs().operating_mode);
+        external_ios.get_fiber_optics_inputs_from_grid().force_commutation_acknowledged,
+        machine_side_modulator.get_inputs().force_commutation_acknowledged);
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().operating_mode,
+        machine_side_modulator.get_inputs().operating_mode);
     // Reference frame source and virtual angle from startup sequencer
     signals_connector::connect_output_to_input(startup_sequencer.get_outputs().reference_frame_source,
         machine_side_modulator.get_inputs().reference_frame_source);
@@ -223,8 +228,8 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // ==================== Machine-Side Protections Inputs ====================
     // DC link current from fiber optics
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_grid().dc_link_current, machine_protections.get_inputs().dc_link_current_pu);
+    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current,
+        machine_protections.get_inputs().dc_link_current_pu);
     // Machine voltage magnitude from measurements
     signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_magnitude,
         machine_protections.get_inputs().machine_voltage_magnitude_pu);
@@ -240,7 +245,8 @@ void sfc_machine_side_control::connect_internal_signals()
     // For now, mock as false until startup_sequencer adds startup_active output
     yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
     // Protection signals received from grid-side via fiber optics
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().grid_release_protections,
+    signals_connector::connect_output_to_input(
+        external_ios.get_fiber_optics_inputs_from_grid().grid_release_protections,
         machine_protections.get_inputs().release_protections);
     signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().grid_trip_acknowledged,
         machine_protections.get_inputs().trip_acknowledged);
