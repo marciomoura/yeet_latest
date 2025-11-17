@@ -416,7 +416,7 @@
                 "--machine-port",
                 "7001",
                 "--frequency",
-                "3000",
+                "20000",
                 "--verbose"
             ],
             "group": {

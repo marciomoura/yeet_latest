@@ -38,6 +38,9 @@ void sfc_grid_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_optic
     _fiber_optics_inputs_from_machine.machine_voltage_magnitude.write(msg.machine_voltage_magnitude);
     _fiber_optics_inputs_from_machine.request_force_commutation.write(msg.force_commutation_request);
     _fiber_optics_inputs_from_machine.shutdown_request.write(msg.shutdown_request);
+    _fiber_optics_inputs_from_machine.machine_protection_tripped.write(msg.machine_protection_tripped);
+    _fiber_optics_inputs_from_machine.protection_inhibit.write(msg.protection_inhibit);
+    _fiber_optics_inputs_from_machine.machine_trip_acknowledged.write(msg.machine_trip_acknowledged);
 }
 
 fiber_optic::grid_to_machine_message sfc_grid_side_external_ios_datamodel::get_fiber_optics_tx() const

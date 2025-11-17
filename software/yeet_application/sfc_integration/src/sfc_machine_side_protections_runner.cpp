@@ -57,6 +57,7 @@ void sfc_machine_side_protections_runner::run()
     if (_parameters.force_reset_all) {
         reset();
         _parameters.force_reset_all = false;  // Clear flag after reset
+        return;                               // Skip normal protection logic this cycle to allow clean reset
     }
 
     // Only update protections when both module is enabled AND release signal is active
@@ -64,7 +65,29 @@ void sfc_machine_side_protections_runner::run()
     bool release_signal = _inputs.release_protections;
     bool enable = module_enabled && release_signal;
 
-    if (enable) {
+    // If module is disabled, force clear all trip states and alarms
+    if (!module_enabled) {
+        _vhz_protection.reset();
+        _stall_protection.reset();
+        _communication_watchdog.reset();
+        _trip_latched = false;
+        _alarm_pending = false;
+
+        // Clear all output signals immediately
+        _outputs.is_tripped = false;
+        _outputs.is_inhibited = false;
+        _outputs.any_fault_active = false;
+        _outputs.over_flux_tripped = false;
+        _outputs.under_flux_tripped = false;
+        _outputs.stall_tripped = false;
+        _outputs.over_flux_warning = false;
+        _outputs.under_flux_warning = false;
+        _outputs.stall_warning = false;
+        _outputs.communication_loss_tripped = false;
+        _outputs.communication_loss_warning = false;
+        return;  // Skip normal protection logic
+    }
+    else if (enable) {
         // Update V/Hz protection with latest measurements
         _vhz_protection.update(_inputs.machine_voltage_magnitude_pu, _inputs.machine_frequency);
 

@@ -10,7 +10,10 @@ network_handler::network_handler(telemetry_manager& telemetry_mgr, parameter_han
     : telemetry_manager_(telemetry_mgr),
       parameter_handler_(param_handler),
       telemetry_started_(false),
-      sync_frame_counter_(0)
+      sync_frame_counter_(0),
+      send_sync_before_next_packet_(false),
+      batch_count_(0),
+      batch_bytes_(0)
 {
 }
 
@@ -55,7 +58,10 @@ bool network_handler::process_command(const std::uint8_t* buffer, std::uint16_t 
             case telemetry::command_type::start_telemetry:
                 telemetry_started_ = true;
                 telemetry_manager_.start();
-                sync_frame_counter_ = 0;  // Reset counter for new stream
+                sync_frame_counter_ = 0;               // Reset counter for new stream
+                send_sync_before_next_packet_ = true;  // Send sync before first packet
+                batch_count_ = 0;                      // Reset batch state
+                batch_bytes_ = 0;
 
                 // Queue sync frame (0xDEADBEEF) at start of stream for client resynchronization
                 if (outputs != nullptr) {
@@ -66,9 +72,19 @@ bool network_handler::process_command(const std::uint8_t* buffer, std::uint16_t 
                 return true;
 
             case telemetry::command_type::stop_telemetry:
+                // Flush any pending batch before stopping
+                if (batch_bytes_ > 0 && outputs != nullptr) {
+                    std::memcpy(outputs->network_tx.tx_buffer, batch_buffer_, batch_bytes_);
+                    outputs->network_tx.tx_length = static_cast<std::uint16_t>(batch_bytes_);
+                    outputs->network_tx.transmit_request = true;
+                }
+
                 telemetry_started_ = false;
                 telemetry_manager_.stop();
-                sync_frame_counter_ = 0;  // Reset counter when stopping
+                sync_frame_counter_ = 0;                // Reset counter when stopping
+                send_sync_before_next_packet_ = false;  // Clear sync flag
+                batch_count_ = 0;                       // Reset batch state
+                batch_bytes_ = 0;
                 return true;
 
             default:
@@ -191,22 +207,6 @@ void network_handler::process_telemetry(
     if (!parameter_response_pending) {
         // Only transmit if telemetry streaming is started
         if (telemetry_started_) {
-            // Check if it's time to send periodic sync frame for stream recovery
-            // (helps client recover from packet loss or buffer desynchronization)
-            if (++sync_frame_counter_ >= SYNC_FRAME_INTERVAL) {
-                sync_frame_counter_ = 0;
-
-                // Queue periodic sync frame
-                std::size_t sync_size = encode_sync_frame(outputs->network_tx.tx_buffer);
-                outputs->network_tx.tx_length = sync_size;
-                outputs->network_tx.transmit_request = true;
-                outputs->network_tx.socket_id = (inputs != nullptr) ? inputs->network_rx.socket_id : 0;
-#ifdef HOST_BUILD
-                printf("[SYNC] Sending periodic sync frame (counter reset after %u packets)\n", SYNC_FRAME_INTERVAL);
-#endif
-                return;  // Send sync frame, skip telemetry this cycle
-            }
-
             // Update telemetry manager (handles decimation and packet building)
             auto tx = telemetry_manager_.update(false);
 
@@ -214,14 +214,39 @@ void network_handler::process_telemetry(
             if (tx.is_ready()) {
                 // Validate packet before transmission
                 if (validate_outgoing_packet(tx.data, tx.size)) {
+                    // Check if we need to send sync frame before this packet
+                    if (send_sync_before_next_packet_) {
+                        // Prepend sync frame to telemetry packet
+                        std::size_t sync_size = encode_sync_frame(outputs->network_tx.tx_buffer);
+                        std::memcpy(outputs->network_tx.tx_buffer + sync_size, tx.data, tx.size);
+                        outputs->network_tx.tx_length = static_cast<std::uint16_t>(sync_size + tx.size);
+                        send_sync_before_next_packet_ = false;
 #ifdef HOST_BUILD
-                    printf("[TELEMETRY] Transmitting telemetry packet: %zu bytes\n", tx.size);
+                        printf("[SYNC+TELEMETRY] Sending sync frame + telemetry: %u bytes\n",
+                            outputs->network_tx.tx_length);
 #endif
-                    // Copy encoded packet to transmission buffer
-                    std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
-                    outputs->network_tx.tx_length = static_cast<std::uint16_t>(tx.size);
+                    }
+                    else {
+                        // Normal telemetry packet
+                        std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
+                        outputs->network_tx.tx_length = static_cast<std::uint16_t>(tx.size);
+#ifdef HOST_BUILD
+                        printf("[TELEMETRY] Transmitting telemetry packet: %zu bytes\n", tx.size);
+#endif
+                    }
+
                     outputs->network_tx.transmit_request = true;
                     outputs->network_tx.socket_id = inputs->network_rx.socket_id;
+
+                    // Check if it's time to send periodic sync frame before next packet
+                    if (++sync_frame_counter_ >= SYNC_FRAME_INTERVAL) {
+                        sync_frame_counter_ = 0;
+                        send_sync_before_next_packet_ = true;
+#ifdef HOST_BUILD
+                        printf(
+                            "[SYNC] Will send sync frame before next packet (after %u packets)\n", SYNC_FRAME_INTERVAL);
+#endif
+                    }
                 }
                 // If validation fails, discard corrupted packet (silent drop)
             }

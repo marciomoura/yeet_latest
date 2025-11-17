@@ -214,9 +214,17 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.param_loading = False
         self.was_streaming_before_param_load = False
         self.pending_parameter_indices: List[int] = []  # Queue of indices to request
+        self.requested_parameter_indices: set = set()  # Track which indices were requested
+        self.received_parameter_indices: set = set()   # Track which indices were received
+        self.total_parameter_count: int = 0            # Total parameters expected
+        self.retry_attempt: int = 0                     # Current retry attempt (0 = first pass)
+        self.max_retries: int = 3                       # Maximum retry attempts per missing index
         self.param_request_timer = QtCore.QTimer(self)
         self.param_request_timer.timeout.connect(self._send_next_parameter_request)
         self.param_request_timer.setInterval(20)  # 50ms between requests (20 requests/sec)
+        self.retry_check_timer = QtCore.QTimer(self)
+        self.retry_check_timer.timeout.connect(self._check_for_missing_parameters)
+        self.retry_check_timer.setSingleShot(True)  # One-shot timer for retry check
         
         # Build UI
         central = QtWidgets.QWidget()
@@ -1121,6 +1129,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # Disable packet timeout during parameter loading (can take >5 seconds for many parameters)
         self.network_client.set_packet_timeout_enabled(False)
         
+        # Reset tracking variables for new parameter load
+        self.requested_parameter_indices.clear()
+        self.received_parameter_indices.clear()
+        self.total_parameter_count = 0
+        self.retry_attempt = 0
+        
         # Request parameter count
         logger.info("Sending parameter count request...")
         if not self.network_client.send_parameter_count_request():
@@ -1145,32 +1159,123 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     def _send_next_parameter_request(self):
         """Send next parameter request from queue (called by timer)."""
         if not self.pending_parameter_indices:
-            # All requests sent, stop timer
+            # All requests sent, stop timer and schedule retry check
             self.param_request_timer.stop()
-            logger.info("All parameter requests sent, waiting for responses...")
+            
+            if self.retry_attempt == 0:
+                logger.info(f"All {self.total_parameter_count} parameter requests sent (first pass), waiting for responses...")
+                # Schedule check for missing parameters after 2 seconds (allow time for responses)
+                self.retry_check_timer.start(2000)
+            else:
+                logger.info(f"Retry attempt {self.retry_attempt} complete, waiting for responses...")
+                # For retries, check sooner since we expect fewer responses
+                self.retry_check_timer.start(1000)
             return
         
         # Send next request
         index = self.pending_parameter_indices.pop(0)
-        if not self.network_client.send_parameter_get_by_index_request(index):
+        if self.network_client.send_parameter_get_by_index_request(index):
+            self.requested_parameter_indices.add(index)  # Track that we requested this index
+        else:
             logger.error(f"Failed to send parameter request for index {index}")
-            # Continue anyway - might recover
+            # Continue anyway - will be detected as missing and retried
         
         # Update status
         remaining = len(self.pending_parameter_indices)
+        retry_str = f" (retry {self.retry_attempt})" if self.retry_attempt > 0 else ""
         if remaining > 0:
-            self.param_status_label.setText(f"Requesting parameters... ({remaining} remaining)")
+            self.param_status_label.setText(f"Requesting parameters... ({remaining} remaining){retry_str}")
+    
+    def _check_for_missing_parameters(self):
+        """Check for missing parameters and retry if needed."""
+        if not self.param_loading:
+            return  # Loading was cancelled or completed
+        
+        # Identify missing indices
+        missing_indices = self.requested_parameter_indices - self.received_parameter_indices
+        
+        if not missing_indices:
+            # No missing parameters - we're done!
+            if len(self.parameters) >= self.total_parameter_count:
+                logger.info(f"All {self.total_parameter_count} parameters successfully loaded!")
+                self._complete_parameter_load()
+            return
+        
+        # We have missing parameters
+        if self.retry_attempt < self.max_retries:
+            self.retry_attempt += 1
+            logger.warning(f"Missing {len(missing_indices)} parameters (indices: {sorted(missing_indices)[:10]}...), retry attempt {self.retry_attempt}/{self.max_retries}")
+            
+            # Queue missing indices for retry
+            self.pending_parameter_indices = sorted(list(missing_indices))
+            self.param_status_label.setText(f"Retrying {len(missing_indices)} missing parameters (attempt {self.retry_attempt}/{self.max_retries})...")
+            
+            # Restart request timer to send retries
+            self.param_request_timer.start()
+        else:
+            # Max retries exhausted
+            logger.error(f"Failed to load {len(missing_indices)} parameters after {self.max_retries} retries")
+            logger.error(f"Missing indices: {sorted(missing_indices)}")
+            
+            received_count = len(self.received_parameter_indices)
+            success_rate = (received_count / self.total_parameter_count * 100) if self.total_parameter_count > 0 else 0
+            
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Incomplete Parameter Load",
+                f"Successfully loaded {received_count}/{self.total_parameter_count} parameters ({success_rate:.1f}%)\n\n"
+                f"Missing {len(missing_indices)} parameters after {self.max_retries} retry attempts.\n\n"
+                "Possible causes:\n"
+                "- Network packet loss\n"
+                "- Controller too busy to respond\n"
+                "- Firmware issue with specific parameter indices\n\n"
+                "The loaded parameters are still usable."
+            )
+            
+            # Complete with partial success
+            self._complete_parameter_load()
+    
+    def _complete_parameter_load(self):
+        """Complete parameter loading (success or partial success)."""
+        self.param_loading = False
+        self.load_params_btn.setEnabled(True)
+        self.refresh_params_btn.setEnabled(True)
+        self.save_params_btn.setEnabled(True)
+        
+        # Stop timers and clear queues
+        self.param_request_timer.stop()
+        self.retry_check_timer.stop()
+        self.pending_parameter_indices.clear()
+        
+        # Re-enable packet timeout
+        self.network_client.set_packet_timeout_enabled(True)
+        
+        # Update status
+        group_count = self.param_tree.topLevelItemCount()
+        if self.param_search_box.text().strip():
+            self._on_parameter_search_changed(self.param_search_box.text())
+        else:
+            self.param_status_label.setText(f"Loaded {len(self.parameters)} parameters ({group_count} groups)")
+        
+        logger.info(f"Parameter load complete: {len(self.parameters)} parameters in {group_count} groups")
+        
+        # Restart telemetry if it was running before
+        if self.was_streaming_before_param_load:
+            logger.info("Restarting telemetry after parameter load")
+            self.network_client.start_telemetry()
+            self.was_streaming_before_param_load = False
     
     def _check_parameter_load_timeout(self):
-        """Check if parameter loading timed out."""
+        """Check if parameter loading timed out (global 30-second timeout)."""
         if self.param_loading and len(self.parameters) == 0:
             logger.warning("Parameter load timed out - no response from controller")
             self.param_loading = False
             self.load_params_btn.setEnabled(True)
             self.param_status_label.setText("Load timeout - controller may not support parameters")
             
-            # Stop request timer
+            # Stop timers
             self.param_request_timer.stop()
+            self.retry_check_timer.stop()
             self.pending_parameter_indices.clear()
             
             # Re-enable packet timeout
@@ -1200,6 +1305,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             if response_type == 'count_response':
                 # Received parameter count, now request each by index
                 total_count = response.get('total_parameters', 0)
+                self.total_parameter_count = total_count
                 logger.info(f"Received parameter count: {total_count}")
                 self.param_status_label.setText(f"Loading {total_count} parameters...")
                 
@@ -1221,41 +1327,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 # Received parameter metadata
                 metadata: ParameterMetadata = response.get('metadata')
                 if metadata:
+                    # Track that we received this index
+                    self.received_parameter_indices.add(metadata.parameter_index)
+                    
                     self.parameters.append(metadata)
                     self._add_parameter_to_tree(metadata)
                     
                     # Update status
-                    self.param_status_label.setText(f"Loaded {len(self.parameters)}/{metadata.total_parameters} parameters")
+                    retry_str = f" (retry {self.retry_attempt})" if self.retry_attempt > 0 else ""
+                    self.param_status_label.setText(f"Loaded {len(self.parameters)}/{metadata.total_parameters} parameters{retry_str}")
                     
-                    # Check if done
-                    if len(self.parameters) >= metadata.total_parameters:
-                        self.param_loading = False
-                        self.load_params_btn.setEnabled(True)
-                        self.refresh_params_btn.setEnabled(True)  # Enable refresh after load
-                        self.save_params_btn.setEnabled(True)  # Enable save after load
-                        
-                        # Update status and apply any active search filter
-                        group_count = self.param_tree.topLevelItemCount()
-                        if self.param_search_box.text().strip():
-                            # Re-apply filter after loading
-                            self._on_parameter_search_changed(self.param_search_box.text())
-                        else:
-                            self.param_status_label.setText(f"Loaded {len(self.parameters)} parameters ({group_count} groups)")
-                        
-                        logger.info(f"All parameters loaded: {len(self.parameters)} parameters in {group_count} groups")
-                        
-                        # Stop request timer and clear queue
-                        self.param_request_timer.stop()
-                        self.pending_parameter_indices.clear()
-                        
-                        # Re-enable packet timeout
-                        self.network_client.set_packet_timeout_enabled(True)
-                        
-                        # Restart telemetry if it was running before
-                        if self.was_streaming_before_param_load:
-                            logger.info("Restarting telemetry after parameter load")
-                            self.network_client.start_telemetry()
-                            self.was_streaming_before_param_load = False
+                    # Check if done (all expected parameters received)
+                    if len(self.received_parameter_indices) >= self.total_parameter_count:
+                        logger.info(f"All {self.total_parameter_count} parameters received!")
+                        # Cancel retry check timer if running
+                        self.retry_check_timer.stop()
+                        self._complete_parameter_load()
             
             elif response_type == 'set_response':
                 # Parameter set response

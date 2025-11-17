@@ -111,6 +111,17 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(65, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
     packet.add_signal(66, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
 
+    // === Fiber Optic RX from Machine-Side Group (67-74) ===
+    const auto& fiber_rx = _control.get_external_ios().get_fiber_optics_inputs_from_machine();
+    packet.add_signal(67, static_cast<float>(fiber_rx.measured_speed.read()));
+    packet.add_signal(68, static_cast<float>(fiber_rx.current_reference.read()));
+    packet.add_signal(69, static_cast<float>(fiber_rx.machine_voltage_magnitude.read()));
+    packet.add_signal(70, fiber_rx.request_force_commutation.read() ? 1.0f : 0.0f);
+    packet.add_signal(71, fiber_rx.shutdown_request.read() ? 1.0f : 0.0f);
+    packet.add_signal(72, fiber_rx.machine_protection_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(73, fiber_rx.protection_inhibit.read() ? 1.0f : 0.0f);
+    packet.add_signal(74, fiber_rx.machine_trip_acknowledged.read() ? 1.0f : 0.0f);
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
 

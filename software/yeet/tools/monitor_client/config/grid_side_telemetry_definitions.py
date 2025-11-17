@@ -30,6 +30,7 @@ def _get_section_order() -> List[str]:
         'measurements',
         'controller',
         'observer',
+        'fiber_optic_rx',
     ]
 
 
@@ -136,6 +137,19 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'undervoltage warning', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
                 {'name': 'comm loss tripped', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'comm loss warning', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
+        'fiber_optic_rx': {
+            'title': 'Fiber Optic RX (from Machine)',
+            'fields': [
+                {'name': 'measured speed', 'index': GridSignalIndex.FIBER_RX_MEASURED_SPEED, 'type': 'float', 'format': '.4f'},
+                {'name': 'current reference', 'index': GridSignalIndex.FIBER_RX_DC_LINK_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'machine voltage mag.', 'index': GridSignalIndex.FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'force comm. request', 'index': GridSignalIndex.FIBER_RX_FORCE_COMMUTATION_REQUEST, 'type': 'bool', 'format': 'bool'},
+                {'name': 'shutdown request', 'index': GridSignalIndex.FIBER_RX_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
+                {'name': 'machine protection tripped', 'index': GridSignalIndex.FIBER_RX_MACHINE_PROTECTION_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'protection inhibit', 'index': GridSignalIndex.FIBER_RX_PROTECTION_INHIBIT, 'type': 'bool', 'format': 'bool'},
+                {'name': 'machine trip ack', 'index': GridSignalIndex.FIBER_RX_MACHINE_TRIP_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
             ]
         }
     }

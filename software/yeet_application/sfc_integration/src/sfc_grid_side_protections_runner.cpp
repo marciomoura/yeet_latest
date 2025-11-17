@@ -63,7 +63,30 @@ void sfc_grid_side_protections_runner::run()
     bool release_signal = _inputs.release_protections;
     bool enable = module_enabled && release_signal;
 
-    if (enable) {
+    // If module is disabled, force clear all trip states and alarms
+    if (!module_enabled) {
+        _overcurrent_protection.reset();
+        _overvoltage_protection.reset();
+        _undervoltage_protection.reset();
+        _communication_watchdog.reset();
+        _trip_latched = false;
+        _alarm_pending = false;
+
+        // Clear all output signals immediately
+        _outputs.is_tripped = false;
+        _outputs.is_inhibited = false;
+        _outputs.any_fault_active = false;
+        _outputs.overcurrent_tripped = false;
+        _outputs.overvoltage_tripped = false;
+        _outputs.undervoltage_tripped = false;
+        _outputs.overcurrent_warning = false;
+        _outputs.overvoltage_warning = false;
+        _outputs.undervoltage_warning = false;
+        _outputs.communication_loss_tripped = false;
+        _outputs.communication_loss_warning = false;
+        return;  // Skip normal protection logic
+    }
+    else if (enable) {
         // Update all protections with latest measurements
         _overcurrent_protection.update(_inputs.dc_link_current_pu);
         _overvoltage_protection.update(_inputs.grid_voltage_magnitude_pu);

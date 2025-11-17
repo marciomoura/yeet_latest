@@ -19,11 +19,6 @@ void sfc_plant_model_runner::register_datamodel(yeet::model_registry& registry)
 
 void sfc_plant_model_runner::initialize()
 {
-    // Parameters are initialized by the datamodel struct defaults
-    // Tests may override these parameters BEFORE initialize() is called
-    // The parameter<T> class default values are set in the struct definition
-    // No need to write them again here - let read() use the defaults
-
     // Configure the plant's grid and machine parameters from the shared per-unit system
     const auto& grid_bases = _per_unit_system->get_grid_bases();
     const auto& machine_bases = _per_unit_system->get_machine_bases();
@@ -66,6 +61,16 @@ void sfc_plant_model_runner::run()
 
     // Execute one simulation step
     _plant.update();
+
+    auto const speed_pu =
+        speed_pu_t{to_pu(_plant.get_machine_frequency(), _per_unit_system->get_machine_bases().base_frequency)};
+
+    if (speed_pu <= speed_pu_t{0.0}) {
+        _plant.set_load_torque_pu(torque_pu_t{0.0});
+    }
+    else {
+        _plant.set_load_torque_pu(_parameters.constant_torque.read());
+    }
 
     // Read outputs from the plant model
     _outputs.grid_voltage_abc = _plant.get_grid_side_voltages_abc();

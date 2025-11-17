@@ -140,7 +140,7 @@ public:
 
         // ========== Protection Module Control ==========
         /// Master enable/disable for entire protection module
-        parameter<bool> protection_module_enabled{true};
+        parameter<bool> protection_module_enabled{false};
 
         /// Confirm/acknowledge protection alarms (rising edge clears is_inhibited)
         parameter<bool> confirm_alarms{false};

@@ -41,6 +41,7 @@ def _get_section_order() -> List[str]:
         'modulator',
         'excitation_controller',
         'pulse_generator',
+        'fiber_optic_rx',
     ]
 
 
@@ -156,6 +157,19 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'stall warning', 'index': MachineSignalIndex.PROTECTION_STALL_WARNING, 'type': 'bool', 'format': 'bool'},
                 {'name': 'comm loss tripped', 'index': MachineSignalIndex.PROTECTION_COMMUNICATION_LOSS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'comm loss warning', 'index': MachineSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
+        'fiber_optic_rx': {
+            'title': 'Fiber Optic RX (from Grid)',
+            'fields': [
+                {'name': 'dc link current', 'index': MachineSignalIndex.FIBER_RX_DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
+                {'name': 'grid voltage mag.', 'index': MachineSignalIndex.FIBER_RX_GRID_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'is forced commutation', 'index': MachineSignalIndex.FIBER_RX_IS_FORCED_COMMUTATION, 'type': 'bool', 'format': 'bool'},
+                {'name': 'force comm. ack', 'index': MachineSignalIndex.FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release pulses', 'index': MachineSignalIndex.FIBER_RX_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
+                {'name': 'grid release protections', 'index': MachineSignalIndex.FIBER_RX_GRID_RELEASE_PROTECTIONS, 'type': 'bool', 'format': 'bool'},
+                {'name': 'grid trip ack', 'index': MachineSignalIndex.FIBER_RX_GRID_TRIP_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'state machine ID', 'index': MachineSignalIndex.FIBER_RX_STATE_ID, 'type': 'int', 'format': '.0f'},
             ]
         }
     }
