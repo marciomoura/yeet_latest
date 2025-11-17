@@ -43,7 +43,7 @@ void sfc_machine_side_pulse_generator_runner::run()
 
     // Step 2: Get firing angle command and enable signals
     const angle_wrapped firing_angle_command = _inputs.firing_angle.read();
-    const bool release_pulses_input = _inputs.release_pulses.read();
+    const bool release_pulses_input = _inputs.release_pulses.read() || using_virtual_reference;
     const bool enable = _parameters.enable.read();
 
     // Combine input signal with enable parameter override
