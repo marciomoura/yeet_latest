@@ -110,6 +110,10 @@ void sfc_plant_model_runner::set_parameters()
 
     _plant.configure_mechanical_load(_parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read(),
         _parameters.motor_linear_load_coefficient.read(), _parameters.motor_quadratic_load_coefficient.read());
+
+    // Apply grid frequency and voltage parameters (convert from per-unit to absolute)
+    _plant.set_grid_frequency_pu(_parameters.grid_frequency_pu.read());
+    _plant.set_grid_voltage_pu(_parameters.grid_voltage_pu.read());
 }
 
 void sfc_plant_model_runner::set_parameter_callback()
@@ -120,6 +124,8 @@ void sfc_plant_model_runner::set_parameter_callback()
     _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
     _parameters.motor_linear_load_coefficient.register_callback([&]() { set_parameters(); });
     _parameters.motor_quadratic_load_coefficient.register_callback([&]() { set_parameters(); });
+    _parameters.grid_frequency_pu.register_callback([&]() { set_parameters(); });
+    _parameters.grid_voltage_pu.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -98,50 +98,54 @@ public:
      * These parameters reflect the configurable aspects of the sfc_plant_model_simulator.
      */
     struct parameters {
-        parameter<real_t> initial_speed;
+        /// Initial machine speed [pu]
+        /// Default: 1.0 pu (synchronous speed)
+        parameter<real_t> initial_speed = real_t(1.0);
 
         /// Defines if the machine runs at a fixed speed or if speed is determined by the load model.
-        parameter<machine_operation_mode> operation_mode;
+        parameter<machine_operation_mode> operation_mode = machine_operation_mode::fixed_speed;
 
         /// Defines the voltage control mode for machine-side excitation
-        parameter<machine_voltage_control_mode> voltage_control_mode;
+        parameter<machine_voltage_control_mode> voltage_control_mode = machine_voltage_control_mode::fixed_voltage;
 
         /// Motor inertia constant (H).
         /// Default: 2.5 s
-        parameter<inertia_constant_t> motor_inertia_constant;
+        parameter<inertia_constant_t> motor_inertia_constant = inertia_constant_t(2.5);
 
         /// Motor damping factor (D) in per-unit.
         /// Default: 0.01 pu
-        parameter<damping_coefficient_pu_t> motor_damping_factor;
+        parameter<damping_coefficient_pu_t> motor_damping_factor = damping_coefficient_pu_t(0.01);
 
         /// Linear load coefficient k1 [pu/pu] for speed-dependent load torque
         /// T_load = T_external + k1*omega + k2*omega^2
         /// Default: 0.0 (no linear load)
-        parameter<real_t> motor_linear_load_coefficient;
+        parameter<real_t> motor_linear_load_coefficient = real_t(0.0);
 
         /// Quadratic load coefficient k2 [pu/pu^2] for speed-dependent load torque
         /// Typical for gas turbine compressors: 0.2-0.4
         /// Default: 0.0 (no quadratic load)
-        parameter<real_t> motor_quadratic_load_coefficient;
+        parameter<real_t> motor_quadratic_load_coefficient = real_t(0.0);
 
         /// Constant torque load [pu]
         /// This parameter sets a constant torque load on the machine shaft
         /// Positive values represent motor load, negative values represent generating load
         /// Default: 0.0 (no constant torque load)
-        parameter<torque_pu_t> constant_torque;
+        parameter<torque_pu_t> constant_torque = torque_pu_t(0.0);
+
+        /// Grid voltage source frequency in per-unit [pu]
+        /// This parameter sets the frequency of the grid voltage source relative to rated frequency
+        /// Used to simulate grid frequency variations or off-nominal conditions
+        /// Default: 1.0 pu (nominal frequency)
+        parameter<frequency_pu_t> grid_frequency_pu = frequency_pu_t(1.0);
+
+        /// Grid voltage source RMS voltage in per-unit [pu]
+        /// This parameter sets the RMS line voltage of the grid source relative to rated voltage
+        /// Used to simulate voltage sags, swells, or off-nominal conditions
+        /// Default: 1.0 pu (nominal voltage)
+        parameter<voltage_pu_t> grid_voltage_pu = voltage_pu_t(1.0);
 
         /// Explicit constructor to initialize all parameters with their default values
-        parameters()
-        {
-            initial_speed.write(real_t(1.0));
-            operation_mode.write(machine_operation_mode::fixed_speed);
-            voltage_control_mode.write(machine_voltage_control_mode::fixed_voltage);
-            motor_inertia_constant.write(inertia_constant_t(2.5));
-            motor_damping_factor.write(damping_coefficient_pu_t(0.01));
-            motor_linear_load_coefficient.write(real_t(0.0));
-            motor_quadratic_load_coefficient.write(real_t(0.0));
-            constant_torque.write(torque_pu_t(0.0));
-        }
+        parameters() = default;
 
         // Allow default copy/move since parameter<T> handles state correctly
         parameters(const parameters&) = default;
@@ -202,6 +206,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->motor_quadratic_load_coefficient));
         entry.parameters.insert(
             "constant_torque", yeet::utils::make_units_accessor(_model_parameters->constant_torque));
+        entry.parameters.insert(
+            "grid_frequency_pu", yeet::utils::make_units_accessor(_model_parameters->grid_frequency_pu));
+        entry.parameters.insert(
+            "grid_voltage_pu", yeet::utils::make_units_accessor(_model_parameters->grid_voltage_pu));
 
         registry.insert("plant_model", std::move(entry));
     }
