@@ -42,6 +42,8 @@ target_sources(
            include/yeet_control/three_phase_waveform_generator.hpp
            include/yeet_control/thyristor_bridge.hpp
            include/yeet_control/thyristor_rectifier.hpp
+           include/yeet_control/thyristor_back_to_back.hpp
+           include/yeet_control/thyristor_back_to_back_synchronous_machine.hpp
            include/yeet_control/type_traits.hpp
            include/yeet_control/types.hpp
            include/yeet_control/units.hpp
@@ -73,6 +75,8 @@ target_sources(
             src/synchronous_machine.cpp
             src/thyristor_bridge.cpp
             src/thyristor_rectifier.cpp
+            src/thyristor_back_to_back.cpp
+            src/thyristor_back_to_back_synchronous_machine.cpp
             src/hysteresis_limiter.cpp
             src/virtual_angle_reference_generator.cpp)
 

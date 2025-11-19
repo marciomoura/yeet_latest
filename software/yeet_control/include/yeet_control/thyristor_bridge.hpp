@@ -49,6 +49,7 @@ public:
      * @return std::array<bool, 6> An array of booleans for T1-T6 (true if ON).
      */
     const std::array<bool, 6>& get_conduction_states() const { return _conducting_states_; }
+    std::array<bool, 6>& get_conduction_states_mutable() { return _conducting_states_; }
 
     /**
      * @brief Resets all thyristors to the OFF state.
