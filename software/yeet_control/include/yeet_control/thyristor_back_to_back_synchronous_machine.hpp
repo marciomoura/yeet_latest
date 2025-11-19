@@ -76,9 +76,14 @@ public:
     voltage_t get_inverter_dc_voltage() const { return voltage_t(_v_inv_dc); }
     abc<current_t> get_motor_currents() const;
     abc<voltage_t> get_motor_voltages() const { return _v_motor_abc; }
+    abc<voltage_t> get_motor_back_emf() const;  // Pure back-EMF without resistive drop
     const synchronous_machine_state& get_machine_state() const { return _machine_state; }
     const std::array<bool, 6>& get_inverter_states() const { return _inverter_bridge.get_conduction_states(); }
     const std::array<bool, 6>& get_rectifier_states() const { return _rectifier_bridge.get_conduction_states(); }
+
+    // AC Terminal Voltages (for voltage notch measurement)
+    const std::array<double, 3>& get_grid_line_voltages() const { return _rectifier_bridge.get_ac_line_voltages(); }
+    const std::array<double, 3>& get_machine_line_voltages() const { return _inverter_bridge.get_ac_line_voltages(); }
 
 private:
     // --- Circuit Parameters ---

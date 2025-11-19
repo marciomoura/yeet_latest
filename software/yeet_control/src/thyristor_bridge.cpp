@@ -1,8 +1,13 @@
 #include "yeet_control/thyristor_bridge.hpp"
 
+#include <vector>
+
 void thyristor_bridge::update_conduction_state(
     const std::array<double, 3>& v_ac_abc, const std::array<double, 2>& v_dc_rails, const std::array<bool, 6>& pulses)
 {
+    // Store source voltages for terminal voltage calculation
+    _v_ac_source = v_ac_abc;
+
     // Correct physical connections for a standard 6-pulse bridge
     const std::array<double, 6> anode_voltages = {
         v_ac_abc[0],    // T1 anode is on Phase A
@@ -31,6 +36,59 @@ void thyristor_bridge::update_conduction_state(
             }
         }
     }
+
+    // Calculate actual terminal voltages considering commutation overlap
+    // During commutation, when multiple thyristors on same rail conduct,
+    // those phases are electrically connected through the DC link
+    _v_phase_abc = v_ac_abc;  // Start with source voltages
+
+    // Upper rail commutation: Check if multiple upper thyristors (T1, T3, T5) are conducting
+    std::vector<int> upper_conducting;
+    if (_conducting_states_[0]) upper_conducting.push_back(0);  // T1 -> Phase A
+    if (_conducting_states_[2]) upper_conducting.push_back(1);  // T3 -> Phase B
+    if (_conducting_states_[4]) upper_conducting.push_back(2);  // T5 -> Phase C
+
+    if (upper_conducting.size() > 1) {
+        // Multiple phases connected to positive rail -> voltage notch
+        // Terminal voltages collapse to average (phases shorted through DC link)
+        double v_avg = 0.0;
+        for (int phase : upper_conducting) {
+            v_avg += v_ac_abc[phase];
+        }
+        v_avg /= upper_conducting.size();
+
+        // Set all commutating phases to average voltage
+        for (int phase : upper_conducting) {
+            _v_phase_abc[phase] = v_avg;
+        }
+    }
+
+    // Lower rail commutation: Check if multiple lower thyristors (T4, T6, T2) are conducting
+    std::vector<int> lower_conducting;
+    if (_conducting_states_[3]) lower_conducting.push_back(0);  // T4 -> Phase A
+    if (_conducting_states_[5]) lower_conducting.push_back(1);  // T6 -> Phase B
+    if (_conducting_states_[1]) lower_conducting.push_back(2);  // T2 -> Phase C
+
+    if (lower_conducting.size() > 1) {
+        // Multiple phases connected to negative rail -> voltage notch
+        // Terminal voltages collapse to average (phases shorted through DC link)
+        double v_avg = 0.0;
+        for (int phase : lower_conducting) {
+            v_avg += v_ac_abc[phase];
+        }
+        v_avg /= lower_conducting.size();
+
+        // Set all commutating phases to average voltage
+        for (int phase : lower_conducting) {
+            _v_phase_abc[phase] = v_avg;
+        }
+    }
+
+    // Calculate line-to-line voltages from actual terminal phase voltages
+    // These will show voltage notches during commutation
+    _v_line_abc[0] = _v_phase_abc[0] - _v_phase_abc[1];  // V_ab
+    _v_line_abc[1] = _v_phase_abc[1] - _v_phase_abc[2];  // V_bc
+    _v_line_abc[2] = _v_phase_abc[2] - _v_phase_abc[0];  // V_ca
 }
 
 void thyristor_bridge::force_natural_turn_off(const std::array<double, 3>& i_ac_abc, double i_dc)

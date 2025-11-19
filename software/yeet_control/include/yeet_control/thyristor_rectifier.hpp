@@ -85,6 +85,18 @@ public:
     double get_dc_voltage() const noexcept { return _v_dc_output; }
 
     /**
+     * @brief Gets the line-to-line voltages at the bridge AC terminals.
+     * @return Array [v_ab, v_bc, v_ca] showing voltage notch during commutation [V]
+     */
+    std::array<double, 3> get_ac_line_voltages() const noexcept { return _bridge.get_ac_line_voltages(); }
+
+    /**
+     * @brief Gets the phase voltages at the bridge AC terminals.
+     * @return Array [v_a, v_b, v_c] showing voltage notch during commutation [V]
+     */
+    std::array<double, 3> get_ac_phase_voltages() const noexcept { return _bridge.get_ac_phase_voltages(); }
+
+    /**
      * @brief Gets the thyristor bridge conduction states.
      * @return Array of 6 booleans (true = conducting)
      */

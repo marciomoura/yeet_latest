@@ -121,6 +121,21 @@ public:
      */
     const std::array<double, 6>& get_inverter_thyristor_currents() const noexcept { return _i_thy_inv; }
 
+    /**
+     * @brief Gets the line-to-line voltages at the grid-side AC terminals.
+     * @return Array [v_ab, v_bc, v_ca] at rectifier AC terminals [V]
+     */
+    const std::array<double, 3>& get_grid_line_voltages() const noexcept { return _rect_bridge.get_ac_line_voltages(); }
+
+    /**
+     * @brief Gets the line-to-line voltages at the machine-side AC terminals.
+     * @return Array [v_ab, v_bc, v_ca] at inverter AC terminals [V]
+     */
+    const std::array<double, 3>& get_machine_line_voltages() const noexcept
+    {
+        return _inv_bridge.get_ac_line_voltages();
+    }
+
 private:
     // Circuit parameters
     double _grid_resistance;

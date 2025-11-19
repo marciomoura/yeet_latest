@@ -623,4 +623,11 @@ abc<current_t> thyristor_back_to_back_synchronous_machine::get_motor_currents() 
     return abc<current_t>(current_t(i_a), current_t(i_b), current_t(i_c));
 }
 
+abc<voltage_t> thyristor_back_to_back_synchronous_machine::get_motor_back_emf() const
+{
+    // Calculate pure back-EMF with zero current (no resistive drop)
+    abc<current_t> zero_current(current_t(0.0), current_t(0.0), current_t(0.0));
+    return _machine.get_terminal_voltages_abc(_machine_state, zero_current);
+}
+
 }  // namespace yeet::control

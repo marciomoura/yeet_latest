@@ -550,4 +550,125 @@ TEST_F(ThyristorBackToBackTest, WaveformValidation)
     EXPECT_GT(capture->max_i_dc, 0.1) << "DC current too low: " << capture->max_i_dc << " A";
 }
 
+// Test: Voltage notch detection during commutation
+TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
+{
+    // Set operating point with moderate firing angles
+    set_rectifier_firing_angle(25.0);
+    set_inverter_firing_angle(35.0);
+
+    // Data capture for commutation and voltage notch detection
+    struct CommutationData {
+        bool commutation_detected_rect = false;
+        bool commutation_detected_inv = false;
+        bool voltage_notch_detected_rect = false;
+        bool voltage_notch_detected_inv = false;
+        double min_line_voltage_rect = 1e9;
+        double min_line_voltage_inv = 1e9;
+        double max_line_voltage_rect = -1e9;
+        double max_line_voltage_inv = -1e9;
+    };
+    auto data = std::make_shared<CommutationData>();
+
+    _simulator.register_lambda_runner(sampling_time, [this, data]() {
+        // Get thyristor states
+        const auto& rect_states = _back_to_back.get_rectifier_states();
+        const auto& inv_states = _back_to_back.get_inverter_states();
+
+        // Detect rectifier commutation (more than 2 thyristors conducting)
+        int rect_conducting = 0;
+        for (bool state : rect_states) {
+            if (state) rect_conducting++;
+        }
+        if (rect_conducting > 2) {
+            data->commutation_detected_rect = true;
+        }
+
+        // Detect inverter commutation (more than 2 thyristors conducting)
+        int inv_conducting = 0;
+        for (bool state : inv_states) {
+            if (state) inv_conducting++;
+        }
+        if (inv_conducting > 2) {
+            data->commutation_detected_inv = true;
+        }
+
+        // Get line voltages at AC terminals
+        const auto& v_line_rect = _back_to_back.get_grid_line_voltages();
+        const auto& v_line_inv = _back_to_back.get_machine_line_voltages();
+
+        // Track min/max line voltages
+        for (double v : v_line_rect) {
+            data->min_line_voltage_rect = std::min(data->min_line_voltage_rect, std::abs(v));
+            data->max_line_voltage_rect = std::max(data->max_line_voltage_rect, std::abs(v));
+        }
+        for (double v : v_line_inv) {
+            data->min_line_voltage_inv = std::min(data->min_line_voltage_inv, std::abs(v));
+            data->max_line_voltage_inv = std::max(data->max_line_voltage_inv, std::abs(v));
+        }
+
+        // During commutation, check for voltage notch (line voltage drops significantly)
+        if (rect_conducting > 2) {
+            // Check if any line voltage is near zero (voltage notch)
+            for (double v : v_line_rect) {
+                if (std::abs(v) < 50.0) {  // Threshold for voltage notch (< 50V for 100V system)
+                    data->voltage_notch_detected_rect = true;
+                    break;
+                }
+            }
+        }
+
+        if (inv_conducting > 2) {
+            // Check if any line voltage is near zero (voltage notch)
+            for (double v : v_line_inv) {
+                if (std::abs(v) < 50.0) {  // Threshold for voltage notch
+                    data->voltage_notch_detected_inv = true;
+                    break;
+                }
+            }
+        }
+    });
+
+    // Run simulation for multiple grid cycles to capture commutation events
+    double simulation_time = 5.0 / fundamental_frequency;
+    simulate_for(simulation_time);
+
+    // Print diagnostic information
+    std::cout << "\n╔════════════════════════════════════════════════════════════════╗" << std::endl;
+    std::cout << "║   VOLTAGE NOTCH DETECTION - DIAGNOSTIC RESULTS              ║" << std::endl;
+    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+    std::cout << "║ Rectifier commutation detected: " << (data->commutation_detected_rect ? "✓ YES" : "✗ NO ")
+              << "                       ║" << std::endl;
+    std::cout << "║ Inverter commutation detected:  " << (data->commutation_detected_inv ? "✓ YES" : "✗ NO ")
+              << "                       ║" << std::endl;
+    std::cout << "║ Voltage notch (rectifier):      " << (data->voltage_notch_detected_rect ? "✓ YES" : "✗ NO ")
+              << "                       ║" << std::endl;
+    std::cout << "║ Voltage notch (inverter):       " << (data->voltage_notch_detected_inv ? "✓ YES" : "✗ NO ")
+              << "                       ║" << std::endl;
+    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+    std::cout << "║ Rectifier min line voltage:     " << std::setw(10) << std::fixed << std::setprecision(3)
+              << data->min_line_voltage_rect << " V              ║" << std::endl;
+    std::cout << "║ Rectifier max line voltage:     " << std::setw(10) << std::fixed << std::setprecision(3)
+              << data->max_line_voltage_rect << " V              ║" << std::endl;
+    std::cout << "║ Inverter min line voltage:      " << std::setw(10) << std::fixed << std::setprecision(3)
+              << data->min_line_voltage_inv << " V              ║" << std::endl;
+    std::cout << "║ Inverter max line voltage:      " << std::setw(10) << std::fixed << std::setprecision(3)
+              << data->max_line_voltage_inv << " V              ║" << std::endl;
+    std::cout << "╚════════════════════════════════════════════════════════════════╝\n" << std::endl;
+
+    // Assertions
+    EXPECT_TRUE(data->commutation_detected_rect) << "Rectifier commutation not detected!";
+    EXPECT_TRUE(data->commutation_detected_inv) << "Inverter commutation not detected!";
+    EXPECT_TRUE(data->voltage_notch_detected_rect)
+        << "Voltage notch not detected during rectifier commutation! Min voltage: " << data->min_line_voltage_rect
+        << " V";
+    EXPECT_TRUE(data->voltage_notch_detected_inv)
+        << "Voltage notch not detected during inverter commutation! Min voltage: " << data->min_line_voltage_inv
+        << " V";
+    EXPECT_LT(data->min_line_voltage_rect, 50.0)
+        << "Rectifier line voltage did not drop during commutation: " << data->min_line_voltage_rect << " V";
+    EXPECT_LT(data->min_line_voltage_inv, 50.0)
+        << "Inverter line voltage did not drop during commutation: " << data->min_line_voltage_inv << " V";
+}
+
 }  // namespace

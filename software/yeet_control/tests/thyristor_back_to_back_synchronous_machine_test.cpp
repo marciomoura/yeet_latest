@@ -11,6 +11,76 @@
 
 namespace {
 
+// public:
+//     static constexpr double sampling_time = 10e-6;         // 10 μs timestep
+//     static constexpr double fundamental_frequency = 50.0;  // 50 Hz grid
+//     static constexpr double v_grid_ll_rms = 2090.0;        // 2090V line-to-line RMS (grid)
+//     static constexpr double v_machine_ll_rms = 1980.0;     // 1980V line-to-line RMS (machine)
+//     static constexpr double rated_power_va = 2.0e6;        // 2.0 MVA rated power
+//     static constexpr double rated_speed_rpm = 3000.0;      // 3000 RPM (synchronous speed for 50 Hz, 2-pole)
+//     static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width
+
+//     void SetUp() override
+//     {
+//         // Calculate grid voltage amplitude (peak line-to-neutral)
+//         // V_LN_peak = V_LL_RMS × √2 / √3
+//         const double v_grid_peak = v_grid_ll_rms * sqrt(2.0) / sqrt(3.0);  // ~1707V peak L-N
+
+//         // Configure grid-side three-phase voltage source
+//         _grid_waveform_generator.set_fundamental_positive_sequence_signal_amplitude(v_grid_peak);
+//         _grid_waveform_generator.set_fundamental_negative_sequence_signal_amplitude(0.0);
+//         _grid_waveform_generator.set_signal_frequency(fundamental_frequency);
+//         _grid_waveform_generator.disable_noise();
+
+//         // Configure rectifier pulse generator
+//         _six_pulse_gen_rect =
+//             six_pulse_generator(six_pulse_generator::reference_type::phase,
+//             angle_wrapped(deg_to_rad(pulse_width_deg)));
+
+//         // Configure inverter pulse generator
+//         _six_pulse_gen_inv =
+//             six_pulse_generator(six_pulse_generator::reference_type::phase,
+//             angle_wrapped(deg_to_rad(pulse_width_deg)));
+
+//         // Circuit parameters for 2 MVA LCI drive
+//         // Base values: V_base = 1980V L-L, S_base = 2.0 MVA, ω_base = 2π×50 rad/s
+//         // Z_base = V²/S = 1980²/2.0e6 = 1.96 Ω
+//         // I_base = S/(√3×V) = 2.0e6/(√3×1980) = 583 A
+//         const double z_base = (v_machine_ll_rms * v_machine_ll_rms) / rated_power_va;  // 1.96 Ω
+//         const double omega_base = 2.0 * pi * fundamental_frequency;                    // 314.16 rad/s
+//         const double l_base = z_base / omega_base;                                     // 6.24 mH
+
+//         // Equivalent impedances from simulation measurements
+//         // Grid-side equivalent (includes grid + transformer + rectifier bridge effects)
+//         real_t grid_resistance = 0.0163;           // 16.3 mΩ per phase (measured equivalent)
+//         real_t grid_inductance = 0.4941e-3 / 2.0;  // Measured 0.494 mH is 2×L_grid → 0.247 mH per phase
+
+//         // DC link impedance (direct measurement)
+//         real_t dc_resistance = 0.0503;  // 50.3 mΩ DC link0
+//         real_t dc_inductance = 8e-3;    // 8 mH DC link
+
+//         // Machine parameters from external simulation (referred to stator)
+//         // These values account for transformer turns ratio squared
+//         real_t r_s = 15e-3;     // 15 mΩ stator resistance per phase
+//         real_t l_d = 9.5e-3;    // 9.5 mH d-axis synchronous inductance
+//         real_t l_q = 8.5e-3;    // 8.5 mH q-axis synchronous inductance
+//         real_t l_ad = 8.5e-3;   // 8.5 mH d-axis mutual inductance
+//         real_t l_aq = 7.5e-3;   // 7.5 mH q-axis mutual inductance
+//         real_t r_fd = 6e-3;     // 6 mΩ field winding resistance (referred to stator)
+//         real_t l_fd = 9.2e-3;   // 9.2 mH field winding self inductance (referred to stator)
+//         real_t r_kd = 60e-3;    // 60 mΩ d-axis damper resistance
+//         real_t l_kd = 9.0e-3;   // 9.0 mH d-axis damper inductance
+//         real_t r_kq = 60e-3;    // 60 mΩ q-axis damper resistance
+//         real_t l_kq = 8.0e-3;   // 8.0 mH q-axis damper inductance
+//         real_t inertia = 75.0;  // 75 kg·m² (H ≈ 1.5s for 2 MW machine)
+
+//         // Create machine configuration (2-pole machine: P=2)
+//         synchronous_machine machine(resistance_t(r_s), resistance_t(r_fd), resistance_t(r_kd), resistance_t(r_kq),
+//             inductance_t(l_d), inductance_t(l_q), inductance_t(l_ad), inductance_t(l_aq), inductance_t(l_fd),
+//             inductance_t(l_kd), inductance_t(l_kq), moment_of_inertia_t(inertia),
+//             2  // P = 2 poles (1 pole pair) for 3000 RPM @ 50 Hz
+//         );
+
 using namespace yeet;
 using namespace yeet::control;
 
@@ -346,7 +416,7 @@ TEST_F(ThyristorBackToBackSynchronousMachineTest, SteadyStateOperation)
     std::cout << "Inverter firing angle:  " << 155.0 << "° (inverter mode, bridge inverted)" << std::endl;
     std::cout << "Machine initial speed:  " << _lci_drive->get_machine_state().omega_r << " rad/s" << std::endl;
 
-    simulate_for(simulation_time);
+    simulate_for(2.0);
 
     // Diagnostic: Check pulses are being generated
     std::cout << "\n=== Pulse Check (last state) ===" << std::endl;
@@ -386,6 +456,14 @@ TEST_F(ThyristorBackToBackSynchronousMachineTest, SteadyStateOperation)
     // For motoring with load, we should see some DC current
     // With no mechanical load and the machine already at speed, current may be very low
     // This is physically correct - the system is in equilibrium
+
+    // CRITICAL: Inverter bridge is INVERTED in LCI topology!
+    // For motoring: Inverter α > 90° (inverter mode in its own frame)
+    // This produces negative voltage which becomes positive opposition when bridge is flipped
+    set_rectifier_firing_angle(30.0);  // Low angle → high positive DC voltage (~173V)
+    set_inverter_firing_angle(155.0);  // Inverter mode (>90°) → correct for inverted bridge
+
+    simulate_for(2.0);
 }
 
 // Test: Operation with mechanical load (should show DC current flow)
@@ -487,6 +565,514 @@ TEST_F(ThyristorBackToBackSynchronousMachineTest, OperationWithLoad)
     // With load applied, we should see current flow
     EXPECT_GT(std::abs(_i_dc.value()), 0.1) << "Should have DC current with load torque applied";
     EXPECT_GT(v_dc_link, 0.0) << "DC link voltage should be positive";
+}
+
+// ============================================================================
+// Industrial Configuration Test Fixture (3.15 MW LCI Drive)
+// Based on back_to_back_parameters.json
+// ============================================================================
+
+class IndustrialLCIDriveTest : public ::testing::Test {
+public:
+    static constexpr double sampling_time = 12.5e-6;       // 12.5 μs timestep (80 kHz)
+    static constexpr double fundamental_frequency = 50.0;  // 50 Hz grid
+    static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width
+
+    // System ratings from parameter file
+    static constexpr double rated_power_va = 3.15e6;          // 3.15 MVA
+    static constexpr double grid_voltage_ll_rms = 2200.0;     // 2200V LV transformer side
+    static constexpr double machine_voltage_ll_rms = 1900.0;  // 1900V machine rated
+    static constexpr double machine_rated_freq = 25.0;        // 25 Hz machine rated frequency
+    static constexpr int machine_pole_pairs = 3;              // 6-pole machine
+    static constexpr double machine_sync_speed_rpm = 500.0;   // 500 RPM (25 Hz × 60 / 3)
+
+    void SetUp() override
+    {
+        // Calculate grid voltage amplitude (peak line-to-neutral)
+        // V_LN_peak = V_LL_RMS × √2 / √3
+        const double v_grid_peak = grid_voltage_ll_rms * sqrt(2.0) / sqrt(3.0);  // ~1798V peak L-N
+
+        // Configure grid-side three-phase voltage source
+        _grid_waveform_generator.set_fundamental_positive_sequence_signal_amplitude(v_grid_peak);
+        _grid_waveform_generator.set_fundamental_negative_sequence_signal_amplitude(0.0);
+        _grid_waveform_generator.set_signal_frequency(fundamental_frequency);
+        _grid_waveform_generator.disable_noise();
+
+        // Configure rectifier pulse generator
+        _six_pulse_gen_rect =
+            six_pulse_generator(six_pulse_generator::reference_type::phase, angle_wrapped(deg_to_rad(pulse_width_deg)));
+
+        // Configure inverter pulse generator
+        _six_pulse_gen_inv =
+            six_pulse_generator(six_pulse_generator::reference_type::phase, angle_wrapped(deg_to_rad(pulse_width_deg)));
+
+        // DC link parameters from parameter file
+        real_t dc_resistance = 10e-3;  // 10 mΩ DC link resistance
+        real_t dc_inductance = 8e-3;   // 8 mH DC link inductance
+
+        // Calculate transformer equivalent impedance referred to LV side
+        // Per-unit base: S_base = 3.362 MVA, V_base = 2200 V L-L, f_base = 50 Hz
+        const double transformer_s_base = 3.362e6;
+        const double transformer_v_base = 2200.0;
+        const double z_base = (transformer_v_base * transformer_v_base) / transformer_s_base;  // 1.44 Ω
+        const double omega_base = 2.0 * pi * fundamental_frequency;                            // 314.16 rad/s
+        const double l_base = z_base / omega_base;                                             // 4.58 mH
+
+        // LV side impedance (pu to Ohms)
+        real_t grid_resistance = 0.0024 * z_base;  // 3.46 mΩ
+        real_t grid_inductance = 0.0839 * l_base;  // 0.384 mH
+
+        // Machine parameters from parameter file
+        // Calculate synchronous inductances: L_d = L_ls + L_md, L_q = L_ls + L_mq
+        real_t r_s = 0.0047;       // 4.7 mΩ stator resistance
+        real_t l_ls = 0.00059;     // 0.59 mH stator leakage inductance
+        real_t l_md = 0.00808;     // 8.08 mH d-axis magnetizing inductance
+        real_t l_mq = 0.00418;     // 4.18 mH q-axis magnetizing inductance
+        real_t l_d = l_ls + l_md;  // 8.67 mH d-axis synchronous inductance
+        real_t l_q = l_ls + l_mq;  // 4.77 mH q-axis synchronous inductance
+
+        // Field winding parameters
+        real_t r_fd = 0.0014;        // 1.4 mΩ field resistance
+        real_t l_lfd = 0.00167;      // 1.67 mH field leakage inductance
+        real_t l_fd = l_lfd + l_md;  // 9.75 mH field self-inductance
+
+        // Damper winding parameters (d-axis)
+        real_t r_kd = 0.136;         // 136 mΩ d-axis damper resistance
+        real_t l_lkd = 0.0015;       // 1.5 mH d-axis damper leakage inductance
+        real_t l_kd = l_lkd + l_md;  // 9.58 mH d-axis damper self-inductance
+
+        // Damper winding parameters (q-axis)
+        real_t r_kq = 0.0777;        // 77.7 mΩ q-axis damper resistance
+        real_t l_lkq = 0.00035;      // 0.35 mH q-axis damper leakage inductance
+        real_t l_kq = l_lkq + l_mq;  // 4.53 mH q-axis damper self-inductance
+
+        // Mechanical parameters
+        real_t inertia = 670.0;  // 670 kg·m² (H ≈ 3.4s for 3.15 MW machine at 500 RPM)
+
+        // Create machine configuration (6-pole machine: P=6, pole_pairs=3)
+        synchronous_machine machine(resistance_t(r_s), resistance_t(r_fd), resistance_t(r_kd), resistance_t(r_kq),
+            inductance_t(l_d), inductance_t(l_q),
+            inductance_t(l_md),  // L_ad = L_md (mutual inductance)
+            inductance_t(l_mq),  // L_aq = L_mq (mutual inductance)
+            inductance_t(l_fd), inductance_t(l_kd), inductance_t(l_kq), moment_of_inertia_t(inertia),
+            6  // P = 6 poles (3 pole pairs) for 500 RPM @ 25 Hz
+        );
+
+        // Create LCI drive
+        _lci_drive = std::make_unique<thyristor_back_to_back_synchronous_machine>(
+            grid_resistance, grid_inductance, dc_resistance, dc_inductance, machine, sampling_time);
+
+        // Initialize to near-zero speed (startup condition from parameter file)
+        // "sim_machine_initial_speed_deviation_percent": -99.999999 means nearly stationary
+        const double speed_deviation = -0.99999999;
+        const double omega_sync = (2.0 * pi * machine_rated_freq) / machine_pole_pairs;  // 52.36 rad/s mechanical
+        const double omega_initial = omega_sync * (1.0 + speed_deviation);               // ~0.0005 rad/s (nearly zero)
+
+        // Initialize with zero field flux (field winding not pre-energized)
+        const double psi_field_initial = 0.0;
+        _lci_drive->initialize(omega_initial, 0.0, psi_field_initial);
+
+        // Set initial firing angles (conservative for startup)
+        _current_firing_angle_rect = angle_wrapped::from_degrees(85.0);  // Near 90° for low voltage
+        _current_firing_angle_inv = angle_wrapped::from_degrees(95.0);   // Just above 90° for inverter
+
+        set_logger();
+    }
+
+    void simulate_for(double time) { _simulator.simulate_for(time); }
+
+    void set_rectifier_firing_angle(double angle_degrees)
+    {
+        _current_firing_angle_rect = angle_wrapped::from_degrees(angle_degrees);
+    }
+
+    void set_inverter_firing_angle(double angle_degrees)
+    {
+        _current_firing_angle_inv = angle_wrapped::from_degrees(angle_degrees);
+    }
+
+protected:
+    yeet::simulator _simulator = yeet::make_gtest_simulator();
+
+    // Grid-side components
+    three_phase_waveform_generator _grid_waveform_generator{sampling_time};
+    six_pulse_generator _six_pulse_gen_rect;
+
+    // Machine-side components
+    six_pulse_generator _six_pulse_gen_inv;
+
+    // LCI drive system
+    std::unique_ptr<thyristor_back_to_back_synchronous_machine> _lci_drive;
+
+    // Current state variables
+    angle_wrapped _current_firing_angle_rect{0.0};
+    angle_wrapped _current_firing_angle_inv{0.0};
+
+    abc<double> _v_grid_abc{0.0, 0.0, 0.0};
+    abc<current_t> _i_grid_abc{current_t(0.0), current_t(0.0), current_t(0.0)};
+    abc<current_t> _i_machine_abc{current_t(0.0), current_t(0.0), current_t(0.0)};
+    abc<voltage_t> _v_machine_abc{voltage_t(0.0), voltage_t(0.0), voltage_t(0.0)};
+
+    six_pulse_generator::pulses _pulses_rect{};
+    six_pulse_generator::pulses _pulses_inv{};
+
+    current_t _i_dc{0.0};
+    voltage_t _v_dc_rect{0.0};
+    voltage_t _v_dc_inv{0.0};
+
+    // Control variables
+    torque_t _applied_load_torque{0.0};
+    voltage_t _applied_field_voltage{0.0};
+
+private:
+    void set_logger()
+    {
+        // Main update loop
+        _simulator.register_lambda_runner(sampling_time, [this]() {
+            // Update grid waveform generator
+            _grid_waveform_generator.update();
+
+            // Get grid voltages
+            _v_grid_abc = _grid_waveform_generator.get_signal_abc();
+            angle_wrapped grid_reference_angle = _grid_waveform_generator.get_fundamental_signal_angle().a();
+
+            // Generate rectifier pulses
+            _pulses_rect = _six_pulse_gen_rect.update(grid_reference_angle, _current_firing_angle_rect, true);
+
+            // Get machine electrical angle
+            const auto& machine_state = _lci_drive->get_machine_state();
+            angle_wrapped machine_reference_angle = angle_wrapped(machine_state.theta_r * 3.0);  // theta_r × pole_pairs
+
+            // Generate inverter pulses
+            _pulses_inv = _six_pulse_gen_inv.update(machine_reference_angle, _current_firing_angle_inv, true);
+
+            // Update LCI drive
+            abc<voltage_t> v_grid(voltage_t(_v_grid_abc.a()), voltage_t(_v_grid_abc.b()), voltage_t(_v_grid_abc.c()));
+            _lci_drive->update(v_grid, _pulses_rect, _pulses_inv, _applied_field_voltage, _applied_load_torque);
+
+            // Get outputs
+            _i_grid_abc = _lci_drive->get_grid_currents();
+            _i_machine_abc = _lci_drive->get_motor_currents();
+            _v_machine_abc = _lci_drive->get_motor_voltages();
+            _i_dc = _lci_drive->get_dc_link_current();
+            _v_dc_rect = _lci_drive->get_rectifier_dc_voltage();
+            _v_dc_inv = _lci_drive->get_inverter_dc_voltage();
+        });
+
+        // Grid-side voltage logger
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:v_ac_a", [&]() -> double { return _v_grid_abc.a(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:v_ac_b", [&]() -> double { return _v_grid_abc.b(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:v_ac_c", [&]() -> double { return _v_grid_abc.c(); }));
+
+        // Grid-side current logger
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:i_ac_a", [&]() -> double { return _i_grid_abc.a().value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:i_ac_b", [&]() -> double { return _i_grid_abc.b().value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:i_ac_c", [&]() -> double { return _i_grid_abc.c().value(); }));
+
+        // Machine-side current logger
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:i_ac_a", [&]() -> double { return _i_machine_abc.a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:i_ac_b", [&]() -> double { return _i_machine_abc.b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:i_ac_c", [&]() -> double { return _i_machine_abc.c().value(); }));
+
+        // Machine-side voltage logger
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:v_ac_a", [&]() -> double { return _v_machine_abc.a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:v_ac_b", [&]() -> double { return _v_machine_abc.b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:v_ac_c", [&]() -> double { return _v_machine_abc.c().value(); }));
+
+        // DC link logger
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:i_dc", [&]() -> double { return _i_dc.value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:v_rect", [&]() -> double { return _v_dc_rect.value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:v_inv", [&]() -> double { return _v_dc_inv.value(); }));
+
+        // Rectifier pulse logger
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "rect:pulse_T1", [&]() -> double { return _pulses_rect.p1 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "rect:pulse_T3", [&]() -> double { return _pulses_rect.p3 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "rect:pulse_T5", [&]() -> double { return _pulses_rect.p5 ? 1.0 : 0.0; }));
+
+        // Inverter pulse logger
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("inv:pulse_T1", [&]() -> double { return _pulses_inv.p1 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("inv:pulse_T3", [&]() -> double { return _pulses_inv.p3 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("inv:pulse_T5", [&]() -> double { return _pulses_inv.p5 ? 1.0 : 0.0; }));
+
+        // Machine state logger
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:omega_r", [&]() -> double { return _lci_drive->get_machine_state().omega_r; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:theta_r", [&]() -> double { return _lci_drive->get_machine_state().theta_r; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:psi_fD", [&]() -> double { return _lci_drive->get_machine_state().psi_fD; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:psi_kD", [&]() -> double { return _lci_drive->get_machine_state().psi_kD; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:psi_kQ", [&]() -> double { return _lci_drive->get_machine_state().psi_kQ; }));
+    }
+};
+
+// Test: Industrial system instantiation and basic physics
+TEST_F(IndustrialLCIDriveTest, SystemInstantiation)
+{
+    // Force machine to nominal speed for testing
+    const double omega_nominal = (2.0 * pi * machine_rated_freq) / machine_pole_pairs;  // 52.36 rad/s
+    const double psi_field_nominal = 5.0;                                               // 5 Wb nominal field flux
+    _lci_drive->initialize(omega_nominal, 0.0, psi_field_nominal);
+
+    // Verify initial state (should be at nominal speed)
+    const auto& state = _lci_drive->get_machine_state();
+    double rpm = state.omega_r * 60.0 / (2.0 * pi);
+
+    std::cout << "\n=== Industrial LCI Drive (3.15 MW) ===" << std::endl;
+    std::cout << "Rated power:         " << (rated_power_va / 1e6) << " MVA" << std::endl;
+    std::cout << "Grid voltage:        " << grid_voltage_ll_rms << " V L-L RMS" << std::endl;
+    std::cout << "Machine voltage:     " << machine_voltage_ll_rms << " V L-L RMS" << std::endl;
+    std::cout << "Machine sync speed:  " << machine_sync_speed_rpm << " RPM" << std::endl;
+    std::cout << "Machine poles:       " << (machine_pole_pairs * 2) << " (pole pairs = " << machine_pole_pairs << ")"
+              << std::endl;
+    std::cout << "Forced speed:        " << rpm << " RPM (nominal)" << std::endl;
+    std::cout << "Initial field flux:  " << state.psi_fD << " Wb" << std::endl;
+    std::cout << "======================================\n" << std::endl;
+
+    EXPECT_NEAR(rpm, machine_sync_speed_rpm, 1.0) << "Machine should be at nominal speed";
+    EXPECT_NEAR(state.psi_fD, psi_field_nominal, 0.1) << "Field flux should be at nominal value";
+
+    SUCCEED();
+}
+
+// Test: Field flux buildup from zero
+TEST_F(IndustrialLCIDriveTest, FieldFluxBuildup)
+{
+    // Force machine to nominal speed for testing
+    const double omega_nominal = (2.0 * pi * machine_rated_freq) / machine_pole_pairs;  // 52.36 rad/s
+    _lci_drive->initialize(omega_nominal, 0.0, 0.0);                                    // Start with zero field flux
+
+    // Apply field voltage to build up flux
+    // For steady-state: V_f = R_f × i_f, where i_f = ψ_fD / L_fD
+    // Target: ψ_fD = 5.0 Wb (reasonable for 3.15 MW machine)
+    // Required: V_f = R_f × (ψ_target / L_fD) = 0.0014 × (5.0 / 0.00975) = 0.72 V
+    // But use higher voltage for faster buildup during test
+    _applied_field_voltage = voltage_t(10.0);  // 10V for faster flux buildup
+
+    std::cout << "\n=== Field Flux Buildup Test ===" << std::endl;
+    std::cout << "Machine speed (forced): " << (omega_nominal * 60.0 / (2.0 * pi)) << " RPM" << std::endl;
+    std::cout << "Applied field voltage: " << _applied_field_voltage.value() << " V" << std::endl;
+
+    // Simulate for 100ms to allow field flux to build
+    simulate_for(0.1);
+
+    const auto& state = _lci_drive->get_machine_state();
+
+    std::cout << "Field flux after 100ms: " << state.psi_fD << " Wb" << std::endl;
+    std::cout << "Field time constant τ_f = L_fD/R_f = " << (0.00975 / 0.0014) << " s" << std::endl;
+    std::cout << "================================\n" << std::endl;
+
+    // After 100ms (with τ_f ≈ 7s), flux should have increased but not reached steady-state
+    EXPECT_GT(state.psi_fD, 0.1) << "Field flux should build up with applied voltage";
+    EXPECT_LT(state.psi_fD, 50.0) << "Field flux should not be excessive";
+}
+
+// Test: Motoring operation with realistic firing angles
+TEST_F(IndustrialLCIDriveTest, MotoringOperation)
+{
+    // Force machine to nominal speed (500 RPM synchronous)
+    const double omega_nominal = (2.0 * pi * machine_rated_freq) / machine_pole_pairs;  // 52.36 rad/s
+    const double psi_field_nominal = 5.0;                                               // 5 Wb nominal field flux
+    _lci_drive->initialize(omega_nominal, 0.0, psi_field_nominal);
+
+    // Set field voltage to maintain steady-state flux
+    // V_f = R_f × i_f = R_f × (ψ_fD / L_fD) = 0.0014 × (5.0 / 0.00975) = 0.72 V
+    _applied_field_voltage = voltage_t(0.72);
+
+    std::cout << "\n=== Industrial LCI Motoring Test ===" << std::endl;
+    std::cout << "Machine speed (forced): " << (omega_nominal * 60.0 / (2.0 * pi)) << " RPM" << std::endl;
+    std::cout << "Initial field flux: " << _lci_drive->get_machine_state().psi_fD << " Wb" << std::endl;
+
+    // Set motoring firing angles
+    set_rectifier_firing_angle(15.0);  // Low angle for high DC voltage
+    set_inverter_firing_angle(150.0);  // Inverter mode for motoring
+
+    // Apply load torque (10 kNm typical for 3.15 MW at 500 RPM)
+    // P = T × ω → T = P / ω = 3.15e6 / (2π × 500/60) = 60 kNm at rated
+    // Use 10 kNm for initial test
+    _applied_load_torque = torque_t(10000.0);
+
+    // Run for 5 grid cycles
+    simulate_for(5.0 / fundamental_frequency);
+
+    const auto& state = _lci_drive->get_machine_state();
+    double v_dc_link = _v_dc_rect.value() - _v_dc_inv.value();
+    double power_dc = v_dc_link * _i_dc.value();
+    double rpm = state.omega_r * 60.0 / (2.0 * pi);
+
+    std::cout << "\n=== Motoring Results ===" << std::endl;
+    std::cout << "DC Current:        " << _i_dc.value() << " A" << std::endl;
+    std::cout << "Rectifier V_DC:    " << _v_dc_rect.value() << " V" << std::endl;
+    std::cout << "Inverter V_DC:     " << _v_dc_inv.value() << " V" << std::endl;
+    std::cout << "DC Link Voltage:   " << v_dc_link << " V" << std::endl;
+    std::cout << "DC Power:          " << (power_dc / 1e3) << " kW" << std::endl;
+    std::cout << "Machine Speed:     " << rpm << " RPM" << std::endl;
+    std::cout << "Field Flux:        " << state.psi_fD << " Wb" << std::endl;
+    std::cout << "Applied Torque:    " << (_applied_load_torque.value() / 1000.0) << " kNm" << std::endl;
+    std::cout << "========================\n" << std::endl;
+
+    // Validate operation
+    EXPECT_GT(v_dc_link, 0.0) << "DC link voltage should be positive for motoring";
+    EXPECT_GT(std::abs(_i_dc.value()), 0.1) << "Should have DC current with load applied";
+    EXPECT_GT(state.psi_fD, 0.0) << "Field flux should be positive";
+    // Speed may drop slightly from synchronous due to load torque (normal for synchronous machine under load)
+    EXPECT_NEAR(rpm, machine_sync_speed_rpm, 20.0) << "Speed should remain near nominal (may slip under load)";
+}
+
+// Test: Diagnostic test to investigate voltage and current behavior
+TEST_F(IndustrialLCIDriveTest, DiagnosticVoltageAndCurrentAnalysis)
+{
+    // Force machine to nominal speed (500 RPM synchronous)
+    const double omega_nominal = (2.0 * pi * machine_rated_freq) / machine_pole_pairs;  // 52.36 rad/s
+    const double psi_field_nominal = 5.0;                                               // 5 Wb nominal field flux
+    _lci_drive->initialize(omega_nominal, 0.0, psi_field_nominal);
+
+    // Set field voltage to maintain steady-state flux
+    _applied_field_voltage = voltage_t(0.72);
+
+    // Set motoring firing angles
+    set_rectifier_firing_angle(15.0);
+    set_inverter_firing_angle(150.0);
+
+    // Apply load torque
+    _applied_load_torque = torque_t(10000.0);
+
+    std::cout << "\n=== Diagnostic: Voltage & Current Analysis ===" << std::endl;
+    std::cout << "Machine speed (forced): " << (omega_nominal * 60.0 / (2.0 * pi)) << " RPM" << std::endl;
+    std::cout << "Applied load: " << (_applied_load_torque.value() / 1000.0) << " kNm" << std::endl;
+
+    // Track min/max values
+    double i_a_min = 1e9, i_a_max = -1e9;
+    double i_b_min = 1e9, i_b_max = -1e9;
+    double i_c_min = 1e9, i_c_max = -1e9;
+    double v_terminal_a_min = 1e9, v_terminal_a_max = -1e9;
+    double v_emf_a_min = 1e9, v_emf_a_max = -1e9;
+
+    int sign_changes_a = 0, sign_changes_b = 0, sign_changes_c = 0;
+    double prev_i_a = 0, prev_i_b = 0, prev_i_c = 0;
+
+    // Count firing pulses
+    int pulse_counts_inv[6] = {0, 0, 0, 0, 0, 0};
+    int pulse_counts_rect[6] = {0, 0, 0, 0, 0, 0};
+
+    // Run for 2 electrical cycles and collect statistics
+    double simulation_time = 2.0 / machine_rated_freq;  // 2 electrical cycles (80ms @ 25 Hz)
+    int n_steps = static_cast<int>(simulation_time / sampling_time);
+
+    for (int step = 0; step < n_steps; ++step) {
+        simulate_for(sampling_time);
+
+        // Count pulses (convert to array first)
+        auto inv_array = _pulses_inv.to_array();
+        auto rect_array = _pulses_rect.to_array();
+        for (int i = 0; i < 6; ++i) {
+            if (inv_array[i]) pulse_counts_inv[i]++;
+            if (rect_array[i]) pulse_counts_rect[i]++;
+        }
+
+        // Get currents
+        double i_a = _i_machine_abc.a().value();
+        double i_b = _i_machine_abc.b().value();
+        double i_c = _i_machine_abc.c().value();
+
+        // Get terminal voltages and back-EMF
+        auto v_terminal = _lci_drive->get_motor_voltages();
+        auto v_emf = _lci_drive->get_motor_back_emf();
+
+        double v_terminal_a = v_terminal.a().value();
+        double v_emf_a = v_emf.a().value();
+
+        // Track min/max
+        i_a_min = std::min(i_a_min, i_a);
+        i_a_max = std::max(i_a_max, i_a);
+        i_b_min = std::min(i_b_min, i_b);
+        i_b_max = std::max(i_b_max, i_b);
+        i_c_min = std::min(i_c_min, i_c);
+        i_c_max = std::max(i_c_max, i_c);
+
+        v_terminal_a_min = std::min(v_terminal_a_min, v_terminal_a);
+        v_terminal_a_max = std::max(v_terminal_a_max, v_terminal_a);
+        v_emf_a_min = std::min(v_emf_a_min, v_emf_a);
+        v_emf_a_max = std::max(v_emf_a_max, v_emf_a);
+
+        // Count sign changes (indicating proper AC current flow)
+        if (step > 0) {
+            if ((prev_i_a > 0 && i_a < 0) || (prev_i_a < 0 && i_a > 0)) sign_changes_a++;
+            if ((prev_i_b > 0 && i_b < 0) || (prev_i_b < 0 && i_b > 0)) sign_changes_b++;
+            if ((prev_i_c > 0 && i_c < 0) || (prev_i_c < 0 && i_c > 0)) sign_changes_c++;
+        }
+
+        prev_i_a = i_a;
+        prev_i_b = i_b;
+        prev_i_c = i_c;
+    }
+
+    std::cout << "\n--- Current Analysis ---" << std::endl;
+    std::cout << "Phase A: min=" << i_a_min << " A, max=" << i_a_max << " A, sign changes=" << sign_changes_a
+              << std::endl;
+    std::cout << "Phase B: min=" << i_b_min << " A, max=" << i_b_max << " A, sign changes=" << sign_changes_b
+              << std::endl;
+    std::cout << "Phase C: min=" << i_c_min << " A, max=" << i_c_max << " A, sign changes=" << sign_changes_c
+              << std::endl;
+
+    std::cout << "\n--- Pulse Count Analysis ---" << std::endl;
+    std::cout << "Rectifier: T1=" << pulse_counts_rect[0] << ", T2=" << pulse_counts_rect[1]
+              << ", T3=" << pulse_counts_rect[2] << ", T4=" << pulse_counts_rect[3] << ", T5=" << pulse_counts_rect[4]
+              << ", T6=" << pulse_counts_rect[5] << std::endl;
+    std::cout << "Inverter:  T1=" << pulse_counts_inv[0] << ", T2=" << pulse_counts_inv[1]
+              << ", T3=" << pulse_counts_inv[2] << ", T4=" << pulse_counts_inv[3] << ", T5=" << pulse_counts_inv[4]
+              << ", T6=" << pulse_counts_inv[5] << std::endl;
+
+    std::cout << "\n--- Voltage Analysis (Phase A) ---" << std::endl;
+    std::cout << "Terminal voltage: min=" << v_terminal_a_min << " V, max=" << v_terminal_a_max
+              << " V, pk-pk=" << (v_terminal_a_max - v_terminal_a_min) << " V" << std::endl;
+    std::cout << "Back-EMF:         min=" << v_emf_a_min << " V, max=" << v_emf_a_max
+              << " V, pk-pk=" << (v_emf_a_max - v_emf_a_min) << " V" << std::endl;
+
+    const auto& state = _lci_drive->get_machine_state();
+    std::cout << "\n--- Machine State ---" << std::endl;
+    std::cout << "Field flux:  " << state.psi_fD << " Wb" << std::endl;
+    std::cout << "Damper d:    " << state.psi_kD << " Wb" << std::endl;
+    std::cout << "Damper q:    " << state.psi_kQ << " Wb" << std::endl;
+    std::cout << "Speed:       " << (state.omega_r * 60.0 / (2.0 * pi)) << " RPM" << std::endl;
+
+    std::cout << "==========================================\n" << std::endl;
+
+    // Validate that currents properly change sign (AC behavior)
+    EXPECT_GT(sign_changes_a, 2) << "Phase A current should switch sign multiple times (AC behavior)";
+    EXPECT_GT(sign_changes_b, 2) << "Phase B current should switch sign multiple times (AC behavior)";
+    EXPECT_GT(sign_changes_c, 2) << "Phase C current should switch sign multiple times (AC behavior)";
+
+    // Validate that currents go both positive and negative
+    EXPECT_LT(i_a_min, -10.0) << "Phase A current should go significantly negative";
+    EXPECT_GT(i_a_max, 10.0) << "Phase A current should go significantly positive";
+
+    // Validate back-EMF is sinusoidal (symmetric)
+    double emf_symmetry = std::abs(std::abs(v_emf_a_max) - std::abs(v_emf_a_min));
+    EXPECT_LT(emf_symmetry, 100.0) << "Back-EMF should be approximately symmetric (sinusoidal)";
 }
 
 }  // namespace

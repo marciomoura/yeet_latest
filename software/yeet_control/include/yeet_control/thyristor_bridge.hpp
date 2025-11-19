@@ -79,6 +79,32 @@ public:
      */
     double calculate_dc_voltage(const std::array<double, 3>& v_ac_abc, const std::array<double, 2>& v_dc_rails) const;
 
+    /**
+     * @brief Gets the line-to-line voltages at the AC terminals of the bridge.
+     *
+     * Returns the three line-to-line voltages: [v_ab, v_bc, v_ca].
+     * During commutation overlap, when two phases are shorted through conducting thyristors,
+     * the corresponding line-to-line voltage drops to near zero (voltage notch).
+     *
+     * @return std::array<double, 3> Line-to-line voltages [v_ab, v_bc, v_ca] at AC terminals.
+     */
+    const std::array<double, 3>& get_ac_line_voltages() const { return _v_line_abc; }
+
+    /**
+     * @brief Gets the actual phase voltages at the AC terminals of the bridge.
+     *
+     * Returns the three phase voltages: [v_a, v_b, v_c] measured at the bridge terminals.
+     * During commutation overlap, when two phases are connected through conducting thyristors
+     * on the same DC rail, those phases are electrically shorted and their terminal voltages
+     * collapse to the average value, creating a voltage notch in both phase voltages.
+     *
+     * @return std::array<double, 3> Phase voltages [v_a, v_b, v_c] at AC terminals.
+     */
+    const std::array<double, 3>& get_ac_phase_voltages() const { return _v_phase_abc; }
+
 private:
-    std::array<bool, 6> _conducting_states_{false};  ///< ON/OFF state for each thyristor T1-T6.
+    std::array<bool, 6> _conducting_states_{false};             ///< ON/OFF state for each thyristor T1-T6.
+    mutable std::array<double, 3> _v_line_abc{0.0, 0.0, 0.0};   ///< Cached line-to-line voltages [v_ab, v_bc, v_ca].
+    mutable std::array<double, 3> _v_phase_abc{0.0, 0.0, 0.0};  ///< Cached phase voltages [v_a, v_b, v_c] at terminals.
+    mutable std::array<double, 3> _v_ac_source{0.0, 0.0, 0.0};  ///< Source voltages for notch calculation.
 };

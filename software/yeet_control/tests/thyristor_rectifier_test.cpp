@@ -164,7 +164,23 @@ private:
         _simulator.register_sampler_entry(
             yeet::make_lambda_sampler<double>("v_ac_source_c", [&]() -> double { return _v_ac_source_abc.c(); }));
 
-        // Log three-phase line-to-line voltages
+        // Log actual terminal phase voltages at bridge (shows voltage notch during commutation)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_phase_a", [&]() -> double { return _rectifier.get_ac_phase_voltages()[0]; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_phase_b", [&]() -> double { return _rectifier.get_ac_phase_voltages()[1]; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_phase_c", [&]() -> double { return _rectifier.get_ac_phase_voltages()[2]; }));
+
+        // Log actual terminal line-to-line voltages at bridge (shows voltage notch during commutation)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_ab", [&]() -> double { return _rectifier.get_ac_line_voltages()[0]; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_bc", [&]() -> double { return _rectifier.get_ac_line_voltages()[1]; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_ca", [&]() -> double { return _rectifier.get_ac_line_voltages()[2]; }));
+
+        // Log three-phase line-to-line voltages at source (no notch, for comparison)
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "v_ac_line_ab", [&]() -> double { return _v_ac_source_abc.a() - _v_ac_source_abc.b(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
