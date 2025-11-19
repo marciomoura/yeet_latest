@@ -10,13 +10,15 @@ sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit
     assert(per_unit_system != nullptr);
 }
 
+void sfc_plant_model_runner::register_datamodel(yeet::model_registry& registry)
+{
+    // Delegate to the datamodel's registration method
+    sfc_plant_model_datamodel datamodel(&_inputs, &_outputs, &_parameters);
+    datamodel.register_data_model(registry);
+}
+
 void sfc_plant_model_runner::initialize()
 {
-    // Parameters are initialized by the datamodel struct defaults
-    // Tests may override these parameters BEFORE initialize() is called
-    // The parameter<T> class default values are set in the struct definition
-    // No need to write them again here - let read() use the defaults
-
     // Configure the plant's grid and machine parameters from the shared per-unit system
     const auto& grid_bases = _per_unit_system->get_grid_bases();
     const auto& machine_bases = _per_unit_system->get_machine_bases();
@@ -47,7 +49,9 @@ void sfc_plant_model_runner::run()
     // Set inputs to the plant model
     _plant.set_grid_side_pulses(_inputs.grid_firing_pulses.read().to_array());
     _plant.set_machine_side_pulses(_inputs.machine_firing_pulses.read().to_array());
-    _plant.set_load_torque_pu(_inputs.load_torque.read());
+
+    // Set load torque from constant torque parameter
+    _plant.set_load_torque_pu(_parameters.constant_torque.read());
 
     // Always set field current reference in variable speed mode
     // In fixed_voltage mode, this input is ignored by the plant
@@ -57,6 +61,16 @@ void sfc_plant_model_runner::run()
 
     // Execute one simulation step
     _plant.update();
+
+    auto const speed_pu =
+        speed_pu_t{to_pu(_plant.get_machine_frequency(), _per_unit_system->get_machine_bases().base_frequency)};
+
+    if (speed_pu <= speed_pu_t{0.0}) {
+        _plant.set_load_torque_pu(torque_pu_t{0.0});
+    }
+    else {
+        _plant.set_load_torque_pu(_parameters.constant_torque.read());
+    }
 
     // Read outputs from the plant model
     _outputs.grid_voltage_abc = _plant.get_grid_side_voltages_abc();
@@ -96,6 +110,10 @@ void sfc_plant_model_runner::set_parameters()
 
     _plant.configure_mechanical_load(_parameters.motor_inertia_constant.read(), _parameters.motor_damping_factor.read(),
         _parameters.motor_linear_load_coefficient.read(), _parameters.motor_quadratic_load_coefficient.read());
+
+    // Apply grid frequency and voltage parameters (convert from per-unit to absolute)
+    _plant.set_grid_frequency_pu(_parameters.grid_frequency_pu.read());
+    _plant.set_grid_voltage_pu(_parameters.grid_voltage_pu.read());
 }
 
 void sfc_plant_model_runner::set_parameter_callback()
@@ -106,6 +124,8 @@ void sfc_plant_model_runner::set_parameter_callback()
     _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
     _parameters.motor_linear_load_coefficient.register_callback([&]() { set_parameters(); });
     _parameters.motor_quadratic_load_coefficient.register_callback([&]() { set_parameters(); });
+    _parameters.grid_frequency_pu.register_callback([&]() { set_parameters(); });
+    _parameters.grid_voltage_pu.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

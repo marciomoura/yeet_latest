@@ -133,6 +133,9 @@ public:
     virtual signal_registry get_signal_registry() = 0;
 };
 
+template <typename T>
+using external_signal = signal_output<T>;
+
 }  // namespace yeet
 
 #endif  // YEET_SIGNAL_HPP

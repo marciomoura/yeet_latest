@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_types.hpp"
@@ -47,28 +48,17 @@ public:
     /**
      * @brief Parameters for test/simulation signal injection
      *
-     * Override flags enable parameter-based mocking:
-     * - override_digital_inputs: Mock supervisory commands
-     * - override_machine_side_fiber_optics_inputs: Mock machine-side cross-coupling signals
-     *
-     * When override flag is enabled, the corresponding update_*() method will use
-     * parameter values instead of the signals provided to the update call.
+     * Override flags enable parameter-based mocking for testing.
+     * When override flag is enabled, parameter values are used instead of
+     * values from external inputs.
      */
     struct parameters {
-        // Supervisory digital input overrides
         yeet::parameter<bool> override_digital_inputs{false};
         yeet::parameter<bool> auxiliaries_are_on{false};
         yeet::parameter<bool> breakers_are_on{false};
         yeet::parameter<bool> start_command{false};
         yeet::parameter<bool> stop_command{false};
         yeet::parameter<bool> shutdown_request{false};
-
-        // Machine-side fiber-optics input overrides
-        yeet::parameter<bool> override_machine_side_fiber_optics_inputs{false};
-        yeet::parameter<speed_pu_t> measured_speed{speed_pu_t{0.0}};
-        yeet::parameter<current_pu_t> current_reference{current_pu_t{0.0}};
-        yeet::parameter<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};
-        yeet::parameter<bool> request_force_commutation{false};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
@@ -167,17 +157,18 @@ public:
      *
      * **Timing:** Updated at 1ms (after machine-side update, for grid-side next iteration use)
      *
-     * **Override Capability:** Tests can set override_machine_side_fiber_optics_inputs flag
-     * to inject mock values instead of real machine-side outputs.
-     *
-     * Flow: Machine-side components → update_fiber_optics_inputs_from_machine() → grid-side cross-coupling
+     * Flow: Machine-side components → fiber optic protocol → grid-side external_ios → internal components
      */
     struct fiber_optics_inputs_from_machine_t {
-        signal_output<speed_pu_t> measured_speed{speed_pu_t{0.0}};         ///< Machine rotor speed [pu]
-        signal_output<current_pu_t> current_reference{current_pu_t{0.0}};  ///< Current ref from torque controller
-        signal_output<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};  ///< Machine back-EMF magnitude [pu]
-        signal_output<bool> request_force_commutation{false};                      ///< Force commutation request
-        signal_output<bool> shutdown_request{false};  ///< Shutdown request from machine side
+        external_signal<speed_pu_t> measured_speed{speed_pu_t{0.0}};         ///< Machine rotor speed [pu]
+        external_signal<current_pu_t> current_reference{current_pu_t{0.0}};  ///< Current ref from torque controller
+        external_signal<voltage_pu_t> machine_voltage_magnitude{
+            voltage_pu_t{0.0}};                                   ///< Machine back-EMF magnitude [pu]
+        external_signal<bool> request_force_commutation{false};   ///< Force commutation request
+        external_signal<bool> shutdown_request{false};            ///< Shutdown request from machine side
+        external_signal<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
+        external_signal<bool> protection_inhibit{false};          ///< Protection system inhibited (awaiting ack)
+        external_signal<bool> machine_trip_acknowledged{false};   ///< Machine-side trip acknowledgment
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -264,125 +255,61 @@ public:
         return _fiber_optics_inputs_from_machine;
     }
 
-    // ==================== UPDATE METHODS (Called from Plant Builder at Various Rates) ====================
+    // ==================== SIMPLIFIED SETTERS (Called from Embedded/Plant) ====================
 
     /**
-     * @brief Update analog inputs from hardware mock ADC
+     * @brief Set analog inputs from hardware ADC
      *
-     * Called at 200µs (5 kHz) with raw ADC counts from grid-side hardware mock.
-     * Stores counts in analog_inputs struct for measurement runner consumption.
+     * Called from embedded code or plant builder at 200µs with raw ADC measurements.
+     * This is the ONLY method the embedded code should call for analog inputs.
      *
-     * **Parameters:**
      * @param v_ab_counts Grid voltage AB differential (ADC counts)
      * @param v_bc_counts Grid voltage BC differential (ADC counts)
      * @param i_a_counts Grid current phase A (ADC counts)
      * @param i_c_counts Grid current phase C (ADC counts)
-     *
-     * **Timing:** Called at 200µs from plant builder register_applications loop
-     *
-     * **Override Capability:** Not overrideable (ADC measurements are primary)
      */
-    void update_analog_inputs(yeet::control::adc_counts v_ab_counts,
+    void set_analog_inputs(yeet::control::adc_counts v_ab_counts,
         yeet::control::adc_counts v_bc_counts,
         yeet::control::adc_counts i_a_counts,
         yeet::control::adc_counts i_c_counts);
 
     /**
-     * @brief Update supervisory digital inputs
+     * @brief Set supervisory digital inputs
      *
-     * Called at 200µs or 10ms with external command signals.
+     * Called from embedded code or plant builder with external command signals.
      * Respects override_digital_inputs flag if set for test injection.
+     * This is the ONLY method the embedded code should call for digital inputs.
      *
-     * **Parameters:**
      * @param auxiliaries_are_on Auxiliary systems ready
      * @param breakers_are_on Grid breakers closed
      * @param start_command Start operation
      * @param stop_command Stop operation
      * @param shutdown_request Emergency shutdown
-     *
-     * **Timing:** Called at 200µs or 10ms from plant builder
-     *
-     * **Override Logic:** When override_digital_inputs is true, uses parameter values instead
      */
-    void update_digital_inputs(
+    void set_digital_inputs(
         bool auxiliaries_are_on, bool breakers_are_on, bool start_command, bool stop_command, bool shutdown_request);
 
     /**
-     * @brief Update fiber-optics outputs to machine-side
+     * @brief Set fiber-optics inputs from machine-side using protocol message
      *
-     * Called at 1ms (after grid-side update) before machine-side update.
-     * Plant builder pulls these signals from grid-side components and pushes them here.
+     * Called from embedded code or plant builder after decoding fiber optic RX.
+     * Accepts the decoded machine_to_grid_message directly from the fiber optic protocol.
+     * This is the ONLY method the embedded code should call for fiber optic inputs.
      *
-     * **Parameters:**
-     * @param operating_mode Current SFC operating mode (pulse or natural commutation)
-     * @param force_commutation_acknowledged Forced commutation handshake acknowledgement
-     * @param is_current_zero DC link current below threshold indicator
-     * @param is_saturated Current controller at output limits
-     * @param pulse_releases Pulses enabled / system running flag
-     * @param dc_link_current Measured DC link current in per-unit
-     * @param freeze_integrator Speed controller integrator freeze signal
-     * @param is_requesting_main_pi_reset Grid modulator requesting main PI reset
-     * @param current_state_id Grid-side state machine current state ID
-     *
-     * **Timing:** Called at 1ms after grid-side update, before machine-side reads them
-     *
-     * **Override Capability:** Not overrideable (these are primary outputs from grid-side)
-     *
-     * **Plant Builder Usage:**
-     * ```cpp
-     * grid_side_control.get_external_ios().update_fiber_optics_outputs_to_machine(
-     *     grid_side_control.get_io().digital_outputs.operating_mode.read(),
-     *     grid_side_control.get_io().machine_side_outputs.force_commutation_acknowledged.read(),
-     *     // ... etc (9 signals total)
-     * );
-     * ```
+     * @param msg Decoded message from machine-side (from fiber_optic::decode_machine_to_grid)
      */
-    void update_fiber_optics_outputs_to_machine(sfc_operating_mode_t operating_mode,
-        bool force_commutation_acknowledged,
-        bool is_current_zero,
-        bool is_saturated,
-        bool pulse_releases,
-        current_pu_t dc_link_current,
-        bool freeze_integrator,
-        bool is_requesting_main_pi_reset,
-        yeet::application::sfc::sfc_state_id current_state_id);
+    void set_fiber_optics_rx(const fiber_optic::machine_to_grid_message& msg);
 
     /**
-     * @brief Update fiber-optics inputs from machine-side
+     * @brief Get fiber-optics message to transmit to machine-side
      *
-     * Called at 1ms (after machine-side update) to capture machine-side outputs for
-     * grid-side use in the next iteration.
+     * Called from embedded code or plant builder to get the encoded message
+     * for fiber optic transmission to machine-side.
+     * Internal components write to fiber_optics_outputs_to_machine via signals_connector.
      *
-     * Plant builder pulls signals from machine-side components and pushes them here.
-     * Respects override_machine_side_fiber_optics_inputs flag if set for test injection.
-     *
-     * **Parameters:**
-     * @param measured_speed Machine rotor speed in per-unit
-     * @param current_reference Current reference from torque controller
-     * @param machine_voltage_magnitude Machine back-EMF magnitude in per-unit
-     * @param request_force_commutation Force commutation request from machine-side
-     *
-     * **Timing:** Called at 1ms after machine-side update
-     *
-     * **Override Logic:** When override_machine_side_fiber_optics_inputs is true,
-     * uses parameter values (measured_speed, current_reference, etc.)
-     * instead of the values provided to this method.
-     *
-     * **Plant Builder Usage:**
-     * ```cpp
-     * grid_side_control.get_external_ios().update_fiber_optics_inputs_from_machine(
-     *     machine_side_control.machine_side_observer.get_outputs().estimated_speed.read(),
-     *     machine_side_control.torque_controller.get_outputs().current_reference.read(),
-     *     machine_side_control.machine_side_observer.get_outputs().estimated_voltage_magnitude.read(),
-     *     machine_side_control.machine_side_modulator.get_outputs().request_force_commutation.read(),
-     *     machine_side_control.machine_side_supervisor.get_outputs().shutdown_request.read());
-     * ```
+     * @return Encoded grid_to_machine_message for fiber optic transmission
      */
-    void update_fiber_optics_inputs_from_machine(speed_pu_t measured_speed,
-        current_pu_t current_reference,
-        voltage_pu_t machine_voltage_magnitude,
-        bool request_force_commutation,
-        bool shutdown_request);
+    fiber_optic::grid_to_machine_message get_fiber_optics_tx() const;
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access
@@ -403,23 +330,11 @@ public:
     void register_callbacks();
 
 private:
-    // ==================== PRIVATE OVERRIDE METHODS ====================
-
     /**
      * @brief Apply digital input overrides if enabled
-     *
      * @return true if overrides were applied, false if real signals should be used
      */
-    bool write_digital_input_overrides();
-
-    /**
-     * @brief Apply machine-side fiber-optics input overrides if enabled
-     *
-     * @return true if overrides were applied, false if real signals should be used
-     */
-    bool write_machine_side_fiber_optics_input_overrides();
-
-    // ==================== MEMBER STATE ====================
+    bool apply_digital_input_overrides();
 
     parameters _parameters;
     digital_inputs_t _digital_inputs;

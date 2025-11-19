@@ -90,6 +90,47 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(43, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
     packet.add_signal(44, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
 
+    // === Pulse Generator Group (45-53) ===
+    packet.add_signal(45, pulse_generator.get_outputs().virtual_reference_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(46, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));
+    packet.add_signal(47, pulse_generator.get_outputs().individual_override_active.read() ? 1.0f : 0.0f);
+    const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
+    packet.add_signal(48, firing_pulses.p1 ? 1.0f : 0.0f);
+    packet.add_signal(49, firing_pulses.p2 ? 1.0f : 0.0f);
+    packet.add_signal(50, firing_pulses.p3 ? 1.0f : 0.0f);
+    packet.add_signal(51, firing_pulses.p4 ? 1.0f : 0.0f);
+    packet.add_signal(52, firing_pulses.p5 ? 1.0f : 0.0f);
+    packet.add_signal(53, firing_pulses.p6 ? 1.0f : 0.0f);
+
+    // === Machine-Side Protections Group (54-64) ===
+    const auto& protections = _control.machine_protections;
+    packet.add_signal(54, protections.get_outputs().is_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(55, protections.get_outputs().is_inhibited.read() ? 1.0f : 0.0f);
+    packet.add_signal(56, protections.get_outputs().any_fault_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(57, protections.get_outputs().over_flux_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(58, protections.get_outputs().under_flux_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(59, protections.get_outputs().stall_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(60, protections.get_outputs().over_flux_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(61, protections.get_outputs().under_flux_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(62, protections.get_outputs().stall_warning.read() ? 1.0f : 0.0f);
+    packet.add_signal(63, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
+    packet.add_signal(64, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
+
+    // === Fiber Optic RX from Grid-Side Group (65-75) ===
+    const auto& fiber_rx = _control.external_ios.get_fiber_optics_inputs_from_grid();
+    packet.add_signal(65, static_cast<float>(fiber_rx.dc_link_current.read()));
+    packet.add_signal(66, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));
+    packet.add_signal(67, (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation) ? 1.0f : 0.0f);
+    packet.add_signal(68, fiber_rx.force_commutation_acknowledged.read() ? 1.0f : 0.0f);
+    packet.add_signal(69, fiber_rx.release_pulses.read() ? 1.0f : 0.0f);
+    packet.add_signal(70, fiber_rx.grid_release_protections.read() ? 1.0f : 0.0f);
+    packet.add_signal(71, fiber_rx.grid_trip_acknowledged.read() ? 1.0f : 0.0f);
+    packet.add_signal(72, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));
+    packet.add_signal(73, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));  // Duplicate for convenience
+    packet.add_signal(74, static_cast<float>(fiber_rx.dc_link_current.read()));         // Duplicate for convenience
+    packet.add_signal(
+        75, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));  // Duplicate for convenience
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);
 

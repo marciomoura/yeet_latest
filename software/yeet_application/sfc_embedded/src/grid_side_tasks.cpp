@@ -89,8 +89,8 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
 {
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs via external_ios datamodel
-    control->get_external_ios().get_digital_inputs().auxiliaries_are_on.write(false);
-    control->get_external_ios().get_digital_inputs().breakers_are_on.write(false);
+    control->get_external_ios().get_digital_inputs().auxiliaries_are_on.write(true);
+    control->get_external_ios().get_digital_inputs().breakers_are_on.write(true);
     control->get_external_ios().get_digital_inputs().start_command.write(false);
     control->get_external_ios().get_digital_inputs().stop_command.write(false);
     control->get_external_ios().get_digital_inputs().shutdown_request.write(false);
@@ -100,7 +100,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
     control->initialize();
 
-#if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
+    // #if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
     // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
     control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 120.0f});
@@ -108,7 +108,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::control::six_pulse_generator::reference_type::line);
     control->grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
-#endif
+    // #endif
 
     // Prepare the inputs to be "ready"
     control->get_external_ios().get_parameters().override_digital_inputs.write(true);
@@ -151,25 +151,22 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
     // Map control system signals to DAC outputs for monitoring and testing
     // The AD5724 provides 4 analog output channels (±5V or ±10V range)
-    if (outputs != nullptr) {
-        // Example DAC output mappings (customize based on your application):
-        // Channel A: Test signal 1
-        // Channel B: Test signal 2
-        // Channel C: Test signal 3
-        // Channel D: Test signal 4
+    // Example DAC output mappings (customize based on your application):
+    // Channel A: Test signal 1
+    // Channel B: Test signal 2
+    // Channel C: Test signal 3
+    // Channel D: Test signal 4
 
-        // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
-        // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
-        outputs->analog_outputs.channels[0] =
-            control->grid_side_observer.get_outputs().estimated_reference_angle.read().get_pu().value();  // CH A
-        outputs->analog_outputs.channels[1] =
-            control->grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
-        outputs->analog_outputs.channels[2] =
-            control->grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();  // CH C
-        outputs->analog_outputs.channels[3] =
-            control->grid_measurements.get_outputs().grid_voltage_alphabeta_filtered.read().alpha();  // CH D
-        outputs->analog_outputs.valid = true;  // Signal to writer task that values are valid
-    }
+    // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
+    // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
+    outputs->analog_outputs.channels[0] =
+        control->grid_side_observer.get_outputs().estimated_reference_angle.read().get_pu().value();             // CH A
+    outputs->analog_outputs.channels[1] = control->grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
+    outputs->analog_outputs.channels[2] =
+        control->grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();  // CH C
+    outputs->analog_outputs.channels[3] =
+        control->grid_measurements.get_outputs().grid_voltage_alphabeta_filtered.read().alpha();  // CH D
+    outputs->analog_outputs.valid = true;  // Signal to writer task that values are valid
 
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
@@ -180,16 +177,14 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   PWM4 (PC9) → a_minus (Phase A negative arm, T4)
     //   PWM5 (PB0) → c_plus  (Phase C positive arm, T5)
     //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
-    if (outputs != nullptr) {
-        const auto& firing_pulses = control->get_firing_pulses().read();
+    const auto& firing_pulses = control->get_firing_pulses().read();
 
-        outputs->thyristor_pulses.a_plus = firing_pulses.p1;
-        outputs->thyristor_pulses.b_minus = firing_pulses.p6;
-        outputs->thyristor_pulses.b_plus = firing_pulses.p3;
-        outputs->thyristor_pulses.a_minus = firing_pulses.p4;
-        outputs->thyristor_pulses.c_plus = firing_pulses.p5;
-        outputs->thyristor_pulses.c_minus = firing_pulses.p2;
-    }
+    outputs->thyristor_pulses.a_plus = firing_pulses.p1;
+    outputs->thyristor_pulses.b_minus = firing_pulses.p6;
+    outputs->thyristor_pulses.b_plus = firing_pulses.p3;
+    outputs->thyristor_pulses.a_minus = firing_pulses.p4;
+    outputs->thyristor_pulses.c_plus = firing_pulses.p5;
+    outputs->thyristor_pulses.c_minus = firing_pulses.p2;
 }
 
 ARM_FUNCTION
@@ -208,18 +203,18 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     // Based on typical SFC system supervisory control interface:
     //   DI1-DI6: State machine commands (auxiliaries, breakers, start, stop, etc.)
     //   DI7-DI16: System status and interlocks
-    if (inputs != nullptr && inputs->digital_inputs.valid) {
+    if (inputs->digital_inputs.valid) {
         // Update supervisory digital inputs from hardware I/O
-        control->external_ios.update_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
-            inputs->digital_inputs.signals[1],                                          // DI2: Grid breakers closed
-            inputs->digital_inputs.signals[2],                                          // DI3: Start command
-            inputs->digital_inputs.signals[3],                                          // DI4: Stop command
-            inputs->digital_inputs.signals[4]);                                         // DI5: Emergency shutdown
+        control->external_ios.set_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
+            inputs->digital_inputs.signals[1],                                       // DI2: Grid breakers closed
+            inputs->digital_inputs.signals[2],                                       // DI3: Start command
+            inputs->digital_inputs.signals[3],                                       // DI4: Stop command
+            inputs->digital_inputs.signals[4]);                                      // DI5: Emergency shutdown
     }
 
     // Process fiber-optic RX data from machine-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
-    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
+    if (inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Use control class method to decode all signals (ensures consistency with host simulator)
         // This updates external_ios with: measured_speed, current_reference, machine_voltage_magnitude,
         // force_commutation_request, shutdown_request
@@ -236,14 +231,12 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     // ==================== FIBER-OPTIC TX → MACHINE-SIDE CONTROLLER ====================
     // Prepare fiber-optic TX data to send to machine-side board via I/O interface outputs
     // Transmit grid-side status and cross-coupled signals
-    if (outputs != nullptr) {
-        uint8_t payload_words = control->encode_fiber_optic_tx_to_machine();
-        outputs->fiber_optic_tx.payload_length = payload_words;
+    uint8_t payload_words = control->encode_fiber_optic_tx_to_machine();
+    outputs->fiber_optic_tx.payload_length = payload_words;
 
-        std::memcpy(
-            outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
-        outputs->fiber_optic_tx.transmit_request = true;
-    }
+    std::memcpy(
+        outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
+    outputs->fiber_optic_tx.transmit_request = true;
 
     // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
     // Map control system status to hardware digital outputs via I/O interface

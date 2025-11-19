@@ -78,7 +78,7 @@ public:
             "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
         entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
 
-        registry.insert("machine_side_hardware_mock", std::move(entry));
+        registry.insert("hardware_mock", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

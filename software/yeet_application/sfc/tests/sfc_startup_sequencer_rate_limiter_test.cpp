@@ -24,13 +24,22 @@ protected:
         virtual_torque_config virtual_torque_cfg{
             .initial = torque_pu_t{0.3}, .final = torque_pu_t{0.3}, .duration = duration_t{0.0}};
         sequencer->configure_virtual_torque(virtual_torque_cfg);
+
+        // Disable observer settling time for unit tests to get immediate transitions
+        flying_restart_config flying_cfg{
+            .speed_threshold = speed_pu_t{0.05},
+            .voltage_threshold = voltage_pu_t{0.1},
+            .observer_settling_time = duration_t{0.0},  // Zero settling time
+            .auto_start_stop_enabled = false            // Disable auto-start
+        };
+        sequencer->configure_flying_restart(flying_cfg);
     }
 
     void run_cycles(int count, bool field_established = true, speed_pu_t external_speed_ref = speed_pu_t{1.0})
     {
         for (int i = 0; i < count; ++i) {
-            sequencer->update(field_established, angle_t{0.0}, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON,
-                external_speed_ref, base_frequency);
+            sequencer->update(field_established, angle_t{0.0}, speed_pu_t{0.0}, voltage_pu_t{0.0},
+                sfc_state_id::OPERATION_ON, external_speed_ref, base_frequency);
         }
     }
 
@@ -47,6 +56,7 @@ TEST_F(SfcStartupSequencerRateLimiterTest, SpeedReferenceIsRateLimited)
 
     // Start sequence and get to closed-loop operation
     sequencer->start_sequence();
+    run_cycles(1);                            // Allow transition to FLUX_BUILDUP
     run_cycles(1, true, speed_pu_t{0.0});     // Flux buildup completes
     run_cycles(1001, true, speed_pu_t{0.0});  // Starting procedure completes
 
@@ -83,13 +93,15 @@ TEST_F(SfcStartupSequencerRateLimiterTest, RateLimiterCanBeDisabled)
 
     // Start sequence and get to closed-loop operation
     sequencer->start_sequence();
+    run_cycles(1);                            // Allow transition to FLUX_BUILDUP
     run_cycles(1, true, speed_pu_t{0.0});     // Flux buildup completes
     run_cycles(1001, true, speed_pu_t{0.0});  // Starting procedure completes
 
     ASSERT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 
     // When disabled, step input should pass through immediately
-    sequencer->update(true, angle_t{0.0}, speed_pu_t{0.0}, sfc_state_id::OPERATION_ON, speed_pu_t{1.0}, base_frequency);
+    sequencer->update(true, angle_t{0.0}, speed_pu_t{0.0}, voltage_pu_t{0.0}, sfc_state_id::OPERATION_ON,
+        speed_pu_t{1.0}, base_frequency);
     auto outputs = sequencer->get_outputs();
     EXPECT_NEAR(outputs.speed_control.speed_reference.value(), 1.0f, 0.001f);
 }
@@ -102,6 +114,7 @@ TEST_F(SfcStartupSequencerRateLimiterTest, RateLimiterWorksInBothDirections)
 
     // Start sequence and get to closed-loop operation
     sequencer->start_sequence();
+    run_cycles(1);                            // Allow transition to FLUX_BUILDUP
     run_cycles(1, true, speed_pu_t{0.0});     // Flux buildup completes
     run_cycles(1001, true, speed_pu_t{0.0});  // Starting procedure completes
 
@@ -134,6 +147,7 @@ TEST_F(SfcStartupSequencerRateLimiterTest, RateLimiterInitializesToZeroAtStartup
     // During flux buildup and starting procedure, speed reference tracks virtual frequency
     // After flux buildup (1 cycle) and entering starting procedure, it should be at initial freq (0.02 pu)
     sequencer->start_sequence();
+    run_cycles(1);                          // Allow transition to FLUX_BUILDUP
     run_cycles(10, true, speed_pu_t{1.0});  // Complete flux buildup and enter starting procedure
     outputs = sequencer->get_outputs();
     // Speed reference should track virtual frequency, which increases slightly over 10 cycles

@@ -58,20 +58,11 @@ private:
      */
     void set_parameter_callback();
 
-    /**
-     * @brief Handle start/stop commands with edge detection
-     */
-    void handle_commands();
-
     /// The core startup sequencer instance
     sfc::sfc_startup_sequencer _sequencer;
 
     /// Per-unit system for frequency conversions
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
-
-    /// Edge detection flags for commands
-    bool _prev_start_command{false};
-    bool _prev_stop_command{false};
 };
 
 }  // namespace yeet::application::sfc::integration

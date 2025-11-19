@@ -4,6 +4,7 @@
 #include "sfc_integration/sfc_state_machine_datamodel.hpp"
 #include "yeet/application_interface.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/edge_detector.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -24,7 +25,11 @@ public:
               sfc::sfc_state_event("stop_command", [this]() { return _outputs.stop_command.read(); }),
               sfc::sfc_state_event("shutdown_request", [this]() { return _outputs.shutdown_request.read(); }),
               sfc::sfc_state_event(
-                  "is_current_extinguished", [this]() { return _outputs.is_current_extinguished.read(); })}
+                  "is_current_extinguished", [this]() { return _outputs.is_current_extinguished.read(); }),
+              sfc::sfc_state_event(
+                  "protection_not_inhibited", [this]() { return !_inputs.protection_inhibited.read(); }),
+              sfc::sfc_state_event(
+                  "any_protection_fault_active", [this]() { return _inputs.any_protection_fault_active.read(); })}
     {
     }
 

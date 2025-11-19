@@ -91,6 +91,29 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'force commutation ack', 'color': 'y', 'index': GridSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK},
                 ]
             }
+        },
+        'pulse_generator': {
+            'firing_pulses': {
+                'title': 'Firing Pulses (P1-P6)',
+                'y_label': 'Pulse State',
+                'signals': [
+                    {'name': 'pulse 1', 'color': 'r', 'index': GridSignalIndex.PULSE_GENERATOR_P1},
+                    {'name': 'pulse 2', 'color': 'g', 'index': GridSignalIndex.PULSE_GENERATOR_P2},
+                    {'name': 'pulse 3', 'color': 'b', 'index': GridSignalIndex.PULSE_GENERATOR_P3},
+                    {'name': 'pulse 4', 'color': 'c', 'index': GridSignalIndex.PULSE_GENERATOR_P4},
+                    {'name': 'pulse 5', 'color': 'm', 'index': GridSignalIndex.PULSE_GENERATOR_P5},
+                    {'name': 'pulse 6', 'color': 'y', 'index': GridSignalIndex.PULSE_GENERATOR_P6},
+                ]
+            },
+            'virtual_reference': {
+                'title': 'Virtual Reference Generator',
+                'y_label': 'Angle (pu) / State',
+                'signals': [
+                    {'name': 'virtual ref. angle', 'color': 'g', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE},
+                    {'name': 'virtual ref. active', 'color': 'r', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE},
+                    {'name': 'individual override active', 'color': 'c', 'index': GridSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE},
+                ]
+            }
         }
     }
 
@@ -152,8 +175,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Firing Angle (rad) / Current (pu) / Speed (pu)',
                 'signals': [
                     {'name': 'firing angle (rad)', 'color': 'g', 'index': MachineSignalIndex.CONTROLLER_FIRING_ANGLE},
-                    {'name': 'dc link current', 'color': 'r', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT},
-                    {'name': 'machine speed', 'color': 'c', 'index': MachineSignalIndex.CONTROLLER_MACHINE_SPEED},
+                    {'name': 'dc link current', 'color': 'r', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT}
                 ]
             }
         },
@@ -163,9 +185,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Reference (pu) / Limit (pu) / State',
                 'signals': [
                     {'name': 'torque ref.', 'color': 'g', 'index': MachineSignalIndex.TORQUE_TORQUE_REFERENCE},
-                    {'name': 'current reference', 'color': 'c', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE},
-                    {'name': 'is saturated', 'color': 'w', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_OUTPUT},
-                    {'name': 'is active', 'color': 'y', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE}
+                    {'name': 'current reference', 'color': 'c', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE}
                 ]
             },
         },
@@ -175,8 +195,7 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Speed Ref (pu) / Measured Speed (pu) / Torque Ref (pu)',
                 'signals': [
                     {'name': 'speed ref.', 'color': 'g', 'index': MachineSignalIndex.SPEED_SPEED_REFERENCE},
-                    {'name': 'measured speed', 'color': 'r', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED},
-                    {'name': 'torque reference', 'color': 'c', 'index': MachineSignalIndex.SPEED_TORQUE_REFERENCE},
+                    {'name': 'measured speed', 'color': 'r', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED}
                 ]
             }
         },
@@ -206,6 +225,29 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'prefluxing elapsed time', 'color': 'r', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME},
                 ]
             }
+        },
+        'pulse_generator': {
+            'firing_pulses': {
+                'title': 'Firing Pulses (P1-P6)',
+                'y_label': 'Pulse State',
+                'signals': [
+                    {'name': 'pulse 1', 'color': 'r', 'index': MachineSignalIndex.PULSE_GENERATOR_P1},
+                    {'name': 'pulse 2', 'color': 'g', 'index': MachineSignalIndex.PULSE_GENERATOR_P2},
+                    {'name': 'pulse 3', 'color': 'b', 'index': MachineSignalIndex.PULSE_GENERATOR_P3},
+                    {'name': 'pulse 4', 'color': 'c', 'index': MachineSignalIndex.PULSE_GENERATOR_P4},
+                    {'name': 'pulse 5', 'color': 'm', 'index': MachineSignalIndex.PULSE_GENERATOR_P5},
+                    {'name': 'pulse 6', 'color': 'y', 'index': MachineSignalIndex.PULSE_GENERATOR_P6},
+                ]
+            },
+            'virtual_reference': {
+                'title': 'Virtual Reference Generator',
+                'y_label': 'Angle (pu) / State',
+                'signals': [
+                    {'name': 'virtual ref. angle', 'color': 'g', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE},
+                    {'name': 'virtual ref. active', 'color': 'r', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE},
+                    {'name': 'individual override active', 'color': 'c', 'index': MachineSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE},
+                ]
+            }
         }
     }
 
@@ -222,5 +264,5 @@ def get_default_visible_groups(target: str) -> list:
     if target == 'grid':
         return ['observer', 'measurements', 'controller'] 
     if target == 'machine':
-        return ['startup_sequencer', 'torque_controller', 'speed_controller']
+        return ['excitation', 'startup_sequencer', 'torque_controller', 'speed_controller']
     return []

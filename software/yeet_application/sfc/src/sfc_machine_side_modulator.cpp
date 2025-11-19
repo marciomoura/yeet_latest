@@ -92,6 +92,8 @@ machine_side_commutation_state_t sfc_machine_side_modulator::get_commutation_sta
     return _commutation_state;
 }
 
+int sfc_machine_side_modulator::get_current_rotor_sector() const noexcept { return _previous_rotor_sector; }
+
 bool sfc_machine_side_modulator::has_rotor_sector_changed(angle_t rotor_position_rad) const noexcept
 {
     // Calculate current sector

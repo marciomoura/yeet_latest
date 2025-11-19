@@ -73,10 +73,42 @@ class GridSignalIndex(IntEnum):
     MODE_MONITOR_CURRENT_IS_ZERO = 42
     MODE_MONITOR_IS_DISCONTINUOUS_MODE = 43
     
-    # === Pulse Generator Group (44-46) ===
+    # === Pulse Generator Group (44-55) ===
     PULSE_GENERATOR_RELEASE_PULSES = 44
     PULSE_GENERATOR_ACTUAL_FIRING_ANGLE = 45
     PULSE_GENERATOR_RELEASE_PULSES_INPUT = 46
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 47
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE = 48
+    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 49
+    PULSE_GENERATOR_P1 = 50
+    PULSE_GENERATOR_P2 = 51
+    PULSE_GENERATOR_P3 = 52
+    PULSE_GENERATOR_P4 = 53
+    PULSE_GENERATOR_P5 = 54
+    PULSE_GENERATOR_P6 = 55
+    
+    # === Grid-Side Protections Group (56-66) ===
+    PROTECTION_IS_TRIPPED = 56
+    PROTECTION_IS_INHIBITED = 57
+    PROTECTION_ANY_FAULT_ACTIVE = 58
+    PROTECTION_OVERCURRENT_TRIPPED = 59
+    PROTECTION_OVERVOLTAGE_TRIPPED = 60
+    PROTECTION_UNDERVOLTAGE_TRIPPED = 61
+    PROTECTION_OVERCURRENT_WARNING = 62
+    PROTECTION_OVERVOLTAGE_WARNING = 63
+    PROTECTION_UNDERVOLTAGE_WARNING = 64
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 65
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 66
+    
+    # === Fiber Optic RX from Machine-Side Group (67-74) ===
+    FIBER_RX_MEASURED_SPEED = 67
+    FIBER_RX_DC_LINK_CURRENT_REFERENCE = 68
+    FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE = 69
+    FIBER_RX_FORCE_COMMUTATION_REQUEST = 70
+    FIBER_RX_SHUTDOWN_REQUEST = 71
+    FIBER_RX_MACHINE_PROTECTION_TRIPPED = 72
+    FIBER_RX_PROTECTION_INHIBIT = 73
+    FIBER_RX_MACHINE_TRIP_ACKNOWLEDGED = 74
 
 
 @dataclass
@@ -160,7 +192,45 @@ class OperationModeMonitorData:
 
 @dataclass
 class PulseGeneratorData:
-    """Pulse generator outputs (44-46)."""
+    """Pulse generator outputs (44-55)."""
     release_pulses: bool = False
     actual_firing_angle_pu: float = 0.0
     release_pulses_input: bool = False
+    virtual_reference_active: bool = False
+    virtual_reference_angle_pu: float = 0.0
+    individual_override_active: bool = False
+    p1: bool = False
+    p2: bool = False
+    p3: bool = False
+    p4: bool = False
+    p5: bool = False
+    p6: bool = False
+
+
+@dataclass
+class GridProtectionsData:
+    """Grid-side protection system (56-66)."""
+    is_tripped: bool = False
+    is_inhibited: bool = False
+    any_fault_active: bool = False
+    overcurrent_tripped: bool = False
+    overvoltage_tripped: bool = False
+    undervoltage_tripped: bool = False
+    overcurrent_warning: bool = False
+    overvoltage_warning: bool = False
+    undervoltage_warning: bool = False
+    communication_loss_tripped: bool = False
+    communication_loss_warning: bool = False
+
+
+@dataclass
+class FiberOpticRxFromMachineData:
+    """Fiber optic signals received from machine-side (67-74)."""
+    measured_speed_pu: float = 0.0
+    dc_link_current_reference_pu: float = 0.0
+    machine_voltage_magnitude_pu: float = 0.0
+    force_commutation_request: bool = False
+    shutdown_request: bool = False
+    machine_protection_tripped: bool = False
+    protection_inhibit: bool = False
+    machine_trip_acknowledged: bool = False

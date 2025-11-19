@@ -30,7 +30,8 @@ void sfc_machine_side_integrator_supervisor_runner::run()
         _outputs.request_shutdown = _parameters.is_tripped_value;
     }
     else {
-        _outputs.request_shutdown = false;  // TODO: Implement trip logic for the machine-side
+        // Propagate machine-side protection trips to grid-side via fiber optics
+        _outputs.request_shutdown = _inputs.protection_shutdown_request;
     }
 
     if (_parameters.override_freeze) {

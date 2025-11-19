@@ -63,7 +63,9 @@ struct sfc_state_inputs {
     sfc_state_event start_command;
     sfc_state_event stop_command;
     sfc_state_event shutdown_request;
-    sfc_state_event is_current_estinguished;
+    sfc_state_event is_current_extinguished;
+    sfc_state_event protection_not_inhibited_event;     // Protection system not inhibited (alarms confirmed)
+    sfc_state_event any_protection_fault_active_event;  // Any protection fault currently active (not latched)
 };
 
 /**
@@ -213,9 +215,11 @@ public:
     sfc_state_type* update(const sfc_state_inputs& inputs) noexcept override;
     sfc_state_outputs get_outputs() const noexcept override;
     sfc_state_id get_id() const noexcept override { return sfc_state_id::SHUTDOWN_REQUESTED; }
+    void reset() noexcept { _acknowledgment_sent = false; }
 
 private:
     operation_off_state* _operation_off_state{nullptr};
+    bool _acknowledgment_sent{false};  ///< Flag to ensure trip acknowledgment is held for one cycle
 };
 
 /**

@@ -32,7 +32,8 @@ void sfc_grid_side_integrator_supervisor_runner::run()
         _outputs.shutdown_request = _parameters.is_tripped_value;
     }
     else {
-        _outputs.shutdown_request = _inputs.machine_side_shutdown_request;
+        // OR together both machine-side and grid-side protection shutdown requests
+        _outputs.shutdown_request = _inputs.machine_side_shutdown_request || _inputs.grid_protection_shutdown_request;
     }
 
     // Override freeze if parameter is set

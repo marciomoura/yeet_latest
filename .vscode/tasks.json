@@ -409,14 +409,14 @@
         {
             "label": "Launch SFC Simulator",
             "type": "shell",
-            "command": "${workspaceFolder}/build-host/bin/Debug/sfc_host_simulator.exe",
+            "command": "${workspaceFolder}/build-host/bin/${input:buildConfigurationCapitalized}/sfc_host_simulator.exe",
             "args": [
                 "--grid-port",
                 "7000",
                 "--machine-port",
                 "7001",
                 "--frequency",
-                "5000",
+                "20000",
                 "--verbose"
             ],
             "group": {
@@ -501,6 +501,70 @@
             }
         },
         {
+            "label": "Launch Grid-Side Monitor (Real Target - 192.168.2.100)",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "monitor.py",
+                "--host",
+                "192.168.2.100",
+                "--port",
+                "7000",
+                "--decimate",
+                "1",
+                "--target",
+                "grid"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/software/yeet/tools"
+            },
+            "isBackground": true,
+            "problemMatcher": [],
+            "detail": "Launches grid-side telemetry monitor for real embedded target (192.168.2.100:7000)",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Launch Machine-Side Monitor (Real Target - 192.168.2.101)",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "monitor.py",
+                "--host",
+                "192.168.2.101",
+                "--port",
+                "7000",
+                "--decimate",
+                "1",
+                "--target",
+                "machine"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/software/yeet/tools"
+            },
+            "isBackground": true,
+            "problemMatcher": [],
+            "detail": "Launches machine-side telemetry monitor for real embedded target (192.168.2.101:7000)",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            }
+        },
+        {
             "label": "Launch Full System (Simulator + Monitors)",
             "dependsOn": [
                 "Launch SFC Simulator",
@@ -513,6 +577,25 @@
                 "isDefault": false
             },
             "detail": "Launches simulator and both grid & machine-side telemetry monitors in parallel",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Launch Real Hardware Monitors (Grid + Machine)",
+            "dependsOn": [
+                "Launch Grid-Side Monitor (Real Target - 192.168.2.100)",
+                "Launch Machine-Side Monitor (Real Target - 192.168.2.101)"
+            ],
+            "dependsOrder": "parallel",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "detail": "Launches both grid and machine-side telemetry monitors for real embedded hardware",
             "presentation": {
                 "echo": true,
                 "reveal": "always",

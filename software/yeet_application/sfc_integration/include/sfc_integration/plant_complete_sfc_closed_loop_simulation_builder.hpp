@@ -77,9 +77,7 @@ public:
     void mock_inputs()
     {
         // Configure machine-side excitation control via datamodel overrides
-        machine_side_control.external_ios.get_parameters().override_excitation_inputs.write(true);
-        machine_side_control.external_ios.get_parameters().exciter_ready.write(
-            true);  // Exciter is ready (perfect exciter)
+        machine_side_control.external_ios.get_parameters().override_excitation_outputs.write(true);
         machine_side_control.external_ios.get_parameters().excitation_start_command.write(true);
         machine_side_control.external_ios.get_parameters().excitation_stop_command.write(false);
 
@@ -93,9 +91,6 @@ public:
         // machine_side_control.external_ios.get_parameters().hold_speed.write(false);
         // machine_side_control.external_ios.get_parameters().decelerate.write(false);
         // machine_side_control.external_ios.get_parameters().idle.write(false);
-
-        // Mock plant inputs
-        load_torque.write(torque_pu_t{0.0});
     }
 
     void initialize()
@@ -161,7 +156,7 @@ public:
 
             // Grid-side measurements: Voltage (V_ab, V_bc) and current (I_a, I_c) in ADC counts
             // These are fed to the measurement runner for reconstruction in per-unit
-            grid_side_control.get_external_ios().update_analog_inputs(
+            grid_side_control.get_external_ios().set_analog_inputs(
                 grid_side_hardware_mock.get_outputs().v_ab_counts.read(),
                 grid_side_hardware_mock.get_outputs().v_bc_counts.read(),
                 grid_side_hardware_mock.get_outputs().i_a_counts.read(),
@@ -171,7 +166,7 @@ public:
             // The plant provides 3-phase voltage, mocks convert to ADC counts
             auto debug_ab = machine_side_hardware_mock.get_outputs().v_ab_counts.read();
             auto debug_bc = machine_side_hardware_mock.get_outputs().v_bc_counts.read();
-            machine_side_control.external_ios.update_analog_inputs(debug_ab, debug_bc);
+            machine_side_control.external_ios.set_analog_inputs(debug_ab, debug_bc);
 
             // ========== SIGNAL PROCESSING & OBSERVATION ==========
             // Measurement runners process raw ADC counts:
@@ -211,8 +206,11 @@ public:
             //   - Freeze integrator: When grid is frozen, machine must freeze too
             //   - PI reset: When grid modulator resets its PI, machine must reset its PI
             // This ensures tight synchronization between the two converters
-            machine_side_control.decode_fiber_optic_rx_from_grid(
+            bool machine_comm_valid = machine_side_control.decode_fiber_optic_rx_from_grid(
                 grid_side_control.get_fiber_optic_tx_payload(), grid_side_control.get_fiber_optic_tx_length());
+
+            // Update protection system with communication status for watchdog monitoring
+            machine_side_control.machine_protections.update_communication_status(machine_comm_valid);
 
             // ========== MACHINE-SIDE CONTROL UPDATE ==========
             // Machine-side inner control loop:
@@ -289,9 +287,6 @@ public:
     // Plant model
     sfc_plant_model_runner plant;
 
-    // External control signals
-    signal_output<torque_pu_t> load_torque;
-
     // External control signals for state machine
     signal_output<bool> auxiliaries_are_on;
     signal_output<bool> breakers_are_on;
@@ -303,15 +298,16 @@ public:
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
     {
-        // Standard per-unit system for SFC applications
-        // Grid side: 2090V RMS, 50Hz, DC link: 1044A, Machine: 1980V RMS, 2950kW
+        // 3 MVA per-unit system for Typhoon HIL testing
+        // Grid side: 2090V RMS, 50Hz, DC link: 1036A, Machine: 1980V RMS, 3.0 MVA
+        // Machine parameters match Typhoon synchronous machine model
         return std::make_shared<sfc::sfc_per_unit_system>(voltage_t(2090.0),  // Grid line-to-line voltage (V RMS)
             frequency_t(50.0),                                                // Grid frequency (Hz)
-            current_t(1044.0),                                                // DC link current base (A)
-            power_t(2950e3),                                                  // Rated power (W)
+            current_t(1036.3),                                                // DC link current base (A) - for 3 MVA
+            power_t(3.0e6),                                                   // Rated power (VA) - 3 MVA
             voltage_t(1980.0),                                                // Machine line-to-line voltage (V RMS)
             frequency_t(50.0),                                                // Machine base frequency (Hz)
-            2                                                                 // Number of pole pairs
+            2                                                                 // Number of poles (2-pole, 3000 RPM)
         );
     }
 
@@ -368,11 +364,8 @@ private:
             plant.get_inputs().field_current_reference);
 
         // ==================== External Disturbances → Plant ====================
-        // External inputs to the plant model for testing and simulation scenarios
-
-        // Load torque: Applied load on the machine shaft
-        // Simulates the gas turbine load or other mechanical loads
-        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
+        // Note: Load torque is now configured via plant.get_parameters().constant_torque parameter
+        // instead of a signal connection. This allows runtime configuration via telemetry interface.
     }
 };
 

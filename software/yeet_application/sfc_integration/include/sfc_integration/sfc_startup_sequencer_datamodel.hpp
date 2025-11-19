@@ -35,17 +35,11 @@ public:
         /// Measured rotor speed from machine-side observer [pu]
         signal_input<speed_pu_t> measured_speed;
 
+        /// Measured voltage magnitude from machine-side observer [pu]
+        signal_input<voltage_pu_t> machine_voltage_magnitude;
+
         /// Grid-side state machine current state ID
         signal_input<yeet::application::sfc::sfc_state_id> current_state_id;
-
-        /// Start command signal (manual override)
-        signal_input<bool> start_command;
-
-        /// Stop command signal (manual override)
-        signal_input<bool> stop_command;
-
-        /// External speed reference [pu]
-        signal_input<speed_pu_t> external_speed_reference;
     };
 
     /**
@@ -117,29 +111,14 @@ public:
         /// Virtual torque ramp duration [s], 0 = immediate jump to final
         parameter<duration_t> virtual_torque_duration = duration_t{0.0};
 
-        /// Enable override for start command testing
-        parameter<bool> override_enable_start_command = false;
-
-        /// Forced start command value when override is enabled
-        parameter<bool> override_value_start_command = false;
-
-        /// Enable override for stop command testing
-        parameter<bool> override_enable_stop_command = false;
-
-        /// Forced stop command value when override is enabled
-        parameter<bool> override_value_stop_command = false;
-
         /// Enable override for field established flag testing
         parameter<bool> override_enable_field_established = false;
 
         /// Forced field established value when override is enabled
         parameter<bool> override_value_field_established = false;
 
-        /// Enable override for external speed reference testing
-        parameter<bool> override_enable_speed_reference = false;
-
-        /// Forced speed reference value when override is enabled [pu]
-        parameter<speed_pu_t> override_value_speed_reference = speed_pu_t{0.0};
+        /// External speed reference command [pu]
+        parameter<speed_pu_t> speed_reference = speed_pu_t{0.0};
 
         /// Speed reference rate limit in seconds per per-unit speed change
         /// (e.g., 10.0 means 10 seconds to ramp from 0 to 1.0 pu = 0.1 pu/s)
@@ -151,6 +130,13 @@ public:
         /// Minimum speed threshold for flying restart [pu]
         /// (e.g., 0.05 = 5% rated speed)
         parameter<speed_pu_t> flying_restart_speed_threshold = speed_pu_t{0.05};
+
+        /// Voltage magnitude threshold for flying restart detection [pu]
+        /// (e.g., 0.1 = 10% rated voltage)
+        parameter<voltage_pu_t> flying_restart_voltage_threshold = voltage_pu_t{0.1};
+
+        /// Observer settling time before flying restart decision [s]
+        parameter<duration_t> flying_restart_observer_settling_time = duration_t{2.0};
 
         /// Enable automatic start/stop based on state machine state
         parameter<bool> auto_start_stop_enabled = true;
@@ -187,28 +173,22 @@ public:
             "virtual_torque_final", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_final));
         entry.parameters.insert(
             "virtual_torque_duration", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_duration));
-        entry.parameters.insert("override_enable_start_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_start_command));
-        entry.parameters.insert("override_value_start_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_start_command));
-        entry.parameters.insert("override_enable_stop_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_stop_command));
-        entry.parameters.insert("override_value_stop_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_stop_command));
         entry.parameters.insert("override_enable_field_established",
             yeet::utils::make_bool_accessor(_model_parameters->override_enable_field_established));
         entry.parameters.insert("override_value_field_established",
             yeet::utils::make_bool_accessor(_model_parameters->override_value_field_established));
-        entry.parameters.insert("override_enable_speed_reference",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_speed_reference));
-        entry.parameters.insert("override_value_speed_reference",
-            yeet::utils::make_units_accessor(_model_parameters->override_value_speed_reference));
+        entry.parameters.insert(
+            "speed_reference", yeet::utils::make_units_accessor(_model_parameters->speed_reference));
         entry.parameters.insert("speed_reference_rate_limit_seconds_per_pu",
             yeet::utils::make_units_accessor(_model_parameters->speed_reference_rate_limit_seconds_per_pu));
         entry.parameters.insert("speed_reference_rate_limit_enabled",
             yeet::utils::make_bool_accessor(_model_parameters->speed_reference_rate_limit_enabled));
         entry.parameters.insert("flying_restart_speed_threshold",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_speed_threshold));
+        entry.parameters.insert("flying_restart_voltage_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->flying_restart_voltage_threshold));
+        entry.parameters.insert("flying_restart_observer_settling_time",
+            yeet::utils::make_units_accessor(_model_parameters->flying_restart_observer_settling_time));
         entry.parameters.insert(
             "auto_start_stop_enabled", yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
 

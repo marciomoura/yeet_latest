@@ -75,9 +75,6 @@ public:
      * @brief Configuration parameters for the machine-side modulator
      */
     struct parameters {
-        /// Master enable override [bool]
-        parameter<bool> enable{true};
-
         /// Firing angle for pulse mode operation [rad]
         parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);
     };
@@ -100,11 +97,10 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
         entry.parameters.insert("forced_commutation_firing_angle",
             yeet::utils::make_units_accessor(_model_parameters->forced_commutation_firing_angle));
 
-        registry.insert("machine_side_modulator", std::move(entry));
+        registry.insert("modulator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -10,6 +10,7 @@
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
+#include "sfc_integration/sfc_machine_side_protections_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
@@ -127,6 +128,22 @@ public:
      * @param registry The model registry to populate with component parameters
      */
     void register_datamodel(yeet::model_registry& registry);
+
+    /**
+     * @brief Register plant model datamodel with the model registry (for host application only)
+     *
+     * This registers plant model parameters when running in host simulation mode.
+     * Should be called after register_datamodel() to add plant parameters to the registry.
+     * Only available when building the host application (not for embedded targets).
+     *
+     * @param registry The model registry to populate with plant parameters
+     * @param plant_runner Reference to the plant model runner
+     */
+    template <typename PlantRunner>
+    void register_plant_datamodel(yeet::model_registry& registry, PlantRunner& plant_runner)
+    {
+        plant_runner.register_datamodel(registry);
+    }
 
     // ==================== Component Access ====================
 
@@ -292,6 +309,7 @@ public:
     sfc_machine_side_modulator_runner machine_side_modulator;
     sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
     sfc_machine_side_measurements_runner machine_measurements;
+    sfc_machine_side_protections_runner machine_protections;
 
     // I/O interface for external connections (must be last as it references all components)
     sfc_machine_side_external_ios_datamodel external_ios;

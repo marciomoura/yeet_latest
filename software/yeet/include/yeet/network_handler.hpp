@@ -106,6 +106,14 @@ private:
     bool telemetry_started_;                                   ///< Is telemetry streaming currently active?
     std::uint32_t sync_frame_counter_;                         ///< Counter for periodic sync frame transmission
     static constexpr std::uint32_t SYNC_FRAME_INTERVAL = 100;  ///< Send sync frame every 100 telemetry packets
+    bool send_sync_before_next_packet_;                        ///< Flag to send sync frame before next packet
+
+    // Packet batching for improved transmission efficiency
+    static constexpr std::size_t MAX_BATCH_SIZE = 10;       ///< Maximum packets to batch together
+    static constexpr std::size_t MAX_BATCHED_BYTES = 8192;  ///< Maximum bytes in batched transmission (8KB)
+    std::uint8_t batch_buffer_[MAX_BATCHED_BYTES];          ///< Buffer for batched packets
+    std::size_t batch_count_;                               ///< Number of packets in current batch
+    std::size_t batch_bytes_;                               ///< Total bytes in current batch
 };
 
 }  // namespace yeet::telemetry

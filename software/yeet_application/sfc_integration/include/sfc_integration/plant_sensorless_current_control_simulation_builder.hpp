@@ -247,7 +247,6 @@ private:
 
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
-        signals_connector::connect_output_to_input(load_torque, plant.get_inputs().load_torque);
 
         signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);

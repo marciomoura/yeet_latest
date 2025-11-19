@@ -3,6 +3,7 @@
 #include "sfc_integration/sfc_grid_side_pulse_generator_datamodel.hpp"
 #include "yeet/application_interface.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/virtual_angle_reference_generator.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -19,7 +20,7 @@ class sfc_grid_side_pulse_generator_runner
           sfc_grid_side_pulse_generator_datamodel::parameters> {
 public:
     using datamodel = sfc_grid_side_pulse_generator_datamodel;
-    static constexpr duration_t sampling_time = us(10.0);  // 100 µs sampling time (100 kHz)
+    static constexpr duration_t sampling_time = us(200.0);
 
     /**
      * @brief Constructor
@@ -36,6 +37,7 @@ private:
     void set_parameter_callback();
 
     control::six_pulse_generator _pulse_generator;
+    control::virtual_angle_reference_generator _virtual_reference_generator;
 };
 
 }  // namespace yeet::application::sfc::integration

@@ -19,22 +19,55 @@ void sfc_grid_side_pulse_generator_runner::initialize()
 {
     set_parameters();
     set_parameter_callback();
+
+    // Configure virtual reference generator with sampling time
+    _virtual_reference_generator.configure_sampling_time(sampling_time);
+    _virtual_reference_generator.reset();
 }
 
 void sfc_grid_side_pulse_generator_runner::run()
 {
-    // Get inputs
+    // Step 1: Determine the reference angle source
+    angle_wrapped effective_reference_angle;
+    const bool using_virtual_reference = _parameters.enable_virtual_reference.read();
+
+    if (using_virtual_reference) {
+        // Use virtual reference generator
+        _virtual_reference_generator.update();
+        effective_reference_angle = _virtual_reference_generator.get_angle();
+    }
+    else {
+        // Use normal PLL reference from inputs
+        effective_reference_angle = _inputs.reference_angle.read();
+    }
+
+    // Step 2: Get firing angle command
     const angle_wrapped firing_angle_command = _inputs.firing_angle.read();
-    const angle_wrapped reference_angle = _inputs.reference_angle.read();
+    const bool release_pulses_input = _inputs.release_pulses.read() || using_virtual_reference;
 
-    // Generate pulses using the six-pulse generator
+    // Step 3: Generate pulses using the six-pulse generator
     control::six_pulse_generator::pulses pulses =
-        _pulse_generator.update(reference_angle, firing_angle_command, _inputs.release_pulses);
+        _pulse_generator.update(effective_reference_angle, firing_angle_command, release_pulses_input);
 
-    // Set outputs
+    // Step 4: Apply individual pulse overrides if enabled
+    const bool using_individual_override = _parameters.enable_individual_pulse_override.read();
+
+    if (using_individual_override) {
+        pulses.p1 = _parameters.override_p1.read();
+        pulses.p2 = _parameters.override_p2.read();
+        pulses.p3 = _parameters.override_p3.read();
+        pulses.p4 = _parameters.override_p4.read();
+        pulses.p5 = _parameters.override_p5.read();
+        pulses.p6 = _parameters.override_p6.read();
+    }
+
+    // Step 5: Set outputs
     _outputs.firing_pulses = pulses;
     _outputs.actual_firing_angle = firing_angle_command;
-    _outputs.release_pulses = _inputs.release_pulses;
+    _outputs.release_pulses = release_pulses_input;
+    _outputs.virtual_reference_active = using_virtual_reference;
+    _outputs.virtual_reference_angle = effective_reference_angle;
+    _outputs.individual_override_active = using_individual_override;
 }
 
 void sfc_grid_side_pulse_generator_runner::stop()
@@ -46,6 +79,9 @@ void sfc_grid_side_pulse_generator_runner::set_parameters()
 {
     // Configure the pulse generator with parameters
     _pulse_generator.set_pulse_width(_parameters.pulse_width.read());
+
+    // Configure virtual reference generator frequency
+    _virtual_reference_generator.configure_frequency(_parameters.virtual_reference_frequency.read());
 
     // Note: Reference type cannot be changed at runtime in the current six_pulse_generator implementation.
     // It is set to a default value in the constructor and would need re-initialization to change.
@@ -59,6 +95,15 @@ void sfc_grid_side_pulse_generator_runner::set_parameter_callback()
         // Note: This requires re-initialization if we want to support it.
         // For now, we assume it's set at construction.
     });
+
+    // Virtual reference mode callbacks
+    _parameters.enable_virtual_reference.register_callback([&]() {
+        // Reset virtual reference when mode is toggled
+        if (_parameters.enable_virtual_reference.read()) {
+            _virtual_reference_generator.reset();
+        }
+    });
+    _parameters.virtual_reference_frequency.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

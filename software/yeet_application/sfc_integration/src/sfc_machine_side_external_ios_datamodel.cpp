@@ -10,50 +10,71 @@ sfc_machine_side_external_ios_datamodel::sfc_machine_side_external_ios_datamodel
 
 void sfc_machine_side_external_ios_datamodel::register_callbacks()
 {
-    auto excitation_inputs_callback = [this]() { write_excitation_overrides(); };
+    auto excitation_outputs_callback = [this]() { apply_excitation_overrides(); };
 
-    // DISABLED: Speed generator replaced by startup_sequencer
-    // auto speed_generator_profiles_callback = [this]() { write_speed_generator_overrides(); };
-
-    _parameters.override_excitation_inputs.register_callback(excitation_inputs_callback);
-    _parameters.exciter_ready.register_callback(excitation_inputs_callback);
-    _parameters.excitation_start_command.register_callback(excitation_inputs_callback);
-    _parameters.excitation_stop_command.register_callback(excitation_inputs_callback);
-
-    // DISABLED: Speed generator replaced by startup_sequencer
-    // _parameters.run_creep_speed.register_callback(excitation_inputs_callback);
-    // _parameters.run_purge_accel.register_callback(excitation_inputs_callback);
-    // _parameters.run_ignition_accel.register_callback(excitation_inputs_callback);
-    // _parameters.run_assist_accel.register_callback(excitation_inputs_callback);
-    // _parameters.hold_speed.register_callback(excitation_inputs_callback);
-    // _parameters.decelerate.register_callback(excitation_inputs_callback);
-    // _parameters.idle.register_callback(excitation_inputs_callback);
+    _parameters.override_excitation_outputs.register_callback(excitation_outputs_callback);
+    _parameters.excitation_start_command.register_callback(excitation_outputs_callback);
+    _parameters.excitation_stop_command.register_callback(excitation_outputs_callback);
 }
 
-void sfc_machine_side_external_ios_datamodel::update_analog_inputs(
+// ==================== SIMPLIFIED SETTERS (Called from Embedded/Plant) ====================
+
+void sfc_machine_side_external_ios_datamodel::set_analog_inputs(
     yeet::control::adc_counts v_ab_counts, yeet::control::adc_counts v_bc_counts)
 {
     _analog_inputs.v_ab_counts.write(v_ab_counts);
     _analog_inputs.v_bc_counts.write(v_bc_counts);
 }
 
-void sfc_machine_side_external_ios_datamodel::update_fiber_optics_inputs(sfc_operating_mode_t operating_mode,
-    yeet::application::sfc::sfc_state_id current_state_id,
-    bool force_commutation_acknowledged,
-    bool current_is_zero,
-    bool is_saturated,
-    bool pulse_releases,
-    current_pu_t dc_link_current,
-    bool preset_request)
+void sfc_machine_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_optic::grid_to_machine_message& msg)
 {
-    _fiber_optics_inputs.operating_mode.write(operating_mode);
-    _fiber_optics_inputs.current_state_id.write(current_state_id);
-    _fiber_optics_inputs.force_commutation_acknowledged.write(force_commutation_acknowledged);
-    _fiber_optics_inputs.current_is_zero.write(current_is_zero);
-    _fiber_optics_inputs.is_saturated.write(is_saturated);
-    _fiber_optics_inputs.pulse_releases.write(pulse_releases);
-    _fiber_optics_inputs.dc_link_current.write(dc_link_current);
-    _fiber_optics_inputs.preset_request.write(preset_request);
+    // Convert boolean is_forced_commutation to operating_mode enum
+    sfc_operating_mode_t operating_mode = msg.is_forced_commutation ? sfc_operating_mode_t::forced_commutation
+                                                                    : sfc_operating_mode_t::natural_commutation;
+
+    // Write all fiber optic inputs from the decoded message
+    _fiber_optics_inputs_from_grid.operating_mode.write(operating_mode);
+    _fiber_optics_inputs_from_grid.current_state_id.write(static_cast<sfc_state_id>(msg.state_id));
+    _fiber_optics_inputs_from_grid.force_commutation_acknowledged.write(msg.force_commutation_acknowledged);
+    _fiber_optics_inputs_from_grid.release_pulses.write(msg.release_pulses);
+    _fiber_optics_inputs_from_grid.dc_link_current.write(msg.dc_link_current);
+    _fiber_optics_inputs_from_grid.grid_voltage_magnitude.write(msg.grid_voltage_magnitude);
+    _fiber_optics_inputs_from_grid.grid_release_protections.write(msg.grid_release_protections);
+    _fiber_optics_inputs_from_grid.grid_trip_acknowledged.write(msg.grid_trip_acknowledged);
+}
+
+fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::get_fiber_optics_tx() const
+{
+    fiber_optic::machine_to_grid_message msg;
+    msg.measured_speed = _fiber_optics_outputs_to_grid.measured_speed.read();
+    msg.dc_link_current_reference = _fiber_optics_outputs_to_grid.dc_link_current_reference.read();
+    msg.machine_voltage_magnitude = _fiber_optics_outputs_to_grid.machine_voltage_magnitude.read();
+    msg.force_commutation_request = _fiber_optics_outputs_to_grid.force_commutation_request.read();
+    msg.shutdown_request = _fiber_optics_outputs_to_grid.shutdown_request.read();
+    msg.machine_protection_tripped = _fiber_optics_outputs_to_grid.machine_protection_tripped.read();
+    msg.protection_inhibit = _fiber_optics_outputs_to_grid.protection_inhibit.read();
+    msg.machine_trip_acknowledged = _fiber_optics_outputs_to_grid.machine_trip_acknowledged.read();
+    return msg;
+}
+
+bool sfc_machine_side_external_ios_datamodel::get_excitation_start_command() const
+{
+    // Check if test override is active
+    if (_parameters.override_excitation_outputs.read()) {
+        return _parameters.excitation_start_command.read();
+    }
+    // Otherwise return the command from the excitation controller
+    return _excitation_outputs.excitation_start_command.read();
+}
+
+bool sfc_machine_side_external_ios_datamodel::get_excitation_stop_command() const
+{
+    // Check if test override is active
+    if (_parameters.override_excitation_outputs.read()) {
+        return _parameters.excitation_stop_command.read();
+    }
+    // Otherwise return the command from the excitation controller
+    return _excitation_outputs.excitation_stop_command.read();
 }
 
 control::six_pulse_generator::pulses sfc_machine_side_external_ios_datamodel::get_thyristor_pulse_outputs() const
@@ -61,101 +82,26 @@ control::six_pulse_generator::pulses sfc_machine_side_external_ios_datamodel::ge
     return _thyristor_output.firing_pulses.read();
 }
 
-void sfc_machine_side_external_ios_datamodel::update_excitation_inputs(
-    bool exciter_ready, bool excitation_start_command, bool excitation_stop_command)
+// ==================== PRIVATE HELPER METHODS ====================
+
+bool sfc_machine_side_external_ios_datamodel::apply_excitation_overrides()
 {
-    const bool excitation_overrides_written = write_excitation_overrides();
-    if (!excitation_overrides_written) {
-        _excitation_outputs.exciter_ready.write(exciter_ready);
-        _excitation_outputs.excitation_start_command.write(excitation_start_command);
-        _excitation_outputs.excitation_stop_command.write(excitation_stop_command);
-    }
+    // This is a no-op since overrides are applied in the getters
+    // Kept for callback registration consistency
+    return _parameters.override_excitation_outputs.read();
 }
-
-// DISABLED: Speed generator replaced by startup_sequencer
-// void sfc_machine_side_external_ios_datamodel::update_speed_generator_inputs(bool run_creep_speed,
-//     bool run_purge_accel,
-//     bool run_ignition_accel,
-//     bool run_assist_accel,
-//     bool hold_speed,
-//     bool decelerate,
-//     bool idle)
-// {
-//     const bool speed_generator_overrides_written = write_speed_generator_overrides();
-//     if (!speed_generator_overrides_written) {
-//         _speed_generator_outputs.run_creep_speed.write(run_creep_speed);
-//         _speed_generator_outputs.run_purge_accel.write(run_purge_accel);
-//         _speed_generator_outputs.run_ignition_accel.write(run_ignition_accel);
-//         _speed_generator_outputs.run_assist_accel.write(run_assist_accel);
-//         _speed_generator_outputs.hold_speed.write(hold_speed);
-//         _speed_generator_outputs.decelerate.write(decelerate);
-//         _speed_generator_outputs.idle.write(idle);
-//     }
-// }
-
-void sfc_machine_side_external_ios_datamodel::update_startup_sequencer_inputs(bool start_command, bool stop_command)
-{
-    _startup_sequencer_outputs.start_command.write(start_command);
-    _startup_sequencer_outputs.stop_command.write(stop_command);
-}
-
-bool sfc_machine_side_external_ios_datamodel::write_excitation_overrides()
-{
-    if (!_parameters.override_excitation_inputs.read()) {
-        return false;
-    }
-
-    _excitation_outputs.exciter_ready.write(_parameters.exciter_ready.read());
-    _excitation_outputs.excitation_start_command.write(_parameters.excitation_start_command.read());
-    _excitation_outputs.excitation_stop_command.write(_parameters.excitation_stop_command.read());
-    return true;
-}
-
-// DISABLED: Speed generator replaced by startup_sequencer
-// bool sfc_machine_side_external_ios_datamodel::write_speed_generator_overrides()
-// {
-//     if (!_parameters.override_speed_generator_profiles.read()) {
-//         return false;
-//     }
-
-//     _speed_generator_outputs.run_creep_speed.write(_parameters.run_creep_speed.read());
-//     _speed_generator_outputs.run_purge_accel.write(_parameters.run_purge_accel.read());
-//     _speed_generator_outputs.run_ignition_accel.write(_parameters.run_ignition_accel.read());
-//     _speed_generator_outputs.run_assist_accel.write(_parameters.run_assist_accel.read());
-//     _speed_generator_outputs.hold_speed.write(_parameters.hold_speed.read());
-//     _speed_generator_outputs.decelerate.write(_parameters.decelerate.read());
-//     _speed_generator_outputs.idle.write(_parameters.idle.read());
-//     return true;
-// }
 
 void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
 {
     yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
 
-    // Register grid-side base quantities
     entry.parameters.insert(
-        "exc_override_excitation_inputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_inputs));
-    entry.parameters.insert("exc_exciter_ready", yeet::utils::make_bool_accessor(_parameters.exciter_ready));
+        "exc_override_excitation_outputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_outputs));
     entry.parameters.insert(
         "exc_excitation_start_command", yeet::utils::make_bool_accessor(_parameters.excitation_start_command));
     entry.parameters.insert(
         "exc_excitation_stop_command", yeet::utils::make_bool_accessor(_parameters.excitation_stop_command));
 
-    // DISABLED: Speed generator replaced by startup_sequencer
-    // entry.parameters.insert("speed_ref_override_speed_generator_profiles",
-    //     yeet::utils::make_bool_accessor(_parameters.override_speed_generator_profiles));
-    // entry.parameters.insert("speed_ref_run_creep_speed",
-    // yeet::utils::make_bool_accessor(_parameters.run_creep_speed));
-    // entry.parameters.insert("speed_ref_run_purge_accel",
-    // yeet::utils::make_bool_accessor(_parameters.run_purge_accel)); entry.parameters.insert(
-    //     "speed_ref_run_ignition_accel", yeet::utils::make_bool_accessor(_parameters.run_ignition_accel));
-    // entry.parameters.insert(
-    //     "speed_ref_run_assist_accel", yeet::utils::make_bool_accessor(_parameters.run_assist_accel));
-    // entry.parameters.insert("speed_ref_hold_speed", yeet::utils::make_bool_accessor(_parameters.hold_speed));
-    // entry.parameters.insert("speed_ref_decelerate", yeet::utils::make_bool_accessor(_parameters.decelerate));
-    // entry.parameters.insert("speed_ref_idle", yeet::utils::make_bool_accessor(_parameters.idle));
-
-    // Register the entry with the model registry
     registry.insert("machine_side_external_ios", std::move(entry));
 }
 

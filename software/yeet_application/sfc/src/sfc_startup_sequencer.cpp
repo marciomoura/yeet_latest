@@ -13,7 +13,8 @@ sfc_startup_sequencer::sfc_startup_sequencer(duration_t sampling_time)
       _virtual_torque_ramp(sampling_time),
       _state_elapsed_timer(sampling_time),
       _virtual_angle_integrator(sampling_time),
-      _speed_reference_limiter(sampling_time.value())
+      _speed_reference_limiter(sampling_time.value()),
+      _observer_settling_timer(sampling_time)
 {
     reset();
 }
@@ -61,8 +62,14 @@ bool sfc_startup_sequencer::start_sequence()
         return false;
     }
 
-    // Transition to flux buildup
-    transition_to_flux_buildup();
+    // Mark start as requested and begin observer settling
+    _start_requested = true;
+    _observer_settling_timer.reset();
+
+    // Stay in IDLE, don't transition yet
+    // Observer will be enabled via update_outputs_for_current_state()
+    update_outputs_for_current_state();
+
     return true;
 }
 
@@ -71,18 +78,19 @@ void sfc_startup_sequencer::stop_sequence() { transition_to_idle(); }
 void sfc_startup_sequencer::update(bool is_field_established,
     angle_wrapped estimated_rotor_angle,
     speed_pu_t measured_speed,
+    voltage_pu_t measured_voltage_magnitude,
     sfc_state_id current_state_id,
-    speed_pu_t external_speed_reference,
+    speed_pu_t speed_reference,
     frequency_t base_frequency)
 {
     // Handle automatic start/stop coordination with state machine
     if (_flying_restart_config.auto_start_stop_enabled) {
-        update_state_machine_coordination(measured_speed, current_state_id, external_speed_reference);
+        update_state_machine_coordination(measured_speed, current_state_id, speed_reference);
     }
 
     // Apply shutdown speed override if active
     // This forces speed reference to zero during SHUTDOWN_REQUESTED and OPERATION_OFF states
-    speed_pu_t effective_speed_reference = external_speed_reference;
+    speed_pu_t effective_speed_reference = speed_reference;
     if (_shutdown_speed_override_active) {
         effective_speed_reference = speed_pu_t{0.0};
     }
@@ -93,7 +101,7 @@ void sfc_startup_sequencer::update(bool is_field_established,
     // Execute current state logic
     switch (_current_state) {
         case startup_sequencer_state_t::IDLE:
-            update_idle(effective_speed_reference);
+            update_idle(effective_speed_reference, measured_speed, measured_voltage_magnitude);
             break;
 
         case startup_sequencer_state_t::FLUX_BUILDUP:
@@ -130,9 +138,11 @@ void sfc_startup_sequencer::reset()
     _previous_state = startup_sequencer_state_t::IDLE;
     _previous_state_machine_state = sfc_state_id::IDLE;
     _shutdown_speed_override_active = false;
+    _start_requested = false;
 
     // Reset all timers
     reset_timers();
+    _observer_settling_timer.reset();
 
     // Reset virtual reference frame
     _virtual_frequency = frequency_pu_t{0.0};
@@ -227,6 +237,10 @@ void sfc_startup_sequencer::transition_to_idle()
     _previous_state = _current_state;
     _current_state = startup_sequencer_state_t::IDLE;
 
+    // Clear start request and reset settling timer
+    _start_requested = false;
+    _observer_settling_timer.reset();
+
     // Stop all timers
     reset_timers();
 
@@ -242,13 +256,38 @@ void sfc_startup_sequencer::transition_to_idle()
 
 // ========== State Update Methods ==========
 
-void sfc_startup_sequencer::update_idle(speed_pu_t external_speed_reference)
+void sfc_startup_sequencer::update_idle(
+    speed_pu_t speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude)
 {
     // Update speed reference limiter even in IDLE to handle shutdown scenarios
     // When shutdown override is active (OPERATION_OFF), we need to ramp speed to zero
-    _speed_reference_limiter.update(external_speed_reference.value());
+    _speed_reference_limiter.update(speed_reference);
 
-    // Idle state - waiting for start_sequence() to be called
+    // If start has been requested, wait for observer settling
+    if (_start_requested) {
+        _observer_settling_timer.update(true);
+
+        // Check if settling period has elapsed
+        if (_observer_settling_timer.get_elapsed_time() >= _flying_restart_config.observer_settling_time) {
+            // Settling complete - decide which path to take
+
+            // Check for flying restart conditions
+            bool voltage_detected = measured_voltage_magnitude >= _flying_restart_config.voltage_threshold;
+            bool speed_detected = measured_speed >= _flying_restart_config.speed_threshold;
+
+            if (voltage_detected && speed_detected) {
+                // Flying restart - skip directly to closed-loop
+                transition_to_closed_loop_operation();
+            }
+            else {
+                // Normal startup - go through flux buildup
+                transition_to_flux_buildup();
+            }
+
+            _start_requested = false;
+        }
+        // Else: still settling, stay in IDLE
+    }
 }
 
 void sfc_startup_sequencer::update_flux_buildup(bool is_field_established)
@@ -276,10 +315,10 @@ void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency
     }
 }
 
-void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t external_speed_reference)
+void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t speed_reference)
 {
     // Update speed reference limiter with external reference (only in closed-loop)
-    _speed_reference_limiter.update(external_speed_reference.value());
+    _speed_reference_limiter.update(speed_reference.value());
 
     // Closed-loop operation - speed control is active
     // System is running normally under speed control
@@ -343,7 +382,8 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::SPEED_CONTROL;
             _outputs.controller_commands.release_machine_side_pulses = false;
             _outputs.controller_commands.release_excitation = false;
-            _outputs.controller_commands.release_machine_observer = false;
+            _outputs.controller_commands.release_machine_observer =
+                _start_requested;  // Enable observer when start requested for settling
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = false;
             break;
@@ -353,7 +393,7 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::MANUAL_TORQUE;
             _outputs.controller_commands.release_machine_side_pulses = false;  // No pulses during flux buildup
             _outputs.controller_commands.release_excitation = true;            // Enable excitation controller
-            _outputs.controller_commands.release_machine_observer = true;      // Enable observer during flux buildup
+            _outputs.controller_commands.release_machine_observer = true;      // Enable observer when excitation is on
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = false;
             break;
@@ -383,21 +423,13 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
 // ========== Automatic Start/Stop Coordination ==========
 
 void sfc_startup_sequencer::update_state_machine_coordination(
-    speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t& external_speed_reference)
+    speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t speed_reference)
 {
     // Detect transition TO OPERATION_ON -> start sequence
     if (transitioned_to(sfc_state_id::OPERATION_ON, current_state_id)) {
-        // Check for flying restart condition
-        if (measured_speed.value() >= _flying_restart_config.speed_threshold.value() && measured_speed.value() > 0.0f) {
-            // Skip directly to closed-loop operation
-            if (_current_state == startup_sequencer_state_t::IDLE) {
-                transition_to_closed_loop_operation();
-            }
-        }
-        else {
-            // Normal startup sequence
-            start_sequence();
-        }
+        // Simply start the sequence - flying restart detection happens in update_idle()
+        // after observer settling period
+        start_sequence();
     }
 
     // Detect SHUTDOWN_REQUESTED or OPERATION_OFF state -> activate speed override to zero

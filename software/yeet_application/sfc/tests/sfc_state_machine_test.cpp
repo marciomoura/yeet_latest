@@ -14,6 +14,7 @@ protected:
         start = false;
         stop = false;
         current_extinguished = false;
+        protection_not_inhibited = true;  // Protection not inhibited by default
     }
 
     void verify_state(sfc_state_id expected_state, const sfc_state_outputs& expected_outputs)
@@ -26,12 +27,15 @@ protected:
     sfc_state_inputs create_default_inputs()
     {
         bool shutdown_request_false = false;
+        bool any_fault_false = false;
         sfc_state_inputs inputs{.auxiliaries_are_on_event = mock_event("auxiliaries_on", auxiliaries_on),
             .breakers_are_on_event = mock_event("breakers_on", breakers_on),
             .start_command = mock_event("start", start),
             .stop_command = mock_event("stop", stop),
             .shutdown_request = mock_event("shutdown_request", shutdown_request_false),
-            .is_current_estinguished = mock_event("current_extinguished", current_extinguished)};
+            .is_current_extinguished = mock_event("current_extinguished", current_extinguished),
+            .protection_not_inhibited_event = mock_event("protection_not_inhibited", protection_not_inhibited),
+            .any_protection_fault_active_event = mock_event("any_fault_active", any_fault_false)};
         return inputs;
     }
 
@@ -41,6 +45,7 @@ protected:
     bool start;
     bool stop;
     bool current_extinguished;
+    bool protection_not_inhibited;
 };
 
 // Test initial state
@@ -201,11 +206,17 @@ TEST_F(SfcStateMachineTest, ShutdownRequestedToOperationOff)
     verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
 
     // Then transition back to OPERATION_OFF when current is extinguished
+    // NOTE: Requires TWO cycles to transition (one to set acknowledgment flag, one to transition)
     current_extinguished = true;
     stop = false;  // Remove stop command
     inputs = create_default_inputs();
-    state_machine.update(inputs);
 
+    // First cycle: conditions met, acknowledgment flag set, stays in SHUTDOWN_REQUESTED
+    state_machine.update(inputs);
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+
+    // Second cycle: acknowledgment flag already set, now transitions to OPERATION_OFF
+    state_machine.update(inputs);
     expected.pulse_releases = false;
     verify_state(sfc_state_id::OPERATION_OFF, expected);
     EXPECT_TRUE(state_machine.has_transitioned());
@@ -275,12 +286,18 @@ TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
     expected.pulse_releases = true;
     verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
 
-    // 2. Current extinguished
+    // 2. Current extinguished (requires TWO cycles due to acknowledgment delay)
     current_extinguished = true;
-    expected.pulse_releases = false;
     stop = false;  // Remove stop command
     inputs = create_default_inputs();
+
+    // First cycle: acknowledgment flag set, stays in SHUTDOWN_REQUESTED
     state_machine.update(inputs);
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+
+    // Second cycle: transition to OPERATION_OFF
+    state_machine.update(inputs);
+    expected.pulse_releases = false;
     verify_state(sfc_state_id::OPERATION_OFF, expected);
 
     // 3. Turn off breakers
@@ -410,14 +427,20 @@ TEST_F(SfcStateMachineTest, ExtinguishRequestClearsOnExitShutdownState)
     auto outputs = state_machine.get_outputs();
     EXPECT_TRUE(outputs.request_extinguish_dc_current);
 
-    // Exit SHUTDOWN_REQUESTED by extinguishing current
+    // Exit SHUTDOWN_REQUESTED by extinguishing current (requires TWO cycles)
     current_extinguished = true;
     stop = false;
     inputs = create_default_inputs();
-    state_machine.update(inputs);  // SHUTDOWN_REQUESTED -> OPERATION_OFF
 
+    // First cycle: acknowledgment flag set, stays in SHUTDOWN_REQUESTED
+    state_machine.update(inputs);
     outputs = state_machine.get_outputs();
-    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+    EXPECT_TRUE(outputs.request_extinguish_dc_current);  // Still in SHUTDOWN_REQUESTED
+
+    // Second cycle: transition to OPERATION_OFF
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);  // Now in OPERATION_OFF
 }
 
 // Test shutdown sequence with extinguish output verification
@@ -454,15 +477,22 @@ TEST_F(SfcStateMachineTest, ShutdownSequenceWithExtinguishOutput)
     EXPECT_TRUE(outputs.pulse_releases);      // Pulses stay active for controlled shutdown
     EXPECT_FALSE(outputs.freeze_integrator);  // Integrator not frozen
 
-    // Complete shutdown
+    // Complete shutdown (requires TWO cycles)
     current_extinguished = true;
     stop = false;
     inputs = create_default_inputs();
-    state_machine.update(inputs);  // SHUTDOWN_REQUESTED -> OPERATION_OFF
 
-    // Verify extinguish is false after exit
+    // First cycle: acknowledgment flag set, stays in SHUTDOWN_REQUESTED
+    state_machine.update(inputs);
     outputs = state_machine.get_outputs();
-    EXPECT_FALSE(outputs.request_extinguish_dc_current);
+    EXPECT_TRUE(outputs.request_extinguish_dc_current);  // Still in SHUTDOWN_REQUESTED
+    EXPECT_TRUE(outputs.pulse_releases);                 // Pulses still active
+    EXPECT_FALSE(outputs.freeze_integrator);             // Integrator not frozen yet
+
+    // Second cycle: transition to OPERATION_OFF
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.request_extinguish_dc_current);  // Now in OPERATION_OFF
     EXPECT_FALSE(outputs.pulse_releases);
     EXPECT_TRUE(outputs.freeze_integrator);
 }

@@ -17,7 +17,11 @@ sfc_state_machine::sfc_state_machine() noexcept
 
 void sfc_state_machine::update(const sfc_state_inputs& inputs) noexcept { _state_machine.update(inputs); }
 
-void sfc_state_machine::reset() noexcept { _state_machine.reset(&_idle_state); }
+void sfc_state_machine::reset() noexcept
+{
+    _state_machine.reset(&_idle_state);
+    _shutdown_requested_state.reset();  // Clear acknowledgment flag
+}
 
 sfc_state_outputs sfc_state_machine::get_outputs() const noexcept { return _state_machine.get_outputs(); }
 
@@ -138,6 +142,11 @@ sfc_state_type* operation_off_state::update(const sfc_state_inputs& inputs) noex
         return this;
     }
 
+    // Cannot transition to OPERATION_ON if protection system is inhibited (pending alarm confirmation)
+    if (!inputs.protection_not_inhibited_event.is_true()) {
+        return this;
+    }
+
     // Transition to OPERATION_ON once start command is maintained
     if (inputs.start_command.is_true()) {
         return _operation_on_state;
@@ -208,8 +217,29 @@ sfc_state_outputs operation_on_state::get_outputs() const noexcept
 
 sfc_state_type* shutdown_requested_state::update(const sfc_state_inputs& inputs) noexcept
 {
-    if (inputs.is_current_estinguished.is_true()) {
-        return _operation_off_state;
+    // Conditions for transition to OPERATION_OFF:
+    // 1. Current is extinguished
+    // 2. No active protection faults
+    // 3. Acknowledgment has been sent (ensures protection module sees the acknowledgment for at least one cycle)
+
+    bool conditions_met =
+        inputs.is_current_extinguished.is_true() && !inputs.any_protection_fault_active_event.is_true();
+
+    if (conditions_met) {
+        if (_acknowledgment_sent) {
+            // Conditions were met last cycle and acknowledgment was sent - now safe to transition
+            _acknowledgment_sent = false;  // Reset for next entry into SHUTDOWN_REQUESTED
+            return _operation_off_state;
+        }
+        else {
+            // First cycle with conditions met - set flag and stay in SHUTDOWN_REQUESTED
+            // This holds trip_acknowledged=true for one cycle, allowing protection to see it
+            _acknowledgment_sent = true;
+        }
+    }
+    else {
+        // Conditions not met - reset flag
+        _acknowledgment_sent = false;
     }
 
     return this;

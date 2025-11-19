@@ -10,6 +10,7 @@
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
+#include "sfc_integration/sfc_grid_side_protections_runner.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
@@ -50,7 +51,8 @@ public:
           grid_side_pulse_generator(),
           grid_measurements(per_unit_system),
           dc_link_measurements(per_unit_system),
-          operation_mode_monitor()
+          operation_mode_monitor(),
+          grid_protections()
     {
         connect_internal_signals();
     }
@@ -284,6 +286,7 @@ public:
     sfc_grid_side_measurements_runner grid_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_operation_mode_monitor_runner operation_mode_monitor;
+    sfc_grid_side_protections_runner grid_protections;
 
 private:
     // Fiber-optic communication buffers (internal storage)

@@ -6,7 +6,7 @@
         <product_id>604</product_id>
         <hardware_id>3</hardware_id>
         <configuration_id>1</configuration_id>
-        <fw_release_date>132712216</fw_release_date>
+        <fw_release_date>132712982</fw_release_date>
     </hw_properties>
     <components>
         <inputs>
@@ -278,7 +278,7 @@
                 <scale>300.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
-                <ao_limiting_enabled>False</ao_limiting_enabled>
+                <ao_limiting_enabled>True</ao_limiting_enabled>
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
@@ -293,7 +293,7 @@
                 <scale>300.0</scale>
                 <offset>0.0</offset>
                 <locked>False</locked>
-                <ao_limiting_enabled>False</ao_limiting_enabled>
+                <ao_limiting_enabled>True</ao_limiting_enabled>
                 <ao_lower_limit>-10.0</ao_lower_limit>
                 <ao_upper_limit>10.0</ao_upper_limit>
                 <analog_signal>
@@ -1765,7 +1765,7 @@
         </digital_channels>
         <switching_blocks>
             <switching_block>
-                <name>Three Phase Thyristor Rectifier1</name>
+                <name>grid-side-bridge</name>
                 <type>regular_conv</type>
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
@@ -1816,7 +1816,7 @@
                 </switches>
             </switching_block>
             <switching_block>
-                <name>Three Phase Thyristor Rectifier2</name>
+                <name>machine-side-bridge</name>
                 <type>regular_conv</type>
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
@@ -1871,14 +1871,14 @@
         </batteries>
         <scada_inputs>
             <scada_input>
-                <name>electrical_torque</name>
+                <name>excitation_voltage</name>
                 <device>0</device>
-                <value>0.0</value>
+                <value>10.0</value>
             </scada_input>
             <scada_input>
-                <name>field_voltage</name>
+                <name>machine_input</name>
                 <device>0</device>
-                <value>0.0</value>
+                <value>34.0</value>
             </scada_input>
         </scada_inputs>
         <tunable_parameters>

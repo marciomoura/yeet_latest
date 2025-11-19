@@ -23,11 +23,14 @@ def _get_section_order() -> List[str]:
     return [
         'state_machine',
         'system',
+        'protections',
         'operation_mode',
         'modulator',
+        'pulse_generator',
         'measurements',
         'controller',
         'observer',
+        'fiber_optic_rx',
     ]
 
 
@@ -81,6 +84,21 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'force commutation ack', 'index': GridSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK, 'type': 'bool', 'format': 'bool'},
             ]
         },
+        'pulse_generator': {
+            'title': 'Pulse Generator',
+            'fields': [
+                {'name': 'release pulses', 'index': GridSignalIndex.PULSE_GENERATOR_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
+                {'name': 'virtual ref. active', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'virtual ref. angle (pu)', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'individual override active', 'index': GridSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 1', 'index': GridSignalIndex.PULSE_GENERATOR_P1, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 2', 'index': GridSignalIndex.PULSE_GENERATOR_P2, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 3', 'index': GridSignalIndex.PULSE_GENERATOR_P3, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 4', 'index': GridSignalIndex.PULSE_GENERATOR_P4, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 5', 'index': GridSignalIndex.PULSE_GENERATOR_P5, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 6', 'index': GridSignalIndex.PULSE_GENERATOR_P6, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
         'operation_mode': {
             'title': 'Operation Mode',
             'fields': [
@@ -103,6 +121,35 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'current extinguished', 'index': GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'shutdown request', 'index': GridSignalIndex.STATE_MACHINE_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
                 {'name': 'stop command', 'index': GridSignalIndex.STATE_MACHINE_STOP_COMMAND, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
+        'protections': {
+            'title': 'Grid-Side Protections',
+            'fields': [
+                {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'any fault active', 'index': GridSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overcurrent tripped', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overvoltage tripped', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'undervoltage tripped', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overcurrent warning', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overvoltage warning', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'undervoltage warning', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss tripped', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss warning', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
+            ]
+        },
+        'fiber_optic_rx': {
+            'title': 'Fiber Optic RX (from Machine)',
+            'fields': [
+                {'name': 'measured speed', 'index': GridSignalIndex.FIBER_RX_MEASURED_SPEED, 'type': 'float', 'format': '.4f'},
+                {'name': 'current reference', 'index': GridSignalIndex.FIBER_RX_DC_LINK_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'machine voltage mag.', 'index': GridSignalIndex.FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'force comm. request', 'index': GridSignalIndex.FIBER_RX_FORCE_COMMUTATION_REQUEST, 'type': 'bool', 'format': 'bool'},
+                {'name': 'shutdown request', 'index': GridSignalIndex.FIBER_RX_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
+                {'name': 'machine protection tripped', 'index': GridSignalIndex.FIBER_RX_MACHINE_PROTECTION_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'protection inhibit', 'index': GridSignalIndex.FIBER_RX_PROTECTION_INHIBIT, 'type': 'bool', 'format': 'bool'},
+                {'name': 'machine trip ack', 'index': GridSignalIndex.FIBER_RX_MACHINE_TRIP_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
             ]
         }
     }

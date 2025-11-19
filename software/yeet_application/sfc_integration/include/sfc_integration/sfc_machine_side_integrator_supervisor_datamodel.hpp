@@ -34,6 +34,9 @@ public:
 
         /// Saturation signal from torque controller (anti-windup freeze)
         signal_input<bool> torque_saturated;
+
+        /// Trip signal from machine-side protections (V/Hz, stall, communication loss)
+        signal_input<bool> protection_shutdown_request;
     };
 
     /**
@@ -106,7 +109,7 @@ public:
         entry.parameters.insert(
             "is_tripped_value", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_value));
 
-        registry.insert("machine_side_integrator_supervisor", std::move(entry));
+        registry.insert("integrator_supervisor", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }
