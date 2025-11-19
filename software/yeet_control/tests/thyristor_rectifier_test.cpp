@@ -22,8 +22,8 @@ public:
     static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width (standard for 6-pulse)
 
     // Grid-side RL impedance parameters
-    static constexpr double grid_resistance = 0.1;   // 0.1 Ohm per phase
-    static constexpr double grid_inductance = 1e-3;  // 1 mH per phase
+    static constexpr double grid_resistance = 0.05;    // 0.1 Ohm per phase
+    static constexpr double grid_inductance = 0.5e-3;  // 1 mH per phase
 
     // DC load parameters
     static constexpr double load_resistance = 1.0;    // 1 Ohm

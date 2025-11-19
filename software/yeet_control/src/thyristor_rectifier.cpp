@@ -145,8 +145,8 @@ thyristor_rectifier::State thyristor_rectifier::calculate_derivatives(
     _v_dc_output = v_dc_link;
 
     // Total series inductance and resistance
-    double L_total = _grid_inductance + _load_inductance;
-    double R_total = _grid_resistance + _load_resistance;
+    double L_total = 2.0 * _grid_inductance + _load_inductance;
+    double R_total = 2.0 * _grid_resistance + _load_resistance;
 
     // === DC Link Current Differential Equation ===
     // L_total * di_dc/dt = V_line_to_line - R_total*i_dc - V_back_emf
@@ -189,7 +189,9 @@ thyristor_rectifier::State thyristor_rectifier::calculate_derivatives(
         bool incoming_is_upper = (_incoming_thyristor == 0 || _incoming_thyristor == 2 || _incoming_thyristor == 4);
 
         double v_diff = incoming_is_upper ? (v_incoming - v_outgoing) : (v_outgoing - v_incoming);
-        derivatives.i_commutating = v_diff / _grid_inductance;
+
+        double commutation_inductance = 2.0f * _grid_inductance;
+        derivatives.i_commutating = v_diff / commutation_inductance;
     }
     else {
         derivatives.i_commutating = 0.0;  // No active commutation

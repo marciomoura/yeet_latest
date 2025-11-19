@@ -37,6 +37,7 @@ target_sources(
            include/yeet_control/sogi_filter_sequence_extractor.hpp
            include/yeet_control/sogi_filter.hpp
            include/yeet_control/state_machine.hpp
+           include/yeet_control/synchronous_machine.hpp
            include/yeet_control/three_phase_pll.hpp
            include/yeet_control/three_phase_waveform_generator.hpp
            include/yeet_control/thyristor_bridge.hpp
@@ -69,6 +70,7 @@ target_sources(
             src/three_phase_pll.cpp
             src/speed_voltage_relationship.cpp
             src/srf_pll.cpp
+            src/synchronous_machine.cpp
             src/thyristor_bridge.cpp
             src/thyristor_rectifier.cpp
             src/hysteresis_limiter.cpp
