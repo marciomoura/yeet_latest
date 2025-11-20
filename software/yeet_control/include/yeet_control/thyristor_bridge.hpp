@@ -103,6 +103,8 @@ public:
     const std::array<double, 3>& get_ac_phase_voltages() const { return _v_phase_abc; }
 
 private:
+    std::array<double, 6> _anode_voltages{};
+    std::array<double, 6> _cathode_voltages{};
     std::array<bool, 6> _conducting_states_{false};             ///< ON/OFF state for each thyristor T1-T6.
     mutable std::array<double, 3> _v_line_abc{0.0, 0.0, 0.0};   ///< Cached line-to-line voltages [v_ab, v_bc, v_ca].
     mutable std::array<double, 3> _v_phase_abc{0.0, 0.0, 0.0};  ///< Cached phase voltages [v_a, v_b, v_c] at terminals.

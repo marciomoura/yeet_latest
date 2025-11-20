@@ -9,7 +9,7 @@ void thyristor_bridge::update_conduction_state(
     _v_ac_source = v_ac_abc;
 
     // Correct physical connections for a standard 6-pulse bridge
-    const std::array<double, 6> anode_voltages = {
+    _anode_voltages = {
         v_ac_abc[0],    // T1 anode is on Phase A
         v_dc_rails[1],  // T2 anode is on Negative DC Rail
         v_ac_abc[1],    // T3 anode is on Phase B
@@ -18,7 +18,7 @@ void thyristor_bridge::update_conduction_state(
         v_dc_rails[1]   // T6 anode is on Negative DC Rail
     };
 
-    const std::array<double, 6> cathode_voltages = {
+    _cathode_voltages = {
         v_dc_rails[0],  // T1 cathode is on Positive DC Rail
         v_ac_abc[2],    // T2 cathode is on Phase C
         v_dc_rails[0],  // T3 cathode is on Positive DC Rail
@@ -27,10 +27,12 @@ void thyristor_bridge::update_conduction_state(
         v_ac_abc[1]     // T6 cathode is on Phase B
     };
 
+    // The thyristors conduct based on the condition that a pulse is applied
+    // and the forward voltage on the thyristor itself is positive
     for (int i = 0; i < 6; ++i) {
         if (!_conducting_states_[i]) {
             bool has_gate_pulse = pulses[i];
-            bool is_forward_biased = (anode_voltages[i] > cathode_voltages[i]);
+            bool is_forward_biased = (_anode_voltages[i] > _cathode_voltages[i]);
             if (has_gate_pulse && is_forward_biased) {
                 _conducting_states_[i] = true;
             }
@@ -93,6 +95,10 @@ void thyristor_bridge::update_conduction_state(
 
 void thyristor_bridge::force_natural_turn_off(const std::array<double, 3>& i_ac_abc, double i_dc)
 {
+    auto is_anode_cathode_voltage_negative = [&](std::size_t idx) -> bool {
+        return (_anode_voltages[idx] - _cathode_voltages[idx]) <= 0.0f;
+    };
+
     // For RECTIFIER mode: Line commutation (not load commutation)
     // A thyristor naturally turns off when another thyristor in the SAME leg turns on
     // and the AC voltage favors the new thyristor, causing current transfer
@@ -117,9 +123,18 @@ void thyristor_bridge::force_natural_turn_off(const std::array<double, 3>& i_ac_
     }
 
     // Turn off upper thyristors that aren't carrying maximum current
-    if (_conducting_states_[0] && 0 != upper_max_idx && i_ac_abc[0] < i_dc * 0.1) _conducting_states_[0] = false;
-    if (_conducting_states_[2] && 2 != upper_max_idx && i_ac_abc[1] < i_dc * 0.1) _conducting_states_[2] = false;
-    if (_conducting_states_[4] && 4 != upper_max_idx && i_ac_abc[2] < i_dc * 0.1) _conducting_states_[4] = false;
+    if (_conducting_states_[0] && 0 != upper_max_idx && i_ac_abc[0] < i_dc * 0.1 &&
+        is_anode_cathode_voltage_negative(0)) {
+        _conducting_states_[0] = false;
+    }
+    if (_conducting_states_[2] && 2 != upper_max_idx && i_ac_abc[1] < i_dc * 0.1 &&
+        is_anode_cathode_voltage_negative(2)) {
+        _conducting_states_[2] = false;
+    }
+    if (_conducting_states_[4] && 4 != upper_max_idx && i_ac_abc[2] < i_dc * 0.1 &&
+        is_anode_cathode_voltage_negative(4)) {
+        _conducting_states_[4] = false;
+    }
 
     // Lower leg (T2, T4, T6): Only ONE should conduct at a time
     // Turn off all except the one with highest negative current (most negative)
@@ -140,9 +155,18 @@ void thyristor_bridge::force_natural_turn_off(const std::array<double, 3>& i_ac_
     }
 
     // Turn off lower thyristors that aren't carrying maximum current
-    if (_conducting_states_[3] && 3 != lower_max_idx && i_ac_abc[0] > -i_dc * 0.1) _conducting_states_[3] = false;
-    if (_conducting_states_[5] && 5 != lower_max_idx && i_ac_abc[1] > -i_dc * 0.1) _conducting_states_[5] = false;
-    if (_conducting_states_[1] && 1 != lower_max_idx && i_ac_abc[2] > -i_dc * 0.1) _conducting_states_[1] = false;
+    if (_conducting_states_[3] && 3 != lower_max_idx && i_ac_abc[0] > -i_dc * 0.1 &&
+        is_anode_cathode_voltage_negative(3)) {
+        _conducting_states_[3] = false;
+    }
+    if (_conducting_states_[5] && 5 != lower_max_idx && i_ac_abc[1] > -i_dc * 0.1 &&
+        is_anode_cathode_voltage_negative(5)) {
+        _conducting_states_[5] = false;
+    }
+    if (_conducting_states_[1] && 1 != lower_max_idx && i_ac_abc[2] > -i_dc * 0.1 &&
+        is_anode_cathode_voltage_negative(1)) {
+        _conducting_states_[1] = false;
+    }
 
     // If DC current ceases, all thyristors must turn off
     if (i_dc <= 1e-6) {
