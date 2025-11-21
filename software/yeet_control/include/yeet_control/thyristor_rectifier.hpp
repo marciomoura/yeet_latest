@@ -2,6 +2,7 @@
 
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/thyristor_bridge.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::control {
 
@@ -34,32 +35,26 @@ class thyristor_rectifier {
 public:
     /**
      * @brief Constructs the thyristor rectifier model.
-     * @param grid_resistance Grid equivalent series resistance per phase [Ohms]
-     * @param grid_inductance Grid equivalent series inductance per phase [Henry]
-     * @param load_resistance DC load resistance [Ohms]
-     * @param load_inductance DC load inductance [Henry]
-     * @param sampling_time Integration time step [seconds]
+     * @param grid_resistance Grid equivalent series resistance per phase
+     * @param grid_inductance Grid equivalent series inductance per phase
+     * @param load_resistance DC load resistance
+     * @param load_inductance DC load inductance
+     * @param sampling_time Integration time step
      */
-    thyristor_rectifier(double grid_resistance,
-        double grid_inductance,
-        double load_resistance,
-        double load_inductance,
-        double sampling_time);
+    thyristor_rectifier(resistance_t grid_resistance,
+        inductance_t grid_inductance,
+        resistance_t load_resistance,
+        inductance_t load_inductance,
+        duration_t sampling_time);
 
     /**
      * @brief Updates the rectifier model for one time step.
      *
-     * Performs RK4 integration of the system differential equations:
-     *   - DC link equation: L_total * di_dc/dt = V_line_to_line - R_total*i_dc - V_dc_back_emf
-     *   - Commutation overlap: L_comm * di_comm/dt = (V_incoming_phase - V_outgoing_phase)
-     *
-     * where L_total = L_grid + L_load, R_total = R_grid + R_load
-     *
-     * @param v_ac_source Three-phase source voltages (line-to-neutral) [V]
+     * @param v_ac_source Three-phase source voltages (line-to-neutral)
      * @param pulses Gate signals for thyristors T1-T6
-     * @param v_dc_back_emf DC back-voltage from load (motor EMF, battery, etc.) [V]
+     * @param v_dc_back_emf DC back-voltage from load (motor EMF, battery, etc.)
      */
-    void update(const abc<double>& v_ac_source, const std::array<bool, 6>& pulses, double v_dc_back_emf);
+    void update(const abc<voltage_t>& v_ac_source, const thyristor_pulses& pulses, voltage_t v_dc_back_emf);
 
     /**
      * @brief Resets all state variables to zero.
@@ -68,33 +63,35 @@ public:
 
     /**
      * @brief Gets the three-phase grid currents.
-     * @return Grid currents in abc frame [A]
+     * @return Grid currents in abc frame
      */
-    abc<double> get_grid_currents() const noexcept;
+    abc<current_t> get_grid_currents() const noexcept;
 
     /**
-     * @brief Gets the DC load current (sum of upper thyristor currents).
-     * @return DC current [A]
+     * @brief Gets the DC load current.
+     * @return DC current
      */
-    double get_dc_current() const noexcept;
+    current_t get_dc_current() const noexcept;
 
     /**
      * @brief Gets the DC voltage output from the thyristor bridge.
-     * @return DC voltage [V]
+     * @return DC voltage
      */
-    double get_dc_voltage() const noexcept { return _v_dc_output; }
+    voltage_t get_dc_voltage() const noexcept { return _v_dc_output; }
 
     /**
      * @brief Gets the line-to-line voltages at the bridge AC terminals.
-     * @return Array [v_ab, v_bc, v_ca] showing voltage notch during commutation [V]
+     * @return Array [v_ab, v_bc, v_ca] showing voltage notch during commutation
      */
-    std::array<double, 3> get_ac_line_voltages() const noexcept { return _bridge.get_ac_line_voltages(); }
+    abc<voltage_t> get_ac_line_voltages() const noexcept { return _bridge.get_ac_line_voltages(); }
+
+    const thyristor_bridge& bridge() const { return _bridge; }
 
     /**
      * @brief Gets the phase voltages at the bridge AC terminals.
-     * @return Array [v_a, v_b, v_c] showing voltage notch during commutation [V]
+     * @return Array [v_a, v_b, v_c] showing voltage notch during commutation
      */
-    std::array<double, 3> get_ac_phase_voltages() const noexcept { return _bridge.get_ac_phase_voltages(); }
+    abc<voltage_t> get_ac_phase_voltages() const noexcept { return _bridge.get_ac_phase_voltages(); }
 
     /**
      * @brief Gets the thyristor bridge conduction states.
@@ -104,50 +101,26 @@ public:
 
     /**
      * @brief Gets individual thyristor currents.
-     * @return Array of 6 currents for T1-T6 [A]
+     * @return Array of 6 currents for T1-T6
      */
-    const std::array<double, 6>& get_thyristor_currents() const noexcept { return _i_thyristor; }
+    const std::array<current_t, 6>& get_thyristor_currents() const noexcept { return _bridge.get_thyristor_currents(); }
 
 private:
     // Circuit parameters
-    double _grid_resistance;
-    double _grid_inductance;
-    double _load_resistance;
-    double _load_inductance;
-    double _sampling_time;
+    resistance_t _grid_resistance;
+    inductance_t _grid_inductance;
+    resistance_t _load_resistance;
+    inductance_t _load_inductance;
+    duration_t _sampling_time;
 
-    // State variables - DC link current and commutating current
-    double _i_dc{0.0};           // DC link current through load [A]
-    double _i_commutating{0.0};  // Incoming thyristor current during commutation [A]
-
-    // Commutation tracking
-    int _outgoing_thyristor{-1};  // Index of outgoing thyristor (0-5), -1 if no commutation
-    int _incoming_thyristor{-1};  // Index of incoming thyristor (0-5), -1 if no commutation
+    // State variables
+    current_t _i_dc{0.0};  // DC link current through load
 
     // Cached outputs
-    double _v_dc_output{0.0};                                          // DC voltage from bridge [V]
-    std::array<double, 6> _i_thyristor{0.0, 0.0, 0.0, 0.0, 0.0, 0.0};  // Individual thyristor currents [A]
+    voltage_t _v_dc_output{0.0};  // DC voltage from bridge
 
     // Internal components
     thyristor_bridge _bridge;
-
-    // Internal state structure for RK4 integration
-    struct State {
-        double i_dc;           // DC link current
-        double i_commutating;  // Commutating current
-
-        State operator+(const State& other) const { return {i_dc + other.i_dc, i_commutating + other.i_commutating}; }
-
-        State operator*(double scalar) const { return {i_dc * scalar, i_commutating * scalar}; }
-    };
-
-    // RK4 helper methods
-    State calculate_derivatives(const State& state, const abc<double>& v_ac_source, double v_dc_back_emf);
-    void update_bridge_conduction(const abc<double>& v_ac_source, const std::array<bool, 6>& pulses);
-
-    // Commutation detection and current distribution
-    void detect_commutation();
-    void update_thyristor_currents();
 };
 
 }  // namespace yeet::control

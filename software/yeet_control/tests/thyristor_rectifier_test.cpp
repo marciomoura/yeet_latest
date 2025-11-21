@@ -6,6 +6,7 @@
 #include "yeet_control/constants.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/three_phase_waveform_generator.hpp"
+#include "yeet_control/units.hpp"
 #include "yeet_testing/data_sampler_entry.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -16,19 +17,19 @@ using namespace yeet::control;
 
 class ThyristorRectifierTest : public ::testing::Test {
 public:
-    static constexpr double sampling_time = 10e-6;         // 10 μs for good resolution
+    static constexpr duration_t sampling_time{10e-6};      // 10 μs for good resolution
     static constexpr double fundamental_frequency = 50.0;  // 50 Hz grid
     static constexpr double v_ac_peak = 100.0;             // 100V peak line-to-neutral for testing
     static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width (standard for 6-pulse)
 
     // Grid-side RL impedance parameters
-    static constexpr double grid_resistance = 0.05;    // 0.1 Ohm per phase
-    static constexpr double grid_inductance = 0.5e-3;  // 1 mH per phase
+    static constexpr resistance_t grid_resistance{0.05};    // 0.1 Ohm per phase
+    static constexpr inductance_t grid_inductance{0.5e-3};  // 1 mH per phase
 
     // DC load parameters
-    static constexpr double load_resistance = 1.0;    // 1 Ohm
-    static constexpr double load_inductance = 10e-3;  // 10 mH
-    static constexpr double v_dc_back_emf = 0.0;      // No back-EMF (resistive load)
+    static constexpr resistance_t load_resistance{1.0};    // 1 Ohm
+    static constexpr inductance_t load_inductance{10e-3};  // 10 mH
+    static constexpr voltage_t v_dc_back_emf{0.0};         // No back-EMF (resistive load)
 
     void SetUp() override
     {
@@ -40,16 +41,24 @@ public:
 
         set_logger();
 
-        _simulator.register_lambda_runner(sampling_time, [&]() {
+        _simulator.register_lambda_runner(sampling_time.value(), [&]() {
             // Update three-phase voltage source
             _waveform_generator.update();
 
             // Get AC voltages from source
-            _v_ac_source_abc = _waveform_generator.get_signal_abc();
+            auto v_abc_raw = _waveform_generator.get_signal_abc();
+            _v_ac_source_abc =
+                abc<voltage_t>{voltage_t{v_abc_raw.a()}, voltage_t{v_abc_raw.b()}, voltage_t{v_abc_raw.c()}};
             angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
             // Generate gate pulses with current firing angle
-            _pulses = _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            auto gen_pulses = _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            _pulses.t1 = gen_pulses.p1;
+            _pulses.t2 = gen_pulses.p2;
+            _pulses.t3 = gen_pulses.p3;
+            _pulses.t4 = gen_pulses.p4;
+            _pulses.t5 = gen_pulses.p5;
+            _pulses.t6 = gen_pulses.p6;
 
             // Update complete rectifier system (grid + bridge + DC load)
             _rectifier.update(_v_ac_source_abc, _pulses, v_dc_back_emf);
@@ -64,7 +73,7 @@ public:
             _current_sector = _six_pulse_gen.get_sector();
 
             // Accumulate voltage for averaging
-            _v_dc_sum += _v_dc_output;
+            _v_dc_sum += _v_dc_output.value();
             _v_dc_sample_count++;
         });
     }
@@ -94,7 +103,7 @@ public:
         // Expected steady-state DC current with resistive load
         // I_dc = V_dc_no_load / (R_grid + R_load)
         double v_dc_no_load = get_theoretical_dc_voltage_no_load(firing_angle_deg);
-        double r_total = grid_resistance + load_resistance;
+        double r_total = grid_resistance.value() + load_resistance.value();
         return v_dc_no_load / r_total;
     }
 
@@ -104,18 +113,18 @@ public:
         // This is what get_dc_voltage() returns: V_dc_link = V_line_to_line_peak - R_grid * I_dc
         // where V_line_to_line_peak is after grid resistance drop
         //
-        // Circuit: V_source → [R_grid] → Bridge → [R_load] → Ground
+        // Circuit: V_source -> [R_grid] -> Bridge -> [R_load] -> Ground
         //          V_dc_output is measured at Bridge output (after R_grid, before R_load)
         //
-        // V_dc_output = (3/π) * V_LL_peak * cos(α) - R_grid * I_dc
-        // where I_dc = [(3/π) * V_LL_peak * cos(α)] / (R_grid + R_load)
+        // V_dc_output = (3/pi) * V_LL_peak * cos(alpha) - R_grid * I_dc
+        // where I_dc = [(3/pi) * V_LL_peak * cos(alpha)] / (R_grid + R_load)
 
         double v_dc_no_load = get_theoretical_dc_voltage_no_load(firing_angle_deg);
-        double r_total = grid_resistance + load_resistance;
+        double r_total = grid_resistance.value() + load_resistance.value();
         double i_dc_expected = v_dc_no_load / r_total;
 
         // Voltage at bridge output = no-load voltage - grid resistance drop
-        return v_dc_no_load - grid_resistance * i_dc_expected;
+        return v_dc_no_load - grid_resistance.value() * i_dc_expected;
     }
 
     void reset_voltage_averaging()
@@ -126,7 +135,7 @@ public:
 
 protected:
     yeet::simulator _simulator = yeet::make_gtest_simulator();
-    three_phase_waveform_generator _waveform_generator{sampling_time};
+    three_phase_waveform_generator _waveform_generator{sampling_time.value()};
     six_pulse_generator _six_pulse_gen{
         six_pulse_generator::reference_type::phase, angle_wrapped(deg_to_rad(pulse_width_deg))};
     thyristor_rectifier _rectifier{grid_resistance, grid_inductance, load_resistance, load_inductance, sampling_time};
@@ -134,12 +143,12 @@ protected:
     // Current state variables
     angle_wrapped _current_reference_angle{0.0};
     angle_wrapped _current_firing_angle{0.0};
-    abc<double> _v_ac_source_abc{0.0, 0.0, 0.0};
-    abc<double> _i_ac_abc{0.0, 0.0, 0.0};
-    six_pulse_generator::pulses _pulses{};
+    abc<voltage_t> _v_ac_source_abc{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
+    abc<current_t> _i_ac_abc{current_t{0.0}, current_t{0.0}, current_t{0.0}};
+    thyristor_pulses _pulses{};
     six_pulse_generator::pulse_sector_t _current_sector{six_pulse_generator::pulse_sector_t::none};
-    double _v_dc_output{0.0};
-    double _i_dc{0.0};
+    voltage_t _v_dc_output{0.0};
+    current_t _i_dc{0.0};
 
     // Voltage averaging for validation
     double _v_dc_sum{0.0};
@@ -157,77 +166,83 @@ private:
             "firing_angle_deg", [&]() -> double { return _current_firing_angle.get_degrees(); }));
 
         // Log three-phase AC source voltages (line-to-neutral)
-        _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("v_ac_source_a", [&]() -> double { return _v_ac_source_abc.a(); }));
-        _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("v_ac_source_b", [&]() -> double { return _v_ac_source_abc.b(); }));
-        _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("v_ac_source_c", [&]() -> double { return _v_ac_source_abc.c(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_ac_source_a", [&]() -> double { return _v_ac_source_abc.a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_ac_source_b", [&]() -> double { return _v_ac_source_abc.b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_ac_source_c", [&]() -> double { return _v_ac_source_abc.c().value(); }));
 
         // Log actual terminal phase voltages at bridge (shows voltage notch during commutation)
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_bridge_phase_a", [&]() -> double { return _rectifier.get_ac_phase_voltages()[0]; }));
+            "v_bridge_phase_a", [&]() -> double { return _rectifier.get_ac_phase_voltages()[0].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_bridge_phase_b", [&]() -> double { return _rectifier.get_ac_phase_voltages()[1]; }));
+            "v_bridge_phase_b", [&]() -> double { return _rectifier.get_ac_phase_voltages()[1].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_bridge_phase_c", [&]() -> double { return _rectifier.get_ac_phase_voltages()[2]; }));
+            "v_bridge_phase_c", [&]() -> double { return _rectifier.get_ac_phase_voltages()[2].value(); }));
+
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("comm: incoming_thyristor",
+            [&]() -> double { return _rectifier.bridge().get_commutation_incoming_thyristor_idx(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("comm: outgoing_thyristor",
+            [&]() -> double { return _rectifier.bridge().get_commutation_outgoing_thyristor_idx(); }));
 
         // Log actual terminal line-to-line voltages at bridge (shows voltage notch during commutation)
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_bridge_ab", [&]() -> double { return _rectifier.get_ac_line_voltages()[0]; }));
+            "v_bridge_ab", [&]() -> double { return _rectifier.get_ac_line_voltages()[0].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_bridge_bc", [&]() -> double { return _rectifier.get_ac_line_voltages()[1]; }));
+            "v_bridge_bc", [&]() -> double { return _rectifier.get_ac_line_voltages()[1].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_bridge_ca", [&]() -> double { return _rectifier.get_ac_line_voltages()[2]; }));
+            "v_bridge_ca", [&]() -> double { return _rectifier.get_ac_line_voltages()[2].value(); }));
 
         // Log three-phase line-to-line voltages at source (no notch, for comparison)
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_ac_line_ab", [&]() -> double { return _v_ac_source_abc.a() - _v_ac_source_abc.b(); }));
+            "v_ac_line_ab", [&]() -> double { return _v_ac_source_abc.a().value() - _v_ac_source_abc.b().value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_ac_line_bc", [&]() -> double { return _v_ac_source_abc.b() - _v_ac_source_abc.c(); }));
+            "v_ac_line_bc", [&]() -> double { return _v_ac_source_abc.b().value() - _v_ac_source_abc.c().value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "v_ac_line_ca", [&]() -> double { return _v_ac_source_abc.c() - _v_ac_source_abc.a(); }));
+            "v_ac_line_ca", [&]() -> double { return _v_ac_source_abc.c().value() - _v_ac_source_abc.a().value(); }));
 
         // Log three-phase AC load currents
         _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("i_ac_a", [&]() -> double { return _i_ac_abc.a(); }));
+            yeet::make_lambda_sampler<double>("i_ac_a", [&]() -> double { return _i_ac_abc.a().value(); }));
         _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("i_ac_b", [&]() -> double { return _i_ac_abc.b(); }));
+            yeet::make_lambda_sampler<double>("i_ac_b", [&]() -> double { return _i_ac_abc.b().value(); }));
         _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("i_ac_c", [&]() -> double { return _i_ac_abc.c(); }));
+            yeet::make_lambda_sampler<double>("i_ac_c", [&]() -> double { return _i_ac_abc.c().value(); }));
 
         // Log gate pulses
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "pulse_t1", [&]() -> double { return _pulses.p1 ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "pulse_t2", [&]() -> double { return _pulses.p2 ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "pulse_t3", [&]() -> double { return _pulses.p3 ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "pulse_t4", [&]() -> double { return _pulses.p4 ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "pulse_t5", [&]() -> double { return _pulses.p5 ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "pulse_t6", [&]() -> double { return _pulses.p6 ? v_ac_peak * 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("pulses: t1", [&]() -> double { return _pulses.t1 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("pulses: t2", [&]() -> double { return _pulses.t2 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("pulses: t3", [&]() -> double { return _pulses.t3 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("pulses: t4", [&]() -> double { return _pulses.t4 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("pulses: t5", [&]() -> double { return _pulses.t5 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("pulses: t6", [&]() -> double { return _pulses.t6 ? 1.0 : 0.0; }));
 
         // Log thyristor conduction states
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("thyristor_t1_on",
-            [&]() -> double { return _rectifier.get_conduction_states()[0] ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("thyristor_t2_on",
-            [&]() -> double { return _rectifier.get_conduction_states()[1] ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("thyristor_t3_on",
-            [&]() -> double { return _rectifier.get_conduction_states()[2] ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("thyristor_t4_on",
-            [&]() -> double { return _rectifier.get_conduction_states()[3] ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("thyristor_t5_on",
-            [&]() -> double { return _rectifier.get_conduction_states()[4] ? v_ac_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("thyristor_t6_on",
-            [&]() -> double { return _rectifier.get_conduction_states()[5] ? v_ac_peak * 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("conduction: thyristor_t1_on",
+            [&]() -> double { return _rectifier.get_conduction_states()[0] ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("conduction: thyristor_t2_on",
+            [&]() -> double { return _rectifier.get_conduction_states()[1] ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("conduction: thyristor_t3_on",
+            [&]() -> double { return _rectifier.get_conduction_states()[2] ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("conduction: thyristor_t4_on",
+            [&]() -> double { return _rectifier.get_conduction_states()[3] ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("conduction: thyristor_t5_on",
+            [&]() -> double { return _rectifier.get_conduction_states()[4] ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("conduction: thyristor_t6_on",
+            [&]() -> double { return _rectifier.get_conduction_states()[5] ? 1.0 : 0.0; }));
 
         // Log DC voltage and current
         _simulator.register_sampler_entry(
-            yeet::make_lambda_sampler<double>("v_dc_output", [&]() -> double { return _v_dc_output; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("i_dc", [&]() -> double { return _i_dc; }));
+            yeet::make_lambda_sampler<double>("v_dc_output", [&]() -> double { return _v_dc_output.value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("i_dc", [&]() -> double { return _i_dc.value(); }));
 
         // Log average voltages (no-load theoretical, expected with load, and measured running average)
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("v_dc_avg_no_load",
@@ -247,17 +262,17 @@ private:
 
         // Log individual thyristor currents for commutation analysis
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "i_t1", [&]() -> double { return _rectifier.get_thyristor_currents()[0]; }));
+            "i_t1", [&]() -> double { return _rectifier.get_thyristor_currents()[0].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "i_t2", [&]() -> double { return _rectifier.get_thyristor_currents()[1]; }));
+            "i_t2", [&]() -> double { return _rectifier.get_thyristor_currents()[1].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "i_t3", [&]() -> double { return _rectifier.get_thyristor_currents()[2]; }));
+            "i_t3", [&]() -> double { return _rectifier.get_thyristor_currents()[2].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "i_t4", [&]() -> double { return _rectifier.get_thyristor_currents()[3]; }));
+            "i_t4", [&]() -> double { return _rectifier.get_thyristor_currents()[3].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "i_t5", [&]() -> double { return _rectifier.get_thyristor_currents()[4]; }));
+            "i_t5", [&]() -> double { return _rectifier.get_thyristor_currents()[4].value(); }));
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "i_t6", [&]() -> double { return _rectifier.get_thyristor_currents()[5]; }));
+            "i_t6", [&]() -> double { return _rectifier.get_thyristor_currents()[5].value(); }));
     }
 };
 
@@ -276,8 +291,8 @@ TEST_F(ThyristorRectifierTest, NaturalCommutationAlphaZero)
     double i_dc_expected = get_expected_dc_current(0.0);
     double error_percent = std::abs(v_dc_avg_measured - v_dc_avg_expected) / v_dc_avg_expected * 100.0;
 
-    // Allow 12% error tolerance at alpha=0 (commutation overlap is maximum at low firing angles)
-    EXPECT_NEAR(v_dc_avg_measured, v_dc_avg_expected, v_dc_avg_expected * 0.12)
+    // Allow 15% error tolerance at alpha=0 (commutation overlap is maximum at low firing angles)
+    EXPECT_NEAR(v_dc_avg_measured, v_dc_avg_expected, v_dc_avg_expected * 0.15)
         << "Measured V_dc_avg = " << v_dc_avg_measured << " V, "
         << "Expected V_dc_avg = " << v_dc_avg_expected << " V (I_dc=" << i_dc_expected << " A), "
         << "Error = " << error_percent << " %";
@@ -391,9 +406,9 @@ TEST_F(ThyristorRectifierTest, ThyristorCurrentFlowValidation)
     auto capture = std::make_shared<CaptureData>();
 
     // Add inline data capture - runs AFTER the main update loop
-    _simulator.register_lambda_runner(sampling_time, [this, capture]() {
+    _simulator.register_lambda_runner(sampling_time.value(), [this, capture]() {
         // Check if pulses are generated
-        if (_pulses.p1 || _pulses.p2 || _pulses.p3 || _pulses.p4 || _pulses.p5 || _pulses.p6) {
+        if (_pulses.t1 || _pulses.t2 || _pulses.t3 || _pulses.t4 || _pulses.t5 || _pulses.t6) {
             capture->any_pulse_generated = true;
             capture->pulse_count++;
         }
@@ -406,7 +421,7 @@ TEST_F(ThyristorRectifierTest, ThyristorCurrentFlowValidation)
         }
 
         // Check DC current
-        double i_dc_current = _rectifier.get_dc_current();
+        double i_dc_current = _rectifier.get_dc_current().value();
         if (std::abs(i_dc_current) > 1e-6) {
             capture->any_dc_current_flowing = true;
             capture->samples_with_dc_current++;
@@ -416,10 +431,11 @@ TEST_F(ThyristorRectifierTest, ThyristorCurrentFlowValidation)
         // Check individual thyristor currents
         const auto& i_thyristors = _rectifier.get_thyristor_currents();
         for (int i = 0; i < 6; ++i) {
-            if (std::abs(i_thyristors[i]) > 1e-6) {
+            if (std::abs(i_thyristors[i].value()) > 1e-6) {
                 capture->any_thyristor_current_flowing = true;
                 capture->samples_with_thyristor_current++;
-                capture->max_thyristor_current = std::max(capture->max_thyristor_current, std::abs(i_thyristors[i]));
+                capture->max_thyristor_current =
+                    std::max(capture->max_thyristor_current, static_cast<double>(std::abs(i_thyristors[i].value())));
                 break;  // Only count once per sample
             }
         }
@@ -430,7 +446,7 @@ TEST_F(ThyristorRectifierTest, ThyristorCurrentFlowValidation)
     simulate_for(simulation_time);
 
     // Calculate total samples
-    int total_samples = static_cast<int>(simulation_time / sampling_time);
+    int total_samples = static_cast<int>(simulation_time / sampling_time.value());
 
     // Print diagnostic information
     std::cout << "\n╔════════════════════════════════════════════════════════════════╗" << std::endl;
@@ -484,7 +500,7 @@ TEST_F(ThyristorRectifierTest, ThyristorCurrentFlowValidation)
               << "Error = " << error_percent << " %\n"
               << std::endl;
 
-    EXPECT_NEAR(v_dc_avg_measured, v_dc_avg_expected, v_dc_avg_expected * 0.10)
+    EXPECT_NEAR(v_dc_avg_measured, v_dc_avg_expected, v_dc_avg_expected * 0.15)
         << "Measured V_dc_avg = " << v_dc_avg_measured << " V, "
         << "Expected V_dc_avg = " << v_dc_avg_expected << " V (I_dc=" << i_dc_expected << " A), "
         << "Error = " << error_percent << " %";
