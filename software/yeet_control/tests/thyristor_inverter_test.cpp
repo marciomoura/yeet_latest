@@ -137,16 +137,31 @@ private:
 
         _simulator.register_sampler_entry(
             yeet::make_lambda_array_sampler<abc<current_t>>("i_abc", [&]() -> abc<current_t> { return _i_ac_abc; }));
-        // _simulator.register_sampler_entry(
-        //     yeet::make_lambda_sampler<double>("i_ac_b", [&]() -> double { return _i_ac_abc.b().value(); }));
-        // _simulator.register_sampler_entry(
-        //     yeet::make_lambda_sampler<double>("i_ac_c", [&]() -> double { return _i_ac_abc.c().value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("i_ac_b", [&]() -> double { return _i_ac_abc.b().value(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("i_ac_c", [&]() -> double { return _i_ac_abc.c().value(); }));
 
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "v_bridge_avg_measured", [&]() -> double { return get_average_bridge_voltage(); }));
 
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("v_bridge_avg_theoretical",
             [&]() -> double { return get_theoretical_bridge_voltage(_current_firing_angle.get_degrees()); }));
+
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_phase_a", [&]() -> double { return _inverter.get_ac_phase_voltages()[0].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_phase_b", [&]() -> double { return _inverter.get_ac_phase_voltages()[1].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_phase_c", [&]() -> double { return _inverter.get_ac_phase_voltages()[2].value(); }));
+
+        // Log actual terminal line-to-line voltages at bridge (shows voltage notch during commutation)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_ab", [&]() -> double { return _inverter.get_ac_line_voltages()[0].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_bc", [&]() -> double { return _inverter.get_ac_line_voltages()[1].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "v_bridge_ca", [&]() -> double { return _inverter.get_ac_line_voltages()[2].value(); }));
     }
 };
 

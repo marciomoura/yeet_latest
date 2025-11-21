@@ -16,23 +16,23 @@ using namespace yeet::control;
 
 class ThyristorBackToBackTest : public ::testing::Test {
 public:
-    static constexpr double sampling_time = 10e-6;         // 10 μs for good resolution
+    static constexpr double sampling_time = 1e-6;          // 10 μs for good resolution
     static constexpr double fundamental_frequency = 50.0;  // 50 Hz grid/machine frequency
     static constexpr double v_grid_peak = 100.0;           // 100V peak line-to-neutral (grid)
     static constexpr double v_machine_peak = 80.0;         // 80V peak line-to-neutral (machine back-EMF)
     static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width (standard for 6-pulse)
 
     // Grid-side RL impedance parameters
-    static constexpr double grid_resistance = 0.05;    // 50 mOhm per phase
-    static constexpr double grid_inductance = 0.5e-3;  // 0.5 mH per phase
+    static constexpr double grid_resistance = 0.001;   // 50 mOhm per phase
+    static constexpr double grid_inductance = 0.1e-3;  // 0.1 mH per phase (Increased for visible notches)
 
     // DC link parameters
-    static constexpr double dc_resistance = 0.1;    // 100 mOhm
-    static constexpr double dc_inductance = 10e-3;  // 10 mH
+    static constexpr double dc_resistance = 1.0;   // 100 mOhm
+    static constexpr double dc_inductance = 5e-3;  // 10 mH
 
     // Machine-side RL impedance parameters
-    static constexpr double machine_resistance = 0.05;    // 50 mOhm per phase
-    static constexpr double machine_inductance = 0.5e-3;  // 0.5 mH per phase
+    static constexpr double machine_resistance = 0.001;   // 50 mOhm per phase
+    static constexpr double machine_inductance = 0.1e-3;  // 0.1 mH per phase (Increased for visible notches)
 
     void SetUp() override
     {
@@ -67,15 +67,41 @@ public:
             // Generate inverter gate pulses
             _pulses_inv = _six_pulse_gen_inv.update(machine_reference_angle, _current_firing_angle_inv, true);
 
+            // Convert pulses
+            thyristor_pulses p_rect_conv;
+            p_rect_conv.t1 = _pulses_rect.p1;
+            p_rect_conv.t2 = _pulses_rect.p2;
+            p_rect_conv.t3 = _pulses_rect.p3;
+            p_rect_conv.t4 = _pulses_rect.p4;
+            p_rect_conv.t5 = _pulses_rect.p5;
+            p_rect_conv.t6 = _pulses_rect.p6;
+
+            thyristor_pulses p_inv_conv;
+            p_inv_conv.t1 = _pulses_inv.p1;
+            p_inv_conv.t2 = _pulses_inv.p2;
+            p_inv_conv.t3 = _pulses_inv.p3;
+            p_inv_conv.t4 = _pulses_inv.p4;
+            p_inv_conv.t5 = _pulses_inv.p5;
+            p_inv_conv.t6 = _pulses_inv.p6;
+
             // Update complete back-to-back system
-            _back_to_back.update(_v_grid_abc, _v_machine_abc, _pulses_rect, _pulses_inv);
+            abc<voltage_t> v_grid_typed{voltage_t{static_cast<real_t>(_v_grid_abc.a())},
+                voltage_t{static_cast<real_t>(_v_grid_abc.b())}, voltage_t{static_cast<real_t>(_v_grid_abc.c())}};
+            abc<voltage_t> v_mach_typed{voltage_t{static_cast<real_t>(_v_machine_abc.a())},
+                voltage_t{static_cast<real_t>(_v_machine_abc.b())}, voltage_t{static_cast<real_t>(_v_machine_abc.c())}};
+
+            _back_to_back.update(v_grid_typed, v_mach_typed, p_rect_conv, p_inv_conv);
 
             // Get states from back-to-back system
-            _i_grid_abc = _back_to_back.get_grid_currents();
-            _i_machine_abc = _back_to_back.get_machine_currents();
-            _i_dc = _back_to_back.get_dc_current();
-            _v_rect_dc = _back_to_back.get_rectifier_voltage();
-            _v_inv_dc = _back_to_back.get_inverter_voltage();
+            auto i_grid = _back_to_back.get_grid_currents();
+            _i_grid_abc = abc<double>{i_grid.a().value(), i_grid.b().value(), i_grid.c().value()};
+
+            auto i_mach = _back_to_back.get_machine_currents();
+            _i_machine_abc = abc<double>{i_mach.a().value(), i_mach.b().value(), i_mach.c().value()};
+
+            _i_dc = _back_to_back.get_dc_current().value();
+            _v_rect_dc = _back_to_back.get_rectifier_voltage().value();
+            _v_inv_dc = _back_to_back.get_inverter_voltage().value();
 
             // Store current reference angles and sectors
             _current_grid_reference_angle = grid_reference_angle;
@@ -146,8 +172,9 @@ protected:
         six_pulse_generator::reference_type::phase, angle_wrapped(deg_to_rad(pulse_width_deg))};
 
     // Back-to-back converter
-    thyristor_back_to_back _back_to_back{grid_resistance, grid_inductance, dc_resistance, dc_inductance,
-        machine_resistance, machine_inductance, sampling_time};
+    thyristor_back_to_back _back_to_back{resistance_t{grid_resistance}, inductance_t{grid_inductance},
+        resistance_t{dc_resistance}, inductance_t{dc_inductance}, resistance_t{machine_resistance},
+        inductance_t{machine_inductance}, duration_t{sampling_time}};
 
     // Current state variables
     angle_wrapped _current_grid_reference_angle{0.0};
@@ -226,36 +253,58 @@ private:
             "grid:pulse_t6", [&]() -> double { return _pulses_rect.p6 ? v_grid_peak * 1.0 : 0.0; }));
 
         // Rectifier thyristor conduction states
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t1_on",
-            [&]() -> double { return _back_to_back.get_rectifier_states()[0] ? v_grid_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t2_on",
-            [&]() -> double { return _back_to_back.get_rectifier_states()[1] ? v_grid_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t3_on",
-            [&]() -> double { return _back_to_back.get_rectifier_states()[2] ? v_grid_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t4_on",
-            [&]() -> double { return _back_to_back.get_rectifier_states()[3] ? v_grid_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t5_on",
-            [&]() -> double { return _back_to_back.get_rectifier_states()[4] ? v_grid_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t6_on",
-            [&]() -> double { return _back_to_back.get_rectifier_states()[5] ? v_grid_peak * 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t1_on", [&]() -> double {
+            return _back_to_back.get_rectifier_bridge().get_conduction_states()[0] ? v_grid_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t2_on", [&]() -> double {
+            return _back_to_back.get_rectifier_bridge().get_conduction_states()[1] ? v_grid_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t3_on", [&]() -> double {
+            return _back_to_back.get_rectifier_bridge().get_conduction_states()[2] ? v_grid_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t4_on", [&]() -> double {
+            return _back_to_back.get_rectifier_bridge().get_conduction_states()[3] ? v_grid_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t5_on", [&]() -> double {
+            return _back_to_back.get_rectifier_bridge().get_conduction_states()[4] ? v_grid_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:thyristor_t6_on", [&]() -> double {
+            return _back_to_back.get_rectifier_bridge().get_conduction_states()[5] ? v_grid_peak * 1.0 : 0.0;
+        }));
 
         // Rectifier thyristor currents
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "grid:i_t1", [&]() -> double { return _back_to_back.get_rectifier_thyristor_currents()[0]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "grid:i_t2", [&]() -> double { return _back_to_back.get_rectifier_thyristor_currents()[1]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "grid:i_t3", [&]() -> double { return _back_to_back.get_rectifier_thyristor_currents()[2]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "grid:i_t4", [&]() -> double { return _back_to_back.get_rectifier_thyristor_currents()[3]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "grid:i_t5", [&]() -> double { return _back_to_back.get_rectifier_thyristor_currents()[4]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "grid:i_t6", [&]() -> double { return _back_to_back.get_rectifier_thyristor_currents()[5]; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:i_t1",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_thyristor_currents()[0].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:i_t2",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_thyristor_currents()[1].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:i_t3",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_thyristor_currents()[2].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:i_t4",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_thyristor_currents()[3].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:i_t5",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_thyristor_currents()[4].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:i_t6",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_thyristor_currents()[5].value(); }));
 
         // Grid sector
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
             "grid:sector", [&]() -> double { return static_cast<double>(static_cast<int>(_current_grid_sector)); }));
+
+        // Grid terminal voltages (after source impedance, with notches)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_a",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_phase_voltages().a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_b",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_phase_voltages().b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_c",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_phase_voltages().c().value(); }));
+
+        // Grid line voltages at terminals (with notches)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_ab",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_line_voltages().a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_bc",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_line_voltages().b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_ca",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_line_voltages().c().value(); }));
 
         // ===== MACHINE SIDE SIGNALS =====
 
@@ -306,36 +355,58 @@ private:
             "machine:pulse_t6", [&]() -> double { return _pulses_inv.p6 ? v_machine_peak * 1.0 : 0.0; }));
 
         // Inverter thyristor conduction states
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t1_on",
-            [&]() -> double { return _back_to_back.get_inverter_states()[0] ? v_machine_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t2_on",
-            [&]() -> double { return _back_to_back.get_inverter_states()[1] ? v_machine_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t3_on",
-            [&]() -> double { return _back_to_back.get_inverter_states()[2] ? v_machine_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t4_on",
-            [&]() -> double { return _back_to_back.get_inverter_states()[3] ? v_machine_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t5_on",
-            [&]() -> double { return _back_to_back.get_inverter_states()[4] ? v_machine_peak * 1.0 : 0.0; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t6_on",
-            [&]() -> double { return _back_to_back.get_inverter_states()[5] ? v_machine_peak * 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t1_on", [&]() -> double {
+            return _back_to_back.get_inverter_bridge().get_conduction_states()[0] ? v_machine_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t2_on", [&]() -> double {
+            return _back_to_back.get_inverter_bridge().get_conduction_states()[1] ? v_machine_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t3_on", [&]() -> double {
+            return _back_to_back.get_inverter_bridge().get_conduction_states()[2] ? v_machine_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t4_on", [&]() -> double {
+            return _back_to_back.get_inverter_bridge().get_conduction_states()[3] ? v_machine_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t5_on", [&]() -> double {
+            return _back_to_back.get_inverter_bridge().get_conduction_states()[4] ? v_machine_peak * 1.0 : 0.0;
+        }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:thyristor_t6_on", [&]() -> double {
+            return _back_to_back.get_inverter_bridge().get_conduction_states()[5] ? v_machine_peak * 1.0 : 0.0;
+        }));
 
         // Inverter thyristor currents
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "machine:i_t1", [&]() -> double { return _back_to_back.get_inverter_thyristor_currents()[0]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "machine:i_t2", [&]() -> double { return _back_to_back.get_inverter_thyristor_currents()[1]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "machine:i_t3", [&]() -> double { return _back_to_back.get_inverter_thyristor_currents()[2]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "machine:i_t4", [&]() -> double { return _back_to_back.get_inverter_thyristor_currents()[3]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "machine:i_t5", [&]() -> double { return _back_to_back.get_inverter_thyristor_currents()[4]; }));
-        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
-            "machine:i_t6", [&]() -> double { return _back_to_back.get_inverter_thyristor_currents()[5]; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:i_t1",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_thyristor_currents()[0].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:i_t2",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_thyristor_currents()[1].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:i_t3",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_thyristor_currents()[2].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:i_t4",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_thyristor_currents()[3].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:i_t5",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_thyristor_currents()[4].value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:i_t6",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_thyristor_currents()[5].value(); }));
 
         // Machine sector
         _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:sector",
             [&]() -> double { return static_cast<double>(static_cast<int>(_current_machine_sector)); }));
+
+        // Machine terminal voltages (after source impedance, with notches)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_a",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_phase_voltages().a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_b",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_phase_voltages().b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_c",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_phase_voltages().c().value(); }));
+
+        // Machine line voltages at terminals (with notches)
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_ab",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_line_voltages().a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_bc",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_line_voltages().b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_ca",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_line_voltages().c().value(); }));
 
         // ===== DC LINK SIGNALS =====
 
@@ -413,11 +484,15 @@ TEST_F(ThyristorBackToBackTest, InverterModeOperation)
     EXPECT_GE(i_dc_avg, 0.0) << "DC current should be non-negative";
 }
 
-// Test 3: Balanced operation (alpha = beta, minimal current flow)
+// Test 3: Balanced operation (matched DC voltages, minimal current flow)
 TEST_F(ThyristorBackToBackTest, BalancedOperation)
 {
-    // Equal firing angles on both sides
-    set_rectifier_firing_angle(30.0);
+    // Adjust firing angles to match DC voltages
+    // V_rect_max ~ 165V, V_inv_max ~ 132V
+    // Set Rectifier alpha = 45 deg -> V_rect ~ 116V
+    // Set Inverter alpha = 30 deg -> V_inv ~ 114V
+    // Delta V ~ 2V, should result in low current
+    set_rectifier_firing_angle(45.0);
     set_inverter_firing_angle(30.0);
 
     // Simulate for 5 grid cycles
@@ -426,11 +501,10 @@ TEST_F(ThyristorBackToBackTest, BalancedOperation)
 
     // With balanced voltages, expect minimal current
     double i_dc_avg = _i_dc;
-    double v_dc_link_avg = get_average_dc_link_voltage();
 
     // Current should be reasonable when voltages are balanced
-    // Due to grid/machine voltage magnitude difference (100V vs 80V), there will still be some current flow
-    EXPECT_LT(i_dc_avg, 100.0) << "Expected moderate current in balanced firing angle mode";
+    EXPECT_LT(i_dc_avg, 50.0) << "Expected low current in balanced voltage mode";
+    EXPECT_GT(i_dc_avg, 0.0) << "Expected some positive current due to small voltage delta";
 }
 
 // Test 4: Extended operation showing steady-state
@@ -490,13 +564,13 @@ TEST_F(ThyristorBackToBackTest, WaveformValidation)
         }
 
         // Check rectifier thyristor states
-        const auto& rect_states = _back_to_back.get_rectifier_states();
+        const auto& rect_states = _back_to_back.get_rectifier_bridge().get_conduction_states();
         if (rect_states[0] || rect_states[1] || rect_states[2] || rect_states[3] || rect_states[4] || rect_states[5]) {
             capture->rect_thyristors_conducting = true;
         }
 
         // Check inverter thyristor states
-        const auto& inv_states = _back_to_back.get_inverter_states();
+        const auto& inv_states = _back_to_back.get_inverter_bridge().get_conduction_states();
         if (inv_states[0] || inv_states[1] || inv_states[2] || inv_states[3] || inv_states[4] || inv_states[5]) {
             capture->inv_thyristors_conducting = true;
         }
@@ -572,8 +646,8 @@ TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
 
     _simulator.register_lambda_runner(sampling_time, [this, data]() {
         // Get thyristor states
-        const auto& rect_states = _back_to_back.get_rectifier_states();
-        const auto& inv_states = _back_to_back.get_inverter_states();
+        const auto& rect_states = _back_to_back.get_rectifier_bridge().get_conduction_states();
+        const auto& inv_states = _back_to_back.get_inverter_bridge().get_conduction_states();
 
         // Detect rectifier commutation (more than 2 thyristors conducting)
         int rect_conducting = 0;
@@ -594,15 +668,19 @@ TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
         }
 
         // Get line voltages at AC terminals
-        const auto& v_line_rect = _back_to_back.get_grid_line_voltages();
-        const auto& v_line_inv = _back_to_back.get_machine_line_voltages();
+        const auto& v_line_rect = _back_to_back.get_rectifier_bridge().get_ac_line_voltages();
+        const auto& v_line_inv = _back_to_back.get_inverter_bridge().get_ac_line_voltages();
 
         // Track min/max line voltages
-        for (double v : v_line_rect) {
+        // v_line_rect is abc<voltage_t>, iterate manually
+        std::array<double, 3> v_rect_vals = {v_line_rect.a().value(), v_line_rect.b().value(), v_line_rect.c().value()};
+        for (double v : v_rect_vals) {
             data->min_line_voltage_rect = std::min(data->min_line_voltage_rect, std::abs(v));
             data->max_line_voltage_rect = std::max(data->max_line_voltage_rect, std::abs(v));
         }
-        for (double v : v_line_inv) {
+
+        std::array<double, 3> v_inv_vals = {v_line_inv.a().value(), v_line_inv.b().value(), v_line_inv.c().value()};
+        for (double v : v_inv_vals) {
             data->min_line_voltage_inv = std::min(data->min_line_voltage_inv, std::abs(v));
             data->max_line_voltage_inv = std::max(data->max_line_voltage_inv, std::abs(v));
         }
@@ -610,7 +688,7 @@ TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
         // During commutation, check for voltage notch (line voltage drops significantly)
         if (rect_conducting > 2) {
             // Check if any line voltage is near zero (voltage notch)
-            for (double v : v_line_rect) {
+            for (double v : v_rect_vals) {
                 if (std::abs(v) < 50.0) {  // Threshold for voltage notch (< 50V for 100V system)
                     data->voltage_notch_detected_rect = true;
                     break;
@@ -620,7 +698,7 @@ TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
 
         if (inv_conducting > 2) {
             // Check if any line voltage is near zero (voltage notch)
-            for (double v : v_line_inv) {
+            for (double v : v_inv_vals) {
                 if (std::abs(v) < 50.0) {  // Threshold for voltage notch
                     data->voltage_notch_detected_inv = true;
                     break;

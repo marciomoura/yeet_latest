@@ -48,7 +48,7 @@ target_sources(
             thyristor_bridge_test.cpp
             thyristor_rectifier_test.cpp
             thyristor_inverter_test.cpp
-            # thyristor_back_to_back_test.cpp
+            thyristor_back_to_back_test.cpp
             # thyristor_back_to_back_synchronous_machine_test.cpp
             synchronous_machine_backemf_test.cpp
             units_test.cpp

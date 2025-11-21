@@ -23,13 +23,13 @@ public:
     static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width (standard for 6-pulse)
 
     // Grid-side RL impedance parameters
-    static constexpr resistance_t grid_resistance{0.05};    // 0.1 Ohm per phase
-    static constexpr inductance_t grid_inductance{0.5e-3};  // 1 mH per phase
+    static constexpr resistance_t grid_resistance{0.1};     // 0.1 Ohm per phase
+    static constexpr inductance_t grid_inductance{0.5e-3};  // 0.1 mH per phase
 
     // DC load parameters
-    static constexpr resistance_t load_resistance{1.0};    // 1 Ohm
-    static constexpr inductance_t load_inductance{10e-3};  // 10 mH
-    static constexpr voltage_t v_dc_back_emf{0.0};         // No back-EMF (resistive load)
+    static constexpr resistance_t load_resistance{0.5};   // 0.5 Ohm
+    static constexpr inductance_t load_inductance{5e-3};  // 5 mH
+    static constexpr voltage_t v_dc_back_emf{0.0};        // No back-EMF (resistive load)
 
     void SetUp() override
     {
