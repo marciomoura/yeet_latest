@@ -208,6 +208,20 @@ public:
     const std::array<current_t, 6>& get_thyristor_currents() const { return _thyristor_currents; }
 
     /**
+     * @brief Calculates the instantaneous positive DC rail voltage.
+     * @param v_ac_abc The AC phase voltages.
+     * @return voltage_t The positive rail voltage (average of conducting upper phases).
+     */
+    voltage_t get_positive_rail_voltage(const abc<voltage_t>& v_ac_abc) const;
+
+    /**
+     * @brief Calculates the instantaneous negative DC rail voltage.
+     * @param v_ac_abc The AC phase voltages.
+     * @return voltage_t The negative rail voltage (average of conducting lower phases).
+     */
+    voltage_t get_negative_rail_voltage(const abc<voltage_t>& v_ac_abc) const;
+
+    /**
      * @brief Calculates the instantaneous DC voltage at the bridge terminals.
      *
      * Accounts for commutation overlap (voltage averaging) if a commutation is in progress.

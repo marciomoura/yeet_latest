@@ -2,11 +2,34 @@
 
 #include <array>
 
-#include "reference_frame.hpp"
-#include "types.hpp"
-#include "units.hpp"
+#include "yeet_control/angle_wrapped.hpp"
+#include "yeet_control/reference_frame.hpp"
+#include "yeet_control/types.hpp"
+#include "yeet_control/units.hpp"
 
 namespace yeet::control {
+
+/**
+ * @brief Represents the time derivatives of the synchronous machine state.
+ */
+struct synchronous_machine_derivatives {
+    real_t psi_fD{};   ///< d(psi_fD)/dt [V]
+    real_t psi_kD{};   ///< d(psi_kD)/dt [V]
+    real_t psi_kQ{};   ///< d(psi_kQ)/dt [V]
+    real_t omega_r{};  ///< d(omega_r)/dt [rad/s^2]
+    real_t theta_r{};  ///< d(theta_r)/dt [rad/s] (This is omega_r)
+
+    synchronous_machine_derivatives operator+(const synchronous_machine_derivatives& other) const
+    {
+        return {psi_fD + other.psi_fD, psi_kD + other.psi_kD, psi_kQ + other.psi_kQ, omega_r + other.omega_r,
+            theta_r + other.theta_r};
+    }
+
+    synchronous_machine_derivatives operator*(real_t scalar) const
+    {
+        return {psi_fD * scalar, psi_kD * scalar, psi_kQ * scalar, omega_r * scalar, theta_r * scalar};
+    }
+};
 
 /**
  * @brief Represents the dynamic state of the 5th-order synchronous machine model.
@@ -15,24 +38,40 @@ namespace yeet::control {
  * This state structure is compatible with the RK4 integrator (range_kutta_derivative).
  */
 struct synchronous_machine_state {
-    real_t psi_fD{};   ///< Field winding flux linkage [Wb]
-    real_t psi_kD{};   ///< d-axis damper winding flux linkage [Wb]
-    real_t psi_kQ{};   ///< q-axis damper winding flux linkage [Wb]
-    real_t omega_r{};  ///< Rotor mechanical speed [rad/s]
-    real_t theta_r{};  ///< Rotor mechanical angle [rad]
+    real_t psi_fD{};          ///< Field winding flux linkage [Wb]
+    real_t psi_kD{};          ///< d-axis damper winding flux linkage [Wb]
+    real_t psi_kQ{};          ///< q-axis damper winding flux linkage [Wb]
+    real_t omega_r{};         ///< Rotor mechanical speed [rad/s]
+    angle_wrapped theta_r{};  ///< Rotor mechanical angle [rad]
 
-    // Addition operator for RK4 integration
-    synchronous_machine_state operator+(const synchronous_machine_state& other) const
+    // Addition operator for RK4 integration (State + Derivative)
+    synchronous_machine_state operator+(const synchronous_machine_derivatives& delta) const
     {
-        return {psi_fD + other.psi_fD, psi_kD + other.psi_kD, psi_kQ + other.psi_kQ, omega_r + other.omega_r,
-            theta_r + other.theta_r};
+        synchronous_machine_state next = *this;
+        next.psi_fD += delta.psi_fD;
+        next.psi_kD += delta.psi_kD;
+        next.psi_kQ += delta.psi_kQ;
+        next.omega_r += delta.omega_r;
+        next.theta_r += angle_t(delta.theta_r);
+        return next;
     }
+};
 
-    // Scalar multiplication operator for RK4 integration
-    synchronous_machine_state operator*(real_t scalar) const
-    {
-        return {psi_fD * scalar, psi_kD * scalar, psi_kQ * scalar, omega_r * scalar, theta_r * scalar};
-    }
+/**
+ * @brief Bundles the d- and q-axis subtransient inductances.
+ */
+struct synchronous_machine_subtransient_inductances {
+    inductance_t d_axis{0.0};
+    inductance_t q_axis{0.0};
+};
+
+/**
+ * @brief Provides both inductance and impedance information for subtransient behavior.
+ */
+struct synchronous_machine_subtransient_impedance {
+    synchronous_machine_subtransient_inductances inductances{};
+    impedance_t d_axis{0.0};
+    impedance_t q_axis{0.0};
 };
 
 /**
@@ -97,9 +136,9 @@ public:
      * @param i_abc         The three-phase stator currents from the inverter [A]
      * @param v_field       The voltage applied to the field winding [V]
      * @param T_load        The mechanical load torque on the shaft [N·m]
-     * @return synchronous_machine_state containing the calculated derivatives
+     * @return synchronous_machine_derivatives containing the calculated derivatives
      */
-    synchronous_machine_state calculate_derivatives_current_fed(const synchronous_machine_state& current_state,
+    synchronous_machine_derivatives calculate_derivatives_current_fed(const synchronous_machine_state& current_state,
         const abc<current_t>& i_abc,
         voltage_t v_field,
         torque_t T_load) const;
@@ -115,9 +154,9 @@ public:
      * @param v_abc         The three-phase stator voltages from the inverter [V]
      * @param v_field       The voltage applied to the field winding [V]
      * @param T_load        The mechanical load torque on the shaft [N·m]
-     * @return synchronous_machine_state containing the calculated derivatives
+     * @return synchronous_machine_derivatives containing the calculated derivatives
      */
-    synchronous_machine_state calculate_derivatives_voltage_fed(const synchronous_machine_state& current_state,
+    synchronous_machine_derivatives calculate_derivatives_voltage_fed(const synchronous_machine_state& current_state,
         const abc<voltage_t>& v_abc,
         voltage_t v_field,
         torque_t T_load) const;
@@ -154,6 +193,24 @@ public:
      * Sets all state variables to zero. Typically called before starting a new simulation.
      */
     void reset();
+
+    // Getters for machine parameters
+    resistance_t get_stator_resistance() const { return _resistance_stator; }
+    inductance_t get_d_axis_inductance() const { return _inductance_d; }
+    inductance_t get_q_axis_inductance() const { return _inductance_q; }
+    inductance_t get_mutual_inductance_d() const { return _inductance_mutual_d; }
+    inductance_t get_field_inductance() const { return _inductance_field; }
+
+    /**
+     * @brief Returns the d and q axis subtransient inductances (frequency independent).
+     */
+    synchronous_machine_subtransient_inductances get_subtransient_inductances() const noexcept;
+
+    /**
+     * @brief Calculates the subtransient impedance at a given electrical frequency.
+     */
+    synchronous_machine_subtransient_impedance calculate_subtransient_impedance(
+        frequency_t electrical_frequency) const noexcept;
 
 private:
     // Parameters (SI units)

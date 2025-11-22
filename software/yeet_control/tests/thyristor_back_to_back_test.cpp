@@ -469,7 +469,7 @@ TEST_F(ThyristorBackToBackTest, InverterModeOperation)
     // Inverter: alpha = 15° (low firing angle, high DC voltage)
     // Net voltage: V_inv > V_rect → current flows machine to grid
     set_rectifier_firing_angle(45.0);
-    set_inverter_firing_angle(15.0);
+    set_inverter_firing_angle(150.0);
 
     // Simulate for 5 grid cycles
     double simulation_time = 5.0 / fundamental_frequency;
@@ -493,7 +493,7 @@ TEST_F(ThyristorBackToBackTest, BalancedOperation)
     // Set Inverter alpha = 30 deg -> V_inv ~ 114V
     // Delta V ~ 2V, should result in low current
     set_rectifier_firing_angle(45.0);
-    set_inverter_firing_angle(30.0);
+    set_inverter_firing_angle(180.0 - 30.0);
 
     // Simulate for 5 grid cycles
     double simulation_time = 5.0 / fundamental_frequency;
@@ -536,7 +536,7 @@ TEST_F(ThyristorBackToBackTest, WaveformValidation)
 {
     // Nominal operating condition
     set_rectifier_firing_angle(20.0);
-    set_inverter_firing_angle(30.0);
+    set_inverter_firing_angle(180 - 30.0);
 
     // Data capture for validation
     struct CaptureData {
@@ -747,6 +747,339 @@ TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
         << "Rectifier line voltage did not drop during commutation: " << data->min_line_voltage_rect << " V";
     EXPECT_LT(data->min_line_voltage_inv, 50.0)
         << "Inverter line voltage did not drop during commutation: " << data->min_line_voltage_inv << " V";
+}
+
+// Industrial LCI Test Fixture (matching sfc_plant_model_augmented_6p_6p parameters)
+class IndustrialLCITest : public ::testing::Test {
+public:
+    // Industrial LCI parameters
+    static constexpr double sampling_time = 10e-6;         // 10 μs (100 kHz)
+    static constexpr double fundamental_frequency = 50.0;  // 50 Hz
+
+    // Grid voltage: 2090V RMS line-to-line → phase voltage = 2090/√3 ≈ 1207V RMS
+    // Peak phase voltage = 1207 × √2 ≈ 1707V
+    static constexpr double v_grid_rms_ll = 2090.0;
+    static constexpr double v_grid_phase_peak = v_grid_rms_ll / std::sqrt(3.0) * std::sqrt(2.0);
+
+    // Machine voltage: 1980V RMS line-to-line → phase voltage = 1980/√3 ≈ 1143V RMS
+    // Peak phase voltage = 1143 × √2 ≈ 1617V
+    static constexpr double v_machine_rms_ll = 1980.0;
+    static constexpr double v_machine_phase_peak = v_machine_rms_ll / std::sqrt(3.0) * std::sqrt(2.0);
+
+    static constexpr double pulse_width_deg = 120.0;
+
+    // Circuit parameters from sfc_plant_model_augmented_6p_6p
+    static constexpr double grid_resistance = 0.1552f;
+    static constexpr double grid_inductance = 0.4941e-3;
+    static constexpr double dc_resistance = 10e-3;
+    static constexpr double dc_inductance = 8e-3;
+    static constexpr double machine_resistance = 0.0788f;
+    static constexpr double machine_inductance = 0.2508e-3;
+
+    void SetUp() override
+    {
+        // Configure grid-side waveform generator
+        _grid_waveform_generator.set_fundamental_positive_sequence_signal_amplitude(v_grid_phase_peak);
+        _grid_waveform_generator.set_fundamental_negative_sequence_signal_amplitude(0.0);
+        _grid_waveform_generator.set_signal_frequency(fundamental_frequency);
+        _grid_waveform_generator.disable_noise();
+
+        // Configure machine-side waveform generator
+        _machine_waveform_generator.set_fundamental_positive_sequence_signal_amplitude(v_machine_phase_peak);
+        _machine_waveform_generator.set_fundamental_negative_sequence_signal_amplitude(0.0);
+        _machine_waveform_generator.set_signal_frequency(fundamental_frequency);
+        _machine_waveform_generator.disable_noise();
+
+        set_logger();
+
+        _simulator.register_lambda_runner(sampling_time, [&]() {
+            // Update grid-side voltage source
+            _grid_waveform_generator.update();
+            _v_grid_abc = _grid_waveform_generator.get_signal_abc();
+            angle_wrapped grid_reference_angle = _grid_waveform_generator.get_fundamental_signal_angle().a();
+
+            // Update machine-side voltage source
+            _machine_waveform_generator.update();
+            _v_machine_abc = _machine_waveform_generator.get_signal_abc();
+            angle_wrapped machine_reference_angle = _machine_waveform_generator.get_fundamental_signal_angle().a();
+
+            // Generate rectifier gate pulses
+            _pulses_rect = _six_pulse_gen_rect.update(grid_reference_angle, _current_firing_angle_rect, true);
+
+            // Generate inverter gate pulses
+            _pulses_inv = _six_pulse_gen_inv.update(machine_reference_angle, _current_firing_angle_inv, true);
+
+            // Convert pulses
+            thyristor_pulses p_rect_conv;
+            p_rect_conv.t1 = _pulses_rect.p1;
+            p_rect_conv.t2 = _pulses_rect.p2;
+            p_rect_conv.t3 = _pulses_rect.p3;
+            p_rect_conv.t4 = _pulses_rect.p4;
+            p_rect_conv.t5 = _pulses_rect.p5;
+            p_rect_conv.t6 = _pulses_rect.p6;
+
+            thyristor_pulses p_inv_conv;
+            p_inv_conv.t1 = _pulses_inv.p1;
+            p_inv_conv.t2 = _pulses_inv.p2;
+            p_inv_conv.t3 = _pulses_inv.p3;
+            p_inv_conv.t4 = _pulses_inv.p4;
+            p_inv_conv.t5 = _pulses_inv.p5;
+            p_inv_conv.t6 = _pulses_inv.p6;
+
+            // Update complete back-to-back system
+            abc<voltage_t> v_grid_typed{voltage_t{static_cast<real_t>(_v_grid_abc.a())},
+                voltage_t{static_cast<real_t>(_v_grid_abc.b())}, voltage_t{static_cast<real_t>(_v_grid_abc.c())}};
+            abc<voltage_t> v_mach_typed{voltage_t{static_cast<real_t>(_v_machine_abc.a())},
+                voltage_t{static_cast<real_t>(_v_machine_abc.b())}, voltage_t{static_cast<real_t>(_v_machine_abc.c())}};
+
+            _back_to_back.update(v_grid_typed, v_mach_typed, p_rect_conv, p_inv_conv);
+
+            // Get states from back-to-back system
+            auto i_grid = _back_to_back.get_grid_currents();
+            _i_grid_abc = abc<double>{i_grid.a().value(), i_grid.b().value(), i_grid.c().value()};
+
+            auto i_mach = _back_to_back.get_machine_currents();
+            _i_machine_abc = abc<double>{i_mach.a().value(), i_mach.b().value(), i_mach.c().value()};
+
+            _i_dc = _back_to_back.get_dc_current().value();
+            _v_rect_dc = _back_to_back.get_rectifier_voltage().value();
+            _v_inv_dc = _back_to_back.get_inverter_voltage().value();
+
+            // Store current reference angles and sectors
+            _current_grid_reference_angle = grid_reference_angle;
+            _current_machine_reference_angle = machine_reference_angle;
+            _current_grid_sector = _six_pulse_gen_rect.get_sector();
+            _current_machine_sector = _six_pulse_gen_inv.get_sector();
+
+            // Accumulate DC link voltage for averaging
+            _v_dc_sum += (_v_rect_dc - _v_inv_dc);
+            _v_dc_sample_count++;
+        });
+    }
+
+    void simulate_for(double time) { _simulator.simulate_for(time); }
+
+    void set_rectifier_firing_angle(double angle_degrees)
+    {
+        _current_firing_angle_rect = angle_wrapped(deg_to_rad(angle_degrees));
+    }
+
+    void set_inverter_firing_angle(double angle_degrees)
+    {
+        _current_firing_angle_inv = angle_wrapped(deg_to_rad(angle_degrees));
+    }
+
+    double get_average_dc_link_voltage() const
+    {
+        if (_v_dc_sample_count == 0) return 0.0;
+        return _v_dc_sum / static_cast<double>(_v_dc_sample_count);
+    }
+
+    void reset_voltage_averaging()
+    {
+        _v_dc_sum = 0.0;
+        _v_dc_sample_count = 0;
+    }
+
+protected:
+    yeet::simulator _simulator = yeet::make_gtest_simulator();
+
+    // Grid-side components
+    three_phase_waveform_generator _grid_waveform_generator{sampling_time};
+    six_pulse_generator _six_pulse_gen_rect{
+        six_pulse_generator::reference_type::phase, angle_wrapped(deg_to_rad(pulse_width_deg))};
+
+    // Machine-side components
+    three_phase_waveform_generator _machine_waveform_generator{sampling_time};
+    six_pulse_generator _six_pulse_gen_inv{
+        six_pulse_generator::reference_type::phase, angle_wrapped(deg_to_rad(pulse_width_deg))};
+
+    // Back-to-back converter with industrial parameters
+    thyristor_back_to_back _back_to_back{resistance_t{grid_resistance}, inductance_t{grid_inductance},
+        resistance_t{dc_resistance}, inductance_t{dc_inductance}, resistance_t{machine_resistance},
+        inductance_t{machine_inductance}, duration_t{sampling_time}};
+
+    // Current state variables
+    angle_wrapped _current_grid_reference_angle{0.0};
+    angle_wrapped _current_machine_reference_angle{0.0};
+    angle_wrapped _current_firing_angle_rect{0.0};
+    angle_wrapped _current_firing_angle_inv{0.0};
+
+    abc<double> _v_grid_abc{0.0, 0.0, 0.0};
+    abc<double> _v_machine_abc{0.0, 0.0, 0.0};
+    abc<double> _i_grid_abc{0.0, 0.0, 0.0};
+    abc<double> _i_machine_abc{0.0, 0.0, 0.0};
+
+    six_pulse_generator::pulses _pulses_rect{};
+    six_pulse_generator::pulses _pulses_inv{};
+
+    six_pulse_generator::pulse_sector_t _current_grid_sector{six_pulse_generator::pulse_sector_t::none};
+    six_pulse_generator::pulse_sector_t _current_machine_sector{six_pulse_generator::pulse_sector_t::none};
+
+    double _v_rect_dc{0.0};
+    double _v_inv_dc{0.0};
+    double _i_dc{0.0};
+
+    // DC link voltage averaging
+    double _v_dc_sum{0.0};
+    size_t _v_dc_sample_count{0};
+
+private:
+    void set_logger()
+    {
+        // ===== GRID SIDE SIGNALS =====
+
+        // Grid reference angle
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "grid:reference_angle_deg", [&]() -> double { return _current_grid_reference_angle.get_degrees(); }));
+
+        // Grid firing angle
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "grid:firing_angle_deg", [&]() -> double { return _current_firing_angle_rect.get_degrees(); }));
+
+        // Grid AC source voltages (line-to-neutral)
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:v_ac_a", [&]() -> double { return _v_grid_abc.a(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:v_ac_b", [&]() -> double { return _v_grid_abc.b(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:v_ac_c", [&]() -> double { return _v_grid_abc.c(); }));
+
+        // Grid AC currents
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:i_ac_a", [&]() -> double { return _i_grid_abc.a(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:i_ac_b", [&]() -> double { return _i_grid_abc.b(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("grid:i_ac_c", [&]() -> double { return _i_grid_abc.c(); }));
+
+        // Grid terminal voltages
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_a",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_phase_voltages().a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_b",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_phase_voltages().b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("grid:v_term_c",
+            [&]() -> double { return _back_to_back.get_rectifier_bridge().get_ac_phase_voltages().c().value(); }));
+
+        // ===== MACHINE SIDE SIGNALS =====
+
+        // Machine reference angle
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:reference_angle_deg", [&]() -> double { return _current_machine_reference_angle.get_degrees(); }));
+
+        // Machine firing angle
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "machine:firing_angle_deg", [&]() -> double { return _current_firing_angle_inv.get_degrees(); }));
+
+        // Machine AC voltages (back-EMF)
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("machine:v_ac_a", [&]() -> double { return _v_machine_abc.a(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("machine:v_ac_b", [&]() -> double { return _v_machine_abc.b(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("machine:v_ac_c", [&]() -> double { return _v_machine_abc.c(); }));
+
+        // Machine AC currents
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("machine:i_ac_a", [&]() -> double { return _i_machine_abc.a(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("machine:i_ac_b", [&]() -> double { return _i_machine_abc.b(); }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("machine:i_ac_c", [&]() -> double { return _i_machine_abc.c(); }));
+
+        // Machine terminal voltages
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_a",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_phase_voltages().a().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_b",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_phase_voltages().b().value(); }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>("machine:v_term_c",
+            [&]() -> double { return _back_to_back.get_inverter_bridge().get_ac_phase_voltages().c().value(); }));
+
+        // ===== DC LINK SIGNALS =====
+
+        // DC link current
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:i_dc", [&]() -> double { return _i_dc; }));
+
+        // DC voltages
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:v_rect_dc", [&]() -> double { return _v_rect_dc; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:v_inv_dc", [&]() -> double { return _v_inv_dc; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("dc:v_dc_link", [&]() -> double { return _v_rect_dc - _v_inv_dc; }));
+
+        // Average DC link voltage
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "dc:v_dc_link_avg", [&]() -> double { return get_average_dc_link_voltage(); }));
+
+        // Power flow
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "dc:power", [&]() -> double { return (_v_rect_dc - _v_inv_dc) * _i_dc; }));
+    }
+};
+
+// Test 7: Industrial LCI Configuration (matching sfc_plant_model_augmented_6p_6p parameters)
+TEST_F(IndustrialLCITest, NominalOperatingPoint)
+{
+    // Set firing angles matching open loop test default values
+    // Grid: 13° (nominal rectifier firing angle)
+    // Machine: 180° - 26.84° ≈ 153.16° (nominal inverter advance angle)
+    double alpha_rect_deg = 13.0;
+    double alpha_inv_deg = 180.0 - 26.84;
+    set_rectifier_firing_angle(alpha_rect_deg);
+    set_inverter_firing_angle(alpha_inv_deg);
+
+    // Simulate for 100ms (5 cycles at 50 Hz)
+    simulate_for(0.1);
+
+    // Calculate average DC link voltage (skip first 2 cycles for transient settling)
+    double v_dc_link_avg = get_average_dc_link_voltage();
+
+    // Expected theoretical DC voltages (no-load, ideal conditions):
+    // V_rect_dc = (3/π) × V_LL_peak × cos(α)
+    // For α = 13°: V_rect_dc ≈ (3/π) × 2090√2 × cos(13°) ≈ 2822V
+    // For machine side (α = 153.16°): V_inv_dc ≈ (3/π) × 1980√2 × cos(153.16°) ≈ -2426V
+    double alpha_rect_rad = deg_to_rad(alpha_rect_deg);
+    double alpha_inv_rad = deg_to_rad(alpha_inv_deg);
+    double v_ll_peak_grid = std::sqrt(2.0) * v_grid_rms_ll;
+    double v_ll_peak_machine = std::sqrt(2.0) * v_machine_rms_ll;
+    double v_rect_theoretical = (3.0 / pi) * v_ll_peak_grid * std::cos(alpha_rect_rad);
+    double v_inv_theoretical = (3.0 / pi) * v_ll_peak_machine * std::cos(alpha_inv_rad);
+    double expected_theoretical_net = v_rect_theoretical - v_inv_theoretical;
+
+    // Validate that current is positive (motoring mode)
+    EXPECT_GT(_i_dc, 0.0) << "Expected positive DC current in industrial LCI configuration";
+
+    // Validate DC link voltage is positive
+    EXPECT_GT(v_dc_link_avg, 0.0) << "Expected positive net DC link voltage";
+
+    // The actual DC link voltage will be lower than theoretical due to resistive drops and commutation overlap
+    // Expect it to be within 30% of theoretical (conservative estimate given the circuit impedances)
+    EXPECT_GT(v_dc_link_avg, expected_theoretical_net * 0.3)
+        << "DC link voltage significantly lower than expected. "
+        << "Average: " << v_dc_link_avg << "V, Theoretical net: " << expected_theoretical_net << "V";
+
+    // Validate that DC current is reasonable (should be in hundreds of amps range for MW-class system)
+    // Base current for 2.95 MVA system at ~5kV DC link ≈ 590 A
+    // At these firing angles, expect current in the range of 10-2000 A
+    EXPECT_GT(_i_dc, 10.0) << "DC current too low for industrial configuration";
+    EXPECT_LT(_i_dc, 2000.0) << "DC current unreasonably high";
+
+    // Print diagnostic information
+    std::cout << "\n=== Industrial LCI Configuration Test Results ===" << std::endl;
+    std::cout << "Grid voltage (RMS L-L): " << v_grid_rms_ll << " V" << std::endl;
+    std::cout << "Machine voltage (RMS L-L): " << v_machine_rms_ll << " V" << std::endl;
+    std::cout << "Firing angle (grid): " << alpha_rect_deg << "°" << std::endl;
+    std::cout << "Firing angle (machine): " << alpha_inv_deg << "°" << std::endl;
+    std::cout << "DC link current: " << _i_dc << " A" << std::endl;
+    std::cout << "Rectifier DC voltage: " << _v_rect_dc << " V" << std::endl;
+    std::cout << "Inverter DC voltage: " << _v_inv_dc << " V" << std::endl;
+    std::cout << "Net DC link voltage (avg): " << v_dc_link_avg << " V" << std::endl;
+    std::cout << "Theoretical rectifier voltage: " << v_rect_theoretical << " V" << std::endl;
+    std::cout << "Theoretical inverter voltage: " << v_inv_theoretical << " V" << std::endl;
+    std::cout << "Theoretical net voltage: " << expected_theoretical_net << " V" << std::endl;
+    std::cout << "DC link power: " << (v_dc_link_avg * _i_dc / 1e6) << " MW" << std::endl;
 }
 
 }  // namespace

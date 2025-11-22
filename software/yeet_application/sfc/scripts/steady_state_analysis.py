@@ -306,9 +306,9 @@ cos_beta = math.cos(math.radians(inverter_extinction_angle_setpoint_deg)) - (2 *
 beta_angle_deg = math.degrees(math.acos(cos_beta))
 
 # The inverter's average DC back-voltage is determined by the extinction angle (gamma) and the ideal DC voltage.
-# Vd_inv = Vdo * cos(gamma). This is the correct formula.
-# The previous calculation was incorrectly subtracting dVx after already accounting for it in beta.
-inverter_dc_voltage = machine_ideal_no_load_dc_voltage * math.cos(math.radians(inverter_extinction_angle_setpoint_deg))
+# Vd_inv = Vdo * cos(gamma) - dVx.
+# We must subtract the commutation voltage drop because it reduces the average DC voltage magnitude.
+inverter_dc_voltage = machine_ideal_no_load_dc_voltage * math.cos(math.radians(inverter_extinction_angle_setpoint_deg)) - inverter_commutation_voltage_drop
 
 # --- 4b. Calculate Required Rectifier DC Voltage ---
 # The rectifier must overcome the inverter's back-voltage plus the resistive drop in the DC link.

@@ -146,15 +146,15 @@ void thyristor_bridge::force_natural_turn_off(const abc<current_t>& i_ac_abc, cu
 
     // Turn off upper thyristors that aren't carrying maximum current
     // Only turn off if current is low AND it is reverse biased (or commutation complete)
-    if (_conducting_states[0] && 0 != upper_max_idx && i_ac_abc.a().value() < i_dc.value() * 0.1 &&
+    if (_conducting_states[0] && 0 != upper_max_idx && i_ac_abc.a().value() < 100e-3 &&
         is_anode_cathode_voltage_negative(0)) {
         _conducting_states[0] = false;
     }
-    if (_conducting_states[2] && 2 != upper_max_idx && i_ac_abc.b().value() < i_dc.value() * 0.1 &&
+    if (_conducting_states[2] && 2 != upper_max_idx && i_ac_abc.b().value() < 100e-3 &&
         is_anode_cathode_voltage_negative(2)) {
         _conducting_states[2] = false;
     }
-    if (_conducting_states[4] && 4 != upper_max_idx && i_ac_abc.c().value() < i_dc.value() * 0.1 &&
+    if (_conducting_states[4] && 4 != upper_max_idx && i_ac_abc.c().value() < 100e-3 &&
         is_anode_cathode_voltage_negative(4)) {
         _conducting_states[4] = false;
     }
@@ -184,15 +184,15 @@ void thyristor_bridge::force_natural_turn_off(const abc<current_t>& i_ac_abc, cu
     }
 
     // Turn off lower thyristors that aren't carrying maximum current
-    if (_conducting_states[3] && 3 != lower_max_idx && i_ac_abc.a().value() > -i_dc.value() * 0.1 &&
+    if (_conducting_states[3] && 3 != lower_max_idx && i_ac_abc.a().value() > -100e-3 &&
         is_anode_cathode_voltage_negative(3)) {
         _conducting_states[3] = false;
     }
-    if (_conducting_states[5] && 5 != lower_max_idx && i_ac_abc.b().value() > -i_dc.value() * 0.1 &&
+    if (_conducting_states[5] && 5 != lower_max_idx && i_ac_abc.b().value() > -100e-3 &&
         is_anode_cathode_voltage_negative(5)) {
         _conducting_states[5] = false;
     }
-    if (_conducting_states[1] && 1 != lower_max_idx && i_ac_abc.c().value() > -i_dc.value() * 0.1 &&
+    if (_conducting_states[1] && 1 != lower_max_idx && i_ac_abc.c().value() > -100e-3 &&
         is_anode_cathode_voltage_negative(1)) {
         _conducting_states[1] = false;
     }
@@ -374,12 +374,10 @@ void thyristor_bridge::update_thyristor_currents(current_t i_dc)
     }
 }
 
-voltage_t thyristor_bridge::get_instantaneous_dc_voltage(const abc<voltage_t>& v_ac_abc) const
+voltage_t thyristor_bridge::get_positive_rail_voltage(const abc<voltage_t>& v_ac_abc) const
 {
     voltage_t v_pos{0.0};
-    voltage_t v_neg{0.0};
     int upper_count = 0;
-    int lower_count = 0;
 
     // Upper rail (T1, T3, T5)
     if (_conducting_states[0]) {
@@ -395,6 +393,15 @@ voltage_t thyristor_bridge::get_instantaneous_dc_voltage(const abc<voltage_t>& v
         upper_count++;
     }
 
+    if (upper_count > 0) v_pos = voltage_t(v_pos.value() / upper_count);
+    return v_pos;
+}
+
+voltage_t thyristor_bridge::get_negative_rail_voltage(const abc<voltage_t>& v_ac_abc) const
+{
+    voltage_t v_neg{0.0};
+    int lower_count = 0;
+
     // Lower rail (T4, T6, T2)
     if (_conducting_states[3]) {
         v_neg = voltage_t(v_neg.value() + v_ac_abc.a().value());
@@ -409,10 +416,13 @@ voltage_t thyristor_bridge::get_instantaneous_dc_voltage(const abc<voltage_t>& v
         lower_count++;
     }
 
-    if (upper_count > 0) v_pos = voltage_t(v_pos.value() / upper_count);
     if (lower_count > 0) v_neg = voltage_t(v_neg.value() / lower_count);
+    return v_neg;
+}
 
-    return v_pos - v_neg;
+voltage_t thyristor_bridge::get_instantaneous_dc_voltage(const abc<voltage_t>& v_ac_abc) const
+{
+    return get_positive_rail_voltage(v_ac_abc) - get_negative_rail_voltage(v_ac_abc);
 }
 
 }  // namespace yeet::control

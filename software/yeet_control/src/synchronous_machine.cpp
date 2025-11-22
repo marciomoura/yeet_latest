@@ -1,5 +1,6 @@
 #include "yeet_control/synchronous_machine.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include "yeet_control/constants.hpp"
@@ -35,14 +36,14 @@ synchronous_machine::synchronous_machine(resistance_t R_s,
 {
 }
 
-synchronous_machine_state synchronous_machine::calculate_derivatives_current_fed(
+synchronous_machine_derivatives synchronous_machine::calculate_derivatives_current_fed(
     const synchronous_machine_state& current_state,
     const abc<current_t>& i_abc,
     voltage_t v_field,
     torque_t T_load) const
 {
     // 1. Calculate electrical angle from mechanical angle
-    angle_wrapped theta_e(current_state.theta_r * _machine_poles_div_2);
+    angle_wrapped theta_e = current_state.theta_r * _machine_poles_div_2;
 
     // 2. Transform stator currents to dq frame
     dq<current_t> i_dq = i_abc.to_dq(theta_e);
@@ -86,7 +87,7 @@ synchronous_machine_state synchronous_machine::calculate_derivatives_current_fed
         current_t(flux_damper_q_residual / (_inductance_damper_q.value() + _inductance_mutual_q.value()));
 
     // 4. Calculate rotor flux derivatives: d(psi_r)/dt = v_r - R_r * i_r
-    synchronous_machine_state derivatives{};
+    synchronous_machine_derivatives derivatives{};
     derivatives.psi_fD = (v_field - _resistance_field * current_field).value();
     derivatives.psi_kD = (voltage_t(0.0) - _resistance_damper_d * current_damper_d).value();  // Damper short-circuited
     derivatives.psi_kQ = (voltage_t(0.0) - _resistance_damper_q * current_damper_q).value();  // Damper short-circuited
@@ -111,7 +112,7 @@ synchronous_machine_state synchronous_machine::calculate_derivatives_current_fed
     return derivatives;
 }
 
-synchronous_machine_state synchronous_machine::calculate_derivatives_voltage_fed(
+synchronous_machine_derivatives synchronous_machine::calculate_derivatives_voltage_fed(
     const synchronous_machine_state& current_state,
     const abc<voltage_t>& v_abc,
     voltage_t v_field,
@@ -130,7 +131,7 @@ abc<voltage_t> synchronous_machine::get_terminal_voltages_abc(
     const synchronous_machine_state& current_state, const abc<current_t>& i_abc) const
 {
     // 1. Calculate electrical angle and frequency
-    angle_wrapped theta_e(current_state.theta_r * _machine_poles_div_2);
+    angle_wrapped theta_e = current_state.theta_r * _machine_poles_div_2;
     angular_frequency_t omega_e = angular_frequency_t(current_state.omega_r * _machine_poles_div_2);
 
     // 2. Transform stator currents to dq frame
@@ -260,6 +261,55 @@ void synchronous_machine::reset()
 {
     // State is external to this class - this method is here for future extensions
     // where internal cached states might need clearing
+}
+
+synchronous_machine_subtransient_inductances synchronous_machine::get_subtransient_inductances() const noexcept
+{
+    synchronous_machine_subtransient_inductances result{};
+
+    const real_t Ld = _inductance_d.value();
+    const real_t Lad = _inductance_mutual_d.value();
+    const real_t Lfd_total = _inductance_field.value() + Lad;
+    const real_t Lkd_total = _inductance_damper_d.value() + Lad;
+
+    const real_t determinant = (Lfd_total * Lkd_total) - (Lad * Lad);
+    if (determinant > 0.0 && Lad > 0.0) {
+        const real_t inv00 = Lkd_total / determinant;
+        const real_t inv11 = Lfd_total / determinant;
+        const real_t inv01 = -Lad / determinant;
+        const real_t coupling = Lad * Lad * (inv00 + inv11 + 2.0 * inv01);
+        const real_t Ld_double_prime = std::max(real_t{0.0}, Ld - coupling);
+        result.d_axis = inductance_t(Ld_double_prime);
+    }
+    else {
+        result.d_axis = _inductance_d;
+    }
+
+    const real_t Lq = _inductance_q.value();
+    const real_t Laq = _inductance_mutual_q.value();
+    const real_t Lkq_total = _inductance_damper_q.value() + Laq;
+    if (Lkq_total > 0.0 && Laq > 0.0) {
+        const real_t Lq_double_prime = std::max(real_t{0.0}, Lq - (Laq * Laq / Lkq_total));
+        result.q_axis = inductance_t(Lq_double_prime);
+    }
+    else {
+        result.q_axis = _inductance_q;
+    }
+
+    return result;
+}
+
+synchronous_machine_subtransient_impedance synchronous_machine::calculate_subtransient_impedance(
+    frequency_t electrical_frequency) const noexcept
+{
+    synchronous_machine_subtransient_impedance result{};
+    result.inductances = get_subtransient_inductances();
+
+    const real_t omega = static_cast<real_t>(2.0 * pi * electrical_frequency.value());
+    result.d_axis = impedance_t(omega * result.inductances.d_axis.value());
+    result.q_axis = impedance_t(omega * result.inductances.q_axis.value());
+
+    return result;
 }
 
 }  // namespace yeet::control

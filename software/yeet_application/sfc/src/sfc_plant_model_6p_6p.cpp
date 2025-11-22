@@ -27,6 +27,8 @@ static constexpr resistance_t kGridSideResistance = resistance_t(0.1552);       
 static constexpr inductance_t kGridSideInductance = inductance_t(0.4941e-3);     // 0.4941 mH grid side inductance
 static constexpr resistance_t kMachineSideResistance = resistance_t(0.0788);     // 0.0788 Ohm machine side resistance
 static constexpr inductance_t kMachineSideInductance = inductance_t(0.2508e-3);  // 0.2508 mH machine side inductance
+static constexpr resistance_t kDcLinkResistance = resistance_t(10e-3);           // 10 mOhm DC link resistance
+static constexpr inductance_t kDcLinkInductance = inductance_t(8e-3);            // 8 mH DC link inductance
 
 // Power and current ratings with proper units
 static constexpr current_t kBaseDCLinkCurrent = current_t(1044.0);  // 1044 A base DC link current
@@ -228,6 +230,8 @@ sfc_plant_model_electrical_parameters sfc_plant_model_6p_6p::create_default_6p_6
         .grid_side_inductance = kGridSideInductance,
         .machine_side_resistance = kMachineSideResistance,
         .machine_side_inductance = kMachineSideInductance,
+        .dc_link_resistance = kDcLinkResistance,
+        .dc_link_inductance = kDcLinkInductance,
         .base_dc_link_current = kBaseDCLinkCurrent,
         .machine_rated_power_va = kMachineRatedPowerVA,
         .machine_num_poles = kMachineNumPoles};

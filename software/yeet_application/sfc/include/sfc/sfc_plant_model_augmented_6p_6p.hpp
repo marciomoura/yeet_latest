@@ -1,13 +1,16 @@
 #pragma once
 
+#include <array>
+
 #include "sfc_per_unit_system.hpp"
-#include "sfc_plant_model_6p_6p.hpp"
 #include "sfc_plant_model_parameters.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/field_current_regulator.hpp"
 #include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/mechanical_load.hpp"
 #include "yeet_control/reference_frame.hpp"
+#include "yeet_control/three_phase_waveform_generator.hpp"
+#include "yeet_control/thyristor_back_to_back.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -15,9 +18,9 @@ namespace yeet::application::sfc {
 /**
  * @brief Augmented 6-pulse to 6-pulse SFC plant model with mechanical dynamics and voltage control
  *
- * This class wraps the basic sfc_plant_model_6p_6p and adds mechanical load dynamics
- * and speed-voltage relationship control. It provides configurable parameters without
- * exposing topology-specific default values in the public interface.
+ * This class wraps a physics-based thyristor_back_to_back converter model and adds
+ * mechanical load dynamics plus voltage control. It provides configurable parameters
+ * without exposing topology-specific default values in the public interface.
  */
 class sfc_plant_model_augmented_6p_6p {
 public:
@@ -88,7 +91,7 @@ public:
         real_t quadratic_load_coeff = 0.0);
 
     /**
-     * @brief Initializes the underlying Simulink model.
+     * @brief Initializes the internal converter, mechanical, and excitation states.
      */
     void initialize();
 
@@ -116,7 +119,7 @@ public:
         voltage_t machine_voltage_rms);
 
     /**
-     * @brief Terminates the underlying Simulink model.
+     * @brief Terminates the internal converter state.
      */
     void terminate();
 
@@ -308,7 +311,11 @@ private:
     /**
      * @brief Updates the plant model parameters with computed frequency and voltage.
      */
-    void update_plant_parameters();
+    void update_source_voltages();
+    void configure_waveform_generator(
+        control::three_phase_waveform_generator& generator, frequency_t frequency, voltage_t voltage_rms) noexcept;
+    static control::thyristor_pulses make_pulses(const std::array<bool, 6>& pulses) noexcept;
+    static abc<voltage_t> to_voltage(const abc<real_t>& raw) noexcept;
 
     // ==================== Resolution Helpers ====================
     frequency_t resolve_machine_frequency() const noexcept;  // effective machine electrical frequency
@@ -334,11 +341,20 @@ private:
 
     voltage_pu_t _machine_back_emf_pu{voltage_pu_t{0.0}};  // Calculated back-EMF: E = Φ × ω (variable_speed mode)
 
-    sfc_plant_model_6p_6p _plant;                                    /// The underlying plant model instance
+    control::thyristor_back_to_back _converter;                 /// Back-to-back converter electrical model
+    control::three_phase_waveform_generator _grid_waveform;     /// Grid-side voltage source model
+    control::three_phase_waveform_generator _machine_waveform;  /// Machine-side voltage source model
+    std::array<bool, 6> _grid_side_pulses{};                    /// Latest grid-side firing pulses
+    std::array<bool, 6> _machine_side_pulses{};                 /// Latest machine-side firing pulses
+    abc<voltage_t> _grid_source_voltages{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
+    abc<voltage_t> _machine_source_voltages{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
+    angle_wrapped _grid_source_angle{0.0};
+    angle_wrapped _machine_source_angle{0.0};
     control::mechanical_load _mechanical_load;                       /// The mechanical load model instance
     control::field_current_regulator _field_current_regulator;       /// The field current regulator instance
     control::first_order_low_pass_filter<speed_pu_t> _speed_filter;  /// Speed filter to smooth back-EMF oscillations
     sfc_per_unit_system _pu_system;                                  /// The per-unit system instance
+    speed_pu_t _initial_mechanical_speed_pu{speed_pu_t{0.0f}};       /// Stored initial speed for resets
 
     // Configuration parameters
     sfc_plant_model_electrical_parameters _electrical_params;

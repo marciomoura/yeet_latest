@@ -74,7 +74,7 @@ protected:
         _simulator.register_sampler_entry(
             make_lambda_sampler<double>("mechanical:time", [&time_ref]() { return time_ref; }));
         _simulator.register_sampler_entry(
-            make_lambda_sampler<double>("mechanical:theta", [&]() { return state.theta_r; }));
+            make_lambda_sampler<double>("mechanical:theta", [&]() { return state.theta_r.get_radians().value(); }));
         _simulator.register_sampler_entry(
             make_lambda_sampler<double>("mechanical:omega", [&]() { return state.omega_r; }));
 
@@ -149,7 +149,7 @@ protected:
 
         _simulator.register_lambda_runner(sampling_time, [&]() {
             // Generate currents in dq frame first, then transform to abc
-            double electrical_angle = state.theta_r * 2.0;  // P/2 = 2
+            double electrical_angle = 2.0f * state.theta_r.get_radians().value();
 
             // Create dq currents at setpoint
             _i_dq = dq<current_t>(current_t(_i_d_setpoint), current_t(_i_q_setpoint));
@@ -266,7 +266,7 @@ protected:
             // Apply step in q-axis current at specified time
             double i_q = (_time < step_time) ? i_q_initial : i_q_final;
 
-            double electrical_angle = state.theta_r * 2.0;
+            double electrical_angle = 2.0f * state.theta_r.get_radians().value();
             angle_wrapped theta_e(electrical_angle);
 
             // DQ currents: i_d = 0 (unity power factor), i_q varies
@@ -353,7 +353,7 @@ protected:
 
         _simulator.register_lambda_runner(sampling_time, [&]() {
             // Generate balanced currents in dq frame
-            double electrical_angle = state.theta_r * 2.0;
+            double electrical_angle = 2.0f * state.theta_r.get_radians().value();
             angle_wrapped theta_e(electrical_angle);
 
             // Apply i_q current for torque

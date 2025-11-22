@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <ostream>
 
 #include "constants.hpp"
 #include "types.hpp"
@@ -525,6 +526,17 @@ constexpr angle_wrapped operator*(const angle_t& scalar, const angle_wrapped& an
 constexpr angle_wrapped operator+(const angle_t& angle_value, const angle_wrapped& angle)
 {
     return angle + angle_value;
+}
+
+/**
+ * @brief Stream insertion operator for angle_wrapped
+ *
+ * Prints the angle in radians.
+ */
+inline std::ostream& operator<<(std::ostream& os, const angle_wrapped& angle)
+{
+    os << angle.get_radians();
+    return os;
 }
 
 }  // namespace yeet

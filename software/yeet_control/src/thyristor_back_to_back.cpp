@@ -1,6 +1,7 @@
 #include "yeet_control/thyristor_back_to_back.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 namespace yeet::control {
 
@@ -62,9 +63,27 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // Rectifier
     voltage_t v_p_rect{0.0};
     voltage_t v_n_rect{0.0};
+
+    bool rect_upper_conducting = false;
+    bool rect_lower_conducting = false;
+    const auto& rect_states = _rect_bridge.get_conduction_states();
+    if (rect_states[0] || rect_states[2] || rect_states[4]) rect_upper_conducting = true;
+    if (rect_states[3] || rect_states[5] || rect_states[1]) rect_lower_conducting = true;
+
     if (_i_dc.value() > 1e-6) {
-        v_p_rect = _v_rect_dc * 0.5;
-        v_n_rect = _v_rect_dc * -0.5;
+        if (rect_upper_conducting) {
+            v_p_rect = _rect_bridge.get_positive_rail_voltage(_v_term_rect);
+        }
+        else {
+            v_p_rect = voltage_t{-1e9};
+        }
+
+        if (rect_lower_conducting) {
+            v_n_rect = _rect_bridge.get_negative_rail_voltage(_v_term_rect);
+        }
+        else {
+            v_n_rect = voltage_t{1e9};
+        }
     }
 
     // Inverter
@@ -72,9 +91,27 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // V_inv = V_pos - V_neg.
     voltage_t v_p_inv{0.0};
     voltage_t v_n_inv{0.0};
+
+    bool inv_upper_conducting = false;
+    bool inv_lower_conducting = false;
+    const auto& inv_states = _inv_bridge.get_conduction_states();
+    if (inv_states[0] || inv_states[2] || inv_states[4]) inv_upper_conducting = true;
+    if (inv_states[3] || inv_states[5] || inv_states[1]) inv_lower_conducting = true;
+
     if (_i_dc.value() > 1e-6) {
-        v_p_inv = _v_inv_dc * 0.5;
-        v_n_inv = _v_inv_dc * -0.5;
+        if (inv_upper_conducting) {
+            v_p_inv = _inv_bridge.get_positive_rail_voltage(_v_term_inv);
+        }
+        else {
+            v_p_inv = voltage_t{-1e9};
+        }
+
+        if (inv_lower_conducting) {
+            v_n_inv = _inv_bridge.get_negative_rail_voltage(_v_term_inv);
+        }
+        else {
+            v_n_inv = voltage_t{1e9};
+        }
     }
 
     // 4. Update Bridge Conduction State
@@ -105,14 +142,16 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
 
     // 8. Calculate DC Voltages
     _v_rect_dc = _rect_bridge.get_instantaneous_dc_voltage(_v_term_rect);
-    // Invert the inverter voltage so that it represents a counter-voltage (load)
-    // when positive. This allows the loop equation (V_rect - V_inv) to correctly
-    // represent the voltage difference driving the current.
-    _v_inv_dc = -_inv_bridge.get_instantaneous_dc_voltage(_v_term_inv);
+    // The inverter bridge produces a negative voltage (V_dc < 0) when operating
+    // in inverter mode (alpha > 90). This negative voltage opposes the rectifier's
+    // positive voltage in the loop.
+    _v_inv_dc = _inv_bridge.get_instantaneous_dc_voltage(_v_term_inv);
 
     // 9. Integrate DC Link Current
-    // Loop: V_rect - V_inv - I*R = L di/dt
-    // (V_inv opposes V_rect in standard back-to-back connection)
+    // Loop: V_rect + V_inv - I*R = L di/dt
+    // Note: V_inv is negative in inverter mode, so adding it correctly subtracts
+    // the counter-EMF magnitude from the rectifier voltage.
+    // Example: V_rect = 5000V, V_inv = -4800V. Net = 5000 + (-4800) = 200V.
 
     // Mathematical Note:
     // The total inductance (l_total) includes the grid and machine inductances
@@ -121,10 +160,15 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // two line inductances. Hence the factor of 2.0.
     // The equation is:
     // (V_grid_source - I*R_grid) - (V_mach_source + I*R_mach) - I*R_dc = L_total * di/dt
-    resistance_t r_total = _grid_resistance * 2.0 + _dc_resistance + _machine_resistance * 2.0;
+    //
+    // Correction: The resistive drops for grid and machine are already subtracted
+    // in Step 2 (Calculate AC terminal voltages) to get _v_term_rect and _v_term_inv.
+    // Therefore, _v_rect_dc and _v_inv_dc already account for the AC-side resistive drops.
+    // We must NOT subtract them again here. Only the DC link resistance remains.
+    resistance_t r_total = _dc_resistance;
     inductance_t l_total = _grid_inductance * 2.0 + _dc_inductance + _machine_inductance * 2.0;
 
-    voltage_t v_net = _v_rect_dc - _v_inv_dc - (r_total * _i_dc);
+    voltage_t v_net = _v_rect_dc + _v_inv_dc - (r_total * _i_dc);
 
     // Forward Euler
     current_t di_dc = (v_net / l_total) * _sampling_time;

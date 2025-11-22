@@ -34,6 +34,8 @@ struct sfc_plant_model_electrical_parameters {
     inductance_t grid_side_inductance;
     resistance_t machine_side_resistance;
     inductance_t machine_side_inductance;
+    resistance_t dc_link_resistance;
+    inductance_t dc_link_inductance;
     current_t base_dc_link_current;
     power_t machine_rated_power_va;
     int machine_num_poles;

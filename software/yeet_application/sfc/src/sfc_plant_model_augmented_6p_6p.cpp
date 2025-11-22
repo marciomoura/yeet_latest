@@ -15,14 +15,16 @@ static constexpr voltage_t kNominalGridVoltageRMS = voltage_t(2090.0);      // 2
 static constexpr voltage_t kNominalMachineVoltageRMS = voltage_t(1980.0);   // 1980V RMS line voltage
 
 // Firing angles (dimensionless angles in degrees)
-static constexpr angle_t kNominalGridFiringAngleDeg = angle_t(13.0);              // Nominal firing angle for grid side
+static constexpr angle_t kNominalGridFiringAngleDeg = angle_t(18.81);             // Nominal firing angle for grid side
 static constexpr angle_t kNominalMachineFiringAngleDeg = angle_t(180.0 - 26.84);  // Nominal firing angle for motor side
 
 // Circuit parameters with proper units
-static constexpr resistance_t kGridSideResistance = resistance_t(0.1552);        // 0.1552 Ohm grid side resistance
+static constexpr resistance_t kGridSideResistance = resistance_t(0.0163);        // 0.0163 Ohm grid side resistance
 static constexpr inductance_t kGridSideInductance = inductance_t(0.4941e-3);     // 0.4941 mH grid side inductance
-static constexpr resistance_t kMachineSideResistance = resistance_t(0.0788);     // 0.0788 Ohm machine side resistance
+static constexpr resistance_t kMachineSideResistance = resistance_t(0.0066);     // 0.0066 Ohm machine side resistance
 static constexpr inductance_t kMachineSideInductance = inductance_t(0.2508e-3);  // 0.2508 mH machine side inductance
+static constexpr resistance_t kDcLinkResistance = resistance_t(0.0503);          // 0.0503 Ohm DC link resistance
+static constexpr inductance_t kDcLinkInductance = inductance_t(8e-3);            // 8 mH DC link inductance
 
 // Power and current ratings with proper units
 static constexpr current_t kBaseDCLinkCurrent = current_t(1044.0);  // 1044 A base DC link current
@@ -55,7 +57,15 @@ sfc_plant_model_augmented_6p_6p::sfc_plant_model_augmented_6p_6p(
           electrical_params.machine_voltage_rms,
           electrical_params.machine_frequency,
           electrical_params.machine_num_poles),
-      _plant(electrical_params),
+      _converter(electrical_params.grid_side_resistance,
+          electrical_params.grid_side_inductance,
+          electrical_params.dc_link_resistance,
+          electrical_params.dc_link_inductance,
+          electrical_params.machine_side_resistance,
+          electrical_params.machine_side_inductance,
+          duration_t(kSamplingTime)),
+      _grid_waveform(kSamplingTime),
+      _machine_waveform(kSamplingTime),
       _electrical_params(electrical_params),
       _mechanical_params(mechanical_params),
       _voltage_control_params(voltage_control_params)
@@ -80,6 +90,11 @@ sfc_plant_model_augmented_6p_6p::sfc_plant_model_augmented_6p_6p(
         speed_pu_t{static_cast<float>(time_constant_s)});
     _speed_filter.configure(cutoff_freq.value());
 
+    _grid_waveform.disable_noise();
+    _grid_waveform.set_fundamental_negative_sequence_signal_amplitude(0.0f);
+    _machine_waveform.disable_noise();
+    _machine_waveform.set_fundamental_negative_sequence_signal_amplitude(0.0f);
+
     // Capture nominal bases for per-unit runtime scaling
     _nominal_grid_voltage_rms = electrical_params.grid_voltage_rms;
     _nominal_machine_voltage_rms = electrical_params.machine_voltage_rms;
@@ -99,14 +114,33 @@ sfc_plant_model_augmented_6p_6p::~sfc_plant_model_augmented_6p_6p() = default;
 void sfc_plant_model_augmented_6p_6p::configure_electrical_parameters(
     const sfc_plant_model_electrical_parameters& electrical_params)
 {
+    const auto grid_voltage_si = resolve_grid_voltage();
+    const auto machine_voltage_si = resolve_machine_voltage();
+    const auto grid_frequency_si = resolve_grid_frequency();
+    const auto machine_frequency_si = resolve_machine_frequency();
+
     _electrical_params = electrical_params;
-    _plant.configure_electrical_parameters(electrical_params);
+    _converter = control::thyristor_back_to_back(electrical_params.grid_side_resistance,
+        electrical_params.grid_side_inductance, electrical_params.dc_link_resistance,
+        electrical_params.dc_link_inductance, electrical_params.machine_side_resistance,
+        electrical_params.machine_side_inductance, duration_t(kSamplingTime));
+    _converter.reset();
 
     // Update per-unit system with new parameters
     _pu_system = sfc_per_unit_system(electrical_params.grid_voltage_rms, electrical_params.grid_frequency,
         electrical_params.base_dc_link_current, electrical_params.machine_rated_power_va,
         electrical_params.machine_voltage_rms, electrical_params.machine_frequency,
         electrical_params.machine_num_poles);
+
+    _nominal_grid_voltage_rms = electrical_params.grid_voltage_rms;
+    _nominal_machine_voltage_rms = electrical_params.machine_voltage_rms;
+    _nominal_grid_frequency = electrical_params.grid_frequency;
+    _nominal_machine_frequency = electrical_params.machine_frequency;
+
+    _grid_voltage_pu = voltage_pu_t{real_t(grid_voltage_si.value() / _nominal_grid_voltage_rms.value())};
+    _machine_voltage_pu = voltage_pu_t{real_t(machine_voltage_si.value() / _nominal_machine_voltage_rms.value())};
+    _grid_frequency_pu = frequency_pu_t{real_t(grid_frequency_si.value() / _nominal_grid_frequency.value())};
+    _machine_frequency_pu = frequency_pu_t{real_t(machine_frequency_si.value() / _nominal_machine_frequency.value())};
 }
 
 void sfc_plant_model_augmented_6p_6p::configure_mechanical_parameters(
@@ -139,24 +173,47 @@ void sfc_plant_model_augmented_6p_6p::configure_mechanical_load(inertia_constant
 
 void sfc_plant_model_augmented_6p_6p::initialize()
 {
-    _plant.initialize();
-    _mechanical_load.reset(speed_pu_t{0.0});
-    _speed_filter.reset(0.0f);  // Reset speed filter to zero
-    _machine_back_emf_pu = voltage_pu_t{0.0};
-    // Reset runtime per-unit scalars to nominal
-    _grid_voltage_pu = voltage_pu_t{1.0f};
-    _machine_voltage_pu = voltage_pu_t{1.0f};
-    _grid_frequency_pu = frequency_pu_t{1.0f};
-    _machine_frequency_pu = frequency_pu_t{1.0f};
+    _converter.reset();
+    _field_current_regulator.reset(_field_current_reference_pu);
+    _mechanical_load.reset(_initial_mechanical_speed_pu);
+    _speed_filter.reset(_initial_mechanical_speed_pu.value());
+
+    if (_mode == plant_model_machine_operation_mode::variable_speed) {
+        _machine_frequency_pu = per_unit_cast<frequency_pu_t>(_initial_mechanical_speed_pu);
+    }
+
+    if (_voltage_mode == plant_model_voltage_control_mode::variable_speed) {
+        _machine_back_emf_pu = per_unit_cast<voltage_pu_t>(_initial_mechanical_speed_pu);
+    }
+    else {
+        _machine_back_emf_pu = _machine_voltage_pu;
+    }
+
+    _grid_waveform = control::three_phase_waveform_generator(kSamplingTime);
+    _grid_waveform.disable_noise();
+    _grid_waveform.set_fundamental_negative_sequence_signal_amplitude(0.0f);
+    _machine_waveform = control::three_phase_waveform_generator(kSamplingTime);
+    _machine_waveform.disable_noise();
+    _machine_waveform.set_fundamental_negative_sequence_signal_amplitude(0.0f);
+
+    _grid_side_pulses.fill(false);
+    _machine_side_pulses.fill(false);
+    _grid_source_voltages = abc<voltage_t>{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
+    _machine_source_voltages = abc<voltage_t>{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
+    _grid_source_angle = angle_wrapped{0.0};
+    _machine_source_angle = angle_wrapped{0.0};
 }
 
 void sfc_plant_model_augmented_6p_6p::update()
 {
     step_mechanical_dynamics();
     step_voltage_control();
-    update_plant_parameters();
+    update_source_voltages();
 
-    _plant.update();
+    const auto grid_pulses = make_pulses(_grid_side_pulses);
+    const auto machine_pulses = make_pulses(_machine_side_pulses);
+
+    _converter.update(_grid_source_voltages, _machine_source_voltages, grid_pulses, machine_pulses);
 }
 
 void sfc_plant_model_augmented_6p_6p::update(const std::array<bool, 6>& grid_side_pulses,
@@ -175,16 +232,16 @@ void sfc_plant_model_augmented_6p_6p::update(const std::array<bool, 6>& grid_sid
     update();
 }
 
-void sfc_plant_model_augmented_6p_6p::terminate() { _plant.terminate(); }
+void sfc_plant_model_augmented_6p_6p::terminate() { _converter.reset(); }
 
 void sfc_plant_model_augmented_6p_6p::set_grid_side_pulses(const std::array<bool, 6>& pulses)
 {
-    _plant.set_grid_side_pulses(pulses);
+    _grid_side_pulses = pulses;
 }
 
 void sfc_plant_model_augmented_6p_6p::set_machine_side_pulses(const std::array<bool, 6>& pulses)
 {
-    _plant.set_machine_side_pulses(pulses);
+    _machine_side_pulses = pulses;
 }
 
 void sfc_plant_model_augmented_6p_6p::set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
@@ -192,14 +249,12 @@ void sfc_plant_model_augmented_6p_6p::set_grid_parameters(frequency_t frequency_
     // Convert given SI values into per-unit scalars for consistency
     _grid_frequency_pu = frequency_pu_t{real_t(frequency_hz.value() / _nominal_grid_frequency.value())};
     _grid_voltage_pu = voltage_pu_t{real_t(voltage_rms.value() / _nominal_grid_voltage_rms.value())};
-    _plant.set_grid_parameters(frequency_hz, voltage_rms);
 }
 
 void sfc_plant_model_augmented_6p_6p::set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
 {
     _machine_frequency_pu = frequency_pu_t{real_t(frequency_hz.value() / _nominal_machine_frequency.value())};
     _machine_voltage_pu = voltage_pu_t{real_t(voltage_rms.value() / _nominal_machine_voltage_rms.value())};
-    _plant.set_machine_parameters(frequency_hz, voltage_rms);
 }
 
 // ==================== Per-Unit Runtime Setters ====================
@@ -221,6 +276,26 @@ void sfc_plant_model_augmented_6p_6p::set_machine_operating_point(voltage_pu_t v
     _machine_frequency_pu = f_pu;
 }
 
+void sfc_plant_model_augmented_6p_6p::set_grid_frequency(frequency_t frequency_hz)
+{
+    _grid_frequency_pu = frequency_pu_t{real_t(frequency_hz.value() / _nominal_grid_frequency.value())};
+}
+
+void sfc_plant_model_augmented_6p_6p::set_grid_voltage(voltage_t voltage_rms)
+{
+    _grid_voltage_pu = voltage_pu_t{real_t(voltage_rms.value() / _nominal_grid_voltage_rms.value())};
+}
+
+void sfc_plant_model_augmented_6p_6p::set_machine_frequency(frequency_t frequency_hz)
+{
+    _machine_frequency_pu = frequency_pu_t{real_t(frequency_hz.value() / _nominal_machine_frequency.value())};
+}
+
+void sfc_plant_model_augmented_6p_6p::set_machine_voltage(voltage_t voltage_rms)
+{
+    _machine_voltage_pu = voltage_pu_t{real_t(voltage_rms.value() / _nominal_machine_voltage_rms.value())};
+}
+
 void sfc_plant_model_augmented_6p_6p::reset() { initialize(); }
 
 void sfc_plant_model_augmented_6p_6p::set_operation_mode(plant_model_machine_operation_mode mode) { _mode = mode; }
@@ -237,6 +312,7 @@ void sfc_plant_model_augmented_6p_6p::set_field_current_reference_pu(current_pu_
 
 void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t initial_speed_pu)
 {
+    _initial_mechanical_speed_pu = initial_speed_pu;
     _mechanical_load.reset(initial_speed_pu);
 
     // Initialize speed filter to initial speed to avoid transients
@@ -245,18 +321,8 @@ void sfc_plant_model_augmented_6p_6p::set_initial_mechanical_speed_pu(speed_pu_t
     // Initialize back-EMF based on initial speed (assuming nominal flux)
     // E = Φ × ω, with nominal flux ≈ 1.0 pu, so E ≈ ω
     _machine_back_emf_pu = per_unit_cast<voltage_pu_t>(initial_speed_pu);
-
     if (_mode == plant_model_machine_operation_mode::variable_speed) {
-        frequency_pu_t initial_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);
-        frequency_t machine_frequency_hz = to_si(initial_frequency_pu, _electrical_params.machine_frequency);
-
-        voltage_t machine_voltage_abc = _electrical_params.machine_voltage_rms;
-        if (_voltage_mode == plant_model_voltage_control_mode::variable_speed) {
-            // Use the calculated back-EMF as machine voltage
-            machine_voltage_abc = to_si(_machine_back_emf_pu, _electrical_params.machine_voltage_rms);
-        }
-
-        _plant.set_machine_parameters(machine_frequency_hz, machine_voltage_abc);
+        _machine_frequency_pu = per_unit_cast<frequency_pu_t>(initial_speed_pu);
     }
 }
 
@@ -275,29 +341,29 @@ voltage_t sfc_plant_model_augmented_6p_6p::get_rms_machine_voltage() const noexc
 }
 abc<voltage_t> sfc_plant_model_augmented_6p_6p::get_grid_side_voltages_abc() const noexcept
 {
-    return _plant.get_grid_side_voltages_abc();
+    return _converter.get_rectifier_terminal_voltages();
 }
 abc<current_t> sfc_plant_model_augmented_6p_6p::get_grid_side_currents_abc() const noexcept
 {
-    return _plant.get_grid_side_currents_abc();
+    return _converter.get_grid_currents();
 }
 abc<voltage_t> sfc_plant_model_augmented_6p_6p::get_machine_side_voltages_abc() const noexcept
 {
-    return _plant.get_machine_side_voltages_abc();
+    return _converter.get_inverter_terminal_voltages();
 }
 abc<current_t> sfc_plant_model_augmented_6p_6p::get_machine_side_currents_abc() const noexcept
 {
-    return _plant.get_machine_side_currents_abc();
+    return _converter.get_machine_currents();
 }
 angle_wrapped sfc_plant_model_augmented_6p_6p::get_grid_voltage_source_angle() const noexcept
 {
-    return _plant.get_grid_voltage_source_angle();
+    return _grid_source_angle;
 }
 angle_wrapped sfc_plant_model_augmented_6p_6p::get_machine_voltage_source_angle() const noexcept
 {
-    return _plant.get_machine_voltage_source_angle();
+    return _machine_source_angle;
 }
-current_t sfc_plant_model_augmented_6p_6p::get_dc_link_current() const noexcept { return _plant.get_dc_link_current(); }
+current_t sfc_plant_model_augmented_6p_6p::get_dc_link_current() const noexcept { return _converter.get_dc_current(); }
 
 // Mechanical dynamics getters
 speed_pu_t sfc_plant_model_augmented_6p_6p::get_mechanical_speed_pu() const noexcept
@@ -307,7 +373,7 @@ speed_pu_t sfc_plant_model_augmented_6p_6p::get_mechanical_speed_pu() const noex
 
 torque_pu_t sfc_plant_model_augmented_6p_6p::get_electromagnetic_torque_pu() const noexcept
 {
-    const current_pu_t dc_link_current = to_pu(_plant.get_dc_link_current(), _electrical_params.base_dc_link_current);
+    const current_pu_t dc_link_current = to_pu(_converter.get_dc_current(), _electrical_params.base_dc_link_current);
     return torque_pu_t{dc_link_current.value()};
 }
 
@@ -372,6 +438,8 @@ sfc_plant_model_electrical_parameters sfc_plant_model_augmented_6p_6p::create_de
         .grid_side_inductance = kGridSideInductance,
         .machine_side_resistance = kMachineSideResistance,
         .machine_side_inductance = kMachineSideInductance,
+        .dc_link_resistance = kDcLinkResistance,
+        .dc_link_inductance = kDcLinkInductance,
         .base_dc_link_current = kBaseDCLinkCurrent,
         .machine_rated_power_va = kMachineRatedPowerVA,
         .machine_num_poles = kMachineNumPoles};
@@ -396,7 +464,7 @@ void sfc_plant_model_augmented_6p_6p::step_mechanical_dynamics()
         return;
     }
 
-    const current_pu_t dc_link_current = to_pu(_plant.get_dc_link_current(), _electrical_params.base_dc_link_current);
+    const current_pu_t dc_link_current = to_pu(_converter.get_dc_current(), _electrical_params.base_dc_link_current);
     const torque_pu_t electromagnetic_torque_pu = torque_pu_t{dc_link_current.value()};
     _mechanical_load.update(electromagnetic_torque_pu, _load_torque_pu);
 }
@@ -444,11 +512,51 @@ void sfc_plant_model_augmented_6p_6p::step_voltage_control()
     // else: fixed_voltage mode - no voltage control needed
 }
 
-void sfc_plant_model_augmented_6p_6p::update_plant_parameters()
+void sfc_plant_model_augmented_6p_6p::update_source_voltages()
 {
-    // Push both grid and machine derived SI parameters into underlying plant.
-    _plant.set_grid_parameters(resolve_grid_frequency(), resolve_grid_voltage());
-    _plant.set_machine_parameters(resolve_machine_frequency(), resolve_machine_voltage());
+    const auto grid_frequency = resolve_grid_frequency();
+    const auto machine_frequency = resolve_machine_frequency();
+    const auto grid_voltage = resolve_grid_voltage();
+    const auto machine_voltage = resolve_machine_voltage();
+
+    configure_waveform_generator(_grid_waveform, grid_frequency, grid_voltage);
+    configure_waveform_generator(_machine_waveform, machine_frequency, machine_voltage);
+
+    _grid_waveform.update();
+    _machine_waveform.update();
+
+    _grid_source_voltages = to_voltage(_grid_waveform.get_signal_abc());
+    _machine_source_voltages = to_voltage(_machine_waveform.get_signal_abc());
+
+    _grid_source_angle = _grid_waveform.get_fundamental_signal_angle().a();
+    _machine_source_angle = _machine_waveform.get_fundamental_signal_angle().a();
+}
+
+void sfc_plant_model_augmented_6p_6p::configure_waveform_generator(
+    control::three_phase_waveform_generator& generator, frequency_t frequency, voltage_t voltage_rms) noexcept
+{
+    const real_t freq_value = std::max(static_cast<real_t>(frequency.value()), real_t{0.1f});
+    generator.set_signal_frequency(freq_value);
+
+    const real_t phase_peak = static_cast<real_t>(std::abs(voltage_rms.value()) * std::sqrt(2.0 / 3.0));
+    generator.set_fundamental_positive_sequence_signal_amplitude(abc<real_t>{phase_peak, phase_peak, phase_peak});
+}
+
+control::thyristor_pulses sfc_plant_model_augmented_6p_6p::make_pulses(const std::array<bool, 6>& pulses) noexcept
+{
+    control::thyristor_pulses result{};
+    result.t1 = pulses[0];
+    result.t2 = pulses[1];
+    result.t3 = pulses[2];
+    result.t4 = pulses[3];
+    result.t5 = pulses[4];
+    result.t6 = pulses[5];
+    return result;
+}
+
+abc<voltage_t> sfc_plant_model_augmented_6p_6p::to_voltage(const abc<real_t>& raw) noexcept
+{
+    return abc<voltage_t>{voltage_t(raw.a()), voltage_t(raw.b()), voltage_t(raw.c())};
 }
 
 // ==================== Override Resolution Helpers ====================
