@@ -899,17 +899,22 @@ static inline void register_complete_machine_side_pulse_generator_logger(
 static inline void register_minimal_plant_model_logger(yeet::simulator& simulator, sfc_plant_model_runner& plant_model)
 {
     const std::string group{"plant_model:"};
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input grid_firing_pulses",
-            [&]() { return plant_model.get_inputs().grid_firing_pulses.read().to_array(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input machine_firing_pulses",
-            [&]() { return plant_model.get_inputs().machine_firing_pulses.read().to_array(); }));
+
     // Note: load_torque is now a parameter, not an input signal
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(
         group + "output dc_link_current", [&]() { return plant_model.get_outputs().dc_link_current.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(
-        group + "output dc_link_voltage", [&]() { return plant_model.get_outputs().dc_link_voltage.read(); }));
+
+    const std::string group_dc_voltages{"plant_model_dc_voltages:"};
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_t>(group_dc_voltages + "output dc_link_voltage_drop",
+            [&]() { return plant_model.get_outputs().dc_link_voltage_drop.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_t>(group_dc_voltages + "output rectifier_dc_link_voltage",
+            [&]() { return plant_model.get_outputs().rectifier_dc_link_voltage.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_t>(group_dc_voltages + "output inverter_dc_link_voltage",
+            [&]() { return plant_model.get_outputs().inverter_dc_link_voltage.read(); }));
+
     simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
         group + "output machine_speed", [&]() { return plant_model.get_outputs().machine_speed.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_t>(
@@ -918,6 +923,20 @@ static inline void register_minimal_plant_model_logger(yeet::simulator& simulato
         group + "output machine_flux_pu", [&]() { return plant_model.get_outputs().machine_flux_pu.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(
         group + "output field_current_pu", [&]() { return plant_model.get_outputs().field_current_pu.read(); }));
+
+    const std::string thyristors_group{"plant_model_thyristors:"};
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(thyristors_group + "output grid_bridge_conduction_states",
+            [&]() { return plant_model.get_outputs().grid_bridge_conduction_states.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_array_sampler<std::array<bool, 6>>(
+        thyristors_group + "output machine_bridge_conduction_states",
+        [&]() { return plant_model.get_outputs().machine_bridge_conduction_states.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(thyristors_group + "input grid_firing_pulses",
+            [&]() { return plant_model.get_inputs().grid_firing_pulses.read().to_array(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(thyristors_group + "input machine_firing_pulses",
+            [&]() { return plant_model.get_inputs().machine_firing_pulses.read().to_array(); }));
 }
 
 static inline void register_complete_plant_model_logger(yeet::simulator& simulator, sfc_plant_model_runner& plant_model)
@@ -930,10 +949,14 @@ static inline void register_complete_plant_model_logger(yeet::simulator& simulat
         group + "output grid_voltage_abc", [&]() { return plant_model.get_outputs().grid_voltage_abc.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
         group + "output grid_current_abc", [&]() { return plant_model.get_outputs().grid_current_abc.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(
+        group + "output grid_current_sum", [&]() { return sum(plant_model.get_outputs().grid_current_abc.read()); }));
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
         group + "output machine_voltage_abc", [&]() { return plant_model.get_outputs().machine_voltage_abc.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<current_t>>(
         group + "output machine_current", [&]() { return plant_model.get_outputs().machine_current.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(
+        group + "output machine_current_sum", [&]() { return sum(plant_model.get_outputs().machine_current.read()); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output grid_voltage_source_angle",
         [&]() { return plant_model.get_outputs().grid_voltage_source_angle.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output machine_voltage_source_angle",

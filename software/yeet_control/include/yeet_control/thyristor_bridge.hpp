@@ -22,6 +22,11 @@ struct thyristor_pulses {
     bool t5{false};  ///< Gate pulse for thyristor T5 (upper, phase C)
     bool t6{false};  ///< Gate pulse for thyristor T6 (lower, phase B)
 
+    constexpr static thyristor_pulses make_pulses(const std::array<bool, 6> pulses)
+    {
+        return thyristor_pulses{pulses[0], pulses[1], pulses[2], pulses[3], pulses[4], pulses[5]};
+    }
+
     /**
      * @brief Array-style access to pulses by index [0-5].
      * @param idx Index: 0=T1, 1=T2, 2=T3, 3=T4, 4=T5, 5=T6
@@ -179,6 +184,12 @@ public:
     std::int32_t get_commutation_outgoing_thyristor_idx() const { return _commutation_outgoing_thyristor_idx; }
 
     std::int32_t get_commutation_incoming_thyristor_idx() const { return _commutation_incoming_thyristor_idx; }
+
+    /**
+     * @brief Checks if the bridge has a valid conducting path (at least one upper and one lower thyristor).
+     * @return true if current can flow through the bridge.
+     */
+    bool has_conducting_path() const;
 
     /**
      * @brief Updates the commutation logic (ODE) for the incoming thyristor.

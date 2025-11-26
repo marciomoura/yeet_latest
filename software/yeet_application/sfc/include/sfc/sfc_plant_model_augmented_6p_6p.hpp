@@ -237,6 +237,8 @@ public:
     frequency_t get_machine_frequency() const noexcept;
     voltage_t get_rms_grid_voltage() const noexcept;
     voltage_t get_rms_machine_voltage() const noexcept;
+    voltage_t get_rectifier_voltage() const noexcept { return _converter.get_rectifier_dc_voltage(); }
+    voltage_t get_inverter_voltage() const noexcept { return _converter.get_inverter_dc_voltage(); }
     abc<voltage_t> get_grid_side_voltages_abc() const noexcept;
     abc<current_t> get_grid_side_currents_abc() const noexcept;
     abc<voltage_t> get_machine_side_voltages_abc() const noexcept;
@@ -244,6 +246,10 @@ public:
     angle_wrapped get_grid_voltage_source_angle() const noexcept;
     angle_wrapped get_machine_voltage_source_angle() const noexcept;
     current_t get_dc_link_current() const noexcept;
+
+    // Bridge state getters
+    std::array<bool, 6> get_grid_bridge_conduction_states() const noexcept;
+    std::array<bool, 6> get_machine_bridge_conduction_states() const noexcept;
 
     // Mechanical dynamics getters
     speed_pu_t get_mechanical_speed_pu() const noexcept;
@@ -314,8 +320,6 @@ private:
     void update_source_voltages();
     void configure_waveform_generator(
         control::three_phase_waveform_generator& generator, frequency_t frequency, voltage_t voltage_rms) noexcept;
-    static control::thyristor_pulses make_pulses(const std::array<bool, 6>& pulses) noexcept;
-    static abc<voltage_t> to_voltage(const abc<real_t>& raw) noexcept;
 
     // ==================== Resolution Helpers ====================
     frequency_t resolve_machine_frequency() const noexcept;  // effective machine electrical frequency

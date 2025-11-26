@@ -86,6 +86,12 @@ void sfc_plant_model_runner::run()
     _outputs.grid_frequency = _plant.get_grid_frequency();
     _outputs.machine_flux_pu = _plant.get_flux_pu();
     _outputs.field_current_pu = _plant.get_field_current();
+    _outputs.rectifier_dc_link_voltage = _plant.get_rectifier_voltage();
+    _outputs.inverter_dc_link_voltage = _plant.get_inverter_voltage();
+    _outputs.dc_link_voltage_drop =
+        _outputs.rectifier_dc_link_voltage.read() - _outputs.inverter_dc_link_voltage.read();
+    _outputs.grid_bridge_conduction_states = _plant.get_grid_bridge_conduction_states();
+    _outputs.machine_bridge_conduction_states = _plant.get_machine_bridge_conduction_states();
 }
 void sfc_plant_model_runner::stop() {}
 

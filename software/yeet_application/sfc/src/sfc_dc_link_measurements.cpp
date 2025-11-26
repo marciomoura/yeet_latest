@@ -6,9 +6,7 @@ void sfc_dc_link_measurements::update(sfc_per_unit_system const& bases, abc<curr
 {
     auto const dc_link_current_grid_side_base = real_t{0.5} * sum(grid_current_abc.absolute());
 
-    // The snubber is to high, therefore im decreasing 0.05 from the measured current to compensate...
-    _current_pu = max(bases.reflect_grid_to_dc_link_current_pu(dc_link_current_grid_side_base) - current_pu_t{0.05},
-        current_pu_t{0.0});
+    _current_pu = max(bases.reflect_grid_to_dc_link_current_pu(dc_link_current_grid_side_base), current_pu_t{0.0});
 }
 
 }  // namespace yeet::application::sfc

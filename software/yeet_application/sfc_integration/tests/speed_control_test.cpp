@@ -46,8 +46,6 @@ public:
     }
 
     // Make speed‑error margin configurable (default ±0.05 pu)
-    // DISABLED: speed_error output was removed during simplification
-    /*
     std::shared_ptr<checker_user_activation> create_speed_error_checker(speed_pu_t margin = speed_pu_t{0.05f})
     {
         return sim.register_checker(yeet::make_range_checker<speed_pu_t>(
@@ -57,11 +55,12 @@ public:
 
     speed_pu_t read_speed_error() const noexcept
     {
-        return std::visit(
-            overloaded{[&](auto const* sys) { return sys->speed_controller.get_outputs().speed_error.read(); }},
+        return std::visit(overloaded{[&](auto* sys) {
+            auto err = sys->speed_reference.read() - sys->plant.get_plant_model().get_mechanical_speed_pu();
+            return err;
+        }},
             speed_system_variant_t{const_cast<BuilderT*>(&system)});
     }
-    */
 
     // ---- control wrappers ----
     void set_speed_reference(speed_pu_t ref) noexcept
@@ -71,7 +70,14 @@ public:
 
     void set_load_torque(torque_pu_t tq) noexcept
     {
-        std::visit(overloaded{[&](auto* sys) { sys->load_torque = tq; }}, speed_system_variant_t{&system});
+        std::visit(overloaded{[&](auto* sys) { sys->plant.get_parameters().constant_torque.write(tq); }},
+            speed_system_variant_t{&system});
+    }
+
+    void set_initial_speed(speed_pu_t speed) noexcept
+    {
+        std::visit(overloaded{[&](auto* sys) { sys->plant.get_plant_model().set_initial_mechanical_speed_pu(speed); }},
+            speed_system_variant_t{&system});
     }
 
     void enable_speed_control(bool en = true) noexcept
@@ -148,8 +154,11 @@ protected:
 
     void initial_settling_sequence()
     {
+        set_initial_speed(speed_pu_t{0.01f});
+        set_load_torque(torque_pu_t{0.0f});
         sim.simulate_for(0.5);
         enable_speed_control(false);
+
         set_load_torque(torque_pu_t{0.3f});
         enable_speed_control(true);
     }
@@ -179,19 +188,19 @@ TYPED_TEST_SUITE(SpeedControlTypedTest, SpeedTestedBuilders, SpeedTypedTestNameG
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
 {
-    // auto checker = this->create_speed_error_checker();  // Disabled: speed_error output removed
+    auto checker = this->create_speed_error_checker();
 
-    // checker->deactivate();  // Disabled: checker not created
+    checker->deactivate();
     this->set_speed_reference(speed_pu_t{1.0f});
     EXPECT_TRUE(this->sim.simulate_for(2.0));
-    // checker->activate();  // Disabled: checker not created
+    checker->activate();
     EXPECT_TRUE(this->sim.simulate_for(3.0));
 
     // Phase 2
-    // checker->deactivate();  // Disabled: checker not created
+    checker->deactivate();
     this->set_speed_reference(speed_pu_t{1.05f});
     EXPECT_TRUE(this->sim.simulate_for(1.0));
-    // checker->activate();  // Disabled: checker not created
+    checker->activate();
     EXPECT_TRUE(this->sim.simulate_for(3.0));
 }
 
@@ -229,21 +238,23 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulationWithTorqueDisturbance)
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedReferenceRampTracking)
 {
-    // auto checker = this->create_speed_error_checker();  // Disabled: speed_error output removed
+    auto checker = this->create_speed_error_checker();
 
-    // checker->deactivate();  // Disabled: checker not created
+    checker->deactivate();
     this->set_speed_reference(speed_pu_t{0.80f});
-    EXPECT_TRUE(this->sim.simulate_for(1.5));
-    // checker->activate();  // Disabled: checker not created
-    EXPECT_TRUE(this->sim.simulate_for(1.0));
+    // Increased settling time for high inertia (H=2.5s)
+    EXPECT_TRUE(this->sim.simulate_for(10.0));
+    std::cout << "Error at 10s: " << this->read_speed_error().value() << std::endl;
+    checker->activate();
+    EXPECT_TRUE(this->sim.simulate_for(2.0));
 
     const float targets[] = {0.85f, 0.90f, 1.00f, 1.05f};
     for (float r : targets) {
-        // checker->deactivate();  // Disabled: checker not created
+        checker->deactivate();
         this->set_speed_reference(speed_pu_t{r});
-        EXPECT_TRUE(this->sim.simulate_for(0.5));
-        // checker->activate();  // Disabled: checker not created
-        EXPECT_TRUE(this->sim.simulate_for(0.8));
+        EXPECT_TRUE(this->sim.simulate_for(1.5));
+        checker->activate();
+        EXPECT_TRUE(this->sim.simulate_for(1.0));
     }
 }
 

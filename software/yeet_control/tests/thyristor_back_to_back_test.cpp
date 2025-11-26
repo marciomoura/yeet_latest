@@ -16,23 +16,23 @@ using namespace yeet::control;
 
 class ThyristorBackToBackTest : public ::testing::Test {
 public:
-    static constexpr double sampling_time = 1e-6;          // 10 μs for good resolution
+    static constexpr double sampling_time = 10e-6;         // 10 μs for good resolution
     static constexpr double fundamental_frequency = 50.0;  // 50 Hz grid/machine frequency
     static constexpr double v_grid_peak = 100.0;           // 100V peak line-to-neutral (grid)
     static constexpr double v_machine_peak = 80.0;         // 80V peak line-to-neutral (machine back-EMF)
     static constexpr double pulse_width_deg = 120.0;       // 120 degree pulse width (standard for 6-pulse)
 
     // Grid-side RL impedance parameters
-    static constexpr double grid_resistance = 0.001;   // 50 mOhm per phase
-    static constexpr double grid_inductance = 0.1e-3;  // 0.1 mH per phase (Increased for visible notches)
+    static constexpr double grid_resistance = 0.01;    // 50 mOhm per phase
+    static constexpr double grid_inductance = 0.5e-3;  // 0.1 mH per phase (Increased for visible notches)
 
     // DC link parameters
     static constexpr double dc_resistance = 1.0;   // 100 mOhm
     static constexpr double dc_inductance = 5e-3;  // 10 mH
 
     // Machine-side RL impedance parameters
-    static constexpr double machine_resistance = 0.001;   // 50 mOhm per phase
-    static constexpr double machine_inductance = 0.1e-3;  // 0.1 mH per phase (Increased for visible notches)
+    static constexpr double machine_resistance = 0.01;    // 50 mOhm per phase
+    static constexpr double machine_inductance = 0.5e-3;  // 0.1 mH per phase (Increased for visible notches)
 
     void SetUp() override
     {
@@ -505,6 +505,25 @@ TEST_F(ThyristorBackToBackTest, BalancedOperation)
     // Current should be reasonable when voltages are balanced
     EXPECT_LT(i_dc_avg, 50.0) << "Expected low current in balanced voltage mode";
     EXPECT_GT(i_dc_avg, 0.0) << "Expected some positive current due to small voltage delta";
+}
+
+// Test 4: Extended operation showing steady-state
+TEST_F(ThyristorBackToBackTest, 90DegreesToNominalTest)
+{
+    set_rectifier_firing_angle(90.0);
+    set_inverter_firing_angle(180.0 - 30.0f);
+
+    simulate_for(0.5);
+
+    set_rectifier_firing_angle(20.0);
+    set_inverter_firing_angle(180.0 - 30.0f);
+
+    simulate_for(1.0);
+
+    set_rectifier_firing_angle(120.0);
+    set_inverter_firing_angle(180.0 - 30.0f);
+
+    simulate_for(1.0);
 }
 
 // Test 4: Extended operation showing steady-state

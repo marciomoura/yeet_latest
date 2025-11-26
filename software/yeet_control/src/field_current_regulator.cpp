@@ -85,7 +85,7 @@ current_pu_t field_current_regulator::update_field_circuit_dynamics(voltage_pu_t
     const real_t ts = _sampling_time.value();
 
     // Compute discrete-time coefficient
-    const real_t denominator = tau_f + r_f * ts;
+    const real_t denominator = tau_f + ts;
     const real_t a_prev = tau_f / denominator;        // Coefficient for previous current
     const real_t a_input = ts / (r_f * denominator);  // Coefficient for voltage input
 

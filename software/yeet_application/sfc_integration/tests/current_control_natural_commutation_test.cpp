@@ -63,6 +63,12 @@ public:
                        [&](plant_simplified_current_control_simulation_builder* sys) {
                            register_complete_logger(sim, sys->current_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
+                           //    register_complete_logger(sim, sys->field_current_reference_pu);
+                           register_complete_logger(sim, sys->machine_side_pulse_generator);
+                           register_complete_logger(sim, sys->grid_side_pulse_generator);
+                           register_complete_logger(sim, sys->plant);
+                           //    register_complete_logger(sim, sys->machine_side_observer);
+                           //    register_complete_logger(sim, sys->grid_side_observer);
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
                            register_complete_logger(sim, sys->current_controller);

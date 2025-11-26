@@ -58,8 +58,14 @@ public:
         /// Grid-side current measurements [A]
         signal_output<abc<current_t>> grid_current_abc;
 
-        /// DC link voltage [V]
-        signal_output<voltage_t> dc_link_voltage;
+        /// Rectifier DC link voltage [V]
+        signal_output<voltage_t> rectifier_dc_link_voltage;
+
+        /// Inverter DC link voltage [V]
+        signal_output<voltage_t> inverter_dc_link_voltage;
+
+        /// DC link voltage Drop [V]
+        signal_output<voltage_t> dc_link_voltage_drop;
 
         /// DC link current [A]
         signal_output<current_t> dc_link_current;
@@ -90,6 +96,12 @@ public:
 
         /// Field current [pu]
         signal_output<current_pu_t> field_current_pu;
+
+        /// Grid-side bridge conduction states (T1-T6)
+        signal_output<std::array<bool, 6>> grid_bridge_conduction_states;
+
+        /// Machine-side bridge conduction states (T1-T6)
+        signal_output<std::array<bool, 6>> machine_bridge_conduction_states;
     };
 
     /**

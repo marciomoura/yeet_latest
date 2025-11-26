@@ -210,8 +210,8 @@ void sfc_plant_model_augmented_6p_6p::update()
     step_voltage_control();
     update_source_voltages();
 
-    const auto grid_pulses = make_pulses(_grid_side_pulses);
-    const auto machine_pulses = make_pulses(_machine_side_pulses);
+    const control::thyristor_pulses grid_pulses = control::thyristor_pulses::make_pulses(_grid_side_pulses);
+    const control::thyristor_pulses machine_pulses = control::thyristor_pulses::make_pulses(_machine_side_pulses);
 
     _converter.update(_grid_source_voltages, _machine_source_voltages, grid_pulses, machine_pulses);
 }
@@ -365,6 +365,16 @@ angle_wrapped sfc_plant_model_augmented_6p_6p::get_machine_voltage_source_angle(
 }
 current_t sfc_plant_model_augmented_6p_6p::get_dc_link_current() const noexcept { return _converter.get_dc_current(); }
 
+std::array<bool, 6> sfc_plant_model_augmented_6p_6p::get_grid_bridge_conduction_states() const noexcept
+{
+    return _converter.get_rectifier_bridge().get_conduction_states();
+}
+
+std::array<bool, 6> sfc_plant_model_augmented_6p_6p::get_machine_bridge_conduction_states() const noexcept
+{
+    return _converter.get_inverter_bridge().get_conduction_states();
+}
+
 // Mechanical dynamics getters
 speed_pu_t sfc_plant_model_augmented_6p_6p::get_mechanical_speed_pu() const noexcept
 {
@@ -467,6 +477,11 @@ void sfc_plant_model_augmented_6p_6p::step_mechanical_dynamics()
     const current_pu_t dc_link_current = to_pu(_converter.get_dc_current(), _electrical_params.base_dc_link_current);
     const torque_pu_t electromagnetic_torque_pu = torque_pu_t{dc_link_current.value()};
     _mechanical_load.update(electromagnetic_torque_pu, _load_torque_pu);
+
+    // Prevent reverse rotation (negative speed) which can happen if load torque > drive torque at standstill
+    if (_mechanical_load.get_speed_pu().value() < 0.0f) {
+        _mechanical_load.reset(speed_pu_t{0.0f});
+    }
 }
 
 void sfc_plant_model_augmented_6p_6p::step_voltage_control()
@@ -525,8 +540,8 @@ void sfc_plant_model_augmented_6p_6p::update_source_voltages()
     _grid_waveform.update();
     _machine_waveform.update();
 
-    _grid_source_voltages = to_voltage(_grid_waveform.get_signal_abc());
-    _machine_source_voltages = to_voltage(_machine_waveform.get_signal_abc());
+    _grid_source_voltages = to_dimension_abc<voltage_t>(_grid_waveform.get_signal_abc());
+    _machine_source_voltages = to_dimension_abc<voltage_t>(_machine_waveform.get_signal_abc());
 
     _grid_source_angle = _grid_waveform.get_fundamental_signal_angle().a();
     _machine_source_angle = _machine_waveform.get_fundamental_signal_angle().a();
@@ -540,23 +555,6 @@ void sfc_plant_model_augmented_6p_6p::configure_waveform_generator(
 
     const real_t phase_peak = static_cast<real_t>(std::abs(voltage_rms.value()) * std::sqrt(2.0 / 3.0));
     generator.set_fundamental_positive_sequence_signal_amplitude(abc<real_t>{phase_peak, phase_peak, phase_peak});
-}
-
-control::thyristor_pulses sfc_plant_model_augmented_6p_6p::make_pulses(const std::array<bool, 6>& pulses) noexcept
-{
-    control::thyristor_pulses result{};
-    result.t1 = pulses[0];
-    result.t2 = pulses[1];
-    result.t3 = pulses[2];
-    result.t4 = pulses[3];
-    result.t5 = pulses[4];
-    result.t6 = pulses[5];
-    return result;
-}
-
-abc<voltage_t> sfc_plant_model_augmented_6p_6p::to_voltage(const abc<real_t>& raw) noexcept
-{
-    return abc<voltage_t>{voltage_t(raw.a()), voltage_t(raw.b()), voltage_t(raw.c())};
 }
 
 // ==================== Override Resolution Helpers ====================

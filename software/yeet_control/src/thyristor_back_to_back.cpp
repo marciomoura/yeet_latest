@@ -48,16 +48,12 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // the differential equation we solve in Step 9.
     // Effectively, we are calculating the "internal" voltage available to drive
     // the change in current through the total system inductance.
-    _v_term_rect.a() = v_grid.a() - _grid_resistance * i_grid.a();
-    _v_term_rect.b() = v_grid.b() - _grid_resistance * i_grid.b();
-    _v_term_rect.c() = v_grid.c() - _grid_resistance * i_grid.c();
+    _v_term_rect = v_grid - _grid_resistance * i_grid;
 
     // Inverter: V_term = V_mach + Z_mach * I_into_machine
     // I_into_machine = i_mach.
     // So V_term = V_mach + R * i_mach.
-    _v_term_inv.a() = v_machine.a() + _machine_resistance * i_mach.a();
-    _v_term_inv.b() = v_machine.b() + _machine_resistance * i_mach.b();
-    _v_term_inv.c() = v_machine.c() + _machine_resistance * i_mach.c();
+    _v_term_inv = v_machine + _machine_resistance * i_mach;
 
     // 3. Estimate DC rail voltages for forward bias check
     // Rectifier
@@ -128,6 +124,15 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // 6. Update Thyristor Currents
     _rect_bridge.update_thyristor_currents(_i_dc);
     _inv_bridge.update_thyristor_currents(_i_dc);
+
+    // Enforce physical constraint: If either bridge loses its conducting path (e.g. discontinuous mode),
+    // the DC link current must be zero. The inductor cannot sustain current through an open switch.
+    if (!_rect_bridge.has_conducting_path() || !_inv_bridge.has_conducting_path()) {
+        _i_dc = current_t{0.0};
+        // Re-update currents to reflect the zeroed DC current
+        _rect_bridge.update_thyristor_currents(_i_dc);
+        _inv_bridge.update_thyristor_currents(_i_dc);
+    }
 
     // 7. Force Natural Turn-Off
     // Re-calculate currents for turn-off check

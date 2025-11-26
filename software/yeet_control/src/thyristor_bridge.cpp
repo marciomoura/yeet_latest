@@ -115,6 +115,13 @@ void thyristor_bridge::update_conduction_state(
     _v_line_abc.c() = _v_phase_abc.c() - _v_phase_abc.a();  // V_ca
 }
 
+bool thyristor_bridge::has_conducting_path() const
+{
+    bool upper_conducting = _conducting_states[0] || _conducting_states[2] || _conducting_states[4];
+    bool lower_conducting = _conducting_states[3] || _conducting_states[5] || _conducting_states[1];
+    return upper_conducting && lower_conducting;
+}
+
 void thyristor_bridge::force_natural_turn_off(const abc<current_t>& i_ac_abc, current_t i_dc)
 {
     auto is_anode_cathode_voltage_negative = [&](std::size_t idx) -> bool {
@@ -317,6 +324,10 @@ void thyristor_bridge::update_thyristor_currents(current_t i_dc)
 {
     _thyristor_currents.fill(current_t{0.0});
 
+    if (!has_conducting_path()) {
+        return;
+    }
+
     current_t upper_current_used{0.0};
     current_t lower_current_used{0.0};
 
@@ -422,6 +433,9 @@ voltage_t thyristor_bridge::get_negative_rail_voltage(const abc<voltage_t>& v_ac
 
 voltage_t thyristor_bridge::get_instantaneous_dc_voltage(const abc<voltage_t>& v_ac_abc) const
 {
+    if (!has_conducting_path()) {
+        return voltage_t{0.0};
+    }
     return get_positive_rail_voltage(v_ac_abc) - get_negative_rail_voltage(v_ac_abc);
 }
 

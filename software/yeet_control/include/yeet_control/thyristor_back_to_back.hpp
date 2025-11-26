@@ -105,6 +105,16 @@ public:
      */
     abc<voltage_t> get_inverter_terminal_voltages() const { return _v_term_inv; }
 
+    /**
+     * @brief Get the Rectifier DC Voltage
+     */
+    voltage_t get_rectifier_dc_voltage() const { return _v_rect_dc; }
+
+    /**
+     * @brief Get the Inverter DC Voltage
+     */
+    voltage_t get_inverter_dc_voltage() const { return _v_inv_dc; }
+
 private:
     // System Parameters
     resistance_t _grid_resistance;
