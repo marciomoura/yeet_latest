@@ -72,6 +72,10 @@ void thyristor_rectifier::update(
     if (_i_dc.value() < 0.0) {
         _i_dc = current_t{0.0};
     }
+
+    // 10. Final thyristor current update with integrated DC current
+    // This ensures get_grid_currents() returns values consistent with the new _i_dc.
+    _bridge.update_thyristor_currents(_i_dc);
 }
 
 void thyristor_rectifier::reset()

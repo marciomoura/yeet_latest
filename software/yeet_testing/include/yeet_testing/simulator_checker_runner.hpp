@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -45,6 +46,10 @@ public:
                     info.message = checker->get_failure_message();
                     info.time = current_time;
                     _checker_failures.push_back(info);
+
+                    // Print the failure message to stdout
+                    std::cout << "[CHECKER FAIL] t=" << current_time << "s, " << info.name << ": " << info.message
+                              << std::endl;
                 }
             }
         }

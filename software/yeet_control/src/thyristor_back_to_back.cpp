@@ -129,7 +129,6 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // the DC link current must be zero. The inductor cannot sustain current through an open switch.
     if (!_rect_bridge.has_conducting_path() || !_inv_bridge.has_conducting_path()) {
         _i_dc = current_t{0.0};
-        // Re-update currents to reflect the zeroed DC current
         _rect_bridge.update_thyristor_currents(_i_dc);
         _inv_bridge.update_thyristor_currents(_i_dc);
     }
@@ -183,6 +182,12 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     if (_i_dc.value() < 0.0) {
         _i_dc = current_t{0.0};
     }
+
+    // 10. Final thyristor current update with integrated DC current
+    // This ensures get_grid_currents() and get_machine_currents() return values
+    // consistent with the new _i_dc value.
+    _rect_bridge.update_thyristor_currents(_i_dc);
+    _inv_bridge.update_thyristor_currents(_i_dc);
 }
 
 void thyristor_back_to_back::reset()

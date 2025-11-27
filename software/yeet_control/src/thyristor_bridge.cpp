@@ -36,24 +36,37 @@ void thyristor_bridge::update_conduction_state(
             bool has_gate_pulse = pulses[i];
             bool is_forward_biased = (_anode_voltages[i] > _cathode_voltages[i]);
             if (has_gate_pulse && is_forward_biased) {
-                // Identify from upper-branch which is the thyristor commutating
-                // and which is the thyristor going out of commutation
-                _commutation_incoming_thyristor_idx = i;
-                _commutation_current = current_t{0.0};
+                // Check if this is a commutation (another thyristor in same leg already conducting)
+                // or a fresh turn-on (no other thyristor in same leg conducting)
+                int outgoing_idx = -1;
 
-                if (i == 1 - 1 || i == 3 - 1 || i == 5 - 1) {
-                    if (_conducting_states[1 - 1]) _commutation_outgoing_thyristor_idx = 1 - 1;
-                    if (_conducting_states[3 - 1]) _commutation_outgoing_thyristor_idx = 3 - 1;
-                    if (_conducting_states[5 - 1]) _commutation_outgoing_thyristor_idx = 5 - 1;
+                // Upper branch thyristors: T1=0, T3=2, T5=4
+                if (i == 0 || i == 2 || i == 4) {
+                    if (_conducting_states[0] && i != 0)
+                        outgoing_idx = 0;
+                    else if (_conducting_states[2] && i != 2)
+                        outgoing_idx = 2;
+                    else if (_conducting_states[4] && i != 4)
+                        outgoing_idx = 4;
                 }
 
-                // Identify from lower-branch which is the thyristor commutating
-                // and which is the thyristor going out of commutation
-                if (i == 4 - 1 || i == 6 - 1 || i == 2 - 1) {
-                    if (_conducting_states[4 - 1]) _commutation_outgoing_thyristor_idx = 4 - 1;
-                    if (_conducting_states[6 - 1]) _commutation_outgoing_thyristor_idx = 6 - 1;
-                    if (_conducting_states[2 - 1]) _commutation_outgoing_thyristor_idx = 2 - 1;
+                // Lower branch thyristors: T4=3, T6=5, T2=1
+                if (i == 3 || i == 5 || i == 1) {
+                    if (_conducting_states[3] && i != 3)
+                        outgoing_idx = 3;
+                    else if (_conducting_states[5] && i != 5)
+                        outgoing_idx = 5;
+                    else if (_conducting_states[1] && i != 1)
+                        outgoing_idx = 1;
                 }
+
+                if (outgoing_idx >= 0) {
+                    // This is a commutation from one thyristor to another
+                    _commutation_incoming_thyristor_idx = i;
+                    _commutation_outgoing_thyristor_idx = outgoing_idx;
+                    _commutation_current = current_t{0.0};
+                }
+                // If outgoing_idx == -1, this is a fresh turn-on (no commutation tracking needed)
 
                 // Update with new state now after identifying what is the outgoing thyristor
                 _conducting_states[i] = true;
@@ -124,6 +137,14 @@ bool thyristor_bridge::has_conducting_path() const
 
 void thyristor_bridge::force_natural_turn_off(const abc<current_t>& i_ac_abc, current_t i_dc)
 {
+    // If DC current is near zero, don't force turn-off based on voltage polarity.
+    // This allows thyristors to stay "latched on" waiting for current to build up
+    // during startup or discontinuous conduction mode.
+    // The thyristors will only turn off naturally when current actually reverses during conduction.
+    // if (i_dc.value() < 1e-3) {
+    //     return;
+    // }
+
     auto is_anode_cathode_voltage_negative = [&](std::size_t idx) -> bool {
         return (_anode_voltages[idx].value() - _cathode_voltages[idx].value()) <= 0.0;
     };
@@ -344,16 +365,16 @@ void thyristor_bridge::update_thyristor_currents(current_t i_dc)
             lower_current_used = i_dc;
     }
 
-    // Distribute remaining current to others
-    int upper_others = 0;
-    int lower_others = 0;
+    // Distribute remaining current to conducting thyristors NOT involved in commutation
+    int upper_conducting = 0;
+    int lower_conducting = 0;
     for (int i = 0; i < 6; ++i) {
         if (_conducting_states[i]) {
             if (i == _commutation_incoming_thyristor_idx || i == _commutation_outgoing_thyristor_idx) continue;
             if (i % 2 == 0)
-                upper_others++;
+                upper_conducting++;
             else
-                lower_others++;
+                lower_conducting++;
         }
     }
 
@@ -364,8 +385,9 @@ void thyristor_bridge::update_thyristor_currents(current_t i_dc)
     if (upper_remaining.value() < 0) upper_remaining = current_t{0.0};
     if (lower_remaining.value() < 0) lower_remaining = current_t{0.0};
 
-    if (upper_others > 0) {
-        current_t share = current_t(upper_remaining.value() / upper_others);
+    // Distribute to upper thyristors (0, 2, 4) not in commutation
+    if (upper_conducting > 0) {
+        current_t share = current_t(upper_remaining.value() / static_cast<real_t>(upper_conducting));
         for (int i = 0; i < 6; i += 2) {  // 0, 2, 4
             if (_conducting_states[i] && i != _commutation_incoming_thyristor_idx &&
                 i != _commutation_outgoing_thyristor_idx) {
@@ -374,8 +396,9 @@ void thyristor_bridge::update_thyristor_currents(current_t i_dc)
         }
     }
 
-    if (lower_others > 0) {
-        current_t share = current_t(lower_remaining.value() / lower_others);
+    // Distribute to lower thyristors (1, 3, 5) not in commutation
+    if (lower_conducting > 0) {
+        current_t share = current_t(lower_remaining.value() / static_cast<real_t>(lower_conducting));
         for (int i = 1; i < 6; i += 2) {  // 1, 3, 5
             if (_conducting_states[i] && i != _commutation_incoming_thyristor_idx &&
                 i != _commutation_outgoing_thyristor_idx) {
