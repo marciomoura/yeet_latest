@@ -1,56 +1,68 @@
 #pragma once
 
 #include <array>
+#include <memory>
 
 #include "sfc_per_unit_system.hpp"
 #include "sfc_plant_model_parameters.hpp"
+#include "sfc_topology_interface.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/field_current_regulator.hpp"
 #include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/mechanical_load.hpp"
 #include "yeet_control/reference_frame.hpp"
-#include "yeet_control/three_phase_waveform_generator.hpp"
-#include "yeet_control/thyristor_back_to_back.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
 
 /**
- * @brief Augmented 6-pulse to 6-pulse SFC plant model with mechanical dynamics and voltage control
+ * @brief Voltage Behind Reactance SFC plant model with mechanical dynamics and voltage control
  *
- * This class wraps a physics-based thyristor_back_to_back converter model and adds
+ * This class wraps an electrical topology model (physics-based or Simulink-generated) and adds
  * mechanical load dynamics plus voltage control. It provides configurable parameters
  * without exposing topology-specific default values in the public interface.
  */
-class sfc_plant_model_augmented_6p_6p {
+class sfc_plant_model_voltage_behind_reactance {
 public:
     static constexpr double kSamplingTime = 10e-6;  // 10 µs sampling time (100 kHz)
 
     /**
-     * @brief Constructs the augmented plant model with configurable parameters.
+     * @brief Constructs the plant model with configurable parameters and default physics topology.
      * @param electrical_params Electrical configuration parameters
      * @param mechanical_params Mechanical configuration parameters
      * @param voltage_control_params Voltage control configuration parameters
      */
-    sfc_plant_model_augmented_6p_6p(const sfc_plant_model_electrical_parameters& electrical_params,
+    sfc_plant_model_voltage_behind_reactance(const sfc_plant_model_electrical_parameters& electrical_params,
         const sfc_plant_model_mechanical_parameters& mechanical_params,
         const sfc_plant_model_voltage_control_parameters& voltage_control_params);
 
     /**
-     * @brief Constructs the augmented plant model with default 6p-6p topology parameters.
+     * @brief Constructs the plant model with a specific topology.
+     * @param topology The electrical topology to use.
+     * @param electrical_params Electrical configuration parameters
+     * @param mechanical_params Mechanical configuration parameters
+     * @param voltage_control_params Voltage control configuration parameters
      */
-    sfc_plant_model_augmented_6p_6p();
+    sfc_plant_model_voltage_behind_reactance(std::unique_ptr<sfc_topology_interface> topology,
+        const sfc_plant_model_electrical_parameters& electrical_params,
+        const sfc_plant_model_mechanical_parameters& mechanical_params,
+        const sfc_plant_model_voltage_control_parameters& voltage_control_params);
+
+    /**
+     * @brief Constructs the plant model with default 6p-6p topology parameters.
+     */
+    sfc_plant_model_voltage_behind_reactance();
 
     /**
      * @brief Destructor.
      */
-    ~sfc_plant_model_augmented_6p_6p();
+    ~sfc_plant_model_voltage_behind_reactance();
 
     // Prevent copying and moving
-    sfc_plant_model_augmented_6p_6p(const sfc_plant_model_augmented_6p_6p&) = delete;
-    sfc_plant_model_augmented_6p_6p& operator=(const sfc_plant_model_augmented_6p_6p&) = delete;
-    sfc_plant_model_augmented_6p_6p(sfc_plant_model_augmented_6p_6p&&) = delete;
-    sfc_plant_model_augmented_6p_6p& operator=(sfc_plant_model_augmented_6p_6p&&) = delete;
+    sfc_plant_model_voltage_behind_reactance(const sfc_plant_model_voltage_behind_reactance&) = delete;
+    sfc_plant_model_voltage_behind_reactance& operator=(const sfc_plant_model_voltage_behind_reactance&) = delete;
+    sfc_plant_model_voltage_behind_reactance(sfc_plant_model_voltage_behind_reactance&&) = delete;
+    sfc_plant_model_voltage_behind_reactance& operator=(sfc_plant_model_voltage_behind_reactance&&) = delete;
 
     /**
      * @brief Configures the electrical parameters of the plant model.
@@ -203,6 +215,12 @@ public:
     void set_voltage_control_mode(plant_model_voltage_control_mode mode);
 
     /**
+     * @brief Replaces the underlying electrical topology model.
+     * @param topology The new topology to use.
+     */
+    void set_topology(std::unique_ptr<sfc_topology_interface> topology);
+
+    /**
      * @brief Sets the field current reference for external control mode.
      *
      * This method allows direct control of the machine-side field current from an external
@@ -237,8 +255,8 @@ public:
     frequency_t get_machine_frequency() const noexcept;
     voltage_t get_rms_grid_voltage() const noexcept;
     voltage_t get_rms_machine_voltage() const noexcept;
-    voltage_t get_rectifier_voltage() const noexcept { return _converter.get_rectifier_dc_voltage(); }
-    voltage_t get_inverter_voltage() const noexcept { return _converter.get_inverter_dc_voltage(); }
+    voltage_t get_rectifier_voltage() const noexcept { return _topology->get_rectifier_dc_voltage(); }
+    voltage_t get_inverter_voltage() const noexcept { return _topology->get_inverter_dc_voltage(); }
     abc<voltage_t> get_grid_side_voltages_abc() const noexcept;
     abc<current_t> get_grid_side_currents_abc() const noexcept;
     abc<voltage_t> get_machine_side_voltages_abc() const noexcept;
@@ -285,7 +303,6 @@ public:
     frequency_pu_t get_grid_frequency_pu() const noexcept;
     frequency_pu_t get_machine_frequency_pu() const noexcept;
 
-private:
     /**
      * @brief Creates default electrical parameters for 6p-6p topology.
      * @return Default electrical configuration parameters
@@ -304,6 +321,7 @@ private:
      */
     static sfc_plant_model_voltage_control_parameters create_default_voltage_control_parameters() noexcept;
 
+private:
     /**
      * @brief Steps the mechanical load dynamics if in variable speed mode.
      */
@@ -313,13 +331,6 @@ private:
      * @brief Steps the speed-voltage relationship if voltage control is enabled.
      */
     void step_voltage_control();
-
-    /**
-     * @brief Updates the plant model parameters with computed frequency and voltage.
-     */
-    void update_source_voltages();
-    void configure_waveform_generator(
-        control::three_phase_waveform_generator& generator, frequency_t frequency, voltage_t voltage_rms) noexcept;
 
     // ==================== Resolution Helpers ====================
     frequency_t resolve_machine_frequency() const noexcept;  // effective machine electrical frequency
@@ -345,15 +356,10 @@ private:
 
     voltage_pu_t _machine_back_emf_pu{voltage_pu_t{0.0}};  // Calculated back-EMF: E = Φ × ω (variable_speed mode)
 
-    control::thyristor_back_to_back _converter;                 /// Back-to-back converter electrical model
-    control::three_phase_waveform_generator _grid_waveform;     /// Grid-side voltage source model
-    control::three_phase_waveform_generator _machine_waveform;  /// Machine-side voltage source model
-    std::array<bool, 6> _grid_side_pulses{};                    /// Latest grid-side firing pulses
-    std::array<bool, 6> _machine_side_pulses{};                 /// Latest machine-side firing pulses
-    abc<voltage_t> _grid_source_voltages{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
-    abc<voltage_t> _machine_source_voltages{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
-    angle_wrapped _grid_source_angle{0.0};
-    angle_wrapped _machine_source_angle{0.0};
+    std::unique_ptr<sfc_topology_interface> _topology;  /// Electrical topology model
+    std::array<bool, 6> _grid_side_pulses{};            /// Latest grid-side firing pulses
+    std::array<bool, 6> _machine_side_pulses{};         /// Latest machine-side firing pulses
+
     control::mechanical_load _mechanical_load;                       /// The mechanical load model instance
     control::field_current_regulator _field_current_regulator;       /// The field current regulator instance
     control::first_order_low_pass_filter<speed_pu_t> _speed_filter;  /// Speed filter to smooth back-EMF oscillations

@@ -2,6 +2,9 @@
 
 #include <cmath>
 
+#include "sfc/sfc_plant_internal_model.hpp"
+#include "sfc/sfc_plant_simulink_model.hpp"
+
 namespace yeet::application::sfc::integration {
 
 sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system)
@@ -99,6 +102,18 @@ void sfc_plant_model_runner::set_parameters()
 {
     // Ensure parameters have been written at least once
     // (tests may have written different values before initialize() was called)
+
+    // Check for model type change
+    if (_parameters.model_type.read() != _current_model_type) {
+        _current_model_type = _parameters.model_type.read();
+        if (_current_model_type == datamodel::plant_model_type::simulink) {
+            _plant.set_topology(std::make_unique<sfc::sfc_plant_simulink_model>());
+        }
+        else {
+            _plant.set_topology(std::make_unique<sfc::sfc_plant_internal_model>(_plant.get_electrical_parameters()));
+        }
+    }
+
     if (_parameters.operation_mode.read() == datamodel::machine_operation_mode::variable_speed) {
         _plant.set_operation_mode(sfc::plant_model_machine_operation_mode::variable_speed);
     }
@@ -126,6 +141,7 @@ void sfc_plant_model_runner::set_parameter_callback()
 {
     _parameters.operation_mode.register_callback([&]() { set_parameters(); });
     _parameters.voltage_control_mode.register_callback([&]() { set_parameters(); });
+    _parameters.model_type.register_callback([&]() { set_parameters(); });
     _parameters.motor_inertia_constant.register_callback([&]() { set_parameters(); });
     _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
     _parameters.motor_linear_load_coefficient.register_callback([&]() { set_parameters(); });

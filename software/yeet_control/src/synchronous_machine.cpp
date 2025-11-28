@@ -164,29 +164,11 @@ abc<voltage_t> synchronous_machine::get_terminal_voltages_abc(
     flux_t flux_stator_d = _inductance_d * i_d + _inductance_mutual_d * (current_field + current_damper_d);
     flux_t flux_stator_q = _inductance_q * i_q + _inductance_mutual_q * current_damper_q;
 
-    // DEBUG: Log field current calculation
-    static int debug_counter2 = 0;
-    if (debug_counter2 < 3) {
-        std::cout << "[MACHINE DEBUG2] psi_fD=" << current_state.psi_fD << ", i_f_calc=" << current_field.value()
-                  << ", i_kD=" << current_damper_d.value() << ", psi_stator_d=" << flux_stator_d.value() << std::endl;
-        debug_counter2++;
-    }
-
     // 5. Calculate stator voltages in dq frame (neglecting d(psi_s)/dt)
     // v_d = R_s*i_d - omega_e*psi_q
     // v_q = R_s*i_q + omega_e*psi_d
     voltage_t voltage_stator_d = _resistance_stator * i_d - voltage_t(omega_e.value() * flux_stator_q.value());
     voltage_t voltage_stator_q = _resistance_stator * i_q + voltage_t(omega_e.value() * flux_stator_d.value());
-
-    // DEBUG: Log voltage calculation (remove after debugging)
-    static int debug_counter = 0;
-    if (debug_counter < 3) {
-        std::cout << "[MACHINE DEBUG] i_d=" << i_d.value() << ", i_q=" << i_q.value()
-                  << ", psi_d=" << flux_stator_d.value() << ", psi_q=" << flux_stator_q.value()
-                  << ", omega_e=" << omega_e.value() << " -> v_d=" << voltage_stator_d.value()
-                  << ", v_q=" << voltage_stator_q.value() << std::endl;
-        debug_counter++;
-    }
 
     // 6. Transform back to abc frame
     dq<voltage_t> voltage_stator_dq(voltage_stator_d, voltage_stator_q);

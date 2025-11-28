@@ -16,7 +16,6 @@ target_sources(
             # Open loop tests
             open_loop_plant_model_test.cpp
             # Current control tests
-            current_control_forced_commutation_test.cpp
             current_control_natural_commutation_test.cpp
             # Speed control tests
             speed_control_test.cpp

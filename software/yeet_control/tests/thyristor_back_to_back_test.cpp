@@ -768,7 +768,7 @@ TEST_F(ThyristorBackToBackTest, VoltageNotchDuringCommutation)
         << "Inverter line voltage did not drop during commutation: " << data->min_line_voltage_inv << " V";
 }
 
-// Industrial LCI Test Fixture (matching sfc_plant_model_augmented_6p_6p parameters)
+// Industrial LCI Test Fixture (matching sfc_plant_model_voltage_behind_reactance parameters)
 class IndustrialLCITest : public ::testing::Test {
 public:
     // Industrial LCI parameters
@@ -787,7 +787,7 @@ public:
 
     static constexpr double pulse_width_deg = 120.0;
 
-    // Circuit parameters from sfc_plant_model_augmented_6p_6p
+    // Circuit parameters from sfc_plant_model_voltage_behind_reactance
     static constexpr double grid_resistance = 0.1552f;
     static constexpr double grid_inductance = 0.4941e-3;
     static constexpr double dc_resistance = 10e-3;
@@ -1038,7 +1038,7 @@ private:
     }
 };
 
-// Test 7: Industrial LCI Configuration (matching sfc_plant_model_augmented_6p_6p parameters)
+// Test 7: Industrial LCI Configuration (matching sfc_plant_model_voltage_behind_reactance parameters)
 TEST_F(IndustrialLCITest, NominalOperatingPoint)
 {
     // Set firing angles matching open loop test default values

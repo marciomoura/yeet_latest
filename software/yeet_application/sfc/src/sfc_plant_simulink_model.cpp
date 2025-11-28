@@ -1,4 +1,4 @@
-#include "sfc/sfc_plant_model_6p_6p.hpp"
+#include "sfc/sfc_plant_simulink_model.hpp"
 
 #include <algorithm>
 #include <array>
@@ -46,7 +46,7 @@ static constexpr real_t kDefaultVoltageOffset = 0.1f;            // 0.1 pu volta
 
 }  // anonymous namespace
 
-sfc_plant_model_6p_6p::sfc_plant_model_6p_6p(const sfc_plant_model_electrical_parameters& electrical_params)
+sfc_plant_simulink_model::sfc_plant_simulink_model(const sfc_plant_model_electrical_parameters& electrical_params)
     : _model(std::make_unique<generated::sfc::sfc_6p_6p_topology>()),
       _electrical_params(electrical_params),
       _mechanical_params(create_default_mechanical_parameters()),
@@ -55,7 +55,7 @@ sfc_plant_model_6p_6p::sfc_plant_model_6p_6p(const sfc_plant_model_electrical_pa
     _model->initialize();
 }
 
-sfc_plant_model_6p_6p::sfc_plant_model_6p_6p()
+sfc_plant_simulink_model::sfc_plant_simulink_model()
     : _model(std::make_unique<generated::sfc::sfc_6p_6p_topology>()),
       _electrical_params(create_default_6p_6p_electrical_parameters()),
       _mechanical_params(create_default_mechanical_parameters()),
@@ -64,40 +64,42 @@ sfc_plant_model_6p_6p::sfc_plant_model_6p_6p()
     _model->initialize();
 }
 
-sfc_plant_model_6p_6p::~sfc_plant_model_6p_6p()
+sfc_plant_simulink_model::~sfc_plant_simulink_model()
 {
     if (_model) {
         _model->terminate();
     }
 }
 
-void sfc_plant_model_6p_6p::configure_electrical_parameters(
+void sfc_plant_simulink_model::configure_electrical_parameters(
     const sfc_plant_model_electrical_parameters& electrical_params)
 {
     _electrical_params = electrical_params;
 }
 
-void sfc_plant_model_6p_6p::configure_mechanical_parameters(
+void sfc_plant_simulink_model::configure_mechanical_parameters(
     const sfc_plant_model_mechanical_parameters& mechanical_params)
 {
     _mechanical_params = mechanical_params;
 }
 
-void sfc_plant_model_6p_6p::configure_voltage_control_parameters(
+void sfc_plant_simulink_model::configure_voltage_control_parameters(
     const sfc_plant_model_voltage_control_parameters& voltage_control_params)
 {
     _voltage_control_params = voltage_control_params;
 }
 
-void sfc_plant_model_6p_6p::initialize() { _model->initialize(); }
+void sfc_plant_simulink_model::initialize() { _model->initialize(); }
 
-void sfc_plant_model_6p_6p::update() { _model->step(); }
+void sfc_plant_simulink_model::reset() { initialize(); }
 
-void sfc_plant_model_6p_6p::update(const std::array<bool, 6>& grid_side_pulses,
+void sfc_plant_simulink_model::update() { _model->step(); }
+
+void sfc_plant_simulink_model::update(const std::array<bool, 6>& grid_side_pulses,
     const std::array<bool, 6>& machine_side_pulses,
     frequency_t grid_frequency_hz,
-    frequency_t machine_frequency_hz,
     voltage_t grid_voltage_rms,
+    frequency_t machine_frequency_hz,
     voltage_t machine_voltage_rms)
 {
     set_grid_side_pulses(grid_side_pulses);
@@ -107,9 +109,9 @@ void sfc_plant_model_6p_6p::update(const std::array<bool, 6>& grid_side_pulses,
     _model->step();
 }
 
-void sfc_plant_model_6p_6p::terminate() { _model->terminate(); }
+void sfc_plant_simulink_model::terminate() { _model->terminate(); }
 
-void sfc_plant_model_6p_6p::set_grid_side_pulses(const std::array<bool, 6>& pulses)
+void sfc_plant_simulink_model::set_grid_side_pulses(const std::array<bool, 6>& pulses)
 {
     std::array<double, 6> double_pulses{};
     std::transform(
@@ -117,7 +119,7 @@ void sfc_plant_model_6p_6p::set_grid_side_pulses(const std::array<bool, 6>& puls
     _model->sfc_6p_6p_topology_U.grid_side_converter_pulses = double_pulses;
 }
 
-void sfc_plant_model_6p_6p::set_machine_side_pulses(const std::array<bool, 6>& pulses)
+void sfc_plant_simulink_model::set_machine_side_pulses(const std::array<bool, 6>& pulses)
 {
     std::array<double, 6> double_pulses{};
     std::transform(
@@ -125,100 +127,115 @@ void sfc_plant_model_6p_6p::set_machine_side_pulses(const std::array<bool, 6>& p
     _model->sfc_6p_6p_topology_U.machine_side_converter_pulses = double_pulses;
 }
 
-void sfc_plant_model_6p_6p::set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
+void sfc_plant_simulink_model::set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
 {
     _model->sfc_6p_6p_topology_U.grid_voltage_source_frequency_hz = frequency_hz;
     _model->sfc_6p_6p_topology_U.grid_voltage_source_line_voltage_rms = voltage_rms;
 }
 
-void sfc_plant_model_6p_6p::set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
+void sfc_plant_simulink_model::set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
 {
     _model->sfc_6p_6p_topology_U.machine_voltage_source_frequency_hz = frequency_hz;
     _model->sfc_6p_6p_topology_U.machine_voltage_source_line_voltage_rms = voltage_rms;
 }
 
 // Output getters - Current model state
-frequency_t sfc_plant_model_6p_6p::get_grid_frequency() const noexcept
+frequency_t sfc_plant_simulink_model::get_grid_frequency() const noexcept
 {
     return frequency_t(_model->sfc_6p_6p_topology_U.grid_voltage_source_frequency_hz);
 }
 
-frequency_t sfc_plant_model_6p_6p::get_machine_frequency() const noexcept
+frequency_t sfc_plant_simulink_model::get_machine_frequency() const noexcept
 {
     return frequency_t(_model->sfc_6p_6p_topology_U.machine_voltage_source_frequency_hz);
 }
 
-voltage_t sfc_plant_model_6p_6p::get_rms_grid_voltage() const noexcept
+voltage_t sfc_plant_simulink_model::get_rms_grid_voltage() const noexcept
 {
     return voltage_t(_model->sfc_6p_6p_topology_U.grid_voltage_source_line_voltage_rms);
 }
 
-voltage_t sfc_plant_model_6p_6p::get_rms_machine_voltage() const noexcept
+voltage_t sfc_plant_simulink_model::get_rms_machine_voltage() const noexcept
 {
     return voltage_t(_model->sfc_6p_6p_topology_U.machine_voltage_source_line_voltage_rms);
 }
 
-abc<voltage_t> sfc_plant_model_6p_6p::get_grid_side_voltages_abc() const noexcept
+abc<voltage_t> sfc_plant_simulink_model::get_grid_voltages() const noexcept
 {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.grid_side_converter_voltage_phase_si;
     return to_dimension_abc<voltage_t>(abc<real_t>{
         static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])});
 }
 
-abc<current_t> sfc_plant_model_6p_6p::get_grid_side_currents_abc() const noexcept
+abc<current_t> sfc_plant_simulink_model::get_grid_currents() const noexcept
 {
     const auto& currents = _model->sfc_6p_6p_topology_Y.grid_side_converter_current_si;
     return to_dimension_abc<current_t>(abc<real_t>{
         static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])});
 }
 
-abc<voltage_t> sfc_plant_model_6p_6p::get_machine_side_voltages_abc() const noexcept
+abc<voltage_t> sfc_plant_simulink_model::get_machine_voltages() const noexcept
 {
     const auto& voltages = _model->sfc_6p_6p_topology_Y.machine_side_converter_voltage_phase_si;
     return to_dimension_abc<voltage_t>(abc<real_t>{
         static_cast<real_t>(voltages[0]), static_cast<real_t>(voltages[1]), static_cast<real_t>(voltages[2])});
 }
 
-abc<current_t> sfc_plant_model_6p_6p::get_machine_side_currents_abc() const noexcept
+abc<current_t> sfc_plant_simulink_model::get_machine_currents() const noexcept
 {
     const auto& currents = _model->sfc_6p_6p_topology_Y.machine_side_converter_current_si;
     return to_dimension_abc<current_t>(abc<real_t>{
         static_cast<real_t>(currents[0]), static_cast<real_t>(currents[1]), static_cast<real_t>(currents[2])});
 }
 
-angle_wrapped sfc_plant_model_6p_6p::get_grid_voltage_source_angle() const noexcept
+angle_wrapped sfc_plant_simulink_model::get_grid_source_angle() const noexcept
 {
     return angle_wrapped(_model->sfc_6p_6p_topology_Y.grid_voltage_source_angle_wt);
 }
 
-angle_wrapped sfc_plant_model_6p_6p::get_machine_voltage_source_angle() const noexcept
+angle_wrapped sfc_plant_simulink_model::get_machine_source_angle() const noexcept
 {
     return angle_wrapped(_model->sfc_6p_6p_topology_Y.machine_voltage_source_angle_wt);
 }
 
-current_t sfc_plant_model_6p_6p::get_dc_link_current() const noexcept
+current_t sfc_plant_simulink_model::get_dc_link_current() const noexcept
 {
     return current_t(_model->sfc_6p_6p_topology_Y.dc_link_current_si);
 }
 
+voltage_t sfc_plant_simulink_model::get_rectifier_dc_voltage() const noexcept { return voltage_t{0.0}; }
+
+voltage_t sfc_plant_simulink_model::get_inverter_dc_voltage() const noexcept { return voltage_t{0.0}; }
+
+std::array<bool, 6> sfc_plant_simulink_model::get_grid_bridge_conduction_states() const noexcept
+{
+    return std::array<bool, 6>{false, false, false, false, false, false};
+}
+
+std::array<bool, 6> sfc_plant_simulink_model::get_machine_bridge_conduction_states() const noexcept
+{
+    return std::array<bool, 6>{false, false, false, false, false, false};
+}
+
 // Parameter getters - Current configuration values
-const sfc_plant_model_electrical_parameters& sfc_plant_model_6p_6p::get_electrical_parameters() const noexcept
+const sfc_plant_model_electrical_parameters& sfc_plant_simulink_model::get_electrical_parameters() const noexcept
 {
     return _electrical_params;
 }
 
-const sfc_plant_model_mechanical_parameters& sfc_plant_model_6p_6p::get_mechanical_parameters() const noexcept
+const sfc_plant_model_mechanical_parameters& sfc_plant_simulink_model::get_mechanical_parameters() const noexcept
 {
     return _mechanical_params;
 }
 
-const sfc_plant_model_voltage_control_parameters& sfc_plant_model_6p_6p::get_voltage_control_parameters() const noexcept
+const sfc_plant_model_voltage_control_parameters& sfc_plant_simulink_model::get_voltage_control_parameters()
+    const noexcept
 {
     return _voltage_control_params;
 }
 
 // Private factory methods for default parameters
-sfc_plant_model_electrical_parameters sfc_plant_model_6p_6p::create_default_6p_6p_electrical_parameters() noexcept
+sfc_plant_model_electrical_parameters sfc_plant_simulink_model::create_default_6p_6p_electrical_parameters() noexcept
 {
     return sfc_plant_model_electrical_parameters{.grid_frequency = kNominalGridFrequency,
         .machine_frequency = kNominalMachineFrequency,
@@ -237,13 +254,14 @@ sfc_plant_model_electrical_parameters sfc_plant_model_6p_6p::create_default_6p_6
         .machine_num_poles = kMachineNumPoles};
 }
 
-sfc_plant_model_mechanical_parameters sfc_plant_model_6p_6p::create_default_mechanical_parameters() noexcept
+sfc_plant_model_mechanical_parameters sfc_plant_simulink_model::create_default_mechanical_parameters() noexcept
 {
     return sfc_plant_model_mechanical_parameters{
         .inertia_constant_h = kDefaultInertiaConstantH, .damping_factor_d = kDefaultDampingFactorD};
 }
 
-sfc_plant_model_voltage_control_parameters sfc_plant_model_6p_6p::create_default_voltage_control_parameters() noexcept
+sfc_plant_model_voltage_control_parameters
+sfc_plant_simulink_model::create_default_voltage_control_parameters() noexcept
 {
     return sfc_plant_model_voltage_control_parameters{
         .voltage_speed_coefficient = kDefaultVoltageSpeedCoefficient, .voltage_offset = kDefaultVoltageOffset};

@@ -6,6 +6,7 @@
 #include "grid_side_hardware_mock.hpp"
 #include "machine_side_hardware_mock.hpp"
 #include "sfc_plant_model_parameters.hpp"
+#include "sfc_topology_interface.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/units.hpp"
@@ -23,7 +24,7 @@ namespace yeet::application::sfc {
  * handling type conversions and providing accessor methods for all electrical quantities.
  * Parameters are configurable and not tied to specific default values.
  */
-class sfc_plant_model_6p_6p {
+class sfc_plant_simulink_model : public sfc_topology_interface {
 public:
     static constexpr double kSamplingTime = 10e-6;  // 10 µs sampling time (100 kHz)
 
@@ -31,29 +32,29 @@ public:
      * @brief Constructs the plant model wrapper with configurable parameters.
      * @param electrical_params Electrical configuration parameters
      */
-    explicit sfc_plant_model_6p_6p(const sfc_plant_model_electrical_parameters& electrical_params);
+    explicit sfc_plant_simulink_model(const sfc_plant_model_electrical_parameters& electrical_params);
 
     /**
      * @brief Constructs the plant model wrapper with default configuration for 6p-6p topology.
      */
-    sfc_plant_model_6p_6p();
+    sfc_plant_simulink_model();
 
     /**
      * @brief Destructor.
      */
-    ~sfc_plant_model_6p_6p();
+    ~sfc_plant_simulink_model() override;
 
     // Prevent copying and moving
-    sfc_plant_model_6p_6p(const sfc_plant_model_6p_6p&) = delete;
-    sfc_plant_model_6p_6p& operator=(const sfc_plant_model_6p_6p&) = delete;
-    sfc_plant_model_6p_6p(sfc_plant_model_6p_6p&&) = delete;
-    sfc_plant_model_6p_6p& operator=(sfc_plant_model_6p_6p&&) = delete;
+    sfc_plant_simulink_model(const sfc_plant_simulink_model&) = delete;
+    sfc_plant_simulink_model& operator=(const sfc_plant_simulink_model&) = delete;
+    sfc_plant_simulink_model(sfc_plant_simulink_model&&) = delete;
+    sfc_plant_simulink_model& operator=(sfc_plant_simulink_model&&) = delete;
 
     /**
      * @brief Configures the electrical parameters of the plant model.
      * @param electrical_params New electrical configuration parameters
      */
-    void configure_electrical_parameters(const sfc_plant_model_electrical_parameters& electrical_params);
+    void configure_electrical_parameters(const sfc_plant_model_electrical_parameters& electrical_params) override;
 
     /**
      * @brief Configures the mechanical parameters of the plant model.
@@ -70,7 +71,12 @@ public:
     /**
      * @brief Initializes the underlying Simulink model.
      */
-    void initialize();
+    void initialize() override;
+
+    /**
+     * @brief Resets the topology model to initial state.
+     */
+    void reset() override;
 
     /**
      * @brief Executes one step of the simulation.
@@ -89,14 +95,14 @@ public:
     void update(const std::array<bool, 6>& grid_side_pulses,
         const std::array<bool, 6>& machine_side_pulses,
         frequency_t grid_frequency_hz,
-        frequency_t machine_frequency_hz,
         voltage_t grid_voltage_rms,
-        voltage_t machine_voltage_rms);
+        frequency_t machine_frequency_hz,
+        voltage_t machine_voltage_rms) override;
 
     /**
      * @brief Terminates the underlying Simulink model.
      */
-    void terminate();
+    void terminate() override;
 
     /**
      * @brief Sets the firing pulses for the grid-side converter.
@@ -129,13 +135,19 @@ public:
     frequency_t get_machine_frequency() const noexcept;
     voltage_t get_rms_grid_voltage() const noexcept;
     voltage_t get_rms_machine_voltage() const noexcept;
-    abc<voltage_t> get_grid_side_voltages_abc() const noexcept;
-    abc<current_t> get_grid_side_currents_abc() const noexcept;
-    abc<voltage_t> get_machine_side_voltages_abc() const noexcept;
-    abc<current_t> get_machine_side_currents_abc() const noexcept;
-    angle_wrapped get_grid_voltage_source_angle() const noexcept;
-    angle_wrapped get_machine_voltage_source_angle() const noexcept;
-    current_t get_dc_link_current() const noexcept;
+    abc<voltage_t> get_grid_voltages() const noexcept override;
+    abc<current_t> get_grid_currents() const noexcept override;
+    abc<voltage_t> get_machine_voltages() const noexcept override;
+    abc<current_t> get_machine_currents() const noexcept override;
+    angle_wrapped get_grid_source_angle() const noexcept override;
+    angle_wrapped get_machine_source_angle() const noexcept override;
+    current_t get_dc_link_current() const noexcept override;
+
+    voltage_t get_rectifier_dc_voltage() const noexcept override;
+    voltage_t get_inverter_dc_voltage() const noexcept override;
+
+    std::array<bool, 6> get_grid_bridge_conduction_states() const noexcept override;
+    std::array<bool, 6> get_machine_bridge_conduction_states() const noexcept override;
 
     // Parameter getters - Current configuration values
     const sfc_plant_model_electrical_parameters& get_electrical_parameters() const noexcept;

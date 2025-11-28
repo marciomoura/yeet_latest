@@ -82,12 +82,18 @@ set(SFC_CORE_SOURCES
 
 # Plant model files (only needed for testing/simulation)
 set(SFC_PLANT_MODEL_HEADERS
-    include/sfc/sfc_plant_model_augmented_6p_6p.hpp
-    include/sfc/sfc_plant_model_6p_6p.hpp
-    include/sfc/sfc_plant_model_parameters.hpp)
+    include/sfc/sfc_plant_model_voltage_behind_reactance.hpp
+    include/sfc/sfc_plant_simulink_model.hpp
+    include/sfc/sfc_plant_model_parameters.hpp
+    include/sfc/sfc_topology_interface.hpp
+    include/sfc/sfc_plant_internal_model.hpp
+    include/sfc/sfc_plant_model_builder.hpp)
 
-set(SFC_PLANT_MODEL_SOURCES src/sfc_plant_model_augmented_6p_6p.cpp
-                            src/sfc_plant_model_6p_6p.cpp)
+set(SFC_PLANT_MODEL_SOURCES
+    src/sfc_plant_model_voltage_behind_reactance.cpp
+    src/sfc_plant_simulink_model.cpp
+    src/sfc_plant_internal_model.cpp
+    src/sfc_plant_model_builder.cpp)
 
 # Add core sources (always included)
 target_sources(

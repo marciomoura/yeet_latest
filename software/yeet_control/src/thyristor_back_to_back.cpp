@@ -1,6 +1,7 @@
 #include "yeet_control/thyristor_back_to_back.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 namespace {
 constexpr double kMinConductionCurrent = 1e-3;
@@ -33,35 +34,14 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     const thyristor_pulses& p_inv)
 {
     // 1. Calculate AC currents from previous step's thyristor currents
-    // Rectifier: Current flows Grid -> Bridge (Into Bridge)
-    // Inverter: Current flows Bridge -> Machine (Out of Bridge)
-    // Note: thyristor_bridge::calculate_ac_currents returns "Net Current Into Bridge"
-    // (Upper - Lower).
-    // For Rectifier: This is correct (Grid -> Bridge).
-    // For Inverter: This is correct (Bridge -> Machine means Out of Bridge, so Into Bridge is negative).
-
-    // We use the bridge's internal state to get currents
     abc<current_t> i_grid = get_grid_currents();
-    abc<current_t> i_mach = get_machine_currents();  // This is current INTO machine (Out of Bridge)
+    abc<current_t> i_mach = get_machine_currents();
 
     // 2. Calculate AC terminal voltages
-    // Rectifier: V_term = V_grid - Z_grid * I_into_bridge
-    //
-    // Mathematical Note:
-    // We only subtract the resistive drop here. The inductive voltage drop (L * di/dt)
-    // is NOT subtracted at this stage because it is a dynamic term that results from
-    // the differential equation we solve in Step 9.
-    // Effectively, we are calculating the "internal" voltage available to drive
-    // the change in current through the total system inductance.
     _v_term_rect = v_grid - _grid_resistance * i_grid;
-
-    // Inverter: V_term = V_mach + Z_mach * I_into_machine
-    // I_into_machine = i_mach.
-    // So V_term = V_mach + R * i_mach.
     _v_term_inv = v_machine + _machine_resistance * i_mach;
 
-    // 3. Estimate DC rail voltages for forward bias check
-    // Rectifier
+    // 3. Estimate DC rail voltages for forward bias check (Rectifier)
     voltage_t v_p_rect{0.0};
     voltage_t v_n_rect{0.0};
 
@@ -86,65 +66,58 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
             v_n_rect = voltage_t{kOpenCircuitVoltage};
         }
     }
-
-    // Update Rectifier Conduction State FIRST
-    _rect_bridge.update_conduction_state(_v_term_rect, v_p_rect, v_n_rect, p_rect);
-
-    // Recalculate Rectifier DC voltages based on NEW state
-    // This provides the DC link voltage for the Inverter if current is low
-    if (_rect_bridge.has_conducting_path()) {
-        v_p_rect = _rect_bridge.get_positive_rail_voltage(_v_term_rect);
-        v_n_rect = _rect_bridge.get_negative_rail_voltage(_v_term_rect);
+    else {
+        v_p_rect = voltage_t{-kOpenCircuitVoltage};
+        v_n_rect = voltage_t{kOpenCircuitVoltage};
     }
 
-    // Inverter
-    // Inverter produces negative voltage.
-    // V_inv = V_pos - V_neg.
-    voltage_t v_p_inv{0.0};
-    voltage_t v_n_inv{0.0};
+    // Update Rectifier Conduction State
+    _rect_bridge.update_conduction_state(_v_term_rect, v_p_rect, v_n_rect, p_rect);
 
-    bool inv_upper_conducting = false;
-    bool inv_lower_conducting = false;
+    // Get Rectifier Potentials for Inverter Bias
+    // If rectifier is conducting, these are the potentials applied to the DC link.
+    // If not conducting, we assume the potentials are 0 (or open), but usually
+    // the rectifier turns on first.
+    voltage_t rect_pos_pot = _rect_bridge.get_positive_rail_voltage(_v_term_rect);
+    voltage_t rect_neg_pot = _rect_bridge.get_negative_rail_voltage(_v_term_rect);
+
+    // 4. Estimate DC rail voltages for forward bias check (Inverter)
+    // Inverter is connected in "reverse" topology to allow DC -> AC power flow.
+    // DC Link (+) connects to Inverter Anode Rail (Lower Thyristors).
+    // DC Link (-) connects to Inverter Cathode Rail (Upper Thyristors).
+    voltage_t v_p_inv{0.0};  // DC Link (+) potential at Inverter input
+    voltage_t v_n_inv{0.0};  // DC Link (-) potential (Ground/Return)
+
+    bool inv_upper_conducting = false;  // Connected to DC- (Cathodes)
+    bool inv_lower_conducting = false;  // Connected to DC+ (Anodes)
     const auto& inv_states = _inv_bridge.get_conduction_states();
     if (inv_states[0] || inv_states[2] || inv_states[4]) inv_upper_conducting = true;
     if (inv_states[3] || inv_states[5] || inv_states[1]) inv_lower_conducting = true;
 
-    // Check machine back-EMF magnitude to determine if we are in startup (pulse mode)
-    // or normal operation.
-    auto v_mach_max =
-        std::max({std::abs(v_machine.a().value()), std::abs(v_machine.b().value()), std::abs(v_machine.c().value())});
-
-    // Check if inverter has any active pulses
-    bool inv_has_pulses = p_inv.t1 || p_inv.t2 || p_inv.t3 || p_inv.t4 || p_inv.t5 || p_inv.t6;
-
-    // Use normal model if current is flowing OR if machine has sufficient back-EMF
-    // OR if there are no pulses (we shouldn't force bias if we aren't trying to fire)
-    if (_i_dc.value() > kMinConductionCurrent || v_mach_max > kMinBackEmfForNaturalCommutation || !inv_has_pulses) {
-        if (inv_upper_conducting) {
-            v_p_inv = _inv_bridge.get_positive_rail_voltage(_v_term_inv);
-        }
-        else {
-            v_p_inv = voltage_t{-kOpenCircuitVoltage};
-        }
-
-        if (inv_lower_conducting) {
-            v_n_inv = _inv_bridge.get_negative_rail_voltage(_v_term_inv);
-        }
-        else {
-            v_n_inv = voltage_t{kOpenCircuitVoltage};
-        }
+    // Determine potential at Inverter DC+ terminal (connected to Anode Rail)
+    if (inv_lower_conducting) {
+        // Clamped to AC phase via conducting lower thyristor
+        v_p_inv = _inv_bridge.get_negative_rail_voltage(_v_term_inv);
     }
     else {
-        // Startup / Low Current / Low Speed Condition:
-        // The Inverter sees the DC link voltage provided by the Rectifier.
-        // This allows the Inverter thyristors to be forward biased by the DC link
-        // even if the machine back-EMF is zero.
-        v_p_inv = v_p_rect;
-        v_n_inv = v_n_rect;
+        // Not conducting: sees Rectifier DC+ potential (ignoring R/L drops for bias check)
+        v_p_inv = rect_pos_pot;
+    }
+
+    // Determine potential at Inverter DC- terminal (connected to Cathode Rail)
+    if (inv_upper_conducting) {
+        // Clamped to AC phase via conducting upper thyristor
+        v_n_inv = _inv_bridge.get_positive_rail_voltage(_v_term_inv);
+    }
+    else {
+        // Not conducting: sees Rectifier DC- potential
+        v_n_inv = rect_neg_pot;
     }
 
     // Update Inverter Conduction State
-    _inv_bridge.update_conduction_state(_v_term_inv, v_p_inv, v_n_inv, p_inv);
+    // SWAPPED ARGUMENTS: v_dc_pos param gets v_n_inv (Top Rail), v_dc_neg param gets v_p_inv (Bottom Rail).
+    // This maps DC+ to Anodes and DC- to Cathodes.
+    _inv_bridge.update_conduction_state(_v_term_inv, v_n_inv, v_p_inv, p_inv);
 
     // 5. Update Commutation
     inductance_t l_comm_rect = _grid_inductance * 2.0;
@@ -157,8 +130,7 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     _rect_bridge.update_thyristor_currents(_i_dc);
     _inv_bridge.update_thyristor_currents(_i_dc);
 
-    // Enforce physical constraint: If either bridge loses its conducting path (e.g. discontinuous mode),
-    // the DC link current must be zero. The inductor cannot sustain current through an open switch.
+    // Enforce physical constraint: If either bridge loses its conducting path, current is zero.
     if (!_rect_bridge.has_conducting_path() || !_inv_bridge.has_conducting_path()) {
         _i_dc = current_t{0.0};
         _rect_bridge.update_thyristor_currents(_i_dc);
@@ -166,11 +138,9 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     }
 
     // 7. Force Natural Turn-Off
-    // Re-calculate currents for turn-off check
     i_grid = get_grid_currents();
-    // For Inverter, we need "Current Into Bridge" for the check logic inside thyristor_bridge
+    // For Inverter, we need "Current Into Bridge" for the check logic.
     // get_machine_currents returns Out of Bridge.
-    // So we pass -i_mach.
     abc<current_t> i_inv_into_bridge = abc<current_t>{-i_mach.a(), -i_mach.b(), -i_mach.c()};
 
     _rect_bridge.force_natural_turn_off(i_grid, _i_dc);
@@ -178,33 +148,16 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
 
     // 8. Calculate DC Voltages
     _v_rect_dc = _rect_bridge.get_instantaneous_dc_voltage(_v_term_rect);
-    // The inverter bridge produces a negative voltage (V_dc < 0) when operating
-    // in inverter mode (alpha > 90). This negative voltage opposes the rectifier's
-    // positive voltage in the loop.
+
+    // Inverter DC voltage:
+    // With swapped inputs (Cathode=0, Anode=V_p), get_instantaneous_dc_voltage returns (0 - V_p).
+    // So it returns a negative value representing -(Voltage Drop).
     _v_inv_dc = _inv_bridge.get_instantaneous_dc_voltage(_v_term_inv);
 
     // 9. Integrate DC Link Current
-    // Loop: V_rect + V_inv - I*R = L di/dt
-    // Note: V_inv is negative in inverter mode, so adding it correctly subtracts
-    // the counter-EMF magnitude from the rectifier voltage.
-    // Example: V_rect = 5000V, V_inv = -4800V. Net = 5000 + (-4800) = 200V.
-
-    // Mathematical Note:
-    // The total inductance (l_total) includes the grid and machine inductances
-    // because they are in series with the DC link during conduction.
-    // When two thyristors conduct (e.g., Phase A and B), the current flows through
-    // two line inductances. Hence the factor of 2.0.
-    // The equation is:
-    // (V_grid_source - I*R_grid) - (V_mach_source + I*R_mach) - I*R_dc = L_total * di/dt
-    //
-    // Correction: The resistive drops for grid and machine are already subtracted
-    // in Step 2 (Calculate AC terminal voltages) to get _v_term_rect and _v_term_inv.
-    // Therefore, _v_rect_dc and _v_inv_dc already account for the AC-side resistive drops.
-    // We must NOT subtract them again here. Only the DC link resistance remains.
-
-    // Check if we have a valid conducting path through both bridges
-    // If either bridge is open (no conducting thyristors), the circuit is open
-    // and current cannot flow (must be zero).
+    // Loop: V_rect - V_drop_inv - I*R = L di/dt
+    // V_drop_inv = -_v_inv_dc
+    // So: V_rect + _v_inv_dc - I*R = L di/dt
     if (_rect_bridge.has_conducting_path() && _inv_bridge.has_conducting_path()) {
         resistance_t r_total = _dc_resistance;
         inductance_t l_total = _grid_inductance * 2.0 + _dc_inductance + _machine_inductance * 2.0;
@@ -215,19 +168,15 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
         current_t di_dc = (v_net / l_total) * _sampling_time;
         _i_dc = _i_dc + di_dc;
 
-        // Clamp to zero
         if (_i_dc.value() < 0.0) {
             _i_dc = current_t{0.0};
         }
     }
     else {
-        // Circuit is open, current must be zero
         _i_dc = current_t{0.0};
     }
 
-    // 10. Final thyristor current update with integrated DC current
-    // This ensures get_grid_currents() and get_machine_currents() return values
-    // consistent with the new _i_dc value.
+    // 10. Final thyristor current update
     _rect_bridge.update_thyristor_currents(_i_dc);
     _inv_bridge.update_thyristor_currents(_i_dc);
 }

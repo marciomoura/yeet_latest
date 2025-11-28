@@ -108,7 +108,7 @@ This model aligns with fundamental machine physics:
 
 ## Code Location
 
-Implementation: `software/yeet_application/sfc/src/sfc_plant_model_augmented_6p_6p.cpp`
+Implementation: `software/yeet_application/sfc/src/sfc_plant_model_voltage_behind_reactance.cpp`
 - Method: `step_voltage_control()`
 - Lines: ~395-425
 - Default offset: `kDefaultVoltageOffset = 0.1f`

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how to integrate the `sfc_excitation_controller` with the `sfc_plant_model_augmented_6p_6p` to create a closed-loop simulation with **perfect exciter tracking**. In this configuration, the excitation controller's voltage setpoint is directly applied to the plant model's machine-side voltage source, simulating an ideal excitation system.
+This document describes how to integrate the `sfc_excitation_controller` with the `sfc_plant_model_voltage_behind_reactance` to create a closed-loop simulation with **perfect exciter tracking**. In this configuration, the excitation controller's voltage setpoint is directly applied to the plant model's machine-side voltage source, simulating an ideal excitation system.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ Set the plant model to use **external voltage control mode**:
 
 ```cpp
 // Create augmented plant model
-sfc_plant_model_augmented_6p_6p plant;
+sfc_plant_model_voltage_behind_reactance plant;
 
 // Enable variable speed mode (mechanical dynamics)
 plant.set_operation_mode(plant_model_machine_operation_mode::variable_speed);
@@ -109,7 +109,7 @@ for (int cycle = 0; cycle < num_cycles; ++cycle) {
 Here's a complete example showing the full closed-loop setup:
 
 ```cpp
-#include "sfc/sfc_plant_model_augmented_6p_6p.hpp"
+#include "sfc/sfc_plant_model_voltage_behind_reactance.hpp"
 #include "sfc/sfc_excitation_controller.hpp"
 #include <iostream>
 
@@ -119,7 +119,7 @@ int main() {
     // ========================================================================
     // 1. Create and configure plant model
     // ========================================================================
-    sfc_plant_model_augmented_6p_6p plant;
+    sfc_plant_model_voltage_behind_reactance plant;
     
     // Configure for variable speed with external excitation control
     plant.set_operation_mode(plant_model_machine_operation_mode::variable_speed);

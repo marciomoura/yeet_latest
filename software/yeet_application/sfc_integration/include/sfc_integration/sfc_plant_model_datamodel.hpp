@@ -35,6 +35,14 @@ public:
     };
 
     /**
+     * @brief Defines the underlying plant model implementation.
+     */
+    enum class plant_model_type {
+        internal,  ///< Uses the internal physics-based model (voltage behind reactance).
+        simulink   ///< Uses the Simulink-generated model.
+    };
+
+    /**
      * @brief Input signals for the SFC plant model component
      */
     struct inputs {
@@ -120,6 +128,9 @@ public:
         /// Defines the voltage control mode for machine-side excitation
         parameter<machine_voltage_control_mode> voltage_control_mode = machine_voltage_control_mode::fixed_voltage;
 
+        /// Selects the underlying plant model implementation
+        parameter<plant_model_type> model_type = plant_model_type::internal;
+
         /// Motor inertia constant (H).
         /// Default: 2.5 s
         parameter<inertia_constant_t> motor_inertia_constant = inertia_constant_t(2.5);
@@ -177,27 +188,34 @@ public:
 
         entry.parameters.insert("initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
 
-        // // Register operation_mode enum parameter
-        // auto& operation_mode_param = _model_parameters->operation_mode;
-        // entry.parameters.insert("operation_mode",
-        //     low_level_access([&operation_mode_param]()
-        //                          -> float { return static_cast<float>(static_cast<int>(operation_mode_param.read()));
-        //                          },
-        //         [&operation_mode_param](float value) {
-        //             operation_mode_param.write(static_cast<machine_operation_mode>(static_cast<int>(value)));
-        //         }));
+        // Register operation_mode enum parameter
+        auto& operation_mode_param = _model_parameters->operation_mode;
+        entry.parameters.insert("operation_mode",
+            low_level_access([&operation_mode_param]()
+                                 -> float { return static_cast<float>(static_cast<int>(operation_mode_param.read())); },
+                [&operation_mode_param](float value) {
+                    operation_mode_param.write(static_cast<machine_operation_mode>(static_cast<int>(value)));
+                }));
 
-        // // Register voltage_control_mode enum parameter
-        // auto& voltage_control_mode_param = _model_parameters->voltage_control_mode;
-        // entry.parameters.insert("voltage_control_mode",
-        //     low_level_access(
-        //         [&voltage_control_mode_param]() -> float {
-        //             return static_cast<float>(static_cast<int>(voltage_control_mode_param.read()));
-        //         },
-        //         [&voltage_control_mode_param](float value) {
-        //             voltage_control_mode_param.write(
-        //                 static_cast<machine_voltage_control_mode>(static_cast<int>(value)));
-        //         }));
+        // Register voltage_control_mode enum parameter
+        auto& voltage_control_mode_param = _model_parameters->voltage_control_mode;
+        entry.parameters.insert("voltage_control_mode",
+            low_level_access(
+                [&voltage_control_mode_param]() -> float {
+                    return static_cast<float>(static_cast<int>(voltage_control_mode_param.read()));
+                },
+                [&voltage_control_mode_param](float value) {
+                    voltage_control_mode_param.write(
+                        static_cast<machine_voltage_control_mode>(static_cast<int>(value)));
+                }));
+
+        // Register model_type enum parameter
+        auto& model_type_param = _model_parameters->model_type;
+        entry.parameters.insert("model_type",
+            low_level_access([&model_type_param]()
+                                 -> float { return static_cast<float>(static_cast<int>(model_type_param.read())); },
+                [&model_type_param](
+                    float value) { model_type_param.write(static_cast<plant_model_type>(static_cast<int>(value))); }));
 
         entry.parameters.insert(
             "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));

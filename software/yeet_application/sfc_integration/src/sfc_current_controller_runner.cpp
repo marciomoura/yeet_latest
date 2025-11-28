@@ -21,15 +21,16 @@ void sfc_current_controller_runner::initialize()
 
 void sfc_current_controller_runner::run()
 {
-    // Disable integrator when current reference is at or near zero
-    // The LCI cannot actually achieve zero current (requires minimum current for commutation).
-    // Integrating this persistent error would cause the integrator to wind down to negative values.
-    // This is a physical constraint - we cannot impress zero current in a thyristor-based system.
-    // Threshold set conservatively low to only prevent windup at true zero reference.
-    constexpr current_pu_t minimum_controllable_current{0.001};  // 0.1% of base current
-    bool is_integrator_frozen_for_zero_reference = _inputs.current_reference.read() <= minimum_controllable_current;
+    // // Disable integrator when current reference is at or near zero
+    // // The LCI cannot actually achieve zero current (requires minimum current for commutation).
+    // // Integrating this persistent error would cause the integrator to wind down to negative values.
+    // // This is a physical constraint - we cannot impress zero current in a thyristor-based system.
+    // // Threshold set conservatively low to only prevent windup at true zero reference.
+    // constexpr current_pu_t minimum_controllable_current{0.001};  // 0.1% of base current
+    // bool is_integrator_frozen_for_zero_reference = _inputs.current_reference.read() <= minimum_controllable_current;
 
-    const bool freeze_integrator = _inputs.freeze_integrator.read() || is_integrator_frozen_for_zero_reference;
+    const bool freeze_integrator =
+        _inputs.freeze_integrator || _inputs.preset_request;  // || is_integrator_frozen_for_zero_reference;
     _sfc_current_controller.freeze_integrator(freeze_integrator);
 
     const voltage_pu_t reflected_machine_voltage_magnitude =
@@ -37,6 +38,8 @@ void sfc_current_controller_runner::run()
 
     const current_pu_t dc_link_current_reference_pu =
         _inputs.current_reference.read() + _parameters.current_reference_rectifier_operation.read();
+
+    _sfc_current_controller.freeze_integrator(freeze_integrator);
 
     _sfc_current_controller.update(dc_link_current_reference_pu, _inputs.current_measured.read(),
         _inputs.grid_voltage_magnitude.read(), reflected_machine_voltage_magnitude);
