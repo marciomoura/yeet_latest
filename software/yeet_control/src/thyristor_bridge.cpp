@@ -29,6 +29,12 @@ void thyristor_bridge::update_conduction_state(
         v_ac_abc.b()    // T6 cathode is on Phase B
     };
 
+    // Leg pairing: upper thyristor index -> lower thyristor index (same phase)
+    // T1 (0, Phase A upper) pairs with T4 (3, Phase A lower)
+    // T3 (2, Phase B upper) pairs with T6 (5, Phase B lower)
+    // T5 (4, Phase C upper) pairs with T2 (1, Phase C lower)
+    constexpr std::array<int, 6> leg_partner = {3, 4, 5, 0, 1, 2};
+
     // The thyristors conduct based on the condition that a pulse is applied
     // and the forward voltage on the thyristor itself is positive
     for (int i = 0; i < 6; ++i) {
@@ -36,6 +42,17 @@ void thyristor_bridge::update_conduction_state(
             bool has_gate_pulse = pulses[i];
             bool is_forward_biased = (_anode_voltages[i] > _cathode_voltages[i]);
             if (has_gate_pulse && is_forward_biased) {
+                // CRITICAL: Before turning on, check if the leg partner is conducting.
+                // If so, we have a shoot-through condition - the incoming thyristor
+                // should NOT turn on until the leg partner naturally commutates off.
+                // In a real system, this would cause a short-circuit through the phase.
+                int partner_idx = leg_partner[i];
+                if (_conducting_states[partner_idx]) {
+                    // Leg partner is conducting - cannot turn on this thyristor
+                    // This prevents shoot-through (same-phase short-circuit)
+                    continue;
+                }
+
                 // Check if this is a commutation (another thyristor in same leg already conducting)
                 // or a fresh turn-on (no other thyristor in same leg conducting)
                 int outgoing_idx = -1;

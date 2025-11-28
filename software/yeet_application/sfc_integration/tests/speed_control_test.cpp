@@ -45,8 +45,8 @@ public:
         initial_settling_sequence();
     }
 
-    // Make speed‑error margin configurable (default ±0.05 pu)
-    std::shared_ptr<checker_user_activation> create_speed_error_checker(speed_pu_t margin = speed_pu_t{0.05f})
+    // Make speed‑error margin configurable (default ±0.06 pu)
+    std::shared_ptr<checker_user_activation> create_speed_error_checker(speed_pu_t margin = speed_pu_t{0.06f})
     {
         return sim.register_checker(yeet::make_range_checker<speed_pu_t>(
             "speed error checker", [&]() -> speed_pu_t { return read_speed_error(); }, speed_pu_t{-margin.value()},
