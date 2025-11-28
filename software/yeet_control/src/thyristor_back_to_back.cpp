@@ -1,7 +1,12 @@
 #include "yeet_control/thyristor_back_to_back.hpp"
 
 #include <algorithm>
-#include <iostream>
+
+namespace {
+constexpr double kMinConductionCurrent = 1e-3;
+constexpr double kMinBackEmfForNaturalCommutation = 0.05;
+constexpr double kOpenCircuitVoltage = 1e9;
+}  // namespace
 
 namespace yeet::control {
 
@@ -66,20 +71,30 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     if (rect_states[0] || rect_states[2] || rect_states[4]) rect_upper_conducting = true;
     if (rect_states[3] || rect_states[5] || rect_states[1]) rect_lower_conducting = true;
 
-    if (_i_dc.value() > 1e-6) {
+    if (_i_dc.value() > kMinConductionCurrent) {
         if (rect_upper_conducting) {
             v_p_rect = _rect_bridge.get_positive_rail_voltage(_v_term_rect);
         }
         else {
-            v_p_rect = voltage_t{-1e9};
+            v_p_rect = voltage_t{-kOpenCircuitVoltage};
         }
 
         if (rect_lower_conducting) {
             v_n_rect = _rect_bridge.get_negative_rail_voltage(_v_term_rect);
         }
         else {
-            v_n_rect = voltage_t{1e9};
+            v_n_rect = voltage_t{kOpenCircuitVoltage};
         }
+    }
+
+    // Update Rectifier Conduction State FIRST
+    _rect_bridge.update_conduction_state(_v_term_rect, v_p_rect, v_n_rect, p_rect);
+
+    // Recalculate Rectifier DC voltages based on NEW state
+    // This provides the DC link voltage for the Inverter if current is low
+    if (_rect_bridge.has_conducting_path()) {
+        v_p_rect = _rect_bridge.get_positive_rail_voltage(_v_term_rect);
+        v_n_rect = _rect_bridge.get_negative_rail_voltage(_v_term_rect);
     }
 
     // Inverter
@@ -94,24 +109,41 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     if (inv_states[0] || inv_states[2] || inv_states[4]) inv_upper_conducting = true;
     if (inv_states[3] || inv_states[5] || inv_states[1]) inv_lower_conducting = true;
 
-    if (_i_dc.value() > 1e-6) {
+    // Check machine back-EMF magnitude to determine if we are in startup (pulse mode)
+    // or normal operation.
+    auto v_mach_max =
+        std::max({std::abs(v_machine.a().value()), std::abs(v_machine.b().value()), std::abs(v_machine.c().value())});
+
+    // Check if inverter has any active pulses
+    bool inv_has_pulses = p_inv.t1 || p_inv.t2 || p_inv.t3 || p_inv.t4 || p_inv.t5 || p_inv.t6;
+
+    // Use normal model if current is flowing OR if machine has sufficient back-EMF
+    // OR if there are no pulses (we shouldn't force bias if we aren't trying to fire)
+    if (_i_dc.value() > kMinConductionCurrent || v_mach_max > kMinBackEmfForNaturalCommutation || !inv_has_pulses) {
         if (inv_upper_conducting) {
             v_p_inv = _inv_bridge.get_positive_rail_voltage(_v_term_inv);
         }
         else {
-            v_p_inv = voltage_t{-1e9};
+            v_p_inv = voltage_t{-kOpenCircuitVoltage};
         }
 
         if (inv_lower_conducting) {
             v_n_inv = _inv_bridge.get_negative_rail_voltage(_v_term_inv);
         }
         else {
-            v_n_inv = voltage_t{1e9};
+            v_n_inv = voltage_t{kOpenCircuitVoltage};
         }
     }
+    else {
+        // Startup / Low Current / Low Speed Condition:
+        // The Inverter sees the DC link voltage provided by the Rectifier.
+        // This allows the Inverter thyristors to be forward biased by the DC link
+        // even if the machine back-EMF is zero.
+        v_p_inv = v_p_rect;
+        v_n_inv = v_n_rect;
+    }
 
-    // 4. Update Bridge Conduction State
-    _rect_bridge.update_conduction_state(_v_term_rect, v_p_rect, v_n_rect, p_rect);
+    // Update Inverter Conduction State
     _inv_bridge.update_conduction_state(_v_term_inv, v_p_inv, v_n_inv, p_inv);
 
     // 5. Update Commutation
@@ -169,17 +201,27 @@ void thyristor_back_to_back::update(const abc<voltage_t>& v_grid,
     // in Step 2 (Calculate AC terminal voltages) to get _v_term_rect and _v_term_inv.
     // Therefore, _v_rect_dc and _v_inv_dc already account for the AC-side resistive drops.
     // We must NOT subtract them again here. Only the DC link resistance remains.
-    resistance_t r_total = _dc_resistance;
-    inductance_t l_total = _grid_inductance * 2.0 + _dc_inductance + _machine_inductance * 2.0;
 
-    voltage_t v_net = _v_rect_dc + _v_inv_dc - (r_total * _i_dc);
+    // Check if we have a valid conducting path through both bridges
+    // If either bridge is open (no conducting thyristors), the circuit is open
+    // and current cannot flow (must be zero).
+    if (_rect_bridge.has_conducting_path() && _inv_bridge.has_conducting_path()) {
+        resistance_t r_total = _dc_resistance;
+        inductance_t l_total = _grid_inductance * 2.0 + _dc_inductance + _machine_inductance * 2.0;
 
-    // Forward Euler
-    current_t di_dc = (v_net / l_total) * _sampling_time;
-    _i_dc = _i_dc + di_dc;
+        voltage_t v_net = _v_rect_dc + _v_inv_dc - (r_total * _i_dc);
 
-    // Clamp to zero
-    if (_i_dc.value() < 0.0) {
+        // Forward Euler
+        current_t di_dc = (v_net / l_total) * _sampling_time;
+        _i_dc = _i_dc + di_dc;
+
+        // Clamp to zero
+        if (_i_dc.value() < 0.0) {
+            _i_dc = current_t{0.0};
+        }
+    }
+    else {
+        // Circuit is open, current must be zero
         _i_dc = current_t{0.0};
     }
 

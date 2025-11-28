@@ -1,5 +1,7 @@
 #include "sfc_integration/sfc_grid_side_protections_runner.hpp"
 
+#include <iostream>
+
 namespace yeet::application::sfc::integration {
 
 sfc_grid_side_protections_runner::sfc_grid_side_protections_runner()
@@ -137,7 +139,7 @@ void sfc_grid_side_protections_runner::run()
     bool can_clear_trip = false;
     if (_alarm_pending) {
         // Shutdown mode: Requires state machine acknowledgment
-        can_clear_trip = _inputs.trip_acknowledged;
+        can_clear_trip = _inputs.trip_acknowledged.read();
     }
     else {
         // Normal operation mode: Auto-clear when fault clears

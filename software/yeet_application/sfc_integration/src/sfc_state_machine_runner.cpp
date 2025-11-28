@@ -46,6 +46,9 @@ void sfc_state_machine_runner::run()
                                            ? _parameters.override_value_is_current_extinguished.read()
                                            : _inputs.is_current_extinguished.read();
 
+    // Get previous state BEFORE the state machine update
+    const sfc::sfc_state_id previous_state = _sfc_state_machine.get_current_state();
+
     // Execute state machine update with pre-configured event lambdas
     _sfc_state_machine.update(_state_machine_inputs);
 
@@ -65,11 +68,30 @@ void sfc_state_machine_runner::run()
         (current_state == sfc::sfc_state_id::OPERATION_OFF || current_state == sfc::sfc_state_id::OPERATION_ON ||
             current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED);
 
-    // Trip acknowledgment: Signal to protection that state machine has handled the trip
-    // Conditions: In SHUTDOWN_REQUESTED state + current extinguished + no active faults
-    // This allows protection to clear its latched trip signal and state machine to proceed to OPERATION_OFF
-    _outputs.trip_acknowledged = (current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
-                                 _outputs.is_current_extinguished && !_inputs.any_protection_fault_active;
+    // Trip acknowledgment with hold counter mechanism:
+    // The protection runs at 200µs while the state machine runs at 10ms.
+    // Due to simulation execution order, the protection may run before the state machine
+    // within the same time step, missing a momentary signal. To ensure the protection sees
+    // the acknowledgment, we hold it for multiple 10ms cycles using a countdown counter.
+
+    const bool trip_ack_conditions = (current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
+                                     _outputs.is_current_extinguished && !_inputs.any_protection_fault_active;
+
+    // Detect transition from SHUTDOWN_REQUESTED to OPERATION_OFF
+    const bool just_transitioned_from_shutdown = (previous_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
+                                                 (current_state == sfc::sfc_state_id::OPERATION_OFF);
+
+    // Start/reset hold counter when conditions are met or transition just occurred
+    if (trip_ack_conditions || just_transitioned_from_shutdown) {
+        _trip_acknowledged_hold_counter = TRIP_ACK_HOLD_CYCLES;
+    }
+    // Decrement counter when it's active
+    else if (_trip_acknowledged_hold_counter > 0) {
+        _trip_acknowledged_hold_counter--;
+    }
+
+    // Output true while counter is non-zero
+    _outputs.trip_acknowledged = (_trip_acknowledged_hold_counter > 0);
 }
 
 void sfc_state_machine_runner::stop()

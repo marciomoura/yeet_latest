@@ -181,7 +181,7 @@ public:
         _v_inv_dc = _inverter_bridge.get_instantaneous_dc_voltage(_v_term_inv).value();
 
         // 9. Integrate DC Link
-        real_t r_total = _grid_resistance * 2.0 + _dc_resistance + _machine_resistance * 2.0;
+        real_t r_total = _dc_resistance;
         real_t l_total = _grid_inductance * 2.0 + _dc_inductance + _machine_inductance * 2.0;
 
         real_t v_net = _v_rect_dc + _v_inv_dc - (r_total * _i_dc);  // Note: + _v_inv_dc because of flipped topology

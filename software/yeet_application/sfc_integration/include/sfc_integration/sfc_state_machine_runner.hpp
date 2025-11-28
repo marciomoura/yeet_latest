@@ -44,6 +44,13 @@ private:
 
     sfc::sfc_state_machine _sfc_state_machine;
     sfc::sfc_state_inputs _state_machine_inputs;
+
+    // Trip acknowledgment hold counter: Counts down from HOLD_CYCLES when acknowledgment is triggered.
+    // The acknowledgment signal is held true while the counter is non-zero, ensuring the 200µs
+    // protection runner sees it before it clears. This accounts for the simulation execution order
+    // where the protection may run before the state machine within the same time step.
+    static constexpr int TRIP_ACK_HOLD_CYCLES = 3;  // Hold for 3 cycles (30ms) to ensure visibility
+    int _trip_acknowledged_hold_counter{0};
 };
 
 }  // namespace yeet::application::sfc::integration
