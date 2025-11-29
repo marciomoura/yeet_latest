@@ -59,6 +59,17 @@ void sfc_state_machine_runner::run()
     _outputs.has_transitioned = _sfc_state_machine.has_transitioned();
     _outputs.preset_request = state_outputs.freeze_integrator;
     _outputs.request_extinguish_dc_current = state_outputs.request_extinguish_dc_current;
+
+    // Release protections whenever state machine is not in IDLE
+    _outputs.release_protections =
+        (current_state == sfc::sfc_state_id::OPERATION_OFF || current_state == sfc::sfc_state_id::OPERATION_ON ||
+            current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED);
+
+    // Trip acknowledgment: Signal to protection that state machine has handled the trip
+    // Conditions: In SHUTDOWN_REQUESTED state + current extinguished + no active faults
+    // This allows protection to clear its latched trip signal and state machine to proceed to OPERATION_OFF
+    _outputs.trip_acknowledged = (current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
+                                 _outputs.is_current_extinguished && !_inputs.any_protection_fault_active;
 }
 
 void sfc_state_machine_runner::stop()
