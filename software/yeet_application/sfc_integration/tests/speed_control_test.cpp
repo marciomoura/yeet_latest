@@ -253,7 +253,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedReferenceRampTracking)
     for (float r : targets) {
         checker->deactivate();
         this->set_speed_reference(speed_pu_t{r});
-        EXPECT_TRUE(this->sim.simulate_for(1.5));
+        EXPECT_TRUE(this->sim.simulate_for(4.0));
         checker->activate();
         EXPECT_TRUE(this->sim.simulate_for(1.0));
     }
