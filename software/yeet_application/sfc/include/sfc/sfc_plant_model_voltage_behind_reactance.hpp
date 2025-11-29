@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc_per_unit_system.hpp"
-#include "sfc_plant_model_6p_6p.hpp"
+#include "sfc_plant_back_to_back_topology_simulink.hpp"
 #include "sfc_plant_model_parameters.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/field_current_regulator.hpp"
@@ -15,11 +15,11 @@ namespace yeet::application::sfc {
 /**
  * @brief Augmented 6-pulse to 6-pulse SFC plant model with mechanical dynamics and voltage control
  *
- * This class wraps the basic sfc_plant_model_6p_6p and adds mechanical load dynamics
+ * This class wraps the basic sfc_plant_back_to_back_topology_simulink and adds mechanical load dynamics
  * and speed-voltage relationship control. It provides configurable parameters without
  * exposing topology-specific default values in the public interface.
  */
-class sfc_plant_model_augmented_6p_6p {
+class sfc_plant_model_voltage_behind_reactance {
 public:
     static constexpr double kSamplingTime = 10e-6;  // 10 µs sampling time (100 kHz)
 
@@ -29,25 +29,25 @@ public:
      * @param mechanical_params Mechanical configuration parameters
      * @param voltage_control_params Voltage control configuration parameters
      */
-    sfc_plant_model_augmented_6p_6p(const sfc_plant_model_electrical_parameters& electrical_params,
+    sfc_plant_model_voltage_behind_reactance(const sfc_plant_model_electrical_parameters& electrical_params,
         const sfc_plant_model_mechanical_parameters& mechanical_params,
         const sfc_plant_model_voltage_control_parameters& voltage_control_params);
 
     /**
      * @brief Constructs the augmented plant model with default 6p-6p topology parameters.
      */
-    sfc_plant_model_augmented_6p_6p();
+    sfc_plant_model_voltage_behind_reactance();
 
     /**
      * @brief Destructor.
      */
-    ~sfc_plant_model_augmented_6p_6p();
+    ~sfc_plant_model_voltage_behind_reactance();
 
     // Prevent copying and moving
-    sfc_plant_model_augmented_6p_6p(const sfc_plant_model_augmented_6p_6p&) = delete;
-    sfc_plant_model_augmented_6p_6p& operator=(const sfc_plant_model_augmented_6p_6p&) = delete;
-    sfc_plant_model_augmented_6p_6p(sfc_plant_model_augmented_6p_6p&&) = delete;
-    sfc_plant_model_augmented_6p_6p& operator=(sfc_plant_model_augmented_6p_6p&&) = delete;
+    sfc_plant_model_voltage_behind_reactance(const sfc_plant_model_voltage_behind_reactance&) = delete;
+    sfc_plant_model_voltage_behind_reactance& operator=(const sfc_plant_model_voltage_behind_reactance&) = delete;
+    sfc_plant_model_voltage_behind_reactance(sfc_plant_model_voltage_behind_reactance&&) = delete;
+    sfc_plant_model_voltage_behind_reactance& operator=(sfc_plant_model_voltage_behind_reactance&&) = delete;
 
     /**
      * @brief Configures the electrical parameters of the plant model.
@@ -334,7 +334,7 @@ private:
 
     voltage_pu_t _machine_back_emf_pu{voltage_pu_t{0.0}};  // Calculated back-EMF: E = Φ × ω (variable_speed mode)
 
-    sfc_plant_model_6p_6p _plant;                                    /// The underlying plant model instance
+    sfc_plant_back_to_back_topology_simulink _plant;                                    /// The underlying plant model instance
     control::mechanical_load _mechanical_load;                       /// The mechanical load model instance
     control::field_current_regulator _field_current_regulator;       /// The field current regulator instance
     control::first_order_low_pass_filter<speed_pu_t> _speed_filter;  /// Speed filter to smooth back-EMF oscillations
@@ -351,3 +351,4 @@ private:
 };
 
 }  // namespace yeet::application::sfc
+

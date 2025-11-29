@@ -23,7 +23,7 @@ namespace yeet::application::sfc {
  * handling type conversions and providing accessor methods for all electrical quantities.
  * Parameters are configurable and not tied to specific default values.
  */
-class sfc_plant_model_6p_6p {
+class sfc_plant_back_to_back_topology_simulink {
 public:
     static constexpr double kSamplingTime = 10e-6;  // 10 µs sampling time (100 kHz)
 
@@ -31,23 +31,23 @@ public:
      * @brief Constructs the plant model wrapper with configurable parameters.
      * @param electrical_params Electrical configuration parameters
      */
-    explicit sfc_plant_model_6p_6p(const sfc_plant_model_electrical_parameters& electrical_params);
+    explicit sfc_plant_back_to_back_topology_simulink(const sfc_plant_model_electrical_parameters& electrical_params);
 
     /**
      * @brief Constructs the plant model wrapper with default configuration for 6p-6p topology.
      */
-    sfc_plant_model_6p_6p();
+    sfc_plant_back_to_back_topology_simulink();
 
     /**
      * @brief Destructor.
      */
-    ~sfc_plant_model_6p_6p();
+    ~sfc_plant_back_to_back_topology_simulink();
 
     // Prevent copying and moving
-    sfc_plant_model_6p_6p(const sfc_plant_model_6p_6p&) = delete;
-    sfc_plant_model_6p_6p& operator=(const sfc_plant_model_6p_6p&) = delete;
-    sfc_plant_model_6p_6p(sfc_plant_model_6p_6p&&) = delete;
-    sfc_plant_model_6p_6p& operator=(sfc_plant_model_6p_6p&&) = delete;
+    sfc_plant_back_to_back_topology_simulink(const sfc_plant_back_to_back_topology_simulink&) = delete;
+    sfc_plant_back_to_back_topology_simulink& operator=(const sfc_plant_back_to_back_topology_simulink&) = delete;
+    sfc_plant_back_to_back_topology_simulink(sfc_plant_back_to_back_topology_simulink&&) = delete;
+    sfc_plant_back_to_back_topology_simulink& operator=(sfc_plant_back_to_back_topology_simulink&&) = delete;
 
     /**
      * @brief Configures the electrical parameters of the plant model.
