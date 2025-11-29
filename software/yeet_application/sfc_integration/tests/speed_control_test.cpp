@@ -1,11 +1,13 @@
-// Unified typed speed‑control test (no per‑type traits; identical criteria for all builders)
+// Unified typed speed‐control test (no per‐type traits; identical criteria for all builders)
 #include <gtest/gtest.h>
 
+#include <string_view>
 #include <variant>
 
 #include "sfc_integration/plant_sensorless_speed_control_mocked_hardware_simulation_builder.hpp"
 #include "sfc_integration/plant_sensorless_speed_control_simulation_builder.hpp"
 #include "sfc_integration/plant_speed_control_simulation_builder.hpp"
+#include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "sfc_loggers.hpp"
 #include "sfc_plant_configuration.hpp"
 #include "yeet_control/units.hpp"
@@ -15,6 +17,7 @@
 using yeet::application::sfc::integration::plant_sensorless_speed_control_mocked_hardware_simulation_builder;
 using yeet::application::sfc::integration::plant_sensorless_speed_control_simulation_builder;
 using yeet::application::sfc::integration::plant_speed_control_simulation_builder;
+using yeet::application::sfc::integration::sfc_plant_model_datamodel;
 using namespace yeet;
 
 // ---------- helper ----------
@@ -29,39 +32,37 @@ using speed_system_variant_t = std::variant<plant_speed_control_simulation_build
     plant_sensorless_speed_control_simulation_builder*,
     plant_sensorless_speed_control_mocked_hardware_simulation_builder*>;
 
+// ---------- test parameter wrapper ----------
+// Combines builder type with plant topology selection for parameterized testing
+template <typename BuilderT, sfc_plant_model_datamodel::topology_type Topology>
+struct speed_control_test_config {
+    using builder_type = BuilderT;
+    static constexpr auto topology = Topology;
+    static constexpr std::string_view topology_name =
+        (Topology == sfc_plant_model_datamodel::topology_type::simulink) ? "SimulinkModel" : "InternalModel";
+};
+
 // ---------- typed fixture ----------
-template <typename BuilderT>
+template <typename ConfigT>
 class SpeedControlTypedTest : public ::testing::Test {
 public:
+    using builder_type = typename ConfigT::builder_type;
+
     void SetUp() override
     {
         // Direct literal for sampler period
         sim.configure_sampler_sampling_rate(1e-3);
         system.register_applications(sim);
+
+        // Configure plant topology based on test parameter
+        set_plant_topology(ConfigT::topology);
+
         configure_variable_speed_plant_if_supported();
         system.initialize();
         post_initialize_configuration();
         register_loggers();
         initial_settling_sequence();
     }
-
-    // Make speed‑error margin configurable (default ±0.05 pu)
-    // DISABLED: speed_error output was removed during simplification
-    /*
-    std::shared_ptr<checker_user_activation> create_speed_error_checker(speed_pu_t margin = speed_pu_t{0.05f})
-    {
-        return sim.register_checker(yeet::make_range_checker<speed_pu_t>(
-            "speed error checker", [&]() -> speed_pu_t { return read_speed_error(); }, speed_pu_t{-margin.value()},
-            speed_pu_t{+margin.value()}, yeet::checker_activation_always{}));
-    }
-
-    speed_pu_t read_speed_error() const noexcept
-    {
-        return std::visit(
-            overloaded{[&](auto const* sys) { return sys->speed_controller.get_outputs().speed_error.read(); }},
-            speed_system_variant_t{const_cast<BuilderT*>(&system)});
-    }
-    */
 
     // ---- control wrappers ----
     void set_speed_reference(speed_pu_t ref) noexcept
@@ -79,6 +80,12 @@ public:
         std::visit(overloaded{[&](auto* sys) { sys->enable_speed_control = en; }}, speed_system_variant_t{&system});
     }
 
+    void set_plant_topology(sfc_plant_model_datamodel::topology_type topology) noexcept
+    {
+        std::visit(overloaded{[&](auto* sys) { sys->plant.get_parameters().topology.write(topology); }},
+            speed_system_variant_t{&system});
+    }
+
 protected:
     void configure_variable_speed_plant_if_supported()
     {
@@ -86,19 +93,16 @@ protected:
         std::visit(overloaded{[&](plant_speed_control_simulation_builder* sys) {
                                   application::sfc::integration::test::variable_speed_config cfg;
                                   cfg.initial_speed = speed_pu_t{0.0f};
-                                  // cfg.voltage_at_base_speed removed - back-EMF calculated directly from E = Φ × ω
                                   application::sfc::integration::test::configure_variable_speed_plant(sys->plant, cfg);
                               },
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
                            application::sfc::integration::test::variable_speed_config cfg;
                            cfg.initial_speed = speed_pu_t{0.0f};
-                           // cfg.voltage_at_base_speed removed - back-EMF calculated directly from E = Φ × ω
                            application::sfc::integration::test::configure_variable_speed_plant(sys->plant, cfg);
                        },
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
                            application::sfc::integration::test::variable_speed_config cfg;
                            cfg.initial_speed = speed_pu_t{0.0f};
-                           // cfg.voltage_at_base_speed removed - back-EMF calculated directly from E = Φ × ω
                            application::sfc::integration::test::configure_variable_speed_plant(sys->plant, cfg);
                        }},
             speed_system_variant_t{&system});
@@ -155,43 +159,50 @@ protected:
     }
 
 protected:
-    BuilderT system;
+    builder_type system;
     simulator sim = yeet::make_gtest_simulator();
 };
 
-// ---- Name generator (builders provide static constexpr name internally) ----
-struct SpeedTypedTestNameGenerator {
+// ---- Name generator ----
+struct SpeedControlTestNameGenerator {
     template <typename T>
     static std::string GetName(int)
     {
-        return std::string{T::name.data()};
+        return std::string{T::builder_type::name.data()} + "_" + std::string{T::topology_name};
     }
 };
 
-using SpeedTestedBuilders = ::testing::Types<plant_speed_control_simulation_builder,
-    plant_sensorless_speed_control_simulation_builder,
-    plant_sensorless_speed_control_mocked_hardware_simulation_builder>;
+// ---- Test configurations: all combinations of builders and topologies ----
+using SpeedControlTestedConfigs = ::testing::Types<
+    // Simulink model configurations
+    speed_control_test_config<plant_speed_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    speed_control_test_config<plant_sensorless_speed_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    speed_control_test_config<plant_sensorless_speed_control_mocked_hardware_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    // Internal model configurations
+    speed_control_test_config<plant_speed_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::internal>,
+    speed_control_test_config<plant_sensorless_speed_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::internal>,
+    speed_control_test_config<plant_sensorless_speed_control_mocked_hardware_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::internal>>;
 
-TYPED_TEST_SUITE(SpeedControlTypedTest, SpeedTestedBuilders, SpeedTypedTestNameGenerator);
+TYPED_TEST_SUITE(SpeedControlTypedTest, SpeedControlTestedConfigs, SpeedControlTestNameGenerator);
 
 // ============================================================================
 // Test 1: Two sequential speed references with checker gating
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
 {
-    // auto checker = this->create_speed_error_checker();  // Disabled: speed_error output removed
-
-    // checker->deactivate();  // Disabled: checker not created
     this->set_speed_reference(speed_pu_t{1.0f});
     EXPECT_TRUE(this->sim.simulate_for(2.0));
-    // checker->activate();  // Disabled: checker not created
     EXPECT_TRUE(this->sim.simulate_for(3.0));
 
     // Phase 2
-    // checker->deactivate();  // Disabled: checker not created
     this->set_speed_reference(speed_pu_t{1.05f});
     EXPECT_TRUE(this->sim.simulate_for(1.0));
-    // checker->activate();  // Disabled: checker not created
     EXPECT_TRUE(this->sim.simulate_for(3.0));
 }
 
@@ -200,28 +211,20 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedRegulationWithTorqueDisturbance)
 {
-    // auto checker = this->create_speed_error_checker();  // Disabled: speed_error output removed
-
     // Phase 1: Settle at initial speed reference and load
-    // checker->deactivate();  // Disabled: checker not created
     this->set_speed_reference(speed_pu_t{1.0f});
     EXPECT_TRUE(this->sim.simulate_for(2.0));
-    // checker->activate();  // Disabled: checker not created
     EXPECT_TRUE(this->sim.simulate_for(2.5));
 
     // Phase 2: Step-up torque disturbance
-    // checker->deactivate();  // Disabled: checker not created
     this->set_load_torque(torque_pu_t{0.60f});
     EXPECT_TRUE(this->sim.simulate_for(1.0));  // Disturbance transient
-    // checker->activate();  // Disabled: checker not created
     EXPECT_TRUE(this->sim.simulate_for(3.0));  // Recovery steady-state after step-up
 
     // Phase 3: Step-down torque disturbance (return to initial load)
-    // checker->deactivate();  // Disabled: checker not created
     this->set_load_torque(torque_pu_t{0.30f});  // Return to initial load from SetUp
     EXPECT_TRUE(this->sim.simulate_for(1.0));   // Disturbance transient
-    // checker->activate();  // Disabled: checker not created
-    EXPECT_TRUE(this->sim.simulate_for(3.0));  // Final recovery steady-state
+    EXPECT_TRUE(this->sim.simulate_for(3.0));   // Final recovery steady-state
 }
 
 // ============================================================================
@@ -229,20 +232,14 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulationWithTorqueDisturbance)
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedReferenceRampTracking)
 {
-    // auto checker = this->create_speed_error_checker();  // Disabled: speed_error output removed
-
-    // checker->deactivate();  // Disabled: checker not created
     this->set_speed_reference(speed_pu_t{0.80f});
     EXPECT_TRUE(this->sim.simulate_for(1.5));
-    // checker->activate();  // Disabled: checker not created
     EXPECT_TRUE(this->sim.simulate_for(1.0));
 
     const float targets[] = {0.85f, 0.90f, 1.00f, 1.05f};
     for (float r : targets) {
-        // checker->deactivate();  // Disabled: checker not created
         this->set_speed_reference(speed_pu_t{r});
         EXPECT_TRUE(this->sim.simulate_for(0.5));
-        // checker->activate();  // Disabled: checker not created
         EXPECT_TRUE(this->sim.simulate_for(0.8));
     }
 }
@@ -252,22 +249,17 @@ TYPED_TEST(SpeedControlTypedTest, SpeedReferenceRampTracking)
 // ============================================================================
 TYPED_TEST(SpeedControlTypedTest, SpeedRampUpFromLowSpeedNaturalCommutation)
 {
-    // auto checker = this->create_speed_error_checker();  // Disabled: speed_error output removed
-
     // Phase 1: Initialize at 0.25 speed reference and settle with nominal load torque
-    // checker->deactivate();  // Disabled: checker not created
     this->set_speed_reference(speed_pu_t{0.25f});
     this->set_load_torque(torque_pu_t{0.2f});
     EXPECT_TRUE(this->sim.simulate_for(2.0));  // low-speed settling
 
     // Phase 2: Generate a 50 s linear ramp from 0.25 to 1.0 pu by stepping the reference
-    // Since speed generator now handles rate limiting, we manually generate the ramp
     const real_t ramp_time_s = 50.0;
     const real_t ramp_rate = (1.0f - 0.25f) / ramp_time_s;  // 0.015 pu/s
     const real_t step_time = 0.5;                           // Update reference every 0.5 seconds
     const int num_steps = static_cast<int>(ramp_time_s / step_time);
 
-    // checker->activate();  // Disabled: checker not created
     for (int i = 1; i <= num_steps; ++i) {
         const real_t elapsed_time = i * step_time;
         const speed_pu_t reference = speed_pu_t{0.25f + ramp_rate * elapsed_time};
@@ -275,15 +267,12 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRampUpFromLowSpeedNaturalCommutation)
 
         bool success = this->sim.simulate_for(step_time);
         if (!success) {
-            // checker->deactivate();  // Disabled: checker not created
             EXPECT_TRUE(success) << "Simulation failed at ramp step " << i;
             return;
         }
     }
-    // checker->deactivate();  // Disabled: checker not created
 
     // Phase 3: Final steady-state hold at 1.0 pu
     this->set_speed_reference(speed_pu_t{1.0f});  // Ensure we end exactly at 1.0
-    // checker->activate();  // Disabled: checker not created
     EXPECT_TRUE(this->sim.simulate_for(3.0));
 }
