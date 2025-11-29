@@ -41,6 +41,7 @@ public:
     {
         sim.configure_sampler_sampling_rate(200e-6);
         system.register_applications(sim);
+
         system.initialize();
         register_common_loggers();
         initialize_simulation();

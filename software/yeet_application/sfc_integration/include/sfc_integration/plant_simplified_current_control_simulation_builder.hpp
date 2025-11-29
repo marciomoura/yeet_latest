@@ -43,6 +43,9 @@ public:
           dc_link_measurements{_per_unit_system},
           current_controller(_per_unit_system)
     {
+        // Configure the plant to use the Simulink model by default
+        plant.get_parameters().model_type.write(sfc_plant_model_datamodel::plant_model_type::simulink);
+
         // Connect all components
         connect_all_components();
         mock_inputs();

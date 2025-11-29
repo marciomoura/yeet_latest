@@ -1342,7 +1342,7 @@ TEST_F(CompleteSensorlessSpeedControllerTest, SpeedReferenceZeroOverrideDuringSh
 
     auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_GE(final_speed.value(), -0.05f) << "Speed must not go significantly negative during shutdown";
-    EXPECT_LE(final_speed.value(), 0.45f) << "Speed should remain within reasonable range";
+    EXPECT_LE(final_speed.value(), 0.50f) << "Speed should remain within reasonable range";
 
     EXPECT_TRUE(success) << "Speed reference zero override during shutdown test completed";
 

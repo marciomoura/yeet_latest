@@ -66,6 +66,9 @@ public:
         plant_hardware::stage_transformer_ratios_for_machine_side_measurements(
             machine_side_control.machine_measurements, *_per_unit_system);
 
+        // Configure the plant to use the Simulink model by default
+        plant.get_parameters().model_type.write(sfc_plant_model_datamodel::plant_model_type::simulink);
+
         //  Configure plant model to use external excitation voltage control
         configure_plant_for_external_excitation_control();
 

@@ -44,6 +44,9 @@ public:
           dc_link_measurements{_per_unit_system},
           current_controller(_per_unit_system)
     {
+        // Configure the plant to use the Simulink model by default
+        plant.get_parameters().model_type.write(sfc_plant_model_datamodel::plant_model_type::simulink);
+
         // Connect all components
         connect_all_components();
         mock_inputs();
@@ -248,7 +251,7 @@ private:
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
 
-         signals_connector::connect_output_to_input(
+        signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(

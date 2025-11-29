@@ -60,6 +60,10 @@ public:
         // Stage measurement conversion parameters (ADC + transducer) for runners
         plant_hardware::stage_grid_side_measurement_parameters(grid_side_measurements);
         plant_hardware::stage_machine_side_measurement_parameters(machine_side_measurements);
+
+        // Configure the plant to use the Simulink model by default
+        plant.get_parameters().model_type.write(sfc_plant_model_datamodel::plant_model_type::simulink);
+
         // Connect pulse generators and hardware mocks to plant model
         connect_components();
         mock_inputs();

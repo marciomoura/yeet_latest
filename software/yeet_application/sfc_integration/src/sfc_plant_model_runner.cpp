@@ -107,9 +107,11 @@ void sfc_plant_model_runner::set_parameters()
     if (_parameters.model_type.read() != _current_model_type) {
         _current_model_type = _parameters.model_type.read();
         if (_current_model_type == datamodel::plant_model_type::simulink) {
+            std::cout << "[sfc_plant_model_runner] Switching to Simulink-based plant model." << std::endl;
             _plant.set_topology(std::make_unique<sfc::sfc_plant_simulink_model>());
         }
         else {
+            std::cout << "[sfc_plant_model_runner] Switching to internal physics-based plant model." << std::endl;
             _plant.set_topology(std::make_unique<sfc::sfc_plant_internal_model>(_plant.get_electrical_parameters()));
         }
     }

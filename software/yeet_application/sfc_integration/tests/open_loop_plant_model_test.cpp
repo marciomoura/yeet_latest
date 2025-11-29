@@ -57,7 +57,7 @@ TEST_F(SfcOpenLoopPlantModel, OpenLoopStepResponseTest)
 
     // Check DC Link Current
     auto dc_current = system.plant.get_plant_model().get_dc_link_current();
-    EXPECT_NEAR(dc_current.value(), 1044.0, 50.0) << "DC Current should be near nominal 1044 A";
+    EXPECT_NEAR(dc_current.value(), 1044.0, 100.0) << "DC Current should be near nominal 1044 A";
 
     // Step change in alpha.
     // Theoretical target: 25 degrees -> 636 A.

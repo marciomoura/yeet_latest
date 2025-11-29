@@ -38,6 +38,7 @@ public:
         // Direct literal for sampler period
         sim.configure_sampler_sampling_rate(1e-3);
         system.register_applications(sim);
+
         configure_variable_speed_plant_if_supported();
         system.initialize();
         post_initialize_configuration();
