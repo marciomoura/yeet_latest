@@ -82,12 +82,16 @@ set(SFC_CORE_SOURCES
 
 # Plant model files (only needed for testing/simulation)
 set(SFC_PLANT_MODEL_HEADERS
-    include/sfc/sfc_plant_model_voltage_behind_reactance.hpp
+    include/sfc/sfc_plant_back_to_back_topology_interface.hpp
+    include/sfc/sfc_plant_back_to_back_topology.hpp
     include/sfc/sfc_plant_back_to_back_topology_simulink.hpp
+    include/sfc/sfc_plant_model_voltage_behind_reactance.hpp
     include/sfc/sfc_plant_model_parameters.hpp)
 
-set(SFC_PLANT_MODEL_SOURCES src/sfc_plant_model_voltage_behind_reactance.cpp
-                            src/sfc_plant_back_to_back_topology_simulink.cpp)
+set(SFC_PLANT_MODEL_SOURCES
+    src/sfc_plant_back_to_back_topology.cpp
+    src/sfc_plant_back_to_back_topology_simulink.cpp
+    src/sfc_plant_model_voltage_behind_reactance.cpp)
 
 # Add core sources (always included)
 target_sources(
