@@ -45,9 +45,18 @@ target_sources(
             three_phase_pll_test.cpp
             # three_phase_waveform_generator_test.cpp - Temporarily disabled due
             # to test issues
+            thyristor_bridge_test.cpp
+            thyristor_rectifier_test.cpp
+            thyristor_inverter_test.cpp
+            thyristor_dcm_test.cpp
+            thyristor_back_to_back_test.cpp
+            thyristor_back_to_back_synchronous_machine_test.cpp
+            thyristor_back_to_back_steady_state_test.cpp
+            synchronous_machine_backemf_test.cpp
             units_test.cpp
             speed_voltage_relationship_test.cpp
-            virtual_angle_reference_generator_test.cpp)
+            virtual_angle_reference_generator_test.cpp
+            synchronous_machine_test.cpp)
 
 # Link dependencies
 target_link_libraries(
