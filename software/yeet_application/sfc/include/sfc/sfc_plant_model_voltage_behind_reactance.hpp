@@ -1,7 +1,9 @@
 #pragma once
 
+#include <memory>
+
 #include "sfc_per_unit_system.hpp"
-#include "sfc_plant_back_to_back_topology_simulink.hpp"
+#include "sfc_plant_back_to_back_topology_interface.hpp"
 #include "sfc_plant_model_parameters.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/field_current_regulator.hpp"
@@ -13,10 +15,18 @@
 namespace yeet::application::sfc {
 
 /**
+ * @brief Enumeration to select the back-to-back topology implementation.
+ */
+enum class plant_topology_type {
+    simulink,  ///< Use Simulink-generated model wrapper
+    internal   ///< Use internal C++ thyristor model
+};
+
+/**
  * @brief Augmented 6-pulse to 6-pulse SFC plant model with mechanical dynamics and voltage control
  *
- * This class wraps the basic sfc_plant_back_to_back_topology_simulink and adds mechanical load dynamics
- * and speed-voltage relationship control. It provides configurable parameters without
+ * This class wraps a back-to-back topology model (selectable via interface) and adds mechanical load
+ * dynamics and speed-voltage relationship control. It provides configurable parameters without
  * exposing topology-specific default values in the public interface.
  */
 class sfc_plant_model_voltage_behind_reactance {
@@ -28,15 +38,18 @@ public:
      * @param electrical_params Electrical configuration parameters
      * @param mechanical_params Mechanical configuration parameters
      * @param voltage_control_params Voltage control configuration parameters
+     * @param topology The topology implementation to use (default: simulink)
      */
     sfc_plant_model_voltage_behind_reactance(const sfc_plant_model_electrical_parameters& electrical_params,
         const sfc_plant_model_mechanical_parameters& mechanical_params,
-        const sfc_plant_model_voltage_control_parameters& voltage_control_params);
+        const sfc_plant_model_voltage_control_parameters& voltage_control_params,
+        plant_topology_type topology = plant_topology_type::simulink);
 
     /**
      * @brief Constructs the augmented plant model with default 6p-6p topology parameters.
+     * @param topology The topology implementation to use (default: simulink)
      */
-    sfc_plant_model_voltage_behind_reactance();
+    explicit sfc_plant_model_voltage_behind_reactance(plant_topology_type topology = plant_topology_type::simulink);
 
     /**
      * @brief Destructor.
@@ -269,6 +282,7 @@ public:
     // Operation mode getters
     plant_model_machine_operation_mode get_operation_mode() const noexcept;
     plant_model_voltage_control_mode get_voltage_control_mode() const noexcept;
+    plant_topology_type get_topology_type() const noexcept;
 
     // ==================== Per-Unit Runtime Getters ====================
     voltage_pu_t get_grid_voltage_pu() const noexcept;
@@ -334,9 +348,11 @@ private:
 
     voltage_pu_t _machine_back_emf_pu{voltage_pu_t{0.0}};  // Calculated back-EMF: E = Φ × ω (variable_speed mode)
 
-    sfc_plant_back_to_back_topology_simulink _plant;                                    /// The underlying plant model instance
-    control::mechanical_load _mechanical_load;                       /// The mechanical load model instance
-    control::field_current_regulator _field_current_regulator;       /// The field current regulator instance
+    std::unique_ptr<sfc_plant_back_to_back_topology_interface>
+        _plant;                                                 ///< The underlying plant model instance (polymorphic)
+    plant_topology_type _topology_type;                         ///< The selected topology type
+    control::mechanical_load _mechanical_load;                  ///< The mechanical load model instance
+    control::field_current_regulator _field_current_regulator;  /// The field current regulator instance
     control::first_order_low_pass_filter<speed_pu_t> _speed_filter;  /// Speed filter to smooth back-EMF oscillations
     sfc_per_unit_system _pu_system;                                  /// The per-unit system instance
 
@@ -351,4 +367,3 @@ private:
 };
 
 }  // namespace yeet::application::sfc
-
