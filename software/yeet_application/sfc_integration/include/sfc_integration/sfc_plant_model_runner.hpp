@@ -36,7 +36,7 @@ public:
     void run() override;
     void stop() override;
 
-    sfc::sfc_plant_model_voltage_behind_reactance& get_plant_model() { return _plant; }
+    sfc::sfc_plant_model_voltage_behind_reactance& get_plant_model() { return *_plant; }
     const std::shared_ptr<sfc::sfc_per_unit_system>& get_per_unit_system() const noexcept { return _per_unit_system; }
 
 private:
@@ -45,7 +45,7 @@ private:
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
-    sfc::sfc_plant_model_voltage_behind_reactance _plant;
+    std::unique_ptr<sfc::sfc_plant_model_voltage_behind_reactance> _plant;
 };
 
 }  // namespace yeet::application::sfc::integration
