@@ -9,6 +9,7 @@
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
@@ -18,11 +19,11 @@ namespace yeet::application::sfc::integration {
 // ==================== Speed Controller Simulation Builder ====================
 
 /**
- * @brief Speed controller simulation builder with cascaded speed and current control
+ * @brief Speed controller simulation builder with cascaded speed, torque, and current control
  *
  * This configuration provides:
  * - Plant model with augmented 6p-6p topology
- * - Cascaded speed and current controller (speed outer loop, current inner loop)
+ * - Cascaded control: speed controller → torque controller → current controller
  * - Grid-side current controller with firing angle control
  * - Machine-side lookup table controller for firing angle calculation
  * - Complete measurement and filtering chain
@@ -30,7 +31,7 @@ namespace yeet::application::sfc::integration {
  * - Simplified configuration without observers, state machine, or modulators
  *
  * Signal Flow:
- * Plant → Raw Measurements → Speed Controller → Current Controller → Pulse Generators → Plant
+ * Plant → Raw Measurements → Speed Controller → Torque Controller → Current Controller → Pulse Generators → Plant
  */
 class plant_speed_control_simulation_builder {
 public:
@@ -57,8 +58,13 @@ public:
         yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
         yeet::mock_signal_input::write(speed_controller.get_inputs().preset_request, false);
 
-        // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
-        yeet::mock_signal_input::write(speed_controller.get_inputs().applied_torque_reference, torque_pu_t{0.0});
+        // Torque controller mocks (no speed_generator or startup_sequencer in this builder)
+        yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.2f});
+        yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0f});
+        yeet::mock_signal_input::write(torque_controller.get_inputs().enable_breakaway_boost, false);
+        yeet::mock_signal_input::write(
+            torque_controller.get_inputs().control_mode, sfc::sfc_torque_controller::control_mode::SPEED_CONTROL);
+        yeet::mock_signal_input::write(torque_controller.get_inputs().manual_torque_reference, torque_pu_t{0.0f});
 
         // Mock pulse release signals for both pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
@@ -72,6 +78,7 @@ public:
         machine_measurements.initialize();
         dc_link_measurements.initialize();
         speed_controller.initialize();
+        torque_controller.initialize();
         current_controller.initialize();
         machine_side_controller.initialize();
         grid_side_pulse_generator.initialize();
@@ -89,9 +96,7 @@ public:
             dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
         simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() {
             speed_controller.run();
-            // Convert torque to current (1:1 assumption for simplified test without torque controller)
-            current_reference_from_speed_ctrl.write(
-                current_pu_t{speed_controller.get_outputs().torque_reference.read().value()});
+            torque_controller.run();
         });
         simulator.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
         simulator.register_lambda_runner(
@@ -110,6 +115,7 @@ public:
         machine_measurements.register_datamodel(registry);
         dc_link_measurements.register_datamodel(registry);
         speed_controller.register_datamodel(registry);
+        torque_controller.register_datamodel(registry);
         current_controller.register_datamodel(registry);
         machine_side_controller.register_datamodel(registry);
         grid_side_pulse_generator.register_datamodel(registry);
@@ -121,6 +127,7 @@ public:
 
     // Control components
     sfc_speed_controller_runner speed_controller;
+    sfc_torque_controller_runner torque_controller;
     sfc_current_controller_runner current_controller;
     sfc_machine_side_controller_runner machine_side_controller;
 
@@ -137,13 +144,9 @@ public:
     sfc_plant_model_runner plant;
 
     // External control signals
-    signal_output<torque_pu_t> load_torque;
     signal_output<speed_pu_t> speed_reference;
     signal_output<bool> enable_speed_control;
     signal_output<current_pu_t> external_current_reference_pu;
-
-    // Internal signal for torque-to-current conversion (simplified tests without torque controller)
-    signal_output<current_pu_t> current_reference_from_speed_ctrl;
 
     // Field current reference for variable-speed operation (no excitation controller in this builder)
     signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
@@ -201,14 +204,26 @@ private:
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_speed, speed_controller.get_inputs().measured_speed);
 
-        // ==================== Speed Controller → Current Controller ====================
-        // Connect speed controller output to current controller reference (cascade control)
+        // ==================== Speed Controller → Torque Controller → Current Controller ====================
+        // Cascade control: Speed Controller outputs torque reference → Torque Controller → Current Controller
 
-        // Current reference from speed controller to current controller (1:1 torque-to-current assumption)
-        // NOTE: In full SFC system, torque controller sits between speed and current controllers
-        // Using intermediate signal for type conversion (torque_pu_t → current_pu_t)
+        // Speed controller torque reference → Torque controller input
         signals_connector::connect_output_to_input(
-            current_reference_from_speed_ctrl, current_controller.get_inputs().current_reference);
+            speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
+
+        // Torque controller current reference → Current controller input
+        signals_connector::connect_output_to_input(
+            torque_controller.get_outputs().current_reference, current_controller.get_inputs().current_reference);
+
+        // Bumpless transfer: Applied torque (after limiting) fed back to speed controller
+        signals_connector::connect_output_to_input(
+            torque_controller.get_outputs().torque_reference, speed_controller.get_inputs().applied_torque_reference);
+
+        // Anti-windup saturation cascade: current_controller → torque_controller → speed_controller
+        signals_connector::connect_output_to_input(
+            current_controller.get_outputs().is_saturated, torque_controller.get_inputs().is_saturated);
+        signals_connector::connect_output_to_input(
+            torque_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
 
         // ==================== DC Link Measurements → Current Controller ====================
         // Connect DC link current feedback to current controller
@@ -220,12 +235,12 @@ private:
         // Mock the modulator freeze integrator signal for this simplified configuration
         yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
-        // ==================== Speed Controller → Machine Side Controller ====================
-        // Connect speed controller output and speed to machine side controller for lookup table
+        // ==================== Torque Controller → Machine Side Controller ====================
+        // Connect torque controller current reference to machine side controller for lookup table
 
-        // DC link current reference for lookup table input (1:1 torque-to-current assumption)
+        // DC link current reference for lookup table input
         signals_connector::connect_output_to_input(
-            current_reference_from_speed_ctrl, machine_side_controller.get_inputs().dc_link_current);
+            torque_controller.get_outputs().current_reference, machine_side_controller.get_inputs().dc_link_current);
 
         // Machine speed for lookup table input
         signals_connector::connect_output_to_input(
@@ -248,7 +263,7 @@ private:
         // ==================== Pulse Generators → Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
 
-         signals_connector::connect_output_to_input(
+        signals_connector::connect_output_to_input(
             grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(
@@ -274,9 +289,6 @@ private:
 
         // Speed control enable/disable
         signals_connector::connect_output_to_input(enable_speed_control, speed_controller.get_inputs().release_pulses);
-
-        signals_connector::connect_output_to_input(
-            current_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
 
         // Feedforward signals for improved current control performance
         signals_connector::connect_output_to_input(grid_measurements.get_outputs().grid_voltage_magnitude_filtered,

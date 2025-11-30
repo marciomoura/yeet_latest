@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <string_view>
 #include <variant>
 
 #include "sfc_integration/plant_current_control_with_modulators_simulation_builder.hpp"
@@ -7,16 +8,18 @@
 #include "sfc_integration/plant_sensorless_current_control_simulation_builder.hpp"
 #include "sfc_integration/plant_simplified_current_control_mocked_hardware_simulation_builder.hpp"
 #include "sfc_integration/plant_simplified_current_control_simulation_builder.hpp"
+#include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "sfc_loggers.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
-using yeet::application::sfc::integration::plant_current_control_with_modulators_simulation_builder;  // ADDED
+using yeet::application::sfc::integration::plant_current_control_with_modulators_simulation_builder;
 using yeet::application::sfc::integration::plant_sensorless_current_control_mocked_hardware_simulation_builder;
 using yeet::application::sfc::integration::plant_sensorless_current_control_simulation_builder;
 using yeet::application::sfc::integration::plant_simplified_current_control_mocked_hardware_simulation_builder;
 using yeet::application::sfc::integration::plant_simplified_current_control_simulation_builder;
+using yeet::application::sfc::integration::sfc_plant_model_datamodel;
 
 using namespace yeet;
 
@@ -25,7 +28,7 @@ using system_variant_t = std::variant<plant_simplified_current_control_mocked_ha
     plant_simplified_current_control_simulation_builder*,
     plant_sensorless_current_control_simulation_builder*,
     plant_sensorless_current_control_mocked_hardware_simulation_builder*,
-    plant_current_control_with_modulators_simulation_builder*>;  // ADDED
+    plant_current_control_with_modulators_simulation_builder*>;
 
 template <class... Ts>
 struct overloaded : Ts... {
@@ -34,13 +37,29 @@ struct overloaded : Ts... {
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
-template <typename BuilderT>
-class CurrentControlNaturalCommutationTypedTest : public ::testing::Test {
+// ---------- test parameter wrapper ----------
+// Combines builder type with plant topology selection for parameterized testing
+template <typename BuilderT, sfc_plant_model_datamodel::topology_type Topology>
+struct current_control_test_config {
+    using builder_type = BuilderT;
+    static constexpr auto topology = Topology;
+    static constexpr std::string_view topology_name =
+        (Topology == sfc_plant_model_datamodel::topology_type::simulink) ? "SimulinkModel" : "InternalModel";
+};
+
+template <typename ConfigT>
+class CurrentControlTypedTest : public ::testing::Test {
 public:
+    using builder_type = typename ConfigT::builder_type;
+
     void SetUp() override
     {
         sim.configure_sampler_sampling_rate(200e-6);
         system.register_applications(sim);
+
+        // Configure plant topology based on test parameter
+        set_plant_topology(ConfigT::topology);
+
         system.initialize();
         register_common_loggers();
         initialize_simulation();
@@ -76,11 +95,9 @@ public:
                            register_complete_logger(sim, sys->machine_side_observer);
                            register_complete_logger(sim, sys->grid_side_observer);
                        },
-                       // NEW: plant_current_control_with_modulators_simulation_builder
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
                            register_complete_logger(sim, sys->current_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
-                           // Add any specific modulators / observer loggers here if available
                        }},
             system_variant_t{&system});
     }
@@ -203,44 +220,75 @@ public:
                     return sys->current_controller.get_outputs().current_error.read();
                 },
                 [&](plant_sensorless_current_control_mocked_hardware_simulation_builder const* sys) -> current_pu_t {
-                    return 0.1 * sys->current_controller.get_outputs()
-                                     .current_error
-                                     .read();  // TODO: Plant model needs to be fixed - yields in wrong dc-link current
+                    return 0.1 * sys->current_controller.get_outputs().current_error.read();
                 },
                 [&](plant_current_control_with_modulators_simulation_builder const* sys) -> current_pu_t {
-                    return sys->current_controller.get_outputs()
-                        .current_error.read();  // TODO: Plant model needs to be fixed - yields in wrong dc-link current
+                    return sys->current_controller.get_outputs().current_error.read();
                 }},
-            system_variant_t{const_cast<BuilderT*>(&system)});
+            system_variant_t{const_cast<builder_type*>(&system)});
+    }
+
+    void set_plant_topology(sfc_plant_model_datamodel::topology_type topology) noexcept
+    {
+        std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
+                                  sys->plant.get_parameters().topology.write(topology);
+                              },
+                       [&](plant_simplified_current_control_simulation_builder* sys) {
+                           sys->plant.get_parameters().topology.write(topology);
+                       },
+                       [&](plant_sensorless_current_control_simulation_builder* sys) {
+                           sys->plant.get_parameters().topology.write(topology);
+                       },
+                       [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
+                           sys->plant.get_parameters().topology.write(topology);
+                       },
+                       [&](plant_current_control_with_modulators_simulation_builder* sys) {
+                           sys->plant.get_parameters().topology.write(topology);
+                       }},
+            system_variant_t{&system});
     }
 
 protected:
-    BuilderT system;
+    builder_type system;
     yeet::simulator sim = yeet::make_gtest_simulator();
 };
 
-// GoogleTest requires this functor-style template with GetName(int)
-struct TypedTestNameGenerator {
+// ---- Name generator ----
+struct CurrentControlTestNameGenerator {
     template <typename T>
     static std::string GetName(int)
     {
-        return std::string{T::name.data()};
+        return std::string{T::builder_type::name.data()} + "_" + std::string{T::topology_name};
     }
 };
 
-using TestedBuilders = ::testing::Types<plant_simplified_current_control_simulation_builder,
-    plant_simplified_current_control_mocked_hardware_simulation_builder,
-    plant_sensorless_current_control_simulation_builder,
-    plant_sensorless_current_control_mocked_hardware_simulation_builder,
-    plant_current_control_with_modulators_simulation_builder>;
+// ---- Test configurations: all combinations of builders and topologies ----
+using CurrentControlTestedConfigs = ::testing::Types<
+    // Simulink model configurations
+    current_control_test_config<plant_simplified_current_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    current_control_test_config<plant_simplified_current_control_mocked_hardware_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    current_control_test_config<plant_sensorless_current_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    current_control_test_config<plant_sensorless_current_control_mocked_hardware_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    current_control_test_config<plant_current_control_with_modulators_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::simulink>,
+    // Internal model configurations
+    current_control_test_config<plant_simplified_current_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::internal>,
+    current_control_test_config<plant_sensorless_current_control_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::internal>,
+    current_control_test_config<plant_current_control_with_modulators_simulation_builder,
+        sfc_plant_model_datamodel::topology_type::internal>>;
 
-// Provide custom name generator as 3rd argument
-TYPED_TEST_SUITE(CurrentControlNaturalCommutationTypedTest, TestedBuilders, TypedTestNameGenerator);
+TYPED_TEST_SUITE(CurrentControlTypedTest, CurrentControlTestedConfigs, CurrentControlTestNameGenerator);
 
 // DC-link current regulation with two sequential reference steps (0.5 pu -> 1.0 pu)
 // Checker is explicitly deactivated during each commanded step transient and
 // re-activated only for the intended steady‑state windows.
-TYPED_TEST(CurrentControlNaturalCommutationTypedTest, CurrentRegulationNominalOperation)
+TYPED_TEST(CurrentControlTypedTest, CurrentRegulationNominalOperation)
 {
     // Create checker with ±0.2 pu allowable steady‑state dc‑link current error
     auto current_error_checker = this->create_current_error_checker(current_pu_t(0.2f));
@@ -266,7 +314,7 @@ TYPED_TEST(CurrentControlNaturalCommutationTypedTest, CurrentRegulationNominalOp
     EXPECT_TRUE(this->sim.simulate_for(1.5));  // Steady‑state monitoring window
 }
 
-TYPED_TEST(CurrentControlNaturalCommutationTypedTest, CurrentRegulationFrequency80PerUnit)
+TYPED_TEST(CurrentControlTypedTest, CurrentRegulationFrequency80PerUnit)
 {
     auto current_error_checker = this->create_current_error_checker(current_pu_t(0.2f));
 
@@ -294,7 +342,7 @@ TYPED_TEST(CurrentControlNaturalCommutationTypedTest, CurrentRegulationFrequency
     EXPECT_TRUE(success);
 }
 
-TYPED_TEST(CurrentControlNaturalCommutationTypedTest, CurrentRegulationFrequency60PerUnit)
+TYPED_TEST(CurrentControlTypedTest, CurrentRegulationFrequency60PerUnit)
 {
     // Same pattern as the 0.8 pu test, but stepping to 0.6 pu frequency/voltage.
     auto current_error_checker = this->create_current_error_checker(current_pu_t(0.2f));

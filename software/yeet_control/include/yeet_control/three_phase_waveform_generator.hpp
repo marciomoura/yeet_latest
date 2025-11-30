@@ -362,12 +362,7 @@ public:
      *
      * @param frequency fundamental signal frequency
      */
-    void set_signal_frequency(real_t frequency)
-    {
-        assert(frequency > 0.0f && "Frequency must be greater than 0");
-
-        m_signal_frequency = frequency;
-    }
+    void set_signal_frequency(real_t frequency) { m_signal_frequency = frequency; }
 
     /**
      * @brief Adds a harmonic of the fundamental frequency to the signal. Be aware that this function uses dynamic

@@ -35,6 +35,14 @@ public:
     };
 
     /**
+     * @brief Defines the back-to-back topology implementation to use.
+     */
+    enum class topology_type {
+        simulink,  ///< Use Simulink-generated model wrapper (default)
+        internal   ///< Use internal C++ thyristor model
+    };
+
+    /**
      * @brief Input signals for the SFC plant model component
      */
     struct inputs {
@@ -143,6 +151,12 @@ public:
         /// Used to simulate voltage sags, swells, or off-nominal conditions
         /// Default: 1.0 pu (nominal voltage)
         parameter<voltage_pu_t> grid_voltage_pu = voltage_pu_t(1.0);
+
+        /// Topology implementation to use for the back-to-back converter model
+        /// simulink: Use Simulink-generated model wrapper (default, validated against Matlab)
+        /// internal: Use internal C++ thyristor model (faster, no external dependencies)
+        /// Note: This parameter must be set before initialize() is called
+        parameter<topology_type> topology = topology_type::simulink;
     };
 
 private:

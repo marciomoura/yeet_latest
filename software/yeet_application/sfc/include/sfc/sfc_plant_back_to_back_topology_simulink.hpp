@@ -3,8 +3,7 @@
 #include <array>
 #include <memory>
 
-#include "grid_side_hardware_mock.hpp"
-#include "machine_side_hardware_mock.hpp"
+#include "sfc_plant_back_to_back_topology_interface.hpp"
 #include "sfc_plant_model_parameters.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/reference_frame.hpp"
@@ -23,7 +22,7 @@ namespace yeet::application::sfc {
  * handling type conversions and providing accessor methods for all electrical quantities.
  * Parameters are configurable and not tied to specific default values.
  */
-class sfc_plant_model_6p_6p {
+class sfc_plant_back_to_back_topology_simulink : public sfc_plant_back_to_back_topology_interface {
 public:
     static constexpr double kSamplingTime = 10e-6;  // 10 µs sampling time (100 kHz)
 
@@ -31,51 +30,52 @@ public:
      * @brief Constructs the plant model wrapper with configurable parameters.
      * @param electrical_params Electrical configuration parameters
      */
-    explicit sfc_plant_model_6p_6p(const sfc_plant_model_electrical_parameters& electrical_params);
+    explicit sfc_plant_back_to_back_topology_simulink(const sfc_plant_model_electrical_parameters& electrical_params);
 
     /**
      * @brief Constructs the plant model wrapper with default configuration for 6p-6p topology.
      */
-    sfc_plant_model_6p_6p();
+    sfc_plant_back_to_back_topology_simulink();
 
     /**
      * @brief Destructor.
      */
-    ~sfc_plant_model_6p_6p();
+    ~sfc_plant_back_to_back_topology_simulink() override;
 
     // Prevent copying and moving
-    sfc_plant_model_6p_6p(const sfc_plant_model_6p_6p&) = delete;
-    sfc_plant_model_6p_6p& operator=(const sfc_plant_model_6p_6p&) = delete;
-    sfc_plant_model_6p_6p(sfc_plant_model_6p_6p&&) = delete;
-    sfc_plant_model_6p_6p& operator=(sfc_plant_model_6p_6p&&) = delete;
+    sfc_plant_back_to_back_topology_simulink(const sfc_plant_back_to_back_topology_simulink&) = delete;
+    sfc_plant_back_to_back_topology_simulink& operator=(const sfc_plant_back_to_back_topology_simulink&) = delete;
+    sfc_plant_back_to_back_topology_simulink(sfc_plant_back_to_back_topology_simulink&&) = delete;
+    sfc_plant_back_to_back_topology_simulink& operator=(sfc_plant_back_to_back_topology_simulink&&) = delete;
 
     /**
      * @brief Configures the electrical parameters of the plant model.
      * @param electrical_params New electrical configuration parameters
      */
-    void configure_electrical_parameters(const sfc_plant_model_electrical_parameters& electrical_params);
+    void configure_electrical_parameters(const sfc_plant_model_electrical_parameters& electrical_params) override;
 
     /**
      * @brief Configures the mechanical parameters of the plant model.
      * @param mechanical_params New mechanical configuration parameters
      */
-    void configure_mechanical_parameters(const sfc_plant_model_mechanical_parameters& mechanical_params);
+    void configure_mechanical_parameters(const sfc_plant_model_mechanical_parameters& mechanical_params) override;
 
     /**
      * @brief Configures the voltage control parameters of the plant model.
      * @param voltage_control_params New voltage control configuration parameters
      */
-    void configure_voltage_control_parameters(const sfc_plant_model_voltage_control_parameters& voltage_control_params);
+    void configure_voltage_control_parameters(
+        const sfc_plant_model_voltage_control_parameters& voltage_control_params) override;
 
     /**
      * @brief Initializes the underlying Simulink model.
      */
-    void initialize();
+    void initialize() override;
 
     /**
      * @brief Executes one step of the simulation.
      */
-    void update();
+    void update() override;
 
     /**
      * @brief Updates the model with new firing pulses and voltage parameters.
@@ -91,56 +91,56 @@ public:
         frequency_t grid_frequency_hz,
         frequency_t machine_frequency_hz,
         voltage_t grid_voltage_rms,
-        voltage_t machine_voltage_rms);
+        voltage_t machine_voltage_rms) override;
 
     /**
      * @brief Terminates the underlying Simulink model.
      */
-    void terminate();
+    void terminate() override;
 
     /**
      * @brief Sets the firing pulses for the grid-side converter.
      * @param pulses An array of 6 pulse values (true for on, false for off).
      */
-    void set_grid_side_pulses(const std::array<bool, 6>& pulses);
+    void set_grid_side_pulses(const std::array<bool, 6>& pulses) override;
 
     /**
      * @brief Sets the firing pulses for the machine-side converter.
      * @param pulses An array of 6 pulse values (true for on, false for off).
      */
-    void set_machine_side_pulses(const std::array<bool, 6>& pulses);
+    void set_machine_side_pulses(const std::array<bool, 6>& pulses) override;
 
     /**
      * @brief Sets the grid-side voltage source parameters.
      * @param frequency_hz The frequency in Hertz.
      * @param voltage_rms The line-to-line RMS voltage.
      */
-    void set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms);
+    void set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms) override;
 
     /**
      * @brief Sets the machine-side voltage source parameters.
      * @param frequency_hz The frequency in Hertz.
      * @param voltage_rms The line-to-line RMS voltage.
      */
-    void set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms);
+    void set_machine_parameters(frequency_t frequency_hz, voltage_t voltage_rms) override;
 
     // Output getters - Current model state
-    frequency_t get_grid_frequency() const noexcept;
-    frequency_t get_machine_frequency() const noexcept;
-    voltage_t get_rms_grid_voltage() const noexcept;
-    voltage_t get_rms_machine_voltage() const noexcept;
-    abc<voltage_t> get_grid_side_voltages_abc() const noexcept;
-    abc<current_t> get_grid_side_currents_abc() const noexcept;
-    abc<voltage_t> get_machine_side_voltages_abc() const noexcept;
-    abc<current_t> get_machine_side_currents_abc() const noexcept;
-    angle_wrapped get_grid_voltage_source_angle() const noexcept;
-    angle_wrapped get_machine_voltage_source_angle() const noexcept;
-    current_t get_dc_link_current() const noexcept;
+    frequency_t get_grid_frequency() const noexcept override;
+    frequency_t get_machine_frequency() const noexcept override;
+    voltage_t get_rms_grid_voltage() const noexcept override;
+    voltage_t get_rms_machine_voltage() const noexcept override;
+    abc<voltage_t> get_grid_side_voltages_abc() const noexcept override;
+    abc<current_t> get_grid_side_currents_abc() const noexcept override;
+    abc<voltage_t> get_machine_side_voltages_abc() const noexcept override;
+    abc<current_t> get_machine_side_currents_abc() const noexcept override;
+    angle_wrapped get_grid_voltage_source_angle() const noexcept override;
+    angle_wrapped get_machine_voltage_source_angle() const noexcept override;
+    current_t get_dc_link_current() const noexcept override;
 
     // Parameter getters - Current configuration values
-    const sfc_plant_model_electrical_parameters& get_electrical_parameters() const noexcept;
-    const sfc_plant_model_mechanical_parameters& get_mechanical_parameters() const noexcept;
-    const sfc_plant_model_voltage_control_parameters& get_voltage_control_parameters() const noexcept;
+    const sfc_plant_model_electrical_parameters& get_electrical_parameters() const noexcept override;
+    const sfc_plant_model_mechanical_parameters& get_mechanical_parameters() const noexcept override;
+    const sfc_plant_model_voltage_control_parameters& get_voltage_control_parameters() const noexcept override;
 
 private:
     /**

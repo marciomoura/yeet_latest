@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "sfc/sfc_per_unit_system.hpp"
-#include "sfc/sfc_plant_model_augmented_6p_6p.hpp"
+#include "sfc/sfc_plant_model_voltage_behind_reactance.hpp"
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "yeet/application_interface.hpp"
 
@@ -16,14 +16,14 @@ namespace yeet::application::sfc::integration {
  * It manages the plant model execution, mechanical load dynamics, and per-unit system
  * conversion for interfacing with other control components.
  *
- * Based on the sfc_plant_model_augmented_6p_6p.
+ * Based on the sfc_plant_model_voltage_behind_reactance.
  */
 class sfc_plant_model_runner : public yeet::base_application<sfc_plant_model_datamodel::inputs,
                                    sfc_plant_model_datamodel::outputs,
                                    sfc_plant_model_datamodel::parameters> {
 public:
     using datamodel = sfc_plant_model_datamodel;
-    static constexpr double sampling_time = sfc::sfc_plant_model_augmented_6p_6p::kSamplingTime;
+    static constexpr double sampling_time = sfc::sfc_plant_model_voltage_behind_reactance::kSamplingTime;
 
     /**
      * @brief Constructor
@@ -36,7 +36,7 @@ public:
     void run() override;
     void stop() override;
 
-    sfc::sfc_plant_model_augmented_6p_6p& get_plant_model() { return _plant; }
+    sfc::sfc_plant_model_voltage_behind_reactance& get_plant_model() { return *_plant; }
     const std::shared_ptr<sfc::sfc_per_unit_system>& get_per_unit_system() const noexcept { return _per_unit_system; }
 
 private:
@@ -45,7 +45,7 @@ private:
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
-    sfc::sfc_plant_model_augmented_6p_6p _plant;
+    std::unique_ptr<sfc::sfc_plant_model_voltage_behind_reactance> _plant;
 };
 
 }  // namespace yeet::application::sfc::integration
