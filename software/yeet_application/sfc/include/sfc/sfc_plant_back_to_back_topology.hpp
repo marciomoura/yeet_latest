@@ -87,7 +87,6 @@ private:
 
     void update_voltage_generators();
     void rebuild_converter();
-    real_t rms_to_peak_phase(voltage_t v_rms_ll) const noexcept;
 
 private:
     // Parameters

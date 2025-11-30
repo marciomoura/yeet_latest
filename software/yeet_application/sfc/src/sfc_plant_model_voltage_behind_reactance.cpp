@@ -23,43 +23,19 @@ std::unique_ptr<sfc_plant_back_to_back_topology_interface> create_topology(
     return std::make_unique<sfc_plant_back_to_back_topology_simulink>(electrical_params);
 }
 
+std::unique_ptr<sfc_plant_back_to_back_topology_interface> create_default_topology(plant_topology_type topology)
+{
+    switch (topology) {
+        case plant_topology_type::simulink:
+            return std::make_unique<sfc_plant_back_to_back_topology_simulink>();
+        case plant_topology_type::internal:
+            return std::make_unique<sfc_plant_back_to_back_topology>();
+    }
+    // Default to simulink if unknown
+    return std::make_unique<sfc_plant_back_to_back_topology_simulink>();
+}
+
 }  // namespace
-
-namespace {
-// Private namespace for 6p-6p topology default parameters
-
-// Frequency and electrical parameters with proper units
-static constexpr frequency_t kNominalGridFrequency = frequency_t(50.0);     // 50 Hz grid frequency
-static constexpr frequency_t kNominalMachineFrequency = frequency_t(50.0);  // 50 Hz machine frequency
-static constexpr voltage_t kNominalGridVoltageRMS = voltage_t(2090.0);      // 2090V RMS line voltage
-static constexpr voltage_t kNominalMachineVoltageRMS = voltage_t(1980.0);   // 1980V RMS line voltage
-
-// Firing angles (dimensionless angles in degrees)
-static constexpr angle_t kNominalGridFiringAngleDeg = angle_t(13.0);              // Nominal firing angle for grid side
-static constexpr angle_t kNominalMachineFiringAngleDeg = angle_t(180.0 - 26.84);  // Nominal firing angle for motor side
-
-// Circuit parameters with proper units
-static constexpr resistance_t kGridSideResistance = resistance_t(0.1552);        // 0.1552 Ohm grid side resistance
-static constexpr inductance_t kGridSideInductance = inductance_t(0.4941e-3);     // 0.4941 mH grid side inductance
-static constexpr resistance_t kMachineSideResistance = resistance_t(0.0788);     // 0.0788 Ohm machine side resistance
-static constexpr inductance_t kMachineSideInductance = inductance_t(0.2508e-3);  // 0.2508 mH machine side inductance
-
-// Power and current ratings with proper units
-static constexpr current_t kBaseDCLinkCurrent = current_t(1044.0);  // 1044 A base DC link current
-static constexpr power_t kMachineRatedPowerVA = power_t(2950e3);    // 2.95 MVA machine rated power
-static constexpr int kMachineNumPoles = 2;                          // Number of poles (dimensionless)
-
-// Default Mechanical Parameters with proper units
-static constexpr inertia_constant_t kDefaultInertiaConstantH = inertia_constant_t(2.5);  // 2.5 s inertia constant
-static constexpr damping_coefficient_pu_t kDefaultDampingFactorD =
-    damping_coefficient_pu_t(0.01);  // 0.01 pu damping factor
-
-// Default Speed-Voltage Parameters
-static constexpr real_t kDefaultVoltageSpeedCoefficient = 0.9f;  // 0.9 pu/pu voltage-speed coefficient (legacy)
-static constexpr real_t kDefaultVoltageOffset =
-    0.1f;  // 0.1 pu minimum voltage offset at standstill (resistive component)
-
-}  // anonymous namespace
 
 sfc_plant_model_voltage_behind_reactance::sfc_plant_model_voltage_behind_reactance(
     const sfc_plant_model_electrical_parameters& electrical_params,
@@ -424,36 +400,27 @@ plant_topology_type sfc_plant_model_voltage_behind_reactance::get_topology_type(
 }
 
 // Private factory methods for default parameters
+// Delegate to the default topology to get consistent parameters
 sfc_plant_model_electrical_parameters
 sfc_plant_model_voltage_behind_reactance::create_default_electrical_parameters() noexcept
 {
-    return sfc_plant_model_electrical_parameters{.grid_frequency = kNominalGridFrequency,
-        .machine_frequency = kNominalMachineFrequency,
-        .grid_voltage_rms = kNominalGridVoltageRMS,
-        .machine_voltage_rms = kNominalMachineVoltageRMS,
-        .grid_firing_angle_deg = kNominalGridFiringAngleDeg,
-        .machine_firing_angle_deg = kNominalMachineFiringAngleDeg,
-        .grid_side_resistance = kGridSideResistance,
-        .grid_side_inductance = kGridSideInductance,
-        .machine_side_resistance = kMachineSideResistance,
-        .machine_side_inductance = kMachineSideInductance,
-        .base_dc_link_current = kBaseDCLinkCurrent,
-        .machine_rated_power_va = kMachineRatedPowerVA,
-        .machine_num_poles = kMachineNumPoles};
+    // Use Simulink topology as the default source of parameters
+    auto default_topology = create_default_topology(plant_topology_type::simulink);
+    return default_topology->get_electrical_parameters();
 }
 
 sfc_plant_model_mechanical_parameters
 sfc_plant_model_voltage_behind_reactance::create_default_mechanical_parameters() noexcept
 {
-    return sfc_plant_model_mechanical_parameters{
-        .inertia_constant_h = kDefaultInertiaConstantH, .damping_factor_d = kDefaultDampingFactorD};
+    auto default_topology = create_default_topology(plant_topology_type::simulink);
+    return default_topology->get_mechanical_parameters();
 }
 
 sfc_plant_model_voltage_control_parameters
 sfc_plant_model_voltage_behind_reactance::create_default_voltage_control_parameters() noexcept
 {
-    return sfc_plant_model_voltage_control_parameters{
-        .voltage_speed_coefficient = kDefaultVoltageSpeedCoefficient, .voltage_offset = kDefaultVoltageOffset};
+    auto default_topology = create_default_topology(plant_topology_type::simulink);
+    return default_topology->get_voltage_control_parameters();
 }
 
 void sfc_plant_model_voltage_behind_reactance::step_mechanical_dynamics()

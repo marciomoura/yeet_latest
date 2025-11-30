@@ -26,9 +26,27 @@ constexpr real_t peak_to_rms_factor = 1.0 / rms_to_peak_factor;
 constexpr real_t phase_to_line_rms_factor = 1.73205080757;  // std::sqrt(3.0);
 constexpr real_t line_to_phase_rms_factor = 1.0 / phase_to_line_rms_factor;
 
+template <typename T>
+constexpr T phase_to_line(T phase_val)
+{
+    return phase_to_line_rms_factor * phase_val;
+}
+
+template <typename T>
+constexpr T line_to_phase(T line_val)
+{
+    return line_to_phase_rms_factor * line_val;
+}
+
 // --- Clarke Transform ---
 constexpr real_t two_thirds = 2.0 / 3.0;
 constexpr real_t sqrt_two_thirds = 0.81649658092;  // std::sqrt(2.0 / 3.0);
+
+template <typename T>
+constexpr T line_to_phase_peak(T line_rms)
+{
+    return sqrt_two_thirds * line_rms;
+}
 
 constexpr real_t sqrt_2 = 1.41421356237;        // std::sqrt(2.0);
 constexpr real_t sqrt_3 = 1.73205080757;        // std::sqrt(3.0);

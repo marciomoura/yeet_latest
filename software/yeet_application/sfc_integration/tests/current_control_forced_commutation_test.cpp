@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "sfc_integration/plant_current_control_with_modulators_simulation_builder.hpp"
+#include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "sfc_loggers.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
@@ -8,21 +9,24 @@
 using namespace yeet;
 using namespace yeet::application::sfc::integration;
 
-// ---------- Param struct (only machine frequency & voltage are parameterized) ----------
+// ---------- Param struct (machine frequency, voltage, and topology are parameterized) ----------
 struct forced_comm_init {
     float freq_pu;
     float voltage_pu;
+    sfc_plant_model_datamodel::topology_type topology;
 };
 
 std::string ForcedCommParamName(const ::testing::TestParamInfo<forced_comm_init>& info)
 {
-    // Create a simple alphanumeric name (e.g. Freq005_Volt020)
+    // Create a simple alphanumeric name (e.g. Freq005_Volt020_Simulink)
     const auto scale = [](float v) {
         char buf[16];
         std::snprintf(buf, sizeof(buf), "%03d", int(v * 100));  // scale by 100
         return std::string(buf);
     };
-    return "Freq" + scale(info.param.freq_pu) + "_Volt" + scale(info.param.voltage_pu);
+    const std::string topology_str =
+        (info.param.topology == sfc_plant_model_datamodel::topology_type::simulink) ? "Simulink" : "Internal";
+    return "Freq" + scale(info.param.freq_pu) + "_Volt" + scale(info.param.voltage_pu) + "_" + topology_str;
 }
 
 // ---------- Test Fixture ----------
@@ -32,6 +36,11 @@ public:
     {
         simulator.configure_sampler_sampling_rate(100e-6);
         system.register_applications(simulator);
+
+        // Configure topology based on test parameter
+        const auto& p = GetParam();
+        system.plant.get_parameters().topology.write(p.topology);
+
         system.initialize();
 
         register_complete_logger(simulator, system.current_controller);
@@ -47,7 +56,6 @@ public:
         system.grid_side_pulse_generator.get_parameters().enable.write(true);
         system.machine_side_pulse_generator.get_parameters().enable.write(true);
 
-        const auto& p = GetParam();
         system.plant.get_plant_model().set_machine_frequency_pu(frequency_pu_t{p.freq_pu});
         system.plant.get_plant_model().set_machine_voltage_pu(voltage_pu_t{p.voltage_pu});
     }
@@ -112,7 +120,13 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
 // ---------- Parameter Set ----------
 INSTANTIATE_TEST_SUITE_P(ForcedLowSpeedOperatingPoints,
     CurrentControlForcedCommutationParamTest,
-    ::testing::Values(forced_comm_init{0.01f, 0.10f},  // freq_pu, voltage_pu
-        forced_comm_init{0.05f, 0.20f},                // freq_pu, voltage_pu
-        forced_comm_init{0.1f, 0.20f}),                // freq_pu, voltage_pu
+    ::testing::Values(
+        // Simulink model
+        forced_comm_init{0.01f, 0.10f, sfc_plant_model_datamodel::topology_type::simulink},
+        forced_comm_init{0.05f, 0.20f, sfc_plant_model_datamodel::topology_type::simulink},
+        forced_comm_init{0.1f, 0.20f, sfc_plant_model_datamodel::topology_type::simulink},
+        // Internal model
+        forced_comm_init{0.01f, 0.10f, sfc_plant_model_datamodel::topology_type::internal},
+        forced_comm_init{0.05f, 0.20f, sfc_plant_model_datamodel::topology_type::internal},
+        forced_comm_init{0.1f, 0.20f, sfc_plant_model_datamodel::topology_type::internal}),
     ForcedCommParamName);
