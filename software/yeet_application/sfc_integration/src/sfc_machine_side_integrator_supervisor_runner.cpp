@@ -38,7 +38,10 @@ void sfc_machine_side_integrator_supervisor_runner::run()
         _outputs.freeze_integrator = _parameters.freeze_value;
     }
     else {
-        _outputs.freeze_integrator = _inputs.torque_saturated;
+        // Freeze speed controller integrator when:
+        // 1. Grid-side releases pulses = false (disabled or forced commutation)
+        // 2. Torque controller is saturated (anti-windup)
+        _outputs.freeze_integrator = !_inputs.grid_side_release_pulses || _inputs.torque_saturated;
     }
 
     // TODO
