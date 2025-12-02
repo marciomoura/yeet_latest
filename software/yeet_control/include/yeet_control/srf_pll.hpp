@@ -73,6 +73,18 @@ public:
     void reset(frequency_pu_t initial_frequency);
 
     /**
+     * @brief Presets the PLL integrator to a specific angle.
+     *
+     * This method allows external synchronization by directly setting the
+     * internal phase integrator to a specific angle value. This is useful
+     * for bumpless transfer from virtual reference frame to observer-based
+     * control during startup sequences.
+     *
+     * @param preset_angle The angle to preset the integrator to [rad].
+     */
+    void preset(angle_wrapped preset_angle);
+
+    /**
      * @brief Updates the PLL with a new input sample.
      * @param input_alphabeta The input per-unit voltages in the alpha-beta frame.
      */

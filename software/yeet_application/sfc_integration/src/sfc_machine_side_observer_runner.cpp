@@ -19,11 +19,20 @@ void sfc_machine_side_observer_runner::initialize()
 
     // Set initial speed
     _sfc_machine_side_observer.reset(_parameters.initial_frequency);
+
+    // Initialize edge detector state
+    _preset_previous = false;
 }
 
 void sfc_machine_side_observer_runner::run()
 {
     const bool release_observer = _inputs.release_observer.read();
+    const bool preset_observer = _inputs.preset_observer.read();
+    const angle_wrapped preset_angle = _inputs.preset_angle.read();
+
+    // Edge detection: detect rising edge on preset signal
+    const bool preset_rising_edge = preset_observer && !_preset_previous;
+    _preset_previous = preset_observer;
 
     if (!release_observer) {
         // Observer disabled - reset estimation to zero
@@ -35,7 +44,14 @@ void sfc_machine_side_observer_runner::run()
         _outputs.estimated_frequency_pu = frequency_pu_t{0.0};
         _outputs.estimated_reference_angle = angle_wrapped{0.0};
         _outputs.estimated_voltage_alphabeta_filtered = alphabeta<voltage_pu_t>{voltage_pu_t{0.0}, voltage_pu_t{0.0}};
+        // Reset edge detector
+        _preset_previous = false;
         return;
+    }
+
+    // Check for preset rising edge - execute preset before normal update
+    if (preset_rising_edge) {
+        _sfc_machine_side_observer.preset(preset_angle);
     }
 
     // Normal observer execution when enabled
@@ -48,6 +64,10 @@ void sfc_machine_side_observer_runner::run()
     _outputs.estimated_reference_angle = _sfc_machine_side_observer.get_estimated_angle();
     _outputs.estimated_voltage_alphabeta_filtered = _sfc_machine_side_observer.get_filtered_voltage_alphabeta();
 }
-void sfc_machine_side_observer_runner::stop() { _sfc_machine_side_observer.reset(); }
+void sfc_machine_side_observer_runner::stop()
+{
+    _sfc_machine_side_observer.reset();
+    _preset_previous = false;
+}
 
 }  // namespace yeet::application::sfc::integration

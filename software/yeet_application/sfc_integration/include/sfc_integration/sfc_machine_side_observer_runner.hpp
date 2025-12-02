@@ -26,6 +26,7 @@ public:
 
 private:
     sfc::sfc_machine_side_observer _sfc_machine_side_observer;
+    bool _preset_previous{false};  // For edge detection on preset signal
 };
 
 }  // namespace yeet::application::sfc::integration

@@ -106,6 +106,8 @@ struct controller_command_outputs {
     bool release_machine_observer{false};
     bool release_speed_controller{false};
     bool release_torque_controller{false};
+    bool preset_observer{false};  ///< Preset signal to initialize observer integrator
+    angle_wrapped preset_angle{0.0};  ///< Angle value for observer preset
     startup_sequencer_state_t current_state{startup_sequencer_state_t::IDLE};
 };
 
@@ -306,6 +308,8 @@ private:
     sfc_state_id _previous_state_machine_state{sfc_state_id::IDLE};
     bool _shutdown_speed_override_active{false};
     bool _start_requested{false};
+    bool _preset_requested{false};  ///< Flag to trigger observer preset
+    angle_wrapped _preset_angle_value{0.0};  ///< Angle to preset observer with
     startup_sequencer_outputs _outputs;
 
     // Virtual reference frame generation

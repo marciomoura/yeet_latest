@@ -120,14 +120,30 @@ void sfc_startup_sequencer::update(bool is_field_established,
     // Update outputs based on current state
     update_outputs_for_current_state();
 
-    // Store estimated angle for potential synchronization
+    // Handle observer preset during FLUX_BUILDUP state
+    // During flux buildup, we feed the observer position back to the virtual angle integrator
+    if (_current_state == startup_sequencer_state_t::FLUX_BUILDUP) {
+        // During flux buildup, the observer is running but we want its angle
+        // No preset needed - observer starts from zero
+        _preset_requested = false;
+    }
+    
+    // At the end of STARTING_PROCEDURE, prepare to preset the observer with virtual angle
     if (_current_state == startup_sequencer_state_t::STARTING_PROCEDURE) {
-        // Synchronize virtual angle to estimated before transition
         const duration_t time_remaining =
             _virtual_frequency_config.duration - _virtual_frequency_ramp.get_elapsed_time();
+        
+        // Near the end of virtual frequency ramp, request preset for next cycle
         if (time_remaining < duration_t{0.1}) {  // 100ms before end
-            synchronize_virtual_to_estimated(estimated_rotor_angle);
+            _preset_requested = true;
+            _preset_angle_value = _virtual_rotor_angle;
         }
+    }
+    
+    // Clear preset request when leaving STARTING_PROCEDURE
+    if (_previous_state == startup_sequencer_state_t::STARTING_PROCEDURE && 
+        _current_state != startup_sequencer_state_t::STARTING_PROCEDURE) {
+        _preset_requested = false;
     }
 }
 
@@ -139,6 +155,8 @@ void sfc_startup_sequencer::reset()
     _previous_state_machine_state = sfc_state_id::IDLE;
     _shutdown_speed_override_active = false;
     _start_requested = false;
+    _preset_requested = false;
+    _preset_angle_value = angle_t{0.0};
 
     // Reset all timers
     reset_timers();
@@ -375,6 +393,10 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
 
     // Update controller command outputs based on state
     _outputs.controller_commands.current_state = _current_state;
+    
+    // Update preset outputs
+    _outputs.controller_commands.preset_observer = _preset_requested;
+    _outputs.controller_commands.preset_angle = _preset_angle_value;
 
     switch (_current_state) {
         case startup_sequencer_state_t::IDLE:

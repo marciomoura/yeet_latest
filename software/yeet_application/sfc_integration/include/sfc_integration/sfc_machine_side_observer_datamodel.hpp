@@ -25,6 +25,12 @@ public:
 
         /// Enable signal for observer execution (from startup sequencer)
         yeet::signal_input<bool> release_observer;
+
+        /// Preset signal to initialize observer angle integrator (from startup sequencer)
+        yeet::signal_input<bool> preset_observer;
+
+        /// Preset angle value to initialize observer integrator [rad]
+        yeet::signal_input<angle_wrapped> preset_angle;
     };
 
     /**
@@ -66,6 +72,9 @@ public:
         /// Initial frequency estimate for startup [pu]
         yeet::parameter<frequency_pu_t> initial_frequency = frequency_pu_t{0.01};
 
+        /// Initial position for integrator preset [rad]
+        yeet::parameter<angle_t> initial_position = angle_t{0.0};
+
         /// Frequency estimation filter cutoff frequency [Hz]
         yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
 
@@ -97,6 +106,8 @@ public:
             "nominal_frequency", yeet::utils::make_units_accessor(_model_parameters->nominal_frequency));
         entry.parameters.insert(
             "initial_frequency", yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
+        entry.parameters.insert(
+            "initial_position", yeet::utils::make_units_accessor(_model_parameters->initial_position));
         entry.parameters.insert(
             "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
         entry.parameters.insert("commutation_detection_threshold",

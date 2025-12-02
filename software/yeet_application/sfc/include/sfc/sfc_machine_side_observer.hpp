@@ -75,6 +75,17 @@ public:
     void reset(frequency_pu_t initial_frequency = frequency_pu_t{1.0});
 
     /**
+     * @brief Presets the observer angle integrator to a specific value.
+     *
+     * This method allows external synchronization by directly setting the
+     * internal PLL phase integrator to a specific angle. Used for bumpless
+     * transfer from virtual reference frame during startup.
+     *
+     * @param preset_angle The angle to preset the integrator to [rad].
+     */
+    void preset(angle_wrapped preset_angle);
+
+    /**
      * @brief Gets the estimated grid angle.
      * @return The estimated electrical angle of the grid [rad].
      */

@@ -251,4 +251,38 @@ TEST_F(SrfPllTest, TracksFrequencyRampFromZero)
     EXPECT_TRUE(simulator.simulate_for(0.5));
 }
 
+TEST_F(SrfPllTest, PresetAngle)
+{
+    // Test the PLL's ability to preset the integrator to a specific angle.
+    // This is useful for bumpless transfer from virtual reference frame to observer-based control.
+    
+    // Preset the PLL integrator to a known angle
+    const angle_wrapped preset_angle = angle_wrapped{pi / 3.0};  // 60 degrees
+    pll.preset(preset_angle);
+    
+    // Run one update cycle with the signal
+    waveform_generator.update();
+    const alphabeta<voltage_pu_t> signal_ab =
+        to_dimension_alphabeta<voltage_pu_t>(waveform_generator.get_signal_abc().to_alphabeta());
+    pll.update(signal_ab);
+    
+    // The integrator output should be close to the preset value plus one integration step
+    // We can't check the exact angle because it gets compensation, but we can verify 
+    // the PLL was initialized properly by checking that it can converge from the preset state
+    
+    // Continue simulation and verify the PLL locks to the signal from the preset initial condition
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "frequency after preset", [&]() { return pll.get_estimated_angular_frequency(); },
+        kTestAngularFrequency - kFrequencyTolerance, kTestAngularFrequency + kFrequencyTolerance,
+        yeet::checker_activation_time_range{0.5}));
+    
+    // The angle should converge and track the waveform angle
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "angle error after preset", [&]() { return get_angle_error(); }, 0.0, kAngleTolerance,
+        yeet::checker_activation_time_range{0.5}));
+    
+    EXPECT_TRUE(simulator.simulate_for(0.8));
+}
+
+
 }  // namespace

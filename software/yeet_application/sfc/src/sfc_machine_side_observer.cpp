@@ -76,6 +76,15 @@ void sfc_machine_side_observer::reset(frequency_pu_t initial_frequency)
     _filtered_voltage_alphabeta = alphabeta<voltage_pu_t>{voltage_pu_t{0.0f}, voltage_pu_t{0.0f}};
 }
 
+void sfc_machine_side_observer::preset(angle_wrapped preset_angle)
+{
+    // Preset the PLL integrator with the specified angle
+    _pll.preset(preset_angle);
+    
+    // Update the estimated angle output to match
+    _estimated_angle = preset_angle;
+}
+
 const angle_wrapped& sfc_machine_side_observer::get_estimated_angle() const { return _estimated_angle; }
 
 frequency_t sfc_machine_side_observer::get_estimated_frequency() const { return _estimated_frequency; }

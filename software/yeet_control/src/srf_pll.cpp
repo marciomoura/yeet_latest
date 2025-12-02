@@ -47,6 +47,13 @@ void srf_pll::reset(frequency_pu_t initial_frequency)
     _phase_integrator.reset();
 }
 
+void srf_pll::preset(angle_wrapped preset_angle)
+{
+    // Directly set the phase integrator to the specified angle
+    // This allows for bumpless transfer from external angle source
+    _phase_integrator.reset(preset_angle);
+}
+
 void srf_pll::update(const alphabeta<voltage_pu_t>& input_alphabeta)
 {
     // Park transform (αβ → dq) using the current estimated angle
