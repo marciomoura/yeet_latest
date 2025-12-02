@@ -138,13 +138,19 @@ TEST_F(SfcCombinedModulatorsTest, CompleteHandshakeSequence)
     EXPECT_TRUE(machine_modulator->get_release_pulses());  // Machine releases pulses
     EXPECT_FALSE(machine_modulator->get_request_force_commutation());
 
-    // Extra cycle for grid-side to see the cleared request
+    // Extra cycle for grid-side to see the cleared request (current still zero)
     simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), true);
 
-    // Grid-side should return to natural commutation
+    // Grid-side should return to running state, but freeze remains while current is zero
     EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
     EXPECT_FALSE(grid_modulator->get_force_commutation_acknowledged());
-    EXPECT_FALSE(grid_modulator->get_is_requesting_main_pi_reset());
+    EXPECT_TRUE(grid_modulator->get_is_requesting_main_pi_reset());  // Freeze remains while current is zero
+
+    // Final cycle: current becomes non-zero - freeze is released
+    simulate_control_cycle(true, sfc_operating_mode_t::forced_commutation, deg_to_rad_helper(70.0), false);
+    EXPECT_EQ(grid_modulator->get_current_state(), grid_side_modulator_state_t::running);
+    EXPECT_FALSE(grid_modulator->get_force_commutation_acknowledged());
+    EXPECT_FALSE(grid_modulator->get_is_requesting_main_pi_reset());  // Freeze released when current flows
 }
 
 TEST_F(SfcCombinedModulatorsTest, IntermediateHandshakeStateWithRequestStillActive)
