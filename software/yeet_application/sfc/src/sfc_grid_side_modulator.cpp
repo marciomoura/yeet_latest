@@ -65,15 +65,7 @@ void sfc_grid_side_modulator::update(bool enable,
             _current_state = state_update.new_state;
             _current_firing_angle_rad = state_update.new_firing_angle;
             _force_commutation_acknowledged = state_update.new_force_commutation_acknowledged;
-            _main_pi_reset_requested = state_update.new_main_pi_reset_requested;
-
-            // CRITICAL FIX: In forced commutation mode, keep PI frozen while current is zero
-            // This prevents integrator wind-up/down during zero-current periods in pulse mode,
-            // including the build-up phase after machine-side releases pulses.
-            // The PI should only be active when current is flowing and can be controlled.
-            if (is_current_zero) {
-                _main_pi_reset_requested = true;
-            }
+            _main_pi_reset_requested = state_update.new_main_pi_reset_requested || is_current_zero;
             break;
         }
     }

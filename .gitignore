@@ -65,4 +65,4 @@ boards/to_compare/
 
 
 # Ignore folders containing "Target files" (Typhoon HIL generated files)
-*Target\ files*/testing_*.json
+*Target\ files*/

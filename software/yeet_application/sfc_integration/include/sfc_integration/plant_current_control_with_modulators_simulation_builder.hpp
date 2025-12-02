@@ -47,9 +47,6 @@ public:
 
     void mock_inputs()
     {
-        // Controller integrator freeze stubs (no higher-level state machine here)
-        yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-
         // Enable path: operation mode monitor always enabled
         yeet::mock_signal_input::write(operation_mode_monitor.get_inputs().enable, true);
 
@@ -70,6 +67,9 @@ public:
         // Pulse generators
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
         yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
+
+        // Current controller preset request (no integrator supervisor in this builder)
+        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
     }
 
     void initialize()
@@ -230,10 +230,6 @@ private:
         signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().force_commutation_acknowledged,
             machine_side_modulator.get_inputs().force_commutation_acknowledged);
 
-        // ==================== Optional Reset / PI freeze ====================
-        signals_connector::connect_output_to_input(
-            grid_side_modulator.get_outputs().freeze_integrator, current_controller.get_inputs().preset_request);
-
         // ==================== DC Link & Speed → Operation Mode Monitor ====================
         signals_connector::connect_output_to_input(
             dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current);
@@ -273,6 +269,12 @@ private:
         // ==================== External Setpoints ====================
         signals_connector::connect_output_to_input(
             current_reference, current_controller.get_inputs().current_reference);
+
+        // ==================== Modulator → Current Controller Freeze ====================
+        // During forced commutation, the grid-side modulator requests PI freeze to prevent
+        // transients when the controller is released after commutation completes.
+        signals_connector::connect_output_to_input(
+            grid_side_modulator.get_outputs().freeze_integrator, current_controller.get_inputs().freeze_integrator);
     }
 };
 
