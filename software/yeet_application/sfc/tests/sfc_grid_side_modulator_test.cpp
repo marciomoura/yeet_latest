@@ -136,11 +136,18 @@ TEST_F(SfcGridSideModulatorTest, CompleteHandshakeSequence)
     EXPECT_TRUE(modulator->get_is_requesting_main_pi_reset());
     EXPECT_EQ(modulator->get_firing_angle_rad().value(), default_commutation_angle.value());
 
-    // Phase 4: Machine-side clears request
+    // Phase 4: Machine-side clears request (current still zero - freeze remains active)
     modulator->update(true, sfc_operating_mode_t::forced_commutation, false, true, test_pi_angle, false);
     EXPECT_EQ(modulator->get_current_state(), grid_side_modulator_state_t::running);
     EXPECT_FALSE(modulator->get_force_commutation_acknowledged());
-    EXPECT_FALSE(modulator->get_is_requesting_main_pi_reset());
+    EXPECT_TRUE(modulator->get_is_requesting_main_pi_reset());  // Freeze remains while current is zero
+    EXPECT_EQ(modulator->get_firing_angle_rad().value(), test_pi_angle.value());
+
+    // Phase 5: Current becomes non-zero - freeze is released
+    modulator->update(true, sfc_operating_mode_t::forced_commutation, false, false, test_pi_angle, false);
+    EXPECT_EQ(modulator->get_current_state(), grid_side_modulator_state_t::running);
+    EXPECT_FALSE(modulator->get_force_commutation_acknowledged());
+    EXPECT_FALSE(modulator->get_is_requesting_main_pi_reset());  // Freeze released when current flows
     EXPECT_EQ(modulator->get_firing_angle_rad().value(), test_pi_angle.value());
 }
 

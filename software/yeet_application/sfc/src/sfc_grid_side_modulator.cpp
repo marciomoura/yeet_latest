@@ -65,7 +65,7 @@ void sfc_grid_side_modulator::update(bool enable,
             _current_state = state_update.new_state;
             _current_firing_angle_rad = state_update.new_firing_angle;
             _force_commutation_acknowledged = state_update.new_force_commutation_acknowledged;
-            _main_pi_reset_requested = state_update.new_main_pi_reset_requested;
+            _main_pi_reset_requested = state_update.new_main_pi_reset_requested || is_current_zero;
             break;
         }
     }

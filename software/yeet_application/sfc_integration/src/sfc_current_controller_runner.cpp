@@ -21,15 +21,8 @@ void sfc_current_controller_runner::initialize()
 
 void sfc_current_controller_runner::run()
 {
-    // Disable integrator when current reference is at or near zero
-    // The LCI cannot actually achieve zero current (requires minimum current for commutation).
-    // Integrating this persistent error would cause the integrator to wind down to negative values.
-    // This is a physical constraint - we cannot impress zero current in a thyristor-based system.
-    // Threshold set conservatively low to only prevent windup at true zero reference.
-    constexpr current_pu_t minimum_controllable_current{0.001};  // 0.1% of base current
-    bool is_integrator_frozen_for_zero_reference = _inputs.current_reference.read() <= minimum_controllable_current;
+    const bool freeze_integrator = _inputs.freeze_integrator.read();
 
-    const bool freeze_integrator = _inputs.freeze_integrator.read() || is_integrator_frozen_for_zero_reference;
     _sfc_current_controller.freeze_integrator(freeze_integrator);
 
     const voltage_pu_t reflected_machine_voltage_magnitude =
