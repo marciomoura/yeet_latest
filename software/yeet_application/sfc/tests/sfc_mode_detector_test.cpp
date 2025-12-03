@@ -183,3 +183,84 @@ TEST_F(SfcModeDetectorTest, RepeatedEnableDisableCycles)
         EXPECT_TRUE(detector.has_mode_changed());
     }
 }
+
+TEST_F(SfcModeDetectorTest, ForceNaturalCommutationAtLowSpeed)
+{
+    // Configure to force natural commutation mode
+    detector.configure_force_natural_commutation(true);
+
+    // Even at zero speed, should be in natural commutation mode
+    detector.update(enable, speed_pu_t{0.0F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+    EXPECT_TRUE(detector.has_mode_changed());
+
+    // Should remain in natural commutation mode at low speed (below threshold)
+    detector.update(enable, speed_pu_t{0.05F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+    EXPECT_FALSE(detector.has_mode_changed());
+}
+
+TEST_F(SfcModeDetectorTest, ForceNaturalCommutationAtHighSpeed)
+{
+    // Configure to force natural commutation mode
+    detector.configure_force_natural_commutation(true);
+
+    // Should be in natural commutation mode at high speed
+    detector.update(enable, speed_pu_t{0.5F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+    EXPECT_TRUE(detector.has_mode_changed());
+
+    // Should remain in natural commutation mode
+    detector.update(enable, speed_pu_t{1.0F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+    EXPECT_FALSE(detector.has_mode_changed());
+}
+
+TEST_F(SfcModeDetectorTest, ForceNaturalCommutationDisabledRespectsSpeedThresholds)
+{
+    // Configure to force natural commutation mode
+    detector.configure_force_natural_commutation(true);
+    detector.update(enable, speed_pu_t{0.0F});
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+
+    // Disable force natural commutation
+    detector.configure_force_natural_commutation(false);
+
+    // Should now follow normal speed-based mode detection
+    detector.update(enable, speed_pu_t{0.05F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
+    EXPECT_TRUE(detector.has_mode_changed());
+
+    // Increase speed above threshold
+    detector.update(enable, speed_pu_t{switch_up_speed + 0.01F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+    EXPECT_TRUE(detector.has_mode_changed());
+}
+
+TEST_F(SfcModeDetectorTest, ForceNaturalCommutationDisabledBySystemDisable)
+{
+    // Configure to force natural commutation mode
+    detector.configure_force_natural_commutation(true);
+    detector.update(enable, speed_pu_t{0.0F});
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+
+    // When system is disabled, should revert to forced commutation regardless of force_natural_commutation
+    detector.update(!enable, speed_pu_t{0.5F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
+    EXPECT_TRUE(detector.has_mode_changed());
+}
+
+TEST_F(SfcModeDetectorTest, ForceNaturalCommutationAfterReset)
+{
+    // Configure to force natural commutation mode
+    detector.configure_force_natural_commutation(true);
+    detector.update(enable, speed_pu_t{0.0F});
+    ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+
+    // Reset the detector
+    detector.reset();
+
+    // After reset, force_natural_commutation should still be effective
+    detector.update(enable, speed_pu_t{0.01F});
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+}
