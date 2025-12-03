@@ -18,6 +18,7 @@ target_sources(
             # Current control tests
             current_control_forced_commutation_test.cpp
             current_control_natural_commutation_test.cpp
+            current_control_rectifier_test.cpp
             # Speed control tests
             speed_control_test.cpp
             # State machine tests
