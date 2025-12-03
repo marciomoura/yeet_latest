@@ -13,6 +13,7 @@ target_sources(
             sfc_plant_configuration.hpp
             # Complete closed loop tests
             complete_sensorless_speed_control_test.cpp
+            closed_loop_rectifier_test.cpp
             # Open loop tests
             open_loop_back_to_back_test.cpp
             open_loop_rectifier_test.cpp
