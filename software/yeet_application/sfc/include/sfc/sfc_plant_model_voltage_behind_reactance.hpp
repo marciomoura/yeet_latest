@@ -19,7 +19,8 @@ namespace yeet::application::sfc {
  */
 enum class plant_topology_type {
     simulink,  ///< Use Simulink-generated model wrapper
-    internal   ///< Use internal C++ thyristor model
+    internal,  ///< Use internal C++ thyristor model
+    rectifier  ///< Use rectifier-only topology (machine-side short-circuited)
 };
 
 /**

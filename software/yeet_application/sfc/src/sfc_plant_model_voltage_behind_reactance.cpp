@@ -5,6 +5,7 @@
 
 #include "sfc/sfc_plant_back_to_back_topology.hpp"
 #include "sfc/sfc_plant_back_to_back_topology_simulink.hpp"
+#include "sfc/sfc_plant_rectifier_topology.hpp"
 
 namespace yeet::application::sfc {
 
@@ -18,6 +19,8 @@ std::unique_ptr<sfc_plant_back_to_back_topology_interface> create_topology(
             return std::make_unique<sfc_plant_back_to_back_topology_simulink>(electrical_params);
         case plant_topology_type::internal:
             return std::make_unique<sfc_plant_back_to_back_topology>(electrical_params);
+        case plant_topology_type::rectifier:
+            return std::make_unique<sfc_plant_rectifier_topology>(electrical_params);
     }
     // Default to simulink if unknown
     return std::make_unique<sfc_plant_back_to_back_topology_simulink>(electrical_params);
@@ -30,6 +33,8 @@ std::unique_ptr<sfc_plant_back_to_back_topology_interface> create_default_topolo
             return std::make_unique<sfc_plant_back_to_back_topology_simulink>();
         case plant_topology_type::internal:
             return std::make_unique<sfc_plant_back_to_back_topology>();
+        case plant_topology_type::rectifier:
+            return std::make_unique<sfc_plant_rectifier_topology>();
     }
     // Default to simulink if unknown
     return std::make_unique<sfc_plant_back_to_back_topology_simulink>();

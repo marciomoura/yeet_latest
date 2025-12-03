@@ -48,19 +48,36 @@ void sfc_operation_mode_monitor_runner::stop()
 void sfc_operation_mode_monitor_runner::set_parameters()
 {
     // Configure mode detector
-    _mode_detector.configure_mode_handover_speed_pu(_parameters.mode_handover_speed_pu);
-    _mode_detector.configure_hysteresis_factor(_parameters.mode_hysteresis_factor);
-    _mode_detector.configure_force_natural_commutation(_parameters.force_natural_commutation);
+    _mode_detector.configure_mode_handover_speed_pu(_parameters.mode_handover_speed_pu.read());
+    _mode_detector.configure_hysteresis_factor(_parameters.mode_hysteresis_factor.read());
+    _mode_detector.configure_force_natural_commutation(_parameters.force_natural_commutation.read());
 
     // Configure discontinuous conduction detector
-    _discontinuous_conduction_detector.configure(_parameters.zero_current_threshold_pu, _parameters.is_zero_on_delay_s,
-        _parameters.discontinuous_on_delay_s, _parameters.discontinuous_off_delay_s);
+    _discontinuous_conduction_detector.configure(_parameters.zero_current_threshold_pu.read(),
+        _parameters.is_zero_on_delay_s.read(), _parameters.discontinuous_on_delay_s.read(),
+        _parameters.discontinuous_off_delay_s.read());
 }
 
 void sfc_operation_mode_monitor_runner::set_parameter_callback()
 {
-    // For this implementation, we'll handle parameter changes through periodic calls to set_parameters()
-    // rather than using callbacks. This is simpler and sufficient for most use cases.
+    // Register callbacks for mode detector parameters
+    _parameters.mode_handover_speed_pu.register_callback(
+        [&]() { _mode_detector.configure_mode_handover_speed_pu(_parameters.mode_handover_speed_pu.read()); });
+    _parameters.mode_hysteresis_factor.register_callback(
+        [&]() { _mode_detector.configure_hysteresis_factor(_parameters.mode_hysteresis_factor.read()); });
+    _parameters.force_natural_commutation.register_callback(
+        [&]() { _mode_detector.configure_force_natural_commutation(_parameters.force_natural_commutation.read()); });
+
+    // Register callbacks for discontinuous conduction detector parameters
+    auto configure_dcm = [&]() {
+        _discontinuous_conduction_detector.configure(_parameters.zero_current_threshold_pu.read(),
+            _parameters.is_zero_on_delay_s.read(), _parameters.discontinuous_on_delay_s.read(),
+            _parameters.discontinuous_off_delay_s.read());
+    };
+    _parameters.zero_current_threshold_pu.register_callback(configure_dcm);
+    _parameters.is_zero_on_delay_s.register_callback(configure_dcm);
+    _parameters.discontinuous_on_delay_s.register_callback(configure_dcm);
+    _parameters.discontinuous_off_delay_s.register_callback(configure_dcm);
 }
 
 }  // namespace yeet::application::sfc::integration

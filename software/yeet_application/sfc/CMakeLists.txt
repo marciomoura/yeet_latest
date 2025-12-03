@@ -86,12 +86,14 @@ set(SFC_PLANT_MODEL_HEADERS
     include/sfc/sfc_plant_back_to_back_topology.hpp
     include/sfc/sfc_plant_back_to_back_topology_simulink.hpp
     include/sfc/sfc_plant_model_voltage_behind_reactance.hpp
-    include/sfc/sfc_plant_model_parameters.hpp)
+    include/sfc/sfc_plant_model_parameters.hpp
+    include/sfc/sfc_plant_rectifier_topology.hpp)
 
 set(SFC_PLANT_MODEL_SOURCES
     src/sfc_plant_back_to_back_topology.cpp
     src/sfc_plant_back_to_back_topology_simulink.cpp
-    src/sfc_plant_model_voltage_behind_reactance.cpp)
+    src/sfc_plant_model_voltage_behind_reactance.cpp
+    src/sfc_plant_rectifier_topology.cpp)
 
 # Add core sources (always included)
 target_sources(

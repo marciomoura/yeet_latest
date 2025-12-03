@@ -1,3 +1,11 @@
+/**
+ * @file open_loop_back_to_back_test.cpp
+ * @brief Open-loop tests for back-to-back converter topologies (Simulink and Internal models)
+ *
+ * This test file validates the plant model behavior in open-loop configuration
+ * with fixed firing angles on both grid and machine sides.
+ */
+
 #include <gtest/gtest.h>
 
 #include "sfc_integration/plant_open_loop_simulation_builder.hpp"
@@ -8,13 +16,10 @@
 using namespace yeet::application::sfc::integration;
 using namespace yeet;
 
-class SfcOpenLoopPlantModel : public ::testing::TestWithParam<sfc_plant_model_datamodel::topology_type> {
+class SfcOpenLoopBackToBack : public ::testing::TestWithParam<sfc_plant_model_datamodel::topology_type> {
 public:
-    // using parameter_types ::parameter_types;
-
     void SetUp() override
     {
-        // simulator.configure_sampler_sampling_rate(200e-6);
         system.register_applications(simulator);
 
         // Configure topology based on test parameter
@@ -43,7 +48,7 @@ public:
     yeet::simulator simulator = yeet::make_gtest_simulator();
 };
 
-TEST_P(SfcOpenLoopPlantModel, OpenLoopStepResponseTest)
+TEST_P(SfcOpenLoopBackToBack, OpenLoopStepResponseTest)
 {
     constexpr real_t kBaseDCLinkCurrent = 1044.0f;  // Base current in Amperes
     constexpr real_t kTolerancePu = 0.15f;          // 15% tolerance for steady-state check
@@ -78,9 +83,9 @@ TEST_P(SfcOpenLoopPlantModel, OpenLoopStepResponseTest)
 }
 
 INSTANTIATE_TEST_SUITE_P(TopologyTests,
-    SfcOpenLoopPlantModel,
+    SfcOpenLoopBackToBack,
     ::testing::Values(
         sfc_plant_model_datamodel::topology_type::simulink, sfc_plant_model_datamodel::topology_type::internal),
-    [](const testing::TestParamInfo<SfcOpenLoopPlantModel::ParamType>& info) {
+    [](const testing::TestParamInfo<SfcOpenLoopBackToBack::ParamType>& info) {
         return (info.param == sfc_plant_model_datamodel::topology_type::simulink) ? "SimulinkModel" : "InternalModel";
     });
