@@ -50,6 +50,7 @@ void sfc_operation_mode_monitor_runner::set_parameters()
     // Configure mode detector
     _mode_detector.configure_mode_handover_speed_pu(_parameters.mode_handover_speed_pu);
     _mode_detector.configure_hysteresis_factor(_parameters.mode_hysteresis_factor);
+    _mode_detector.configure_force_natural_commutation(_parameters.force_natural_commutation);
 
     // Configure discontinuous conduction detector
     _discontinuous_conduction_detector.configure(_parameters.zero_current_threshold_pu, _parameters.is_zero_on_delay_s,
