@@ -37,6 +37,9 @@ protected:
         mock_signal_input::write(inputs.is_current_extinguished, false);
         mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
         mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
+        mock_signal_input::write(inputs.breaker_is_tripping, false);          // Breaker not tripping by default
+        mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
+        mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
     }
 
     void disable_all_overrides()

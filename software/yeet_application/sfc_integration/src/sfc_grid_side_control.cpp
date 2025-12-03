@@ -118,6 +118,12 @@ void sfc_grid_side_control::connect_internal_signals()
         external_ios.get_digital_inputs().shutdown_request, state_machine.get_inputs().shutdown_request);
     signals_connector::connect_output_to_input(
         operation_mode_monitor.get_outputs().current_is_zero, state_machine.get_inputs().is_current_extinguished);
+    signals_connector::connect_output_to_input(
+        external_ios.get_digital_inputs().breaker_is_tripping, state_machine.get_inputs().breaker_is_tripping);
+    signals_connector::connect_output_to_input(
+        external_ios.get_digital_inputs().emergency_off, state_machine.get_inputs().emergency_off);
+    signals_connector::connect_output_to_input(
+        external_ios.get_digital_inputs().door_is_open, state_machine.get_inputs().door_is_open);
 
     // ==================== Grid Integrator Supervisor Inputs ====================
     // Forced commutation freeze from modulator
@@ -247,6 +253,12 @@ void sfc_grid_side_control::connect_internal_signals()
         grid_side_pulse_generator.get_inputs().reference_angle);
     signals_connector::connect_output_to_input(
         grid_side_modulator.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
+
+    // ==================== Main Circuit Breaker Outputs ====================
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().mcb_close_command, external_ios.get_digital_outputs().mcb_close_command);
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().mcb_open_command, external_ios.get_digital_outputs().mcb_open_command);
 }
 
 }  // namespace yeet::application::sfc::integration
