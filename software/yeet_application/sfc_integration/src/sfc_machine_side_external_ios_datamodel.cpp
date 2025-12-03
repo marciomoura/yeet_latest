@@ -11,10 +11,16 @@ sfc_machine_side_external_ios_datamodel::sfc_machine_side_external_ios_datamodel
 void sfc_machine_side_external_ios_datamodel::register_callbacks()
 {
     auto excitation_outputs_callback = [this]() { apply_excitation_overrides(); };
+    auto excitation_inputs_callback = [this]() { apply_excitation_input_overrides(); };
 
     _parameters.override_excitation_outputs.register_callback(excitation_outputs_callback);
     _parameters.excitation_start_command.register_callback(excitation_outputs_callback);
     _parameters.excitation_stop_command.register_callback(excitation_outputs_callback);
+    _parameters.excitation_current_reference.register_callback(excitation_outputs_callback);
+
+    _parameters.override_excitation_inputs.register_callback(excitation_inputs_callback);
+    _parameters.excitation_current_actual.register_callback(excitation_inputs_callback);
+    _parameters.excitation_running.register_callback(excitation_inputs_callback);
 }
 
 // ==================== SIMPLIFIED SETTERS (Called from Embedded/Plant) ====================
@@ -57,24 +63,34 @@ fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::ge
     return msg;
 }
 
-bool sfc_machine_side_external_ios_datamodel::get_excitation_start_command() const
+void sfc_machine_side_external_ios_datamodel::set_excitation_inputs(
+    current_pu_t excitation_current_actual, bool excitation_running)
 {
-    // Check if test override is active
-    if (_parameters.override_excitation_outputs.read()) {
-        return _parameters.excitation_start_command.read();
+    const bool excitation_input_overrides_written = apply_excitation_input_overrides();
+    if (!excitation_input_overrides_written) {
+        _excitation_inputs.excitation_current_actual.write(excitation_current_actual);
+        _excitation_inputs.excitation_running.write(excitation_running);
     }
-    // Otherwise return the command from the excitation controller
-    return _excitation_outputs.excitation_start_command.read();
 }
 
-bool sfc_machine_side_external_ios_datamodel::get_excitation_stop_command() const
+bool sfc_machine_side_external_ios_datamodel::get_excitation_release_command() const
 {
     // Check if test override is active
     if (_parameters.override_excitation_outputs.read()) {
-        return _parameters.excitation_stop_command.read();
+        return _parameters.excitation_start_command.read();  // Re-use start command for release
     }
     // Otherwise return the command from the excitation controller
-    return _excitation_outputs.excitation_stop_command.read();
+    return _excitation_outputs.excitation_release.read();
+}
+
+current_pu_t sfc_machine_side_external_ios_datamodel::get_excitation_current_reference() const
+{
+    // Check if test override is active
+    if (_parameters.override_excitation_outputs.read()) {
+        return _parameters.excitation_current_reference.read();
+    }
+    // Otherwise return the reference from the excitation controller
+    return _excitation_outputs.excitation_current_reference.read();
 }
 
 control::six_pulse_generator::pulses sfc_machine_side_external_ios_datamodel::get_thyristor_pulse_outputs() const
@@ -91,6 +107,18 @@ bool sfc_machine_side_external_ios_datamodel::apply_excitation_overrides()
     return _parameters.override_excitation_outputs.read();
 }
 
+bool sfc_machine_side_external_ios_datamodel::apply_excitation_input_overrides()
+{
+    if (!_parameters.override_excitation_inputs.read()) {
+        return false;
+    }
+
+    _excitation_inputs.excitation_current_actual.write(_parameters.excitation_current_actual.read());
+    _excitation_inputs.excitation_running.write(_parameters.excitation_running.read());
+
+    return true;
+}
+
 void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
 {
     yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
@@ -101,6 +129,14 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
         "exc_excitation_start_command", yeet::utils::make_bool_accessor(_parameters.excitation_start_command));
     entry.parameters.insert(
         "exc_excitation_stop_command", yeet::utils::make_bool_accessor(_parameters.excitation_stop_command));
+    entry.parameters.insert("exc_excitation_current_reference",
+        yeet::utils::make_units_accessor(_parameters.excitation_current_reference));
+    entry.parameters.insert(
+        "exc_override_excitation_inputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_inputs));
+    entry.parameters.insert(
+        "exc_excitation_current_actual", yeet::utils::make_units_accessor(_parameters.excitation_current_actual));
+    entry.parameters.insert(
+        "exc_excitation_running", yeet::utils::make_bool_accessor(_parameters.excitation_running));
 
     registry.insert("machine_side_external_ios", std::move(entry));
 }

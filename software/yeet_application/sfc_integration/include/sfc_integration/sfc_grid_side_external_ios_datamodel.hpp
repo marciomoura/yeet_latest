@@ -59,6 +59,10 @@ public:
         yeet::parameter<bool> start_command{false};
         yeet::parameter<bool> stop_command{false};
         yeet::parameter<bool> shutdown_request{false};
+        yeet::parameter<bool> breaker_is_closed{false};
+        yeet::parameter<bool> breaker_is_tripping{false};
+        yeet::parameter<bool> emergency_off{false};
+        yeet::parameter<bool> door_is_open{false};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
@@ -77,6 +81,10 @@ public:
         signal_output<bool> start_command;       ///< Start operation command
         signal_output<bool> stop_command;        ///< Stop operation command
         signal_output<bool> shutdown_request;    ///< Emergency shutdown request
+        signal_output<bool> breaker_is_closed;   ///< Main circuit breaker is closed (optional status)
+        signal_output<bool> breaker_is_tripping; ///< Protection relay indicates breaker is tripping
+        signal_output<bool> emergency_off;       ///< Emergency off button pressed
+        signal_output<bool> door_is_open;        ///< Enclosure door is open (prevents breaker close)
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements - Grid Measurements Only) ====================
@@ -171,6 +179,21 @@ public:
         external_signal<bool> machine_trip_acknowledged{false};   ///< Machine-side trip acknowledgment
     };
 
+    // ==================== DIGITAL OUTPUTS (Main Circuit Breaker Control) ====================
+
+    /**
+     * @brief Digital output commands to main circuit breaker
+     *
+     * These are OUTPUT commands from the grid-side control system to the main circuit breaker (MCB).
+     * The state machine generates these commands based on operational state and safety conditions.
+     *
+     * Flow: state_machine → external_ios → embedded/hardware → main circuit breaker
+     */
+    struct digital_outputs_t {
+        signal_input<bool> mcb_close_command;  ///< Main circuit breaker close command
+        signal_input<bool> mcb_open_command;   ///< Main circuit breaker open command (includes trip)
+    };
+
     // ==================== PUBLIC INTERFACE ====================
 
     sfc_grid_side_external_ios_datamodel();
@@ -255,6 +278,18 @@ public:
         return _fiber_optics_inputs_from_machine;
     }
 
+    /**
+     * @brief Get digital outputs structure (const)
+     * @return Const reference to digital_outputs
+     */
+    const digital_outputs_t& get_digital_outputs() const { return _digital_outputs; }
+
+    /**
+     * @brief Get digital outputs structure (mutable)
+     * @return Mutable reference to digital_outputs
+     */
+    digital_outputs_t& get_digital_outputs() { return _digital_outputs; }
+
     // ==================== SIMPLIFIED SETTERS (Called from Embedded/Plant) ====================
 
     /**
@@ -285,9 +320,20 @@ public:
      * @param start_command Start operation
      * @param stop_command Stop operation
      * @param shutdown_request Emergency shutdown
+     * @param breaker_is_closed Main circuit breaker is closed (optional status)
+     * @param breaker_is_tripping Protection relay indicates breaker is tripping
+     * @param emergency_off Emergency off button pressed
+     * @param door_is_open Enclosure door is open
      */
-    void set_digital_inputs(
-        bool auxiliaries_are_on, bool breakers_are_on, bool start_command, bool stop_command, bool shutdown_request);
+    void set_digital_inputs(bool auxiliaries_are_on,
+        bool breakers_are_on,
+        bool start_command,
+        bool stop_command,
+        bool shutdown_request,
+        bool breaker_is_closed,
+        bool breaker_is_tripping,
+        bool emergency_off,
+        bool door_is_open);
 
     /**
      * @brief Set fiber-optics inputs from machine-side using protocol message
@@ -310,6 +356,25 @@ public:
      * @return Encoded grid_to_machine_message for fiber optic transmission
      */
     fiber_optic::grid_to_machine_message get_fiber_optics_tx() const;
+
+    /**
+     * @brief Get main circuit breaker close command
+     *
+     * Read by embedded code to send close command to main circuit breaker.
+     *
+     * @return true if state machine requests breaker close
+     */
+    bool get_mcb_close_command() const;
+
+    /**
+     * @brief Get main circuit breaker open command
+     *
+     * Read by embedded code to send open command to main circuit breaker.
+     * This includes both normal shutdowns and protection trips.
+     *
+     * @return true if state machine requests breaker open
+     */
+    bool get_mcb_open_command() const;
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access
@@ -341,6 +406,7 @@ private:
     analog_inputs_t _analog_inputs;
     fiber_optics_outputs_to_machine_t _fiber_optics_outputs_to_machine;
     fiber_optics_inputs_from_machine_t _fiber_optics_inputs_from_machine;
+    digital_outputs_t _digital_outputs;
 };
 
 }  // namespace yeet::application::sfc::integration
