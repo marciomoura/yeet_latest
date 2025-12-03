@@ -39,6 +39,17 @@ public:
     void configure_hysteresis_factor(real_t hysteresis_factor);
 
     /**
+     * @brief Configures whether to force natural commutation mode.
+     *
+     * When set to true, the mode detector will always output natural_commutation
+     * regardless of machine speed. This is useful for operating the system as a
+     * thyristor converter in natural commutation mode only.
+     *
+     * @param force_natural_commutation When true, always use natural commutation.
+     */
+    void configure_force_natural_commutation(bool force_natural_commutation);
+
+    /**
      * @brief Updates the mode detector with the current machine speed.
      *
      * @param enable System enable signal. When false, defaults to forced_commutation.
@@ -67,6 +78,7 @@ private:
     // Configuration parameters
     speed_pu_t _handover_speed_pu{0.1f};
     real_t _hysteresis_factor{0.05f};
+    bool _force_natural_commutation{false};
 
     // Internal state
     sfc_operating_mode_t _current_mode{sfc_operating_mode_t::forced_commutation};

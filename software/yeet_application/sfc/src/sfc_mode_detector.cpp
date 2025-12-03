@@ -20,6 +20,11 @@ void sfc_mode_detector::configure_hysteresis_factor(real_t hysteresis_factor)
     update_limiter_thresholds();
 }
 
+void sfc_mode_detector::configure_force_natural_commutation(bool force_natural_commutation)
+{
+    _force_natural_commutation = force_natural_commutation;
+}
+
 void sfc_mode_detector::update(bool enable, speed_pu_t measured_speed) noexcept
 {
     _previous_mode = _current_mode;
@@ -27,6 +32,10 @@ void sfc_mode_detector::update(bool enable, speed_pu_t measured_speed) noexcept
     if (!enable) {
         _current_mode = sfc_operating_mode_t::forced_commutation;
         _speed_limiter.reset();
+    }
+    else if (_force_natural_commutation) {
+        // When forced natural commutation is enabled, always operate in natural commutation mode
+        _current_mode = sfc_operating_mode_t::natural_commutation;
     }
     else {
         _speed_limiter.update(measured_speed.value());
