@@ -70,6 +70,13 @@ void sfc_state_machine_runner::run()
     // This allows protection to clear its latched trip signal and state machine to proceed to OPERATION_OFF
     _outputs.trip_acknowledged = (current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
                                  _outputs.is_current_extinguished && !_inputs.any_protection_fault_active;
+
+    // Main circuit breaker control with door interlock
+    // MCB close command: Only when state machine requests it AND door is NOT open
+    _outputs.mcb_close_command = state_outputs.mcb_close_command && !_inputs.door_is_open.read();
+    
+    // MCB open command: When state machine requests it (shutdown/trip scenarios)
+    _outputs.mcb_open_command = state_outputs.mcb_open_command;
 }
 
 void sfc_state_machine_runner::stop()

@@ -23,13 +23,24 @@ public:
               sfc::sfc_state_event("breakers_are_on", [this]() { return _outputs.breakers_are_on.read(); }),
               sfc::sfc_state_event("start_command", [this]() { return _outputs.start_command.read(); }),
               sfc::sfc_state_event("stop_command", [this]() { return _outputs.stop_command.read(); }),
-              sfc::sfc_state_event("shutdown_request", [this]() { return _outputs.shutdown_request.read(); }),
+              sfc::sfc_state_event("shutdown_request", [this]() { 
+                  // Combine shutdown request with emergency off and breaker tripping
+                  return _outputs.shutdown_request.read() || 
+                         _inputs.emergency_off.read() || 
+                         _inputs.breaker_is_tripping.read(); 
+              }),
               sfc::sfc_state_event(
                   "is_current_extinguished", [this]() { return _outputs.is_current_extinguished.read(); }),
               sfc::sfc_state_event(
                   "protection_not_inhibited", [this]() { return !_inputs.protection_inhibited.read(); }),
               sfc::sfc_state_event(
-                  "any_protection_fault_active", [this]() { return _inputs.any_protection_fault_active.read(); })}
+                  "any_protection_fault_active", [this]() { return _inputs.any_protection_fault_active.read(); }),
+              sfc::sfc_state_event(
+                  "breaker_is_tripping", [this]() { return _inputs.breaker_is_tripping.read(); }),
+              sfc::sfc_state_event(
+                  "emergency_off", [this]() { return _inputs.emergency_off.read(); }),
+              sfc::sfc_state_event(
+                  "door_is_open", [this]() { return _inputs.door_is_open.read(); })}
     {
     }
 

@@ -95,6 +95,7 @@ sfc_state_outputs breakers_off_state::get_outputs() const noexcept
 
     outputs.pulse_releases = false;
     outputs.freeze_integrator = true;
+    outputs.mcb_close_command = true;  // Request MCB close when in BREAKERS_OFF state
 
     return outputs;
 }
@@ -172,6 +173,12 @@ sfc_state_type* operation_on_state::update(const sfc_state_inputs& inputs) noexc
     // Clear first cycle flag after first update
     if (_is_first_cycle) {
         _is_first_cycle = false;
+    }
+
+    // Emergency off or breaker tripping triggers immediate shutdown
+    if (inputs.emergency_off_event.is_true() || inputs.breaker_is_tripping_event.is_true()) {
+        _is_first_cycle = true;  // Reset for next entry
+        return _shutdown_requested_state;
     }
 
     if (!inputs.breakers_are_on_event.is_true()) {
@@ -252,6 +259,7 @@ sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
     outputs.pulse_releases = true;                 // Keep pulses active for controlled shutdown
     outputs.freeze_integrator = false;             // Do not freeze integrator during shutdown
     outputs.request_extinguish_dc_current = true;  // Request extinguish current mode
+    outputs.mcb_open_command = _acknowledgment_sent;  // Open MCB when acknowledging trip
 
     return outputs;
 }

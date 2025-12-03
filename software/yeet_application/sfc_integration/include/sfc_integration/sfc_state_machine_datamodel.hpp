@@ -43,6 +43,15 @@ public:
 
         /// Any protection currently detecting active fault condition (NOT latched) [bool]
         signal_input<bool> any_protection_fault_active;
+
+        /// Protection relay indicates breaker is tripping [bool]
+        signal_input<bool> breaker_is_tripping;
+
+        /// Emergency off button pressed [bool]
+        signal_input<bool> emergency_off;
+
+        /// Enclosure door is open (prevents breaker close) [bool]
+        signal_input<bool> door_is_open;
     };
 
     /**
@@ -87,6 +96,12 @@ public:
 
         /// Current has been extinguished [bool]
         signal_output<bool> is_current_extinguished;
+
+        /// Main circuit breaker close command [bool]
+        signal_output<bool> mcb_close_command;
+
+        /// Main circuit breaker open command [bool]
+        signal_output<bool> mcb_open_command;
     };
 
     /**
