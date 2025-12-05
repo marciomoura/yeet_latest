@@ -86,8 +86,8 @@ void sfc_machine_side_pulse_generator_runner::stop()
 void sfc_machine_side_pulse_generator_runner::set_parameters()
 {
     // Configure the pulse generator with parameters
+    auto width = _parameters.pulse_width.read();
     _pulse_generator.set_pulse_width(_parameters.pulse_width.read());
-
     // Configure virtual reference generator frequency
     _pulse_generator.configure_virtual_reference(_parameters.virtual_reference_frequency.read(), sampling_time);
 }

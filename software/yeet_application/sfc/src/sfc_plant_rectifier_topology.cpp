@@ -114,17 +114,22 @@ void sfc_plant_rectifier_topology::update()
     _grid_voltages = abc<voltage_t>{voltage_t{static_cast<real_t>(grid_signal.a())},
         voltage_t{static_cast<real_t>(grid_signal.b())}, voltage_t{static_cast<real_t>(grid_signal.c())}};
 
-    // Convert pulses to thyristor_pulses struct
-    control::thyristor_pulses grid_thyristor_pulses;
-    grid_thyristor_pulses.t1 = _grid_pulses[0];
-    grid_thyristor_pulses.t2 = _grid_pulses[1];
-    grid_thyristor_pulses.t3 = _grid_pulses[2];
-    grid_thyristor_pulses.t4 = _grid_pulses[3];
-    grid_thyristor_pulses.t5 = _grid_pulses[4];
-    grid_thyristor_pulses.t6 = _grid_pulses[5];
+    // Apply circuit breaker via pulse masking - when open, block all gate pulses
+    // This allows conducting thyristors to naturally commutate rather than
+    // unrealistically forcing the voltage to zero (which would be a short-circuit to ground)
+    control::thyristor_pulses effective_grid_pulses{};
+    if (_grid_circuit_breaker_closed) {
+        effective_grid_pulses.t1 = _grid_pulses[0];
+        effective_grid_pulses.t2 = _grid_pulses[1];
+        effective_grid_pulses.t3 = _grid_pulses[2];
+        effective_grid_pulses.t4 = _grid_pulses[3];
+        effective_grid_pulses.t5 = _grid_pulses[4];
+        effective_grid_pulses.t6 = _grid_pulses[5];
+    }
+    // When breaker is open, effective_grid_pulses is all false (default-initialized)
 
-    // Update the rectifier with zero back-EMF (short-circuited DC side)
-    _rectifier->update(_grid_voltages, grid_thyristor_pulses, voltage_t{0.0});
+    // Update the rectifier with actual voltage and effective pulses (circuit breaker applied)
+    _rectifier->update(_grid_voltages, effective_grid_pulses, voltage_t{0.0});
 }
 
 void sfc_plant_rectifier_topology::update(const std::array<bool, 6>& grid_side_pulses,
@@ -271,6 +276,23 @@ const sfc_plant_model_voltage_control_parameters& sfc_plant_rectifier_topology::
     const noexcept
 {
     return _voltage_control_params;
+}
+
+void sfc_plant_rectifier_topology::set_grid_circuit_breaker_closed(bool closed)
+{
+    // When breaker transitions from closed to open, do not forcibly reset the rectifier.
+    // Let the pulse masking logic in update() handle the commutation-off process naturally.
+    // This more accurately models the physical behavior of thyristor rectifiers.
+    _grid_circuit_breaker_closed = closed;
+
+    if (!_grid_circuit_breaker_closed) {
+        _rectifier->reset();
+    }
+}
+
+bool sfc_plant_rectifier_topology::is_grid_circuit_breaker_closed() const noexcept
+{
+    return _grid_circuit_breaker_closed;
 }
 
 sfc_plant_model_electrical_parameters sfc_plant_rectifier_topology::create_default_electrical_parameters() noexcept

@@ -293,3 +293,138 @@ TEST_F(ClosedLoopRectifierTest, RectifierCurrentRampProfile)
             << "Current should increase monotonically with setpoint";
     }
 }
+
+/**
+ * @test BreakerOpenDuringCurrentRegulation
+ * @brief Validates system behavior when breaker opens during active current regulation
+ *
+ * This test verifies that:
+ * 1. Opening the breaker masks firing pulses (no new thyristor turn-ons)
+ * 2. Grid voltage remains present (pulse masking, not voltage zeroing)
+ * 3. The controller remains in operational state (unaware of physical breaker)
+ * 4. The DC link current decays to zero as thyristors stop conducting
+ */
+TEST_F(ClosedLoopRectifierTest, BreakerOpenDuringCurrentRegulation)
+{
+    initialize();
+    execute_startup_sequence();
+
+    // Command moderate current and let it settle
+    set_torque_reference(torque_pu_t{0.6f});
+    simulate_for(1.0);
+
+    auto current_before = get_dc_link_current_pu();
+    EXPECT_NEAR(current_before.value(), 0.6f, 0.15f) << "DC-link current should reach 0.6 pu setpoint";
+
+    // Get plant model reference and open the breaker
+    auto& plant = system.plant.get_plant_model();
+    EXPECT_TRUE(plant.is_grid_circuit_breaker_closed()) << "Breaker should be closed initially";
+
+    plant.set_grid_circuit_breaker_closed(false);
+    EXPECT_FALSE(plant.is_grid_circuit_breaker_closed()) << "Breaker should be open now";
+
+    // Simulate with open breaker
+    simulate_for(0.5);
+
+    // Verify current decays to zero
+    EXPECT_NEAR(get_dc_link_current_pu().value(), 0.0f, 0.01f)
+        << "DC-link current should decay to zero with an open breaker";
+
+    // Verify breaker state is maintained
+    EXPECT_FALSE(plant.is_grid_circuit_breaker_closed()) << "Breaker should still be open";
+
+    // System should still be in operational state (pulses released)
+    // The control layer is unaware of the breaker state
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "State machine should still have pulses released (control layer unaware of breaker)";
+}
+
+/**
+ * @test BreakerRecloseDuringOperation
+ * @brief Validates system recovery when breaker is reclosed after being opened
+ *
+ * This test verifies that:
+ * 1. System can resume normal operation after breaker reclosing
+ * 2. Current controller can re-establish current regulation
+ */
+TEST_F(ClosedLoopRectifierTest, BreakerRecloseDuringOperation)
+{
+    initialize();
+    execute_startup_sequence();
+
+    // Establish current
+    set_torque_reference(torque_pu_t{0.5f});
+    simulate_for(1.0);
+
+    auto current_initial = get_dc_link_current_pu();
+    EXPECT_NEAR(current_initial.value(), 0.5f, 0.15f) << "DC-link current should reach 0.5 pu setpoint";
+
+    // Open breaker
+    auto& plant = system.plant.get_plant_model();
+    plant.set_grid_circuit_breaker_closed(false);
+    simulate_for(0.2);  // Brief open period
+
+    EXPECT_NEAR(get_dc_link_current_pu().value(), 0.0f, 0.01f)
+        << "DC-link current should reach 0.0 pu setpoint with an open breaker";
+
+    // Verify breaker is open
+    EXPECT_FALSE(plant.is_grid_circuit_breaker_closed()) << "Breaker should be open";
+
+    // Reclose breaker
+    plant.set_grid_circuit_breaker_closed(true);
+    EXPECT_TRUE(plant.is_grid_circuit_breaker_closed()) << "Breaker should be reclosed";
+
+    // Allow current controller to re-establish regulation
+    simulate_for(2.0);
+
+    auto current_after_reclose = get_dc_link_current_pu();
+
+    // Current should have recovered to near setpoint
+    // Allowing wider tolerance since controller may need time to stabilize after disturbance
+    EXPECT_NEAR(current_after_reclose.value(), 0.5f, 0.25f) << "DC-link current should recover after breaker reclose";
+}
+
+/**
+ * @test BreakerOpenAtHighCurrent
+ * @brief Validates breaker opening behavior at high current levels
+ *
+ * Tests system behavior when breaker opens while high current is flowing.
+ * This test verifies that:
+ * 1. The breaker state can be changed during high current operation
+ * 2. The system remains stable (doesn't crash or enter undefined state)
+ * 3. The breaker state is correctly maintained
+ * 4. The DC link current decays to zero
+ */
+TEST_F(ClosedLoopRectifierTest, BreakerOpenAtHighCurrent)
+{
+    initialize();
+    execute_startup_sequence();
+
+    // Command high current
+    set_torque_reference(torque_pu_t{0.9f});
+    simulate_for(1.5);
+
+    auto current_before = get_dc_link_current_pu();
+    EXPECT_NEAR(current_before.value(), 0.9f, 0.15f) << "DC-link current should reach 0.9 pu setpoint";
+
+    // Open breaker at high current
+    auto& plant = system.plant.get_plant_model();
+    EXPECT_TRUE(plant.is_grid_circuit_breaker_closed()) << "Breaker should be closed initially";
+
+    plant.set_grid_circuit_breaker_closed(false);
+    EXPECT_FALSE(plant.is_grid_circuit_breaker_closed()) << "Breaker should be open now";
+
+    // Simulate - system should remain stable
+    simulate_for(0.5);
+
+    // Verify current decays to zero
+    EXPECT_NEAR(get_dc_link_current_pu().value(), 0.0f, 0.01f)
+        << "DC-link current should decay to zero with an open breaker";
+
+    // Verify breaker state is maintained
+    EXPECT_FALSE(plant.is_grid_circuit_breaker_closed()) << "Breaker should still be open";
+
+    // System should still be operational (state machine unaware of physical breaker)
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "State machine should still have pulses released";
+}

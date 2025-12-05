@@ -84,6 +84,10 @@ public:
     const sfc_plant_model_mechanical_parameters& get_mechanical_parameters() const noexcept override;
     const sfc_plant_model_voltage_control_parameters& get_voltage_control_parameters() const noexcept override;
 
+    // Circuit breaker control
+    void set_grid_circuit_breaker_closed(bool closed) override;
+    bool is_grid_circuit_breaker_closed() const noexcept override;
+
     /**
      * @brief Get access to the underlying thyristor rectifier model.
      * @return Const reference to the internal rectifier model
@@ -117,6 +121,9 @@ private:
 
     // Machine-side angle tracking (for interface compatibility)
     angle_wrapped _machine_angle{0.0};
+
+    // Circuit breaker state (true = closed/conducting, false = open/isolated)
+    bool _grid_circuit_breaker_closed{true};
 };
 
 }  // namespace yeet::application::sfc

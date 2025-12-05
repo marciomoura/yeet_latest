@@ -81,6 +81,8 @@ public:
         grid_side_measurements.initialize();
         machine_side_measurements.initialize();
         dc_link_measurements.initialize();
+        grid_side_pulse_generator.initialize();
+        machine_side_pulse_generator.initialize();
     }
 
     void register_applications(yeet::simulator& simulator)

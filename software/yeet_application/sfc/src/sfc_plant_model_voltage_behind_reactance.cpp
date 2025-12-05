@@ -553,4 +553,15 @@ real_t sfc_plant_model_voltage_behind_reactance::get_flux_pu() const noexcept
     return _field_current_regulator.get_field_current().value();
 }
 
+// ==================== Circuit Breaker Control ====================
+void sfc_plant_model_voltage_behind_reactance::set_grid_circuit_breaker_closed(bool closed)
+{
+    _plant->set_grid_circuit_breaker_closed(closed);
+}
+
+bool sfc_plant_model_voltage_behind_reactance::is_grid_circuit_breaker_closed() const noexcept
+{
+    return _plant->is_grid_circuit_breaker_closed();
+}
+
 }  // namespace yeet::application::sfc

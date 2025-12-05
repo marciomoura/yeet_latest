@@ -291,6 +291,23 @@ public:
     frequency_pu_t get_grid_frequency_pu() const noexcept;
     frequency_pu_t get_machine_frequency_pu() const noexcept;
 
+    // ==================== Circuit Breaker Control ====================
+    /**
+     * @brief Sets the state of the grid-side main circuit breaker.
+     * @param closed True to close the breaker (normal operation), false to open (disconnect from grid).
+     *
+     * When open, the grid voltage seen by the rectifier becomes zero, causing DC link
+     * current to decay through the system impedances. This models the physical behavior
+     * of disconnecting the converter from the grid supply.
+     */
+    void set_grid_circuit_breaker_closed(bool closed);
+
+    /**
+     * @brief Gets the current state of the grid-side main circuit breaker.
+     * @return True if the breaker is closed, false if open.
+     */
+    bool is_grid_circuit_breaker_closed() const noexcept;
+
 private:
     /**
      * @brief Creates default electrical parameters for 6p-6p topology.
