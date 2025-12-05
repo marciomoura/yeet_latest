@@ -47,6 +47,24 @@ void srf_pll::reset(frequency_pu_t initial_frequency)
     _phase_integrator.reset();
 }
 
+void srf_pll::preset(angle_wrapped preset_angle, frequency_pu_t preset_frequency)
+{
+    // Set the initial frequency for the PI controller feedforward
+    // This ensures the PLL starts from the correct operating point
+    _initial_frequency = preset_frequency;
+    _estimated_frequency = to_si(_initial_frequency, _nominal_frequency);
+
+    // Reset the PI controller to avoid accumulated integral error
+    _frequency_pi_controller.reset();
+
+    // Reset the frequency estimation filter to the preset frequency
+    _frequency_estimation_filter.reset(_estimated_frequency.value());
+
+    // Directly set the phase integrator to the specified angle
+    // This allows for bumpless transfer from external angle source
+    _phase_integrator.reset(preset_angle);
+}
+
 void srf_pll::update(const alphabeta<voltage_pu_t>& input_alphabeta)
 {
     // Park transform (αβ → dq) using the current estimated angle

@@ -61,7 +61,7 @@ public:
         parameter<bool> enable{true};
 
         /// Pulse width for each firing pulse [rad]
-        parameter<angle_wrapped> pulse_width = angle_wrapped(pi / 3);
+        parameter<angle_wrapped> pulse_width = angle_wrapped::from_degrees(60.0f);
 
         /// Reference voltage type (line or phase)
         parameter<control::six_pulse_generator::reference_type> reference_type =

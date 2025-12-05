@@ -44,7 +44,10 @@ struct current_control_test_config {
     using builder_type = BuilderT;
     static constexpr auto topology = Topology;
     static constexpr std::string_view topology_name =
-        (Topology == sfc_plant_model_datamodel::topology_type::simulink) ? "SimulinkModel" : "InternalModel";
+        (Topology == sfc_plant_model_datamodel::topology_type::simulink)   ? "SimulinkModel"
+        : (Topology == sfc_plant_model_datamodel::topology_type::internal) ? "InternalModel"
+                                                                           : "RectifierModel";
+    static constexpr bool is_rectifier_topology = (Topology == sfc_plant_model_datamodel::topology_type::rectifier);
 };
 
 template <typename ConfigT>
@@ -105,50 +108,72 @@ public:
     void initialize_simulation(double settling_time = 0.2)
     {
         // Disable pulses (explicit per type)
+        // For rectifier topology, machine-side pulses are not needed
         std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
                                   sys->grid_side_pulse_generator.get_parameters().enable.write(false);
-                                  sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                                  if constexpr (!ConfigT::is_rectifier_topology) {
+                                      sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                                  }
                               },
                        [&](plant_simplified_current_control_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(false);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           }
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(false);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           }
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(false);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           }
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(false);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                           }
                        }},
             system_variant_t{&system});
 
         sim.simulate_for(settling_time);
 
         // Enable pulses (explicit per type)
+        // For rectifier topology, only grid-side pulses are enabled
         std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
                                   sys->grid_side_pulse_generator.get_parameters().enable.write(true);
-                                  sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                                  if constexpr (!ConfigT::is_rectifier_topology) {
+                                      sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                                  }
                               },
                        [&](plant_simplified_current_control_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(true);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           }
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(true);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           }
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(true);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           }
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
                            sys->grid_side_pulse_generator.get_parameters().enable.write(true);
-                           sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           if constexpr (!ConfigT::is_rectifier_topology) {
+                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                           }
                        }},
             system_variant_t{&system});
     }

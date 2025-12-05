@@ -25,6 +25,15 @@ public:
 
         /// Enable signal for observer execution (from startup sequencer)
         yeet::signal_input<bool> release_observer;
+
+        /// Preset signal to initialize observer angle integrator (from startup sequencer)
+        yeet::signal_input<bool> preset_observer;
+
+        /// Preset angle value to initialize observer integrator [rad]
+        yeet::signal_input<angle_wrapped> preset_angle;
+
+        /// Preset frequency value to initialize observer frequency estimate [pu]
+        yeet::signal_input<frequency_pu_t> preset_frequency;
     };
 
     /**

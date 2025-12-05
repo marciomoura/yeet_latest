@@ -142,6 +142,10 @@ public:
     const sfc_plant_model_mechanical_parameters& get_mechanical_parameters() const noexcept override;
     const sfc_plant_model_voltage_control_parameters& get_voltage_control_parameters() const noexcept override;
 
+    // Circuit breaker control
+    void set_grid_circuit_breaker_closed(bool closed) override;
+    bool is_grid_circuit_breaker_closed() const noexcept override;
+
 private:
     /**
      * @brief Creates default electrical parameters for 6p-6p topology.
@@ -166,6 +170,9 @@ private:
     sfc_plant_model_electrical_parameters _electrical_params;
     sfc_plant_model_mechanical_parameters _mechanical_params;
     sfc_plant_model_voltage_control_parameters _voltage_control_params;
+
+    // Circuit breaker state (true = closed/conducting, false = open/isolated)
+    bool _grid_circuit_breaker_closed{true};
 };
 
 }  // namespace yeet::application::sfc

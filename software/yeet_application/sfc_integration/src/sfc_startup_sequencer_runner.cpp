@@ -67,6 +67,11 @@ void sfc_startup_sequencer_runner::run()
 
     _outputs.is_startup_complete.write(_sequencer.is_startup_complete());
     _outputs.time_in_current_state.write(_sequencer.get_time_in_current_state());
+
+    // Write preset signals
+    _outputs.preset_observer.write(sequencer_outputs.controller_commands.preset_observer);
+    _outputs.preset_angle.write(sequencer_outputs.controller_commands.preset_angle);
+    _outputs.preset_frequency.write(sequencer_outputs.controller_commands.preset_frequency);
 }
 
 void sfc_startup_sequencer_runner::stop()

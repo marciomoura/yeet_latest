@@ -74,6 +74,10 @@ public:
     const sfc_plant_model_mechanical_parameters& get_mechanical_parameters() const noexcept override;
     const sfc_plant_model_voltage_control_parameters& get_voltage_control_parameters() const noexcept override;
 
+    // Circuit breaker control
+    void set_grid_circuit_breaker_closed(bool closed) override;
+    bool is_grid_circuit_breaker_closed() const noexcept override;
+
     /**
      * @brief Get access to the underlying thyristor back-to-back model.
      * @return Const reference to the internal thyristor model
@@ -108,6 +112,9 @@ private:
     // Cached voltages for output
     abc<voltage_t> _grid_voltages{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
     abc<voltage_t> _machine_voltages{voltage_t{0.0}, voltage_t{0.0}, voltage_t{0.0}};
+
+    // Circuit breaker state (true = closed/conducting, false = open/isolated)
+    bool _grid_circuit_breaker_closed{true};
 };
 
 }  // namespace yeet::application::sfc

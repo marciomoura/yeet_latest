@@ -13,11 +13,14 @@ target_sources(
             sfc_plant_configuration.hpp
             # Complete closed loop tests
             complete_sensorless_speed_control_test.cpp
+            closed_loop_rectifier_test.cpp
             # Open loop tests
-            open_loop_plant_model_test.cpp
+            open_loop_back_to_back_test.cpp
+            open_loop_rectifier_test.cpp
             # Current control tests
             current_control_forced_commutation_test.cpp
             current_control_natural_commutation_test.cpp
+            current_control_rectifier_test.cpp
             # Speed control tests
             speed_control_test.cpp
             # State machine tests

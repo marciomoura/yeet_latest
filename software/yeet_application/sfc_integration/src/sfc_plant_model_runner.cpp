@@ -23,9 +23,19 @@ void sfc_plant_model_runner::initialize()
 {
     // Recreate plant model with selected topology (allows switching before initialize)
     const auto topology = _parameters.topology.read();
-    sfc::plant_topology_type plant_topology = (topology == datamodel::topology_type::internal)
-                                                  ? sfc::plant_topology_type::internal
-                                                  : sfc::plant_topology_type::simulink;
+    sfc::plant_topology_type plant_topology;
+    switch (topology) {
+        case datamodel::topology_type::internal:
+            plant_topology = sfc::plant_topology_type::internal;
+            break;
+        case datamodel::topology_type::rectifier:
+            plant_topology = sfc::plant_topology_type::rectifier;
+            break;
+        case datamodel::topology_type::simulink:
+        default:
+            plant_topology = sfc::plant_topology_type::simulink;
+            break;
+    }
 
     // Only recreate if topology changed or plant needs fresh state
     _plant = std::make_unique<sfc::sfc_plant_model_voltage_behind_reactance>(plant_topology);

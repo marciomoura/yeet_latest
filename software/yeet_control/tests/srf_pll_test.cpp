@@ -88,6 +88,28 @@ protected:
     }
 };
 
+TEST_F(SrfPllTest, InitializesToExpectedState)
+{
+    // Verify the PLL initializes to a known state after construction and reset.
+    srf_pll fresh_pll{kSamplingTime};
+    fresh_pll.configure_nominal_frequency(kTestFrequency);
+
+    // After default reset, the PLL should have zero estimated frequency
+    fresh_pll.reset();
+    EXPECT_NEAR(fresh_pll.get_estimated_frequency().value(), 0.0, 0.01);
+    EXPECT_NEAR(fresh_pll.get_estimated_frequency_pu().value(), 0.0, 0.01);
+    EXPECT_NEAR(fresh_pll.get_estimated_angle().get_radians().value(), 0.0, 0.01);
+
+    // After reset with initial frequency, the estimated frequency should match
+    fresh_pll.reset(frequency_pu_t{1.0});
+    EXPECT_NEAR(fresh_pll.get_estimated_frequency().value(), kTestFrequency.value(), 0.01);
+    EXPECT_NEAR(fresh_pll.get_estimated_frequency_pu().value(), 1.0, 0.01);
+
+    // The dq vector should be zero before any update
+    EXPECT_NEAR(fresh_pll.get_dq_vector().d(), 0.0, 0.01);
+    EXPECT_NEAR(fresh_pll.get_dq_vector().q(), 0.0, 0.01);
+}
+
 TEST_F(SrfPllTest, LocksToNominalFrequency)
 {
     // Check if the PLL can lock onto a stable signal at the test frequency.
@@ -249,6 +271,41 @@ TEST_F(SrfPllTest, TracksFrequencyRampFromZero)
         yeet::checker_activation_time_range{0.3}));
 
     EXPECT_TRUE(simulator.simulate_for(0.5));
+}
+
+TEST_F(SrfPllTest, PresetAngleWithOffset)
+{
+    // Test the PLL's transient response when preset to an angle offset from the actual signal.
+    // This demonstrates the correction transient when there's an initial angle error.
+
+    // First, let the PLL lock to the signal to establish steady state
+    ASSERT_TRUE(simulator.simulate_for(0.3));
+
+    // Get the current locked angle and add a 90-degree offset
+    const angle_wrapped current_angle = pll.get_estimated_angle();
+    const angle_wrapped offset_angle = current_angle + angle_wrapped{pi / 2.0};  // 90-degree offset
+
+    // Preset the PLL to the offset angle (introducing a deliberate error)
+    pll.preset(offset_angle);
+
+    // The PLL should now correct from the offset back to tracking the actual signal
+    // After settling, the frequency should return to nominal
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "frequency after preset correction", [&]() { return pll.get_estimated_angular_frequency(); },
+        kTestAngularFrequency - kFrequencyTolerance, kTestAngularFrequency + kFrequencyTolerance,
+        yeet::checker_activation_time_range{0.8}));
+
+    // The angle error should converge back to near-zero
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "angle error after preset correction", [&]() { return get_angle_error(); }, 0.0, kAngleTolerance,
+        yeet::checker_activation_time_range{0.8}));
+
+    // The q-axis error should be driven back to zero
+    simulator.register_checker(yeet::make_range_checker<real_t>(
+        "q-axis error after preset", [&]() { return pll.get_dq_vector().q(); }, -0.01, 0.01,
+        yeet::checker_activation_time_range{0.8}));
+
+    EXPECT_TRUE(simulator.simulate_for(0.7));
 }
 
 }  // namespace

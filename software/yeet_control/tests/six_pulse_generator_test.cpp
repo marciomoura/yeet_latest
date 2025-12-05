@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "yeet_control/constants.hpp"
+#include "yeet_control/units.hpp"
 
 using namespace yeet;
 using namespace yeet::control;
@@ -271,4 +272,300 @@ TEST(SixPulseGeneratorTest, SectorChangeDetection)
     gen.update(angle_wrapped(deg_to_rad(6.0)), zero_alpha, true);
     EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
     EXPECT_FALSE(gen.get_sector_changed());
+}
+
+//==============================================================================
+// Virtual Reference Mode Tests
+//==============================================================================
+
+// Test that virtual reference mode is disabled by default
+TEST(SixPulseGeneratorTest, VirtualReferenceDisabledByDefault)
+{
+    six_pulse_generator gen;
+    EXPECT_FALSE(gen.is_virtual_reference_enabled());
+    EXPECT_EQ(gen.get_virtual_reference_angle().get_radians(), 0.0);
+}
+
+// Test that virtual reference update returns all-off pulses when disabled
+TEST(SixPulseGeneratorTest, VirtualReferenceReturnsOffWhenDisabled)
+{
+    six_pulse_generator gen;
+    const angle_wrapped firing_angle(deg_to_rad(30.0));
+
+    // Virtual reference not enabled - should return all off
+    auto pulses = gen.update(firing_angle, true);
+    EXPECT_FALSE(pulses.p1 || pulses.p2 || pulses.p3 || pulses.p4 || pulses.p5 || pulses.p6);
+}
+
+// Test virtual reference configuration
+TEST(SixPulseGeneratorTest, VirtualReferenceConfiguration)
+{
+    six_pulse_generator gen;
+    const frequency_t test_freq{60.0};
+    const duration_t test_dt = us(50.0);
+
+    gen.configure_virtual_reference(test_freq, test_dt);
+
+    EXPECT_EQ(gen.get_virtual_reference_frequency(), test_freq);
+}
+
+// Test virtual reference enable/disable
+TEST(SixPulseGeneratorTest, VirtualReferenceEnableDisable)
+{
+    six_pulse_generator gen;
+
+    EXPECT_FALSE(gen.is_virtual_reference_enabled());
+
+    gen.enable_virtual_reference(true);
+    EXPECT_TRUE(gen.is_virtual_reference_enabled());
+
+    gen.enable_virtual_reference(false);
+    EXPECT_FALSE(gen.is_virtual_reference_enabled());
+}
+
+// Test virtual reference angle integration
+TEST(SixPulseGeneratorTest, VirtualReferenceAngleIntegration)
+{
+    six_pulse_generator gen(six_pulse_generator::reference_type::line);
+    const frequency_t freq{50.0};   // 50 Hz
+    const duration_t dt = ms(1.0);  // 1 ms sampling time
+    const angle_wrapped zero_alpha(0.0);
+
+    gen.configure_virtual_reference(freq, dt);
+    gen.enable_virtual_reference(true);
+    gen.reset_virtual_reference();
+
+    // Expected angle increment per update: 2π × 50 Hz × 0.001 s = 0.314159... rad = 18°
+    const double expected_increment_rad = two_pi * 50.0 * 0.001;
+
+    // First update
+    gen.update(zero_alpha, true);
+    EXPECT_NEAR(gen.get_virtual_reference_angle().get_radians(), expected_increment_rad, 1e-6);
+
+    // Second update
+    gen.update(zero_alpha, true);
+    EXPECT_NEAR(gen.get_virtual_reference_angle().get_radians(), 2.0 * expected_increment_rad, 1e-6);
+}
+
+// Test virtual reference reset
+TEST(SixPulseGeneratorTest, VirtualReferenceReset)
+{
+    six_pulse_generator gen;
+    gen.configure_virtual_reference(frequency_t{50.0}, ms(1.0));
+    gen.enable_virtual_reference(true);
+
+    // Run a few updates to change the angle
+    gen.update(angle_wrapped(0.0), true);
+    gen.update(angle_wrapped(0.0), true);
+    EXPECT_NE(gen.get_virtual_reference_angle().get_radians(), 0.0);
+
+    // Reset to zero
+    gen.reset_virtual_reference();
+    EXPECT_EQ(gen.get_virtual_reference_angle().get_radians(), 0.0);
+
+    // Reset to specific angle
+    gen.reset_virtual_reference(angle_wrapped(deg_to_rad(90.0)));
+    EXPECT_NEAR(gen.get_virtual_reference_angle().get_degrees(), 90.0, 1e-6);
+}
+
+// Test that virtual reference generates proper pulses
+TEST(SixPulseGeneratorTest, VirtualReferencePulseGeneration)
+{
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle_wrapped(deg_to_rad(30.0)));
+    const frequency_t freq{50.0};
+    const duration_t dt = us(100.0);
+    const angle_wrapped zero_alpha(0.0);
+
+    gen.configure_virtual_reference(freq, dt);
+    gen.enable_virtual_reference(true);
+    gen.reset_virtual_reference();
+
+    // Simulate enough updates to complete one full electrical cycle
+    // At 50 Hz and 100 µs, we need 1 / (50 × 100e-6) = 200 samples per cycle
+    bool found_p1 = false, found_p2 = false, found_p3 = false;
+    bool found_p4 = false, found_p5 = false, found_p6 = false;
+
+    for (int i = 0; i < 200; ++i) {
+        auto pulses = gen.update(zero_alpha, true);
+        if (pulses.p1) found_p1 = true;
+        if (pulses.p2) found_p2 = true;
+        if (pulses.p3) found_p3 = true;
+        if (pulses.p4) found_p4 = true;
+        if (pulses.p5) found_p5 = true;
+        if (pulses.p6) found_p6 = true;
+    }
+
+    // All six pulses should have been generated during one cycle
+    EXPECT_TRUE(found_p1);
+    EXPECT_TRUE(found_p2);
+    EXPECT_TRUE(found_p3);
+    EXPECT_TRUE(found_p4);
+    EXPECT_TRUE(found_p5);
+    EXPECT_TRUE(found_p6);
+}
+
+//==============================================================================
+// Pulse Mask Tests
+//==============================================================================
+
+// Test that pulse masking is disabled by default
+TEST(SixPulseGeneratorTest, PulseMaskDisabledByDefault)
+{
+    six_pulse_generator gen;
+    EXPECT_FALSE(gen.is_pulse_mask_enabled());
+
+    auto mask = gen.get_pulse_mask();
+    EXPECT_TRUE(mask.p1 && mask.p2 && mask.p3 && mask.p4 && mask.p5 && mask.p6);
+}
+
+// Test pulse mask enable/disable
+TEST(SixPulseGeneratorTest, PulseMaskEnableDisable)
+{
+    six_pulse_generator gen;
+
+    EXPECT_FALSE(gen.is_pulse_mask_enabled());
+
+    gen.enable_pulse_mask(true);
+    EXPECT_TRUE(gen.is_pulse_mask_enabled());
+
+    gen.enable_pulse_mask(false);
+    EXPECT_FALSE(gen.is_pulse_mask_enabled());
+}
+
+// Test pulse mask configuration
+TEST(SixPulseGeneratorTest, PulseMaskConfiguration)
+{
+    six_pulse_generator gen;
+
+    six_pulse_generator::pulse_mask custom_mask{true, false, true, false, true, false};
+    gen.configure_pulse_mask(custom_mask);
+
+    auto mask = gen.get_pulse_mask();
+    EXPECT_TRUE(mask.p1);
+    EXPECT_FALSE(mask.p2);
+    EXPECT_TRUE(mask.p3);
+    EXPECT_FALSE(mask.p4);
+    EXPECT_TRUE(mask.p5);
+    EXPECT_FALSE(mask.p6);
+}
+
+// Test pulse mask static factory methods
+TEST(SixPulseGeneratorTest, PulseMaskStaticMethods)
+{
+    auto all_on = six_pulse_generator::pulse_mask::all_enabled();
+    EXPECT_TRUE(all_on.p1 && all_on.p2 && all_on.p3 && all_on.p4 && all_on.p5 && all_on.p6);
+
+    auto all_off = six_pulse_generator::pulse_mask::all_disabled();
+    EXPECT_FALSE(all_off.p1 || all_off.p2 || all_off.p3 || all_off.p4 || all_off.p5 || all_off.p6);
+
+    auto odd = six_pulse_generator::pulse_mask::odd_only();
+    EXPECT_TRUE(odd.p1);
+    EXPECT_FALSE(odd.p2);
+    EXPECT_TRUE(odd.p3);
+    EXPECT_FALSE(odd.p4);
+    EXPECT_TRUE(odd.p5);
+    EXPECT_FALSE(odd.p6);
+
+    auto even = six_pulse_generator::pulse_mask::even_only();
+    EXPECT_FALSE(even.p1);
+    EXPECT_TRUE(even.p2);
+    EXPECT_FALSE(even.p3);
+    EXPECT_TRUE(even.p4);
+    EXPECT_FALSE(even.p5);
+    EXPECT_TRUE(even.p6);
+}
+
+// Test that pulse mask correctly blocks individual pulses
+TEST(SixPulseGeneratorTest, PulseMaskBlocksPulses)
+{
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle_wrapped(deg_to_rad(10.0)));
+    const angle_wrapped zero_alpha(0.0);
+
+    // Configure mask to only allow odd pulses (P1, P3, P5)
+    gen.configure_pulse_mask(six_pulse_generator::pulse_mask::odd_only());
+    gen.enable_pulse_mask(true);
+
+    // Test at angle where P1 would fire (0°)
+    auto p1 = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    EXPECT_TRUE(p1.p1);  // P1 is allowed by mask
+
+    // Test at angle where P2 would fire (60°)
+    auto p2 = gen.update(angle_wrapped(deg_to_rad(60.0)), zero_alpha, true);
+    EXPECT_FALSE(p2.p2);  // P2 is blocked by mask
+
+    // Test at angle where P3 would fire (120°)
+    auto p3 = gen.update(angle_wrapped(deg_to_rad(120.0)), zero_alpha, true);
+    EXPECT_TRUE(p3.p3);  // P3 is allowed by mask
+
+    // Test at angle where P4 would fire (180°)
+    auto p4 = gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
+    EXPECT_FALSE(p4.p4);  // P4 is blocked by mask
+
+    // Test at angle where P5 would fire (240°)
+    auto p5 = gen.update(angle_wrapped(deg_to_rad(240.0)), zero_alpha, true);
+    EXPECT_TRUE(p5.p5);  // P5 is allowed by mask
+
+    // Test at angle where P6 would fire (300°)
+    auto p6 = gen.update(angle_wrapped(deg_to_rad(300.0)), zero_alpha, true);
+    EXPECT_FALSE(p6.p6);  // P6 is blocked by mask
+}
+
+// Test that disabling pulse mask allows all pulses again
+TEST(SixPulseGeneratorTest, PulseMaskDisablingRestoresPulses)
+{
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle_wrapped(deg_to_rad(10.0)));
+    const angle_wrapped zero_alpha(0.0);
+
+    // Configure mask to block all pulses
+    gen.configure_pulse_mask(six_pulse_generator::pulse_mask::all_disabled());
+    gen.enable_pulse_mask(true);
+
+    // P1 should be blocked
+    auto blocked = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    EXPECT_FALSE(blocked.p1);
+
+    // Disable masking
+    gen.enable_pulse_mask(false);
+
+    // P1 should now fire
+    auto unblocked = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    EXPECT_TRUE(unblocked.p1);
+}
+
+// Test combined virtual reference and pulse masking
+TEST(SixPulseGeneratorTest, VirtualReferenceWithPulseMask)
+{
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle_wrapped(deg_to_rad(30.0)));
+
+    // Configure virtual reference
+    gen.configure_virtual_reference(frequency_t{50.0}, us(100.0));
+    gen.enable_virtual_reference(true);
+    gen.reset_virtual_reference();
+
+    // Configure mask to only allow P1 and P4
+    six_pulse_generator::pulse_mask single_pair{true, false, false, true, false, false};
+    gen.configure_pulse_mask(single_pair);
+    gen.enable_pulse_mask(true);
+
+    // Simulate one full cycle
+    bool found_p1 = false, found_p2 = false, found_p3 = false;
+    bool found_p4 = false, found_p5 = false, found_p6 = false;
+
+    for (int i = 0; i < 200; ++i) {
+        auto pulses = gen.update(angle_wrapped(0.0), true);
+        if (pulses.p1) found_p1 = true;
+        if (pulses.p2) found_p2 = true;
+        if (pulses.p3) found_p3 = true;
+        if (pulses.p4) found_p4 = true;
+        if (pulses.p5) found_p5 = true;
+        if (pulses.p6) found_p6 = true;
+    }
+
+    // Only P1 and P4 should have been generated
+    EXPECT_TRUE(found_p1);
+    EXPECT_FALSE(found_p2);
+    EXPECT_FALSE(found_p3);
+    EXPECT_TRUE(found_p4);
+    EXPECT_FALSE(found_p5);
+    EXPECT_FALSE(found_p6);
 }

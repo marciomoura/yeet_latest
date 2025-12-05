@@ -11,6 +11,7 @@ target_sources(
     ${PROJECT_NAME}
     PRIVATE grid_side_hardware_mock_test.cpp
             machine_side_hardware_mock_test.cpp
+            sfc_circuit_breaker_test.cpp
             sfc_combined_modulators_test.cpp
             sfc_communication_watchdog_test.cpp
             sfc_commutation_mask_test.cpp

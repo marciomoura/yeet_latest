@@ -122,14 +122,20 @@ void sfc_plant_back_to_back_topology::update()
     _machine_voltages = abc<voltage_t>{voltage_t{static_cast<real_t>(machine_signal.a())},
         voltage_t{static_cast<real_t>(machine_signal.b())}, voltage_t{static_cast<real_t>(machine_signal.c())}};
 
-    // Convert pulses to thyristor_pulses struct
-    control::thyristor_pulses grid_thyristor_pulses;
-    grid_thyristor_pulses.t1 = _grid_pulses[0];
-    grid_thyristor_pulses.t2 = _grid_pulses[1];
-    grid_thyristor_pulses.t3 = _grid_pulses[2];
-    grid_thyristor_pulses.t4 = _grid_pulses[3];
-    grid_thyristor_pulses.t5 = _grid_pulses[4];
-    grid_thyristor_pulses.t6 = _grid_pulses[5];
+    // Apply circuit breaker via pulse masking - when open, block all grid-side gate pulses
+    // This allows conducting thyristors to naturally commutate rather than
+    // unrealistically forcing the voltage to zero (which would be a short-circuit to ground)
+    control::thyristor_pulses grid_thyristor_pulses{};
+
+    if (_grid_circuit_breaker_closed) {
+        grid_thyristor_pulses.t1 = _grid_pulses[0];
+        grid_thyristor_pulses.t2 = _grid_pulses[1];
+        grid_thyristor_pulses.t3 = _grid_pulses[2];
+        grid_thyristor_pulses.t4 = _grid_pulses[3];
+        grid_thyristor_pulses.t5 = _grid_pulses[4];
+        grid_thyristor_pulses.t6 = _grid_pulses[5];
+    }
+    // When breaker is open, grid_thyristor_pulses is all false (default-initialized)
 
     control::thyristor_pulses machine_thyristor_pulses;
     machine_thyristor_pulses.t1 = _machine_pulses[0];
@@ -139,7 +145,7 @@ void sfc_plant_back_to_back_topology::update()
     machine_thyristor_pulses.t5 = _machine_pulses[4];
     machine_thyristor_pulses.t6 = _machine_pulses[5];
 
-    // Update the converter
+    // Update the converter with effective pulses (circuit breaker applied to grid side)
     _converter->update(_grid_voltages, _machine_voltages, grid_thyristor_pulses, machine_thyristor_pulses);
 }
 
@@ -284,6 +290,16 @@ const sfc_plant_model_voltage_control_parameters& sfc_plant_back_to_back_topolog
     const noexcept
 {
     return _voltage_control_params;
+}
+
+void sfc_plant_back_to_back_topology::set_grid_circuit_breaker_closed(bool closed)
+{
+    _grid_circuit_breaker_closed = closed;
+}
+
+bool sfc_plant_back_to_back_topology::is_grid_circuit_breaker_closed() const noexcept
+{
+    return _grid_circuit_breaker_closed;
 }
 
 sfc_plant_model_electrical_parameters sfc_plant_back_to_back_topology::create_default_electrical_parameters() noexcept

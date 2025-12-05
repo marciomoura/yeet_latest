@@ -525,3 +525,43 @@ TEST_F(SfcStartupSequencerTest, VeryShortDurationsHandledCorrectly)
     run_cycles(1, true);
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 }
+
+TEST_F(SfcStartupSequencerTest, PresetSignalGeneratedNearEndOfVirtualFrequency)
+{
+    // Configure virtual frequency with a known duration
+    virtual_freq_cfg.duration = duration_t{1.0};  // 1 second
+    sequencer->configure_virtual_frequency(virtual_freq_cfg);
+
+    sequencer->start_sequence();
+    run_cycles(1);        // Allow transition to FLUX_BUILDUP
+    run_cycles(1, true);  // Transition to STARTING_PROCEDURE
+
+    EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::STARTING_PROCEDURE);
+
+    // Preset signal should be false at the beginning of STARTING_PROCEDURE
+    auto outputs = sequencer->get_outputs();
+    EXPECT_FALSE(outputs.controller_commands.preset_observer);
+
+    // Run until near the end of virtual frequency ramp (1 second duration, 200ms default preset window)
+    // Run 750ms worth of cycles (should still be false, 250ms remaining > 200ms threshold)
+    run_cycles(750, true);
+    outputs = sequencer->get_outputs();
+    EXPECT_FALSE(outputs.controller_commands.preset_observer);
+
+    // Run 60ms more (now at 810ms, 190ms remaining < 200ms threshold)
+    run_cycles(60, true);
+    outputs = sequencer->get_outputs();
+    EXPECT_TRUE(outputs.controller_commands.preset_observer);
+
+    // Verify the preset angle is captured (just check that it's non-zero since virtual angle is integrating)
+    // The exact value will depend on integration, but it should be a reasonable angle
+    EXPECT_NE(outputs.controller_commands.preset_angle.get_radians().value(), 0.0);
+
+    // Complete the virtual frequency phase (need 1001 cycles total, we've done 810, need 191 more)
+    run_cycles(191, true);
+
+    // After transition to CLOSED_LOOP, preset signal should be cleared
+    EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
+    outputs = sequencer->get_outputs();
+    EXPECT_FALSE(outputs.controller_commands.preset_observer);
+}

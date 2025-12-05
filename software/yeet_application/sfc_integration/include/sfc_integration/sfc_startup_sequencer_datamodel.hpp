@@ -87,6 +87,15 @@ public:
 
         /// Time elapsed in current state [s]
         signal_output<duration_t> time_in_current_state;
+
+        /// Preset signal to initialize observer angle integrator
+        signal_output<bool> preset_observer;
+
+        /// Preset angle value for observer integrator initialization [rad]
+        signal_output<angle_wrapped> preset_angle;
+
+        /// Preset frequency value for observer frequency initialization [pu]
+        signal_output<frequency_pu_t> preset_frequency;
     };
 
     /**

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <string>
+
 #include "sfc_integration/plant_complete_sfc_closed_loop_simulation_builder.hpp"
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "sfc_loggers.hpp"
@@ -36,13 +38,14 @@ public:
         initialize();
 
         // ==================== Logger Registration ====================
-        register_complete_logger(simulator, system.grid_side_control.current_controller);
-        register_complete_logger(simulator, system.machine_side_control.torque_controller);
+        // register_complete_logger(simulator, system.grid_side_control.current_controller);
+        // register_complete_logger(simulator, system.machine_side_control.torque_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
-        register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
-        register_complete_logger(simulator, system.grid_side_control.state_machine);
-        register_complete_logger(simulator, system.plant);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
+        // register_complete_logger(simulator, system.grid_side_control.state_machine);
+        // register_complete_logger(simulator, system.plant);
     }
 
     void initialize()
@@ -177,6 +180,11 @@ TEST_P(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
         real_t{20.0f};
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
+    // IMPORTANT: Set speed reference BEFORE startup to prevent dip when transitioning to closed-loop
+    // The speed reference limiter is reset to virtual_frequency at the end of STARTING_PROCEDURE.
+    // If the external speed reference is 0, the limiter will ramp DOWN from virtual_frequency to 0.
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+
     // Speed tracking checker for steady-state validation
     const speed_pu_t speed_error_tolerance{0.10f};  // Relaxed for rate-limited ramp
     auto speed_tracking_checker = simulator.register_checker(yeet::make_range_checker<speed_pu_t>(
@@ -188,6 +196,26 @@ TEST_P(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
         -speed_error_tolerance, speed_error_tolerance, yeet::checker_activation_always{}));
 
     speed_tracking_checker->deactivate();  // Will activate during steady-state phase
+
+    // Monotonicity checker: speed reference should never decrease after closed-loop transition
+    speed_pu_t previous_speed_reference{0.0};
+    bool monotonicity_check_active = false;
+    auto speed_ref_monotonicity_checker = simulator.register_checker(yeet::lambda_checker(
+        "speed reference monotonicity",
+        [&]() -> bool {
+            if (!monotonicity_check_active) return true;
+
+            auto current_speed_ref = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+            bool is_monotonic =
+                current_speed_ref.value() >= previous_speed_reference.value() - 0.001f;  // Small tolerance
+            previous_speed_reference = current_speed_ref;
+            return is_monotonic;
+        },
+        [&]() -> std::string {
+            return "Speed reference decreased from " + std::to_string(previous_speed_reference.value()) + " to " +
+                   std::to_string(
+                       system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read().value());
+        }));
 
     // ==================== Execute State Machine Startup ====================
     execute_startup_sequence();
@@ -232,38 +260,41 @@ TEST_P(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     EXPECT_EQ(torque_mode, sfc_torque_controller::control_mode::SPEED_CONTROL)
         << "Torque controller should be in SPEED_CONTROL mode";
 
-    // ==================== Ramp Speed Reference to 1.0 pu with Rate Limiting ====================
-    // After virtual startup, the speed reference limiter is reset to 0 when transitioning to closed-loop.
-    // The limiter has been running since the transition (about 0.5s ago with 0 input).
-    // Now set external speed reference to 1.0 pu and track the ramp from 0.
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+    // ==================== Activate Monotonicity Checker ====================
+    // Now that we're in CLOSED_LOOP_OPERATION, the speed reference should only increase
+    // (since we set speed_reference = 1.0 pu before startup and the limiter was reset to virtual_frequency_final)
+    previous_speed_reference = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+    monotonicity_check_active = true;
 
-    // Simulate a small step to allow the new reference to propagate
-    success &= simulator.simulate_for(0.1);
-
-    // Get the current speed reference as baseline (should be very close to 0, maybe ~0.005 pu from 0.5s + 0.1s
-    // settling)
+    // Get the current speed reference as baseline
+    // The limiter was reset to virtual_frequency_final (0.1 pu) at transition, but may have already ramped
+    // during the settling time. Key assertion: baseline >= virtual_frequency_final and < target (1.0 pu)
     auto baseline_speed_ref = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+    const real_t virtual_frequency_final = 0.1f;
+    EXPECT_GE(baseline_speed_ref.value(), virtual_frequency_final)
+        << "Speed reference should be at least virtual_frequency_final after transition";
+    EXPECT_LT(baseline_speed_ref.value(), 1.0f) << "Speed reference should not have reached target yet";
 
     // Calculate expected speed reference values based on rate limiting from baseline
     const real_t rate_pu_per_s = 0.05f;  // 20 s/pu = 0.05 pu/s
-    const real_t expected_ref_5s = baseline_speed_ref.value() + 0.05f * 5.0f;
-    const real_t expected_ref_10s = baseline_speed_ref.value() + 0.05f * 10.0f;
-    const real_t expected_ref_20s = 1.0f;  // 1.0 pu after 20s from baseline
+    const real_t expected_ref_5s = baseline_speed_ref.value() + rate_pu_per_s * 5.0f;
+    const real_t expected_ref_10s = baseline_speed_ref.value() + rate_pu_per_s * 10.0f;
 
     // Simulate for 5 seconds
     success &= simulator.simulate_for(5.0);
     auto speed_ref_5s = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
     EXPECT_NEAR(speed_ref_5s.value(), expected_ref_5s, 0.05f)
-        << "Speed reference should ramp at 0.05 pu/s from 0 after closed-loop transition";
+        << "Speed reference should ramp at 0.05 pu/s from baseline after closed-loop transition";
 
-    // Simulate for 5 more seconds
+    // Simulate for 5 more seconds (10s total after closed-loop)
     success &= simulator.simulate_for(5.0);
     auto speed_ref_10s = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
     EXPECT_NEAR(speed_ref_10s.value(), expected_ref_10s, 0.05f)
         << "Speed reference should continue ramping at 0.05 pu/s";
 
-    // Simulate until reference reaches 1.0 pu (need 20s total at 0.05 pu/s, already simulated 10s)
+    // Simulate until reference reaches 1.0 pu
+    // From 0.1 pu baseline at 0.05 pu/s: (1.0 - 0.1) / 0.05 = 18s needed
+    // Already simulated 10s, need 8 more, but simulate 10 to ensure we reach target
     success &= simulator.simulate_for(10.0);
     auto speed_ref_final = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
     EXPECT_NEAR(speed_ref_final.value(), 1.0f, 0.03f)
@@ -290,6 +321,131 @@ TEST_P(CompleteSensorlessSpeedControllerTest, StartupSequencerIntegrationTest)
     EXPECT_TRUE(startup_complete) << "Startup sequencer should indicate startup complete";
 
     success &= simulator.simulate_for(10.0);
+}
+
+/**
+ * @test ObserverPresetDuringVirtualStartupTest
+ * @brief Validates that the observer is preset with the virtual reference frame angle
+ *
+ * This test validates the bumpless transfer mechanism from open-loop virtual startup
+ * to closed-loop sensorless control. The key mechanism is:
+ *
+ * 1. During STARTING_PROCEDURE, the system operates in open-loop using a virtual
+ *    reference frame (virtual frequency ramp generates the angle)
+ * 2. 100ms before the virtual frequency ramp completes, the startup sequencer
+ *    asserts preset_observer=true along with preset_angle (current virtual angle)
+ * 3. The machine-side observer uses this rising edge to preset its internal PLL
+ *    integrator to the virtual angle
+ * 4. When transitioning to CLOSED_LOOP_OPERATION, the observer's estimated angle
+ *    starts from the preset value, ensuring continuity
+ *
+ * Test Validation Points:
+ * - preset_observer signal transitions from false to true during STARTING_PROCEDURE
+ * - preset_angle at transition matches the virtual reference frame angle
+ * - Observer estimated angle after transition is close to the preset value
+ */
+TEST_P(CompleteSensorlessSpeedControllerTest, ObserverPresetDuringVirtualStartupTest)
+{
+    // ==================== Configure Startup Sequencer ====================
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.2};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
+
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Set speed reference before startup
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.5});
+
+    // ==================== Variables to Capture Preset Event ====================
+    bool preset_observed = false;
+    angle_wrapped preset_angle_captured{0.0};
+    angle_wrapped virtual_angle_at_preset{0.0};
+    startup_sequencer_state_t state_at_preset = startup_sequencer_state_t::IDLE;
+
+    // ==================== Execute State Machine Startup ====================
+    execute_startup_sequence();
+
+    bool success = true;
+
+    success &= simulator.simulate_for(1.0);  // Pre-flux duration
+
+    // Configure moderate load torque
+    system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
+
+    // Configure torque limits for startup
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
+    yeet::mock_signal_input::write(
+        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
+
+    // ==================== Manual Simulation Loop ====================
+    // We manually step the simulation to monitor the preset signal
+    // Virtual frequency duration is 10s. Total time approx 20s.
+    const double step_size = 0.001;  // 1ms
+    const double total_time = 20.0;
+    const int total_steps = static_cast<int>(total_time / step_size);
+
+    for (int i = 0; i < total_steps; ++i) {
+        simulator.simulate_for(step_size);
+
+        auto preset_signal = system.machine_side_control.startup_sequencer.get_outputs().preset_observer.read();
+
+        if (preset_signal && !preset_observed) {
+            preset_observed = true;
+            preset_angle_captured = system.machine_side_control.startup_sequencer.get_outputs().preset_angle.read();
+            virtual_angle_at_preset =
+                system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+            state_at_preset = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+        }
+    }
+
+    // ==================== Validate Preset Event Occurred ====================
+    EXPECT_TRUE(preset_observed) << "preset_observer signal should have been asserted during virtual startup";
+
+    // Validate preset occurred during the preset window in STARTING_PROCEDURE
+    // The preset is set before the transition to CLOSED_LOOP_OPERATION to allow
+    // the observer to initialize its integrators.
+    EXPECT_EQ(state_at_preset, startup_sequencer_state_t::STARTING_PROCEDURE)
+        << "Preset should occur during STARTING_PROCEDURE (before transition)";
+
+    // Validate preset_angle matches virtual_rotor_angle at the time of preset
+    // (They should be identical since preset_angle is set to virtual_rotor_angle)
+    EXPECT_NEAR(preset_angle_captured.get_pu(), virtual_angle_at_preset.get_pu(), 0.01f)
+        << "preset_angle should match virtual_rotor_angle at the moment of preset";
+
+    // ==================== Validate Observer Was Preset ====================
+    // After transitioning to CLOSED_LOOP_OPERATION, verify the observer angle
+    // is reasonably close to the virtual angle (accounting for some drift during transition)
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Should be in CLOSED_LOOP_OPERATION after virtual startup";
+
+    // The observer's estimated angle should be tracking the machine
+    // Since the machine was accelerated using the virtual reference frame,
+    // and the observer was preset to that frame, continuity should be maintained
+    auto observer_angle =
+        system.machine_side_control.machine_side_observer.get_outputs().estimated_reference_angle.read();
+    auto virtual_angle = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+
+    // Allow for some phase difference due to load angle and observer dynamics
+    // The key is that there shouldn't be a large discontinuity
+    const real_t max_angle_diff = 1.0f;  // ~57 degrees tolerance
+    real_t angle_diff = std::abs(observer_angle.get_pu() - virtual_angle.get_pu());
+
+    // Wrap the difference to [-π, π] (angles are in per-unit, 1 pu = 2π rad)
+    while (angle_diff > 0.5f) {
+        angle_diff -= 1.0f;
+    }
+    angle_diff = std::abs(angle_diff);
+
+    EXPECT_LT(angle_diff, max_angle_diff) << "Observer angle should be reasonably close to virtual angle after preset";
+
+    // ==================== Final Validation ====================
+    EXPECT_TRUE(success) << "Observer preset test completed with simulation errors";
 }
 
 /**

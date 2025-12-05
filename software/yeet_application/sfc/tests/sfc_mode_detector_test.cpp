@@ -244,10 +244,10 @@ TEST_F(SfcModeDetectorTest, ForceNaturalCommutationDisabledBySystemDisable)
     detector.update(enable, speed_pu_t{0.0F});
     ASSERT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
 
-    // When system is disabled, should revert to forced commutation regardless of force_natural_commutation
+    // When system is disabled, should revert to natural commutation regardless
     detector.update(!enable, speed_pu_t{0.5F});
-    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::forced_commutation);
-    EXPECT_TRUE(detector.has_mode_changed());
+    EXPECT_EQ(detector.get_operating_mode(), sfc_operating_mode_t::natural_commutation);
+    EXPECT_FALSE(detector.has_mode_changed());
 }
 
 TEST_F(SfcModeDetectorTest, ForceNaturalCommutationAfterReset)

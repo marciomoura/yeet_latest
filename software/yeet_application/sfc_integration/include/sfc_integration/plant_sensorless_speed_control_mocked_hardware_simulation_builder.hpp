@@ -61,8 +61,11 @@ public:
         // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
         yeet::mock_signal_input::write(speed_controller.get_inputs().applied_torque_reference, torque_pu_t{0.0});
 
-        // Mock machine-side observer release signal (no startup sequencer in this builder)
+        // Mock machine-side observer signals (no startup sequencer in this builder)
         yeet::mock_signal_input::write(machine_side_observer.get_inputs().release_observer, true);
+        yeet::mock_signal_input::write(machine_side_observer.get_inputs().preset_observer, false);
+        yeet::mock_signal_input::write(machine_side_observer.get_inputs().preset_angle, angle_wrapped{0.0});
+        yeet::mock_signal_input::write(machine_side_observer.get_inputs().preset_frequency, frequency_pu_t{0.0});
 
         // Always release pulses for open-loop firing generation
         yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);

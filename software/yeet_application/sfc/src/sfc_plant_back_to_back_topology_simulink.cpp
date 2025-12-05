@@ -44,7 +44,8 @@ static constexpr real_t kDefaultVoltageOffset = 0.1f;            // 0.1 pu volta
 
 }  // anonymous namespace
 
-sfc_plant_back_to_back_topology_simulink::sfc_plant_back_to_back_topology_simulink(const sfc_plant_model_electrical_parameters& electrical_params)
+sfc_plant_back_to_back_topology_simulink::sfc_plant_back_to_back_topology_simulink(
+    const sfc_plant_model_electrical_parameters& electrical_params)
     : _model(std::make_unique<generated::sfc::sfc_6p_6p_topology>()),
       _electrical_params(electrical_params),
       _mechanical_params(create_default_mechanical_parameters()),
@@ -109,9 +110,14 @@ void sfc_plant_back_to_back_topology_simulink::terminate() { _model->terminate()
 
 void sfc_plant_back_to_back_topology_simulink::set_grid_side_pulses(const std::array<bool, 6>& pulses)
 {
+    // Apply circuit breaker - when open, mask all gate pulses to allow natural commutation
     std::array<double, 6> double_pulses{};
-    std::transform(
-        pulses.cbegin(), pulses.cend(), double_pulses.begin(), [](bool b) { return static_cast<double>(b); });
+    if (_grid_circuit_breaker_closed) {
+        std::transform(
+            pulses.cbegin(), pulses.cend(), double_pulses.begin(), [](bool b) { return static_cast<double>(b); });
+    }
+    // When breaker is open, double_pulses remains all zeros (default-initialized)
+
     _model->sfc_6p_6p_topology_U.grid_side_converter_pulses = double_pulses;
 }
 
@@ -126,6 +132,7 @@ void sfc_plant_back_to_back_topology_simulink::set_machine_side_pulses(const std
 void sfc_plant_back_to_back_topology_simulink::set_grid_parameters(frequency_t frequency_hz, voltage_t voltage_rms)
 {
     _model->sfc_6p_6p_topology_U.grid_voltage_source_frequency_hz = frequency_hz;
+    // Voltage is always applied - circuit breaker is implemented via pulse masking in set_grid_side_pulses()
     _model->sfc_6p_6p_topology_U.grid_voltage_source_line_voltage_rms = voltage_rms;
 }
 
@@ -200,23 +207,40 @@ current_t sfc_plant_back_to_back_topology_simulink::get_dc_link_current() const 
 }
 
 // Parameter getters - Current configuration values
-const sfc_plant_model_electrical_parameters& sfc_plant_back_to_back_topology_simulink::get_electrical_parameters() const noexcept
+const sfc_plant_model_electrical_parameters& sfc_plant_back_to_back_topology_simulink::get_electrical_parameters()
+    const noexcept
 {
     return _electrical_params;
 }
 
-const sfc_plant_model_mechanical_parameters& sfc_plant_back_to_back_topology_simulink::get_mechanical_parameters() const noexcept
+const sfc_plant_model_mechanical_parameters& sfc_plant_back_to_back_topology_simulink::get_mechanical_parameters()
+    const noexcept
 {
     return _mechanical_params;
 }
 
-const sfc_plant_model_voltage_control_parameters& sfc_plant_back_to_back_topology_simulink::get_voltage_control_parameters() const noexcept
+const sfc_plant_model_voltage_control_parameters&
+sfc_plant_back_to_back_topology_simulink::get_voltage_control_parameters() const noexcept
 {
     return _voltage_control_params;
 }
 
+void sfc_plant_back_to_back_topology_simulink::set_grid_circuit_breaker_closed(bool closed)
+{
+    _grid_circuit_breaker_closed = closed;
+    // Circuit breaker state is applied via pulse masking in set_grid_side_pulses()
+    // No immediate voltage change - this is realistic behavior where the breaker
+    // stops new thyristor firings but allows conducting thyristors to naturally commutate
+}
+
+bool sfc_plant_back_to_back_topology_simulink::is_grid_circuit_breaker_closed() const noexcept
+{
+    return _grid_circuit_breaker_closed;
+}
+
 // Private factory methods for default parameters
-sfc_plant_model_electrical_parameters sfc_plant_back_to_back_topology_simulink::create_default_6p_6p_electrical_parameters() noexcept
+sfc_plant_model_electrical_parameters
+sfc_plant_back_to_back_topology_simulink::create_default_6p_6p_electrical_parameters() noexcept
 {
     return sfc_plant_model_electrical_parameters{.grid_frequency = kNominalGridFrequency,
         .machine_frequency = kNominalMachineFrequency,
@@ -233,17 +257,18 @@ sfc_plant_model_electrical_parameters sfc_plant_back_to_back_topology_simulink::
         .machine_num_poles = kMachineNumPoles};
 }
 
-sfc_plant_model_mechanical_parameters sfc_plant_back_to_back_topology_simulink::create_default_mechanical_parameters() noexcept
+sfc_plant_model_mechanical_parameters
+sfc_plant_back_to_back_topology_simulink::create_default_mechanical_parameters() noexcept
 {
     return sfc_plant_model_mechanical_parameters{
         .inertia_constant_h = kDefaultInertiaConstantH, .damping_factor_d = kDefaultDampingFactorD};
 }
 
-sfc_plant_model_voltage_control_parameters sfc_plant_back_to_back_topology_simulink::create_default_voltage_control_parameters() noexcept
+sfc_plant_model_voltage_control_parameters
+sfc_plant_back_to_back_topology_simulink::create_default_voltage_control_parameters() noexcept
 {
     return sfc_plant_model_voltage_control_parameters{
         .voltage_speed_coefficient = kDefaultVoltageSpeedCoefficient, .voltage_offset = kDefaultVoltageOffset};
 }
 
 }  // namespace yeet::application::sfc
-
