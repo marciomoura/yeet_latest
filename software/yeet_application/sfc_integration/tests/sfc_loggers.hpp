@@ -607,6 +607,14 @@ static inline void register_minimal_startup_sequencer_logger(
         [&]() { return startup_sequencer.get_outputs().is_startup_complete.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<duration_t>(group + "output time_in_current_state",
         [&]() { return startup_sequencer.get_outputs().time_in_current_state.read(); }));
+
+    // Observer preset outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output preset_observer", [&]() { return startup_sequencer.get_outputs().preset_observer.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
+        group + "output preset_angle", [&]() { return startup_sequencer.get_outputs().preset_angle.read().get_pu(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(
+        group + "output preset_frequency", [&]() { return startup_sequencer.get_outputs().preset_frequency.read(); }));
 }
 
 static inline void register_complete_startup_sequencer_logger(

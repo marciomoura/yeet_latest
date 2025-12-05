@@ -119,6 +119,13 @@ void sfc_machine_side_control::connect_internal_signals()
     // Observer enable from startup sequencer
     signals_connector::connect_output_to_input(
         startup_sequencer.get_outputs().release_machine_observer, machine_side_observer.get_inputs().release_observer);
+    // Observer preset signals from startup sequencer
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().preset_observer, machine_side_observer.get_inputs().preset_observer);
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().preset_angle, machine_side_observer.get_inputs().preset_angle);
+    signals_connector::connect_output_to_input(
+        startup_sequencer.get_outputs().preset_frequency, machine_side_observer.get_inputs().preset_frequency);
 
     // ==================== Machine Integrator Supervisor Inputs ====================
     // Connect fiber-optic signals from grid-side

@@ -120,14 +120,12 @@ void sfc_startup_sequencer::update(bool is_field_established,
     // Update outputs based on current state
     update_outputs_for_current_state();
 
-    // Store estimated angle for potential synchronization
-    if (_current_state == startup_sequencer_state_t::STARTING_PROCEDURE) {
-        // Synchronize virtual angle to estimated before transition
-        const duration_t time_remaining =
-            _virtual_frequency_config.duration - _virtual_frequency_ramp.get_elapsed_time();
-        if (time_remaining < duration_t{0.1}) {  // 100ms before end
-            synchronize_virtual_to_estimated(estimated_rotor_angle);
-        }
+    // Handle observer preset during FLUX_BUILDUP state
+    // During flux buildup, we feed the observer position back to the virtual angle integrator
+    if (_current_state == startup_sequencer_state_t::FLUX_BUILDUP) {
+        // During flux buildup, the observer is running but we want its angle
+        // No preset needed - observer starts from zero
+        _preset_requested = false;
     }
 }
 
@@ -139,6 +137,9 @@ void sfc_startup_sequencer::reset()
     _previous_state_machine_state = sfc_state_id::IDLE;
     _shutdown_speed_override_active = false;
     _start_requested = false;
+    _preset_requested = false;
+    _preset_angle_value = angle_wrapped{0.0};
+    _preset_frequency_value = frequency_pu_t{0.0};
 
     // Reset all timers
     reset_timers();
@@ -146,7 +147,7 @@ void sfc_startup_sequencer::reset()
 
     // Reset virtual reference frame
     _virtual_frequency = frequency_pu_t{0.0};
-    _virtual_rotor_angle = angle_t{0.0};
+    _virtual_rotor_angle = angle_wrapped{0.0};
     _virtual_torque = torque_pu_t{0.0};
     _virtual_angle_integrator.reset();
 
@@ -228,6 +229,16 @@ void sfc_startup_sequencer::transition_to_closed_loop_operation()
     _previous_state = _current_state;
     _current_state = startup_sequencer_state_t::CLOSED_LOOP_OPERATION;
 
+    // Preset the speed reference limiter to the current virtual frequency.
+    // This ensures bumpless transfer: the limiter output continues from where
+    // the virtual frequency ramp ended, rather than jumping to the external
+    // speed reference (which may be 0 or a different value).
+    _speed_reference_limiter.reset(_virtual_frequency.value());
+
+    // Clear preset request immediately upon transition
+    // This ensures the preset signal doesn't get stuck high
+    _preset_requested = false;
+
     // Reset state elapsed timer
     _state_elapsed_timer.reset();
 }
@@ -261,7 +272,8 @@ void sfc_startup_sequencer::update_idle(
 {
     // Update speed reference limiter even in IDLE to handle shutdown scenarios
     // When shutdown override is active (OPERATION_OFF), we need to ramp speed to zero
-    _speed_reference_limiter.update(speed_reference);
+    // _speed_reference_limiter.update(speed_reference);
+    _speed_reference_limiter.reset(speed_pu_t{0.0f});
 
     // If start has been requested, wait for observer settling
     if (_start_requested) {
@@ -308,6 +320,23 @@ void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency
     // Since both are in per-unit, freq_pu directly maps to speed_pu
     _speed_reference_limiter.reset(_virtual_frequency.value());
 
+    // Check if we are within the preset window before transition
+    // We want to enable the preset signal for a configurable duration before the
+    // virtual frequency ramp finishes. This ensures the observer is initialized
+    // and tracking the virtual angle before we switch to closed-loop control.
+    const duration_t time_remaining = _virtual_frequency_config.duration - _state_elapsed_timer.get_elapsed_time();
+
+    if (time_remaining <= _virtual_frequency_config.preset_duration) {
+        _preset_requested = true;
+        // Continuously update the preset angle and frequency to match the virtual values
+        // This ensures the observer gets the most up-to-date values at the rising edge
+        _preset_angle_value = _virtual_rotor_angle;
+        _preset_frequency_value = _virtual_frequency;
+    }
+    else {
+        _preset_requested = false;
+    }
+
     // Check if duration has elapsed
     if (has_elapsed) {
         // Virtual flux phase complete - transition to closed-loop
@@ -319,6 +348,9 @@ void sfc_startup_sequencer::update_closed_loop_operation(speed_pu_t speed_refere
 {
     // Update speed reference limiter with external reference (only in closed-loop)
     _speed_reference_limiter.update(speed_reference.value());
+
+    // Clear preset request - no longer needed in closed-loop
+    _preset_requested = false;
 
     // Closed-loop operation - speed control is active
     // System is running normally under speed control
@@ -337,8 +369,7 @@ bool sfc_startup_sequencer::update_virtual_reference_frame(frequency_t base_freq
     angular_frequency_t omega_si = hz_to_rad_per_sec(_virtual_frequency.value() * base_frequency.value());
 
     // Integrate to get angle (wrapping handled automatically by angle_wrapped)
-    angle_wrapped angle_increment = _virtual_angle_integrator.update(omega_si.value());
-    _virtual_rotor_angle = angle_increment.get_radians();
+    _virtual_rotor_angle = _virtual_angle_integrator.update(omega_si.value());
 
     // Check if ramp has completed
     return _virtual_frequency_ramp.is_finished();
@@ -375,6 +406,11 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
 
     // Update controller command outputs based on state
     _outputs.controller_commands.current_state = _current_state;
+
+    // Update preset outputs
+    _outputs.controller_commands.preset_observer = _preset_requested;
+    _outputs.controller_commands.preset_angle = _preset_angle_value;
+    _outputs.controller_commands.preset_frequency = _preset_frequency_value;
 
     switch (_current_state) {
         case startup_sequencer_state_t::IDLE:
