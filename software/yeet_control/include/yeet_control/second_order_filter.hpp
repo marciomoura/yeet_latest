@@ -143,6 +143,12 @@ public:
      */
     void reset() { _x1 = _x2 = _y1 = _y2 = T(0); }
 
+    /**
+     * Reset filter state variables to a specific initial value
+     * @param initial_value The value to initialize all states to
+     */
+    void reset(T initial_value) { _x1 = _x2 = _y1 = _y2 = _output = initial_value; }
+
     // Getter methods
     type get_sampling_time() const { return _ts; }
     type get_feedback_coeff_1() const { return _a1; }

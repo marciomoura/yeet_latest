@@ -23,14 +23,7 @@ void sfc_machine_side_observer_runner::initialize()
 
 void sfc_machine_side_observer_runner::run()
 {
-    const bool release_observer = _inputs.release_observer.read();
-    const bool preset_observer = _inputs.preset_observer.read();
-    const angle_wrapped preset_angle = _inputs.preset_angle.read();
-
-    // Detect rising edge on preset signal
-    const bool preset_rising_edge = _preset_edge_detector.update(preset_observer);
-
-    if (!release_observer) {
+    if (!_inputs.release_observer.read()) {
         // Observer disabled - reset estimation to zero
         _sfc_machine_side_observer.reset(frequency_pu_t{0.0});
         // Write zero outputs
@@ -43,13 +36,15 @@ void sfc_machine_side_observer_runner::run()
         return;
     }
 
-    // Check for preset rising edge - execute preset before normal update
-    if (preset_rising_edge) {
-        _sfc_machine_side_observer.preset(preset_angle);
+    // Check for preset request (level-triggered)
+    // When preset is active, we force the observer state and do NOT run the update
+    if (_inputs.preset_observer.read()) {
+        _sfc_machine_side_observer.preset(_inputs.preset_angle.read(), _inputs.preset_frequency.read());
     }
-
-    // Normal observer execution when enabled
-    _sfc_machine_side_observer.update(_inputs.machine_voltage_pu.read());
+    else {
+        // Normal observer execution when enabled
+        _sfc_machine_side_observer.update(_inputs.machine_voltage_pu.read());
+    }
 
     _outputs.estimated_voltage_magnitude = _sfc_machine_side_observer.get_estimated_voltage_magnitude();
     _outputs.estimated_frequency = _sfc_machine_side_observer.get_estimated_frequency();
