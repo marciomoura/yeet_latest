@@ -1,16 +1,16 @@
-/**
- * @copyright Techperts AG.
- * @date 10-12-2024
- * @brief
- */
-
 #ifndef YEET_UTILS_STORAGE_TYPE_HPP
 #define YEET_UTILS_STORAGE_TYPE_HPP
 
 #include <cassert>
-#include <iostream>
 #include <memory>
 #include <type_traits>
+
+#ifndef YEET_BUILD_EMBEDDED
+#include <iostream>
+#include <typeinfo>
+
+#include "stacktrace.hpp"
+#endif
 
 class storage_type_erased;
 
@@ -25,9 +25,16 @@ public:
 
     operator T() const
     {
+#ifndef YEET_BUILD_EMBEDDED
         if (_value == nullptr) {
-            assert(_value != nullptr);
+            std::cerr << "\n=== STORAGE_TYPE ERROR ===\n";
+            std::cerr << "Attempted to read from empty storage_type<" << typeid(T).name() << ">\n";
+            std::cerr << "Call stack:\n";
+            yeet::utils::print_stacktrace();
+            std::cerr << "==========================\n" << std::endl;
+            assert(false && "Attempted to read from empty storage_type");
         }
+#endif
         return *_value;
     }
 
