@@ -184,7 +184,9 @@ void sfc_machine_side_control::connect_internal_signals()
         .from(machine_integrator_supervisor.get_outputs().freeze_integrator)
         .to(&speed_ctrl_inputs::freeze_integrator)
         .from(machine_integrator_supervisor.get_outputs().preset_request)
-        .to(&speed_ctrl_inputs::preset_request);
+        .to(&speed_ctrl_inputs::preset_request)
+        .from(torque_controller.get_outputs().is_saturated)
+        .to(&speed_ctrl_inputs::is_saturated);
 
     // ==================== Torque Controller Inputs ====================
     wire(torque_controller)

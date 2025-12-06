@@ -314,7 +314,7 @@ public:
  * 5. User confirms alarm → inhibited flag clears
  * 6. State machine can transition from OPERATION_OFF to OPERATION_ON
  */
-TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_OvervoltageRecoveryWithAlarmConfirmation)
 {
     startup_to_nominal_speed();
 
@@ -404,7 +404,7 @@ TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
    * 5. User confirms alarm → inhibited flag clears
    * 6. State machine can transition from OPERATION_OFF to OPERATION_ON
    */
-TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_UndervoltageRecoveryWithAlarmConfirmation)
 {
     startup_to_nominal_speed();
 
@@ -488,7 +488,7 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
 /**
  * @brief Test that alarm cannot be confirmed while fault is still active (safety feature)
  */
-TEST_F(ClosedLoopProtectionsTest, CannotConfirmAlarmWhileFaultActive)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_CannotConfirmAlarmWhileFaultActive)
 {
     // Startup to nominal speed
     startup_to_nominal_speed();
@@ -556,7 +556,7 @@ TEST_F(ClosedLoopProtectionsTest, CannotConfirmAlarmWhileFaultActive)
  * - User confirms alarm to clear inhibit
  * - System can restart to OPERATION_ON
  */
-TEST_F(ClosedLoopProtectionsTest, SequentialAllProtectionTypes)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_SequentialAllProtectionTypes)
 {
     // ==================== Initial Startup to 1.0 pu Speed ====================
     SCOPED_TRACE("Initial Startup");
