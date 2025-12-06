@@ -70,7 +70,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(32, static_cast<float>(static_cast<int>(state_machine.get_outputs().current_state_id.read())));
     packet.add_signal(33, state_machine.get_outputs().release_pulses.read() ? 1.0f : 0.0f);
     packet.add_signal(34, state_machine.get_outputs().auxiliaries_are_on.read() ? 1.0f : 0.0f);
-    packet.add_signal(35, state_machine.get_outputs().breakers_are_on.read() ? 1.0f : 0.0f);
+    packet.add_signal(35, state_machine.get_outputs().mcb_is_closed.read() ? 1.0f : 0.0f);
     packet.add_signal(36, state_machine.get_outputs().start_command.read() ? 1.0f : 0.0f);
     packet.add_signal(37, state_machine.get_outputs().stop_command.read() ? 1.0f : 0.0f);
     packet.add_signal(38, state_machine.get_outputs().is_current_extinguished.read() ? 1.0f : 0.0f);

@@ -390,8 +390,7 @@ int main(int argc, char* argv[])
     // State machine startup (EXACT from execute_startup_sequence())
     yeet::mock_signal_input::write(
         simulator_builder.grid_side_control.state_machine.get_inputs().auxiliaries_are_on, true);
-    yeet::mock_signal_input::write(
-        simulator_builder.grid_side_control.state_machine.get_inputs().breakers_are_on, true);
+    yeet::mock_signal_input::write(simulator_builder.grid_side_control.state_machine.get_inputs().mcb_is_closed, true);
     simulator.simulate_for(0.2);
 
     yeet::mock_signal_input::write(simulator_builder.grid_side_control.state_machine.get_inputs().start_command, true);

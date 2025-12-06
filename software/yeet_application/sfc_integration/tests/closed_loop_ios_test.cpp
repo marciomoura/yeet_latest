@@ -535,7 +535,7 @@ TEST_F(ClosedLoopIOsTest, EmergencyOffInhibitsStartup)
     success &= simulator.simulate_for(ms(20.0f));  // Allow transition
 
     // MCB close should now be allowed, and system should progress
-    // Since breakers_are_on was already set, state machine will have transitioned
+    // Since mcb_is_closed was already set, state machine will have transitioned
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
 
     // BREAKERS_ON auto-transitions to OPERATION_OFF, so we expect OPERATION_OFF
