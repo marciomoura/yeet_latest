@@ -11,6 +11,7 @@
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "sfc_integration/sfc_torque_controller_runner.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
 
@@ -53,22 +54,37 @@ public:
     void mock_inputs()
     {
         // Mock control signals for standalone testing
-        yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().preset_request, false);
+        yeet::wire(current_controller)
+            .mocked(false)
+            .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
+            .mocked(false)
+            .to(&sfc_current_controller_datamodel::inputs::preset_request);
+        yeet::wire(speed_controller)
+            .mocked(false)
+            .to(&sfc_speed_controller_datamodel::inputs::freeze_integrator)
+            .mocked(false)
+            .to(&sfc_speed_controller_datamodel::inputs::preset_request);
 
         // Torque controller mocks (no speed_generator or startup_sequencer in this builder)
-        yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.2f});
-        yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0f});
-        yeet::mock_signal_input::write(torque_controller.get_inputs().enable_breakaway_boost, false);
-        yeet::mock_signal_input::write(
-            torque_controller.get_inputs().control_mode, sfc::sfc_torque_controller::control_mode::SPEED_CONTROL);
-        yeet::mock_signal_input::write(torque_controller.get_inputs().manual_torque_reference, torque_pu_t{0.0f});
+        yeet::wire(torque_controller)
+            .mocked(torque_pu_t{1.2f})
+            .to(&sfc_torque_controller_datamodel::inputs::dynamic_max_torque_limit)
+            .mocked(torque_pu_t{0.0f})
+            .to(&sfc_torque_controller_datamodel::inputs::dynamic_min_torque_limit)
+            .mocked(false)
+            .to(&sfc_torque_controller_datamodel::inputs::enable_breakaway_boost)
+            .mocked(sfc::sfc_torque_controller::control_mode::SPEED_CONTROL)
+            .to(&sfc_torque_controller_datamodel::inputs::control_mode)
+            .mocked(torque_pu_t{0.0f})
+            .to(&sfc_torque_controller_datamodel::inputs::manual_torque_reference);
 
         // Mock pulse release signals for both pulse generators
-        yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
-        yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
+        yeet::wire(grid_side_pulse_generator)
+            .mocked(true)
+            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
+        yeet::wire(machine_side_pulse_generator)
+            .mocked(true)
+            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
     void initialize()
     {
@@ -231,9 +247,6 @@ private:
         // DC link current feedback (primary feedback signal for current loop)
         signals_connector::connect_output_to_input(
             dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
-
-        // Mock the modulator freeze integrator signal for this simplified configuration
-        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
 
         // ==================== Torque Controller → Machine Side Controller ====================
         // Connect torque controller current reference to machine side controller for lookup table

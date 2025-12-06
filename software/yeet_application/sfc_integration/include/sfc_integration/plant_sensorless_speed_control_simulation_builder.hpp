@@ -11,6 +11,7 @@
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/simulator.hpp"
 
@@ -56,23 +57,38 @@ public:
     void mock_inputs()
     {
         // Mock control signals for standalone testing
-        yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(speed_controller.get_inputs().preset_request, false);
-
-        // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
-        yeet::mock_signal_input::write(speed_controller.get_inputs().applied_torque_reference, torque_pu_t{0.0});
+        yeet::wire(current_controller)
+            .mocked(false)
+            .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
+            .mocked(false)
+            .to(&sfc_current_controller_datamodel::inputs::preset_request);
+        yeet::wire(speed_controller)
+            .mocked(false)
+            .to(&sfc_speed_controller_datamodel::inputs::freeze_integrator)
+            .mocked(false)
+            .to(&sfc_speed_controller_datamodel::inputs::preset_request)
+            // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
+            .mocked(torque_pu_t{0.0})
+            .to(&sfc_speed_controller_datamodel::inputs::applied_torque_reference);
 
         // Mock machine-side observer signals (no startup sequencer in this builder)
-        yeet::mock_signal_input::write(machine_side_observer.get_inputs().release_observer, true);
-        yeet::mock_signal_input::write(machine_side_observer.get_inputs().preset_observer, false);
-        yeet::mock_signal_input::write(machine_side_observer.get_inputs().preset_angle, angle_wrapped{0.0});
-        yeet::mock_signal_input::write(machine_side_observer.get_inputs().preset_frequency, frequency_pu_t{0.0});
+        yeet::wire(machine_side_observer)
+            .mocked(true)
+            .to(&sfc_machine_side_observer_datamodel::inputs::release_observer)
+            .mocked(false)
+            .to(&sfc_machine_side_observer_datamodel::inputs::preset_observer)
+            .mocked(angle_wrapped{0.0})
+            .to(&sfc_machine_side_observer_datamodel::inputs::preset_angle)
+            .mocked(frequency_pu_t{0.0})
+            .to(&sfc_machine_side_observer_datamodel::inputs::preset_frequency);
 
         // Mock pulse release signals for both pulse generators
-        yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
-        yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
+        yeet::wire(grid_side_pulse_generator)
+            .mocked(true)
+            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
+        yeet::wire(machine_side_pulse_generator)
+            .mocked(true)
+            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
     void initialize()
     {
