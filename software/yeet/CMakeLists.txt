@@ -28,6 +28,7 @@ target_sources(
            include/yeet/utils/low_level_access_registry.hpp
            include/yeet/utils/metadata.hpp
            include/yeet/utils/storage_type.hpp
+           include/yeet/utils/stacktrace.hpp
     PRIVATE src/parameter.cpp
             src/network_telemetry.cpp
             src/network_command_parser.cpp
@@ -40,6 +41,11 @@ target_include_directories(
                            ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
+
+# Link cpptrace for stacktrace support (host builds only)
+if(NOT YEET_BUILD_EMBEDDED)
+    target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)
+endif()
 
 if(YEET_ENABLE_CODE_ANALYSIS)
     get_target_property(TARGET_SOURCES ${PROJECT_NAME} SOURCES)

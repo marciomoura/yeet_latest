@@ -181,6 +181,16 @@ message(
 )
 
 include(json)
+
+# Stacktrace support for host builds only (not for embedded)
+if(NOT YEET_BUILD_EMBEDDED)
+    message(
+        STATUS
+            "yeet build-config: Adding stacktrace support - debugging goes brrr 🔍"
+    )
+    include(stacktrace)
+endif()
+
 # Source directories - let's get this party started 🎉
 add_subdirectory(software/yeet)
 add_subdirectory(software/yeet_control)
