@@ -1,5 +1,7 @@
 #include "sfc_integration/sfc_machine_side_control.hpp"
 
+#include "yeet/signal_wiring.hpp"
+
 namespace yeet::application::sfc::integration {
 
 void sfc_machine_side_control::initialize()
@@ -99,164 +101,152 @@ void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry
 
 void sfc_machine_side_control::connect_internal_signals()
 {
-    // ==================== Signal Connections Organized by Receiving Component ====================
+    using namespace yeet;
+
+    // Type aliases for input struct types
+    using measurements_inputs = sfc_machine_side_measurements_datamodel::inputs;
+    using observer_inputs = sfc_machine_side_observer_datamodel::inputs;
+    using supervisor_inputs = sfc_machine_side_integrator_supervisor_datamodel::inputs;
+    using excitation_inputs = sfc_excitation_controller_datamodel::inputs;
+    using sequencer_inputs = sfc_startup_sequencer_datamodel::inputs;
+    using speed_ctrl_inputs = sfc_speed_controller_datamodel::inputs;
+    using torque_ctrl_inputs = sfc_torque_controller_datamodel::inputs;
+    using controller_inputs = sfc_machine_side_controller_datamodel::inputs;
+    using modulator_inputs = sfc_machine_side_modulator_datamodel::inputs;
+    using pulse_gen_inputs = sfc_machine_side_pulse_generator_datamodel::inputs;
+    using protections_inputs = sfc_machine_side_protections_datamodel::inputs;
 
     // ==================== Machine Measurements Inputs ====================
-    signals_connector::connect_output_to_input(
-        external_ios.get_analog_inputs().v_ab_counts, machine_measurements.get_inputs().v_ab_counts);
-    signals_connector::connect_output_to_input(
-        external_ios.get_analog_inputs().v_bc_counts, machine_measurements.get_inputs().v_bc_counts);
-    signals_connector::connect_output_to_input(
-        machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-        machine_measurements.get_inputs().machine_reference_angle);
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_frequency, machine_measurements.get_inputs().machine_frequency);
+    wire(machine_measurements)
+        .from(external_ios.get_analog_inputs().v_ab_counts)
+        .to(&measurements_inputs::v_ab_counts)
+        .from(external_ios.get_analog_inputs().v_bc_counts)
+        .to(&measurements_inputs::v_bc_counts)
+        .from(machine_side_pulse_generator.get_outputs().firing_pulses)
+        .to(&measurements_inputs::machine_pulses)
+        .from(machine_side_observer.get_outputs().estimated_reference_angle)
+        .to(&measurements_inputs::machine_reference_angle)
+        .from(machine_side_observer.get_outputs().estimated_frequency)
+        .to(&measurements_inputs::machine_frequency);
 
     // ==================== Machine-Side Observer Inputs ====================
-    signals_connector::connect_output_to_input(
-        machine_measurements.get_outputs().machine_voltage_abc, machine_side_observer.get_inputs().machine_voltage_pu);
-    // Observer enable from startup sequencer
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().release_machine_observer, machine_side_observer.get_inputs().release_observer);
-    // Observer preset signals from startup sequencer
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().preset_observer, machine_side_observer.get_inputs().preset_observer);
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().preset_angle, machine_side_observer.get_inputs().preset_angle);
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().preset_frequency, machine_side_observer.get_inputs().preset_frequency);
+    wire(machine_side_observer)
+        .from(machine_measurements.get_outputs().machine_voltage_abc)
+        .to(&observer_inputs::machine_voltage_pu)
+        .from(startup_sequencer.get_outputs().release_machine_observer)
+        .to(&observer_inputs::release_observer)
+        .from(startup_sequencer.get_outputs().preset_observer)
+        .to(&observer_inputs::preset_observer)
+        .from(startup_sequencer.get_outputs().preset_angle)
+        .to(&observer_inputs::preset_angle)
+        .from(startup_sequencer.get_outputs().preset_frequency)
+        .to(&observer_inputs::preset_frequency);
 
     // ==================== Machine Integrator Supervisor Inputs ====================
-    // Connect fiber-optic signals from grid-side
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().release_pulses,
-        machine_integrator_supervisor.get_inputs().grid_side_release_pulses);
-
-    // Connect saturation signal for anti-windup (only torque controller)
-    signals_connector::connect_output_to_input(
-        torque_controller.get_outputs().is_saturated, machine_integrator_supervisor.get_inputs().torque_saturated);
-
-    // Connect machine-side protections trip signal (propagate to grid-side via fiber optics)
-    signals_connector::connect_output_to_input(machine_protections.get_outputs().is_tripped,
-        machine_integrator_supervisor.get_inputs().protection_shutdown_request);
+    wire(machine_integrator_supervisor)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().release_pulses)
+        .to(&supervisor_inputs::grid_side_release_pulses)
+        .from(torque_controller.get_outputs().is_saturated)
+        .to(&supervisor_inputs::torque_saturated)
+        .from(machine_protections.get_outputs().is_tripped)
+        .to(&supervisor_inputs::protection_shutdown_request);
 
     // ==================== Excitation Controller Inputs ====================
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, excitation_controller.get_inputs().machine_rotor_speed_pu);
-    // Excitation enable from startup sequencer
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().release_excitation, excitation_controller.get_inputs().release_excitation);
+    wire(excitation_controller)
+        .from(machine_side_observer.get_outputs().estimated_speed)
+        .to(&excitation_inputs::machine_rotor_speed_pu)
+        .from(startup_sequencer.get_outputs().release_excitation)
+        .to(&excitation_inputs::release_excitation);
 
     // ==================== Startup Sequencer Inputs ====================
-    signals_connector::connect_output_to_input(
-        excitation_controller.get_outputs().is_field_established, startup_sequencer.get_inputs().is_field_established);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-        startup_sequencer.get_inputs().estimated_rotor_angle);
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, startup_sequencer.get_inputs().measured_speed);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
-        startup_sequencer.get_inputs().machine_voltage_magnitude);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().current_state_id,
-        startup_sequencer.get_inputs().current_state_id);
+    wire(startup_sequencer)
+        .from(excitation_controller.get_outputs().is_field_established)
+        .to(&sequencer_inputs::is_field_established)
+        .from(machine_side_observer.get_outputs().estimated_reference_angle)
+        .to(&sequencer_inputs::estimated_rotor_angle)
+        .from(machine_side_observer.get_outputs().estimated_speed)
+        .to(&sequencer_inputs::measured_speed)
+        .from(machine_side_observer.get_outputs().estimated_voltage_magnitude)
+        .to(&sequencer_inputs::machine_voltage_magnitude)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().current_state_id)
+        .to(&sequencer_inputs::current_state_id);
 
     // ==================== Speed Controller Inputs ====================
-    // Speed reference from startup sequencer (rate-limited)
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().speed_reference, speed_controller.get_inputs().speed_reference);
-    // Measured speed from observer
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed);
-
-    // ==================== Startup Sequencer → Component Enable Connections ====================
-    // Speed controller enable from startup sequencer
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().release_speed_controller, speed_controller.get_inputs().release_pulses);
-
-    // Applied torque reference for bumpless transfer (actual torque from torque controller)
-    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().virtual_torque_reference,
-        speed_controller.get_inputs().applied_torque_reference);
-
-    // Keep machine_integrator_supervisor for anti-windup freeze logic
-    signals_connector::connect_output_to_input(
-        machine_integrator_supervisor.get_outputs().freeze_integrator, speed_controller.get_inputs().freeze_integrator);
-    signals_connector::connect_output_to_input(
-        machine_integrator_supervisor.get_outputs().preset_request, speed_controller.get_inputs().preset_request);
+    wire(speed_controller)
+        .from(startup_sequencer.get_outputs().speed_reference)
+        .to(&speed_ctrl_inputs::speed_reference)
+        .from(machine_side_observer.get_outputs().estimated_speed)
+        .to(&speed_ctrl_inputs::measured_speed)
+        .from(startup_sequencer.get_outputs().release_speed_controller)
+        .to(&speed_ctrl_inputs::release_pulses)
+        .from(startup_sequencer.get_outputs().virtual_torque_reference)
+        .to(&speed_ctrl_inputs::applied_torque_reference)
+        .from(machine_integrator_supervisor.get_outputs().freeze_integrator)
+        .to(&speed_ctrl_inputs::freeze_integrator)
+        .from(machine_integrator_supervisor.get_outputs().preset_request)
+        .to(&speed_ctrl_inputs::preset_request);
 
     // ==================== Torque Controller Inputs ====================
-    signals_connector::connect_output_to_input(
-        speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
-
-    // Mock speed_generator outputs during startup sequencer coordination
-    // These will be reconnected when speed_generator is reintegrated
-    yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{2.0});
-    yeet::mock_signal_input::write(torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
-    yeet::mock_signal_input::write(torque_controller.get_inputs().enable_breakaway_boost, false);
-    yeet::mock_signal_input::write(torque_controller.get_inputs().is_saturated, false);
-    yeet::mock_signal_input::write(speed_controller.get_inputs().is_saturated, false);
-
-    // Control mode and manual torque reference from startup sequencer
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().torque_control_mode, torque_controller.get_inputs().control_mode);
-    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().virtual_torque_reference,
-        torque_controller.get_inputs().manual_torque_reference);
+    wire(torque_controller)
+        .from(speed_controller.get_outputs().torque_reference)
+        .to(&torque_ctrl_inputs::torque_reference)
+        .from(startup_sequencer.get_outputs().torque_control_mode)
+        .to(&torque_ctrl_inputs::control_mode)
+        .from(startup_sequencer.get_outputs().virtual_torque_reference)
+        .to(&torque_ctrl_inputs::manual_torque_reference);
 
     // ==================== Machine-Side Controller Inputs ====================
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, machine_side_controller.get_inputs().machine_speed);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current,
-        machine_side_controller.get_inputs().dc_link_current);
+    wire(machine_side_controller)
+        .from(machine_side_observer.get_outputs().estimated_speed)
+        .to(&controller_inputs::machine_speed)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current)
+        .to(&controller_inputs::dc_link_current);
 
     // ==================== Machine-Side Modulator Inputs ====================
-    signals_connector::connect_output_to_input(
-        machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-        machine_side_modulator.get_inputs().machine_reference_angle);
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_grid().force_commutation_acknowledged,
-        machine_side_modulator.get_inputs().force_commutation_acknowledged);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().operating_mode,
-        machine_side_modulator.get_inputs().operating_mode);
-    // Reference frame source and virtual angle from startup sequencer
-    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().reference_frame_source,
-        machine_side_modulator.get_inputs().reference_frame_source);
-    signals_connector::connect_output_to_input(
-        startup_sequencer.get_outputs().virtual_rotor_angle, machine_side_modulator.get_inputs().virtual_rotor_angle);
-    // Modulator enable from startup sequencer
-    signals_connector::connect_output_to_input(startup_sequencer.get_outputs().release_machine_side_pulses,
-        machine_side_modulator.get_inputs().release_pulses);
+    wire(machine_side_modulator)
+        .from(machine_side_controller.get_outputs().firing_angle)
+        .to(&modulator_inputs::firing_angle)
+        .from(machine_side_observer.get_outputs().estimated_reference_angle)
+        .to(&modulator_inputs::machine_reference_angle)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().force_commutation_acknowledged)
+        .to(&modulator_inputs::force_commutation_acknowledged)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().operating_mode)
+        .to(&modulator_inputs::operating_mode)
+        .from(startup_sequencer.get_outputs().reference_frame_source)
+        .to(&modulator_inputs::reference_frame_source)
+        .from(startup_sequencer.get_outputs().virtual_rotor_angle)
+        .to(&modulator_inputs::virtual_rotor_angle)
+        .from(startup_sequencer.get_outputs().release_machine_side_pulses)
+        .to(&modulator_inputs::release_pulses);
 
     // ==================== Machine-Side Pulse Generator Inputs ====================
-    signals_connector::connect_output_to_input(
-        machine_side_modulator.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
-    signals_connector::connect_output_to_input(
-        machine_side_modulator.get_outputs().release_pulses, machine_side_pulse_generator.get_inputs().release_pulses);
-    signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-        machine_side_pulse_generator.get_inputs().reference_angle);
+    wire(machine_side_pulse_generator)
+        .from(machine_side_modulator.get_outputs().firing_angle)
+        .to(&pulse_gen_inputs::firing_angle)
+        .from(machine_side_modulator.get_outputs().release_pulses)
+        .to(&pulse_gen_inputs::release_pulses)
+        .from(machine_side_observer.get_outputs().estimated_reference_angle)
+        .to(&pulse_gen_inputs::reference_angle);
 
     // ==================== Machine-Side Protections Inputs ====================
-    // DC link current from fiber optics
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current,
-        machine_protections.get_inputs().dc_link_current_pu);
-    // Machine voltage magnitude from measurements
-    signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_magnitude,
-        machine_protections.get_inputs().machine_voltage_magnitude_pu);
-    // Machine frequency from observer
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_frequency, machine_protections.get_inputs().machine_frequency);
-    // Machine speed from observer
-    signals_connector::connect_output_to_input(
-        machine_side_observer.get_outputs().estimated_speed, machine_protections.get_inputs().machine_speed);
-    // Startup active from startup sequencer
-    // TODO: Derive startup_active from startup_sequencer.current_state
-    // Should be true when state is ESTABLISHING_EXCITATION, SYNCHRONIZING_VIRTUAL, or ACCELERATING
-    // For now, mock as false until startup_sequencer adds startup_active output
-    yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
-    // Protection signals received from grid-side via fiber optics
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_grid().grid_release_protections,
-        machine_protections.get_inputs().release_protections);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_grid().grid_trip_acknowledged,
-        machine_protections.get_inputs().trip_acknowledged);
+    wire(machine_protections)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current)
+        .to(&protections_inputs::dc_link_current_pu)
+        .from(machine_measurements.get_outputs().machine_voltage_magnitude)
+        .to(&protections_inputs::machine_voltage_magnitude_pu)
+        .from(machine_side_observer.get_outputs().estimated_frequency)
+        .to(&protections_inputs::machine_frequency)
+        .from(machine_side_observer.get_outputs().estimated_speed)
+        .to(&protections_inputs::machine_speed)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().grid_release_protections)
+        .to(&protections_inputs::release_protections)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().grid_trip_acknowledged)
+        .to(&protections_inputs::trip_acknowledged)
+        // TODO: Derive startup_active from startup_sequencer.current_state
+        // Should be true when state is ESTABLISHING_EXCITATION, SYNCHRONIZING_VIRTUAL, or ACCELERATING
+        // For now, mock as false until startup_sequencer adds startup_active output
+        .mocked(false)
+        .to(&protections_inputs::startup_active);
 
     // ==================== External IO Output Connections ====================
     signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
@@ -269,6 +259,18 @@ void sfc_machine_side_control::connect_internal_signals()
     // Map field_current_reference to excitation_current_reference (AO)
     signals_connector::connect_output_to_input(excitation_controller.get_outputs().field_current_reference,
         external_ios.get_excitation_outputs().excitation_current_reference);
+
+    // Mock speed_generator outputs during startup sequencer coordination
+    // These will be reconnected when speed_generator is reintegrated
+    wire(torque_controller)
+        .mocked(torque_pu_t{2.0})
+        .to(&torque_ctrl_inputs::dynamic_max_torque_limit)
+        .mocked(torque_pu_t{0.0})
+        .to(&torque_ctrl_inputs::dynamic_min_torque_limit)
+        .mocked(false)
+        .to(&torque_ctrl_inputs::enable_breakaway_boost)
+        .mocked(false)
+        .to(&torque_ctrl_inputs::is_saturated);
 }
 
 }  // namespace yeet::application::sfc::integration

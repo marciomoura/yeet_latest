@@ -116,14 +116,13 @@ jobs:
       - name: Configure CMake project
         run: |
           cmake -G Ninja -B build \
-                -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo \
                 -DCMAKE_C_COMPILER=$CC \
                 -DCMAKE_CXX_COMPILER=$CXX \
                 -DCMAKE_LINKER_TYPE=MOLD \
                 -DYEET_BUILD_TESTING=ON \
                 -DYEET_CODE_COVERAGE=ON \
                 -DYEET_MEMCHECK=ON \
-                -DYEET_ENABLE_DATA_LOGGING=OFF \
                 -DYEET_ENABLE_CCACHE=ON
           echo "=== CMake Configuration Complete ==="
 

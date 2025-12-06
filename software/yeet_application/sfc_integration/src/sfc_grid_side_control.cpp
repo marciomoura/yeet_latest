@@ -1,5 +1,7 @@
 #include "sfc_integration/sfc_grid_side_control.hpp"
 
+#include "yeet/signal_wiring.hpp"
+
 namespace yeet::application::sfc::integration {
 
 void sfc_grid_side_control::initialize()
@@ -99,160 +101,145 @@ bool sfc_grid_side_control::decode_fiber_optic_rx_from_machine(
 
 void sfc_grid_side_control::connect_internal_signals()
 {
-    // NOTE: I/O interface connections are established automatically in sfc_grid_side_control_io constructor
-    // through direct reference initialization. External systems can connect to io.analog_inputs, io.digital_inputs,
-    // etc. which are references to the actual component signal_input members.
-
-    // ==================== Signal Connections Organized by Receiving Component ====================
+    // Type aliases for cleaner member pointer syntax
+    using state_machine_inputs = sfc_state_machine_datamodel::inputs;
+    using supervisor_inputs = sfc_grid_side_integrator_supervisor_datamodel::inputs;
+    using measurements_inputs = sfc_grid_side_measurements_datamodel::inputs;
+    using dc_link_inputs = sfc_dc_link_measurements_datamodel::inputs;
+    using mode_monitor_inputs = sfc_operation_mode_monitor_datamodel::inputs;
+    using protections_inputs = sfc_grid_side_protections_datamodel::inputs;
+    using current_ctrl_inputs = sfc_current_controller_datamodel::inputs;
+    using observer_inputs = sfc_grid_side_observer_datamodel::inputs;
+    using modulator_inputs = sfc_grid_side_modulator_datamodel::inputs;
+    using pulse_gen_inputs = sfc_grid_side_pulse_generator_datamodel::inputs;
 
     // ==================== State Machine Inputs ====================
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().auxiliaries_are_on, state_machine.get_inputs().auxiliaries_are_on);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().mcb_is_closed, state_machine.get_inputs().mcb_is_closed);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().start_command, state_machine.get_inputs().start_command);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().stop_command, state_machine.get_inputs().stop_command);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().shutdown_request, state_machine.get_inputs().shutdown_request);
-    signals_connector::connect_output_to_input(
-        operation_mode_monitor.get_outputs().current_is_zero, state_machine.get_inputs().is_current_extinguished);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().breaker_is_tripping, state_machine.get_inputs().breaker_is_tripping);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().emergency_off, state_machine.get_inputs().emergency_off);
-    signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().door_is_open, state_machine.get_inputs().door_is_open);
+    wire(state_machine)
+        .from(external_ios.get_digital_inputs().auxiliaries_are_on)
+        .to(&state_machine_inputs::auxiliaries_are_on)
+        .from(external_ios.get_digital_inputs().mcb_is_closed)
+        .to(&state_machine_inputs::mcb_is_closed)
+        .from(external_ios.get_digital_inputs().start_command)
+        .to(&state_machine_inputs::start_command)
+        .from(external_ios.get_digital_inputs().stop_command)
+        .to(&state_machine_inputs::stop_command)
+        .from(external_ios.get_digital_inputs().shutdown_request)
+        .to(&state_machine_inputs::shutdown_request)
+        .from(operation_mode_monitor.get_outputs().current_is_zero)
+        .to(&state_machine_inputs::is_current_extinguished)
+        .from(external_ios.get_digital_inputs().breaker_is_tripping)
+        .to(&state_machine_inputs::breaker_is_tripping)
+        .from(external_ios.get_digital_inputs().emergency_off)
+        .to(&state_machine_inputs::emergency_off)
+        .from(external_ios.get_digital_inputs().door_is_open)
+        .to(&state_machine_inputs::door_is_open)
+        .from(grid_protections.get_outputs().is_inhibited)
+        .to(&state_machine_inputs::protection_inhibited)
+        .from(grid_protections.get_outputs().any_fault_active)
+        .to(&state_machine_inputs::any_protection_fault_active);
 
     // ==================== Grid Integrator Supervisor Inputs ====================
-    // Forced commutation freeze from modulator
-    signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().freeze_integrator,
-        grid_integrator_supervisor.get_inputs().forced_commutation_freeze_integrator);
-
-    // Shutdown request from machine side via fiber optics
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().shutdown_request,
-        grid_integrator_supervisor.get_inputs().machine_side_shutdown_request);
-
-    // Pulse release command from state machine
-    signals_connector::connect_output_to_input(state_machine.get_outputs().release_pulses,
-        grid_integrator_supervisor.get_inputs().state_machine_release_pulses);
-
-    // Preset complete feedback from current controller
-    signals_connector::connect_output_to_input(
-        current_controller.get_outputs().preset_complete, grid_integrator_supervisor.get_inputs().preset_complete);
+    wire(grid_integrator_supervisor)
+        .from(grid_side_modulator.get_outputs().freeze_integrator)
+        .to(&supervisor_inputs::forced_commutation_freeze_integrator)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().shutdown_request)
+        .to(&supervisor_inputs::machine_side_shutdown_request)
+        .from(state_machine.get_outputs().release_pulses)
+        .to(&supervisor_inputs::state_machine_release_pulses)
+        .from(current_controller.get_outputs().preset_complete)
+        .to(&supervisor_inputs::preset_complete)
+        .from(grid_protections.get_outputs().is_tripped)
+        .to(&supervisor_inputs::grid_protection_shutdown_request);
 
     // ==================== Grid Measurements Inputs ====================
-    signals_connector::connect_output_to_input(
-        external_ios.get_analog_inputs().v_ab_counts, grid_measurements.get_inputs().v_ab_counts);
-    signals_connector::connect_output_to_input(
-        external_ios.get_analog_inputs().v_bc_counts, grid_measurements.get_inputs().v_bc_counts);
-    signals_connector::connect_output_to_input(
-        external_ios.get_analog_inputs().i_a_counts, grid_measurements.get_inputs().i_a_counts);
-    signals_connector::connect_output_to_input(
-        external_ios.get_analog_inputs().i_c_counts, grid_measurements.get_inputs().i_c_counts);
-    signals_connector::connect_output_to_input(
-        grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
-    signals_connector::connect_output_to_input(
-        grid_side_observer.get_outputs().estimated_reference_angle, grid_measurements.get_inputs().grid_angle);
-    signals_connector::connect_output_to_input(
-        grid_side_observer.get_outputs().estimated_frequency, grid_measurements.get_inputs().grid_frequency);
+    wire(grid_measurements)
+        .from(external_ios.get_analog_inputs().v_ab_counts)
+        .to(&measurements_inputs::v_ab_counts)
+        .from(external_ios.get_analog_inputs().v_bc_counts)
+        .to(&measurements_inputs::v_bc_counts)
+        .from(external_ios.get_analog_inputs().i_a_counts)
+        .to(&measurements_inputs::i_a_counts)
+        .from(external_ios.get_analog_inputs().i_c_counts)
+        .to(&measurements_inputs::i_c_counts)
+        .from(grid_side_pulse_generator.get_outputs().firing_pulses)
+        .to(&measurements_inputs::grid_pulses)
+        .from(grid_side_observer.get_outputs().estimated_reference_angle)
+        .to(&measurements_inputs::grid_angle)
+        .from(grid_side_observer.get_outputs().estimated_frequency)
+        .to(&measurements_inputs::grid_frequency);
 
     // ==================== DC Link Measurements Inputs ====================
-    signals_connector::connect_output_to_input(
-        grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
+    wire(dc_link_measurements)
+        .from(grid_measurements.get_outputs().grid_current_abc)
+        .to(&dc_link_inputs::grid_current_abc);
 
     // ==================== Operation Mode Monitor Inputs ====================
-    signals_connector::connect_output_to_input(
-        grid_integrator_supervisor.get_outputs().release_pulses, operation_mode_monitor.get_inputs().enable);
-    signals_connector::connect_output_to_input(
-        dc_link_measurements.get_outputs().dc_current_pu, operation_mode_monitor.get_inputs().dc_link_current);
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().measured_speed,
-        operation_mode_monitor.get_inputs().measured_speed);
+    wire(operation_mode_monitor)
+        .from(grid_integrator_supervisor.get_outputs().release_pulses)
+        .to(&mode_monitor_inputs::enable)
+        .from(dc_link_measurements.get_outputs().dc_current_pu)
+        .to(&mode_monitor_inputs::dc_link_current)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().measured_speed)
+        .to(&mode_monitor_inputs::measured_speed);
 
     // ==================== Grid Protections Inputs ====================
-    signals_connector::connect_output_to_input(
-        dc_link_measurements.get_outputs().dc_current_filtered_pu, grid_protections.get_inputs().dc_link_current_pu);
-    signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
-        grid_protections.get_inputs().grid_voltage_magnitude_pu);
-    // Connect state machine's continuous release signal (active when not in IDLE)
-    signals_connector::connect_output_to_input(
-        state_machine.get_outputs().release_protections, grid_protections.get_inputs().release_protections);
-    // Connect trip acknowledgment from state machine to protection (handshake)
-    signals_connector::connect_output_to_input(
-        state_machine.get_outputs().trip_acknowledged, grid_protections.get_inputs().trip_acknowledged);
-
-    // Protection shutdown request fed to grid integrator supervisor
-    signals_connector::connect_output_to_input(grid_protections.get_outputs().is_tripped,
-        grid_integrator_supervisor.get_inputs().grid_protection_shutdown_request);
-
-    // Protection inhibit status fed to state machine (blocks OPERATION_OFF -> OPERATION_ON transition)
-    signals_connector::connect_output_to_input(
-        grid_protections.get_outputs().is_inhibited, state_machine.get_inputs().protection_inhibited);
-
-    // Protection active fault status (not latched) fed to state machine for trip acknowledgment logic
-    signals_connector::connect_output_to_input(
-        grid_protections.get_outputs().any_fault_active, state_machine.get_inputs().any_protection_fault_active);
-
-    // Protection trip also connects to state machine for coordinated response
-    // Note: State machine shutdown_request input is already connected to external_ios.
-    // In a real system, these would be ORed together. For this implementation,
-    // protection trips flow through supervisor -> modulator (fast path) and
-    // external shutdown comes through external_ios -> state_machine.
+    wire(grid_protections)
+        .from(dc_link_measurements.get_outputs().dc_current_filtered_pu)
+        .to(&protections_inputs::dc_link_current_pu)
+        .from(grid_side_observer.get_outputs().estimated_voltage_magnitude)
+        .to(&protections_inputs::grid_voltage_magnitude_pu)
+        .from(state_machine.get_outputs().release_protections)
+        .to(&protections_inputs::release_protections)
+        .from(state_machine.get_outputs().trip_acknowledged)
+        .to(&protections_inputs::trip_acknowledged);
 
     // ==================== Current Controller Inputs ====================
-    // Freeze now comes from Grid Integrator Supervisor (unified and ORed)
-    signals_connector::connect_output_to_input(
-        grid_integrator_supervisor.get_outputs().freeze_integrator, current_controller.get_inputs().freeze_integrator);
-
-    // Preset request from supervisor
-    signals_connector::connect_output_to_input(
-        grid_integrator_supervisor.get_outputs().preset_controller, current_controller.get_inputs().preset_request);
-
-    signals_connector::connect_output_to_input(
-        dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
-    signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_voltage_magnitude,
-        current_controller.get_inputs().grid_voltage_magnitude);
-
-    signals_connector::connect_output_to_input(external_ios.get_fiber_optics_inputs_from_machine().current_reference,
-        current_controller.get_inputs().current_reference);
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_machine().machine_voltage_magnitude,
-        current_controller.get_inputs().machine_voltage_magnitude);
+    wire(current_controller)
+        .from(grid_integrator_supervisor.get_outputs().freeze_integrator)
+        .to(&current_ctrl_inputs::freeze_integrator)
+        .from(grid_integrator_supervisor.get_outputs().preset_controller)
+        .to(&current_ctrl_inputs::preset_request)
+        .from(dc_link_measurements.get_outputs().dc_current_pu)
+        .to(&current_ctrl_inputs::current_measured)
+        .from(grid_side_observer.get_outputs().estimated_voltage_magnitude)
+        .to(&current_ctrl_inputs::grid_voltage_magnitude)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().current_reference)
+        .to(&current_ctrl_inputs::current_reference)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().machine_voltage_magnitude)
+        .to(&current_ctrl_inputs::machine_voltage_magnitude);
 
     // ==================== Grid Side Observer Inputs ====================
-    signals_connector::connect_output_to_input(
-        grid_measurements.get_outputs().grid_voltage_abc, grid_side_observer.get_inputs().grid_voltage_abc);
+    wire(grid_side_observer)
+        .from(grid_measurements.get_outputs().grid_voltage_abc)
+        .to(&observer_inputs::grid_voltage_abc);
 
     // ==================== Grid Side Modulator Inputs ====================
-    signals_connector::connect_output_to_input(state_machine.get_outputs().request_extinguish_dc_current,
-        grid_side_modulator.get_inputs().request_extinguish_dc_current);
-    signals_connector::connect_output_to_input(
-        grid_integrator_supervisor.get_outputs().shutdown_request, grid_side_modulator.get_inputs().shutdown_request);
-    signals_connector::connect_output_to_input(
-        grid_protections.get_outputs().is_tripped, grid_side_modulator.get_inputs().protection_trip);
-    signals_connector::connect_output_to_input(
-        operation_mode_monitor.get_outputs().operating_mode, grid_side_modulator.get_inputs().operating_mode);
-    signals_connector::connect_output_to_input(
-        operation_mode_monitor.get_outputs().current_is_zero, grid_side_modulator.get_inputs().current_is_zero);
-    signals_connector::connect_output_to_input(
-        current_controller.get_outputs().firing_angle, grid_side_modulator.get_inputs().firing_angle);
-    signals_connector::connect_output_to_input(
-        external_ios.get_fiber_optics_inputs_from_machine().request_force_commutation,
-        grid_side_modulator.get_inputs().request_force_commutation);
-    signals_connector::connect_output_to_input(
-        grid_integrator_supervisor.get_outputs().release_pulses, grid_side_modulator.get_inputs().release_pulses);
+    wire(grid_side_modulator)
+        .from(state_machine.get_outputs().request_extinguish_dc_current)
+        .to(&modulator_inputs::request_extinguish_dc_current)
+        .from(grid_integrator_supervisor.get_outputs().shutdown_request)
+        .to(&modulator_inputs::shutdown_request)
+        .from(grid_protections.get_outputs().is_tripped)
+        .to(&modulator_inputs::protection_trip)
+        .from(operation_mode_monitor.get_outputs().operating_mode)
+        .to(&modulator_inputs::operating_mode)
+        .from(operation_mode_monitor.get_outputs().current_is_zero)
+        .to(&modulator_inputs::current_is_zero)
+        .from(current_controller.get_outputs().firing_angle)
+        .to(&modulator_inputs::firing_angle)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().request_force_commutation)
+        .to(&modulator_inputs::request_force_commutation)
+        .from(grid_integrator_supervisor.get_outputs().release_pulses)
+        .to(&modulator_inputs::release_pulses);
 
     // ==================== Grid Side Pulse Generator Inputs ====================
-    // Pulse releases now come from Grid Integrator Supervisor
-    // (supervisor gates state machine pulse_releases based on frozen/tripped status)
-    signals_connector::connect_output_to_input(
-        grid_integrator_supervisor.get_outputs().release_pulses, grid_side_pulse_generator.get_inputs().release_pulses);
-
-    signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_reference_angle,
-        grid_side_pulse_generator.get_inputs().reference_angle);
-    signals_connector::connect_output_to_input(
-        grid_side_modulator.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
+    wire(grid_side_pulse_generator)
+        .from(grid_integrator_supervisor.get_outputs().release_pulses)
+        .to(&pulse_gen_inputs::release_pulses)
+        .from(grid_side_observer.get_outputs().estimated_reference_angle)
+        .to(&pulse_gen_inputs::reference_angle)
+        .from(grid_side_modulator.get_outputs().firing_angle)
+        .to(&pulse_gen_inputs::firing_angle);
 
     // ==================== Main Circuit Breaker Outputs ====================
     signals_connector::connect_output_to_input(

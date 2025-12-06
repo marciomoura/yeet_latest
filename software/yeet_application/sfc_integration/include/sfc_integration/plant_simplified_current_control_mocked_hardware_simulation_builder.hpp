@@ -12,6 +12,7 @@
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_machine_side_hardware_mock_runner.hpp"
 #include "yeet/model_registry.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet_testing/simulator.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -37,10 +38,17 @@ public:
 
     void mock_inputs()
     {
-        yeet::mock_signal_input::write(current_controller.get_inputs().freeze_integrator, false);
-        yeet::mock_signal_input::write(current_controller.get_inputs().preset_request, false);
-        yeet::mock_signal_input::write(grid_side_pulse_generator.get_inputs().release_pulses, true);
-        yeet::mock_signal_input::write(machine_side_pulse_generator.get_inputs().release_pulses, true);
+        yeet::wire(current_controller)
+            .mocked(false)
+            .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
+            .mocked(false)
+            .to(&sfc_current_controller_datamodel::inputs::preset_request);
+        yeet::wire(grid_side_pulse_generator)
+            .mocked(true)
+            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
+        yeet::wire(machine_side_pulse_generator)
+            .mocked(true)
+            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 
     void initialize()
