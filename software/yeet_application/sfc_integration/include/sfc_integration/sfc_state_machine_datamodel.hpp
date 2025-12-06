@@ -24,7 +24,7 @@ public:
         signal_input<bool> auxiliaries_are_on;
 
         /// Main circuit breakers closed and energized [bool]
-        signal_input<bool> breakers_are_on;
+        signal_input<bool> mcb_is_closed;
 
         /// Start command [bool]
         signal_input<bool> start_command;
@@ -83,7 +83,7 @@ public:
         signal_output<bool> auxiliaries_are_on;
 
         /// Main circuit breakers closed and energized [bool]
-        signal_output<bool> breakers_are_on;
+        signal_output<bool> mcb_is_closed;
 
         /// Start command [bool]
         signal_output<bool> start_command;
@@ -97,11 +97,11 @@ public:
         /// Current has been extinguished [bool]
         signal_output<bool> is_current_extinguished;
 
-        /// Main circuit breaker close command [bool]
-        signal_output<bool> mcb_close_command;
+        /// Main circuit breaker close (level-high when breaker should be closed) [bool]
+        signal_output<bool> mcb_close;
 
-        /// Main circuit breaker open command [bool]
-        signal_output<bool> mcb_open_command;
+        /// Main circuit breaker open (level-high when breaker should be open) [bool]
+        signal_output<bool> mcb_open;
     };
 
     /**
@@ -118,10 +118,10 @@ public:
         /// Override value for auxiliaries_are_on (when override enabled)
         parameter<bool> override_value_auxiliaries_are_on{false};
 
-        /// Enable override for breakers_are_on input
-        parameter<bool> override_enable_breakers_are_on{false};
-        /// Override value for breakers_are_on (when override enabled)
-        parameter<bool> override_value_breakers_are_on{false};
+        /// Enable override for mcb_is_closed input
+        parameter<bool> override_enable_mcb_is_closed{false};
+        /// Override value for mcb_is_closed (when override enabled)
+        parameter<bool> override_value_mcb_is_closed{false};
 
         /// Enable override for start_command input
         parameter<bool> override_enable_start_command{false};
@@ -168,10 +168,10 @@ public:
         entry.parameters.insert("override_value_auxiliaries_are_on",
             yeet::utils::make_bool_accessor(_model_parameters->override_value_auxiliaries_are_on));
 
-        entry.parameters.insert("override_enable_breakers_are_on",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_breakers_are_on));
-        entry.parameters.insert("override_value_breakers_are_on",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_breakers_are_on));
+        entry.parameters.insert("override_enable_mcb_is_closed",
+            yeet::utils::make_bool_accessor(_model_parameters->override_enable_mcb_is_closed));
+        entry.parameters.insert("override_value_mcb_is_closed",
+            yeet::utils::make_bool_accessor(_model_parameters->override_value_mcb_is_closed));
 
         entry.parameters.insert("override_enable_start_command",
             yeet::utils::make_bool_accessor(_model_parameters->override_enable_start_command));

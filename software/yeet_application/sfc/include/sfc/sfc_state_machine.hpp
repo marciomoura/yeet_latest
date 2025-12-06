@@ -59,7 +59,7 @@ inline sfc_state_event mock_event(std::string_view name, bool& status) noexcept
 struct sfc_state_inputs {
     // Commands
     sfc_state_event auxiliaries_are_on_event;
-    sfc_state_event breakers_are_on_event;
+    sfc_state_event mcb_is_closed_event;
     sfc_state_event start_command;
     sfc_state_event stop_command;
     sfc_state_event shutdown_request;
@@ -79,8 +79,8 @@ struct sfc_state_outputs {
     bool freeze_integrator{false};
     bool request_extinguish_dc_current{false};
     bool reset_controllers{false};  ///< Command to reset all controllers to initial state
-    bool mcb_close_command{false};  ///< Main circuit breaker close command
-    bool mcb_open_command{false};   ///< Main circuit breaker open command (includes trip)
+    bool mcb_close{false};          ///< Main circuit breaker close (level-high when breaker should be closed)
+    bool mcb_open{false};           ///< Main circuit breaker open (level-high when breaker should be open)
 };
 
 // Type aliases for convenience

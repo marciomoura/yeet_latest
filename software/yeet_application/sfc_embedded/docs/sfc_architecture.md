@@ -154,7 +154,7 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 | Signal                      | Source       | Type                          | Description                     |
 | --------------------------- | ------------ | ----------------------------- | ------------------------------- |
 | `auxiliaries_are_on`        | Supervisory  | `bool`                        | Auxiliary systems ready         |
-| `breakers_are_on`           | Supervisory  | `bool`                        | Main breakers closed            |
+| `mcb_is_closed`           | Supervisory  | `bool`                        | Main breakers closed            |
 | `start_command`             | Supervisory  | `bool`                        | Command to start system         |
 | `stop_command`              | Supervisory  | `bool`                        | Command to stop system          |
 | `shutdown_request`          | Supervisory  | `bool`                        | Emergency shutdown              |
@@ -322,7 +322,7 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
 └────────┬─────────────────┘
          │
          ├─────────► Grid-Side: auxiliaries_are_on
-         ├─────────► Grid-Side: breakers_are_on
+         ├─────────► Grid-Side: mcb_is_closed
          ├─────────► Grid-Side: start_command
          ├─────────► Grid-Side: stop_command
          ├─────────► Grid-Side: shutdown_request

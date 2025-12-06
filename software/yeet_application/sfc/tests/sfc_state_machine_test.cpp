@@ -28,14 +28,20 @@ protected:
     {
         bool shutdown_request_false = false;
         bool any_fault_false = false;
+        bool breaker_is_tripping_false = false;
+        bool emergency_off_false = false;
+        bool door_is_open_false = false;
         sfc_state_inputs inputs{.auxiliaries_are_on_event = mock_event("auxiliaries_on", auxiliaries_on),
-            .breakers_are_on_event = mock_event("breakers_on", breakers_on),
+            .mcb_is_closed_event = mock_event("breakers_on", breakers_on),
             .start_command = mock_event("start", start),
             .stop_command = mock_event("stop", stop),
             .shutdown_request = mock_event("shutdown_request", shutdown_request_false),
             .is_current_extinguished = mock_event("current_extinguished", current_extinguished),
             .protection_not_inhibited_event = mock_event("protection_not_inhibited", protection_not_inhibited),
-            .any_protection_fault_active_event = mock_event("any_fault_active", any_fault_false)};
+            .any_protection_fault_active_event = mock_event("any_fault_active", any_fault_false),
+            .breaker_is_tripping_event = mock_event("breaker_is_tripping", breaker_is_tripping_false),
+            .emergency_off_event = mock_event("emergency_off", emergency_off_false),
+            .door_is_open_event = mock_event("door_is_open", door_is_open_false)};
         return inputs;
     }
 

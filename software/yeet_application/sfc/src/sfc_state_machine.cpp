@@ -82,7 +82,7 @@ sfc_state_type* breakers_off_state::update(const sfc_state_inputs& inputs) noexc
     }
 
     // Transition to BREAKERS_ON once breakers are closed
-    if (inputs.breakers_are_on_event.is_true()) {
+    if (inputs.mcb_is_closed_event.is_true()) {
         return _breakers_on_state;
     }
 
@@ -95,7 +95,7 @@ sfc_state_outputs breakers_off_state::get_outputs() const noexcept
 
     outputs.pulse_releases = false;
     outputs.freeze_integrator = true;
-    outputs.mcb_close_command = true;  // Request MCB close when in BREAKERS_OFF state
+    outputs.mcb_close = true;  // Request MCB close when in BREAKERS_OFF state
 
     return outputs;
 }
@@ -108,7 +108,7 @@ sfc_state_type* breakers_on_state::update(const sfc_state_inputs& inputs) noexce
         return _breakers_off_state;
     }
 
-    if (!inputs.breakers_are_on_event.is_true()) {
+    if (!inputs.mcb_is_closed_event.is_true()) {
         return _breakers_off_state;
     }
 
@@ -130,7 +130,7 @@ sfc_state_outputs breakers_on_state::get_outputs() const noexcept
 
 sfc_state_type* operation_off_state::update(const sfc_state_inputs& inputs) noexcept
 {
-    if (!inputs.breakers_are_on_event.is_true()) {
+    if (!inputs.mcb_is_closed_event.is_true()) {
         return _breakers_on_state;
     }
 
@@ -181,7 +181,7 @@ sfc_state_type* operation_on_state::update(const sfc_state_inputs& inputs) noexc
         return _shutdown_requested_state;
     }
 
-    if (!inputs.breakers_are_on_event.is_true()) {
+    if (!inputs.mcb_is_closed_event.is_true()) {
         _is_first_cycle = true;  // Reset for next entry
         return _shutdown_requested_state;
     }
@@ -259,7 +259,7 @@ sfc_state_outputs shutdown_requested_state::get_outputs() const noexcept
     outputs.pulse_releases = true;                 // Keep pulses active for controlled shutdown
     outputs.freeze_integrator = false;             // Do not freeze integrator during shutdown
     outputs.request_extinguish_dc_current = true;  // Request extinguish current mode
-    outputs.mcb_open_command = _acknowledgment_sent;  // Open MCB when acknowledging trip
+    outputs.mcb_open = true;                       // Always open MCB during shutdown/trip for safety
 
     return outputs;
 }

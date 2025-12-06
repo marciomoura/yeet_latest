@@ -289,7 +289,7 @@ public:
 
     // External control signals for state machine
     signal_output<bool> auxiliaries_are_on;
-    signal_output<bool> breakers_are_on;
+    signal_output<bool> mcb_is_closed;
     signal_output<bool> start_command;
     signal_output<bool> stop_command;
     signal_output<bool> shutdown_request;

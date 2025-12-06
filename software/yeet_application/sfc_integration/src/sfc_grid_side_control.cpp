@@ -109,7 +109,7 @@ void sfc_grid_side_control::connect_internal_signals()
     signals_connector::connect_output_to_input(
         external_ios.get_digital_inputs().auxiliaries_are_on, state_machine.get_inputs().auxiliaries_are_on);
     signals_connector::connect_output_to_input(
-        external_ios.get_digital_inputs().breakers_are_on, state_machine.get_inputs().breakers_are_on);
+        external_ios.get_digital_inputs().mcb_is_closed, state_machine.get_inputs().mcb_is_closed);
     signals_connector::connect_output_to_input(
         external_ios.get_digital_inputs().start_command, state_machine.get_inputs().start_command);
     signals_connector::connect_output_to_input(
@@ -256,9 +256,9 @@ void sfc_grid_side_control::connect_internal_signals()
 
     // ==================== Main Circuit Breaker Outputs ====================
     signals_connector::connect_output_to_input(
-        state_machine.get_outputs().mcb_close_command, external_ios.get_digital_outputs().mcb_close_command);
+        state_machine.get_outputs().mcb_close, external_ios.get_digital_outputs().mcb_close);
     signals_connector::connect_output_to_input(
-        state_machine.get_outputs().mcb_open_command, external_ios.get_digital_outputs().mcb_open_command);
+        state_machine.get_outputs().mcb_open, external_ios.get_digital_outputs().mcb_open);
 }
 
 }  // namespace yeet::application::sfc::integration

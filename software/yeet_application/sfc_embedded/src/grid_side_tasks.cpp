@@ -90,7 +90,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // ==================== INITIALIZE DIGITAL INPUTS ====================
     // Set safe default values for supervisory controller inputs via external_ios datamodel
     control->get_external_ios().get_digital_inputs().auxiliaries_are_on.write(true);
-    control->get_external_ios().get_digital_inputs().breakers_are_on.write(true);
+    control->get_external_ios().get_digital_inputs().mcb_is_closed.write(true);
     control->get_external_ios().get_digital_inputs().start_command.write(false);
     control->get_external_ios().get_digital_inputs().stop_command.write(false);
     control->get_external_ios().get_digital_inputs().shutdown_request.write(false);
@@ -113,7 +113,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // Prepare the inputs to be "ready"
     control->get_external_ios().get_parameters().override_digital_inputs.write(true);
     control->get_external_ios().get_parameters().auxiliaries_are_on.write(true);
-    control->get_external_ios().get_parameters().breakers_are_on.write(true);
+    control->get_external_ios().get_parameters().mcb_is_closed.write(true);
 }
 
 ARM_FUNCTION
@@ -205,16 +205,15 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     //   DI7-DI16: System status and interlocks
     if (inputs->digital_inputs.valid) {
         // Update supervisory digital inputs from hardware I/O
-        control->external_ios.set_digital_inputs(
-            inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
-            inputs->digital_inputs.signals[1],  // DI2: Grid breakers closed
-            inputs->digital_inputs.signals[2],  // DI3: Start command
-            inputs->digital_inputs.signals[3],  // DI4: Stop command
-            inputs->digital_inputs.signals[4],  // DI5: Emergency shutdown
-            inputs->digital_inputs.signals[5],  // DI6: Breaker is closed (optional status)
-            inputs->digital_inputs.signals[6],  // DI7: Breaker is tripping (protection relay)
-            inputs->digital_inputs.signals[7],  // DI8: Emergency off
-            inputs->digital_inputs.signals[8]); // DI9: Door is open
+        control->external_ios.set_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
+            inputs->digital_inputs.signals[1],                                       // DI2: Grid breakers closed
+            inputs->digital_inputs.signals[2],                                       // DI3: Start command
+            inputs->digital_inputs.signals[3],                                       // DI4: Stop command
+            inputs->digital_inputs.signals[4],                                       // DI5: Emergency shutdown
+            inputs->digital_inputs.signals[5],   // DI6: Breaker is closed (optional status)
+            inputs->digital_inputs.signals[6],   // DI7: Breaker is tripping (protection relay)
+            inputs->digital_inputs.signals[7],   // DI8: Emergency off
+            inputs->digital_inputs.signals[8]);  // DI9: Door is open
     }
 
     // Process fiber-optic RX data from machine-side controller
@@ -267,8 +266,8 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     // outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
 
     // Main circuit breaker control outputs
-    // outputs->digital_outputs.signals[6] = control->external_ios.get_mcb_close_command();  // DO7: MCB close
-    // outputs->digital_outputs.signals[7] = control->external_ios.get_mcb_open_command();   // DO8: MCB open
+    // outputs->digital_outputs.signals[6] = control->external_ios.get_mcb_close();  // DO7: MCB close
+    // outputs->digital_outputs.signals[7] = control->external_ios.get_mcb_open();   // DO8: MCB open
 
     // for (auto& n : outputs->digital_outputs.signals) {
     //     n = true;

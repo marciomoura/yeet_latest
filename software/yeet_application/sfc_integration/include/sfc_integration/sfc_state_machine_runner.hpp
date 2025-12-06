@@ -20,7 +20,7 @@ public:
         : base_application(sampling_time),
           _state_machine_inputs{
               sfc::sfc_state_event("auxiliaries_are_on", [this]() { return _outputs.auxiliaries_are_on.read(); }),
-              sfc::sfc_state_event("breakers_are_on", [this]() { return _outputs.breakers_are_on.read(); }),
+              sfc::sfc_state_event("mcb_is_closed", [this]() { return _outputs.mcb_is_closed.read(); }),
               sfc::sfc_state_event("start_command", [this]() { return _outputs.start_command.read(); }),
               sfc::sfc_state_event("stop_command", [this]() { return _outputs.stop_command.read(); }),
               sfc::sfc_state_event("shutdown_request", [this]() { 

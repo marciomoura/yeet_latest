@@ -19,7 +19,7 @@ namespace yeet::application::sfc::integration {
  * the grid-side control system:
  *
  * **Inputs:**
- * - Supervisory digital commands (auxiliaries_are_on, breakers_are_on, start/stop)
+ * - Supervisory digital commands (auxiliaries_are_on, mcb_is_closed, start/stop)
  * - Analog measurements (ADC counts from hardware mock)
  * - Cross-coupled signals from machine-side (speed, current reference, voltage, force commutation)
  *
@@ -55,7 +55,7 @@ public:
     struct parameters {
         yeet::parameter<bool> override_digital_inputs{false};
         yeet::parameter<bool> auxiliaries_are_on{false};
-        yeet::parameter<bool> breakers_are_on{false};
+        yeet::parameter<bool> mcb_is_closed{false};
         yeet::parameter<bool> start_command{false};
         yeet::parameter<bool> stop_command{false};
         yeet::parameter<bool> shutdown_request{false};
@@ -76,15 +76,15 @@ public:
      * Flow: External command → signals_connector → digital_inputs → grid-side state machine
      */
     struct digital_inputs_t {
-        signal_output<bool> auxiliaries_are_on;  ///< Auxiliary systems ready (cooling, oil pump, etc.)
-        signal_output<bool> breakers_are_on;     ///< Grid breakers closed
-        signal_output<bool> start_command;       ///< Start operation command
-        signal_output<bool> stop_command;        ///< Stop operation command
-        signal_output<bool> shutdown_request;    ///< Emergency shutdown request
-        signal_output<bool> breaker_is_closed;   ///< Main circuit breaker is closed (optional status)
-        signal_output<bool> breaker_is_tripping; ///< Protection relay indicates breaker is tripping
-        signal_output<bool> emergency_off;       ///< Emergency off button pressed
-        signal_output<bool> door_is_open;        ///< Enclosure door is open (prevents breaker close)
+        signal_output<bool> auxiliaries_are_on;   ///< Auxiliary systems ready (cooling, oil pump, etc.)
+        signal_output<bool> mcb_is_closed;      ///< Grid breakers closed
+        signal_output<bool> start_command;        ///< Start operation command
+        signal_output<bool> stop_command;         ///< Stop operation command
+        signal_output<bool> shutdown_request;     ///< Emergency shutdown request
+        signal_output<bool> breaker_is_closed;    ///< Main circuit breaker is closed (optional status)
+        signal_output<bool> breaker_is_tripping;  ///< Protection relay indicates breaker is tripping
+        signal_output<bool> emergency_off;        ///< Emergency off button pressed
+        signal_output<bool> door_is_open;         ///< Enclosure door is open (prevents breaker close)
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements - Grid Measurements Only) ====================
@@ -190,8 +190,8 @@ public:
      * Flow: state_machine → external_ios → embedded/hardware → main circuit breaker
      */
     struct digital_outputs_t {
-        signal_input<bool> mcb_close_command;  ///< Main circuit breaker close command
-        signal_input<bool> mcb_open_command;   ///< Main circuit breaker open command (includes trip)
+        signal_input<bool> mcb_close;  ///< Main circuit breaker close (level-high)
+        signal_input<bool> mcb_open;   ///< Main circuit breaker open (level-high)
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -316,7 +316,7 @@ public:
      * This is the ONLY method the embedded code should call for digital inputs.
      *
      * @param auxiliaries_are_on Auxiliary systems ready
-     * @param breakers_are_on Grid breakers closed
+     * @param mcb_is_closed Grid breakers closed
      * @param start_command Start operation
      * @param stop_command Stop operation
      * @param shutdown_request Emergency shutdown
@@ -326,7 +326,7 @@ public:
      * @param door_is_open Enclosure door is open
      */
     void set_digital_inputs(bool auxiliaries_are_on,
-        bool breakers_are_on,
+        bool mcb_is_closed,
         bool start_command,
         bool stop_command,
         bool shutdown_request,
@@ -358,23 +358,23 @@ public:
     fiber_optic::grid_to_machine_message get_fiber_optics_tx() const;
 
     /**
-     * @brief Get main circuit breaker close command
+     * @brief Get main circuit breaker close signal
      *
-     * Read by embedded code to send close command to main circuit breaker.
+     * Read by embedded code to send close signal to main circuit breaker.
      *
-     * @return true if state machine requests breaker close
+     * @return true if state machine requests breaker close (level-high)
      */
-    bool get_mcb_close_command() const;
+    bool get_mcb_close() const;
 
     /**
-     * @brief Get main circuit breaker open command
+     * @brief Get main circuit breaker open signal
      *
-     * Read by embedded code to send open command to main circuit breaker.
+     * Read by embedded code to send open signal to main circuit breaker.
      * This includes both normal shutdowns and protection trips.
      *
-     * @return true if state machine requests breaker open
+     * @return true if state machine requests breaker open (level-high)
      */
-    bool get_mcb_open_command() const;
+    bool get_mcb_open() const;
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access

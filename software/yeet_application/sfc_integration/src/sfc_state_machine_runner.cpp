@@ -26,9 +26,9 @@ void sfc_state_machine_runner::run()
                                       ? _parameters.override_value_auxiliaries_are_on.read()
                                       : _inputs.auxiliaries_are_on.read();
 
-    _outputs.breakers_are_on = _parameters.override_enable_breakers_are_on.read()
-                                   ? _parameters.override_value_breakers_are_on.read()
-                                   : _inputs.breakers_are_on.read();
+    _outputs.mcb_is_closed = _parameters.override_enable_mcb_is_closed.read()
+                                 ? _parameters.override_value_mcb_is_closed.read()
+                                 : _inputs.mcb_is_closed.read();
 
     _outputs.start_command = _parameters.override_enable_start_command.read()
                                  ? _parameters.override_value_start_command.read()
@@ -71,12 +71,12 @@ void sfc_state_machine_runner::run()
     _outputs.trip_acknowledged = (current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
                                  _outputs.is_current_extinguished && !_inputs.any_protection_fault_active;
 
-    // Main circuit breaker control with door interlock
-    // MCB close command: Only when state machine requests it AND door is NOT open
-    _outputs.mcb_close_command = state_outputs.mcb_close_command && !_inputs.door_is_open.read();
-    
-    // MCB open command: When state machine requests it (shutdown/trip scenarios)
-    _outputs.mcb_open_command = state_outputs.mcb_open_command;
+    // Main circuit breaker control with safety interlocks
+    // MCB close: Only when state machine requests it AND door is NOT open AND emergency_off is NOT active
+    _outputs.mcb_close = state_outputs.mcb_close && !_inputs.door_is_open.read() && !_inputs.emergency_off.read();
+
+    // MCB open: When state machine requests it OR emergency_off is active (safety override)
+    _outputs.mcb_open = state_outputs.mcb_open || _inputs.emergency_off.read();
 }
 
 void sfc_state_machine_runner::stop()
