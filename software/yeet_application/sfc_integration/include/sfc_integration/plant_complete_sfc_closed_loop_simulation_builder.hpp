@@ -81,16 +81,9 @@ public:
         machine_side_control.external_ios.get_parameters().excitation_start_command.write(true);
         machine_side_control.external_ios.get_parameters().excitation_stop_command.write(false);
 
-        // DISABLED: Speed generator replaced by startup_sequencer
-        // // Speed generator profile commands via datamodel (all false by default, set manually in tests)
-        // machine_side_control.external_ios.get_parameters().override_speed_generator_profiles.write(false);
-        // machine_side_control.external_ios.get_parameters().run_creep_speed.write(false);
-        // machine_side_control.external_ios.get_parameters().run_purge_accel.write(false);
-        // machine_side_control.external_ios.get_parameters().run_ignition_accel.write(false);
-        // machine_side_control.external_ios.get_parameters().run_assist_accel.write(false);
-        // machine_side_control.external_ios.get_parameters().hold_speed.write(false);
-        // machine_side_control.external_ios.get_parameters().decelerate.write(false);
-        // machine_side_control.external_ios.get_parameters().idle.write(false);
+        // Note: Grid-side external I/O digital inputs are initialized with safe defaults
+        // in sfc_grid_side_external_ios_datamodel constructor. This ensures signal storage
+        // is allocated before the wire() DSL connects them to state machine inputs.
     }
 
     void initialize()
@@ -289,7 +282,7 @@ public:
 
     // External control signals for state machine
     signal_output<bool> auxiliaries_are_on;
-    signal_output<bool> breakers_are_on;
+    signal_output<bool> mcb_is_closed;
     signal_output<bool> start_command;
     signal_output<bool> stop_command;
     signal_output<bool> shutdown_request;

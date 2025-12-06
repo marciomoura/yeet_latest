@@ -174,7 +174,7 @@ class StateMachineData:
     current_state: int = 0
     release_pulses: bool = False
     auxiliaries_are_on: bool = False
-    breakers_are_on: bool = False
+    mcb_is_closed: bool = False
     start_command: bool = False
     stop_command: bool = False
     is_current_extinguished: bool = False

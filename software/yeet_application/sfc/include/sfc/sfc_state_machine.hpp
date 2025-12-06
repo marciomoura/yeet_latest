@@ -59,13 +59,16 @@ inline sfc_state_event mock_event(std::string_view name, bool& status) noexcept
 struct sfc_state_inputs {
     // Commands
     sfc_state_event auxiliaries_are_on_event;
-    sfc_state_event breakers_are_on_event;
+    sfc_state_event mcb_is_closed_event;
     sfc_state_event start_command;
     sfc_state_event stop_command;
     sfc_state_event shutdown_request;
     sfc_state_event is_current_extinguished;
     sfc_state_event protection_not_inhibited_event;     // Protection system not inhibited (alarms confirmed)
     sfc_state_event any_protection_fault_active_event;  // Any protection fault currently active (not latched)
+    sfc_state_event breaker_is_tripping_event;          // Protection relay indicates breaker is tripping
+    sfc_state_event emergency_off_event;                // Emergency off button pressed
+    sfc_state_event door_is_open_event;                 // Enclosure door is open (prevents breaker close)
 };
 
 /**
@@ -76,6 +79,8 @@ struct sfc_state_outputs {
     bool freeze_integrator{false};
     bool request_extinguish_dc_current{false};
     bool reset_controllers{false};  ///< Command to reset all controllers to initial state
+    bool mcb_close{false};          ///< Main circuit breaker close (level-high when breaker should be closed)
+    bool mcb_open{false};           ///< Main circuit breaker open (level-high when breaker should be open)
 };
 
 // Type aliases for convenience

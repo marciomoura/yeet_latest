@@ -184,7 +184,9 @@ void sfc_machine_side_control::connect_internal_signals()
         .from(machine_integrator_supervisor.get_outputs().freeze_integrator)
         .to(&speed_ctrl_inputs::freeze_integrator)
         .from(machine_integrator_supervisor.get_outputs().preset_request)
-        .to(&speed_ctrl_inputs::preset_request);
+        .to(&speed_ctrl_inputs::preset_request)
+        .from(torque_controller.get_outputs().is_saturated)
+        .to(&speed_ctrl_inputs::is_saturated);
 
     // ==================== Torque Controller Inputs ====================
     wire(torque_controller)
@@ -251,10 +253,14 @@ void sfc_machine_side_control::connect_internal_signals()
     // ==================== External IO Output Connections ====================
     signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
         external_ios.get_thyristor_control_output().firing_pulses);
+
+    // Excitation command outputs from excitation controller to external IOs
+    // Map excitation_start_command to excitation_release (DO)
     signals_connector::connect_output_to_input(excitation_controller.get_outputs().excitation_start_command,
-        external_ios.get_excitation_outputs().excitation_start_command);
-    signals_connector::connect_output_to_input(excitation_controller.get_outputs().excitation_stop_command,
-        external_ios.get_excitation_outputs().excitation_stop_command);
+        external_ios.get_excitation_outputs().excitation_release);
+    // Map field_current_reference to excitation_current_reference (AO)
+    signals_connector::connect_output_to_input(excitation_controller.get_outputs().field_current_reference,
+        external_ios.get_excitation_outputs().excitation_current_reference);
 
     // Mock speed_generator outputs during startup sequencer coordination
     // These will be reconnected when speed_generator is reintegrated

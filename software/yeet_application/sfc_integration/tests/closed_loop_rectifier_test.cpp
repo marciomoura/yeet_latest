@@ -81,7 +81,7 @@ public:
         system.grid_side_control.external_ios.get_parameters().auxiliaries_are_on.write(on);
     }
 
-    void set_breakers_on(bool on) { system.grid_side_control.external_ios.get_parameters().breakers_are_on.write(on); }
+    void set_breakers_on(bool on) { system.grid_side_control.external_ios.get_parameters().mcb_is_closed.write(on); }
 
     void set_start_command(bool start)
     {

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Telemetry protocol decoder for SFC control system.
 
 This module handles the low-level binary telemetry protocol decoding and packet
@@ -153,7 +153,7 @@ class GridSideTelemetryPacket:
             current_state=int(self.get_signal(GridSignalIndex.STATE_MACHINE_STATE)),
             release_pulses=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_RELEASE_PULSES),
             auxiliaries_are_on=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_AUXILIARIES_ON),
-            breakers_are_on=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_BREAKERS_ON),
+            mcb_is_closed=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_BREAKERS_ON),
             start_command=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_START_COMMAND),
             stop_command=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_STOP_COMMAND),
             is_current_extinguished=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED),
@@ -294,7 +294,7 @@ class MachineSideTelemetryPacket:
             current_state=0,
             pulse_releases=False,
             auxiliaries_are_on=False,
-            breakers_are_on=False,
+            mcb_is_closed=False,
             start_command=False,
             stop_command=False,
             is_current_extinguished=False,

@@ -20,7 +20,7 @@ using namespace yeet;
  * - Alarm confirmation requirement before restart
  * - Full fault recovery cycle
  */
-class ProtectionAlarmConfirmationIntegrationTest : public ::testing::Test {
+class ClosedLoopProtectionsTest : public ::testing::Test {
 public:
     void SetUp() override
     {
@@ -97,7 +97,7 @@ public:
 
     void set_breakers_on(bool on)
     {
-        mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().breakers_are_on, on);
+        mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().mcb_is_closed, on);
     }
 
     void set_start_command(bool start)
@@ -314,7 +314,7 @@ public:
  * 5. User confirms alarm → inhibited flag clears
  * 6. State machine can transition from OPERATION_OFF to OPERATION_ON
  */
-TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_OvervoltageRecoveryWithAlarmConfirmation)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_OvervoltageRecoveryWithAlarmConfirmation)
 {
     startup_to_nominal_speed();
 
@@ -404,7 +404,7 @@ TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_OvervoltageRecoveryW
    * 5. User confirms alarm → inhibited flag clears
    * 6. State machine can transition from OPERATION_OFF to OPERATION_ON
    */
-TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_UndervoltageRecoveryWithAlarmConfirmation)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_UndervoltageRecoveryWithAlarmConfirmation)
 {
     startup_to_nominal_speed();
 
@@ -488,7 +488,7 @@ TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_UndervoltageRecovery
 /**
  * @brief Test that alarm cannot be confirmed while fault is still active (safety feature)
  */
-TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_CannotConfirmAlarmWhileFaultActive)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_CannotConfirmAlarmWhileFaultActive)
 {
     // Startup to nominal speed
     startup_to_nominal_speed();
@@ -556,7 +556,7 @@ TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_CannotConfirmAlarmWh
  * - User confirms alarm to clear inhibit
  * - System can restart to OPERATION_ON
  */
-TEST_F(ProtectionAlarmConfirmationIntegrationTest, DISABLED_SequentialAllProtectionTypes)
+TEST_F(ClosedLoopProtectionsTest, DISABLED_SequentialAllProtectionTypes)
 {
     // ==================== Initial Startup to 1.0 pu Speed ====================
     SCOPED_TRACE("Initial Startup");

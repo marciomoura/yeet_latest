@@ -117,8 +117,8 @@ void sfc_grid_side_control::connect_internal_signals()
     wire(state_machine)
         .from(external_ios.get_digital_inputs().auxiliaries_are_on)
         .to(&state_machine_inputs::auxiliaries_are_on)
-        .from(external_ios.get_digital_inputs().breakers_are_on)
-        .to(&state_machine_inputs::breakers_are_on)
+        .from(external_ios.get_digital_inputs().mcb_is_closed)
+        .to(&state_machine_inputs::mcb_is_closed)
         .from(external_ios.get_digital_inputs().start_command)
         .to(&state_machine_inputs::start_command)
         .from(external_ios.get_digital_inputs().stop_command)
@@ -127,6 +127,12 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&state_machine_inputs::shutdown_request)
         .from(operation_mode_monitor.get_outputs().current_is_zero)
         .to(&state_machine_inputs::is_current_extinguished)
+        .from(external_ios.get_digital_inputs().breaker_is_tripping)
+        .to(&state_machine_inputs::breaker_is_tripping)
+        .from(external_ios.get_digital_inputs().emergency_off)
+        .to(&state_machine_inputs::emergency_off)
+        .from(external_ios.get_digital_inputs().door_is_open)
+        .to(&state_machine_inputs::door_is_open)
         .from(grid_protections.get_outputs().is_inhibited)
         .to(&state_machine_inputs::protection_inhibited)
         .from(grid_protections.get_outputs().any_fault_active)
@@ -234,6 +240,12 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&pulse_gen_inputs::reference_angle)
         .from(grid_side_modulator.get_outputs().firing_angle)
         .to(&pulse_gen_inputs::firing_angle);
+
+    // ==================== Main Circuit Breaker Outputs ====================
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().mcb_close, external_ios.get_digital_outputs().mcb_close);
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().mcb_open, external_ios.get_digital_outputs().mcb_open);
 }
 
 }  // namespace yeet::application::sfc::integration

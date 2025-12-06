@@ -540,8 +540,8 @@ static inline void register_complete_state_machine_logger(
     // Log the combined input signals (hardware + overrides) that are actually fed to the state machine
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input auxiliaries_are_on",
         [&]() { return state_machine.get_outputs().auxiliaries_are_on.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input breakers_are_on",
-        [&]() { return state_machine.get_outputs().breakers_are_on.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input mcb_is_closed",
+        [&]() { return state_machine.get_outputs().mcb_is_closed.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "combined_input start_command", [&]() { return state_machine.get_outputs().start_command.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(

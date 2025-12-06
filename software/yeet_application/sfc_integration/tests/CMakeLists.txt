@@ -11,9 +11,16 @@ target_sources(
     PRIVATE # Helpers
             sfc_loggers.hpp
             sfc_plant_configuration.hpp
+            sfc_startup_procedure.hpp
             # Complete closed loop tests
-            complete_sensorless_speed_control_test.cpp
+            closed_loop_startup_sequencer_test.cpp
+            closed_loop_speed_control_test.cpp
+            closed_loop_shutdown_test.cpp
+            closed_loop_restart_test.cpp
             closed_loop_rectifier_test.cpp
+            closed_loop_ios_test.cpp
+            # Host main startup test
+            host_main_startup_test.cpp
             # Open loop tests
             open_loop_back_to_back_test.cpp
             open_loop_rectifier_test.cpp

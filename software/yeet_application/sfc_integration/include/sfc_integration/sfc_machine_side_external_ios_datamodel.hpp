@@ -78,6 +78,10 @@ public:
         yeet::parameter<bool> override_excitation_outputs{false};
         yeet::parameter<bool> excitation_start_command{false};
         yeet::parameter<bool> excitation_stop_command{false};
+        yeet::parameter<current_pu_t> excitation_current_reference{current_pu_t{0.0}};
+        yeet::parameter<bool> override_excitation_inputs{false};
+        yeet::parameter<current_pu_t> excitation_current_actual{current_pu_t{0.0}};
+        yeet::parameter<bool> excitation_running{false};
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================
@@ -179,8 +183,23 @@ public:
      * Flow: excitation_controller → external_ios → embedded/hardware → excitation system
      */
     struct excitation_outputs_t {
-        signal_input<bool> excitation_start_command;  ///< Start excitation command (from controller)
-        signal_input<bool> excitation_stop_command;   ///< Stop excitation command (from controller)
+        signal_input<bool> excitation_release;            ///< Excitation release command (DO)
+        signal_input<current_pu_t> excitation_current_reference;  ///< Excitation current reference (AO)
+    };
+
+    // ==================== EXCITATION INPUTS (Feedback from External System) ====================
+
+    /**
+     * @brief Excitation system feedback inputs
+     *
+     * These are INPUT signals from the external excitation system.
+     * Optional signals for monitoring and closed-loop control.
+     *
+     * Flow: excitation system → embedded/hardware → external_ios → excitation_controller
+     */
+    struct excitation_inputs_t {
+        signal_output<current_pu_t> excitation_current_actual;  ///< Actual excitation current (AI - optional)
+        signal_output<bool> excitation_running;                 ///< Excitation running status (DI - optional)
     };
 
     // ==================== THYRISTOR OUTPUT (Pulse Control) ====================
@@ -275,6 +294,18 @@ public:
     excitation_outputs_t& get_excitation_outputs() { return _excitation_outputs; }
 
     /**
+     * @brief Get excitation input signals (const)
+     * @return Const reference to excitation inputs
+     */
+    const excitation_inputs_t& get_excitation_inputs() const { return _excitation_inputs; }
+
+    /**
+     * @brief Get excitation input signals (mutable)
+     * @return Mutable reference to excitation inputs
+     */
+    excitation_inputs_t& get_excitation_inputs() { return _excitation_inputs; }
+
+    /**
      * @brief Get thyristor output structure (mutable)
      * @return Mutable reference to thyristor_control_output
      */
@@ -316,22 +347,33 @@ public:
     fiber_optic::machine_to_grid_message get_fiber_optics_tx() const;
 
     /**
-     * @brief Get excitation start command output
+     * @brief Set excitation input signals from external system
      *
-     * Read by embedded code to send start command to external excitation system.
+     * Called from embedded code or plant builder with feedback from excitation system.
+     * Respects override_excitation_inputs flag if set for test injection.
      *
-     * @return true if excitation controller requests start
+     * @param excitation_current_actual Actual excitation current [pu] (optional)
+     * @param excitation_running Excitation running status (optional)
      */
-    bool get_excitation_start_command() const;
+    void set_excitation_inputs(current_pu_t excitation_current_actual, bool excitation_running);
 
     /**
-     * @brief Get excitation stop command output
+     * @brief Get excitation release command output
      *
-     * Read by embedded code to send stop command to external excitation system.
+     * Read by embedded code to send release command to external excitation system.
      *
-     * @return true if excitation controller requests stop
+     * @return true if excitation controller requests release (field energization)
      */
-    bool get_excitation_stop_command() const;
+    bool get_excitation_release_command() const;
+
+    /**
+     * @brief Get excitation current reference output
+     *
+     * Read by embedded code to send analog current reference to external excitation system.
+     *
+     * @return Excitation current reference [pu]
+     */
+    current_pu_t get_excitation_current_reference() const;
 
     /**
      * @brief Get thyristor pulse outputs
@@ -367,11 +409,18 @@ private:
      */
     bool apply_excitation_overrides();
 
+    /**
+     * @brief Apply excitation input overrides if enabled
+     * @return true if overrides were applied, false if real signals should be used
+     */
+    bool apply_excitation_input_overrides();
+
     parameters _parameters;
     analog_inputs_t _analog_inputs;
     fiber_optics_outputs_to_grid_t _fiber_optics_outputs_to_grid;
     fiber_optics_inputs_from_grid_t _fiber_optics_inputs_from_grid;
     excitation_outputs_t _excitation_outputs;
+    excitation_inputs_t _excitation_inputs;
     thyristor_control_output_t _thyristor_output;
 };
 

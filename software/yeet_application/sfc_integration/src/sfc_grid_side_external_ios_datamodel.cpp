@@ -18,16 +18,27 @@ void sfc_grid_side_external_ios_datamodel::set_analog_inputs(yeet::control::adc_
     _analog_inputs.i_c_counts.write(i_c_counts);
 }
 
-void sfc_grid_side_external_ios_datamodel::set_digital_inputs(
-    bool auxiliaries_are_on, bool breakers_are_on, bool start_command, bool stop_command, bool shutdown_request)
+void sfc_grid_side_external_ios_datamodel::set_digital_inputs(bool auxiliaries_are_on,
+    bool mcb_is_closed,
+    bool start_command,
+    bool stop_command,
+    bool shutdown_request,
+    bool breaker_is_closed,
+    bool breaker_is_tripping,
+    bool emergency_off,
+    bool door_is_open)
 {
     const bool digital_input_overrides_written = apply_digital_input_overrides();
     if (!digital_input_overrides_written) {
         _digital_inputs.auxiliaries_are_on.write(auxiliaries_are_on);
-        _digital_inputs.breakers_are_on.write(breakers_are_on);
+        _digital_inputs.mcb_is_closed.write(mcb_is_closed);
         _digital_inputs.start_command.write(start_command);
         _digital_inputs.stop_command.write(stop_command);
         _digital_inputs.shutdown_request.write(shutdown_request);
+        _digital_inputs.breaker_is_closed.write(breaker_is_closed);
+        _digital_inputs.breaker_is_tripping.write(breaker_is_tripping);
+        _digital_inputs.emergency_off.write(emergency_off);
+        _digital_inputs.door_is_open.write(door_is_open);
     }
 }
 
@@ -65,10 +76,14 @@ bool sfc_grid_side_external_ios_datamodel::apply_digital_input_overrides()
     }
 
     _digital_inputs.auxiliaries_are_on.write(_parameters.auxiliaries_are_on.read());
-    _digital_inputs.breakers_are_on.write(_parameters.breakers_are_on.read());
+    _digital_inputs.mcb_is_closed.write(_parameters.mcb_is_closed.read());
     _digital_inputs.start_command.write(_parameters.start_command.read());
     _digital_inputs.stop_command.write(_parameters.stop_command.read());
     _digital_inputs.shutdown_request.write(_parameters.shutdown_request.read());
+    _digital_inputs.breaker_is_closed.write(_parameters.breaker_is_closed.read());
+    _digital_inputs.breaker_is_tripping.write(_parameters.breaker_is_tripping.read());
+    _digital_inputs.emergency_off.write(_parameters.emergency_off.read());
+    _digital_inputs.door_is_open.write(_parameters.door_is_open.read());
 
     return true;
 }
@@ -79,10 +94,14 @@ void sfc_grid_side_external_ios_datamodel::register_callbacks()
 
     _parameters.override_digital_inputs.register_callback(digital_inputs_callback);
     _parameters.auxiliaries_are_on.register_callback(digital_inputs_callback);
-    _parameters.breakers_are_on.register_callback(digital_inputs_callback);
+    _parameters.mcb_is_closed.register_callback(digital_inputs_callback);
     _parameters.start_command.register_callback(digital_inputs_callback);
     _parameters.stop_command.register_callback(digital_inputs_callback);
     _parameters.shutdown_request.register_callback(digital_inputs_callback);
+    _parameters.breaker_is_closed.register_callback(digital_inputs_callback);
+    _parameters.breaker_is_tripping.register_callback(digital_inputs_callback);
+    _parameters.emergency_off.register_callback(digital_inputs_callback);
+    _parameters.door_is_open.register_callback(digital_inputs_callback);
 }
 
 void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
@@ -93,13 +112,21 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
     entry.parameters.insert(
         "di_override_digital_inputs", yeet::utils::make_bool_accessor(_parameters.override_digital_inputs));
     entry.parameters.insert("di_auxiliaries_are_on", yeet::utils::make_bool_accessor(_parameters.auxiliaries_are_on));
-    entry.parameters.insert("di_breakers_are_on", yeet::utils::make_bool_accessor(_parameters.breakers_are_on));
+    entry.parameters.insert("di_mcb_is_closed", yeet::utils::make_bool_accessor(_parameters.mcb_is_closed));
     entry.parameters.insert("di_start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
     entry.parameters.insert("di_stop_command", yeet::utils::make_bool_accessor(_parameters.stop_command));
     entry.parameters.insert("di_shutdown_request", yeet::utils::make_bool_accessor(_parameters.shutdown_request));
+    entry.parameters.insert("di_breaker_is_closed", yeet::utils::make_bool_accessor(_parameters.breaker_is_closed));
+    entry.parameters.insert("di_breaker_is_tripping", yeet::utils::make_bool_accessor(_parameters.breaker_is_tripping));
+    entry.parameters.insert("di_emergency_off", yeet::utils::make_bool_accessor(_parameters.emergency_off));
+    entry.parameters.insert("di_door_is_open", yeet::utils::make_bool_accessor(_parameters.door_is_open));
 
     // Register the entry with the model registry
     registry.insert("grid_side_external_ios", std::move(entry));
 }
+
+bool sfc_grid_side_external_ios_datamodel::get_mcb_close() const { return _digital_outputs.mcb_close.read(); }
+
+bool sfc_grid_side_external_ios_datamodel::get_mcb_open() const { return _digital_outputs.mcb_open.read(); }
 
 }  // namespace yeet::application::sfc::integration

@@ -30,13 +30,16 @@ protected:
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         mock_signal_input::write(inputs.auxiliaries_are_on, false);
-        mock_signal_input::write(inputs.breakers_are_on, false);
+        mock_signal_input::write(inputs.mcb_is_closed, false);
         mock_signal_input::write(inputs.start_command, false);
         mock_signal_input::write(inputs.stop_command, false);
         mock_signal_input::write(inputs.shutdown_request, false);
         mock_signal_input::write(inputs.is_current_extinguished, false);
         mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
         mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
+        mock_signal_input::write(inputs.breaker_is_tripping, false);          // Breaker not tripping by default
+        mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
+        mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
     }
 
     void disable_all_overrides()
@@ -45,7 +48,7 @@ protected:
 
         // Override is now disabled by default, but we can explicitly set it to be safe
         parameters.override_enable_auxiliaries_are_on.write(false);
-        parameters.override_enable_breakers_are_on.write(false);
+        parameters.override_enable_mcb_is_closed.write(false);
         parameters.override_enable_start_command.write(false);
         parameters.override_enable_stop_command.write(false);
         parameters.override_enable_shutdown_request.write(false);
@@ -91,7 +94,7 @@ protected:
     void set_breakers_on(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.breakers_are_on, value);
+        mock_signal_input::write(inputs.mcb_is_closed, value);
     }
 
     void set_start_command(bool value)

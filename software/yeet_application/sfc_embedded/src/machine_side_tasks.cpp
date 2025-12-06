@@ -209,11 +209,15 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
 
     // Excitation command outputs from control system to external excitation hardware
     outputs->digital_outputs.signals[1] =
-        control->external_ios.get_excitation_start_command();                                   // DO2: Excitation start
-    outputs->digital_outputs.signals[2] = control->external_ios.get_excitation_stop_command();  // DO3: Excitation stop
+        control->external_ios.get_excitation_release_command();  // DO2: Excitation release
+
+    // Excitation current reference output (analog output - would typically use analog_outputs)
+    // For now, we'll map it to a digital output as a placeholder
+    // In real hardware, this would go to a DAC or PWM output
+    // TODO: Add analog output support and map excitation_current_reference to AO1
 
     // Machine-side control status outputs
-    // DO4-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
+    // DO3-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
 }
 
 ARM_FUNCTION
