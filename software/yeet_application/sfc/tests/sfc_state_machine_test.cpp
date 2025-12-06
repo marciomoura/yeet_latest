@@ -15,6 +15,11 @@ protected:
         stop = false;
         current_extinguished = false;
         protection_not_inhibited = true;  // Protection not inhibited by default
+        any_fault_active = false;
+        breaker_is_tripping = false;
+        emergency_off = false;
+        door_is_open = false;
+        shutdown_request = false;
     }
 
     void verify_state(sfc_state_id expected_state, const sfc_state_outputs& expected_outputs)
@@ -24,24 +29,37 @@ protected:
         EXPECT_EQ(outputs.pulse_releases, expected_outputs.pulse_releases);
     }
 
+    // Helper: navigate to OPERATION_ON state
+    void navigate_to_operation_on()
+    {
+        auxiliaries_on = true;
+        auto inputs = create_default_inputs();
+        state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+        breakers_on = true;
+        inputs = create_default_inputs();
+        state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+        state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+
+        start = true;
+        inputs = create_default_inputs();
+        state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
+        state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    }
+
     sfc_state_inputs create_default_inputs()
     {
-        bool shutdown_request_false = false;
-        bool any_fault_false = false;
-        bool breaker_is_tripping_false = false;
-        bool emergency_off_false = false;
-        bool door_is_open_false = false;
         sfc_state_inputs inputs{.auxiliaries_are_on_event = mock_event("auxiliaries_on", auxiliaries_on),
             .mcb_is_closed_event = mock_event("breakers_on", breakers_on),
             .start_command = mock_event("start", start),
             .stop_command = mock_event("stop", stop),
-            .shutdown_request = mock_event("shutdown_request", shutdown_request_false),
+            .shutdown_request = mock_event("shutdown_request", shutdown_request),
             .is_current_extinguished = mock_event("current_extinguished", current_extinguished),
             .protection_not_inhibited_event = mock_event("protection_not_inhibited", protection_not_inhibited),
-            .any_protection_fault_active_event = mock_event("any_fault_active", any_fault_false),
-            .breaker_is_tripping_event = mock_event("breaker_is_tripping", breaker_is_tripping_false),
-            .emergency_off_event = mock_event("emergency_off", emergency_off_false),
-            .door_is_open_event = mock_event("door_is_open", door_is_open_false)};
+            .any_protection_fault_active_event = mock_event("any_fault_active", any_fault_active),
+            .breaker_is_tripping_event = mock_event("breaker_is_tripping", breaker_is_tripping),
+            .emergency_off_event = mock_event("emergency_off", emergency_off),
+            .door_is_open_event = mock_event("door_is_open", door_is_open)};
         return inputs;
     }
 
@@ -52,6 +70,11 @@ protected:
     bool stop;
     bool current_extinguished;
     bool protection_not_inhibited;
+    bool any_fault_active;
+    bool breaker_is_tripping;
+    bool emergency_off;
+    bool door_is_open;
+    bool shutdown_request;
 };
 
 // Test initial state
@@ -155,26 +178,15 @@ TEST_F(SfcStateMachineTest, OperationOffToOperationOn)
 TEST_F(SfcStateMachineTest, OperationOnToShutdownRequested)
 {
     // Navigate to OPERATION_ON state through proper sequence
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+    navigate_to_operation_on();
 
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
     sfc_state_outputs expected{};
     expected.pulse_releases = true;  // OPERATION_ON has pulses enabled
     verify_state(sfc_state_id::OPERATION_ON, expected);
 
     // Then transition to SHUTDOWN_REQUESTED with stop command
     stop = true;
-    inputs = create_default_inputs();
+    auto inputs = create_default_inputs();
     state_machine.update(inputs);
 
     expected.pulse_releases = true;
@@ -186,26 +198,14 @@ TEST_F(SfcStateMachineTest, OperationOnToShutdownRequested)
 TEST_F(SfcStateMachineTest, ShutdownRequestedToOperationOff)
 {
     // Navigate to SHUTDOWN_REQUESTED state through proper sequence
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     sfc_state_outputs expected{};
     expected.pulse_releases = true;
     verify_state(sfc_state_id::OPERATION_ON, expected);
 
     stop = true;
-    inputs = create_default_inputs();
+    auto inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
     expected.pulse_releases = true;
@@ -267,19 +267,7 @@ TEST_F(SfcStateMachineTest, CompleteStartupSequence)
 TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
 {
     // Start from OPERATION_ON through proper sequence
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     sfc_state_outputs expected{};
     expected.pulse_releases = true;
@@ -287,7 +275,7 @@ TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
 
     // 1. Request shutdown
     stop = true;
-    inputs = create_default_inputs();
+    auto inputs = create_default_inputs();
     state_machine.update(inputs);
     expected.pulse_releases = true;
     verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
@@ -329,19 +317,7 @@ TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
 TEST_F(SfcStateMachineTest, ResetFromAnyState)
 {
     // Navigate to OPERATION_ON state through proper sequence
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     // Reset should return to IDLE
     state_machine.reset();
@@ -364,19 +340,7 @@ TEST_F(SfcStateMachineTest, ExtinguishRequestFalseInIdleState)
 TEST_F(SfcStateMachineTest, ExtinguishRequestFalseInOperationOnState)
 {
     // Navigate to OPERATION_ON state
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     const auto outputs = state_machine.get_outputs();
     EXPECT_FALSE(outputs.request_extinguish_dc_current);
@@ -386,22 +350,10 @@ TEST_F(SfcStateMachineTest, ExtinguishRequestFalseInOperationOnState)
 TEST_F(SfcStateMachineTest, ExtinguishRequestTrueInShutdownRequestedState)
 {
     // Navigate to SHUTDOWN_REQUESTED state
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     stop = true;
-    inputs = create_default_inputs();
+    auto inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
     const auto outputs = state_machine.get_outputs();
@@ -412,22 +364,10 @@ TEST_F(SfcStateMachineTest, ExtinguishRequestTrueInShutdownRequestedState)
 TEST_F(SfcStateMachineTest, ExtinguishRequestClearsOnExitShutdownState)
 {
     // Navigate to SHUTDOWN_REQUESTED state
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     stop = true;
-    inputs = create_default_inputs();
+    auto inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
     auto outputs = state_machine.get_outputs();
@@ -453,19 +393,7 @@ TEST_F(SfcStateMachineTest, ExtinguishRequestClearsOnExitShutdownState)
 TEST_F(SfcStateMachineTest, ShutdownSequenceWithExtinguishOutput)
 {
     // Navigate to OPERATION_ON state
-    auxiliaries_on = true;
-    auto inputs = create_default_inputs();
-    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
-
-    breakers_on = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
-
-    start = true;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
-    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+    navigate_to_operation_on();
 
     // Verify extinguish is false in normal operation
     auto outputs = state_machine.get_outputs();
@@ -474,7 +402,7 @@ TEST_F(SfcStateMachineTest, ShutdownSequenceWithExtinguishOutput)
 
     // Request shutdown
     stop = true;
-    inputs = create_default_inputs();
+    auto inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
     // Verify extinguish is true during shutdown
@@ -501,6 +429,304 @@ TEST_F(SfcStateMachineTest, ShutdownSequenceWithExtinguishOutput)
     EXPECT_FALSE(outputs.request_extinguish_dc_current);  // Now in OPERATION_OFF
     EXPECT_FALSE(outputs.pulse_releases);
     EXPECT_TRUE(outputs.freeze_integrator);
+}
+
+// ==================== Tests for MCB outputs ====================
+
+// Test mcb_close output is true in BREAKERS_OFF state
+TEST_F(SfcStateMachineTest, McbCloseOutputInBreakersOffState)
+{
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+
+    auto outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.mcb_close);
+    EXPECT_FALSE(outputs.mcb_open);
+}
+
+// Test mcb_open output is true in SHUTDOWN_REQUESTED state
+TEST_F(SfcStateMachineTest, McbOpenOutputInShutdownRequestedState)
+{
+    navigate_to_operation_on();
+
+    stop = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
+
+    auto outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.mcb_open);
+    EXPECT_FALSE(outputs.mcb_close);
+}
+
+// ==================== Tests for reset_controllers output ====================
+
+// Test reset_controllers pulses on OPERATION_ON entry
+TEST_F(SfcStateMachineTest, ResetControllersPulsesOnOperationOnEntry)
+{
+    navigate_to_operation_on();
+
+    // First cycle in OPERATION_ON: reset_controllers should be true
+    auto outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.reset_controllers);
+
+    // Second update: reset_controllers should be false
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.reset_controllers);
+
+    // Third update: still false
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.reset_controllers);
+}
+
+// Test reset_controllers pulses again on re-entry to OPERATION_ON
+TEST_F(SfcStateMachineTest, ResetControllersPulsesOnReEntryToOperationOn)
+{
+    navigate_to_operation_on();
+
+    // Clear the reset pulse
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+    auto outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.reset_controllers);
+
+    // Trigger shutdown
+    stop = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
+
+    // Complete shutdown
+    current_extinguished = true;
+    stop = false;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // First cycle (acknowledgment)
+    state_machine.update(inputs);  // Second cycle -> OPERATION_OFF
+
+    // Return to OPERATION_ON
+    start = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
+
+    // Reset pulse should appear again
+    outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.reset_controllers);
+}
+
+// ==================== Tests for protection_not_inhibited condition ====================
+
+// Test that OPERATION_OFF -> OPERATION_ON is blocked when protection is inhibited
+TEST_F(SfcStateMachineTest, ProtectionInhibitedBlocksOperationOn)
+{
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+    breakers_on = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+    state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
+
+    // Set start command but inhibit protection
+    start = true;
+    protection_not_inhibited = false;  // Protection inhibited (pending alarm confirmation)
+    inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    // Should stay in OPERATION_OFF
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::OPERATION_OFF);
+
+    // Clear inhibit
+    protection_not_inhibited = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    // Now should transition to OPERATION_ON
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::OPERATION_ON);
+}
+
+// ==================== Tests for any_protection_fault_active condition ====================
+
+// Test that SHUTDOWN_REQUESTED -> OPERATION_OFF is blocked when fault is active
+TEST_F(SfcStateMachineTest, ActiveFaultBlocksExitFromShutdown)
+{
+    navigate_to_operation_on();
+
+    // Trigger shutdown
+    stop = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
+
+    // Current extinguished but fault still active
+    current_extinguished = true;
+    any_fault_active = true;
+    stop = false;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);
+    state_machine.update(inputs);
+
+    // Should stay in SHUTDOWN_REQUESTED
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::SHUTDOWN_REQUESTED);
+
+    // Clear fault
+    any_fault_active = false;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);  // First cycle (acknowledgment)
+    state_machine.update(inputs);  // Second cycle -> OPERATION_OFF
+
+    // Now should transition to OPERATION_OFF
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::OPERATION_OFF);
+}
+
+// ==================== Tests for emergency triggers ====================
+
+// Test emergency_off triggers immediate shutdown
+TEST_F(SfcStateMachineTest, EmergencyOffTriggersShutdown)
+{
+    navigate_to_operation_on();
+
+    sfc_state_outputs expected{};
+    expected.pulse_releases = true;
+    verify_state(sfc_state_id::OPERATION_ON, expected);
+
+    // Emergency off
+    emergency_off = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+}
+
+// Test breaker_is_tripping triggers immediate shutdown
+TEST_F(SfcStateMachineTest, BreakerTrippingTriggersShutdown)
+{
+    navigate_to_operation_on();
+
+    sfc_state_outputs expected{};
+    expected.pulse_releases = true;
+    verify_state(sfc_state_id::OPERATION_ON, expected);
+
+    // Breaker tripping
+    breaker_is_tripping = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+}
+
+// Test shutdown_request triggers shutdown from OPERATION_ON
+TEST_F(SfcStateMachineTest, ShutdownRequestTriggersShutdown)
+{
+    navigate_to_operation_on();
+
+    sfc_state_outputs expected{};
+    expected.pulse_releases = true;
+    verify_state(sfc_state_id::OPERATION_ON, expected);
+
+    // Shutdown request
+    shutdown_request = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+}
+
+// ==================== Tests for start command loss ====================
+
+// Test losing start_command triggers shutdown
+TEST_F(SfcStateMachineTest, LostStartCommandTriggersShutdown)
+{
+    navigate_to_operation_on();
+
+    sfc_state_outputs expected{};
+    expected.pulse_releases = true;
+    verify_state(sfc_state_id::OPERATION_ON, expected);
+
+    // Remove start command
+    start = false;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+}
+
+// Test losing mcb_is_closed triggers shutdown
+TEST_F(SfcStateMachineTest, LostMcbClosedTriggersShutdown)
+{
+    navigate_to_operation_on();
+
+    sfc_state_outputs expected{};
+    expected.pulse_releases = true;
+    verify_state(sfc_state_id::OPERATION_ON, expected);
+
+    // MCB opens unexpectedly
+    breakers_on = false;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+}
+
+// Test losing auxiliaries triggers shutdown
+TEST_F(SfcStateMachineTest, LostAuxiliariesTriggersShutdown)
+{
+    navigate_to_operation_on();
+
+    sfc_state_outputs expected{};
+    expected.pulse_releases = true;
+    verify_state(sfc_state_id::OPERATION_ON, expected);
+
+    // Auxiliaries lost
+    auxiliaries_on = false;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+
+    verify_state(sfc_state_id::SHUTDOWN_REQUESTED, expected);
+}
+
+// ==================== Tests for freeze_integrator output ====================
+
+// Test freeze_integrator is true in pre-operation states
+TEST_F(SfcStateMachineTest, FreezeIntegratorInPreOperationStates)
+{
+    // IDLE
+    auto outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.freeze_integrator);  // IDLE has no freeze
+
+    // AUXILIARIES_ON
+    auxiliaries_on = true;
+    auto inputs = create_default_inputs();
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.freeze_integrator);
+
+    // BREAKERS_OFF
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.freeze_integrator);
+
+    // BREAKERS_ON
+    breakers_on = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.freeze_integrator);
+
+    // OPERATION_OFF
+    start = true;
+    inputs = create_default_inputs();
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_TRUE(outputs.freeze_integrator);
+
+    // OPERATION_ON - freeze should be false
+    state_machine.update(inputs);
+    outputs = state_machine.get_outputs();
+    EXPECT_FALSE(outputs.freeze_integrator);
 }
 
 }  // namespace yeet::application::sfc
