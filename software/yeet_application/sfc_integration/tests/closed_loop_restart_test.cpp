@@ -123,12 +123,6 @@ public:
             real_t{30.0f};
         system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
-        // Configure torque limits
-        yeet::mock_signal_input::write(
-            system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-        yeet::mock_signal_input::write(
-            system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
-
         // Light load
         system.plant.get_parameters().constant_torque.write(torque_pu_t(0.08f));
 
@@ -171,12 +165,6 @@ TEST_F(ClosedLoopRestartTest, RestartCapabilityTest)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
         real_t{30.0f};
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
-
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Light load
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.08f));
@@ -253,12 +241,6 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartCapabilityTest)
         real_t{20.0f};
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
-
     // Light load - allows long coast down
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.05f));
 
@@ -334,12 +316,6 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartWithAutoStartTest)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
         real_t{25.0f};
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
-
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Light load
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.05f));

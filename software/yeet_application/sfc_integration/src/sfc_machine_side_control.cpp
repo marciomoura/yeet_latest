@@ -148,6 +148,8 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&supervisor_inputs::grid_side_release_pulses)
         .from(torque_controller.get_outputs().is_saturated)
         .to(&supervisor_inputs::torque_saturated)
+        .from(torque_controller.get_outputs().is_braking_requested)
+        .to(&supervisor_inputs::is_braking_requested)
         .from(machine_protections.get_outputs().is_tripped)
         .to(&supervisor_inputs::protection_shutdown_request);
 
@@ -265,10 +267,6 @@ void sfc_machine_side_control::connect_internal_signals()
     // Mock speed_generator outputs during startup sequencer coordination
     // These will be reconnected when speed_generator is reintegrated
     wire(torque_controller)
-        .mocked(torque_pu_t{2.0})
-        .to(&torque_ctrl_inputs::dynamic_max_torque_limit)
-        .mocked(torque_pu_t{0.0})
-        .to(&torque_ctrl_inputs::dynamic_min_torque_limit)
         .mocked(false)
         .to(&torque_ctrl_inputs::enable_breakaway_boost)
         .mocked(false)

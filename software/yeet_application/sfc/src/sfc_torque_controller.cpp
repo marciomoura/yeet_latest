@@ -50,6 +50,14 @@ void sfc_torque_controller::configure_breakaway_boost(torque_pu_t boost_torque_p
     _breakaway_boost_duration = boost_duration;
 }
 
+void sfc_torque_controller::configure_minimum_motoring_torque(torque_pu_t min_motoring_torque_pu)
+{
+    assert(min_motoring_torque_pu.value() >= 0.0 && "Minimum motoring torque must be non-negative");
+    _minimum_motoring_torque = min_motoring_torque_pu;
+}
+
+void sfc_torque_controller::enable_minimum_motoring_torque(bool enable) { _enable_minimum_motoring_torque = enable; }
+
 // ========== Real-Time Execution ==========
 
 void sfc_torque_controller::reset()
@@ -63,6 +71,7 @@ void sfc_torque_controller::reset()
     _is_breakaway_boost_active = false;
     _is_saturated = false;
     _downstream_saturation = false;
+    _is_braking_requested = false;
 }
 
 void sfc_torque_controller::update(torque_pu_t torque_reference,
@@ -113,14 +122,22 @@ void sfc_torque_controller::update(torque_pu_t torque_reference,
     }
 
     // Step 5: Apply torque limits (both absolute and dynamic)
+    // This also sets _is_braking_requested based on the user's torque request
     const torque_pu_t limited_torque = apply_torque_limits(_total_torque_reference);
+
+    // Save the braking request flag from the user's original intent
+    const bool braking_was_requested = _is_braking_requested;
 
     // Step 6: Apply rate limiting to prevent mechanical shock
     _torque_rate_limiter.update(limited_torque.value());
     torque_pu_t rate_limited_torque = torque_pu_t{_torque_rate_limiter.get_output()};
 
     // Apply limits again to rate-limited output to ensure dynamic limit changes are immediate
+    // This might overwrite _is_braking_requested, so we restore it afterward
     _limited_torque_reference = apply_torque_limits(rate_limited_torque);
+
+    // Restore the braking request flag based on user's original intent, not rate-limited value
+    _is_braking_requested = braking_was_requested;
 
     // Step 7: Detect saturation for anti-windup feedback
     // Saturation occurs if the requested torque differs from the final limited torque
@@ -157,14 +174,29 @@ bool sfc_torque_controller::get_composite_saturation() const noexcept
     return _is_saturated || _downstream_saturation;
 }
 
+bool sfc_torque_controller::is_braking_requested() const noexcept { return _is_braking_requested; }
+
 // ========== Internal Helper Methods ==========
 
-torque_pu_t sfc_torque_controller::apply_torque_limits(torque_pu_t torque_pu) const
+torque_pu_t sfc_torque_controller::apply_torque_limits(torque_pu_t torque_pu)
 {
     // Combine absolute and dynamic limits
     // The effective limit is the most restrictive (smallest range)
-    const real_t effective_min = std::max(_absolute_min_torque.value(), _dynamic_min_torque_limit.value());
+    real_t effective_min = std::max(_absolute_min_torque.value(), _dynamic_min_torque_limit.value());
     const real_t effective_max = std::min(_absolute_max_torque.value(), _dynamic_max_torque_limit.value());
+
+    // Enforce minimum motoring torque for natural commutation
+    // When enabled, clamp the lower limit to prevent negative (braking) torque
+    if (_enable_minimum_motoring_torque) {
+        // Track if braking was requested (input < minimum motoring torque)
+        _is_braking_requested = torque_pu.value() < _minimum_motoring_torque.value();
+
+        // Clamp effective minimum to minimum motoring torque
+        effective_min = std::max(effective_min, _minimum_motoring_torque.value());
+    }
+    else {
+        _is_braking_requested = false;
+    }
 
     // Apply combined limits
     return torque_pu_t{std::clamp(torque_pu.value(), effective_min, effective_max)};

@@ -31,12 +31,6 @@ public:
         /// Torque reference from speed controller [pu]
         signal_input<torque_pu_t> torque_reference;
 
-        /// Maximum dynamic torque limit from speed generator [pu]
-        signal_input<torque_pu_t> dynamic_max_torque_limit;
-
-        /// Minimum dynamic torque limit from speed generator [pu]
-        signal_input<torque_pu_t> dynamic_min_torque_limit;
-
         /// Enable signal for breakaway boost from speed generator
         signal_input<bool> enable_breakaway_boost;
 
@@ -68,6 +62,9 @@ public:
 
         /// Applied torque reference output (after limiting and boost) for bumpless transfer [pu]
         signal_output<torque_pu_t> torque_reference;
+
+        /// Braking requested but clamped to minimum motoring torque
+        signal_output<bool> is_braking_requested;
     };
 
     /**
@@ -100,6 +97,12 @@ public:
 
         /// Breakaway boost duration [s]
         parameter<duration_t> breakaway_boost_duration = duration_t{1.0};
+
+        /// Minimum motoring torque for natural commutation [pu]
+        parameter<torque_pu_t> minimum_motoring_torque = torque_pu_t{0.02};
+
+        /// Enable minimum motoring torque clamp
+        parameter<bool> enable_minimum_motoring_torque = true;
     };
 
 private:
@@ -138,6 +141,10 @@ public:
             "breakaway_boost_torque", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_torque));
         entry.parameters.insert(
             "breakaway_boost_duration", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_duration));
+        entry.parameters.insert(
+            "minimum_motoring_torque", yeet::utils::make_units_accessor(_model_parameters->minimum_motoring_torque));
+        entry.parameters.insert("enable_minimum_motoring_torque",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_minimum_motoring_torque));
 
         registry.insert("torque_controller", std::move(entry));
     }

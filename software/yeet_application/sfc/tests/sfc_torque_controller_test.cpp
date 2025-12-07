@@ -28,6 +28,7 @@ TEST_F(TorqueControllerTest, ConstructionInitializesWithSafeDefaults)
     EXPECT_EQ(controller->get_control_mode(), sfc_torque_controller::control_mode::SPEED_CONTROL);
     EXPECT_FALSE(controller->is_breakaway_boost_active());
     EXPECT_FALSE(controller->is_saturated());
+    EXPECT_FALSE(controller->is_braking_requested());
 }
 
 TEST_F(TorqueControllerTest, ResetClearsAllStates)
@@ -44,6 +45,7 @@ TEST_F(TorqueControllerTest, ResetClearsAllStates)
     EXPECT_EQ(controller->get_limited_torque_reference().value(), 0.0);
     EXPECT_FALSE(controller->is_breakaway_boost_active());
     EXPECT_FALSE(controller->is_saturated());
+    EXPECT_FALSE(controller->is_braking_requested());
 }
 
 // ========== Configuration Tests ==========
@@ -73,7 +75,8 @@ TEST_F(TorqueControllerTest, ConfigureTorqueToCurrentFactorWorks)
 TEST_F(TorqueControllerTest, ConfigureTorqueRateLimitWorks)
 {
     // Set a very slow rate limit
-    controller->configure_torque_rate_limit(0.1);  // 0.1 pu/s
+    controller->configure_torque_rate_limit(0.1);       // 0.1 pu/s
+    controller->enable_minimum_motoring_torque(false);  // Disable to allow testing small values
 
     // Step command from 0 to 0.5
     controller->update(torque_pu_t{0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
@@ -221,6 +224,7 @@ TEST_F(TorqueControllerTest, BreakawayBoostResetsTimerOnReactivation)
 TEST_F(TorqueControllerTest, AbsoluteTorqueLimitsAreEnforced)
 {
     controller->configure_absolute_torque_limits(torque_pu_t{-0.7}, torque_pu_t{0.8});
+    controller->enable_minimum_motoring_torque(false);  // Allow negative torque for this test
 
     // Try to exceed upper limit
     controller->update(torque_pu_t{1.2}, torque_pu_t{2.0}, torque_pu_t{-2.0}, false);
@@ -234,6 +238,7 @@ TEST_F(TorqueControllerTest, AbsoluteTorqueLimitsAreEnforced)
 TEST_F(TorqueControllerTest, DynamicTorqueLimitsAreEnforced)
 {
     controller->configure_absolute_torque_limits(torque_pu_t{-2.0}, torque_pu_t{2.0});
+    controller->enable_minimum_motoring_torque(false);  // Allow negative torque for this test
 
     // Set restrictive dynamic limits
     controller->update(torque_pu_t{1.0}, torque_pu_t{0.6}, torque_pu_t{-0.3}, false);
@@ -249,6 +254,7 @@ TEST_F(TorqueControllerTest, DynamicTorqueLimitsAreEnforced)
 TEST_F(TorqueControllerTest, MostRestrictiveLimitIsUsed)
 {
     controller->configure_absolute_torque_limits(torque_pu_t{-1.0}, torque_pu_t{1.0});
+    controller->enable_minimum_motoring_torque(false);  // Allow negative torque for this test
 
     // Dynamic limit is more restrictive than absolute
     controller->update(torque_pu_t{0.8}, torque_pu_t{0.5}, torque_pu_t{-0.5}, false);
@@ -276,7 +282,8 @@ TEST_F(TorqueControllerTest, BreakawayBoostRespectsTorqueLimits)
 
 TEST_F(TorqueControllerTest, TorqueRateLimitPreventsInstantaneousChanges)
 {
-    controller->configure_torque_rate_limit(1.0);  // 1 pu/s
+    controller->configure_torque_rate_limit(1.0);       // 1 pu/s
+    controller->enable_minimum_motoring_torque(false);  // Disable to allow testing small values
 
     // Step from 0 to 0.5
     controller->update(torque_pu_t{0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
@@ -287,7 +294,8 @@ TEST_F(TorqueControllerTest, TorqueRateLimitPreventsInstantaneousChanges)
 
 TEST_F(TorqueControllerTest, TorqueRateLimitWorksForNegativeTorque)
 {
-    controller->configure_torque_rate_limit(1.0);  // 1 pu/s
+    controller->configure_torque_rate_limit(1.0);       // 1 pu/s
+    controller->enable_minimum_motoring_torque(false);  // Allow negative torque
 
     // Step from 0 to -0.4
     controller->update(torque_pu_t{-0.4}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
@@ -332,7 +340,8 @@ TEST_F(TorqueControllerTest, TorqueToCurrentConversionWithCustomFactor)
 TEST_F(TorqueControllerTest, TorqueToCurrentConversionWorksForNegativeTorque)
 {
     controller->configure_torque_to_current_factor(1.0);
-    controller->enable_torque_rate_limiting(false);  // Disable rate limiting for direct conversion test
+    controller->enable_torque_rate_limiting(false);     // Disable rate limiting for direct conversion test
+    controller->enable_minimum_motoring_torque(false);  // Allow negative torque
     controller->update(torque_pu_t{-0.3}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
 
     EXPECT_NEAR(controller->get_current_reference().value(), -0.3, 0.01);
@@ -370,10 +379,17 @@ TEST_F(TorqueControllerTest, SaturationClearWhenBackWithinLimits)
 
 TEST_F(TorqueControllerTest, SaturationPropagatedFromCurrentController)
 {
+    controller->enable_torque_rate_limiting(false);  // Disable for clean test
+
     // Torque within limits, but current controller reports saturation
     controller->update(torque_pu_t{0.3}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
 
-    EXPECT_TRUE(controller->is_saturated());
+    // Set downstream saturation from current controller
+    controller->set_downstream_saturation(true);
+
+    // Local saturation should be false, but composite should reflect downstream
+    EXPECT_FALSE(controller->is_saturated());
+    EXPECT_TRUE(controller->get_composite_saturation());
 }
 
 // ========== Integration Tests ==========
@@ -518,4 +534,158 @@ TEST_F(TorqueControllerTest, CompositeSaturationFalseWhenNeitherSaturated)
     EXPECT_FALSE(controller->is_saturated());
     EXPECT_FALSE(controller->get_downstream_saturation());
     EXPECT_FALSE(controller->get_composite_saturation());
+}
+
+// ========== Minimum Motoring Torque Tests ==========
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueClampNegativeToPositive)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request negative torque - should be clamped to minimum motoring torque
+    controller->update(torque_pu_t{-0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.02, 0.001);
+    EXPECT_TRUE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueDoesNotAffectPositiveTorque)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request positive torque - should pass through
+    controller->update(torque_pu_t{0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.5, 0.001);
+    EXPECT_FALSE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueCanBeDisabled)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(false);  // Disable the feature
+
+    // Request negative torque - should pass through since feature is disabled
+    controller->update(torque_pu_t{-0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), -0.5, 0.001);
+    EXPECT_FALSE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueConfigurable)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.05});  // Custom value
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request negative torque - should be clamped to configured value
+    controller->update(torque_pu_t{-0.3}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.05, 0.001);
+    EXPECT_TRUE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueZeroValueEffectivelyDisablesFeature)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.0});  // Zero effectively disables
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request negative torque - should clamp to 0 (not negative)
+    controller->update(torque_pu_t{-0.3}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.0, 0.001);
+}
+
+TEST_F(TorqueControllerTest, BrakingRequestedClearsWhenPositiveTorque)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request negative torque - braking requested
+    controller->update(torque_pu_t{-0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+    EXPECT_TRUE(controller->is_braking_requested());
+
+    // Request positive torque - braking cleared
+    controller->update(torque_pu_t{0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+    EXPECT_FALSE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, BrakingRequestedWhenTorqueBelowMinimumMotoringThreshold)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.05});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request torque below minimum motoring threshold - should trigger braking flag
+    controller->update(torque_pu_t{0.01}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.05, 0.001);
+    EXPECT_TRUE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, BrakingRequestedNotSetWhenAboveMinimumMotoringThreshold)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.05});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request torque exactly at minimum motoring threshold
+    controller->update(torque_pu_t{0.05}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.05, 0.001);
+    EXPECT_FALSE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueInteractsWithAbsoluteLimits)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_absolute_torque_limits(torque_pu_t{-1.0}, torque_pu_t{0.5});
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request high positive torque - should be limited by absolute max
+    controller->update(torque_pu_t{1.0}, torque_pu_t{2.0}, torque_pu_t{-2.0}, false);
+    EXPECT_LE(controller->get_limited_torque_reference().value(), 0.5);
+
+    // Request negative torque - should be clamped to minimum motoring (not absolute min)
+    controller->update(torque_pu_t{-0.5}, torque_pu_t{2.0}, torque_pu_t{-2.0}, false);
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.02, 0.001);
+}
+
+TEST_F(TorqueControllerTest, ResetClearsBrakingRequested)
+{
+    controller->enable_torque_rate_limiting(false);
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Trigger braking request
+    controller->update(torque_pu_t{-0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+    EXPECT_TRUE(controller->is_braking_requested());
+
+    // Reset should clear braking request
+    controller->reset();
+    EXPECT_FALSE(controller->is_braking_requested());
+}
+
+TEST_F(TorqueControllerTest, MinimumMotoringTorqueWithRateLimiting)
+{
+    controller->configure_torque_rate_limit(1.0);  // 1 pu/s
+    controller->configure_minimum_motoring_torque(torque_pu_t{0.02});
+    controller->enable_minimum_motoring_torque(true);
+
+    // Request negative torque - should be clamped, but rate limiter starts from 0
+    controller->update(torque_pu_t{-0.5}, torque_pu_t{1.0}, torque_pu_t{-1.0}, false);
+
+    // Rate limiter should clamp to 0.001 pu after 1ms from 0
+    // Then minimum motoring torque should clamp to 0.02 if the rate-limited value < 0.02
+    // Actually, rate limiter outputs 0.001 first step, which is below min motoring
+    EXPECT_NEAR(controller->get_limited_torque_reference().value(), 0.02, 0.001);
+    EXPECT_TRUE(controller->is_braking_requested());
 }

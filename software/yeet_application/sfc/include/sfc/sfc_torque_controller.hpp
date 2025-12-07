@@ -105,6 +105,33 @@ public:
      */
     void configure_breakaway_boost(torque_pu_t boost_torque_pu, duration_t boost_duration);
 
+    /**
+     * @brief Configures the minimum motoring torque for natural commutation
+     *
+     * During deceleration in natural commutation mode, if the speed controller
+     * requests negative (braking) torque, the output is clamped to this minimum
+     * positive value. This maintains thyristor conduction and natural commutation
+     * capability. The machine decelerates via load torque and friction.
+     *
+     * Set to 0.0 to disable this feature (allows negative torque if absolute
+     * limits permit).
+     *
+     * @param min_motoring_torque_pu Minimum positive torque [pu], typically 0.02-0.05
+     */
+    void configure_minimum_motoring_torque(torque_pu_t min_motoring_torque_pu);
+
+    /**
+     * @brief Enables or disables the minimum motoring torque clamp
+     *
+     * When enabled, negative torque requests are clamped to the configured
+     * minimum motoring torque. This should be enabled during natural commutation
+     * operation and can be disabled during forced commutation startup where
+     * the concept doesn't apply.
+     *
+     * @param enable True to enforce minimum motoring torque, false to allow negative
+     */
+    void enable_minimum_motoring_torque(bool enable);
+
     // ========== Real-Time Execution ==========
 
     /**
@@ -222,15 +249,30 @@ public:
      */
     bool get_composite_saturation() const noexcept;
 
+    /**
+     * @brief Checks if braking (negative torque) was requested but clamped
+     *
+     * Returns true when the speed controller requests negative torque but the
+     * torque controller is enforcing minimum motoring torque. This indicates
+     * the machine is decelerating via load/friction rather than regenerative braking.
+     *
+     * @return True if braking was requested but clamped to minimum motoring torque
+     */
+    bool is_braking_requested() const noexcept;
+
 private:
     // ========== Internal Helper Methods ==========
 
     /**
-     * @brief Applies all torque limits (absolute and dynamic)
+     * @brief Applies all torque limits (absolute, dynamic, and minimum motoring)
+     *
+     * This method also updates _is_braking_requested based on whether the input
+     * torque was clamped due to minimum motoring torque enforcement.
+     *
      * @param torque_pu Input torque to be limited
      * @return Limited torque [pu]
      */
-    torque_pu_t apply_torque_limits(torque_pu_t torque_pu) const;
+    torque_pu_t apply_torque_limits(torque_pu_t torque_pu);
 
     // ========== Control Components ==========
     yeet::control::rate_of_change_limiter _torque_rate_limiter;
@@ -248,6 +290,10 @@ private:
     torque_pu_t _breakaway_boost_torque{0.0};
     duration_t _breakaway_boost_duration{0.0};
 
+    // Minimum motoring torque for natural commutation
+    torque_pu_t _minimum_motoring_torque{0.02};
+    bool _enable_minimum_motoring_torque{true};
+
     // ========== Dynamic State ==========
     torque_pu_t _base_torque_reference{0.0};
     torque_pu_t _total_torque_reference{0.0};
@@ -256,6 +302,7 @@ private:
     bool _is_breakaway_boost_active{false};
     bool _is_saturated{false};
     bool _downstream_saturation{false};
+    bool _is_braking_requested{false};
 
     // Dynamic limits (updated each cycle)
     torque_pu_t _dynamic_max_torque_limit{1.2};

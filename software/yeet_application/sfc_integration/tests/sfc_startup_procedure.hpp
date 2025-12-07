@@ -54,12 +54,6 @@ struct startup_to_nominal_config {
     /// Load torque applied after pre-flux [pu]
     torque_pu_t load_torque{0.15f};
 
-    /// Dynamic maximum torque limit [pu]
-    torque_pu_t dynamic_max_torque_limit{1.0f};
-
-    /// Dynamic minimum torque limit [pu]
-    torque_pu_t dynamic_min_torque_limit{0.0f};
-
     /// Target speed reference [pu]
     speed_pu_t target_speed_reference{1.0f};
 
@@ -116,13 +110,9 @@ struct startup_result {
  *
  * @param system The plant-complete SFC closed-loop simulation builder
  */
-inline void initialize_mock_signal_inputs(plant_complete_sfc_closed_loop_simulation_builder& system)
+inline void initialize_mock_signal_inputs(plant_complete_sfc_closed_loop_simulation_builder& /* system */)
 {
-    // Torque controller inputs - initialize to safe defaults
-    mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0f});
-    mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0f});
+    // No torque controller mock inputs needed - limits come from parameters
 }
 
 /**
@@ -238,12 +228,6 @@ inline void execute_preflux_and_configure_load(plant_complete_sfc_closed_loop_si
 
     // Configure load torque (AFTER pre-flux but BEFORE virtual startup)
     system.plant.get_parameters().constant_torque.write(config.load_torque);
-
-    // Configure torque limits for startup
-    mock_signal_input::write(system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit,
-        config.dynamic_max_torque_limit);
-    mock_signal_input::write(system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit,
-        config.dynamic_min_torque_limit);
 }
 
 /**

@@ -213,12 +213,6 @@ public:
         // Configure moderate load torque
         system.plant.get_parameters().constant_torque.write(torque_pu_t(0.15f));
 
-        // Configure torque limits for startup
-        mock_signal_input::write(
-            system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.2});
-        mock_signal_input::write(
-            system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.0});
-
         // Wait for startup sequencer to complete (virtual startup)
         simulate_for(11.5);  // Pre-flux (1s) + Virtual frequency ramp (10s) + settling (0.5s)
 

@@ -41,8 +41,12 @@ void sfc_grid_side_integrator_supervisor_runner::run()
         _outputs.freeze_integrator = _parameters.freeze_value;
     }
     else {
-        // If forced commutation freeze or shutdown request, set freeze output
-        _outputs.freeze_integrator = _outputs.shutdown_request || _inputs.forced_commutation_freeze_integrator;
+        // Freeze current controller integrator when:
+        // 1. State machine releases pulses = false (system not modulating)
+        // 2. Shutdown request active (protection trip or machine-side shutdown)
+        // 3. Forced commutation requests freeze (during forced commutation transitions)
+        _outputs.freeze_integrator = !_inputs.state_machine_release_pulses || _outputs.shutdown_request ||
+                                     _inputs.forced_commutation_freeze_integrator;
     }
 
     // Logic should be decided on preset

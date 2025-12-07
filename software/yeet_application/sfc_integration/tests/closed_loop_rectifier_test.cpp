@@ -50,12 +50,6 @@ public:
         // Disable torque rate limiting for faster response in tests
         system.machine_side_control.torque_controller.get_parameters().enable_torque_rate_limiting.write(false);
 
-        // ==================== Configure Dynamic Torque Limits ====================
-        yeet::mock_signal_input::write(
-            system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.5f});
-        yeet::mock_signal_input::write(
-            system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0f});
-
         // ==================== Register Applications ====================
         system.register_applications(simulator);
 
