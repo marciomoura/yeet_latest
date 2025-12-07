@@ -27,8 +27,8 @@ void sfc_startup_sequencer_runner::initialize()
 void sfc_startup_sequencer_runner::run()
 {
     // Read current field establishment status with override support
-    bool is_field_established = _parameters.override_enable_field_established.read()
-                                    ? _parameters.override_value_field_established.read()
+    bool is_field_established = _parameters.field_established_override.read()
+                                    ? _parameters.field_established_override_value.read()
                                     : _inputs.is_field_established.read();
 
     // Read estimated rotor angle and convert from angle_wrapped to angle_t

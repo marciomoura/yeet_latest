@@ -121,10 +121,10 @@ public:
         parameter<duration_t> virtual_torque_duration = duration_t{0.0};
 
         /// Enable override for field established flag testing
-        parameter<bool> override_enable_field_established = false;
+        parameter<bool> field_established_override = false;
 
         /// Forced field established value when override is enabled
-        parameter<bool> override_value_field_established = false;
+        parameter<bool> field_established_override_value = false;
 
         /// External speed reference command [pu]
         parameter<speed_pu_t> speed_reference = speed_pu_t{0.0};
@@ -182,10 +182,10 @@ public:
             "virtual_torque_final", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_final));
         entry.parameters.insert(
             "virtual_torque_duration", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_duration));
-        entry.parameters.insert("override_enable_field_established",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_field_established));
-        entry.parameters.insert("override_value_field_established",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_field_established));
+        entry.parameters.insert("field_established_override",
+            yeet::utils::make_bool_accessor(_model_parameters->field_established_override));
+        entry.parameters.insert("field_established_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->field_established_override_value));
         entry.parameters.insert(
             "speed_reference", yeet::utils::make_units_accessor(_model_parameters->speed_reference));
         entry.parameters.insert("speed_reference_rate_limit_seconds_per_pu",

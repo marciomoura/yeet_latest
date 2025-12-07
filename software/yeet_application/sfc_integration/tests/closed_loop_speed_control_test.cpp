@@ -26,7 +26,7 @@ public:
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
-        simulator.configure_sampler_sampling_rate(ms(10.0f));
+        simulator.configure_sampler_sampling_rate(ms(1.0f));
 
         // Register all applications with the simulator
         system.register_applications(simulator);
@@ -45,6 +45,9 @@ public:
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        register_complete_logger(simulator, system.machine_side_control.torque_controller);
+        register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
+        register_complete_logger(simulator, system.grid_side_control.current_controller);
     }
 
     void initialize()

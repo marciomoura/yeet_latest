@@ -151,7 +151,7 @@ TEST_F(SfcExcitationControllerRunnerTest, OverrideFieldCurrentReferenceAppliesCu
     EXPECT_GT(normal_current.value(), 0.0);
 
     // Enable override with custom value
-    parameters.override_field_current_reference.write(true);
+    parameters.field_current_reference_override.write(true);
     parameters.field_current_reference_override_value.write(current_pu_t{0.5});
     run_cycle();
 
@@ -168,13 +168,13 @@ TEST_F(SfcExcitationControllerRunnerTest, OverrideFieldCurrentReferenceReturnsTo
     run_cycle();
 
     // Enable override
-    parameters.override_field_current_reference.write(true);
+    parameters.field_current_reference_override.write(true);
     parameters.field_current_reference_override_value.write(current_pu_t{0.3});
     run_cycle();
     EXPECT_NEAR(get_field_current_reference().value(), 0.3, 0.001);
 
     // Disable override - should return to normal operation
-    parameters.override_field_current_reference.write(false);
+    parameters.field_current_reference_override.write(false);
     run_cycle();
 
     const auto normal_current = get_field_current_reference();
@@ -192,7 +192,7 @@ TEST_F(SfcExcitationControllerRunnerTest, OverrideFieldCurrentReferenceWorksEven
     EXPECT_EQ(get_field_current_reference().value(), 0.0);
 
     // Enable override with custom value
-    parameters.override_field_current_reference.write(true);
+    parameters.field_current_reference_override.write(true);
     parameters.field_current_reference_override_value.write(current_pu_t{0.7});
     run_cycle();
 

@@ -64,22 +64,22 @@ public:
      */
     struct parameters {
         /// Override freeze signal for testing [bool]
-        parameter<bool> override_freeze{false};
+        parameter<bool> freeze_override{false};
 
         /// Forced freeze value when override is active [bool]
-        parameter<bool> freeze_value{false};
+        parameter<bool> freeze_override_value{false};
 
         /// Override release pulses signal for testing [bool]
-        parameter<bool> override_release_pulses{false};
+        parameter<bool> release_pulses_override{false};
 
         /// Forced release pulses value when override is active [bool]
-        parameter<bool> release_pulses_value{false};
+        parameter<bool> release_pulses_override_value{false};
 
         /// Override shutdown signal for testing [bool]
-        parameter<bool> override_is_tripped{false};
+        parameter<bool> is_tripped_override{false};
 
         /// Forced shutdown value when override is active [bool]
-        parameter<bool> is_tripped_value{false};
+        parameter<bool> is_tripped_override_value{false};
     };
 
 private:
@@ -101,16 +101,17 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("override_freeze", yeet::utils::make_bool_accessor(_model_parameters->override_freeze));
-        entry.parameters.insert("freeze_value", yeet::utils::make_bool_accessor(_model_parameters->freeze_value));
+        entry.parameters.insert("freeze_override", yeet::utils::make_bool_accessor(_model_parameters->freeze_override));
         entry.parameters.insert(
-            "override_release_pulses", yeet::utils::make_bool_accessor(_model_parameters->override_release_pulses));
+            "freeze_override_value", yeet::utils::make_bool_accessor(_model_parameters->freeze_override_value));
         entry.parameters.insert(
-            "release_pulses_value", yeet::utils::make_bool_accessor(_model_parameters->release_pulses_value));
+            "release_pulses_override", yeet::utils::make_bool_accessor(_model_parameters->release_pulses_override));
+        entry.parameters.insert("release_pulses_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->release_pulses_override_value));
         entry.parameters.insert(
-            "override_is_tripped", yeet::utils::make_bool_accessor(_model_parameters->override_is_tripped));
+            "is_tripped_override", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_override));
         entry.parameters.insert(
-            "is_tripped_value", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_value));
+            "is_tripped_override_value", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_override_value));
 
         registry.insert("integrator_supervisor", std::move(entry));
     }

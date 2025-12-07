@@ -241,7 +241,7 @@ TEST_F(SfcStateMachineTest, CompleteStartupSequence)
     state_machine.update(inputs);
     verify_state(sfc_state_id::AUXILIARIES_ON, expected);
 
-    // 2. Command breakers on -> BREAKERS_OFF
+    // 2. Command breakers closed -> BREAKERS_OFF
     breakers_on = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);

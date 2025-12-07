@@ -18,8 +18,8 @@ void sfc_torque_controller_runner::initialize()
 void sfc_torque_controller_runner::run()
 {
     // Override torque reference if enabled
-    if (_parameters.override_torque_reference.read()) {
-        const torque_pu_t torque_reference = _parameters.forced_torque_reference.read();
+    if (_parameters.torque_reference_override.read()) {
+        const torque_pu_t torque_reference = _parameters.torque_reference_override_value.read();
 
         // Write output signals
         _outputs.current_reference.write(current_pu_t{torque_reference});

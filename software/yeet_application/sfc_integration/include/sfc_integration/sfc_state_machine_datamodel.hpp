@@ -110,38 +110,38 @@ public:
     struct parameters {
         // ==================== Digital Input Overrides ====================
         // These parameters allow forcing digital inputs during testing/commissioning
-        // When override_enable is true, the override_value is used instead of hardware input
+        // When <signal>_override is true, <signal>_override_value is used instead of hardware input
         // Default: All overrides DISABLED to use actual input signals
 
         /// Enable override for auxiliaries_are_on input
-        parameter<bool> override_enable_auxiliaries_are_on{false};
+        parameter<bool> auxiliaries_are_on_override{false};
         /// Override value for auxiliaries_are_on (when override enabled)
-        parameter<bool> override_value_auxiliaries_are_on{false};
+        parameter<bool> auxiliaries_are_on_override_value{false};
 
         /// Enable override for mcb_is_closed input
-        parameter<bool> override_enable_mcb_is_closed{false};
+        parameter<bool> mcb_is_closed_override{false};
         /// Override value for mcb_is_closed (when override enabled)
-        parameter<bool> override_value_mcb_is_closed{false};
+        parameter<bool> mcb_is_closed_override_value{false};
 
         /// Enable override for start_command input
-        parameter<bool> override_enable_start_command{false};
+        parameter<bool> start_command_override{false};
         /// Override value for start_command (when override enabled)
-        parameter<bool> override_value_start_command{false};
+        parameter<bool> start_command_override_value{false};
 
         /// Enable override for stop_command input
-        parameter<bool> override_enable_stop_command{false};
+        parameter<bool> stop_command_override{false};
         /// Override value for stop_command (when override enabled)
-        parameter<bool> override_value_stop_command{false};
+        parameter<bool> stop_command_override_value{false};
 
         /// Enable override for shutdown_request input
-        parameter<bool> override_enable_shutdown_request{false};
+        parameter<bool> shutdown_request_override{false};
         /// Override value for shutdown_request (when override enabled)
-        parameter<bool> override_value_shutdown_request{false};
+        parameter<bool> shutdown_request_override_value{false};
 
         /// Enable override for is_current_extinguished input
-        parameter<bool> override_enable_is_current_extinguished{false};
+        parameter<bool> is_current_extinguished_override{false};
         /// Override value for is_current_extinguished (when override enabled)
-        parameter<bool> override_value_is_current_extinguished{false};
+        parameter<bool> is_current_extinguished_override_value{false};
     };
 
 private:
@@ -163,35 +163,35 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register digital input override parameters using boolean accessor
-        entry.parameters.insert("override_enable_auxiliaries_are_on",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_auxiliaries_are_on));
-        entry.parameters.insert("override_value_auxiliaries_are_on",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_auxiliaries_are_on));
+        entry.parameters.insert("auxiliaries_are_on_override",
+            yeet::utils::make_bool_accessor(_model_parameters->auxiliaries_are_on_override));
+        entry.parameters.insert("auxiliaries_are_on_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->auxiliaries_are_on_override_value));
 
-        entry.parameters.insert("override_enable_mcb_is_closed",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_mcb_is_closed));
-        entry.parameters.insert("override_value_mcb_is_closed",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_mcb_is_closed));
+        entry.parameters.insert(
+            "mcb_is_closed_override", yeet::utils::make_bool_accessor(_model_parameters->mcb_is_closed_override));
+        entry.parameters.insert("mcb_is_closed_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->mcb_is_closed_override_value));
 
-        entry.parameters.insert("override_enable_start_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_start_command));
-        entry.parameters.insert("override_value_start_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_start_command));
+        entry.parameters.insert(
+            "start_command_override", yeet::utils::make_bool_accessor(_model_parameters->start_command_override));
+        entry.parameters.insert("start_command_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->start_command_override_value));
 
-        entry.parameters.insert("override_enable_stop_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_stop_command));
-        entry.parameters.insert("override_value_stop_command",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_stop_command));
+        entry.parameters.insert(
+            "stop_command_override", yeet::utils::make_bool_accessor(_model_parameters->stop_command_override));
+        entry.parameters.insert("stop_command_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->stop_command_override_value));
 
-        entry.parameters.insert("override_enable_shutdown_request",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_shutdown_request));
-        entry.parameters.insert("override_value_shutdown_request",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_shutdown_request));
+        entry.parameters.insert(
+            "shutdown_request_override", yeet::utils::make_bool_accessor(_model_parameters->shutdown_request_override));
+        entry.parameters.insert("shutdown_request_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->shutdown_request_override_value));
 
-        entry.parameters.insert("override_enable_is_current_extinguished",
-            yeet::utils::make_bool_accessor(_model_parameters->override_enable_is_current_extinguished));
-        entry.parameters.insert("override_value_is_current_extinguished",
-            yeet::utils::make_bool_accessor(_model_parameters->override_value_is_current_extinguished));
+        entry.parameters.insert("is_current_extinguished_override",
+            yeet::utils::make_bool_accessor(_model_parameters->is_current_extinguished_override));
+        entry.parameters.insert("is_current_extinguished_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->is_current_extinguished_override_value));
 
         registry.insert("state_machine", std::move(entry));
     }
