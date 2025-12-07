@@ -224,6 +224,10 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
 
     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
 
+    // Set initial speed reference to match virtual frequency final to prevent drop during transition
+    // This ensures the rate limiter starts from the correct value when entering closed-loop
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.1});
+
     // Configure rate limiter for controlled acceleration (slower for quadratic load)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
         real_t{40.0f};
@@ -240,6 +244,24 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
         -speed_error_tolerance, speed_error_tolerance, yeet::checker_activation_always{}));
 
     speed_tracking_checker->deactivate();
+
+    // Monotonic speed reference checker - detects if speed reference ever drops
+    speed_pu_t previous_speed_reference{0.0};
+    auto monotonic_speed_checker = simulator.register_checker(yeet::make_unique_checker(yeet::lambda_checker(
+        "speed reference monotonic increase",
+        [&]() -> bool {
+            auto current_ref = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+            // Allow small tolerance for numerical noise
+            const float tolerance = 0.001f;
+            bool is_monotonic = current_ref.value() >= (previous_speed_reference.value() - tolerance);
+            previous_speed_reference = current_ref;
+            return is_monotonic;
+        },
+        [&]() -> std::string {
+            auto current_ref = system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+            return "Speed reference dropped from " + std::to_string(previous_speed_reference.value()) + " to " +
+                   std::to_string(current_ref.value()) + " pu";
+        })));
 
     // Execute State Machine Startup
     execute_startup_sequence();

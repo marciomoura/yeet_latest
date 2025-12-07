@@ -17,6 +17,9 @@ void sfc_startup_sequencer_runner::initialize()
     // Configure all parameters from datamodel
     set_parameters();
 
+    // Ensure speed_reference is at least virtual_frequency_final on startup
+    clamp_speed_reference_to_virtual_frequency_final();
+
     // Register callbacks for dynamic parameter updates
     set_parameter_callback();
 }
@@ -116,7 +119,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
 {
     // Register callbacks for all virtual frequency parameters
     _parameters.virtual_frequency_initial.register_callback([&]() { set_parameters(); });
-    _parameters.virtual_frequency_final.register_callback([&]() { set_parameters(); });
+    _parameters.virtual_frequency_final.register_callback([&]() {
+        set_parameters();
+        clamp_speed_reference_to_virtual_frequency_final();
+    });
     _parameters.virtual_frequency_duration.register_callback([&]() { set_parameters(); });
 
     // Register callbacks for all virtual torque parameters
@@ -133,6 +139,17 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
     _parameters.flying_restart_voltage_threshold.register_callback([&]() { set_parameters(); });
     _parameters.flying_restart_observer_settling_time.register_callback([&]() { set_parameters(); });
     _parameters.auto_start_stop_enabled.register_callback([&]() { set_parameters(); });
+}
+
+void sfc_startup_sequencer_runner::clamp_speed_reference_to_virtual_frequency_final()
+{
+    const frequency_pu_t virtual_freq_final = _parameters.virtual_frequency_final.read();
+    const speed_pu_t current_speed_ref = _parameters.speed_reference.read();
+
+    // Only clamp if speed_reference is below virtual_frequency_final
+    if (current_speed_ref.value() < virtual_freq_final.value()) {
+        _parameters.speed_reference.write(speed_pu_t{virtual_freq_final.value()});
+    }
 }
 
 }  // namespace yeet::application::sfc::integration
