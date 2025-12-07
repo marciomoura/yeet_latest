@@ -21,46 +21,13 @@ void sfc_plant_model_runner::register_datamodel(yeet::model_registry& registry)
 
 void sfc_plant_model_runner::initialize()
 {
-    // Recreate plant model with selected topology (allows switching before initialize)
-    const auto topology = _parameters.topology.read();
-    sfc::plant_topology_type plant_topology;
-    switch (topology) {
-        case datamodel::topology_type::internal:
-            plant_topology = sfc::plant_topology_type::internal;
-            break;
-        case datamodel::topology_type::rectifier:
-            plant_topology = sfc::plant_topology_type::rectifier;
-            break;
-        case datamodel::topology_type::simulink:
-        default:
-            plant_topology = sfc::plant_topology_type::simulink;
-            break;
-    }
-
-    // Only recreate if topology changed or plant needs fresh state
+    const auto plant_topology = convert_topology(_parameters.topology.read());
     _plant = std::make_unique<sfc::sfc_plant_model_voltage_behind_reactance>(plant_topology);
 
-    // Configure the plant's grid and machine parameters from the shared per-unit system
-    const auto& grid_bases = _per_unit_system->get_grid_bases();
-    const auto& machine_bases = _per_unit_system->get_machine_bases();
+    const auto initial_speed = speed_pu_t{_parameters.initial_speed.read()};
+    configure_plant_bases(initial_speed);
 
-    // Convert peak phase voltage to RMS line voltage for grid side
-    voltage_t grid_voltage_rms =
-        voltage_t(grid_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
-
-    _plant->set_grid_parameters(grid_bases.base_frequency.value(), grid_voltage_rms);
-
-    // Convert peak phase voltage to RMS line voltage for machine side
-    voltage_t machine_voltage_rms =
-        voltage_t(machine_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
-
-    _plant->set_machine_parameters(_parameters.initial_speed.read() * machine_bases.base_frequency.value(),
-        _parameters.initial_speed.read() * machine_voltage_rms);
-
-    // Initialize the plant model
     _plant->initialize();
-
-    // Set initial parameters
     set_parameters();
     set_parameter_callback();
 }
@@ -112,42 +79,113 @@ void sfc_plant_model_runner::stop() {}
 
 void sfc_plant_model_runner::set_parameters()
 {
-    // Ensure parameters have been written at least once
-    // (tests may have written different values before initialize() was called)
+    set_operation_mode();
+    set_voltage_control_mode();
+    set_mechanical_load();
+    set_grid_operating_point();
+}
+
+void sfc_plant_model_runner::set_operation_mode()
+{
     if (_parameters.operation_mode.read() == datamodel::machine_operation_mode::variable_speed) {
         _plant->set_operation_mode(sfc::plant_model_machine_operation_mode::variable_speed);
     }
-    else if (_parameters.operation_mode.read() == datamodel::machine_operation_mode::fixed_speed) {
+    else {
         _plant->set_operation_mode(sfc::plant_model_machine_operation_mode::fixed_speed);
     }
+}
 
-    // Set voltage control mode
+void sfc_plant_model_runner::set_voltage_control_mode()
+{
     if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::fixed_voltage) {
         _plant->set_voltage_control_mode(sfc::plant_model_voltage_control_mode::fixed_voltage);
     }
-    else if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::variable_speed) {
+    else {
         _plant->set_voltage_control_mode(sfc::plant_model_voltage_control_mode::variable_speed);
     }
+}
 
+void sfc_plant_model_runner::set_mechanical_load()
+{
     _plant->configure_mechanical_load(_parameters.motor_inertia_constant.read(),
         _parameters.motor_damping_factor.read(), _parameters.motor_linear_load_coefficient.read(),
         _parameters.motor_quadratic_load_coefficient.read());
+}
 
-    // Apply grid frequency and voltage parameters (convert from per-unit to absolute)
+void sfc_plant_model_runner::set_grid_operating_point()
+{
     _plant->set_grid_frequency_pu(_parameters.grid_frequency_pu.read());
     _plant->set_grid_voltage_pu(_parameters.grid_voltage_pu.read());
 }
 
 void sfc_plant_model_runner::set_parameter_callback()
 {
-    _parameters.operation_mode.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_control_mode.register_callback([&]() { set_parameters(); });
-    _parameters.motor_inertia_constant.register_callback([&]() { set_parameters(); });
-    _parameters.motor_damping_factor.register_callback([&]() { set_parameters(); });
-    _parameters.motor_linear_load_coefficient.register_callback([&]() { set_parameters(); });
-    _parameters.motor_quadratic_load_coefficient.register_callback([&]() { set_parameters(); });
-    _parameters.grid_frequency_pu.register_callback([&]() { set_parameters(); });
-    _parameters.grid_voltage_pu.register_callback([&]() { set_parameters(); });
+    _parameters.operation_mode.register_callback([&]() { set_operation_mode(); });
+    _parameters.voltage_control_mode.register_callback([&]() { set_voltage_control_mode(); });
+    _parameters.motor_inertia_constant.register_callback([&]() { set_mechanical_load(); });
+    _parameters.motor_damping_factor.register_callback([&]() { set_mechanical_load(); });
+    _parameters.motor_linear_load_coefficient.register_callback([&]() { set_mechanical_load(); });
+    _parameters.motor_quadratic_load_coefficient.register_callback([&]() { set_mechanical_load(); });
+    _parameters.grid_frequency_pu.register_callback([&]() { set_grid_operating_point(); });
+    _parameters.grid_voltage_pu.register_callback([&]() { set_grid_operating_point(); });
+    _parameters.topology.register_callback([&]() { handle_topology_change(); });
+}
+
+void sfc_plant_model_runner::handle_topology_change()
+{
+    const auto plant_topology = convert_topology(_parameters.topology.read());
+
+    if (_plant->get_topology_type() == plant_topology) {
+        return;
+    }
+
+    // Capture current state for seamless transfer
+    const auto current_speed = _plant->get_mechanical_speed_pu();
+    const auto current_operation_mode = _plant->get_operation_mode();
+    const auto current_voltage_mode = _plant->get_voltage_control_mode();
+    const auto current_field_current = _plant->get_field_current();
+
+    // Recreate plant with new topology
+    _plant = std::make_unique<sfc::sfc_plant_model_voltage_behind_reactance>(plant_topology);
+    configure_plant_bases(current_speed);
+    _plant->initialize();
+
+    // Restore operation modes and mechanical state
+    _plant->set_operation_mode(current_operation_mode);
+    _plant->set_voltage_control_mode(current_voltage_mode);
+    _plant->set_initial_mechanical_speed_pu(current_speed);
+    _plant->set_field_current_reference_pu(current_field_current);
+
+    set_parameters();
+}
+
+sfc::plant_topology_type sfc_plant_model_runner::convert_topology(datamodel::topology_type topology) const noexcept
+{
+    switch (topology) {
+        case datamodel::topology_type::internal:
+            return sfc::plant_topology_type::internal;
+        case datamodel::topology_type::rectifier:
+            return sfc::plant_topology_type::rectifier;
+        case datamodel::topology_type::simulink:
+        default:
+            return sfc::plant_topology_type::simulink;
+    }
+}
+
+void sfc_plant_model_runner::configure_plant_bases(speed_pu_t speed_pu)
+{
+    const auto& grid_bases = _per_unit_system->get_grid_bases();
+    const auto& machine_bases = _per_unit_system->get_machine_bases();
+
+    // Convert peak phase voltage to RMS line voltage
+    voltage_t grid_voltage_rms =
+        voltage_t(grid_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
+    voltage_t machine_voltage_rms =
+        voltage_t(machine_bases.base_voltage_peak_phase.value() / std::sqrt(2.0) * std::sqrt(3.0));
+
+    _plant->set_grid_parameters(grid_bases.base_frequency.value(), grid_voltage_rms);
+    _plant->set_machine_parameters(
+        speed_pu.value() * machine_bases.base_frequency.value(), speed_pu.value() * machine_voltage_rms);
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -42,6 +42,13 @@ public:
 private:
     void set_parameters();
     void set_parameter_callback();
+    void set_operation_mode();
+    void set_voltage_control_mode();
+    void set_mechanical_load();
+    void set_grid_operating_point();
+    void handle_topology_change();
+    sfc::plant_topology_type convert_topology(datamodel::topology_type topology) const noexcept;
+    void configure_plant_bases(speed_pu_t speed_pu);
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 

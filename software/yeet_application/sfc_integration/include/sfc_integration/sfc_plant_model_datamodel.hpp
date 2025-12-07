@@ -216,6 +216,7 @@ public:
             "grid_frequency_pu", yeet::utils::make_units_accessor(_model_parameters->grid_frequency_pu));
         entry.parameters.insert(
             "grid_voltage_pu", yeet::utils::make_units_accessor(_model_parameters->grid_voltage_pu));
+        entry.parameters.insert("plant_topology", yeet::utils::make_enum_accessor(_model_parameters->topology));
 
         registry.insert("plant_model", std::move(entry));
     }
