@@ -288,6 +288,47 @@ inline speed_pu_t ramp_to_target_speed(plant_complete_sfc_closed_loop_simulation
 }
 
 /**
+ * @brief Prepare system for startup (without issuing start command)
+ *
+ * This function prepares the system for startup but does NOT issue the start command.
+ * The user must send the start command via telemetry (or other means) to begin operation.
+ *
+ * Preparation steps:
+ * 1. Configure startup sequencer parameters
+ * 2. Configure plant model for soft-starter operation
+ * 3. Enable auxiliaries and close MCB (ready to start)
+ *
+ * After calling this function, the system is in OPERATION_OFF state but ready to receive
+ * a start command. When start_command is set to true (via io_mock or telemetry), the
+ * system will transition to OPERATION_ON and begin the normal startup sequence.
+ *
+ * @param system The plant-complete SFC closed-loop simulation builder
+ * @param simulator The simulator instance
+ * @param config Startup configuration parameters (optional, uses default if not specified)
+ */
+inline void prepare_for_startup(plant_complete_sfc_closed_loop_simulation_builder& system,
+    yeet::simulator& simulator,
+    const startup_to_nominal_config& config = create_default_startup_config())
+{
+    // Step 1: Configure startup sequencer
+    configure_startup_sequencer(system, config);
+
+    // Step 2: Configure plant model
+    configure_plant_for_startup(system, config);
+
+    // Step 3: Enable auxiliaries and close MCB (but do NOT issue start command)
+    auto& io = system.io_mock.get_parameters();
+    io.auxiliaries_are_on.write(true);
+    io.mcb_is_closed.write(true);
+
+    // Run a few cycles to let the configuration settle
+    simulator.simulate_for(0.2);
+
+    // System is now ready - start_command is still false
+    // User must send start_command via telemetry to begin operation
+}
+
+/**
  * @brief Complete startup-to-nominal-speed procedure
  *
  * This function performs the complete startup sequence from standstill to nominal speed:
