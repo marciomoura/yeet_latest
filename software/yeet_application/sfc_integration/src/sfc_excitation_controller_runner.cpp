@@ -24,7 +24,7 @@ void sfc_excitation_controller_runner::run()
 
     // Determine field current reference (apply override if enabled)
     current_pu_t field_current_reference;
-    if (_parameters.override_field_current_reference.read()) {
+    if (_parameters.field_current_reference_override.read()) {
         field_current_reference = _parameters.field_current_reference_override_value.read();
     }
     else {

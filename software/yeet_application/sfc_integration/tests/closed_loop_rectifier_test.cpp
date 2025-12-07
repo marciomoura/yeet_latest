@@ -44,8 +44,9 @@ public:
 
         // ==================== Configure Torque Override ====================
         // Override torque reference to directly control DC-link current
-        system.machine_side_control.torque_controller.get_parameters().override_torque_reference.write(true);
-        system.machine_side_control.torque_controller.get_parameters().forced_torque_reference.write(torque_pu_t{0.0f});
+        system.machine_side_control.torque_controller.get_parameters().torque_reference_override.write(true);
+        system.machine_side_control.torque_controller.get_parameters().torque_reference_override_value.write(
+            torque_pu_t{0.0f});
 
         // Disable torque rate limiting for faster response in tests
         system.machine_side_control.torque_controller.get_parameters().enable_torque_rate_limiting.write(false);
@@ -91,7 +92,7 @@ public:
     // Set torque reference (which controls DC-link current)
     void set_torque_reference(torque_pu_t torque)
     {
-        system.machine_side_control.torque_controller.get_parameters().forced_torque_reference.write(torque);
+        system.machine_side_control.torque_controller.get_parameters().torque_reference_override_value.write(torque);
     }
 
     // Get DC-link current in per-unit

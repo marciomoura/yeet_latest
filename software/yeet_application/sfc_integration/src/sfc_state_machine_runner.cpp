@@ -22,28 +22,25 @@ void sfc_state_machine_runner::run()
 {
     // First, populate signal outputs with combined input + override logic
     // These signal outputs provide visibility into what values are actually being used
-    _outputs.auxiliaries_are_on = _parameters.override_enable_auxiliaries_are_on.read()
-                                      ? _parameters.override_value_auxiliaries_are_on.read()
+    _outputs.auxiliaries_are_on = _parameters.auxiliaries_are_on_override.read()
+                                      ? _parameters.auxiliaries_are_on_override_value.read()
                                       : _inputs.auxiliaries_are_on.read();
 
-    _outputs.mcb_is_closed = _parameters.override_enable_mcb_is_closed.read()
-                                 ? _parameters.override_value_mcb_is_closed.read()
-                                 : _inputs.mcb_is_closed.read();
+    _outputs.mcb_is_closed = _parameters.mcb_is_closed_override.read() ? _parameters.mcb_is_closed_override_value.read()
+                                                                       : _inputs.mcb_is_closed.read();
 
-    _outputs.start_command = _parameters.override_enable_start_command.read()
-                                 ? _parameters.override_value_start_command.read()
-                                 : _inputs.start_command.read();
+    _outputs.start_command = _parameters.start_command_override.read() ? _parameters.start_command_override_value.read()
+                                                                       : _inputs.start_command.read();
 
-    _outputs.stop_command = _parameters.override_enable_stop_command.read()
-                                ? _parameters.override_value_stop_command.read()
-                                : _inputs.stop_command.read();
+    _outputs.stop_command = _parameters.stop_command_override.read() ? _parameters.stop_command_override_value.read()
+                                                                     : _inputs.stop_command.read();
 
-    _outputs.shutdown_request = _parameters.override_enable_shutdown_request.read()
-                                    ? _parameters.override_value_shutdown_request.read()
+    _outputs.shutdown_request = _parameters.shutdown_request_override.read()
+                                    ? _parameters.shutdown_request_override_value.read()
                                     : _inputs.shutdown_request.read();
 
-    _outputs.is_current_extinguished = _parameters.override_enable_is_current_extinguished.read()
-                                           ? _parameters.override_value_is_current_extinguished.read()
+    _outputs.is_current_extinguished = _parameters.is_current_extinguished_override.read()
+                                           ? _parameters.is_current_extinguished_override_value.read()
                                            : _inputs.is_current_extinguished.read();
 
     // Execute state machine update with pre-configured event lambdas

@@ -63,10 +63,10 @@ public:
 
         /// Enable override for field current reference output
         /// When true, field_current_reference_override_value is used instead of controller output
-        parameter<bool> override_field_current_reference = false;
+        parameter<bool> field_current_reference_override = false;
 
         /// Override value for field current reference [pu]
-        /// Used when override_field_current_reference is true
+        /// Used when field_current_reference_override is true
         parameter<current_pu_t> field_current_reference_override_value = current_pu_t{0.0};
     };
 
@@ -94,8 +94,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->constant_flux_speed_threshold));
         entry.parameters.insert(
             "prefluxing_duration", yeet::utils::make_units_accessor(_model_parameters->prefluxing_duration));
-        entry.parameters.insert("override_field_current_reference",
-            yeet::utils::make_bool_accessor(_model_parameters->override_field_current_reference));
+        entry.parameters.insert("field_current_reference_override",
+            yeet::utils::make_bool_accessor(_model_parameters->field_current_reference_override));
         entry.parameters.insert("field_current_reference_override_value",
             yeet::utils::make_units_accessor(_model_parameters->field_current_reference_override_value));
 

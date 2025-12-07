@@ -153,7 +153,7 @@ class GridSideTelemetryPacket:
             current_state=int(self.get_signal(GridSignalIndex.STATE_MACHINE_STATE)),
             release_pulses=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_RELEASE_PULSES),
             auxiliaries_are_on=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_AUXILIARIES_ON),
-            mcb_is_closed=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_BREAKERS_ON),
+            mcb_is_closed=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_BREAKERS_CLOSED),
             start_command=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_START_COMMAND),
             stop_command=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_STOP_COMMAND),
             is_current_extinguished=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED),

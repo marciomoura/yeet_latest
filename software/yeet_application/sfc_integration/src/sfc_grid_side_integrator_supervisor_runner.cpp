@@ -20,16 +20,16 @@ void sfc_grid_side_integrator_supervisor_runner::initialize()
 void sfc_grid_side_integrator_supervisor_runner::run()
 {
     // If state machine requests pulse release, pass to output
-    if (_parameters.override_release_pulses) {
-        _outputs.release_pulses = _parameters.release_pulses_value;
+    if (_parameters.release_pulses_override) {
+        _outputs.release_pulses = _parameters.release_pulses_override_value;
     }
     else {
         _outputs.release_pulses = _inputs.state_machine_release_pulses;
     }
 
     // Handle trip latching on machine_side_shutdown_request input
-    if (_parameters.override_is_tripped) {
-        _outputs.shutdown_request = _parameters.is_tripped_value;
+    if (_parameters.is_tripped_override) {
+        _outputs.shutdown_request = _parameters.is_tripped_override_value;
     }
     else {
         // OR together both machine-side and grid-side protection shutdown requests
@@ -37,8 +37,8 @@ void sfc_grid_side_integrator_supervisor_runner::run()
     }
 
     // Override freeze if parameter is set
-    if (_parameters.override_freeze) {
-        _outputs.freeze_integrator = _parameters.freeze_value;
+    if (_parameters.freeze_override) {
+        _outputs.freeze_integrator = _parameters.freeze_override_value;
     }
     else {
         // Freeze current controller integrator when:

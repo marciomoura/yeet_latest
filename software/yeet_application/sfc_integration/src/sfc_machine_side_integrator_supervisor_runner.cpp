@@ -19,23 +19,23 @@ void sfc_machine_side_integrator_supervisor_runner::initialize()
 
 void sfc_machine_side_integrator_supervisor_runner::run()
 {
-    if (_parameters.override_release_pulses) {
-        _outputs.release_pulses = _parameters.release_pulses_value;
+    if (_parameters.release_pulses_override) {
+        _outputs.release_pulses = _parameters.release_pulses_override_value;
     }
     else {
         _outputs.release_pulses = _inputs.grid_side_release_pulses;
     }
 
-    if (_parameters.override_is_tripped) {
-        _outputs.request_shutdown = _parameters.is_tripped_value;
+    if (_parameters.is_tripped_override) {
+        _outputs.request_shutdown = _parameters.is_tripped_override_value;
     }
     else {
         // Propagate machine-side protection trips to grid-side via fiber optics
         _outputs.request_shutdown = _inputs.protection_shutdown_request;
     }
 
-    if (_parameters.override_freeze) {
-        _outputs.freeze_integrator = _parameters.freeze_value;
+    if (_parameters.freeze_override) {
+        _outputs.freeze_integrator = _parameters.freeze_override_value;
     }
     else {
         // Freeze speed controller integrator when:

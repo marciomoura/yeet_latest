@@ -117,7 +117,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                  'enum_map': {0: 'IDLE', 1: 'AUXILIARIES_ON', 2: 'BREAKERS_OFF', 3: 'BREAKERS_ON', 4: 'OPERATION_OFF', 5: 'OPERATION_ON', 6: 'SHUTDOWN_REQUESTED'}},
                 {'name': 'start command', 'index': GridSignalIndex.STATE_MACHINE_START_COMMAND, 'type': 'bool', 'format': 'bool'},
                 {'name': 'auxiliaries on', 'index': GridSignalIndex.STATE_MACHINE_AUXILIARIES_ON, 'type': 'bool', 'format': 'bool'},
-                {'name': 'breakers on', 'index': GridSignalIndex.STATE_MACHINE_BREAKERS_ON, 'type': 'bool', 'format': 'bool'},           
+                {'name': 'breakers closed', 'index': GridSignalIndex.STATE_MACHINE_BREAKERS_CLOSED, 'type': 'bool', 'format': 'bool'},           
                 {'name': 'current extinguished', 'index': GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'shutdown request', 'index': GridSignalIndex.STATE_MACHINE_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
                 {'name': 'stop command', 'index': GridSignalIndex.STATE_MACHINE_STOP_COMMAND, 'type': 'bool', 'format': 'bool'},

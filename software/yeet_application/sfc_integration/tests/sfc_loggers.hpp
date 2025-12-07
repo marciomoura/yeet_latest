@@ -723,8 +723,8 @@ static inline void register_complete_machine_side_integrator_supervisor_logger(
     register_minimal_machine_side_integrator_supervisor_logger(simulator, integrator_supervisor);
 
     // Add parameter if needed
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "param override_freeze",
-        [&]() { return integrator_supervisor.get_parameters().override_freeze.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "param freeze_override",
+        [&]() { return integrator_supervisor.get_parameters().freeze_override.read(); }));
 }
 
 // Grid-side integrator supervisor loggers
@@ -763,8 +763,8 @@ static inline void register_complete_grid_side_integrator_supervisor_logger(
     register_minimal_grid_side_integrator_supervisor_logger(simulator, integrator_supervisor);
 
     // Add parameters if needed
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "param override_freeze",
-        [&]() { return integrator_supervisor.get_parameters().override_freeze.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "param freeze_override",
+        [&]() { return integrator_supervisor.get_parameters().freeze_override.read(); }));
 }
 
 static inline void register_minimal_grid_side_modulator_logger(

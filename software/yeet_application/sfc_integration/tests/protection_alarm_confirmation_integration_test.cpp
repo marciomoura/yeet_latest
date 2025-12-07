@@ -104,8 +104,8 @@ public:
     {
         // Use the state machine runner's override mechanism
         // (the input is normally driven by operation_mode_monitor.current_is_zero)
-        system.grid_side_control.state_machine.get_parameters().override_enable_is_current_extinguished.write(true);
-        system.grid_side_control.state_machine.get_parameters().override_value_is_current_extinguished.write(
+        system.grid_side_control.state_machine.get_parameters().is_current_extinguished_override.write(true);
+        system.grid_side_control.state_machine.get_parameters().is_current_extinguished_override_value.write(
             extinguished);
     }
 
@@ -131,8 +131,8 @@ public:
 
     void inject_overcurrent(float current_pu = 1.8f)
     {
-        system.machine_side_control.torque_controller.get_parameters().override_torque_reference.write(true);
-        system.machine_side_control.torque_controller.get_parameters().forced_torque_reference.write(
+        system.machine_side_control.torque_controller.get_parameters().torque_reference_override.write(true);
+        system.machine_side_control.torque_controller.get_parameters().torque_reference_override_value.write(
             torque_pu_t{current_pu});
 
         // Reduce excitation to make overcurrent easier to trigger

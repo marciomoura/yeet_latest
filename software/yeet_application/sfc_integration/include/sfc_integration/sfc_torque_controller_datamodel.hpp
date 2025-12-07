@@ -72,10 +72,10 @@ public:
      */
     struct parameters {
         /// Enable override for torque reference testing
-        parameter<bool> override_torque_reference = false;
+        parameter<bool> torque_reference_override = false;
 
         /// Forced torque reference value when override is enabled
-        parameter<torque_pu_t> forced_torque_reference = torque_pu_t{0.0};
+        parameter<torque_pu_t> torque_reference_override_value = torque_pu_t{0.0};
 
         /// Minimum torque limit [pu]
         parameter<torque_pu_t> absolute_min_torque = torque_pu_t{-1.2};
@@ -123,10 +123,10 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert("override_torque_reference",
-            yeet::utils::make_units_accessor(_model_parameters->override_torque_reference));
         entry.parameters.insert(
-            "forced_torque_reference", yeet::utils::make_units_accessor(_model_parameters->forced_torque_reference));
+            "torque_reference_override", yeet::utils::make_bool_accessor(_model_parameters->torque_reference_override));
+        entry.parameters.insert("torque_reference_override_value",
+            yeet::utils::make_units_accessor(_model_parameters->torque_reference_override_value));
         entry.parameters.insert(
             "absolute_min_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_min_torque));
         entry.parameters.insert(

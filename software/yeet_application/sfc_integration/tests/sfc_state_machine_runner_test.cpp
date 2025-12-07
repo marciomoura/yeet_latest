@@ -47,12 +47,12 @@ protected:
         auto& parameters = _runner->get_parameters();
 
         // Override is now disabled by default, but we can explicitly set it to be safe
-        parameters.override_enable_auxiliaries_are_on.write(false);
-        parameters.override_enable_mcb_is_closed.write(false);
-        parameters.override_enable_start_command.write(false);
-        parameters.override_enable_stop_command.write(false);
-        parameters.override_enable_shutdown_request.write(false);
-        parameters.override_enable_is_current_extinguished.write(false);
+        parameters.auxiliaries_are_on_override.write(false);
+        parameters.mcb_is_closed_override.write(false);
+        parameters.start_command_override.write(false);
+        parameters.stop_command_override.write(false);
+        parameters.shutdown_request_override.write(false);
+        parameters.is_current_extinguished_override.write(false);
     }
 
     void run_cycle() { _runner->run(); }
@@ -154,13 +154,13 @@ TEST_F(SfcStateMachineRunnerTest, AuxiliariesOnToBreakersOn)
     run_cycle();
     verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
 
-    // Command breakers on -> should transition to BREAKERS_OFF
+    // Command breakers closed -> should transition to BREAKERS_OFF
     set_breakers_on(true);
     run_cycle();
     verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
     verify_transition_occurred();
 
-    // Continue with breakers on -> should transition to BREAKERS_ON
+    // Continue with breakers closed -> should transition to BREAKERS_ON
     run_cycle();
     verify_state(sfc::sfc_state_id::BREAKERS_ON, false);
     verify_transition_occurred();
@@ -271,7 +271,7 @@ TEST_F(SfcStateMachineRunnerTest, CompleteStartupSequence)
     verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
     verify_transition_occurred();
 
-    // 2. Command breakers on -> BREAKERS_OFF
+    // 2. Command breakers closed -> BREAKERS_OFF
     set_breakers_on(true);
     run_cycle();
     verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
