@@ -58,6 +58,15 @@ private:
      */
     void set_parameter_callback();
 
+    /**
+     * @brief Clamp speed_reference to be at least virtual_frequency_final
+     *
+     * Called when virtual_frequency_final is changed to ensure speed_reference
+     * does not fall below the virtual frequency final value. This prevents
+     * unwanted deceleration after transitioning to closed-loop operation.
+     */
+    void clamp_speed_reference_to_virtual_frequency_final();
+
     /// The core startup sequencer instance
     sfc::sfc_startup_sequencer _sequencer;
 
