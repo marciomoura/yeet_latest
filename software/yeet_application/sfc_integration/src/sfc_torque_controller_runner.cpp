@@ -27,6 +27,7 @@ void sfc_torque_controller_runner::run()
         _outputs.is_breakaway_boost_active.write(false);
         _outputs.is_active.write(true);
         _outputs.torque_reference.write(torque_reference);
+        _outputs.is_braking_requested.write(false);
         return;
     }
 
@@ -55,6 +56,7 @@ void sfc_torque_controller_runner::run()
     _outputs.is_breakaway_boost_active.write(_sfc_torque_controller.is_breakaway_boost_active());
     _outputs.is_active.write(true);  // Always active when run() is called
     _outputs.torque_reference.write(_sfc_torque_controller.get_limited_torque_reference());
+    _outputs.is_braking_requested.write(_sfc_torque_controller.is_braking_requested());
 }
 
 void sfc_torque_controller_runner::stop() { _sfc_torque_controller.reset(); }
@@ -80,6 +82,12 @@ void sfc_torque_controller_runner::set_parameters()
     const auto boost_torque = _parameters.breakaway_boost_torque;
     const auto boost_duration = _parameters.breakaway_boost_duration;
     _sfc_torque_controller.configure_breakaway_boost(boost_torque, boost_duration);
+
+    // Configure minimum motoring torque for natural commutation
+    const auto min_motoring_torque = _parameters.minimum_motoring_torque;
+    const auto enable_min_motoring = _parameters.enable_minimum_motoring_torque;
+    _sfc_torque_controller.configure_minimum_motoring_torque(min_motoring_torque);
+    _sfc_torque_controller.enable_minimum_motoring_torque(enable_min_motoring);
 }
 
 void sfc_torque_controller_runner::set_parameter_callback()
@@ -91,6 +99,8 @@ void sfc_torque_controller_runner::set_parameter_callback()
     _parameters.enable_torque_rate_limiting.register_callback([&]() { set_parameters(); });
     _parameters.breakaway_boost_torque.register_callback([&]() { set_parameters(); });
     _parameters.breakaway_boost_duration.register_callback([&]() { set_parameters(); });
+    _parameters.minimum_motoring_torque.register_callback([&]() { set_parameters(); });
+    _parameters.enable_minimum_motoring_torque.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

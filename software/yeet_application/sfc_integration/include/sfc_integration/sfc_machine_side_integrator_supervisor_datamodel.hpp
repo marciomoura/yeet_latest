@@ -35,6 +35,9 @@ public:
         /// Saturation signal from torque controller (anti-windup freeze)
         signal_input<bool> torque_saturated;
 
+        /// Braking requested but clamped to minimum motoring torque (anti-windup freeze)
+        signal_input<bool> is_braking_requested;
+
         /// Trip signal from machine-side protections (V/Hz, stall, communication loss)
         signal_input<bool> protection_shutdown_request;
     };

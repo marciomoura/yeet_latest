@@ -221,6 +221,8 @@ static inline void register_complete_sfc_torque_controller_logger(
         group + "output is_saturated", [&]() { return torque_controller.get_outputs().is_saturated.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_active", [&]() { return torque_controller.get_outputs().is_active.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_braking_requested",
+        [&]() { return torque_controller.get_outputs().is_braking_requested.read(); }));
 }
 
 static inline void register_minimal_dc_link_measurements_logger(
@@ -699,6 +701,8 @@ static inline void register_minimal_machine_side_integrator_supervisor_logger(
         [&]() { return integrator_supervisor.get_inputs().grid_side_release_pulses.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input torque_saturated",
         [&]() { return integrator_supervisor.get_inputs().torque_saturated.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input is_braking_requested",
+        [&]() { return integrator_supervisor.get_inputs().is_braking_requested.read(); }));
 
     // Key outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output freeze_integrator",

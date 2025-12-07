@@ -41,8 +41,8 @@ void sfc_speed_controller_runner::run()
 
     // Execute controller update
     if (current_release_state) {
-        // Combine: freeze if downstream is saturated
-        const bool freeze_integrator = _inputs.freeze_integrator;  //_inputs.is_saturated | _inputs.freeze_integrator;
+        // Combine: freeze if downstream is saturated OR supervisor requests freeze
+        const bool freeze_integrator = _inputs.is_saturated || _inputs.freeze_integrator;
 
         _sfc_speed_controller.freeze_integrator(freeze_integrator);
         _sfc_speed_controller.update(_inputs.speed_reference, _inputs.measured_speed);

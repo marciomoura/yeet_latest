@@ -148,6 +148,8 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&supervisor_inputs::grid_side_release_pulses)
         .from(torque_controller.get_outputs().is_saturated)
         .to(&supervisor_inputs::torque_saturated)
+        .from(torque_controller.get_outputs().is_braking_requested)
+        .to(&supervisor_inputs::is_braking_requested)
         .from(machine_protections.get_outputs().is_tripped)
         .to(&supervisor_inputs::protection_shutdown_request);
 
