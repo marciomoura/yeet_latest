@@ -62,31 +62,16 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    // State machine control helpers using mock inputs
-    void set_auxiliaries_on(bool on)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().auxiliaries_are_on, on);
-    }
+    // State machine control helpers using io_mock (tests real code path via set_digital_inputs)
+    void set_auxiliaries_on(bool on) { system.io_mock.get_parameters().auxiliaries_are_on.write(on); }
 
-    void set_breakers_on(bool on)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().mcb_is_closed, on);
-    }
+    void set_breakers_on(bool on) { system.io_mock.get_parameters().mcb_is_closed.write(on); }
 
-    void set_start_command(bool start)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().start_command, start);
-    }
+    void set_start_command(bool start) { system.io_mock.get_parameters().start_command.write(start); }
 
-    void set_stop_command(bool stop)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().stop_command, stop);
-    }
+    void set_stop_command(bool stop) { system.io_mock.get_parameters().stop_command.write(stop); }
 
-    void set_shutdown_request(bool shutdown)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().shutdown_request, shutdown);
-    }
+    void set_shutdown_request(bool shutdown) { system.io_mock.get_parameters().shutdown_request.write(shutdown); }
 
     void set_current_extinguished(bool extinguished)
     {

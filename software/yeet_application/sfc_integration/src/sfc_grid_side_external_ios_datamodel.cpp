@@ -28,18 +28,8 @@ void sfc_grid_side_external_ios_datamodel::set_digital_inputs(bool auxiliaries_a
     bool emergency_off,
     bool door_is_open)
 {
-    const bool digital_input_overrides_written = apply_digital_input_overrides();
-    if (!digital_input_overrides_written) {
-        _digital_inputs.auxiliaries_are_on.write(auxiliaries_are_on);
-        _digital_inputs.mcb_is_closed.write(mcb_is_closed);
-        _digital_inputs.start_command.write(start_command);
-        _digital_inputs.stop_command.write(stop_command);
-        _digital_inputs.shutdown_request.write(shutdown_request);
-        _digital_inputs.breaker_is_closed.write(breaker_is_closed);
-        _digital_inputs.breaker_is_tripping.write(breaker_is_tripping);
-        _digital_inputs.emergency_off.write(emergency_off);
-        _digital_inputs.door_is_open.write(door_is_open);
-    }
+    apply_digital_input_overrides(auxiliaries_are_on, mcb_is_closed, start_command, stop_command, shutdown_request,
+        breaker_is_closed, breaker_is_tripping, emergency_off, door_is_open);
 }
 
 void sfc_grid_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_optic::machine_to_grid_message& msg)
@@ -69,57 +59,216 @@ fiber_optic::grid_to_machine_message sfc_grid_side_external_ios_datamodel::get_f
     return msg;
 }
 
-bool sfc_grid_side_external_ios_datamodel::apply_digital_input_overrides()
+void sfc_grid_side_external_ios_datamodel::apply_digital_input_overrides(bool auxiliaries_are_on,
+    bool mcb_is_closed,
+    bool start_command,
+    bool stop_command,
+    bool shutdown_request,
+    bool breaker_is_closed,
+    bool breaker_is_tripping,
+    bool emergency_off,
+    bool door_is_open)
 {
-    if (!_parameters.override_digital_inputs.read()) {
-        return false;
-    }
+    // Apply override or pass-through for each signal individually
+    _digital_inputs.auxiliaries_are_on.write(_parameters.di_auxiliaries_are_on_override.read()
+                                                 ? _parameters.di_auxiliaries_are_on_override_value.read()
+                                                 : auxiliaries_are_on);
 
-    _digital_inputs.auxiliaries_are_on.write(_parameters.auxiliaries_are_on.read());
-    _digital_inputs.mcb_is_closed.write(_parameters.mcb_is_closed.read());
-    _digital_inputs.start_command.write(_parameters.start_command.read());
-    _digital_inputs.stop_command.write(_parameters.stop_command.read());
-    _digital_inputs.shutdown_request.write(_parameters.shutdown_request.read());
-    _digital_inputs.breaker_is_closed.write(_parameters.breaker_is_closed.read());
-    _digital_inputs.breaker_is_tripping.write(_parameters.breaker_is_tripping.read());
-    _digital_inputs.emergency_off.write(_parameters.emergency_off.read());
-    _digital_inputs.door_is_open.write(_parameters.door_is_open.read());
+    _digital_inputs.mcb_is_closed.write(_parameters.di_mcb_is_closed_override.read()
+                                            ? _parameters.di_mcb_is_closed_override_value.read()
+                                            : mcb_is_closed);
 
-    return true;
+    _digital_inputs.start_command.write(_parameters.di_start_command_override.read()
+                                            ? _parameters.di_start_command_override_value.read()
+                                            : start_command);
+
+    _digital_inputs.stop_command.write(
+        _parameters.di_stop_command_override.read() ? _parameters.di_stop_command_override_value.read() : stop_command);
+
+    _digital_inputs.shutdown_request.write(_parameters.di_shutdown_request_override.read()
+                                               ? _parameters.di_shutdown_request_override_value.read()
+                                               : shutdown_request);
+
+    _digital_inputs.breaker_is_closed.write(_parameters.di_breaker_is_closed_override.read()
+                                                ? _parameters.di_breaker_is_closed_override_value.read()
+                                                : breaker_is_closed);
+
+    _digital_inputs.breaker_is_tripping.write(_parameters.di_breaker_is_tripping_override.read()
+                                                  ? _parameters.di_breaker_is_tripping_override_value.read()
+                                                  : breaker_is_tripping);
+
+    _digital_inputs.emergency_off.write(_parameters.di_emergency_off_override.read()
+                                            ? _parameters.di_emergency_off_override_value.read()
+                                            : emergency_off);
+
+    _digital_inputs.door_is_open.write(
+        _parameters.di_door_is_open_override.read() ? _parameters.di_door_is_open_override_value.read() : door_is_open);
 }
 
 void sfc_grid_side_external_ios_datamodel::register_callbacks()
 {
-    auto digital_inputs_callback = [this]() { apply_digital_input_overrides(); };
+    // Callbacks for simulation/test mode: apply override directly to digital input signal
+    // when either the override flag or the override value changes.
+    // In embedded mode, set_digital_inputs() handles this during each control cycle.
 
-    _parameters.override_digital_inputs.register_callback(digital_inputs_callback);
-    _parameters.auxiliaries_are_on.register_callback(digital_inputs_callback);
-    _parameters.mcb_is_closed.register_callback(digital_inputs_callback);
-    _parameters.start_command.register_callback(digital_inputs_callback);
-    _parameters.stop_command.register_callback(digital_inputs_callback);
-    _parameters.shutdown_request.register_callback(digital_inputs_callback);
-    _parameters.breaker_is_closed.register_callback(digital_inputs_callback);
-    _parameters.breaker_is_tripping.register_callback(digital_inputs_callback);
-    _parameters.emergency_off.register_callback(digital_inputs_callback);
-    _parameters.door_is_open.register_callback(digital_inputs_callback);
+    // Auxiliaries are on
+    _parameters.di_auxiliaries_are_on_override.register_callback([this]() {
+        if (_parameters.di_auxiliaries_are_on_override.read()) {
+            _digital_inputs.auxiliaries_are_on.write(_parameters.di_auxiliaries_are_on_override_value.read());
+        }
+    });
+    _parameters.di_auxiliaries_are_on_override_value.register_callback([this]() {
+        if (_parameters.di_auxiliaries_are_on_override.read()) {
+            _digital_inputs.auxiliaries_are_on.write(_parameters.di_auxiliaries_are_on_override_value.read());
+        }
+    });
+
+    // MCB is closed
+    _parameters.di_mcb_is_closed_override.register_callback([this]() {
+        if (_parameters.di_mcb_is_closed_override.read()) {
+            _digital_inputs.mcb_is_closed.write(_parameters.di_mcb_is_closed_override_value.read());
+        }
+    });
+    _parameters.di_mcb_is_closed_override_value.register_callback([this]() {
+        if (_parameters.di_mcb_is_closed_override.read()) {
+            _digital_inputs.mcb_is_closed.write(_parameters.di_mcb_is_closed_override_value.read());
+        }
+    });
+
+    // Start command
+    _parameters.di_start_command_override.register_callback([this]() {
+        if (_parameters.di_start_command_override.read()) {
+            _digital_inputs.start_command.write(_parameters.di_start_command_override_value.read());
+        }
+    });
+    _parameters.di_start_command_override_value.register_callback([this]() {
+        if (_parameters.di_start_command_override.read()) {
+            _digital_inputs.start_command.write(_parameters.di_start_command_override_value.read());
+        }
+    });
+
+    // Stop command
+    _parameters.di_stop_command_override.register_callback([this]() {
+        if (_parameters.di_stop_command_override.read()) {
+            _digital_inputs.stop_command.write(_parameters.di_stop_command_override_value.read());
+        }
+    });
+    _parameters.di_stop_command_override_value.register_callback([this]() {
+        if (_parameters.di_stop_command_override.read()) {
+            _digital_inputs.stop_command.write(_parameters.di_stop_command_override_value.read());
+        }
+    });
+
+    // Shutdown request
+    _parameters.di_shutdown_request_override.register_callback([this]() {
+        if (_parameters.di_shutdown_request_override.read()) {
+            _digital_inputs.shutdown_request.write(_parameters.di_shutdown_request_override_value.read());
+        }
+    });
+    _parameters.di_shutdown_request_override_value.register_callback([this]() {
+        if (_parameters.di_shutdown_request_override.read()) {
+            _digital_inputs.shutdown_request.write(_parameters.di_shutdown_request_override_value.read());
+        }
+    });
+
+    // Breaker is closed
+    _parameters.di_breaker_is_closed_override.register_callback([this]() {
+        if (_parameters.di_breaker_is_closed_override.read()) {
+            _digital_inputs.breaker_is_closed.write(_parameters.di_breaker_is_closed_override_value.read());
+        }
+    });
+    _parameters.di_breaker_is_closed_override_value.register_callback([this]() {
+        if (_parameters.di_breaker_is_closed_override.read()) {
+            _digital_inputs.breaker_is_closed.write(_parameters.di_breaker_is_closed_override_value.read());
+        }
+    });
+
+    // Breaker is tripping
+    _parameters.di_breaker_is_tripping_override.register_callback([this]() {
+        if (_parameters.di_breaker_is_tripping_override.read()) {
+            _digital_inputs.breaker_is_tripping.write(_parameters.di_breaker_is_tripping_override_value.read());
+        }
+    });
+    _parameters.di_breaker_is_tripping_override_value.register_callback([this]() {
+        if (_parameters.di_breaker_is_tripping_override.read()) {
+            _digital_inputs.breaker_is_tripping.write(_parameters.di_breaker_is_tripping_override_value.read());
+        }
+    });
+
+    // Emergency off
+    _parameters.di_emergency_off_override.register_callback([this]() {
+        if (_parameters.di_emergency_off_override.read()) {
+            _digital_inputs.emergency_off.write(_parameters.di_emergency_off_override_value.read());
+        }
+    });
+    _parameters.di_emergency_off_override_value.register_callback([this]() {
+        if (_parameters.di_emergency_off_override.read()) {
+            _digital_inputs.emergency_off.write(_parameters.di_emergency_off_override_value.read());
+        }
+    });
+
+    // Door is open
+    _parameters.di_door_is_open_override.register_callback([this]() {
+        if (_parameters.di_door_is_open_override.read()) {
+            _digital_inputs.door_is_open.write(_parameters.di_door_is_open_override_value.read());
+        }
+    });
+    _parameters.di_door_is_open_override_value.register_callback([this]() {
+        if (_parameters.di_door_is_open_override.read()) {
+            _digital_inputs.door_is_open.write(_parameters.di_door_is_open_override_value.read());
+        }
+    });
 }
 
 void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
 {
     yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
 
-    // Supervisory digital input override parameters
+    // Digital input override parameters (override flag + override value pairs)
     entry.parameters.insert(
-        "di_override_digital_inputs", yeet::utils::make_bool_accessor(_parameters.override_digital_inputs));
-    entry.parameters.insert("di_auxiliaries_are_on", yeet::utils::make_bool_accessor(_parameters.auxiliaries_are_on));
-    entry.parameters.insert("di_mcb_is_closed", yeet::utils::make_bool_accessor(_parameters.mcb_is_closed));
-    entry.parameters.insert("di_start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
-    entry.parameters.insert("di_stop_command", yeet::utils::make_bool_accessor(_parameters.stop_command));
-    entry.parameters.insert("di_shutdown_request", yeet::utils::make_bool_accessor(_parameters.shutdown_request));
-    entry.parameters.insert("di_breaker_is_closed", yeet::utils::make_bool_accessor(_parameters.breaker_is_closed));
-    entry.parameters.insert("di_breaker_is_tripping", yeet::utils::make_bool_accessor(_parameters.breaker_is_tripping));
-    entry.parameters.insert("di_emergency_off", yeet::utils::make_bool_accessor(_parameters.emergency_off));
-    entry.parameters.insert("di_door_is_open", yeet::utils::make_bool_accessor(_parameters.door_is_open));
+        "di_auxiliaries_are_on_override", yeet::utils::make_bool_accessor(_parameters.di_auxiliaries_are_on_override));
+    entry.parameters.insert("di_auxiliaries_are_on_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_auxiliaries_are_on_override_value));
+
+    entry.parameters.insert(
+        "di_mcb_is_closed_override", yeet::utils::make_bool_accessor(_parameters.di_mcb_is_closed_override));
+    entry.parameters.insert("di_mcb_is_closed_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_mcb_is_closed_override_value));
+
+    entry.parameters.insert(
+        "di_start_command_override", yeet::utils::make_bool_accessor(_parameters.di_start_command_override));
+    entry.parameters.insert("di_start_command_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_start_command_override_value));
+
+    entry.parameters.insert(
+        "di_stop_command_override", yeet::utils::make_bool_accessor(_parameters.di_stop_command_override));
+    entry.parameters.insert(
+        "di_stop_command_override_value", yeet::utils::make_bool_accessor(_parameters.di_stop_command_override_value));
+
+    entry.parameters.insert(
+        "di_shutdown_request_override", yeet::utils::make_bool_accessor(_parameters.di_shutdown_request_override));
+    entry.parameters.insert("di_shutdown_request_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_shutdown_request_override_value));
+
+    entry.parameters.insert(
+        "di_breaker_is_closed_override", yeet::utils::make_bool_accessor(_parameters.di_breaker_is_closed_override));
+    entry.parameters.insert("di_breaker_is_closed_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_breaker_is_closed_override_value));
+
+    entry.parameters.insert("di_breaker_is_tripping_override",
+        yeet::utils::make_bool_accessor(_parameters.di_breaker_is_tripping_override));
+    entry.parameters.insert("di_breaker_is_tripping_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_breaker_is_tripping_override_value));
+
+    entry.parameters.insert(
+        "di_emergency_off_override", yeet::utils::make_bool_accessor(_parameters.di_emergency_off_override));
+    entry.parameters.insert("di_emergency_off_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_emergency_off_override_value));
+
+    entry.parameters.insert(
+        "di_door_is_open_override", yeet::utils::make_bool_accessor(_parameters.di_door_is_open_override));
+    entry.parameters.insert(
+        "di_door_is_open_override_value", yeet::utils::make_bool_accessor(_parameters.di_door_is_open_override_value));
 
     // Register the entry with the model registry
     registry.insert("grid_side_external_ios", std::move(entry));

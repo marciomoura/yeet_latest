@@ -30,6 +30,7 @@ set(SFC_CORE_HEADERS
     include/sfc_integration/sfc_grid_side_control.hpp
     include/sfc_integration/sfc_grid_side_hardware_mock_datamodel.hpp
     include/sfc_integration/sfc_grid_side_hardware_mock_runner.hpp
+    include/sfc_integration/sfc_io_mock_runner.hpp
     include/sfc_integration/sfc_grid_side_measurements_datamodel.hpp
     include/sfc_integration/sfc_grid_side_measurements_runner.hpp
     include/sfc_integration/sfc_grid_side_modulator_datamodel.hpp
@@ -83,6 +84,7 @@ set(SFC_CORE_SOURCES
     src/sfc_grid_side_control.cpp
     src/sfc_grid_side_external_ios_datamodel.cpp
     src/sfc_grid_side_hardware_mock_runner.cpp
+    src/sfc_io_mock_runner.cpp
     src/sfc_grid_side_measurements_runner.cpp
     src/sfc_grid_side_modulator_runner.cpp
     src/sfc_grid_side_observer_runner.cpp

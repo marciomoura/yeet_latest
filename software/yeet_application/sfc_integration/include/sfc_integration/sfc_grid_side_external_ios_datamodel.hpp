@@ -49,20 +49,58 @@ public:
      * @brief Parameters for test/simulation signal injection
      *
      * Override flags enable parameter-based mocking for testing.
-     * When override flag is enabled, parameter values are used instead of
-     * values from external inputs.
+     * Each digital input has a pair of parameters:
+     * - di_<signal>_override: Enable override for this signal
+     * - di_<signal>_override_value: Value to use when override enabled
      */
     struct parameters {
-        yeet::parameter<bool> override_digital_inputs{false};
-        yeet::parameter<bool> auxiliaries_are_on{false};
-        yeet::parameter<bool> mcb_is_closed{false};
-        yeet::parameter<bool> start_command{false};
-        yeet::parameter<bool> stop_command{false};
-        yeet::parameter<bool> shutdown_request{false};
-        yeet::parameter<bool> breaker_is_closed{false};
-        yeet::parameter<bool> breaker_is_tripping{false};
-        yeet::parameter<bool> emergency_off{false};
-        yeet::parameter<bool> door_is_open{false};
+        // ==================== Digital Input Overrides ====================
+        // When override is true, the override_value is used instead of hardware input
+
+        /// Enable override for auxiliaries_are_on input
+        yeet::parameter<bool> di_auxiliaries_are_on_override{false};
+        /// Override value for auxiliaries_are_on (when override enabled)
+        yeet::parameter<bool> di_auxiliaries_are_on_override_value{false};
+
+        /// Enable override for mcb_is_closed input
+        yeet::parameter<bool> di_mcb_is_closed_override{false};
+        /// Override value for mcb_is_closed (when override enabled)
+        yeet::parameter<bool> di_mcb_is_closed_override_value{false};
+
+        /// Enable override for start_command input
+        yeet::parameter<bool> di_start_command_override{false};
+        /// Override value for start_command (when override enabled)
+        yeet::parameter<bool> di_start_command_override_value{false};
+
+        /// Enable override for stop_command input
+        yeet::parameter<bool> di_stop_command_override{false};
+        /// Override value for stop_command (when override enabled)
+        yeet::parameter<bool> di_stop_command_override_value{false};
+
+        /// Enable override for shutdown_request input
+        yeet::parameter<bool> di_shutdown_request_override{false};
+        /// Override value for shutdown_request (when override enabled)
+        yeet::parameter<bool> di_shutdown_request_override_value{false};
+
+        /// Enable override for breaker_is_closed input
+        yeet::parameter<bool> di_breaker_is_closed_override{false};
+        /// Override value for breaker_is_closed (when override enabled)
+        yeet::parameter<bool> di_breaker_is_closed_override_value{false};
+
+        /// Enable override for breaker_is_tripping input
+        yeet::parameter<bool> di_breaker_is_tripping_override{false};
+        /// Override value for breaker_is_tripping (when override enabled)
+        yeet::parameter<bool> di_breaker_is_tripping_override_value{false};
+
+        /// Enable override for emergency_off input
+        yeet::parameter<bool> di_emergency_off_override{false};
+        /// Override value for emergency_off (when override enabled)
+        yeet::parameter<bool> di_emergency_off_override_value{false};
+
+        /// Enable override for door_is_open input
+        yeet::parameter<bool> di_door_is_open_override{false};
+        /// Override value for door_is_open (when override enabled)
+        yeet::parameter<bool> di_door_is_open_override_value{false};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
@@ -77,7 +115,7 @@ public:
      */
     struct digital_inputs_t {
         signal_output<bool> auxiliaries_are_on;   ///< Auxiliary systems ready (cooling, oil pump, etc.)
-        signal_output<bool> mcb_is_closed;      ///< Grid breakers closed
+        signal_output<bool> mcb_is_closed;        ///< Grid breakers closed
         signal_output<bool> start_command;        ///< Start operation command
         signal_output<bool> stop_command;         ///< Stop operation command
         signal_output<bool> shutdown_request;     ///< Emergency shutdown request
@@ -396,10 +434,20 @@ public:
 
 private:
     /**
-     * @brief Apply digital input overrides if enabled
-     * @return true if overrides were applied, false if real signals should be used
+     * @brief Apply digital input overrides where enabled
+     *
+     * For each signal, if its override flag is enabled, use the override value;
+     * otherwise use the hardware value passed in.
      */
-    bool apply_digital_input_overrides();
+    void apply_digital_input_overrides(bool auxiliaries_are_on,
+        bool mcb_is_closed,
+        bool start_command,
+        bool stop_command,
+        bool shutdown_request,
+        bool breaker_is_closed,
+        bool breaker_is_tripping,
+        bool emergency_off,
+        bool door_is_open);
 
     parameters _parameters;
     digital_inputs_t _digital_inputs;

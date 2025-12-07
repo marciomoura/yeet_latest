@@ -111,9 +111,10 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // #endif
 
     // Prepare the inputs to be "ready"
-    control->get_external_ios().get_parameters().override_digital_inputs.write(true);
-    control->get_external_ios().get_parameters().auxiliaries_are_on.write(true);
-    control->get_external_ios().get_parameters().mcb_is_closed.write(true);
+    control->get_external_ios().get_parameters().di_auxiliaries_are_on_override.write(true);
+    control->get_external_ios().get_parameters().di_auxiliaries_are_on_override_value.write(true);
+    control->get_external_ios().get_parameters().di_mcb_is_closed_override.write(true);
+    control->get_external_ios().get_parameters().di_mcb_is_closed_override_value.write(true);
 }
 
 ARM_FUNCTION

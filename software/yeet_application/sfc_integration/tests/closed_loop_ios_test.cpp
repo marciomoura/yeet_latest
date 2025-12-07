@@ -82,31 +82,16 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    // State machine control helpers using mock inputs
-    void set_auxiliaries_on(bool on)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().auxiliaries_are_on, on);
-    }
+    // State machine control helpers using io_mock (tests real code path via set_digital_inputs)
+    void set_auxiliaries_on(bool on) { system.io_mock.get_parameters().auxiliaries_are_on.write(on); }
 
-    void set_breakers_on(bool on)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().mcb_is_closed, on);
-    }
+    void set_breakers_on(bool on) { system.io_mock.get_parameters().mcb_is_closed.write(on); }
 
-    void set_start_command(bool start)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().start_command, start);
-    }
+    void set_start_command(bool start) { system.io_mock.get_parameters().start_command.write(start); }
 
-    void set_stop_command(bool stop)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().stop_command, stop);
-    }
+    void set_stop_command(bool stop) { system.io_mock.get_parameters().stop_command.write(stop); }
 
-    void set_shutdown_request(bool shutdown)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().shutdown_request, shutdown);
-    }
+    void set_shutdown_request(bool shutdown) { system.io_mock.get_parameters().shutdown_request.write(shutdown); }
 
     void set_current_extinguished(bool extinguished)
     {
@@ -114,21 +99,11 @@ public:
             system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
     }
 
-    void set_breaker_is_tripping(bool tripping)
-    {
-        yeet::mock_signal_input::write(
-            system.grid_side_control.state_machine.get_inputs().breaker_is_tripping, tripping);
-    }
+    void set_breaker_is_tripping(bool tripping) { system.io_mock.get_parameters().breaker_is_tripping.write(tripping); }
 
-    void set_emergency_off(bool emergency)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().emergency_off, emergency);
-    }
+    void set_emergency_off(bool emergency) { system.io_mock.get_parameters().emergency_off.write(emergency); }
 
-    void set_door_is_open(bool open)
-    {
-        yeet::mock_signal_input::write(system.grid_side_control.state_machine.get_inputs().door_is_open, open);
-    }
+    void set_door_is_open(bool open) { system.io_mock.get_parameters().door_is_open.write(open); }
 
     // Configure startup sequencer for quick startup (used by most tests)
     void configure_quick_startup()

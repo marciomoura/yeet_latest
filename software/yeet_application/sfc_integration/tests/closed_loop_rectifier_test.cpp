@@ -68,24 +68,14 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    // State machine control helpers
-    void set_auxiliaries_on(bool on)
-    {
-        system.grid_side_control.external_ios.get_parameters().override_digital_inputs.write(true);
-        system.grid_side_control.external_ios.get_parameters().auxiliaries_are_on.write(on);
-    }
+    // State machine control helpers using io_mock (tests real code path via set_digital_inputs)
+    void set_auxiliaries_on(bool on) { system.io_mock.get_parameters().auxiliaries_are_on.write(on); }
 
-    void set_breakers_on(bool on) { system.grid_side_control.external_ios.get_parameters().mcb_is_closed.write(on); }
+    void set_breakers_on(bool on) { system.io_mock.get_parameters().mcb_is_closed.write(on); }
 
-    void set_start_command(bool start)
-    {
-        system.grid_side_control.external_ios.get_parameters().start_command.write(start);
-    }
+    void set_start_command(bool start) { system.io_mock.get_parameters().start_command.write(start); }
 
-    void set_stop_command(bool stop)
-    {
-        system.grid_side_control.external_ios.get_parameters().stop_command.write(stop);
-    }
+    void set_stop_command(bool stop) { system.io_mock.get_parameters().stop_command.write(stop); }
 
     // Execute startup sequence to reach OPERATION_ON state
     // NOTE: start_command must remain true to stay in OPERATION_ON state

@@ -182,8 +182,8 @@ inline void configure_plant_for_startup(
  * 2. Closing main circuit breaker
  * 3. Issuing start command
  *
- * Uses the external_ios parameter override mechanism to control digital inputs,
- * which then propagate through the signal wiring to the state machine.
+ * Uses the io_mock runner to send digital inputs through set_digital_inputs(),
+ * matching the embedded code path where hardware values flow through external_ios.
  *
  * @param system The plant-complete SFC closed-loop simulation builder
  * @param simulator The simulator instance
@@ -192,20 +192,17 @@ inline void configure_plant_for_startup(
 inline bool execute_state_machine_startup(
     plant_complete_sfc_closed_loop_simulation_builder& system, yeet::simulator& simulator)
 {
-    // Use parameter override mechanism to set digital inputs
-    // This ensures proper signal flow through external_ios wiring
-    auto& params = system.grid_side_control.external_ios.get_parameters();
+    // Use io_mock to set digital inputs via set_digital_inputs()
+    // This tests the real code path matching embedded operation
+    auto& io = system.io_mock.get_parameters();
 
-    // Enable parameter overrides
-    params.override_digital_inputs.write(true);
-
-    // Enable auxiliaries and close breakers
-    params.auxiliaries_are_on.write(true);
-    params.mcb_is_closed.write(true);
+    // Enable auxiliaries and close MCB
+    io.auxiliaries_are_on.write(true);
+    io.mcb_is_closed.write(true);
     simulator.simulate_for(0.2);
 
     // Issue start command
-    params.start_command.write(true);
+    io.start_command.write(true);
     simulator.simulate_for(0.1);
 
     // Verify state machine is operational

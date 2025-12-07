@@ -14,6 +14,7 @@
 // Mocks
 #include "sfc_grid_side_hardware_mock_runner.hpp"
 #include "sfc_integration/plant_hardware_definition.hpp"  // hardware scaling parameter staging
+#include "sfc_integration/sfc_io_mock_runner.hpp"
 #include "sfc_machine_side_hardware_mock_runner.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -45,7 +46,8 @@ public:
           machine_side_control{},
           plant{_per_unit_system},
           grid_side_hardware_mock{duration_t{10e-6}},
-          machine_side_hardware_mock{duration_t{10e-6}}
+          machine_side_hardware_mock{duration_t{10e-6}},
+          io_mock{grid_side_control.get_external_ios()}
     {
         *grid_side_control.per_unit_system = *_per_unit_system;
         *machine_side_control.per_unit_system = *_per_unit_system;
@@ -92,6 +94,7 @@ public:
         plant.initialize();
         grid_side_hardware_mock.initialize();
         machine_side_hardware_mock.initialize();
+        io_mock.initialize();
         grid_side_control.initialize();
         machine_side_control.initialize();
     }
@@ -181,6 +184,11 @@ public:
         // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor, fiber-optic exchange
         // High-speed inner control loop: Regulates DC link current (grid-side) and machine current (machine-side)
         simulation.register_lambda_runner(1e-3, [&]() {
+            // ========== I/O MOCK UPDATE ==========
+            // Push digital input values to external_ios via set_digital_inputs()
+            // This simulates the supervisory controller sending commands to the SFC
+            io_mock.run();
+
             // ========== GRID-SIDE CONTROL UPDATE ==========
             // Grid-side current controller:
             //   Input: Measured grid current, current reference (from higher-level speed control)
@@ -276,6 +284,9 @@ public:
     // Hardware mocks
     sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;
     sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;
+
+    // I/O mock (simulates supervisory controller sending digital inputs)
+    sfc_io_mock_runner io_mock;
 
     // Plant model
     sfc_plant_model_runner plant;
