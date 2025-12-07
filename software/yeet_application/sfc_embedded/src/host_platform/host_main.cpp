@@ -342,8 +342,8 @@ int main(int argc, char* argv[])
         handle_machine_telemetry(machine_telemetry_server, machine_network_infra);
     });
 
-    // ==================== Startup to Nominal Speed (using shared procedure) ====================
-    std::cout << "[INIT] Executing startup-to-nominal-speed procedure..." << std::endl;
+    // ==================== Prepare System for Startup (wait for user start command) ====================
+    std::cout << "[INIT] Preparing system for startup (waiting for start command)..." << std::endl;
     std::cout << "[CONFIG] Configuration:" << std::endl;
     std::cout << "         - Initial speed: 0.01 pu (near standstill)" << std::endl;
     std::cout << "         - Virtual frequency: 0 → 0.1 pu in 10s" << std::endl;
@@ -351,43 +351,21 @@ int main(int argc, char* argv[])
     std::cout << "         - Speed rate limit: 20 s/pu (0.05 pu/s)" << std::endl;
     std::cout << "         - Pre-fluxing: 1.0s" << std::endl;
 
-    // Use the shared startup procedure (same as integration tests)
+    // Use the shared preparation procedure (configures plant and control, but does NOT start)
     auto startup_config = yeet::application::sfc::integration::create_default_startup_config();
-    auto startup_result =
-        yeet::application::sfc::integration::startup_to_nominal_speed(simulator_builder, simulator, startup_config);
+    yeet::application::sfc::integration::prepare_for_startup(simulator_builder, simulator, startup_config);
 
-    // Validate startup results
-    if (!startup_result.state_machine_operational) {
-        std::cerr << "[ERROR] State machine did not reach OPERATION_ON state!" << std::endl;
-        return 1;
-    }
-    std::cout << "[INIT] State machine: OPERATION_ON (pulse releases active)" << std::endl;
-
-    if (!startup_result.closed_loop_reached) {
-        std::cerr << "[ERROR] Startup sequencer did not reach CLOSED_LOOP_OPERATION state!" << std::endl;
-        return 1;
-    }
-    std::cout << "[INIT] Startup sequencer: CLOSED_LOOP_OPERATION" << std::endl;
-
-    if (!startup_result.reference_frame_estimated) {
-        std::cerr << "[WARNING] Reference frame is not ESTIMATED" << std::endl;
-    }
-
-    if (!startup_result.target_speed_reached) {
-        std::cerr << "[WARNING] Speed may not have reached target (expected ~1.0 pu, got "
-                  << startup_result.final_speed.value() << " pu)" << std::endl;
-    }
-
-    std::cout << "[INIT] Final steady-state - Speed: " << startup_result.final_speed.value()
-              << " pu, Reference: " << startup_result.final_speed_reference.value() << " pu" << std::endl;
+    std::cout << "[INIT] System prepared - auxiliaries ON, MCB closed" << std::endl;
+    std::cout << "[INIT] State machine: OPERATION_OFF (waiting for start command)" << std::endl;
 
     // ==================== START REAL-TIME CONTROL LOOP ====================
     std::cout << "\n======================================" << std::endl;
-    std::cout << "  Initialization Complete - Starting Real-Time Operation" << std::endl;
+    std::cout << "  Initialization Complete - Waiting for Start Command" << std::endl;
     std::cout << "======================================" << std::endl;
-    std::cout << "[READY] Starting control loop at " << cfg.frequency_hz << " Hz" << std::endl;
+    std::cout << "[READY] Control loop running at " << cfg.frequency_hz << " Hz" << std::endl;
     std::cout << "[READY] Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
     std::cout << "[READY] Machine telemetry: localhost:" << cfg.machine_port << std::endl;
+    std::cout << "[READY] Send 'start_command = true' via telemetry to begin" << std::endl;
     std::cout << "[READY] Press Ctrl+C to stop" << std::endl;
     std::cout << "======================================" << std::endl;
 
