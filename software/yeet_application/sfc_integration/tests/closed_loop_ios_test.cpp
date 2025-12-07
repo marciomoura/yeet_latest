@@ -284,10 +284,6 @@ TEST_F(ClosedLoopIOsTest, MCBOpenCommandDuringShutdown)
 
     // Configure plant
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Wait for startup
     success &= simulator.simulate_for(8.0);
@@ -358,10 +354,6 @@ TEST_F(ClosedLoopIOsTest, BreakerTrippingTriggersShutdown)
     success &= simulator.simulate_for(0.5);
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     success &= simulator.simulate_for(8.0);
 
@@ -422,10 +414,6 @@ TEST_F(ClosedLoopIOsTest, EmergencyOffTriggersShutdown)
     success &= simulator.simulate_for(0.5);
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     success &= simulator.simulate_for(8.0);
 
@@ -593,10 +581,6 @@ TEST_F(ClosedLoopIOsTest, ExcitationReleaseFollowsStartupSequencer)
 
     // Configure plant
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Complete startup and wait for operation
     success &= simulator.simulate_for(8.0);
@@ -647,10 +631,6 @@ TEST_F(ClosedLoopIOsTest, ExcitationCurrentReferenceFromExcitationController)
 
     // Configure plant
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Wait for full startup to complete
     success &= simulator.simulate_for(8.5);
@@ -701,10 +681,6 @@ TEST_F(ClosedLoopIOsTest, ExcitationStopCommandOnShutdown)
     success &= simulator.simulate_for(0.5);
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     success &= simulator.simulate_for(8.0);
 
@@ -822,10 +798,6 @@ TEST_F(ClosedLoopIOsTest, CompleteIOSequenceStartupToShutdown)
 
     // ==================== Phase 3: Operation ====================
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     success &= simulator.simulate_for(8.0);
 
@@ -920,10 +892,6 @@ TEST_F(ClosedLoopIOsTest, DoorOpenedDuringOperationDoesNotAffectMCB)
     success &= simulator.simulate_for(0.5);
 
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     success &= simulator.simulate_for(8.0);
 

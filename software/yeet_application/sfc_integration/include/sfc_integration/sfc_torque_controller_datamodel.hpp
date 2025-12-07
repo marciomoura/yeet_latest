@@ -31,12 +31,6 @@ public:
         /// Torque reference from speed controller [pu]
         signal_input<torque_pu_t> torque_reference;
 
-        /// Maximum dynamic torque limit from speed generator [pu]
-        signal_input<torque_pu_t> dynamic_max_torque_limit;
-
-        /// Minimum dynamic torque limit from speed generator [pu]
-        signal_input<torque_pu_t> dynamic_min_torque_limit;
-
         /// Enable signal for breakaway boost from speed generator
         signal_input<bool> enable_breakaway_boost;
 

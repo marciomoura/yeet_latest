@@ -67,10 +67,6 @@ public:
 
         // Torque controller mocks (no speed_generator or startup_sequencer in this builder)
         yeet::wire(torque_controller)
-            .mocked(torque_pu_t{1.2f})
-            .to(&sfc_torque_controller_datamodel::inputs::dynamic_max_torque_limit)
-            .mocked(torque_pu_t{0.0f})
-            .to(&sfc_torque_controller_datamodel::inputs::dynamic_min_torque_limit)
             .mocked(false)
             .to(&sfc_torque_controller_datamodel::inputs::enable_breakaway_boost)
             .mocked(sfc::sfc_torque_controller::control_mode::SPEED_CONTROL)

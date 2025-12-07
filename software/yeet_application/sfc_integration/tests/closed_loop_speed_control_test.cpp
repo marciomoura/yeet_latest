@@ -162,12 +162,6 @@ TEST_F(ClosedLoopSpeedControlTest, PurgeModeOperationTest)
     // Light load for purge mode (minimal resistance)
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.08f));
 
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{0.8});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
-
     // Wait for virtual startup (1s + 8s + 0.5s)
     success &= simulator.simulate_for(12.0);
 
@@ -257,12 +251,6 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
 
     // Configure gas turbine load (compressor characteristic)
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.10f));
-
-    // Configure torque limits
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.2});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Wait for virtual startup to complete
     success &= simulator.simulate_for(15.0);

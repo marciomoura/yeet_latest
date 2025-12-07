@@ -59,8 +59,8 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
 
     // === Torque Controller Group (20-28) ===
     packet.add_signal(20, static_cast<float>(torque_controller.get_inputs().torque_reference.read()));
-    packet.add_signal(21, static_cast<float>(torque_controller.get_inputs().dynamic_max_torque_limit.read()));
-    packet.add_signal(22, static_cast<float>(torque_controller.get_inputs().dynamic_min_torque_limit.read()));
+    packet.add_signal(21, 0.0f);  // Reserved (was dynamic_max_torque_limit)
+    packet.add_signal(22, 0.0f);  // Reserved (was dynamic_min_torque_limit)
     packet.add_signal(23, torque_controller.get_inputs().enable_breakaway_boost.read() ? 1.0f : 0.0f);
     packet.add_signal(24, torque_controller.get_inputs().is_saturated.read() ? 1.0f : 0.0f);
     packet.add_signal(25, static_cast<float>(torque_controller.get_outputs().current_reference.read()));

@@ -187,12 +187,6 @@ TEST_F(ClosedLoopStartupSequencerTest, StartupSequencerIntegrationTest)
     // Configure moderate load torque
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.15f));
 
-    // Configure torque limits for startup
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{-0.0});
-
     // Wait for Flux Buildup and Virtual Startup
     success &= simulator.simulate_for(15.0);
 
@@ -304,12 +298,6 @@ TEST_F(ClosedLoopStartupSequencerTest, ObserverPresetDuringVirtualStartupTest)
 
     // Configure moderate load torque
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
-
-    // Configure torque limits for startup
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{1.0});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     // Manual Simulation Loop to monitor the preset signal
     const double step_size = 0.001;  // 1ms
@@ -424,10 +412,6 @@ TEST_F(ClosedLoopStartupSequencerTest, AutoStartOnOperationOnTest)
 
     // Complete Startup Sequence
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.06f));
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_max_torque_limit, torque_pu_t{0.8});
-    yeet::mock_signal_input::write(
-        system.machine_side_control.torque_controller.get_inputs().dynamic_min_torque_limit, torque_pu_t{0.0});
 
     success &= simulator.simulate_for(8.0);
 

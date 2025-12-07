@@ -211,10 +211,6 @@ static inline void register_complete_sfc_torque_controller_logger(
     register_minimal_sfc_torque_controller_logger(simulator, torque_controller);
 
     // All inputs
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "input dynamic_max_torque_limit",
-        [&]() { return torque_controller.get_inputs().dynamic_max_torque_limit.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<torque_pu_t>(group + "input dynamic_min_torque_limit",
-        [&]() { return torque_controller.get_inputs().dynamic_min_torque_limit.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input enable_breakaway_boost",
         [&]() { return torque_controller.get_inputs().enable_breakaway_boost.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
@@ -540,8 +536,8 @@ static inline void register_complete_state_machine_logger(
     // Log the combined input signals (hardware + overrides) that are actually fed to the state machine
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input auxiliaries_are_on",
         [&]() { return state_machine.get_outputs().auxiliaries_are_on.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "combined_input mcb_is_closed",
-        [&]() { return state_machine.get_outputs().mcb_is_closed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "combined_input mcb_is_closed", [&]() { return state_machine.get_outputs().mcb_is_closed.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "combined_input start_command", [&]() { return state_machine.get_outputs().start_command.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
