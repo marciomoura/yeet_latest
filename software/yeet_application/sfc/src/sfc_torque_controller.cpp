@@ -122,14 +122,22 @@ void sfc_torque_controller::update(torque_pu_t torque_reference,
     }
 
     // Step 5: Apply torque limits (both absolute and dynamic)
+    // This also sets _is_braking_requested based on the user's torque request
     const torque_pu_t limited_torque = apply_torque_limits(_total_torque_reference);
+
+    // Save the braking request flag from the user's original intent
+    const bool braking_was_requested = _is_braking_requested;
 
     // Step 6: Apply rate limiting to prevent mechanical shock
     _torque_rate_limiter.update(limited_torque.value());
     torque_pu_t rate_limited_torque = torque_pu_t{_torque_rate_limiter.get_output()};
 
     // Apply limits again to rate-limited output to ensure dynamic limit changes are immediate
+    // This might overwrite _is_braking_requested, so we restore it afterward
     _limited_torque_reference = apply_torque_limits(rate_limited_torque);
+
+    // Restore the braking request flag based on user's original intent, not rate-limited value
+    _is_braking_requested = braking_was_requested;
 
     // Step 7: Detect saturation for anti-windup feedback
     // Saturation occurs if the requested torque differs from the final limited torque

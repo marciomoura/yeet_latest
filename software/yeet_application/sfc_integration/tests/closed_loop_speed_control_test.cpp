@@ -428,3 +428,80 @@ TEST_F(ClosedLoopSpeedControlTest, BrakingRequestFreezesIntegratorTest)
 
     EXPECT_TRUE(success) << "Braking request freeze test completed with simulation errors";
 }
+
+/**
+ * @test CurrentControllerFreezesWhenNotModulatingTest
+ * @brief Test that verifies DC-link current controller integrator freezes when system is not modulating
+ *
+ * This test validates the integrator anti-windup chain for the grid-side current controller.
+ * When the state machine release_pulses = false (system stopped or during startup/shutdown),
+ * the current controller's integrator should be frozen to prevent windup.
+ *
+ * @expected_behavior
+ * - Current controller integrator is frozen when release_pulses = false
+ * - Current controller integrator is active when release_pulses = true
+ * - During shutdown sequence, integrator freezes immediately when pulses are blocked
+ */
+TEST_F(ClosedLoopSpeedControlTest, CurrentControllerFreezesWhenNotModulatingTest)
+{
+    // ============================================================
+    // Phase 1: Verify freeze is active when system is not started
+    // ============================================================
+
+    simulate_for(0.1);
+
+    // System not started - release_pulses should be false
+    auto release_pulses_initial = system.grid_side_control.state_machine.get_outputs().release_pulses.read();
+    EXPECT_FALSE(release_pulses_initial) << "Pulses should not be released before startup";
+
+    // Current controller integrator should be frozen
+    auto freeze_initial = system.grid_side_control.grid_integrator_supervisor.get_outputs().freeze_integrator.read();
+    EXPECT_TRUE(freeze_initial) << "Current controller integrator should be frozen when not modulating";
+
+    // ============================================================
+    // Phase 2: Start system and verify integrator unfreezes
+    // ============================================================
+
+    execute_startup_sequence();
+
+    // Wait for system to reach modulating state
+    auto success = simulator.simulate_for(5.0);
+
+    // Check release_pulses - should be true when modulating
+    auto release_pulses_running = system.grid_side_control.state_machine.get_outputs().release_pulses.read();
+    EXPECT_TRUE(release_pulses_running) << "Pulses should be released after startup";
+
+    // Current controller integrator should be unfrozen (unless other freeze conditions are active)
+    // During normal operation, freeze should only be from shutdown_request or forced_commutation
+    auto shutdown_request = system.grid_side_control.grid_integrator_supervisor.get_outputs().shutdown_request.read();
+    auto forced_comm_freeze =
+        system.grid_side_control.grid_integrator_supervisor.get_inputs().forced_commutation_freeze_integrator.read();
+
+    if (!shutdown_request && !forced_comm_freeze) {
+        auto freeze_running =
+            system.grid_side_control.grid_integrator_supervisor.get_outputs().freeze_integrator.read();
+        EXPECT_FALSE(freeze_running) << "Current controller integrator should be active during normal modulation";
+    }
+
+    // ============================================================
+    // Phase 3: Issue stop command and verify integrator freezes
+    // ============================================================
+
+    set_stop_command(true);
+    success &= simulator.simulate_for(0.5);
+
+    // Give time for state machine to transition and block pulses
+    success &= simulator.simulate_for(1.0);
+
+    // Check if pulses are blocked
+    auto release_pulses_stopping = system.grid_side_control.state_machine.get_outputs().release_pulses.read();
+
+    // If pulses are blocked, integrator should be frozen
+    if (!release_pulses_stopping) {
+        auto freeze_stopping =
+            system.grid_side_control.grid_integrator_supervisor.get_outputs().freeze_integrator.read();
+        EXPECT_TRUE(freeze_stopping) << "Current controller integrator should freeze when pulses are blocked";
+    }
+
+    EXPECT_TRUE(success) << "Current controller freeze test completed with simulation errors";
+}
