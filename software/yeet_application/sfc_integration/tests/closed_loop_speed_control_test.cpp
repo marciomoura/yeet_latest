@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <string>
 
 #include "sfc_integration/plant_complete_sfc_closed_loop_simulation_builder.hpp"
@@ -46,6 +47,7 @@ public:
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
         register_complete_logger(simulator, system.machine_side_control.torque_controller);
+        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
     }
@@ -316,6 +318,92 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
 
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
         << "System should maintain pulse releases during steady-state operation";
+}
+
+/**
+ * @test OperatingPointsSpeedAndVoltageSetpointTest
+ * @brief Verifies speed tracking and excitation voltage setpoint across operating points
+ *
+ * This test runs the complete closed-loop SFC startup and then steps through a small
+ * set of operating points. At each point it validates:
+ * - Machine speed (observer) tracks the commanded speed reference within tolerance
+ * - Excitation controller voltage setpoint follows the default V/Hz schedule
+ *
+ * Notes:
+ * - The default excitation voltage schedule is linear V/Hz: Vref = 0.2 + 0.8 * speed.
+ * - We compare Vref against the measured speed (observer) to avoid sensitivity to
+ *   reference rate limiting and acceleration constraints.
+ */
+TEST_F(ClosedLoopSpeedControlTest, OperatingPointsSpeedAndVoltageSetpointTest)
+{
+    // Configure Startup Sequencer for a reasonably quick transition into closed-loop
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{5.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
+
+    // Reduce pre-flux time so the test runs faster.
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Disable speed reference rate limiting so operating points are commanded directly.
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = false;
+
+    // Start from a low-but-nonzero reference to avoid an initial drop during transition.
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2f});
+
+    execute_startup_sequence();
+
+    bool success = true;
+    success &= simulator.simulate_for(1.0);  // Pre-flux
+
+    // Moderate gas turbine load.
+    system.plant.get_parameters().constant_torque.write(torque_pu_t(0.10f));
+
+    // Wait for virtual startup to complete and enter closed-loop.
+    success &= simulator.simulate_for(12.0);
+
+    const auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Startup should reach CLOSED_LOOP_OPERATION";
+
+    struct operating_point {
+        speed_pu_t speed_reference;
+        double settle_time_s;
+        float speed_tol_pu;
+        float vref_tol_pu;
+    };
+
+    const std::array<operating_point, 4> points = {
+        operating_point{speed_pu_t{0.2f}, 8.0, 0.10f, 0.06f},
+        operating_point{speed_pu_t{0.5f}, 10.0, 0.12f, 0.07f},
+        operating_point{speed_pu_t{1.0f}, 14.0, 0.15f, 0.08f},
+        operating_point{speed_pu_t{1.1f}, 10.0, 0.18f, 0.10f},
+    };
+
+    for (const auto& point : points) {
+        SCOPED_TRACE("operating point speed_ref=" + std::to_string(point.speed_reference.value()));
+
+        system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(point.speed_reference);
+        success &= simulator.simulate_for(point.settle_time_s);
+
+        const auto speed_meas = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+        EXPECT_NEAR(speed_meas.value(), point.speed_reference.value(), point.speed_tol_pu)
+            << "Speed should track operating point reference";
+
+        const auto vref_pu =
+            system.machine_side_control.excitation_controller.get_outputs().machine_voltage_reference_pu.read();
+
+        // Default V/Hz schedule (same as sfc_excitation_controller defaults): Vref = 0.2 + 0.8 * speed.
+        // Compare against measured speed to avoid dependency on reference ramping.
+        const float expected_vref = 0.2f + 0.8f * speed_meas.value();
+        EXPECT_NEAR(vref_pu.value(), expected_vref, point.vref_tol_pu)
+            << "Excitation voltage setpoint should follow default V/Hz schedule";
+    }
+
+    EXPECT_TRUE(success) << "Operating points test completed with simulation errors";
 }
 
 /**

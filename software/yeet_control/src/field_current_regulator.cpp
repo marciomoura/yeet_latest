@@ -73,21 +73,21 @@ voltage_pu_t field_current_regulator::get_exciter_voltage() const noexcept { ret
 
 current_pu_t field_current_regulator::update_field_circuit_dynamics(voltage_pu_t exciter_voltage) noexcept
 {
-    // First-order field winding dynamics: τ_f × di_f/dt + R_f × i_f = v_f
-    // Discretized using backward Euler:
-    // i_f[k] = (τ_f / (τ_f + R_f × Ts)) × i_f[k-1] + (Ts / (τ_f + R_f × Ts)) × (v_f[k] / R_f)
+    // Field winding dynamics (RL): L_f × di_f/dt + R_f × i_f = v_f
+    // With τ_f = L_f / R_f, this becomes:
+    //   τ_f × di_f/dt + i_f = v_f / R_f
     //
-    // Simplifying with α = Ts / τ_f:
-    // i_f[k] = (1 - α × R_f) × i_f[k-1] + α × (v_f[k] / R_f)
+    // Discretized with backward Euler:
+    //   i_f[k] = (τ_f / (τ_f + Ts)) × i_f[k-1] + (Ts / (τ_f + Ts)) × (v_f[k] / R_f)
 
     const real_t tau_f = _field_time_constant.value();
     const real_t r_f = _field_resistance.value();
     const real_t ts = _sampling_time.value();
 
-    // Compute discrete-time coefficient
-    const real_t denominator = tau_f + r_f * ts;
-    const real_t a_prev = tau_f / denominator;        // Coefficient for previous current
-    const real_t a_input = ts / (r_f * denominator);  // Coefficient for voltage input
+    // Compute discrete-time coefficients
+    const real_t denominator = tau_f + ts;
+    const real_t a_prev = tau_f / denominator;                // Coefficient for previous current
+    const real_t a_input = (ts / denominator) * (1.0 / r_f);  // Coefficient for voltage input
 
     // Update field current
     const real_t new_field_current = a_prev * _field_current.value() + a_input * exciter_voltage.value();

@@ -9,13 +9,15 @@
 namespace yeet::control {
 
 template <typename T>
-void pi_controller<T>::configure(value_type kp, value_type ki_continuous) {
+void pi_controller<T>::configure(value_type kp, value_type ki_continuous)
+{
     _kp = kp;
     _ki = ki_continuous;
 }
 
 template <typename T>
-void pi_controller<T>::configure_with_ti(value_type kp, value_type ti) {
+void pi_controller<T>::configure_with_ti(value_type kp, value_type ti)
+{
     assert(ti > value_type{0} && "Integral time constant must be positive");
 
     _kp = kp;
@@ -23,7 +25,8 @@ void pi_controller<T>::configure_with_ti(value_type kp, value_type ti) {
 }
 
 template <typename T>
-void pi_controller<T>::set_output_limits(value_type min, value_type max) {
+void pi_controller<T>::set_output_limits(value_type min, value_type max)
+{
     if (min < max) {
         _output_min = min;
         _output_max = max;
@@ -32,12 +35,14 @@ void pi_controller<T>::set_output_limits(value_type min, value_type max) {
 }
 
 template <typename T>
-void pi_controller<T>::enable_output_limits(bool enable) {
+void pi_controller<T>::enable_output_limits(bool enable)
+{
     _has_output_limits = enable;
 }
 
 template <typename T>
-void pi_controller<T>::set_antiwindup_gain(value_type kc) {
+void pi_controller<T>::set_antiwindup_gain(value_type kc)
+{
     assert(kc >= value_type{0} && "Anti-windup gain must be non-negative");
     if (kc < value_type{0}) {
         kc = value_type{0};  // Ensure non-negative gain
@@ -48,33 +53,57 @@ void pi_controller<T>::set_antiwindup_gain(value_type kc) {
 }
 
 template <typename T>
-void pi_controller<T>::enable_integrator_clamping(bool enable) {
+void pi_controller<T>::enable_integrator_clamping(bool enable)
+{
     _integrator_clamping_enabled = enable;
 }
 
 template <typename T>
-void pi_controller<T>::enable_integrator(bool enable) {
+void pi_controller<T>::enable_integrator(bool enable)
+{
     _integrator_enabled = enable;
 }
 
 template <typename T>
-bool pi_controller<T>::is_output_saturated() const {
+bool pi_controller<T>::is_output_saturated() const
+{
     return _output_saturated;
 }
 
 template <typename T>
-T pi_controller<T>::get_saturation_error() const {
+T pi_controller<T>::get_saturation_error() const
+{
     return _saturation_error;
 }
 
 template <typename T>
-void pi_controller<T>::reset(T value) {
+void pi_controller<T>::reset(T value)
+{
     _integrator.reset(value);
     _output_saturated = false;
     _saturation_error = T{};
 }
+
 template <typename T>
-T pi_controller<T>::update(T input) {
+void pi_controller<T>::preset_for_bumpless_transfer(T desired_output, T current_error)
+{
+    // Calculate integrator preset: I = desired_output - Kp * current_error
+    T integrator_preset = desired_output - _kp * current_error;
+
+    // Clamp to output limits if enabled
+    if (_has_output_limits) {
+        integrator_preset = clamp_coordinate_output(integrator_preset);
+    }
+
+    // Reset integrator with calculated preset value
+    _integrator.reset(integrator_preset);
+    _output_saturated = false;
+    _saturation_error = T{};
+}
+
+template <typename T>
+T pi_controller<T>::update(T input)
+{
     // Compute the proportional term
     T const proportional_term = _kp * input;
 
@@ -116,20 +145,23 @@ T pi_controller<T>::update(T input) {
 }
 
 template <typename T>
-T pi_controller<T>::clamp_coordinate_output(const T& output) const {
+T pi_controller<T>::clamp_coordinate_output(const T& output) const
+{
     if constexpr (is_coordinate_frame_v<T>) {
         T result = output;
         for (size_t i = 0; i < result.size(); ++i) {
             result[i] = std::clamp(result[i], _output_min, _output_max);
         }
         return result;
-    } else {
+    }
+    else {
         return std::clamp(output, _output_min, _output_max);
     }
 }
 
 template <typename T>
-bool pi_controller<T>::are_equal(const T& a, const T& b) const {
+bool pi_controller<T>::are_equal(const T& a, const T& b) const
+{
     constexpr value_type tolerance = value_type(1e-9);
 
     if constexpr (is_coordinate_frame_v<T>) {
@@ -139,7 +171,8 @@ bool pi_controller<T>::are_equal(const T& a, const T& b) const {
             }
         }
         return true;
-    } else {
+    }
+    else {
         return std::abs(a - b) <= tolerance;
     }
 }

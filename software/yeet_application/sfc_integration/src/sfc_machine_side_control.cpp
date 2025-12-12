@@ -157,6 +157,8 @@ void sfc_machine_side_control::connect_internal_signals()
     wire(excitation_controller)
         .from(machine_side_observer.get_outputs().estimated_speed)
         .to(&excitation_inputs::machine_rotor_speed_pu)
+        .from(machine_side_observer.get_outputs().estimated_voltage_magnitude)
+        .to(&excitation_inputs::machine_voltage_magnitude_pu)
         .from(startup_sequencer.get_outputs().release_excitation)
         .to(&excitation_inputs::release_excitation);
 

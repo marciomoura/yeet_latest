@@ -13,7 +13,8 @@ Signal indices correspond to:
   - 20-28: Torque Controller (Torque reference, limits, breakaway boost, current reference, saturation)
   - 29-33: Speed Controller (Speed ref, measured speed, torque ref, PI output, saturation)
   - 34-38: Speed Generator (Speed ref, torque limits, profile complete, breakaway boost active)
-  - 39-42: Excitation Controller (Voltage setpoint, enable, field established, running)
+    - 43-44: Excitation Controller (Field current ref, prefluxing time)
+    - 76-78: Excitation Voltage Control Diagnostics (Vref, Vmeas, Verr)
 """
 
 from typing import Dict, List, Any
@@ -126,7 +127,10 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'title': 'Excitation Controller',
             'fields': [
                 {'name': 'field current ref.', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'prefluxing elapsed time', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME, 'type': 'float', 'format': '.4f'}
+                {'name': 'prefluxing elapsed time', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage ref. (pu)', 'index': MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_REFERENCE_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage meas. (pu)', 'index': MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_MAGNITUDE_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage error (pu)', 'index': MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_ERROR_PU, 'type': 'float', 'format': '.4f'}
             ]
         },
         'pulse_generator': {

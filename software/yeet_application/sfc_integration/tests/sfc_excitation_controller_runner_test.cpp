@@ -28,6 +28,7 @@ protected:
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         mock_signal_input::write(inputs.machine_rotor_speed_pu, speed_pu_t{0.0});
+        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.0});
         mock_signal_input::write(inputs.release_excitation, false);
     }
 
@@ -37,6 +38,12 @@ protected:
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         mock_signal_input::write(inputs.machine_rotor_speed_pu, speed);
+    }
+
+    void set_machine_voltage_magnitude(voltage_pu_t voltage)
+    {
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
     }
 
     void set_release_excitation(bool release)
@@ -134,6 +141,41 @@ TEST_F(SfcExcitationControllerRunnerTest, FieldCurrentTracksSpeed)
     // Both should output field current reference (monotonic with speed for soft starter)
     EXPECT_GT(current_at_low_speed.value(), 0.0);
     EXPECT_GT(current_at_high_speed.value(), 0.0);
+}
+
+TEST_F(SfcExcitationControllerRunnerTest, EnteringVoltagePIRegionIsBumpless)
+{
+    auto& parameters = _runner->get_parameters();
+
+    // Configure PI with moderate gains and limits
+    parameters.voltage_pi_kp.write(real_t{0.2});
+    parameters.voltage_pi_ti.write(duration_t{0.1});
+    parameters.voltage_pi_output_min_pu.write(current_pu_t{0.0});
+    parameters.voltage_pi_output_max_pu.write(current_pu_t{2.0});
+
+    // LUT default is 1.0 pu; ensure threshold at 0.4 pu
+    parameters.voltage_threshold_pu.write(voltage_pu_t{0.4});
+
+    // Start in low-voltage region
+    set_machine_voltage_magnitude(voltage_pu_t{0.0});
+    set_release_excitation(true);
+    run_cycle();
+
+    const auto forced_current = get_field_current_reference();
+    EXPECT_GT(forced_current.value(), 0.0);
+
+    // Move above threshold into PI region with a non-zero error (Vref=1.0, Vmeas=0.5)
+    set_machine_speed(speed_pu_t{0.8});
+    set_machine_voltage_magnitude(voltage_pu_t{0.5});
+    run_cycle();
+
+    const auto first_pi_current = get_field_current_reference();
+    EXPECT_NEAR(first_pi_current.value(), forced_current.value(), 1e-3);
+
+    // Next cycle should start integrating the error and increase output (bounded by limits)
+    run_cycle();
+    const auto second_pi_current = get_field_current_reference();
+    EXPECT_GE(second_pi_current.value(), first_pi_current.value());
 }
 
 // ============================================================================

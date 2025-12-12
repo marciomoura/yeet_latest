@@ -130,6 +130,22 @@ public:
     void reset(T value = T{});
 
     /**
+     * @brief Preset the integrator for bumpless transfer.
+     *
+     * This method calculates and sets the integrator state such that the PI controller's
+     * output will match the desired_output when presented with the given current_error.
+     * This is useful for transitioning from open-loop to closed-loop control without
+     * causing a step change in the output.
+     *
+     * The integrator is preset to: desired_output - Kp * current_error
+     * If output limits are enabled, the preset value is clamped to the valid range.
+     *
+     * @param desired_output The desired initial output of the PI controller.
+     * @param current_error The current error signal that will be fed to the controller.
+     */
+    void preset_for_bumpless_transfer(T desired_output, T current_error);
+
+    /**
      * @brief Update the PI controller with the current error input.
      *
      * @param input The current error input.

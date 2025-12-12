@@ -115,6 +115,9 @@ static inline void register_minimal_excitation_controller_logger(
     const std::string group{"excitation_controller:"};
     simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(group + "input machine_rotor_speed_pu",
         [&]() { return excitation_controller.get_inputs().machine_rotor_speed_pu.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "input machine_voltage_magnitude_pu",
+            [&]() { return excitation_controller.get_inputs().machine_voltage_magnitude_pu.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_excitation",
         [&]() { return excitation_controller.get_inputs().release_excitation.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "output field_current_reference",
@@ -130,7 +133,20 @@ static inline void register_complete_excitation_controller_logger(
 
     register_minimal_excitation_controller_logger(simulator, excitation_controller);
 
-    // All signals in minimal version for simplified datamodel
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "output machine_voltage_reference_pu",
+            [&]() { return excitation_controller.get_outputs().machine_voltage_reference_pu.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "output machine_voltage_magnitude_pu",
+            [&]() { return excitation_controller.get_outputs().machine_voltage_magnitude_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_pu_t>(group + "output machine_voltage_error_pu",
+        [&]() { return excitation_controller.get_outputs().machine_voltage_error_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_field_established",
+        [&]() { return excitation_controller.get_outputs().is_field_established.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output excitation_start_command",
+        [&]() { return excitation_controller.get_outputs().excitation_start_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output excitation_stop_command",
+        [&]() { return excitation_controller.get_outputs().excitation_stop_command.read(); }));
 }
 
 // --- Soft-starter speed generator runner loggers ---

@@ -74,6 +74,11 @@ class MachineSignalIndex(IntEnum):
     # Excitation Controller Group (43-44)
     EXCITATION_FIELD_CURRENT_REFERENCE = 43
     EXCITATION_PREFLUXING_ELAPSED_TIME = 44
+
+    # Excitation Voltage Control Diagnostics (76-78)
+    EXCITATION_MACHINE_VOLTAGE_REFERENCE_PU = 76
+    EXCITATION_MACHINE_VOLTAGE_MAGNITUDE_PU = 77
+    EXCITATION_MACHINE_VOLTAGE_ERROR_PU = 78
     
     # === Pulse Generator Group (45-53) ===
     PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 45
@@ -201,9 +206,13 @@ class StartupSequencerData:
 
 @dataclass
 class ExcitationControllerData:
-    """Excitation controller state and outputs (43-44)."""
+    """Excitation controller state and outputs (43-44, 76-78)."""
     field_current_reference_pu: float = 0.0
     prefluxing_elapsed_time_s: float = 0.0
+
+    machine_voltage_reference_pu: float = 0.0
+    machine_voltage_magnitude_pu: float = 0.0
+    machine_voltage_error_pu: float = 0.0
 
 
 @dataclass

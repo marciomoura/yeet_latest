@@ -219,10 +219,13 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
         'excitation': {
             'excitation_control': {
                 'title': 'Excitation Controller',
-                'y_label': 'Current (pu) / Time (s)',
+                'y_label': 'Current (pu) / Voltage (pu) / Time (s)',
                 'signals': [
                     {'name': 'field current ref.', 'color': 'g', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE},
                     {'name': 'prefluxing elapsed time', 'color': 'r', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME},
+                    {'name': 'voltage ref. (pu)', 'color': 'c', 'index': MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_REFERENCE_PU},
+                    {'name': 'voltage meas. (pu)', 'color': 'm', 'index': MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_MAGNITUDE_PU},
+                    {'name': 'voltage error (pu)', 'color': 'y', 'index': MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_ERROR_PU},
                 ]
             }
         },
