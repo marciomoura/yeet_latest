@@ -5,13 +5,36 @@
 
 namespace yeet::application::sfc {
 
+namespace {
+
+real_t clamp_real(real_t value, real_t min_value, real_t max_value) { return std::clamp(value, min_value, max_value); }
+
+}  // namespace
+
 sfc_excitation_controller::sfc_excitation_controller(duration_t sampling_time)
     : _sampling_time(sampling_time),
       // _field_current_rate_limiter(10000.0, sampling_time.value()),  // Commented out - not used in simplified version
-      _flux_buildup_timer(sampling_time)
+      _flux_buildup_timer(sampling_time),
+      _voltage_reference_lookup_table(),
+      _voltage_pi_controller(sampling_time.value())
 {
     // Simplified constructor - no lookup table initialization needed
     // _field_current_lookup_table.configure(kDefaultSpeedAxisPu, kDefaultFieldCurrentReferencePu);
+
+    // Default voltage reference lookup table
+    std::array<real_t, NUM_VOLTAGE_REFERENCE_POINTS> speed_axis{};
+    std::array<real_t, NUM_VOLTAGE_REFERENCE_POINTS> voltage_ref{};
+    for (size_t i = 0; i < NUM_VOLTAGE_REFERENCE_POINTS; ++i) {
+        speed_axis[i] = static_cast<real_t>(kDefaultVoltageReferenceSpeedAxisPu[i].value());
+        voltage_ref[i] = static_cast<real_t>(kDefaultVoltageReferencePu[i].value());
+    }
+    _voltage_reference_lookup_table.configure(speed_axis, voltage_ref);
+
+    // Default PI output limits
+    _voltage_pi_controller.set_output_limits(_voltage_pi_output_min_pu.value(), _voltage_pi_output_max_pu.value());
+    _voltage_pi_controller.enable_output_limits(true);
+    _voltage_pi_controller.enable_integrator(true);
+    _voltage_pi_controller.enable_integrator_clamping(false);
 }
 
 void sfc_excitation_controller::configure_field_current_setpoint(current_pu_t field_current_setpoint)
@@ -24,6 +47,62 @@ void sfc_excitation_controller::configure_field_current_setpoint(current_pu_t fi
     // std::array<real_t, NUM_LOOKUP_POINTS> constant_table;
     // constant_table.fill(field_current_setpoint.value());
     // _field_current_lookup_table.configure(kDefaultSpeedAxisPu, constant_table);
+}
+
+void sfc_excitation_controller::configure_low_voltage_field_current_setpoint(current_pu_t field_current_setpoint)
+{
+    assert(field_current_setpoint.value() >= 0.0 && "Low-voltage field current setpoint must be non-negative.");
+    _low_voltage_field_current_setpoint = field_current_setpoint;
+}
+
+void sfc_excitation_controller::configure_voltage_threshold(voltage_pu_t voltage_threshold_pu)
+{
+    assert(voltage_threshold_pu.value() >= 0.0 && "Voltage threshold must be non-negative.");
+    _voltage_threshold_pu = voltage_threshold_pu;
+}
+
+void sfc_excitation_controller::configure_voltage_reference_lookup_table(
+    const std::array<speed_pu_t, NUM_VOLTAGE_REFERENCE_POINTS>& speed_axis_pu,
+    const std::array<voltage_pu_t, NUM_VOLTAGE_REFERENCE_POINTS>& voltage_reference_pu)
+{
+    for (size_t i = 0; i < NUM_VOLTAGE_REFERENCE_POINTS; ++i) {
+        assert(speed_axis_pu[i].value() >= 0.0 && "Speed axis values must be non-negative.");
+        assert(voltage_reference_pu[i].value() >= 0.0 && "Voltage reference values must be non-negative.");
+    }
+
+    std::array<real_t, NUM_VOLTAGE_REFERENCE_POINTS> speed_axis{};
+    std::array<real_t, NUM_VOLTAGE_REFERENCE_POINTS> voltage_ref{};
+    for (size_t i = 0; i < NUM_VOLTAGE_REFERENCE_POINTS; ++i) {
+        speed_axis[i] = static_cast<real_t>(speed_axis_pu[i].value());
+        voltage_ref[i] = static_cast<real_t>(voltage_reference_pu[i].value());
+    }
+    _voltage_reference_lookup_table.configure(speed_axis, voltage_ref);
+}
+
+void sfc_excitation_controller::configure_voltage_pi_gains(real_t kp, duration_t ti)
+{
+    assert(kp >= 0.0F && "PI proportional gain must be non-negative.");
+    assert(ti.value() > 0.0 && "PI integral time constant must be positive.");
+    if (ti.value() <= 0.0) {
+        return;
+    }
+
+    _voltage_pi_controller.configure_with_ti(static_cast<real_t>(kp), static_cast<real_t>(ti.value()));
+
+    // Default anti-windup (back-calculation) gain: 1/Ti
+    _voltage_pi_controller.set_antiwindup_gain(static_cast<real_t>(1.0 / ti.value()));
+}
+
+void sfc_excitation_controller::configure_voltage_pi_output_limits(
+    current_pu_t min_field_current_pu, current_pu_t max_field_current_pu)
+{
+    assert(min_field_current_pu.value() <= max_field_current_pu.value() && "PI output min must be <= max.");
+
+    _voltage_pi_output_min_pu = min_field_current_pu;
+    _voltage_pi_output_max_pu = max_field_current_pu;
+
+    _voltage_pi_controller.set_output_limits(min_field_current_pu.value(), max_field_current_pu.value());
+    _voltage_pi_controller.enable_output_limits(true);
 }
 
 // Commented out - not used in simplified version
@@ -57,6 +136,8 @@ bool sfc_excitation_controller::start_excitation()
 
     // Set field current reference to configured constant value
     _field_current_reference_pu = _field_current_setpoint;
+    _last_forced_field_current_reference_pu = _field_current_reference_pu;
+    _is_voltage_pi_active = false;
 
     // Start flux build-up timer
     _flux_buildup_timer.reset();
@@ -80,7 +161,8 @@ void sfc_excitation_controller::stop_excitation()
     // _is_ramping_down = true;
 }
 
-void sfc_excitation_controller::update(bool enable_excitation_command)
+void sfc_excitation_controller::update(
+    speed_pu_t machine_speed_pu, voltage_pu_t machine_voltage_magnitude_pu, bool enable_excitation_command)
 {
     // Handle enable/disable command directly
     if (!enable_excitation_command) {
@@ -89,7 +171,12 @@ void sfc_excitation_controller::update(bool enable_excitation_command)
         _is_field_established = false;
         _enable_excitation = false;
         _field_current_reference_pu = current_pu_t{0.0};
+        _machine_voltage_reference_pu = voltage_pu_t{0.0};
+        _machine_voltage_error_pu = voltage_pu_t{0.0};
+        _is_voltage_pi_active = false;
+        _last_forced_field_current_reference_pu = current_pu_t{0.0};
         _flux_buildup_timer.reset();
+        _voltage_pi_controller.reset(real_t{0.0});
         return;
     }
 
@@ -100,45 +187,56 @@ void sfc_excitation_controller::update(bool enable_excitation_command)
         _flux_buildup_timer.reset();
     }
 
-    // Commented out - simplified version doesn't use ramp-down
-    // if (_is_ramping_down) {
-    //     _field_current_rate_limiter.update(0.0);
-    //     _field_current_reference_pu = current_pu_t{_field_current_rate_limiter.get_output()};
-    //     if (_field_current_reference_pu.value() <= 0.01) {
-    //         _field_current_reference_pu = current_pu_t{0.0};
-    //         _enable_excitation = false;
-    //         _is_running = false;
-    //         _is_ramping_down = false;
-    //         _prefluxing_timer.reset();
-    //     }
-    //     return;
-    // }
-
-    // Flux build-up phase: maintain constant field current and wait for timer
+    // Flux build-up timer is maintained regardless of voltage control region
     if (!_is_field_established) {
-        // Update flux build-up timer
         _flux_buildup_timer.update(true);
-
-        // Check if flux build-up duration has elapsed
         if (_flux_buildup_timer.has_elapsed(_flux_buildup_duration)) {
             _is_field_established = true;
         }
     }
 
-    // Normal operation: field established, maintain constant field current
-    _field_current_reference_pu = _field_current_setpoint;
-    _enable_excitation = true;
+    // Select forced (low-voltage) current reference:
+    // - If field_current_setpoint is configured (>0), keep it.
+    // - Otherwise fall back to low_voltage_field_current_setpoint.
+    const current_pu_t forced_field_current_reference =
+        (_field_current_setpoint.value() > 0.0) ? _field_current_setpoint : _low_voltage_field_current_setpoint;
 
-    // Commented out - simplified version doesn't use lookup table or rate limiter
-    // real_t field_current_reference;
-    // if (machine_rotor_speed_pu.value() < _constant_flux_speed_threshold.value()) {
-    //     field_current_reference = kDefaultFieldCurrentReferencePu[0];
-    // }
-    // else {
-    //     field_current_reference = _field_current_lookup_table.get_value(machine_rotor_speed_pu.value());
-    // }
-    // _field_current_rate_limiter.update(field_current_reference);
-    // _field_current_reference_pu = current_pu_t{_field_current_rate_limiter.get_output()};
+    const bool is_low_voltage_region = machine_voltage_magnitude_pu.value() < _voltage_threshold_pu.value();
+
+    // Compute voltage reference and error for observability
+    if (is_low_voltage_region) {
+        _machine_voltage_reference_pu = voltage_pu_t{0.0};
+        _machine_voltage_error_pu = voltage_pu_t{0.0};
+    }
+    else {
+        const voltage_pu_t reference_voltage =
+            voltage_pu_t{_voltage_reference_lookup_table.get_value(machine_speed_pu.value())};
+        _machine_voltage_reference_pu = reference_voltage;
+        _machine_voltage_error_pu = reference_voltage - machine_voltage_magnitude_pu;
+    }
+
+    if (is_low_voltage_region) {
+        // Forced current region: pass-through forced current setpoint.
+        _enable_excitation = true;
+        _field_current_reference_pu = forced_field_current_reference;
+        _last_forced_field_current_reference_pu = forced_field_current_reference;
+        _is_voltage_pi_active = false;
+        return;
+    }
+
+    // Voltage regulation region: PI on voltage error -> field current reference.
+    const real_t voltage_error = _machine_voltage_error_pu.value();
+
+    if (!_is_voltage_pi_active) {
+        // Bumpless transfer: preset integral term so first PI output matches the last forced current.
+        const real_t desired_output = _last_forced_field_current_reference_pu.value();
+        _voltage_pi_controller.preset_for_bumpless_transfer(desired_output, voltage_error);
+        _is_voltage_pi_active = true;
+    }
+
+    const real_t pi_output = _voltage_pi_controller.update(voltage_error);
+    _field_current_reference_pu = current_pu_t{pi_output};
+    _enable_excitation = true;
 }
 
 void sfc_excitation_controller::reset()
@@ -148,7 +246,14 @@ void sfc_excitation_controller::reset()
     _enable_excitation = false;
     _field_current_reference_pu = current_pu_t{0.0};
 
+    _machine_voltage_reference_pu = voltage_pu_t{0.0};
+    _machine_voltage_error_pu = voltage_pu_t{0.0};
+    _is_voltage_pi_active = false;
+    _last_forced_field_current_reference_pu = current_pu_t{0.0};
+
     _flux_buildup_timer.reset();
+
+    _voltage_pi_controller.reset(real_t{0.0});
 
     // Commented out - simplified version doesn't use these
     // _is_ramping_down = false;
@@ -170,6 +275,16 @@ bool sfc_excitation_controller::get_is_running() const noexcept { return _is_run
 duration_t sfc_excitation_controller::get_flux_buildup_elapsed_time() const noexcept
 {
     return _flux_buildup_timer.get_elapsed_time();
+}
+
+voltage_pu_t sfc_excitation_controller::get_machine_voltage_reference_pu() const noexcept
+{
+    return _machine_voltage_reference_pu;
+}
+
+voltage_pu_t sfc_excitation_controller::get_machine_voltage_error_pu() const noexcept
+{
+    return _machine_voltage_error_pu;
 }
 
 // Commented out - legacy compatibility methods not used in simplified version

@@ -90,6 +90,11 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(43, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
     packet.add_signal(44, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
 
+    // === Excitation Voltage Control Diagnostics (76-78) ===
+    packet.add_signal(76, static_cast<float>(excitation_controller.get_outputs().machine_voltage_reference_pu.read()));
+    packet.add_signal(77, static_cast<float>(excitation_controller.get_outputs().machine_voltage_magnitude_pu.read()));
+    packet.add_signal(78, static_cast<float>(excitation_controller.get_outputs().machine_voltage_error_pu.read()));
+
     // === Pulse Generator Group (45-53) ===
     packet.add_signal(45, pulse_generator.get_outputs().virtual_reference_active.read() ? 1.0f : 0.0f);
     packet.add_signal(46, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));

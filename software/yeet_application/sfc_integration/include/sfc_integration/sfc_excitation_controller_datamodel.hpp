@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+
+#include "sfc/sfc_excitation_controller.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
@@ -22,6 +25,9 @@ public:
         /// Machine rotor speed [pu]
         signal_input<speed_pu_t> machine_rotor_speed_pu;
 
+        /// Machine voltage magnitude [pu]
+        signal_input<voltage_pu_t> machine_voltage_magnitude_pu;
+
         /// Release excitation command (enables field current output) [bool]
         signal_input<bool> release_excitation;
     };
@@ -32,6 +38,15 @@ public:
     struct outputs {
         /// Field current reference [pu]
         signal_output<current_pu_t> field_current_reference;
+
+        /// Machine voltage reference used by excitation voltage loop [pu]
+        signal_output<voltage_pu_t> machine_voltage_reference_pu;
+
+        /// Machine voltage magnitude measurement used by excitation voltage loop [pu]
+        signal_output<voltage_pu_t> machine_voltage_magnitude_pu;
+
+        /// Machine voltage control error (reference - measured) [pu]
+        signal_output<voltage_pu_t> machine_voltage_error_pu;
 
         /// Pre-fluxing elapsed time [s]
         signal_output<duration_t> prefluxing_elapsed_time;
@@ -50,8 +65,37 @@ public:
      * @brief Configuration parameters for the excitation controller
      */
     struct parameters {
+        static constexpr std::size_t NUM_POINTS = sfc::sfc_excitation_controller::NUM_VOLTAGE_REFERENCE_POINTS;
+
         /// Constant field current setpoint [pu]
         parameter<current_pu_t> field_current_setpoint = current_pu_t{1.0};
+
+        /// Low-voltage fallback field current setpoint [pu]
+        /// Used when field_current_setpoint is not set (<= 0) and Vmeas < voltage_threshold_pu.
+        parameter<current_pu_t> low_voltage_field_current_setpoint_pu = current_pu_t{0.8};
+
+        /// Voltage threshold [pu] below which forced field current is used (no PI action)
+        parameter<voltage_pu_t> voltage_threshold_pu = voltage_pu_t{0.2};
+
+        /// Speed axis for voltage reference lookup table [pu]
+        parameter<std::array<speed_pu_t, NUM_POINTS>> voltage_reference_speed_axis_pu =
+            sfc::sfc_excitation_controller::kDefaultVoltageReferenceSpeedAxisPu;
+
+        /// Voltage reference lookup table values [pu]
+        parameter<std::array<voltage_pu_t, NUM_POINTS>> voltage_reference_pu =
+            sfc::sfc_excitation_controller::kDefaultVoltageReferencePu;
+
+        /// Voltage PI proportional gain
+        /// Default: 1.0 provides moderate response for voltage regulation
+        parameter<real_t> voltage_pi_kp = real_t{1.0};
+
+        /// Voltage PI integral time constant [s]
+        /// Default: 1.0s provides stable voltage regulation without overshoot
+        parameter<duration_t> voltage_pi_ti = duration_t{1.0};
+
+        /// Voltage PI output limits: field current reference min/max [pu]
+        parameter<current_pu_t> voltage_pi_output_min_pu = current_pu_t{0.0};
+        parameter<current_pu_t> voltage_pi_output_max_pu = current_pu_t{1.2};
 
         /// Speed threshold for constant flux region [pu]
         /// Below this speed, field current remains constant regardless of speed
@@ -67,7 +111,7 @@ public:
 
         /// Override value for field current reference [pu]
         /// Used when field_current_reference_override is true
-        parameter<current_pu_t> field_current_reference_override_value = current_pu_t{0.0};
+        parameter<current_pu_t> field_current_reference_override_value = current_pu_t{1.0};
     };
 
 private:
@@ -90,6 +134,45 @@ public:
 
         entry.parameters.insert(
             "field_current_setpoint", yeet::utils::make_units_accessor(_model_parameters->field_current_setpoint));
+        entry.parameters.insert("low_voltage_field_current_setpoint_pu",
+            yeet::utils::make_units_accessor(_model_parameters->low_voltage_field_current_setpoint_pu));
+        entry.parameters.insert(
+            "voltage_threshold_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_threshold_pu));
+
+        // Register voltage reference lookup table entries individually
+        auto& speed_axis_param = _model_parameters->voltage_reference_speed_axis_pu;
+        for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
+            std::string param_name = "voltage_reference_speed_axis_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                low_level_access([&speed_axis_param,
+                                     i]() -> float { return static_cast<float>(speed_axis_param.read()[i].value()); },
+                    [&speed_axis_param, i](float value) {
+                        auto table = speed_axis_param.read();
+                        table[i] = speed_pu_t(value);
+                        speed_axis_param.write(table);
+                    }));
+        }
+
+        auto& voltage_ref_param = _model_parameters->voltage_reference_pu;
+        for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
+            std::string param_name = "voltage_reference_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                low_level_access([&voltage_ref_param,
+                                     i]() -> float { return static_cast<float>(voltage_ref_param.read()[i].value()); },
+                    [&voltage_ref_param, i](float value) {
+                        auto table = voltage_ref_param.read();
+                        table[i] = voltage_pu_t(value);
+                        voltage_ref_param.write(table);
+                    }));
+        }
+
+        entry.parameters.insert("voltage_pi_kp", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_kp));
+        entry.parameters.insert("voltage_pi_ti", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_ti));
+        entry.parameters.insert(
+            "voltage_pi_output_min_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_min_pu));
+        entry.parameters.insert(
+            "voltage_pi_output_max_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_max_pu));
+
         entry.parameters.insert("constant_flux_speed_threshold",
             yeet::utils::make_units_accessor(_model_parameters->constant_flux_speed_threshold));
         entry.parameters.insert(

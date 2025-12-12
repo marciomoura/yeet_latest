@@ -2,6 +2,7 @@
 
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
+#include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
@@ -81,6 +82,11 @@ public:
         yeet::wire(machine_side_pulse_generator)
             .mocked(true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
+
+        // Excitation command (no startup_sequencer in this builder)
+        yeet::wire(excitation_controller)
+            .mocked(true)
+            .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
     }
     void initialize()
     {
@@ -89,6 +95,7 @@ public:
         grid_measurements.initialize();
         machine_measurements.initialize();
         dc_link_measurements.initialize();
+        excitation_controller.initialize();
         speed_controller.initialize();
         torque_controller.initialize();
         current_controller.initialize();
@@ -107,6 +114,7 @@ public:
         simulator.register_lambda_runner(
             dc_link_measurements.get_sampling_time(), [&]() { dc_link_measurements.run(); });
         simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() {
+            excitation_controller.run();
             speed_controller.run();
             torque_controller.run();
         });
@@ -126,6 +134,7 @@ public:
         grid_measurements.register_datamodel(registry);
         machine_measurements.register_datamodel(registry);
         dc_link_measurements.register_datamodel(registry);
+        excitation_controller.register_datamodel(registry);
         speed_controller.register_datamodel(registry);
         torque_controller.register_datamodel(registry);
         current_controller.register_datamodel(registry);
@@ -138,6 +147,7 @@ public:
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
 
     // Control components
+    sfc_excitation_controller_runner excitation_controller;
     sfc_speed_controller_runner speed_controller;
     sfc_torque_controller_runner torque_controller;
     sfc_current_controller_runner current_controller;
@@ -159,9 +169,6 @@ public:
     signal_output<speed_pu_t> speed_reference;
     signal_output<bool> enable_speed_control;
     signal_output<current_pu_t> external_current_reference_pu;
-
-    // Field current reference for variable-speed operation (no excitation controller in this builder)
-    signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -215,6 +222,15 @@ private:
         // Machine speed feedback (from machine measurements)
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_speed, speed_controller.get_inputs().measured_speed);
+
+        // ==================== Measurements → Excitation Controller ====================
+        // Provide speed and voltage magnitude feedback for excitation voltage regulation
+
+        signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_speed,
+            excitation_controller.get_inputs().machine_rotor_speed_pu);
+        signals_connector::connect_output_to_input(
+            machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
+            excitation_controller.get_inputs().machine_voltage_magnitude_pu);
 
         // ==================== Speed Controller → Torque Controller → Current Controller ====================
         // Cascade control: Speed Controller outputs torque reference → Torque Controller → Current Controller
@@ -280,7 +296,7 @@ private:
 
         // Field current reference for variable-speed voltage control
         signals_connector::connect_output_to_input(
-            field_current_reference_pu, plant.get_inputs().field_current_reference);
+            excitation_controller.get_outputs().field_current_reference, plant.get_inputs().field_current_reference);
 
         // ==================== Plant Model → Pulse Generators ====================
         // Connect reference angles from plant model to pulse generators for synchronization

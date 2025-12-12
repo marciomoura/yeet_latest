@@ -417,7 +417,10 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.reference_frame_source = reference_frame_source_t::ESTIMATED;
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::SPEED_CONTROL;
             _outputs.controller_commands.release_machine_side_pulses = false;
-            _outputs.controller_commands.release_excitation = false;
+            // During observer settling (start requested), enable excitation in parallel so the
+            // excitation controller's preflux timer can elapse without being delayed by the
+            // additional observer settling time spent in IDLE.
+            _outputs.controller_commands.release_excitation = _start_requested;
             _outputs.controller_commands.release_machine_observer =
                 _start_requested;  // Enable observer when start requested for settling
             _outputs.controller_commands.release_speed_controller = false;

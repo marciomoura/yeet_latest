@@ -6,6 +6,7 @@
 #include "sfc_integration/plant_hardware_definition.hpp"
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
+#include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_grid_side_hardware_mock_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
@@ -44,7 +45,8 @@ public:
           dc_link_measurements{_per_unit_system},
           speed_controller(),
           current_controller(_per_unit_system),
-          machine_side_controller()
+          machine_side_controller(),
+          excitation_controller()
     {
         stage_hardware_and_measurement_parameters();
         connect_all_components();
@@ -86,15 +88,26 @@ public:
         yeet::wire(machine_side_pulse_generator)
             .mocked(true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
+
+        // Excitation command (no startup_sequencer in this builder)
+        yeet::wire(excitation_controller)
+            .mocked(true)
+            .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
     }
     void initialize()
     {
+        // Configure plant for variable-speed operation and voltage control (excitation controller sets field current)
+        plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+        plant.get_parameters().voltage_control_mode.write(
+            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
+
         plant.initialize();
         grid_side_hardware_mock.initialize();
         machine_side_hardware_mock.initialize();
         grid_measurements.initialize();
         machine_measurements.initialize();
         dc_link_measurements.initialize();
+        excitation_controller.initialize();
         grid_side_observer.initialize();
         machine_side_observer.initialize();
         speed_controller.initialize();
@@ -115,8 +128,9 @@ public:
         simulator.register_runner(grid_side_observer);
         simulator.register_runner(machine_side_observer);
 
-        // Register speed controller with torque-to-current conversion
+        // Register speed controller with excitation and torque-to-current conversion
         simulator.register_lambda_runner(speed_controller.get_sampling_time(), [&]() {
+            excitation_controller.run();
             speed_controller.run();
             // Convert torque to current (1:1 assumption for simplified test without torque controller)
             current_reference_from_speed_ctrl.write(
@@ -137,6 +151,7 @@ public:
         grid_measurements.register_datamodel(registry);
         machine_measurements.register_datamodel(registry);
         dc_link_measurements.register_datamodel(registry);
+        excitation_controller.register_datamodel(registry);
         grid_side_observer.register_datamodel(registry);
         machine_side_observer.register_datamodel(registry);
         speed_controller.register_datamodel(registry);
@@ -148,6 +163,7 @@ public:
 
     // Public accessible members (tests can wire / sample signals)
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
+    sfc_excitation_controller_runner excitation_controller;                // Field current control
     sfc_speed_controller_runner speed_controller;                          // Outer loop
     sfc_current_controller_runner current_controller;                      // Inner loop (dc-link current)
     sfc_machine_side_controller_runner machine_side_controller;            // Machine-side lookup (firing angle)
@@ -169,9 +185,6 @@ public:
 
     // Internal signal for torque-to-current conversion (simplified tests without torque controller)
     signal_output<current_pu_t> current_reference_from_speed_ctrl;
-
-    // Field current reference for variable-speed operation (no excitation controller in this builder)
-    signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -244,6 +257,15 @@ private:
         signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_abc,
             machine_side_observer.get_inputs().machine_voltage_pu);
 
+        // ==================== Measurements → Excitation Controller ====================
+        // Provide speed and voltage magnitude feedback for excitation voltage regulation
+
+        signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_speed,
+            excitation_controller.get_inputs().machine_rotor_speed_pu);
+        signals_connector::connect_output_to_input(
+            machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
+            excitation_controller.get_inputs().machine_voltage_magnitude_pu);
+
         // ==================== Observer Estimates -> Speed Controller (feedback) ====================
         signals_connector::connect_output_to_input(
             machine_side_observer.get_outputs().estimated_speed, speed_controller.get_inputs().measured_speed);
@@ -291,9 +313,9 @@ private:
         signals_connector::connect_output_to_input(
             machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
-        // Field current reference for variable-speed voltage control
+        // Field current reference for variable-speed voltage control from excitation controller
         signals_connector::connect_output_to_input(
-            field_current_reference_pu, plant.get_inputs().field_current_reference);
+            excitation_controller.get_outputs().field_current_reference, plant.get_inputs().field_current_reference);
 
         // ==================== External Commands -> Speed Controller ====================
         signals_connector::connect_output_to_input(speed_reference, speed_controller.get_inputs().speed_reference);

@@ -20,11 +20,14 @@ void sfc_excitation_controller_runner::run()
 {
     // Update the excitation controller with enable command from startup sequencer
     const bool enable_excitation_command = _inputs.release_excitation.read();
-    _sfc_excitation_controller.update(enable_excitation_command);
+    const auto machine_speed_pu = _inputs.machine_rotor_speed_pu.read();
+    const auto machine_voltage_magnitude_pu = _inputs.machine_voltage_magnitude_pu.read();
+    _sfc_excitation_controller.update(machine_speed_pu, machine_voltage_magnitude_pu, enable_excitation_command);
 
     // Determine field current reference (apply override if enabled)
-    current_pu_t field_current_reference;
+    current_pu_t field_current_reference{};
     if (_parameters.field_current_reference_override.read()) {
+        _sfc_excitation_controller.reset();
         field_current_reference = _parameters.field_current_reference_override_value.read();
     }
     else {
@@ -33,6 +36,11 @@ void sfc_excitation_controller_runner::run()
 
     // Write outputs
     _outputs.field_current_reference.write(field_current_reference);
+
+    _outputs.machine_voltage_reference_pu.write(_sfc_excitation_controller.get_machine_voltage_reference_pu());
+    _outputs.machine_voltage_magnitude_pu.write(machine_voltage_magnitude_pu);
+    _outputs.machine_voltage_error_pu.write(_sfc_excitation_controller.get_machine_voltage_error_pu());
+
     _outputs.prefluxing_elapsed_time.write(
         _sfc_excitation_controller.get_flux_buildup_elapsed_time());  // Renamed getter
     _outputs.is_field_established.write(_sfc_excitation_controller.get_is_field_established());
@@ -47,10 +55,21 @@ void sfc_excitation_controller_runner::stop() { _sfc_excitation_controller.reset
 
 void sfc_excitation_controller_runner::set_parameters()
 {
-    // Configure constant field current setpoint and flux build-up duration
+    // Configure forced current setpoints and flux build-up duration
     _sfc_excitation_controller.configure_field_current_setpoint(_parameters.field_current_setpoint.read());
+    _sfc_excitation_controller.configure_low_voltage_field_current_setpoint(
+        _parameters.low_voltage_field_current_setpoint_pu.read());
     _sfc_excitation_controller.configure_flux_buildup_duration(
         _parameters.prefluxing_duration.read());  // Renamed method
+
+    // Configure voltage control
+    _sfc_excitation_controller.configure_voltage_threshold(_parameters.voltage_threshold_pu.read());
+    _sfc_excitation_controller.configure_voltage_reference_lookup_table(
+        _parameters.voltage_reference_speed_axis_pu.read(), _parameters.voltage_reference_pu.read());
+    _sfc_excitation_controller.configure_voltage_pi_gains(
+        _parameters.voltage_pi_kp.read(), _parameters.voltage_pi_ti.read());
+    _sfc_excitation_controller.configure_voltage_pi_output_limits(
+        _parameters.voltage_pi_output_min_pu.read(), _parameters.voltage_pi_output_max_pu.read());
 
     // Commented out - simplified version doesn't use speed threshold
     // _sfc_excitation_controller.configure_constant_flux_speed_threshold(
@@ -60,6 +79,14 @@ void sfc_excitation_controller_runner::set_parameters()
 void sfc_excitation_controller_runner::set_parameter_callback()
 {
     _parameters.field_current_setpoint.register_callback([&]() { set_parameters(); });
+    _parameters.low_voltage_field_current_setpoint_pu.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_threshold_pu.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_reference_speed_axis_pu.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_reference_pu.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_pi_kp.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_pi_ti.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_pi_output_min_pu.register_callback([&]() { set_parameters(); });
+    _parameters.voltage_pi_output_max_pu.register_callback([&]() { set_parameters(); });
     _parameters.prefluxing_duration.register_callback([&]() { set_parameters(); });
 
     // Commented out - simplified version doesn't use speed threshold parameter

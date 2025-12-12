@@ -94,6 +94,53 @@ public:
             speed_system_variant_t{const_cast<builder_type*>(&system)});
     }
 
+    voltage_pu_t get_excitation_voltage_reference() const
+    {
+        return std::visit(
+            overloaded{[&](plant_speed_control_simulation_builder const* sys) -> voltage_pu_t {
+                           return sys->excitation_controller.get_outputs().machine_voltage_reference_pu.read();
+                       },
+                [&](auto const* /*sys*/) -> voltage_pu_t { return voltage_pu_t{0.0}; }},
+            speed_system_variant_t{const_cast<builder_type*>(&system)});
+    }
+
+    voltage_pu_t get_excitation_voltage_measured() const
+    {
+        return std::visit(
+            overloaded{[&](plant_speed_control_simulation_builder const* sys) -> voltage_pu_t {
+                           return sys->excitation_controller.get_outputs().machine_voltage_magnitude_pu.read();
+                       },
+                [&](auto const* /*sys*/) -> voltage_pu_t { return voltage_pu_t{0.0}; }},
+            speed_system_variant_t{const_cast<builder_type*>(&system)});
+    }
+
+    voltage_pu_t get_excitation_voltage_error() const
+    {
+        return std::visit(
+            overloaded{[&](plant_speed_control_simulation_builder const* sys) -> voltage_pu_t {
+                           return sys->excitation_controller.get_outputs().machine_voltage_error_pu.read();
+                       },
+                [&](auto const* /*sys*/) -> voltage_pu_t { return voltage_pu_t{0.0}; }},
+            speed_system_variant_t{const_cast<builder_type*>(&system)});
+    }
+
+    current_pu_t get_field_current_reference() const
+    {
+        return std::visit(overloaded{[&](plant_speed_control_simulation_builder const* sys) -> current_pu_t {
+                                         return sys->excitation_controller.get_outputs().field_current_reference.read();
+                                     },
+                              [&](auto const* /*sys*/) -> current_pu_t { return current_pu_t{0.0}; }},
+            speed_system_variant_t{const_cast<builder_type*>(&system)});
+    }
+
+    current_pu_t get_actual_field_current_from_plant() const
+    {
+        return std::visit(overloaded{[&](auto const* sys) -> current_pu_t {
+            return system.plant.get_outputs().field_current_pu.read();
+        }},
+            speed_system_variant_t{const_cast<builder_type*>(&system)});
+    }
+
     real_t get_tolerance() const
     {
         if constexpr (std::is_same_v<builder_type, plant_speed_control_simulation_builder>) {
@@ -134,15 +181,20 @@ protected:
 
     void post_initialize_configuration()
     {
-        std::visit(overloaded{[&](plant_speed_control_simulation_builder* /*sys*/) {},
-                       [&](plant_sensorless_speed_control_simulation_builder* sys) {
-                           sys->plant.get_plant_model().set_voltage_control_mode(
-                               yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
-                       },
-                       [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
-                           sys->plant.get_plant_model().set_voltage_control_mode(
-                               yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
-                       }},
+        // Make the plant's runtime behavior unambiguous:
+        // - Plant runner gating uses datamodel parameters.
+        // - Plant physics uses the underlying plant model's internal modes.
+        // We set both here (after initialize, callbacks are registered).
+        std::visit(overloaded{[&](auto* sys) {
+            sys->plant.get_parameters().operation_mode.write(
+                sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+            sys->plant.get_parameters().voltage_control_mode.write(
+                sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
+            sys->plant.get_plant_model().set_operation_mode(
+                yeet::application::sfc::plant_model_machine_operation_mode::variable_speed);
+            sys->plant.get_plant_model().set_voltage_control_mode(
+                yeet::application::sfc::plant_model_voltage_control_mode::variable_speed);
+        }},
             speed_system_variant_t{&system});
     }
 
@@ -151,6 +203,7 @@ protected:
         std::visit(overloaded{[&](plant_speed_control_simulation_builder* sys) {
                                   register_complete_logger(sim, sys->speed_controller);
                                   register_complete_logger(sim, sys->current_controller);
+                                  register_complete_logger(sim, sys->excitation_controller);
                                   register_complete_logger(sim, sys->machine_side_controller);
                                   register_complete_logger(sim, sys->dc_link_measurements);
                                   register_complete_logger(sim, sys->plant);
@@ -158,6 +211,7 @@ protected:
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
                            register_complete_logger(sim, sys->speed_controller);
                            register_complete_logger(sim, sys->current_controller);
+                           register_complete_logger(sim, sys->excitation_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->grid_side_observer);
                            register_complete_logger(sim, sys->machine_side_observer);
@@ -166,6 +220,7 @@ protected:
                        [&](plant_sensorless_speed_control_mocked_hardware_simulation_builder* sys) {
                            register_complete_logger(sim, sys->speed_controller);
                            register_complete_logger(sim, sys->current_controller);
+                           register_complete_logger(sim, sys->excitation_controller);
                            register_complete_logger(sim, sys->dc_link_measurements);
                            register_complete_logger(sim, sys->grid_side_observer);
                            register_complete_logger(sim, sys->machine_side_observer);
@@ -224,15 +279,175 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
     // Time to 1.0 pu ≈ 3-4s, plus settling time ≈ 2s = ~6s total.
     // We use 15.0s to be absolutely sure it settles.
     this->set_speed_reference(speed_pu_t{1.0f});
+
     EXPECT_TRUE(this->sim.simulate_for(15.0));
+
     EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.0f}, this->get_tolerance())
         << "Speed regulation error too high at first reference";
 
+    // Voltage control checks - only for builders with excitation controller
+    if constexpr (std::is_same_v<typename TestFixture::builder_type, plant_speed_control_simulation_builder>) {
+        const auto voltage_measured = this->get_excitation_voltage_measured();
+        const auto voltage_reference = this->get_excitation_voltage_reference();
+        const auto voltage_error = this->get_excitation_voltage_error();
+        const auto field_current = this->get_field_current_reference();
+
+        // At 1.0 pu speed, voltage reference should be 1.0 pu (default LUT)
+        EXPECT_NEAR(voltage_reference.value(), 1.0f, 0.01f)
+            << "Excitation voltage reference should be near 1.0 pu at rated speed";
+
+        // Machine voltage magnitude should track the reference within 5%
+        EXPECT_NEAR(voltage_measured.value(), voltage_reference.value(), 0.05f)
+            << "Machine voltage measured (" << voltage_measured.value() << " pu) should track reference ("
+            << voltage_reference.value() << " pu) within 5%. Voltage error: " << voltage_error.value() << " pu";
+
+        // Voltage error should be small (closed-loop regulation)
+        EXPECT_NEAR(voltage_error.value(), 0.0f, 0.05f)
+            << "Excitation voltage control error should be near zero at steady state";
+    }
+
     // Phase 2: Small step from 1.0 to 1.05 pu (5% change)
     this->set_speed_reference(speed_pu_t{1.05f});
-    EXPECT_TRUE(this->sim.simulate_for(5.0));
+
+    EXPECT_TRUE(this->sim.simulate_for(10.0));
+
     EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.05f}, this->get_tolerance())
         << "Speed regulation error too high at second reference";
+
+    // Voltage control checks - only for builders with excitation controller
+    if constexpr (std::is_same_v<typename TestFixture::builder_type, plant_speed_control_simulation_builder>) {
+        auto voltage_measured = this->get_excitation_voltage_measured();
+        auto voltage_reference = this->get_excitation_voltage_reference();
+        auto voltage_error = this->get_excitation_voltage_error();
+        auto field_current = this->get_field_current_reference();
+
+        // At 1.05 pu speed, voltage reference should be ~1.04 pu (V/Hz continues linearly: 0.2 + 0.8*1.05 = 1.04)
+        EXPECT_NEAR(voltage_reference.value(), 1.04f, 0.02f)
+            << "Excitation voltage reference should scale with speed to maintain constant flux";
+
+        // Machine voltage magnitude should track the reference within 5%
+        EXPECT_NEAR(voltage_measured.value(), voltage_reference.value(), 0.05f)
+            << "Machine voltage measured (" << voltage_measured.value() << " pu) should track reference ("
+            << voltage_reference.value() << " pu) within 5%. Voltage error: " << voltage_error.value() << " pu";
+
+        // Voltage error should be small (closed-loop regulation)
+        EXPECT_NEAR(voltage_error.value(), 0.0f, 0.05f)
+            << "Excitation voltage control error should be near zero at steady state";
+    }
+}
+
+// ============================================================================
+// Test 1b: Voltage limiting test (0.9 pu limit)
+// ============================================================================
+TYPED_TEST(SpeedControlTypedTest, VoltageRegulationLimit)
+{
+    // This test verifies that the excitation controller can regulate to a voltage below rated
+    // We configure the voltage reference LUT to target 0.9 pu at 1.0 pu speed
+
+    // Only run this test for builders with excitation controller
+    if constexpr (std::is_same_v<typename TestFixture::builder_type, plant_speed_control_simulation_builder>) {
+        // Configure custom voltage reference LUT: linear ramp to 0.9 pu at 1.0 pu speed
+        // V = 0.2 + 0.7*speed (0.2 pu at standstill, 0.9 pu at rated speed)
+        std::array<speed_pu_t, 7> speed_axis = {speed_pu_t{0.0}, speed_pu_t{0.2}, speed_pu_t{0.4}, speed_pu_t{0.6},
+            speed_pu_t{0.8}, speed_pu_t{1.0}, speed_pu_t{1.1}};
+        std::array<voltage_pu_t, 7> voltage_ref = {voltage_pu_t{0.2}, voltage_pu_t{0.34}, voltage_pu_t{0.48},
+            voltage_pu_t{0.62}, voltage_pu_t{0.76}, voltage_pu_t{0.9}, voltage_pu_t{0.97}};
+
+        this->system.excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(speed_axis);
+        this->system.excitation_controller.get_parameters().voltage_reference_pu.write(voltage_ref);
+
+        // Verify plant is in variable_speed voltage control mode
+        auto plant_voltage_mode = this->system.plant.get_parameters().voltage_control_mode.read();
+        EXPECT_EQ(plant_voltage_mode, sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed)
+            << "Plant must be in variable_speed mode for excitation control to work";
+
+        // Run to 1.0 pu speed - need longer settling time for voltage to stabilize at new reference
+        this->set_speed_reference(speed_pu_t{1.0f});
+
+        EXPECT_TRUE(this->sim.simulate_for(30.0));
+
+        EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.0f}, this->get_tolerance())
+            << "Speed regulation error too high at 1.0 pu reference";
+
+        // Check voltage regulation to 0.9 pu
+        const auto voltage_measured = this->get_excitation_voltage_measured();
+        const auto voltage_reference = this->get_excitation_voltage_reference();
+        const auto voltage_error = this->get_excitation_voltage_error();
+        const auto field_current = this->get_field_current_reference();
+
+        // Voltage reference should be near 0.9 pu
+        EXPECT_NEAR(voltage_reference.value(), 0.9f, 0.01f)
+            << "Excitation voltage reference should be 0.9 pu (custom limit)";
+
+        // Machine voltage should track the 0.9 pu reference
+        EXPECT_NEAR(voltage_measured.value(), 0.9f, 0.05f) << "Machine voltage should regulate to 0.9 pu limit";
+
+        // Voltage error should be small
+        EXPECT_NEAR(voltage_error.value(), 0.0f, 0.05f)
+            << "Voltage control error should be near zero with 0.9 pu limit";
+
+        // Field current should be lower than rated (approximately 0.9 pu for 0.9 pu voltage)
+        EXPECT_LT(field_current.value(), 0.95f) << "Field current should be reduced for 0.9 pu voltage limit";
+    }
+}
+
+// ============================================================================
+// Test 1c: Voltage reference saturation at 1.0 pu above rated speed
+// ============================================================================
+TYPED_TEST(SpeedControlTypedTest, VoltageRegulationSaturatesAtOnePuAboveRatedSpeed)
+{
+    // This test verifies that the excitation controller can clamp the commanded machine voltage
+    // at 1.0 pu while speed increases beyond rated (e.g. 1.1 pu).
+
+    // Only run this test for builders with excitation controller
+    if constexpr (std::is_same_v<typename TestFixture::builder_type, plant_speed_control_simulation_builder>) {
+        // Configure custom voltage reference LUT:
+        // - Linear V/Hz up to rated speed (1.0 pu)
+        // - Saturate voltage at 1.0 pu for speeds above rated
+        std::array<speed_pu_t, 7> speed_axis = {speed_pu_t{0.0}, speed_pu_t{0.2}, speed_pu_t{0.4}, speed_pu_t{0.6},
+            speed_pu_t{0.8}, speed_pu_t{1.0}, speed_pu_t{1.1}};
+        std::array<voltage_pu_t, 7> voltage_ref = {voltage_pu_t{0.2}, voltage_pu_t{0.36}, voltage_pu_t{0.52},
+            voltage_pu_t{0.68}, voltage_pu_t{0.84}, voltage_pu_t{1.0}, voltage_pu_t{1.0}};
+
+        this->system.excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(speed_axis);
+        this->system.excitation_controller.get_parameters().voltage_reference_pu.write(voltage_ref);
+
+        // Verify plant is in variable_speed voltage control mode
+        const auto plant_voltage_mode = this->system.plant.get_parameters().voltage_control_mode.read();
+        EXPECT_EQ(plant_voltage_mode, sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed)
+            << "Plant must be in variable_speed mode for excitation control to work";
+
+        // Command speed beyond rated
+        this->set_speed_reference(speed_pu_t{1.1f});
+
+        // Let the speed and voltage loop settle (inertia is large; voltage is slower due to field dynamics)
+        EXPECT_TRUE(this->sim.simulate_for(25.0));
+
+        EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.1f}, this->get_tolerance())
+            << "Speed regulation error too high at 1.1 pu reference";
+
+        const auto voltage_reference = this->get_excitation_voltage_reference();
+        const auto voltage_measured = this->get_excitation_voltage_measured();
+        const auto voltage_error = this->get_excitation_voltage_error();
+        const auto field_current_ref = this->get_field_current_reference();
+
+        // Voltage reference should clamp to 1.0 pu
+        EXPECT_NEAR(voltage_reference.value(), 1.0f, 0.01f)
+            << "Voltage reference should saturate at 1.0 pu above rated speed";
+
+        // Measured voltage should be held near 1.0 pu (and not rise to ~1.1 pu)
+        EXPECT_NEAR(voltage_measured.value(), 1.0f, 0.05f)
+            << "Machine voltage should be regulated near 1.0 pu at 1.1 pu speed";
+        EXPECT_LT(voltage_measured.value(), 1.05f) << "Machine voltage should remain below 1.05 pu";
+
+        // Closed-loop regulation: error should be small
+        EXPECT_NEAR(voltage_error.value(), 0.0f, 0.05f)
+            << "Voltage control error should be near zero with 1.0 pu saturation";
+
+        // To keep voltage at 1.0 pu at 1.1 pu speed, flux (and thus field current) must reduce below 1.0 pu.
+        EXPECT_LT(field_current_ref.value(), 0.98f)
+            << "Field current should reduce when clamping voltage above rated speed";
+    }
 }
 
 // ============================================================================

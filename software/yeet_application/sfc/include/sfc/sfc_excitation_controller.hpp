@@ -5,6 +5,7 @@
 
 #include "yeet_control/elapsed_timer.hpp"
 #include "yeet_control/lookup_table_1d.hpp"
+#include "yeet_control/pi_controller.hpp"
 #include "yeet_control/rate_of_change_limiter.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
@@ -30,17 +31,20 @@ namespace yeet::application::sfc {
  */
 class sfc_excitation_controller {
 public:
-    // // Default lookup table dimensions
-    // static constexpr size_t NUM_LOOKUP_POINTS = 6;
+    /// Number of points used for the speed -> voltage reference lookup table
+    static constexpr size_t NUM_VOLTAGE_REFERENCE_POINTS = 7;
 
-    // // Default speed-to-field-current mapping (conservative safe values)
-    // // Speed axis in per-unit (0.0 = standstill, 1.0 = rated speed)
-    // static constexpr std::array<real_t, NUM_LOOKUP_POINTS> kDefaultSpeedAxisPu = {0.00, 0.05, 0.80,
-    // 0.95, 1.00, 1.05};
+    /// Default speed axis for the voltage reference lookup table [pu]
+    static constexpr std::array<speed_pu_t, NUM_VOLTAGE_REFERENCE_POINTS> kDefaultVoltageReferenceSpeedAxisPu = {
+        speed_pu_t{0.0}, speed_pu_t{0.2}, speed_pu_t{0.4}, speed_pu_t{0.6}, speed_pu_t{0.8}, speed_pu_t{1.0},
+        speed_pu_t{1.1}};
 
-    // // Field current reference axis in per-unit (typical soft-starter uses constant value)
-    // static constexpr std::array<real_t, NUM_LOOKUP_POINTS> kDefaultFieldCurrentReferencePu = {
-    //     1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    /// Default voltage reference values for the lookup table [pu]
+    /// Linear V/Hz ramp: V = 0.2 + 0.8*speed (0.2 pu at standstill, 1.0 pu at rated, continues to 1.1 pu)
+    /// Above rated speed, voltage continues to scale proportionally to maintain constant flux
+    static constexpr std::array<voltage_pu_t, NUM_VOLTAGE_REFERENCE_POINTS> kDefaultVoltageReferencePu = {
+        voltage_pu_t{0.2}, voltage_pu_t{0.36}, voltage_pu_t{0.52}, voltage_pu_t{0.68}, voltage_pu_t{0.84},
+        voltage_pu_t{1.0}, voltage_pu_t{1.08}};
 
     /**
      * @brief Constructs the excitation controller.
@@ -56,6 +60,55 @@ public:
      * @param field_current_setpoint Constant field current reference [pu].
      */
     void configure_field_current_setpoint(current_pu_t field_current_setpoint);
+
+    /**
+     * @brief Configures the low-voltage-region field current setpoint.
+     *
+     * This value is used when the measured machine voltage magnitude is below the configured
+     * voltage threshold *and* the configured field_current_setpoint is not set (<= 0).
+     *
+     * @param field_current_setpoint Low-voltage-region field current reference [pu].
+     */
+    void configure_low_voltage_field_current_setpoint(current_pu_t field_current_setpoint);
+
+    /**
+     * @brief Configures the voltage threshold for switching from forced current to voltage control.
+     *
+     * When measured machine voltage magnitude is below this threshold, the controller outputs a forced
+     * field current reference (no PI action). Above it, a speed-indexed voltage reference is used and
+     * a PI controller generates the field current reference.
+     *
+     * @param voltage_threshold_pu Voltage threshold [pu].
+     */
+    void configure_voltage_threshold(voltage_pu_t voltage_threshold_pu);
+
+    /**
+     * @brief Configures the voltage reference lookup table (speed -> voltage reference).
+     *
+     * @param speed_axis_pu Speed breakpoints [pu]. Must be sorted ascending.
+     * @param voltage_reference_pu Voltage reference values [pu].
+     */
+    void configure_voltage_reference_lookup_table(
+        const std::array<speed_pu_t, NUM_VOLTAGE_REFERENCE_POINTS>& speed_axis_pu,
+        const std::array<voltage_pu_t, NUM_VOLTAGE_REFERENCE_POINTS>& voltage_reference_pu);
+
+    /**
+     * @brief Configures the machine-voltage PI controller.
+     *
+     * The PI controller processes the voltage error (Vref - Vmeas) and generates a field current reference.
+     *
+     * @param kp Proportional gain.
+     * @param ti Integral time constant [s].
+     */
+    void configure_voltage_pi_gains(real_t kp, duration_t ti);
+
+    /**
+     * @brief Configures output limits for the PI-generated field current reference.
+     *
+     * @param min_field_current_pu Minimum field current reference [pu].
+     * @param max_field_current_pu Maximum field current reference [pu].
+     */
+    void configure_voltage_pi_output_limits(current_pu_t min_field_current_pu, current_pu_t max_field_current_pu);
 
     // /**
     //  * @brief Configures the constant flux region speed threshold.
@@ -152,7 +205,7 @@ public:
      *
      * @param enable_excitation_command Command to enable/disable excitation output (true = enable).
      */
-    void update(bool enable_excitation_command);
+    void update(speed_pu_t machine_speed_pu, voltage_pu_t machine_voltage_magnitude_pu, bool enable_excitation_command);
 
     /**
      * @brief Resets all internal states.
@@ -192,6 +245,18 @@ public:
      */
     duration_t get_flux_buildup_elapsed_time() const noexcept;
 
+    /**
+     * @brief Gets the current voltage reference used by the controller.
+     * @return Voltage reference [pu].
+     */
+    voltage_pu_t get_machine_voltage_reference_pu() const noexcept;
+
+    /**
+     * @brief Gets the current voltage control error (Vref - Vmeas).
+     * @return Voltage error [pu].
+     */
+    voltage_pu_t get_machine_voltage_error_pu() const noexcept;
+
 private:
     // Sampling time
     const duration_t _sampling_time;
@@ -201,9 +266,14 @@ private:
     // control::rate_of_change_limiter _field_current_rate_limiter;
     control::elapsed_timer _flux_buildup_timer;
 
+    control::lookup_table_1d<real_t, NUM_VOLTAGE_REFERENCE_POINTS> _voltage_reference_lookup_table;
+    control::pi_controller<real_t> _voltage_pi_controller;
+
     // Configuration parameters
-    current_pu_t _field_current_setpoint{0.8};  // Constant field current reference
-    duration_t _flux_buildup_duration{2.0};     // Time for flux to build up
+    current_pu_t _field_current_setpoint{0.8};              // Startup / commissioned forced current reference
+    current_pu_t _low_voltage_field_current_setpoint{0.8};  // Fallback forced current reference
+    voltage_pu_t _voltage_threshold_pu{0.4};                // Threshold for entering voltage PI control
+    duration_t _flux_buildup_duration{2.0};                 // Time for flux to build up
     // duration_t _field_established_timeout{5.0};
     // speed_pu_t _constant_flux_speed_threshold{0.2};  // Speed below which field current is constant
 
@@ -215,6 +285,17 @@ private:
     // Outputs
     current_pu_t _field_current_reference_pu{0.0};
     bool _enable_excitation{false};
+
+    voltage_pu_t _machine_voltage_reference_pu{0.0};
+    voltage_pu_t _machine_voltage_error_pu{0.0};
+
+    // PI mode tracking for bumpless transfer
+    bool _is_voltage_pi_active{false};
+    current_pu_t _last_forced_field_current_reference_pu{0.0};
+
+    // PI output limits cache (for integrator preset clamping)
+    current_pu_t _voltage_pi_output_min_pu{0.0};
+    current_pu_t _voltage_pi_output_max_pu{2.0};
 
     // Last known good values for fault handling
     // speed_pu_t _last_valid_speed{0.0};

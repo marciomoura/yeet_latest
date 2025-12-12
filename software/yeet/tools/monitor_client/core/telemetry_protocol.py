@@ -285,6 +285,10 @@ class MachineSideTelemetryPacket:
         return ExcitationControllerData(
             field_current_reference_pu=self.get_signal(MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE),
             prefluxing_elapsed_time_s=self.get_signal(MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME),
+
+            machine_voltage_reference_pu=self.get_signal(MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_REFERENCE_PU),
+            machine_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_MAGNITUDE_PU),
+            machine_voltage_error_pu=self.get_signal(MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_ERROR_PU),
         )
     
     @property
