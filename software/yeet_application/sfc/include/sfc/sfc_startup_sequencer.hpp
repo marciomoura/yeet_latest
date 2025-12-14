@@ -193,7 +193,8 @@ public:
      * @brief Starts the startup sequence
      *
      * Called when the main state machine enters OPERATION_ON or by manual command.
-     * Transitions from IDLE to FLUX_BUILDUP or directly to CLOSED_LOOP if flying restart.
+     * Transitions from IDLE to FLUX_BUILDUP. Flying start detection is evaluated
+     * after flux is established.
      *
      * Preconditions:
      * - System must be in safe state
@@ -323,13 +324,14 @@ private:
     // State transition methods
     void transition_to_flux_buildup();
     void transition_to_starting_procedure();
-    void transition_to_closed_loop_operation();
+    void transition_to_closed_loop_operation(speed_pu_t initial_speed_reference);
     void transition_to_idle();
 
     // State update methods
     void update_idle(
         speed_pu_t external_speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
-    void update_flux_buildup(bool is_field_established);
+    void update_flux_buildup(
+        bool is_field_established, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
     void update_starting_procedure(frequency_t base_frequency);
     void update_closed_loop_operation(speed_pu_t speed_reference);
 

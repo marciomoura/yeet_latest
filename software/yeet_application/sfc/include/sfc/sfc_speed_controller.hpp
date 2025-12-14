@@ -89,6 +89,19 @@ public:
     void preset_with_torque(torque_pu_t initial_torque_pu);
 
     /**
+     * @brief Presets the controller for bumpless transfer accounting for current speed error.
+     * @param applied_torque_pu The applied torque at handover [pu].
+     * @param speed_ref_pu The speed reference at handover [pu].
+     * @param speed_measured_pu The measured speed at handover [pu].
+     *
+     * This method properly initializes the PI controller's integrator accounting for the
+     * current speed error, ensuring truly bumpless transfer when switching from manual
+     * torque control to closed-loop speed control.
+     */
+    void preset_for_bumpless_transfer(
+        torque_pu_t applied_torque_pu, speed_pu_t speed_ref_pu, speed_pu_t speed_measured_pu);
+
+    /**
      * @brief Enables or disables the integrator state.
      * @param status True to enable, false to disable.
      */

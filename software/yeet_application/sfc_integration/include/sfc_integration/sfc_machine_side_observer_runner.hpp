@@ -26,6 +26,7 @@ public:
 
 private:
     sfc::sfc_machine_side_observer _sfc_machine_side_observer;
+    bool _previous_preset_observer{false};
 };
 
 }  // namespace yeet::application::sfc::integration

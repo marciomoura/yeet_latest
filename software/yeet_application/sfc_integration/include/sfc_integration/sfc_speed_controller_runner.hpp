@@ -5,6 +5,7 @@
 #include "yeet/application_interface.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/edge_detector.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -28,6 +29,8 @@ private:
     void set_parameter_callback();
 
     sfc::sfc_speed_controller _sfc_speed_controller;
+
+    yeet::control::edge_detector _release_edge_detector;
 };
 
 }  // namespace yeet::application::sfc::integration

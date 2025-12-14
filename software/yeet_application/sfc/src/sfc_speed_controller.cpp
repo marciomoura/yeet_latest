@@ -116,6 +116,26 @@ void sfc_speed_controller::preset_with_torque(torque_pu_t initial_torque_pu)
     _torque_ref_unclamped = initial_torque_pu;
 }
 
+void sfc_speed_controller::preset_for_bumpless_transfer(
+    torque_pu_t applied_torque_pu, speed_pu_t speed_ref_pu, speed_pu_t speed_measured_pu)
+{
+    // Calculate the current speed error at handover.
+    const speed_pu_t speed_error_pu = speed_ref_pu - speed_measured_pu;
+
+    // Preset the PI controller's integrator accounting for both the desired output
+    // (applied torque) and the current error. This ensures the controller will output
+    // the applied torque immediately after handover without any step change.
+    _pi_controller.preset_for_bumpless_transfer(applied_torque_pu.value(), speed_error_pu.value());
+
+    // Reset the derivative calculator to zero since we're starting speed control.
+    _speed_ref_derivative.reset(0.0f);
+
+    // Initialize outputs with the preset torque value.
+    _torque_ref_pu = applied_torque_pu;
+    _pi_output = applied_torque_pu.value();
+    _torque_ref_unclamped = applied_torque_pu;
+}
+
 void sfc_speed_controller::freeze_integrator(bool status) { _pi_controller.enable_integrator(!status); }
 
 }  // namespace yeet::application::sfc
