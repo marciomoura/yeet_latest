@@ -272,6 +272,47 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
 
     // Register the entry with the model registry
     registry.insert("grid_side_external_ios", std::move(entry));
+
+    // ==================== IO Index Mapping Parameters ====================
+    // Keep IO index mapping parameters in a separate component so they don't mix
+    // with override parameters in UIs.
+    yeet::model_registry_entry io_entry{yeet::signal_registry{}, yeet::parameter_registry{}};
+
+    // Digital input mapping indices
+    io_entry.parameters.insert(
+        "di_auxiliaries_are_on_index", yeet::utils::make_units_accessor(_parameters.di_auxiliaries_are_on_index));
+    io_entry.parameters.insert(
+        "di_mcb_is_closed_index", yeet::utils::make_units_accessor(_parameters.di_mcb_is_closed_index));
+    io_entry.parameters.insert(
+        "di_start_command_index", yeet::utils::make_units_accessor(_parameters.di_start_command_index));
+    io_entry.parameters.insert(
+        "di_stop_command_index", yeet::utils::make_units_accessor(_parameters.di_stop_command_index));
+    io_entry.parameters.insert(
+        "di_shutdown_request_index", yeet::utils::make_units_accessor(_parameters.di_shutdown_request_index));
+    io_entry.parameters.insert(
+        "di_breaker_is_closed_index", yeet::utils::make_units_accessor(_parameters.di_breaker_is_closed_index));
+    io_entry.parameters.insert(
+        "di_breaker_is_tripping_index", yeet::utils::make_units_accessor(_parameters.di_breaker_is_tripping_index));
+    io_entry.parameters.insert(
+        "di_emergency_off_index", yeet::utils::make_units_accessor(_parameters.di_emergency_off_index));
+    io_entry.parameters.insert(
+        "di_door_is_open_index", yeet::utils::make_units_accessor(_parameters.di_door_is_open_index));
+
+    // Digital output mapping indices
+    io_entry.parameters.insert("do_mcb_close_index", yeet::utils::make_units_accessor(_parameters.do_mcb_close_index));
+    io_entry.parameters.insert("do_mcb_open_index", yeet::utils::make_units_accessor(_parameters.do_mcb_open_index));
+
+    // Analog output mapping indices
+    io_entry.parameters.insert("ao_estimated_reference_angle_index",
+        yeet::utils::make_units_accessor(_parameters.ao_estimated_reference_angle_index));
+    io_entry.parameters.insert(
+        "ao_grid_voltage_a_index", yeet::utils::make_units_accessor(_parameters.ao_grid_voltage_a_index));
+    io_entry.parameters.insert("ao_grid_voltage_a_unmasked_index",
+        yeet::utils::make_units_accessor(_parameters.ao_grid_voltage_a_unmasked_index));
+    io_entry.parameters.insert("ao_grid_voltage_alpha_filtered_index",
+        yeet::utils::make_units_accessor(_parameters.ao_grid_voltage_alpha_filtered_index));
+
+    registry.insert("grid_io_indexes", std::move(io_entry));
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_mcb_close() const { return _digital_outputs.mcb_close.read(); }

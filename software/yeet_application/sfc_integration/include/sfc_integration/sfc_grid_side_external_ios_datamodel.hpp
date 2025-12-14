@@ -101,6 +101,30 @@ public:
         yeet::parameter<bool> di_door_is_open_override{false};
         /// Override value for door_is_open (when override enabled)
         yeet::parameter<bool> di_door_is_open_override_value{false};
+
+        // ==================== IO Index Mapping (IO Channel Selection) ====================
+        // Select which physical IO channel (0..N-1) maps to each logical signal.
+        // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
+        // N comes from TASK_IO_NUM_DIGITAL_INPUTS / TASK_IO_NUM_DIGITAL_OUTPUTS / TASK_IO_NUM_ANALOG_OUTPUTS.
+        yeet::parameter<int> di_auxiliaries_are_on_index{0};
+        yeet::parameter<int> di_mcb_is_closed_index{1};
+        yeet::parameter<int> di_start_command_index{2};
+        yeet::parameter<int> di_stop_command_index{3};
+        yeet::parameter<int> di_shutdown_request_index{4};
+        yeet::parameter<int> di_breaker_is_closed_index{5};
+        yeet::parameter<int> di_breaker_is_tripping_index{6};
+        yeet::parameter<int> di_emergency_off_index{7};
+        yeet::parameter<int> di_door_is_open_index{8};
+
+        // Defaults match the legacy commented mapping in grid_side_tasks.cpp (DO7/DO8).
+        yeet::parameter<int> do_mcb_close_index{6};
+        yeet::parameter<int> do_mcb_open_index{7};
+
+        // Defaults match the legacy monitoring AOs in grid_side_tasks.cpp (AO0..AO3).
+        yeet::parameter<int> ao_estimated_reference_angle_index{0};
+        yeet::parameter<int> ao_grid_voltage_a_index{1};
+        yeet::parameter<int> ao_grid_voltage_a_unmasked_index{2};
+        yeet::parameter<int> ao_grid_voltage_alpha_filtered_index{3};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
