@@ -129,16 +129,36 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
         "exc_excitation_start_command", yeet::utils::make_bool_accessor(_parameters.excitation_start_command));
     entry.parameters.insert(
         "exc_excitation_stop_command", yeet::utils::make_bool_accessor(_parameters.excitation_stop_command));
-    entry.parameters.insert("exc_excitation_current_reference",
-        yeet::utils::make_units_accessor(_parameters.excitation_current_reference));
+    entry.parameters.insert(
+        "exc_excitation_current_reference", yeet::utils::make_units_accessor(_parameters.excitation_current_reference));
     entry.parameters.insert(
         "exc_override_excitation_inputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_inputs));
     entry.parameters.insert(
         "exc_excitation_current_actual", yeet::utils::make_units_accessor(_parameters.excitation_current_actual));
-    entry.parameters.insert(
-        "exc_excitation_running", yeet::utils::make_bool_accessor(_parameters.excitation_running));
+    entry.parameters.insert("exc_excitation_running", yeet::utils::make_bool_accessor(_parameters.excitation_running));
 
     registry.insert("machine_side_external_ios", std::move(entry));
+
+    // ==================== IO Index Mapping Parameters ====================
+    // Keep IO index mapping parameters in a separate component so they don't mix
+    // with excitation override parameters in UIs.
+    yeet::model_registry_entry io_entry{yeet::signal_registry{}, yeet::parameter_registry{}};
+
+    // Digital input mapping indices
+    io_entry.parameters.insert(
+        "di_excitation_running_index", yeet::utils::make_units_accessor(_parameters.di_excitation_running_index));
+
+    // Digital output mapping indices
+    io_entry.parameters.insert(
+        "do_fiber_link_ok_index", yeet::utils::make_units_accessor(_parameters.do_fiber_link_ok_index));
+    io_entry.parameters.insert(
+        "do_excitation_release_index", yeet::utils::make_units_accessor(_parameters.do_excitation_release_index));
+
+    // Analog output mapping indices
+    io_entry.parameters.insert("ao_excitation_current_reference_index",
+        yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_index));
+
+    registry.insert("machine_io_indexes", std::move(io_entry));
 }
 
 }  // namespace yeet::application::sfc::integration

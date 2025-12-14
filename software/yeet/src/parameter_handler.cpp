@@ -5,7 +5,84 @@
 
 #include "yeet/parameter_handler.hpp"
 
+#include <cmath>
+#include <cstring>
+
+#ifdef HOST_BUILD
 #include <iostream>
+#endif
+
+namespace {
+
+constexpr float k_default_min = -1e6f;
+constexpr float k_default_max = 1e6f;
+
+// Keep these in sync with software/yeet_application/sfc_embedded/include/sfc_embedded/task_io.h
+constexpr int k_task_io_num_digital_inputs = 48;
+constexpr int k_task_io_num_digital_outputs = 48;
+constexpr int k_task_io_num_analog_outputs = 4;
+
+inline bool ends_with(const std::string& s, const char* suffix) noexcept
+{
+    const std::string_view sv{s};
+    const std::string_view suf{suffix};
+    return sv.size() >= suf.size() && sv.compare(sv.size() - suf.size(), suf.size(), suf) == 0;
+}
+
+inline bool starts_with(const std::string& s, const char* prefix) noexcept
+{
+    const std::string_view sv{s};
+    const std::string_view pre{prefix};
+    return sv.size() >= pre.size() && sv.compare(0, pre.size(), pre) == 0;
+}
+
+inline bool is_index_parameter_name(const std::string& name) noexcept
+{
+    // IO index mapping parameters use the naming convention:
+    //   di_{name}_index, do_{name}_index, ao_{name}_index
+    return ends_with(name, "_index") &&
+           (starts_with(name, "di_") || starts_with(name, "do_") || starts_with(name, "ao_"));
+}
+
+inline bool get_index_parameter_range(const std::string& name, float& min_value, float& max_value) noexcept
+{
+    if (starts_with(name, "di_") && ends_with(name, "_index")) {
+        min_value = 0.0f;
+        max_value = static_cast<float>(k_task_io_num_digital_inputs - 1);
+        return true;
+    }
+    if (starts_with(name, "do_") && ends_with(name, "_index")) {
+        min_value = 0.0f;
+        max_value = static_cast<float>(k_task_io_num_digital_outputs - 1);
+        return true;
+    }
+    if (starts_with(name, "ao_") && ends_with(name, "_index")) {
+        min_value = 0.0f;
+        max_value = static_cast<float>(k_task_io_num_analog_outputs - 1);
+        return true;
+    }
+    return false;
+}
+
+inline bool is_effectively_integer(float v) noexcept
+{
+    // Parameter protocol transports float. For index parameters, accept only whole numbers.
+    // Use a small epsilon to tolerate float representation.
+    constexpr float eps = 1e-5f;
+    return std::fabs(v - std::round(v)) <= eps;
+}
+
+inline void write_error_message(char* dst, std::size_t dst_size, const char* message) noexcept
+{
+    if (dst == nullptr || dst_size == 0) {
+        return;
+    }
+
+    std::strncpy(dst, message != nullptr ? message : "", dst_size - 1);
+    dst[dst_size - 1] = '\0';
+}
+
+}  // namespace
 
 namespace yeet::telemetry {
 
@@ -49,10 +126,14 @@ void parameter_handler::build_parameter_cache()
             entry.type = parameter_value_type::float32;
 
             // TODO: Extract constraints from metadata when available
-            // For now, use wide defaults
-            entry.min_value = -1e6f;
-            entry.max_value = 1e6f;
+            // For now, use wide defaults, with special handling for IO index parameters.
+            entry.min_value = k_default_min;
+            entry.max_value = k_default_max;
             entry.default_value = 0.0f;
+
+            // Apply per-parameter constraints for IO mapping indices.
+            // This enables parameter SET rejection for out-of-range mappings.
+            (void)get_index_parameter_range(entry.name, entry.min_value, entry.max_value);
 
             // Store accessor for direct read/write
             entry.accessor = accessor;
@@ -121,8 +202,7 @@ bool parameter_handler::handle_set_request(
     if (!param) {
         // Parameter not found
         response.status = 1;  // NOT_FOUND
-        std::snprintf(response.error_message, sizeof(response.error_message), "Parameter %s.%s not found",
-            request.component, request.name);
+        write_error_message(response.error_message, sizeof(response.error_message), "NOT_FOUND");
 #ifdef HOST_BUILD
         std::cout << "[PARAM] SET FAILED: " << response.error_message << std::endl;
 #endif
@@ -136,8 +216,19 @@ bool parameter_handler::handle_set_request(
     if (!is_value_in_range(*param, request.value)) {
         response.new_value = request.value;
         response.status = 2;  // OUT_OF_RANGE
-        std::snprintf(response.error_message, sizeof(response.error_message), "Value %.4f out of range [%.4f, %.4f]",
-            request.value, param->min_value, param->max_value);
+        write_error_message(response.error_message, sizeof(response.error_message), "OUT_OF_RANGE");
+#ifdef HOST_BUILD
+        std::cout << "[PARAM] SET FAILED: " << response.error_message << std::endl;
+#endif
+        return true;
+    }
+
+    // Enforce integer-only writes for IO index parameters (e.g. di_*_index).
+    // This is done after range check so error messaging remains consistent.
+    if (is_index_parameter_name(param->name) && !is_effectively_integer(request.value)) {
+        response.new_value = request.value;
+        response.status = 2;  // OUT_OF_RANGE
+        write_error_message(response.error_message, sizeof(response.error_message), "INVALID_INTEGER");
 #ifdef HOST_BUILD
         std::cout << "[PARAM] SET FAILED: " << response.error_message << std::endl;
 #endif
@@ -148,7 +239,7 @@ bool parameter_handler::handle_set_request(
     param->accessor.write<float>(request.value);
     response.new_value = request.value;
     response.status = 0;  // SUCCESS
-    std::snprintf(response.error_message, sizeof(response.error_message), "OK");
+    write_error_message(response.error_message, sizeof(response.error_message), "OK");
 
 #ifdef HOST_BUILD
     std::cout << "[PARAM] SET SUCCESS: " << param->component << "." << param->name << " = " << request.value << " (was "

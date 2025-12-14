@@ -14,6 +14,71 @@
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 
+namespace {
+
+inline bool is_valid_di_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_DIGITAL_INPUTS; }
+
+inline bool is_valid_do_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_DIGITAL_OUTPUTS; }
+
+inline bool is_valid_ao_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_ANALOG_OUTPUTS; }
+
+inline bool read_di(const task_inputs_t* inputs, int idx) noexcept
+{
+    if (inputs == nullptr || !inputs->digital_inputs.valid) {
+        return false;
+    }
+    if (!is_valid_di_index(idx)) {
+        return false;
+    }
+    return inputs->digital_inputs.signals[idx];
+}
+
+inline void clear_digital_outputs(task_outputs_t* outputs) noexcept
+{
+    if (outputs == nullptr) {
+        return;
+    }
+    for (auto& s : outputs->digital_outputs.signals) {
+        s = false;
+    }
+}
+
+inline void write_do(task_outputs_t* outputs, int idx, bool value) noexcept
+{
+    if (outputs == nullptr) {
+        return;
+    }
+    if (!is_valid_do_index(idx)) {
+        return;
+    }
+    outputs->digital_outputs.signals[idx] = value;
+}
+
+inline void clear_analog_outputs(task_outputs_t* outputs) noexcept
+{
+    if (outputs == nullptr) {
+        return;
+    }
+    for (auto& c : outputs->analog_outputs.channels) {
+        c = 0.0f;
+    }
+    outputs->analog_outputs.valid = false;
+}
+
+inline void write_ao(task_outputs_t* outputs, int idx, float value) noexcept
+{
+    if (outputs == nullptr) {
+        return;
+    }
+    if (!is_valid_ao_index(idx)) {
+        return;
+    }
+    outputs->analog_outputs.channels[idx] = value;
+    outputs->analog_outputs.valid = true;
+}
+
+}  // namespace
+
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
 #define ARM_FUNCTION __attribute__((target("thumb")))
@@ -160,14 +225,20 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
-    outputs->analog_outputs.channels[0] =
-        control->grid_side_observer.get_outputs().estimated_reference_angle.read().get_pu().value();             // CH A
-    outputs->analog_outputs.channels[1] = control->grid_measurements.get_outputs().grid_voltage_abc.read().a();  // CH B
-    outputs->analog_outputs.channels[2] =
-        control->grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();  // CH C
-    outputs->analog_outputs.channels[3] =
-        control->grid_measurements.get_outputs().grid_voltage_alphabeta_filtered.read().alpha();  // CH D
-    outputs->analog_outputs.valid = true;  // Signal to writer task that values are valid
+    clear_analog_outputs(outputs);
+
+    const auto& io_params = control->get_external_ios().get_parameters();
+    const float estimated_reference_angle =
+        control->grid_side_observer.get_outputs().estimated_reference_angle.read().get_pu().value();
+    const float grid_voltage_a = control->grid_measurements.get_outputs().grid_voltage_abc.read().a();
+    const float grid_voltage_a_unmasked = control->grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();
+    const float grid_voltage_alpha_filtered =
+        control->grid_measurements.get_outputs().grid_voltage_alphabeta_filtered.read().alpha();
+
+    write_ao(outputs, io_params.ao_estimated_reference_angle_index.read(), estimated_reference_angle);
+    write_ao(outputs, io_params.ao_grid_voltage_a_index.read(), grid_voltage_a);
+    write_ao(outputs, io_params.ao_grid_voltage_a_unmasked_index.read(), grid_voltage_a_unmasked);
+    write_ao(outputs, io_params.ao_grid_voltage_alpha_filtered_index.read(), grid_voltage_alpha_filtered);
 
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
@@ -204,17 +275,18 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     // Based on typical SFC system supervisory control interface:
     //   DI1-DI6: State machine commands (auxiliaries, breakers, start, stop, etc.)
     //   DI7-DI16: System status and interlocks
-    if (inputs->digital_inputs.valid) {
-        // Update supervisory digital inputs from hardware I/O
-        control->external_ios.set_digital_inputs(inputs->digital_inputs.signals[0],  // DI1: Auxiliary systems ready
-            inputs->digital_inputs.signals[1],                                       // DI2: Grid breakers closed
-            inputs->digital_inputs.signals[2],                                       // DI3: Start command
-            inputs->digital_inputs.signals[3],                                       // DI4: Stop command
-            inputs->digital_inputs.signals[4],                                       // DI5: Emergency shutdown
-            inputs->digital_inputs.signals[5],   // DI6: Breaker is closed (optional status)
-            inputs->digital_inputs.signals[6],   // DI7: Breaker is tripping (protection relay)
-            inputs->digital_inputs.signals[7],   // DI8: Emergency off
-            inputs->digital_inputs.signals[8]);  // DI9: Door is open
+    const auto& io_params = control->get_external_ios().get_parameters();
+    if (inputs != nullptr && inputs->digital_inputs.valid) {
+        // Update supervisory digital inputs from hardware I/O with configurable channel mapping.
+        control->external_ios.set_digital_inputs(read_di(inputs, io_params.di_auxiliaries_are_on_index.read()),
+            read_di(inputs, io_params.di_mcb_is_closed_index.read()),
+            read_di(inputs, io_params.di_start_command_index.read()),
+            read_di(inputs, io_params.di_stop_command_index.read()),
+            read_di(inputs, io_params.di_shutdown_request_index.read()),
+            read_di(inputs, io_params.di_breaker_is_closed_index.read()),
+            read_di(inputs, io_params.di_breaker_is_tripping_index.read()),
+            read_di(inputs, io_params.di_emergency_off_index.read()),
+            read_di(inputs, io_params.di_door_is_open_index.read()));
     }
 
     // Process fiber-optic RX data from machine-side controller
@@ -242,6 +314,12 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     std::memcpy(
         outputs->fiber_optic_tx.payload, control->get_fiber_optic_tx_payload(), payload_words * sizeof(uint32_t));
     outputs->fiber_optic_tx.transmit_request = true;
+
+    // ==================== DIGITAL OUTPUTS → EXTERNAL COMMANDS ====================
+    // Drive mapped breaker commands onto the physical DO array.
+    clear_digital_outputs(outputs);
+    write_do(outputs, io_params.do_mcb_close_index.read(), control->external_ios.get_mcb_close());
+    write_do(outputs, io_params.do_mcb_open_index.read(), control->external_ios.get_mcb_open());
 
     // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
     // Map control system status to hardware digital outputs via I/O interface

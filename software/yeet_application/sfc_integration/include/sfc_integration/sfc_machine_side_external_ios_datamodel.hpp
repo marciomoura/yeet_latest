@@ -82,6 +82,17 @@ public:
         yeet::parameter<bool> override_excitation_inputs{false};
         yeet::parameter<current_pu_t> excitation_current_actual{current_pu_t{0.0}};
         yeet::parameter<bool> excitation_running{false};
+
+        // ==================== IO Index Mapping (IO Channel Selection) ====================
+        // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
+        // N comes from TASK_IO_NUM_DIGITAL_INPUTS / TASK_IO_NUM_DIGITAL_OUTPUTS / TASK_IO_NUM_ANALOG_OUTPUTS.
+        yeet::parameter<int> di_excitation_running_index{0};
+
+        // Defaults match current machine_side_tasks.cpp mapping.
+        yeet::parameter<int> do_fiber_link_ok_index{0};
+        yeet::parameter<int> do_excitation_release_index{1};
+
+        yeet::parameter<int> ao_excitation_current_reference_index{0};
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================
@@ -183,7 +194,7 @@ public:
      * Flow: excitation_controller → external_ios → embedded/hardware → excitation system
      */
     struct excitation_outputs_t {
-        signal_input<bool> excitation_release;            ///< Excitation release command (DO)
+        signal_input<bool> excitation_release;                    ///< Excitation release command (DO)
         signal_input<current_pu_t> excitation_current_reference;  ///< Excitation current reference (AO)
     };
 
