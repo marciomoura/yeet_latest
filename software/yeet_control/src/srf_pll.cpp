@@ -65,6 +65,26 @@ void srf_pll::preset(angle_wrapped preset_angle, frequency_pu_t preset_frequency
     _phase_integrator.reset(preset_angle);
 }
 
+void srf_pll::preset_for_bumpless_transfer(
+    angle_wrapped preset_angle, frequency_pu_t preset_frequency, const alphabeta<voltage_pu_t>& input_alphabeta)
+{
+    // Store the starting operating point
+    _initial_frequency = preset_frequency;
+    _estimated_frequency = to_si(_initial_frequency, _nominal_frequency);
+
+    // Initialize the phase integrator to the desired angle
+    _phase_integrator.reset(preset_angle);
+
+    // Compute the present phase error at the preset angle and preload the PI integrator so that
+    // the initial controller output (frequency deviation) is zero.
+    _dq_vector = input_alphabeta.to_dq(preset_angle);
+    const real_t current_error = real_t{_dq_vector.q().value()};
+    _frequency_pi_controller.preset_for_bumpless_transfer(real_t{0.0}, current_error);
+
+    // Reset the frequency estimation filter to the preset frequency
+    _frequency_estimation_filter.reset(_estimated_frequency.value());
+}
+
 void srf_pll::update(const alphabeta<voltage_pu_t>& input_alphabeta)
 {
     // Park transform (αβ → dq) using the current estimated angle

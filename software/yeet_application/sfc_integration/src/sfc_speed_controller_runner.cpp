@@ -22,22 +22,18 @@ void sfc_speed_controller_runner::initialize()
 
 void sfc_speed_controller_runner::run()
 {
-    // Track previous release state for edge detection
-    static bool previous_release_state = false;
     const bool current_release_state = _inputs.release_pulses.read();
+    const bool current_preset_request = _inputs.preset_request.read();
+    const bool release_rising_edge = _release_edge_detector.update(current_release_state);
 
-    if (!current_release_state) {
-        // Not enabled - reset controller state
-        _sfc_speed_controller.preset_with_torque({});
+    // Bumpless transfer: supervisor provides a one-shot preset_request at handover (signal level).
+    // Keep a release-edge fallback for safety in case preset_request is not wired.
+    const bool preset = current_preset_request || release_rising_edge;
+
+    if (preset) {
+        _sfc_speed_controller.preset_for_bumpless_transfer(
+            _inputs.applied_torque_reference, _inputs.speed_reference, _inputs.measured_speed);
     }
-
-    // Detect rising edge (false → true transition) for bumpless transfer
-    if (!previous_release_state && current_release_state) {
-        // First release: initialize integrator with torque reference for smooth transition
-        _sfc_speed_controller.preset_with_torque(_inputs.applied_torque_reference);
-    }
-
-    previous_release_state = current_release_state;
 
     // Execute controller update
     if (current_release_state) {

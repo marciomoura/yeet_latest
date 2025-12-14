@@ -8,7 +8,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
 #include <string>
+#include <vector>
 
 #include "sfc_integration/plant_complete_sfc_closed_loop_simulation_builder.hpp"
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
@@ -26,13 +29,13 @@ public:
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
-        simulator.configure_sampler_sampling_rate(ms(10.0f));
+        simulator.configure_sampler_sampling_rate(ms(1.0f));
 
         // Register all applications with the simulator
         system.register_applications(simulator);
 
         // Configure topology to use internal model
-        system.plant.get_parameters().topology.write(sfc_plant_model_datamodel::topology_type::internal);
+        system.plant.get_parameters().topology.write(sfc_plant_model_datamodel::topology_type::simulink);
 
         // Configure plant for gas turbine soft-starter application
         auto gas_turbine_config = yeet::application::sfc::integration::test::create_gas_turbine_config();
@@ -42,6 +45,7 @@ public:
         initialize();
 
         // Register loggers for debugging
+        register_minimal_logger(simulator, system.plant);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
@@ -247,10 +251,12 @@ TEST_F(ClosedLoopStartupSequencerTest, StartupSequencerIntegrationTest)
 
 /**
  * @test ObserverPresetDuringVirtualStartupTest
- * @brief Validates that the observer is preset with the virtual reference frame angle
+ * @brief Validates bumpless handover using supervisor-driven speed PI initialization
  *
- * This test validates the bumpless transfer mechanism from open-loop virtual startup
- * to closed-loop sensorless control.
+ * New strategy:
+ * - Observer runs in the background during virtual startup, but is not preset/held for switchover.
+ * - Integrator supervisor issues a one-shot preset_request when the speed controller is enabled.
+ * - Speed controller presets its PI integrator using the last applied torque, minimizing torque steps.
  */
 TEST_F(ClosedLoopStartupSequencerTest, ObserverPresetDuringVirtualStartupTest)
 {
@@ -265,14 +271,22 @@ TEST_F(ClosedLoopStartupSequencerTest, ObserverPresetDuringVirtualStartupTest)
 
     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
 
-    // Set speed reference before startup
-    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.5});
+    // Set speed reference before startup.
+    // Keep it equal to the final virtual frequency to avoid an operating-point step at handover.
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.05});
 
-    // Variables to Capture Preset Event
-    bool preset_observed = false;
-    angle_wrapped preset_angle_captured{0.0};
-    angle_wrapped virtual_angle_at_preset{0.0};
-    startup_sequencer_state_t state_at_preset = startup_sequencer_state_t::IDLE;
+    bool preset_observer_seen = false;
+
+    bool supervisor_preset_seen = false;
+    startup_sequencer_state_t state_at_supervisor_preset = startup_sequencer_state_t::IDLE;
+
+    bool handover_seen = false;
+    double handover_time_s = 0.0;
+    reference_frame_source_t previous_ref_source = reference_frame_source_t::VIRTUAL;
+
+    // Torque continuity check around handover
+    std::vector<float> torque_samples;
+    std::vector<double> time_samples;
 
     // Execute State Machine Startup
     execute_startup_sequence();
@@ -284,35 +298,50 @@ TEST_F(ClosedLoopStartupSequencerTest, ObserverPresetDuringVirtualStartupTest)
     // Configure moderate load torque
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
 
-    // Manual Simulation Loop to monitor the preset signal
+    // Manual Simulation Loop to monitor handover and preset pulses
     const double step_size = 0.001;  // 1ms
     const double total_time = 20.0;
     const int total_steps = static_cast<int>(total_time / step_size);
 
     for (int i = 0; i < total_steps; ++i) {
+        const double t = i * step_size;
         simulator.simulate_for(step_size);
 
-        auto preset_signal = system.machine_side_control.startup_sequencer.get_outputs().preset_observer.read();
-
-        if (preset_signal && !preset_observed) {
-            preset_observed = true;
-            preset_angle_captured = system.machine_side_control.startup_sequencer.get_outputs().preset_angle.read();
-            virtual_angle_at_preset =
-                system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
-            state_at_preset = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+        const auto ref_source =
+            system.machine_side_control.startup_sequencer.get_outputs().reference_frame_source.read();
+        if (!handover_seen && previous_ref_source == reference_frame_source_t::VIRTUAL &&
+            ref_source == reference_frame_source_t::ESTIMATED) {
+            handover_seen = true;
+            handover_time_s = t;
         }
+        previous_ref_source = ref_source;
+
+        // Ensure observer preset is not used in the new strategy
+        preset_observer_seen |= system.machine_side_control.startup_sequencer.get_outputs().preset_observer.read();
+
+        const bool supervisor_preset =
+            system.machine_side_control.machine_integrator_supervisor.get_outputs().preset_request.read();
+        if (supervisor_preset && !supervisor_preset_seen) {
+            supervisor_preset_seen = true;
+            state_at_supervisor_preset =
+                system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+        }
+
+        // Sample applied torque reference from torque controller (post limiting)
+        torque_samples.push_back(
+            system.machine_side_control.torque_controller.get_outputs().torque_reference.read().value());
+        time_samples.push_back(t);
     }
 
-    // Validate Preset Event Occurred
-    EXPECT_TRUE(preset_observed) << "preset_observer signal should have been asserted during virtual startup";
+    EXPECT_FALSE(preset_observer_seen) << "preset_observer must remain false (new handover strategy)";
 
-    EXPECT_EQ(state_at_preset, startup_sequencer_state_t::STARTING_PROCEDURE)
-        << "Preset should occur during STARTING_PROCEDURE (before transition)";
+    EXPECT_TRUE(handover_seen) << "Reference frame source should switch VIRTUAL -> ESTIMATED";
 
-    EXPECT_NEAR(preset_angle_captured.get_pu(), virtual_angle_at_preset.get_pu(), 0.01f)
-        << "preset_angle should match virtual_rotor_angle at the moment of preset";
+    EXPECT_TRUE(supervisor_preset_seen) << "Integrator supervisor should assert preset_request at handover";
+    EXPECT_EQ(state_at_supervisor_preset, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Supervisor preset should occur when entering CLOSED_LOOP_OPERATION";
 
-    // Validate Observer Was Preset
+    // Validate we reached closed-loop
     auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
         << "Should be in CLOSED_LOOP_OPERATION after virtual startup";
@@ -321,15 +350,33 @@ TEST_F(ClosedLoopStartupSequencerTest, ObserverPresetDuringVirtualStartupTest)
         system.machine_side_control.machine_side_observer.get_outputs().estimated_reference_angle.read();
     auto virtual_angle = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
 
-    const real_t max_angle_diff = 1.0f;  // ~57 degrees tolerance
-    real_t angle_diff = std::abs(observer_angle.get_pu() - virtual_angle.get_pu());
+    // Torque continuity around handover
+    const double window_s = 0.2;  // 200ms
 
-    while (angle_diff > 0.5f) {
-        angle_diff -= 1.0f;
+    auto mean_in_window = [&](double t0, double t1) {
+        double sum = 0.0;
+        int count = 0;
+        for (size_t k = 0; k < time_samples.size(); ++k) {
+            if (time_samples[k] >= t0 && time_samples[k] < t1) {
+                sum += torque_samples[k];
+                ++count;
+            }
+        }
+        return (count > 0) ? static_cast<float>(sum / count) : 0.0f;
+    };
+
+    const float pre_mean = mean_in_window(handover_time_s - window_s, handover_time_s);
+    const float post_mean = mean_in_window(handover_time_s, handover_time_s + window_s);
+
+    float max_abs_dev = 0.0f;
+    for (size_t k = 0; k < time_samples.size(); ++k) {
+        if (time_samples[k] >= handover_time_s && time_samples[k] < handover_time_s + window_s) {
+            max_abs_dev = std::max(max_abs_dev, std::abs(torque_samples[k] - pre_mean));
+        }
     }
-    angle_diff = std::abs(angle_diff);
 
-    EXPECT_LT(angle_diff, max_angle_diff) << "Observer angle should be reasonably close to virtual angle after preset";
+    EXPECT_NEAR(post_mean, pre_mean, 0.08f) << "Applied torque should be continuous across handover";
+    EXPECT_LT(max_abs_dev, 0.20f) << "No large applied torque spike allowed at handover";
 
     EXPECT_TRUE(success) << "Observer preset test completed with simulation errors";
 }
@@ -412,4 +459,167 @@ TEST_F(ClosedLoopStartupSequencerTest, AutoStartOnOperationOnTest)
     EXPECT_NEAR(operating_speed.value(), 0.2f, 0.08f) << "Auto-started system should achieve speed setpoint normally";
 
     EXPECT_TRUE(success) << "Auto-start on OPERATION_ON test completed";
+}
+
+/**
+ * @test FlyingRestartSkipsVirtualStartupTest
+ * @brief Validates flying-restart path skips virtual startup after a normal stop-restart sequence
+ *
+ * Test scenario:
+ * 1. Start machine normally to nominal speed (1.0 pu)
+ * 2. Send stop command (machine coasts down)
+ * 3. Coast briefly (1 second) to verify sequencer returns to IDLE
+ * 4. Send start command
+ * 5. Verify flying start: flux builds first, then direct transition to CLOSED_LOOP_OPERATION (skips STARTING_PROCEDURE)
+ * 6. Verify supervisor preset_request is asserted for bumpless integrator initialization
+ *
+ * Note: Start command must be cleared during stop to prevent auto-start from re-engaging.
+ * This ensures proper IDLE state and allows the supervisor edge detector to see the
+ * rising edge of release_speed_controller on restart.
+ */
+TEST_F(ClosedLoopStartupSequencerTest, FlyingRestartSkipsVirtualStartupTest)
+{
+    // Configure Startup Sequencer for normal startup
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.3};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0};
+
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Configure speed reference ramping
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
+        real_t{20.0f};
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
+
+    // Set speed reference to nominal
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+
+    // Configure flying restart parameters
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_observer_settling_time =
+        duration_t{1.0};
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_speed_threshold = speed_pu_t{0.15};
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_voltage_threshold = voltage_pu_t{0.1};
+
+    // Enable auto-start/stop coordination
+    system.machine_side_control.startup_sequencer.get_parameters().auto_start_stop_enabled = true;
+
+    bool success = true;
+
+    // === PHASE 1: Normal startup to nominal speed ===
+    execute_startup_sequence();
+
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().release_pulses.read())
+        << "State machine should enable pulse releases after startup sequence";
+
+    success &= simulator.simulate_for(1.0);  // Pre-flux duration
+
+    // Configure moderate load torque
+    system.plant.get_parameters().constant_torque.write(torque_pu_t(0.15f));
+
+    // Complete virtual startup and transition to closed-loop
+    success &= simulator.simulate_for(15.0);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Should reach CLOSED_LOOP_OPERATION after normal startup";
+
+    // Ramp up to nominal speed
+    success &= simulator.simulate_for(25.0);
+
+    auto speed_before_stop = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_GT(speed_before_stop.value(), 0.8f) << "Machine should reach near-nominal speed before stop";
+
+    // === PHASE 2: Stop command ===
+    set_start_command(false);  // Remove start command first
+    set_stop_command(true);
+    success &= simulator.simulate_for(0.5);
+
+    // Signal current extinguished so state machine can complete stop sequence
+    set_current_extinguished(true);
+    success &= simulator.simulate_for(1.0);
+
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::IDLE) << "Should return to IDLE after stop command";
+
+    set_current_extinguished(false);
+    set_stop_command(false);
+
+    // === PHASE 3: Coast for 1 second (machine coasting down but still spinning) ===
+    success &= simulator.simulate_for(1.0);
+    auto speed_after_coast = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+
+    // === PHASE 4: Restart command - flying start should engage after flux is established ===
+
+    // Reset monitoring flags BEFORE issuing start command
+    bool entered_flux_buildup = false;
+    bool entered_starting_procedure = false;
+    bool reached_closed_loop = false;
+    bool supervisor_preset_seen = false;
+    bool preset_observer_seen = false;
+    bool latched_closed_loop_entry = false;
+    speed_pu_t closed_loop_entry_speed_reference{0.0f};
+    speed_pu_t closed_loop_entry_measured_speed{0.0f};
+
+    set_start_command(true);
+
+    // Monitor state transitions during restart (need time for observer settling + transition)
+    const double step_size = 0.001;  // 1ms
+    const double total_time = 5.0;   // Observer settling (1.0s) + transition time
+    const int total_steps = static_cast<int>(total_time / step_size);
+
+    for (int i = 0; i < total_steps; ++i) {
+        simulator.simulate_for(step_size);
+
+        const auto state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+        entered_flux_buildup |= (state == startup_sequencer_state_t::FLUX_BUILDUP);
+        entered_starting_procedure |= (state == startup_sequencer_state_t::STARTING_PROCEDURE);
+        reached_closed_loop |= (state == startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
+
+        if (!latched_closed_loop_entry && state == startup_sequencer_state_t::CLOSED_LOOP_OPERATION) {
+            latched_closed_loop_entry = true;
+            closed_loop_entry_speed_reference =
+                system.machine_side_control.startup_sequencer.get_outputs().speed_reference.read();
+            closed_loop_entry_measured_speed =
+                system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+        }
+
+        preset_observer_seen |= system.machine_side_control.startup_sequencer.get_outputs().preset_observer.read();
+        supervisor_preset_seen |=
+            system.machine_side_control.machine_integrator_supervisor.get_outputs().preset_request.read();
+    }
+
+    // === PHASE 5: Validate flying restart behavior ===
+
+    EXPECT_FALSE(preset_observer_seen) << "preset_observer must remain false during flying start";
+    EXPECT_TRUE(reached_closed_loop) << "Flying start should reach CLOSED_LOOP_OPERATION";
+    EXPECT_TRUE(entered_flux_buildup) << "Flying start should enter FLUX_BUILDUP to establish flux";
+    EXPECT_FALSE(entered_starting_procedure) << "Flying start must skip STARTING_PROCEDURE";
+    EXPECT_TRUE(supervisor_preset_seen) << "Supervisor must assert preset_request at handover in flying start";
+    EXPECT_TRUE(latched_closed_loop_entry) << "Test must observe first entry into CLOSED_LOOP_OPERATION";
+
+    // Speed controller initialization support: on flying start, speed reference is seeded to measured speed
+    EXPECT_NEAR(closed_loop_entry_speed_reference.value(), closed_loop_entry_measured_speed.value(), 0.05f)
+        << "Speed reference should be initialized near measured speed at closed-loop entry";
+
+    startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Should be in CLOSED_LOOP_OPERATION after flying restart";
+
+    const auto ref_frame = system.machine_side_control.startup_sequencer.get_outputs().reference_frame_source.read();
+    EXPECT_EQ(ref_frame, reference_frame_source_t::ESTIMATED);
+
+    const auto torque_mode = system.machine_side_control.startup_sequencer.get_outputs().torque_control_mode.read();
+    EXPECT_EQ(torque_mode, sfc_torque_controller::control_mode::SPEED_CONTROL);
+
+    // Verify system can operate normally after flying restart
+    success &= simulator.simulate_for(5.0);
+
+    auto final_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_GT(final_speed.value(), 0.5f) << "Machine should continue operating after flying restart";
+
+    EXPECT_TRUE(success) << "Flying restart integration test completed";
 }

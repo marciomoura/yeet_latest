@@ -32,6 +32,10 @@ public:
         /// Pulse release command from grid-side (via fiber optics)
         signal_input<bool> grid_side_release_pulses;
 
+        /// Enable command for speed controller (from startup sequencer)
+        /// Used to generate a one-shot preset_request on virtual estimated handover.
+        signal_input<bool> release_speed_controller;
+
         /// Saturation signal from torque controller (anti-windup freeze)
         signal_input<bool> torque_saturated;
 

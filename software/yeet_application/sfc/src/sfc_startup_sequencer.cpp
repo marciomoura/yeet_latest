@@ -105,7 +105,7 @@ void sfc_startup_sequencer::update(bool is_field_established,
             break;
 
         case startup_sequencer_state_t::FLUX_BUILDUP:
-            update_flux_buildup(is_field_established);
+            update_flux_buildup(is_field_established, measured_speed, measured_voltage_magnitude);
             break;
 
         case startup_sequencer_state_t::STARTING_PROCEDURE:
@@ -198,7 +198,7 @@ void sfc_startup_sequencer::transition_to_starting_procedure()
     // Check if we should skip the virtual flux phase
     if (_virtual_frequency_config.duration <= duration_t{0.0}) {
         // Skip directly to closed-loop
-        transition_to_closed_loop_operation();
+        transition_to_closed_loop_operation(speed_pu_t{_virtual_frequency.value()});
         return;
     }
 
@@ -218,22 +218,21 @@ void sfc_startup_sequencer::transition_to_starting_procedure()
     _state_elapsed_timer.reset();
 }
 
-void sfc_startup_sequencer::transition_to_closed_loop_operation()
+void sfc_startup_sequencer::transition_to_closed_loop_operation(speed_pu_t initial_speed_reference)
 {
-    // Allow transition from STARTING_PROCEDURE (normal path) or IDLE (flying restart path)
+    // Allow transition from STARTING_PROCEDURE (normal path) or FLUX_BUILDUP (flying start path)
     if (_current_state != startup_sequencer_state_t::STARTING_PROCEDURE &&
-        _current_state != startup_sequencer_state_t::IDLE) {
+        _current_state != startup_sequencer_state_t::FLUX_BUILDUP) {
         return;
     }
 
     _previous_state = _current_state;
     _current_state = startup_sequencer_state_t::CLOSED_LOOP_OPERATION;
 
-    // Preset the speed reference limiter to the current virtual frequency.
-    // This ensures bumpless transfer: the limiter output continues from where
-    // the virtual frequency ramp ended, rather than jumping to the external
-    // speed reference (which may be 0 or a different value).
-    _speed_reference_limiter.reset(_virtual_frequency.value());
+    // Preset the speed reference limiter at closed-loop entry.
+    // - Normal path: seed with virtual frequency (speed reference tracks virtual during starting)
+    // - Flying start path: seed with measured speed to avoid an initial speed error jump
+    _speed_reference_limiter.reset(initial_speed_reference.value());
 
     // Clear preset request immediately upon transition
     // This ensures the preset signal doesn't get stuck high
@@ -281,20 +280,9 @@ void sfc_startup_sequencer::update_idle(
 
         // Check if settling period has elapsed
         if (_observer_settling_timer.get_elapsed_time() >= _flying_restart_config.observer_settling_time) {
-            // Settling complete - decide which path to take
-
-            // Check for flying restart conditions
-            bool voltage_detected = measured_voltage_magnitude >= _flying_restart_config.voltage_threshold;
-            bool speed_detected = measured_speed >= _flying_restart_config.speed_threshold;
-
-            if (voltage_detected && speed_detected) {
-                // Flying restart - skip directly to closed-loop
-                transition_to_closed_loop_operation();
-            }
-            else {
-                // Normal startup - go through flux buildup
-                transition_to_flux_buildup();
-            }
+            // Settling complete - begin flux buildup.
+            // Flying start evaluation is intentionally deferred until flux is established.
+            transition_to_flux_buildup();
 
             _start_requested = false;
         }
@@ -302,13 +290,25 @@ void sfc_startup_sequencer::update_idle(
     }
 }
 
-void sfc_startup_sequencer::update_flux_buildup(bool is_field_established)
+void sfc_startup_sequencer::update_flux_buildup(
+    bool is_field_established, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude)
 {
     // Check if field is established (excitation controller determines this)
-    if (is_field_established) {
-        // Field is established, proceed to starting procedure
-        transition_to_starting_procedure();
+    if (!is_field_established) {
+        return;
     }
+
+    // Field is established. If machine is already generating sufficient voltage,
+    // treat this as a flying start and jump directly to closed-loop with the
+    // speed reference initialized to the current measured speed.
+    const bool voltage_detected = measured_voltage_magnitude >= _flying_restart_config.voltage_threshold;
+    if (voltage_detected) {
+        transition_to_closed_loop_operation(measured_speed);
+        return;
+    }
+
+    // Otherwise proceed with normal startup.
+    transition_to_starting_procedure();
 }
 
 void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency)
@@ -320,27 +320,15 @@ void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency
     // Since both are in per-unit, freq_pu directly maps to speed_pu
     _speed_reference_limiter.reset(_virtual_frequency.value());
 
-    // Check if we are within the preset window before transition
-    // We want to enable the preset signal for a configurable duration before the
-    // virtual frequency ramp finishes. This ensures the observer is initialized
-    // and tracking the virtual angle before we switch to closed-loop control.
-    const duration_t time_remaining = _virtual_frequency_config.duration - _state_elapsed_timer.get_elapsed_time();
-
-    if (time_remaining <= _virtual_frequency_config.preset_duration) {
-        _preset_requested = true;
-        // Continuously update the preset angle and frequency to match the virtual values
-        // This ensures the observer gets the most up-to-date values at the rising edge
-        _preset_angle_value = _virtual_rotor_angle;
-        _preset_frequency_value = _virtual_frequency;
-    }
-    else {
-        _preset_requested = false;
-    }
+    // New strategy: observer runs in background during virtual mode, but we do not
+    // preset/initialize it for switchover. Bumpless transfer is achieved by
+    // initializing controller integrators at the handover.
+    _preset_requested = false;
 
     // Check if duration has elapsed
     if (has_elapsed) {
         // Virtual flux phase complete - transition to closed-loop
-        transition_to_closed_loop_operation();
+        transition_to_closed_loop_operation(speed_pu_t{_virtual_frequency.value()});
     }
 }
 

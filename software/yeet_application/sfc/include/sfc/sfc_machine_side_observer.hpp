@@ -87,6 +87,20 @@ public:
     void preset(angle_wrapped preset_angle, frequency_pu_t preset_frequency = frequency_pu_t{1.0});
 
     /**
+     * @brief Presets the observer and internal PLL for bumpless transfer.
+     *
+     * Uses the current measured voltage to compute the PLL phase error at the preset angle and
+     * preloads the PLL PI controller integrator to avoid a transient when switching from a virtual
+     * reference frame to the PLL-based estimate.
+     *
+     * @param preset_angle The phase-a aligned angle used by the observer outputs [rad].
+     * @param preset_frequency The frequency to preset the estimate to [pu].
+     * @param grid_voltage_abc The three-phase measured machine voltage [pu].
+     */
+    void preset_for_bumpless_transfer(
+        angle_wrapped preset_angle, frequency_pu_t preset_frequency, const abc<voltage_pu_t>& grid_voltage_abc);
+
+    /**
      * @brief Gets the estimated grid angle.
      * @return The estimated electrical angle of the grid [rad].
      */

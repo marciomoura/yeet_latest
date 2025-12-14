@@ -41,6 +41,9 @@ public:
 
     /// Register datamodel for network access
     void register_datamodel(yeet::model_registry& registry) override;
+
+private:
+    bool _previous_release_speed_controller{false};
 };
 
 }  // namespace yeet::application::sfc::integration

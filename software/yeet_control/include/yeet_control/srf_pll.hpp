@@ -86,6 +86,20 @@ public:
     void preset(angle_wrapped preset_angle, frequency_pu_t preset_frequency = frequency_pu_t{1.0});
 
     /**
+     * @brief Presets the PLL for bumpless transfer.
+     *
+     * This variant preloads the internal PI controller integrator such that the
+     * initial PI output matches the desired operating point (zero frequency deviation)
+     * for the current phase error computed from the provided input vector.
+     *
+     * @param preset_angle The internal PLL angle (cosine-aligned) to preset to [rad].
+     * @param preset_frequency The frequency to preset the initial estimate to [pu].
+     * @param input_alphabeta The current input per-unit voltages in the alpha-beta frame.
+     */
+    void preset_for_bumpless_transfer(
+        angle_wrapped preset_angle, frequency_pu_t preset_frequency, const alphabeta<voltage_pu_t>& input_alphabeta);
+
+    /**
      * @brief Updates the PLL with a new input sample.
      * @param input_alphabeta The input per-unit voltages in the alpha-beta frame.
      */

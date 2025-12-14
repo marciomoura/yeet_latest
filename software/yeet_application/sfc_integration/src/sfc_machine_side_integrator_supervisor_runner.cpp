@@ -15,10 +15,20 @@ void sfc_machine_side_integrator_supervisor_runner::initialize()
     _outputs.preset_request = false;
     _outputs.release_pulses = false;
     _outputs.request_shutdown = false;
+
+    _previous_release_speed_controller = false;
 }
 
 void sfc_machine_side_integrator_supervisor_runner::run()
 {
+    const bool release_speed_controller = _inputs.release_speed_controller.read();
+
+    // Detect rising edge: transition from false to true
+    const bool handover_edge = !_previous_release_speed_controller && release_speed_controller;
+
+    // Update state for next cycle
+    _previous_release_speed_controller = release_speed_controller;
+
     if (_parameters.release_pulses_override) {
         _outputs.release_pulses = _parameters.release_pulses_override_value;
     }
@@ -46,8 +56,9 @@ void sfc_machine_side_integrator_supervisor_runner::run()
             !_inputs.grid_side_release_pulses || _inputs.torque_saturated || _inputs.is_braking_requested;
     }
 
-    // TODO
-    _outputs.preset_request = false;
+    // One-shot preset request at handover. Controllers are responsible for their own
+    // internal bumpless initialization when this pulse is asserted.
+    _outputs.preset_request = handover_edge;
 }
 
 void sfc_machine_side_integrator_supervisor_runner::stop()
@@ -56,6 +67,9 @@ void sfc_machine_side_integrator_supervisor_runner::stop()
     _outputs.preset_request = false;
     _outputs.release_pulses = false;
     _outputs.request_shutdown = true;
+
+    // Reset edge detector state to ensure proper detection on restart
+    _previous_release_speed_controller = false;
 }
 
 }  // namespace yeet::application::sfc::integration

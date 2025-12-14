@@ -1,5 +1,6 @@
 #include "sfc/sfc_machine_side_observer.hpp"
 
+#include "yeet_control/constants.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -78,8 +79,32 @@ void sfc_machine_side_observer::reset(frequency_pu_t initial_frequency)
 
 void sfc_machine_side_observer::preset(angle_wrapped preset_angle, frequency_pu_t preset_frequency)
 {
-    // Preset the PLL integrator with the specified angle and frequency
-    _pll.preset(preset_angle, preset_frequency);
+    // The observer output angle is phase-a aligned (sine-aligned), while the internal PLL
+    // uses a cosine-aligned angle for the Park transform. Convert accordingly.
+    const auto pll_internal_angle = preset_angle - angle_wrapped::from_radians(angle_t{pi / 2.0});
+
+    // Preset the PLL integrator with the specified internal angle and frequency
+    _pll.preset(pll_internal_angle, preset_frequency);
+
+    // Update the estimated outputs to match the preset values
+    _estimated_angle = preset_angle;
+    _estimated_frequency_pu = preset_frequency;
+    _estimated_frequency = to_si(preset_frequency, _nominal_frequency);
+
+    // Reset the frequency filter to the preset frequency
+    _filtered_frequency.reset(_estimated_frequency_pu.value());
+}
+
+void sfc_machine_side_observer::preset_for_bumpless_transfer(
+    angle_wrapped preset_angle, frequency_pu_t preset_frequency, const abc<voltage_pu_t>& grid_voltage_abc)
+{
+    // Convert measured voltage to alpha-beta for PLL usage
+    const alphabeta<voltage_pu_t> grid_voltage_alphabeta = grid_voltage_abc.to_alphabeta();
+
+    // Convert observer output angle (phase-a aligned) to PLL internal cosine-aligned angle
+    const auto pll_internal_angle = preset_angle - angle_wrapped::from_radians(angle_t{pi / 2.0});
+
+    _pll.preset_for_bumpless_transfer(pll_internal_angle, preset_frequency, grid_voltage_alphabeta);
 
     // Update the estimated outputs to match the preset values
     _estimated_angle = preset_angle;
