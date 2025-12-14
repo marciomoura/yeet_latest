@@ -526,7 +526,7 @@ TEST_F(SfcStartupSequencerTest, VeryShortDurationsHandledCorrectly)
     EXPECT_EQ(sequencer->get_current_state(), startup_sequencer_state_t::CLOSED_LOOP_OPERATION);
 }
 
-TEST_F(SfcStartupSequencerTest, PresetSignalGeneratedNearEndOfVirtualFrequency)
+TEST_F(SfcStartupSequencerTest, PresetSignalNotGeneratedDuringVirtualFrequency)
 {
     // Configure virtual frequency with a known duration
     virtual_freq_cfg.duration = duration_t{1.0};  // 1 second
@@ -542,20 +542,18 @@ TEST_F(SfcStartupSequencerTest, PresetSignalGeneratedNearEndOfVirtualFrequency)
     auto outputs = sequencer->get_outputs();
     EXPECT_FALSE(outputs.controller_commands.preset_observer);
 
-    // Run until near the end of virtual frequency ramp (1 second duration, 200ms default preset window)
-    // Run 750ms worth of cycles (should still be false, 250ms remaining > 200ms threshold)
+    // New strategy: observer runs continuously; sequencer does not generate an observer preset window.
+    // Preset must remain false throughout STARTING_PROCEDURE.
+
+    // Run 750ms worth of cycles (should still be false)
     run_cycles(750, true);
     outputs = sequencer->get_outputs();
     EXPECT_FALSE(outputs.controller_commands.preset_observer);
 
-    // Run 60ms more (now at 810ms, 190ms remaining < 200ms threshold)
+    // Run 60ms more (should still be false)
     run_cycles(60, true);
     outputs = sequencer->get_outputs();
-    EXPECT_TRUE(outputs.controller_commands.preset_observer);
-
-    // Verify the preset angle is captured (just check that it's non-zero since virtual angle is integrating)
-    // The exact value will depend on integration, but it should be a reasonable angle
-    EXPECT_NE(outputs.controller_commands.preset_angle.get_radians().value(), 0.0);
+    EXPECT_FALSE(outputs.controller_commands.preset_observer);
 
     // Complete the virtual frequency phase (need 1001 cycles total, we've done 810, need 191 more)
     run_cycles(191, true);

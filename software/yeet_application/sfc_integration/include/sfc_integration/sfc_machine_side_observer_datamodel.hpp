@@ -80,9 +80,6 @@ public:
 
         /// Commutation detection voltage threshold [pu]
         yeet::parameter<real_t> commutation_detection_threshold = 0.15;
-
-        /// Enable bumpless transfer preset behavior [bool]
-        yeet::parameter<bool> enable_bumpless_transfer{true};
     };
 
 private:
@@ -113,9 +110,6 @@ public:
             "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
         entry.parameters.insert("commutation_detection_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_detection_threshold));
-
-        entry.parameters.insert(
-            "enable_bumpless_transfer", yeet::utils::make_bool_accessor(_model_parameters->enable_bumpless_transfer));
 
         registry.insert("observer", std::move(entry));
     }

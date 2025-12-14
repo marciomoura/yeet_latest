@@ -42,13 +42,8 @@ void sfc_machine_side_observer_runner::run()
     _previous_preset_observer = preset_requested;
 
     if (preset_rising_edge) {
-        if (_parameters.enable_bumpless_transfer) {
-            _sfc_machine_side_observer.preset_for_bumpless_transfer(
-                _inputs.preset_angle.read(), _inputs.preset_frequency.read(), _inputs.machine_voltage_pu.read());
-        }
-        else {
-            _sfc_machine_side_observer.preset(_inputs.preset_angle.read(), _inputs.preset_frequency.read());
-        }
+        _sfc_machine_side_observer.preset_for_bumpless_transfer(
+            _inputs.preset_angle.read(), _inputs.preset_frequency.read(), _inputs.machine_voltage_pu.read());
     }
 
     // Always execute the observer update when enabled, even during the preset window.
