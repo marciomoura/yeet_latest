@@ -25,15 +25,31 @@ protected:
         auto& params = _runner->get_parameters();
         params.protection_module_enabled.write(true);
 
+        // Ensure default behavior for these tests: protections are tripping (not alarm-only)
+        params.over_flux_severity.write(protection_severity::trip);
+        params.under_flux_severity.write(protection_severity::trip);
+        params.stall_severity.write(protection_severity::trip);
+        params.overspeed_severity.write(protection_severity::trip);
+        params.machine_overvoltage_severity.write(protection_severity::trip);
+        params.communication_loss_severity.write(protection_severity::trip);
+
         // V/Hz protection
-        // Rated V/Hz = V_rated / f_rated = 1.0 pu / 50 Hz = 0.02
-        params.rated_vhz.write(flux_pu_t{0.02f});
+        // Machine-side runner uses per-unit speed as the denominator (V_pu / speed_pu).
+        // With V_pu=1 and speed_pu=1, V/Hz should be 1.0.
         params.over_flux_trip_threshold.write(flux_pu_t{1.15f});
         params.under_flux_trip_threshold.write(flux_pu_t{0.80f});
 
         // Stall protection
         params.stall_current_threshold.write(current_pu_t{1.3f});
         params.stall_speed_threshold.write(speed_pu_t{0.10f});
+
+        // Overspeed protection (set high so it's safe by default)
+        params.overspeed_trip_threshold.write(speed_pu_t{1.50f});
+        params.overspeed_trip_delay.write(duration_t{0.0});
+
+        // Machine-side overvoltage protection (set high so it's safe by default)
+        params.machine_overvoltage_trip_threshold.write(voltage_pu_t{1.50f});
+        params.machine_overvoltage_trip_delay.write(duration_t{0.0});
 
         // Set zero delays for instant trip response in tests
         params.over_flux_trip_delay.write(duration_t{0.0});
@@ -44,18 +60,16 @@ protected:
 
         // Set safe initial inputs
         reset_inputs();
-
-        // Initialize trip_acknowledged to false
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.trip_acknowledged, false);
     }
 
     void reset_inputs()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
 
-        // Safe machine voltage (1.0 pu)
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
+        // Safe baseline for all tests:
+        // - Keep V/Hz at a safe value
+        // - Keep speed below overspeed thresholds used in tests
+        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.5f});
 
         // Safe machine frequency (50 Hz)
         mock_signal_input::write(inputs.machine_frequency, frequency_t{50.0});
@@ -63,30 +77,44 @@ protected:
         // Safe DC link current (0.5 pu)
         mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
 
-        // Safe machine speed (0.5 pu, above stall threshold)
         mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.5f});
+        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{0.5f});
 
         // Not in startup
         mock_signal_input::write(inputs.startup_active, false);
 
+        // Not in closed loop
+        mock_signal_input::write(inputs.closed_loop_active, false);
+
         // Release protections
         mock_signal_input::write(inputs.release_protections, true);
+
+        // Trip not acknowledged by default
+        mock_signal_input::write(inputs.trip_acknowledged, false);
     }
 
     void trigger_over_flux()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        // V/Hz_pu = (V / f) / rated_vhz = (1.2 / 50) / 0.02 = 1.2 pu (exceeds 1.15 threshold)
+        // V/Hz_pu = V_pu / speed_pu.
+        // With speed_pu=1.0: V/Hz_pu = V_pu.
         mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{1.2f});
-        mock_signal_input::write(inputs.machine_frequency, frequency_t{50.0});
+        mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
+        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
+        // VHz protection requires closed-loop operation
+        mock_signal_input::write(inputs.closed_loop_active, true);
     }
 
     void trigger_under_flux()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        // V/Hz_pu = (V / f) / rated_vhz = (0.75 / 50) / 0.02 = 0.75 pu (below 0.80 threshold)
+        // V/Hz_pu = V_pu / speed_pu.
+        // With speed_pu=1.0: V/Hz_pu = V_pu.
         mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.75f});
-        mock_signal_input::write(inputs.machine_frequency, frequency_t{50.0});
+        mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
+        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
+        // VHz protection requires closed-loop operation
+        mock_signal_input::write(inputs.closed_loop_active, true);
     }
 
     void trigger_stall()
@@ -98,7 +126,39 @@ protected:
         mock_signal_input::write(inputs.startup_active, true);
     }
 
-    void clear_fault_conditions() { reset_inputs(); }
+    void trigger_overspeed(speed_pu_t trip_threshold = speed_pu_t{0.90f}, speed_pu_t speed = speed_pu_t{1.0f})
+    {
+        auto& params = _runner->get_parameters();
+        params.overspeed_trip_threshold.write(trip_threshold);
+        params.overspeed_trip_delay.write(duration_t{0.0});
+
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.machine_speed, speed);
+        // Overspeed protection requires closed-loop operation
+        mock_signal_input::write(inputs.closed_loop_active, true);
+    }
+
+    void trigger_machine_overvoltage(
+        voltage_pu_t trip_threshold = voltage_pu_t{0.90f}, voltage_pu_t voltage = voltage_pu_t{1.0f})
+    {
+        auto& params = _runner->get_parameters();
+        params.machine_overvoltage_trip_threshold.write(trip_threshold);
+        params.machine_overvoltage_trip_delay.write(duration_t{0.0});
+
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
+    }
+
+    void clear_fault_conditions()
+    {
+        reset_inputs();
+        // VHz and overspeed protections need to see safe values while closed_loop is active
+        // to allow their internal detectors to reset before the trip handshake can clear
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.closed_loop_active, true);
+        run_cycle();  // Let protections see safe values and reset detectors
+        mock_signal_input::write(inputs.closed_loop_active, false);
+    }
 
     void set_confirm_alarms(bool value)
     {
@@ -190,6 +250,58 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnStallTrip)
 }
 
 /**
+ * @brief Test alarm latching on overspeed trip
+ */
+TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverspeedTrip)
+{
+    // Trigger overspeed fault (threshold 0.9 pu, speed 1.0 pu)
+    trigger_overspeed();
+    run_cycle();
+    EXPECT_TRUE(is_tripped()) << "Protection should trip on overspeed";
+    EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
+
+    const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
+    EXPECT_TRUE(outputs.overspeed_tripped.read()) << "Overspeed protection should be tripped";
+
+    // Clear fault
+    clear_fault_conditions();
+    run_cycle();
+    EXPECT_TRUE(is_tripped()) << "Trip latched";
+
+    // Acknowledge
+    set_trip_acknowledged(true);
+    run_cycle();
+    EXPECT_FALSE(is_tripped());
+    EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
+}
+
+/**
+ * @brief Test alarm latching on machine-side overvoltage trip
+ */
+TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnMachineOvervoltageTrip)
+{
+    // Trigger machine-side overvoltage fault (threshold 0.9 pu, voltage 1.0 pu)
+    trigger_machine_overvoltage();
+    run_cycle();
+    EXPECT_TRUE(is_tripped()) << "Protection should trip on machine-side overvoltage";
+    EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
+
+    const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
+    EXPECT_TRUE(outputs.machine_overvoltage_tripped.read()) << "Machine-side overvoltage should be tripped";
+
+    // Clear fault
+    clear_fault_conditions();
+    run_cycle();
+    EXPECT_TRUE(is_tripped()) << "Trip latched";
+
+    // Acknowledge
+    set_trip_acknowledged(true);
+    run_cycle();
+    EXPECT_FALSE(is_tripped());
+    EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
+}
+
+/**
  * @brief Test alarm confirmation workflow
  */
 TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenSafe)
@@ -211,9 +323,6 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWh
     ASSERT_FALSE(is_tripped());
     ASSERT_TRUE(is_inhibited());
 
-    set_trip_acknowledged(false);
-    run_cycle();
-
     // Confirm alarm (rising edge)
     set_confirm_alarms(false);
     run_cycle();
@@ -222,6 +331,9 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWh
 
     EXPECT_FALSE(is_inhibited()) << "Alarm should be cleared after confirmation";
     EXPECT_FALSE(is_tripped()) << "Protection should not be tripped";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 }
 
 /**
@@ -252,15 +364,15 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped
     EXPECT_FALSE(is_tripped());
     EXPECT_TRUE(is_inhibited());
 
-    set_trip_acknowledged(false);
-    run_cycle();
-
     // Now confirmation should work
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after fault removed and confirmation given";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 }
 
 /**
@@ -371,13 +483,14 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, MultipleFaultTypesCycle)
     set_trip_acknowledged(true);
     run_cycle();
     ASSERT_FALSE(is_tripped());
-    set_trip_acknowledged(false);
-    run_cycle();
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "First alarm cleared";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 
     // Second: Stall
     trigger_stall();
@@ -388,13 +501,14 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, MultipleFaultTypesCycle)
     run_cycle();
     set_trip_acknowledged(true);
     run_cycle();
-    set_trip_acknowledged(false);
-    run_cycle();
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Second alarm cleared";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 }
 
 /**

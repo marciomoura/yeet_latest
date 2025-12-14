@@ -42,6 +42,12 @@ target_include_directories(
 
 target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
 
+# Propagate embedded build intent to C/C++ preprocessor so headers can reliably
+# gate host-only dependencies (e.g., cpptrace).
+if(YEET_BUILD_EMBEDDED)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC YEET_BUILD_EMBEDDED=1)
+endif()
+
 # Link cpptrace for stacktrace support (host builds only)
 if(NOT YEET_BUILD_EMBEDDED)
     target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)

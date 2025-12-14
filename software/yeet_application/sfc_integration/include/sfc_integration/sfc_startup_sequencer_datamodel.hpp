@@ -85,6 +85,10 @@ public:
         /// Startup complete status (true when in CLOSED_LOOP_OPERATION)
         signal_output<bool> is_startup_complete;
 
+        /// Startup active status (true during FLUX_BUILDUP and STARTING_PROCEDURE)
+        /// Used to arm state-dependent protections like stall detection.
+        signal_output<bool> startup_active;
+
         /// Time elapsed in current state [s]
         signal_output<duration_t> time_in_current_state;
 

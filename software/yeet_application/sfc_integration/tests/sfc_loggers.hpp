@@ -13,12 +13,14 @@
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_grid_side_protections_runner.hpp"
 #include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_io_mock_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_hardware_mock_runner.hpp"
 #include "sfc_integration/sfc_machine_side_integrator_supervisor_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
+#include "sfc_integration/sfc_machine_side_protections_runner.hpp"
 #include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
@@ -313,6 +315,87 @@ static inline void register_complete_grid_side_protections_logger(
         [&]() { return grid_protections.get_outputs().overvoltage_warning.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output undervoltage_warning",
         [&]() { return grid_protections.get_outputs().undervoltage_warning.read(); }));
+}
+
+// --- Machine-side protections runner loggers ---
+static inline void register_minimal_machine_side_protections_logger(
+    yeet::simulator& simulator, sfc_machine_side_protections_runner& machine_protections)
+{
+    const std::string group{"machine_protections:"};
+
+    // Key inputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(group + "input dc_link_current_pu",
+        [&]() { return machine_protections.get_inputs().dc_link_current_pu.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<voltage_pu_t>(group + "input machine_voltage_magnitude_pu",
+            [&]() { return machine_protections.get_inputs().machine_voltage_magnitude_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_pu_t>(group + "input machine_frequency_pu",
+        [&]() { return machine_protections.get_inputs().machine_frequency_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
+        group + "input machine_speed", [&]() { return machine_protections.get_inputs().machine_speed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "input startup_active", [&]() { return machine_protections.get_inputs().startup_active.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_protections",
+        [&]() { return machine_protections.get_inputs().release_protections.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input trip_acknowledged",
+        [&]() { return machine_protections.get_inputs().trip_acknowledged.read(); }));
+
+    // Key parameters
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param confirm_alarms", [&]() { return machine_protections.get_parameters().confirm_alarms.read(); }));
+
+    // Key outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_tripped", [&]() { return machine_protections.get_outputs().is_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_inhibited", [&]() { return machine_protections.get_outputs().is_inhibited.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output any_fault_active",
+        [&]() { return machine_protections.get_outputs().any_fault_active.read(); }));
+}
+
+static inline void register_complete_machine_side_protections_logger(
+    yeet::simulator& simulator, sfc_machine_side_protections_runner& machine_protections)
+{
+    const std::string group{"machine_protections:"};
+
+    register_minimal_machine_side_protections_logger(simulator, machine_protections);
+
+    // All trip/alarm outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output over_flux_tripped",
+        [&]() { return machine_protections.get_outputs().over_flux_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output under_flux_tripped",
+        [&]() { return machine_protections.get_outputs().under_flux_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output stall_tripped", [&]() { return machine_protections.get_outputs().stall_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output overspeed_tripped",
+        [&]() { return machine_protections.get_outputs().overspeed_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output machine_overvoltage_tripped",
+        [&]() { return machine_protections.get_outputs().machine_overvoltage_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_tripped",
+        [&]() { return machine_protections.get_outputs().communication_loss_tripped.read(); }));
+
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output over_flux_alarmed",
+        [&]() { return machine_protections.get_outputs().over_flux_alarmed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output under_flux_alarmed",
+        [&]() { return machine_protections.get_outputs().under_flux_alarmed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output stall_alarmed", [&]() { return machine_protections.get_outputs().stall_alarmed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output overspeed_alarmed",
+        [&]() { return machine_protections.get_outputs().overspeed_alarmed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output machine_overvoltage_alarmed",
+        [&]() { return machine_protections.get_outputs().machine_overvoltage_alarmed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_alarmed",
+        [&]() { return machine_protections.get_outputs().communication_loss_alarmed.read(); }));
+
+    // All warning outputs
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output over_flux_warning",
+        [&]() { return machine_protections.get_outputs().over_flux_warning.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output under_flux_warning",
+        [&]() { return machine_protections.get_outputs().under_flux_warning.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output stall_warning", [&]() { return machine_protections.get_outputs().stall_warning.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_warning",
+        [&]() { return machine_protections.get_outputs().communication_loss_warning.read(); }));
 }
 
 static inline void register_minimal_grid_side_measurements_logger(
@@ -923,25 +1006,27 @@ static inline void register_complete_machine_side_pulse_generator_logger(
 static inline void register_minimal_plant_model_logger(yeet::simulator& simulator, sfc_plant_model_runner& plant_model)
 {
     const std::string group{"plant_model:"};
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input grid_firing_pulses",
-            [&]() { return plant_model.get_inputs().grid_firing_pulses.read().to_array(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input machine_firing_pulses",
-            [&]() { return plant_model.get_inputs().machine_firing_pulses.read().to_array(); }));
+    // simulator.register_sampler_entry(
+    //     yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input grid_firing_pulses",
+    //         [&]() { return plant_model.get_inputs().grid_firing_pulses.read().to_array(); }));
+    // simulator.register_sampler_entry(
+    //     yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "input machine_firing_pulses",
+    //         [&]() { return plant_model.get_inputs().machine_firing_pulses.read().to_array(); }));
     // Note: load_torque is now a parameter, not an input signal
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_t>(
         group + "output dc_link_current", [&]() { return plant_model.get_outputs().dc_link_current.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(
-        group + "output dc_link_voltage", [&]() { return plant_model.get_outputs().dc_link_voltage.read(); }));
+    // simulator.register_sampler_entry(yeet::make_lambda_sampler<voltage_t>(
+    //     group + "output dc_link_voltage", [&]() { return plant_model.get_outputs().dc_link_voltage.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
         group + "output machine_speed", [&]() { return plant_model.get_outputs().machine_speed.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_t>(
-        group + "output machine_frequency", [&]() { return plant_model.get_outputs().machine_frequency.read(); }));
+    // simulator.register_sampler_entry(yeet::make_lambda_sampler<frequency_t>(
+    //     group + "output machine_frequency", [&]() { return plant_model.get_outputs().machine_frequency.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(
         group + "output machine_flux_pu", [&]() { return plant_model.get_outputs().machine_flux_pu.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<current_pu_t>(
         group + "output field_current_pu", [&]() { return plant_model.get_outputs().field_current_pu.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_array_sampler<abc<voltage_t>>(
+        group + "output grid_voltage_abc", [&]() { return plant_model.get_outputs().grid_voltage_abc.read(); }));
 }
 
 static inline void register_complete_plant_model_logger(yeet::simulator& simulator, sfc_plant_model_runner& plant_model)
@@ -1011,6 +1096,41 @@ static inline void register_complete_machine_side_hardware_mock_logger(
 {
     // For now complete == minimal
     register_minimal_machine_side_hardware_mock_logger(simulator, hardware_mock);
+}
+
+// ==================== IO Mock Logger ====================
+// The IO mock runner has no signal inputs/outputs; it pushes its *parameters* into external_ios.
+// Logging these parameters is valuable for debugging integration tests.
+static inline void register_minimal_io_mock_logger(yeet::simulator& simulator, sfc_io_mock_runner& io_mock)
+{
+    const std::string group{"io_mock:"};
+
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param auxiliaries_are_on", [&]() { return io_mock.get_parameters().auxiliaries_are_on.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param mcb_is_closed", [&]() { return io_mock.get_parameters().mcb_is_closed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param start_command", [&]() { return io_mock.get_parameters().start_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param stop_command", [&]() { return io_mock.get_parameters().stop_command.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param shutdown_request", [&]() { return io_mock.get_parameters().shutdown_request.read(); }));
+}
+
+static inline void register_complete_io_mock_logger(yeet::simulator& simulator, sfc_io_mock_runner& io_mock)
+{
+    const std::string group{"io_mock:"};
+
+    register_minimal_io_mock_logger(simulator, io_mock);
+
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param breaker_is_closed", [&]() { return io_mock.get_parameters().breaker_is_closed.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param breaker_is_tripping", [&]() { return io_mock.get_parameters().breaker_is_tripping.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param emergency_off", [&]() { return io_mock.get_parameters().emergency_off.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "param door_is_open", [&]() { return io_mock.get_parameters().door_is_open.read(); }));
 }
 
 // Generic overloaded functions for easier logger registration
@@ -1083,6 +1203,16 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_grid_
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_grid_side_protections_runner& runner)
 {
     register_complete_grid_side_protections_logger(simulator, runner);
+}
+
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machine_side_protections_runner& runner)
+{
+    register_minimal_machine_side_protections_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_machine_side_protections_runner& runner)
+{
+    register_complete_machine_side_protections_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_grid_side_measurements_ideal_runner& runner)
@@ -1269,6 +1399,17 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machi
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_machine_side_hardware_mock_runner& runner)
 {
     register_complete_machine_side_hardware_mock_logger(simulator, runner);
+}
+
+// IO mock overloads
+static inline void register_minimal_logger(yeet::simulator& simulator, sfc_io_mock_runner& runner)
+{
+    register_minimal_io_mock_logger(simulator, runner);
+}
+
+static inline void register_complete_logger(yeet::simulator& simulator, sfc_io_mock_runner& runner)
+{
+    register_complete_io_mock_logger(simulator, runner);
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -35,6 +35,9 @@ private:
     void set_parameter_callback();
 
     sfc::sfc_torque_controller _sfc_torque_controller;
+
+    bool _was_shutdown_active{false};
+    bool _was_operation_on{false};
 };
 
 }  // namespace yeet::application::sfc::integration

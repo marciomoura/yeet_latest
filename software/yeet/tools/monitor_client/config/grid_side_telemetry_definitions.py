@@ -54,7 +54,9 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'voltage magnitude', 'index': GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
                 {'name': 'current magnitude', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE, 'type': 'float', 'format': '.4f'},
-                {'name': 'dc link current', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'}
+                {'name': 'dc link current', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
+                {'name': 'comm. notch last (s)', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S, 'type': 'float', 'format': '.6f'},
+                {'name': 'comm. notch filt. (s)', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S, 'type': 'float', 'format': '.6f'}
             ]
         },
         'observer': {
@@ -129,14 +131,20 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'any fault active', 'index': GridSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'overcurrent tripped', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_TRIPPED, 'type': 'bool', 'format': 'bool'},
-                {'name': 'overvoltage tripped', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
-                {'name': 'undervoltage tripped', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'overcurrent', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'overvoltage', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'undervoltage', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'overcurrent warning', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_WARNING, 'type': 'bool', 'format': 'bool'},
                 {'name': 'overvoltage warning', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
                 {'name': 'undervoltage warning', 'index': GridSignalIndex.PROTECTION_UNDERVOLTAGE_WARNING, 'type': 'bool', 'format': 'bool'},
-                {'name': 'comm loss tripped', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'comm loss', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'comm loss warning', 'index': GridSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
+                {'name': 'door open', 'index': GridSignalIndex.PROTECTION_DOOR_OPEN_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
             ]
         },
         'fiber_optic_rx': {

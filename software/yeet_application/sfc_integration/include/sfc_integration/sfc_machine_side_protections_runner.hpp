@@ -1,11 +1,8 @@
 #pragma once
 
-#include "sfc/sfc_communication_watchdog.hpp"
-#include "sfc/sfc_stall_protection.hpp"
-#include "sfc/sfc_vhz_protection.hpp"
+#include "sfc/sfc_machine_side_protections.hpp"
 #include "sfc_integration/sfc_machine_side_protections_datamodel.hpp"
 #include "yeet/application_interface.hpp"
-#include "yeet_control/edge_detector.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -60,20 +57,11 @@ public:
     void update_communication_status(bool communication_valid);
 
 private:
-    // Protection components
-    sfc::sfc_vhz_protection _vhz_protection;
-    sfc::sfc_stall_protection _stall_protection;
-    sfc::sfc_communication_watchdog _communication_watchdog;
+    // Common machine-side protections application
+    sfc::sfc_machine_side_protections _protections;
 
     // Communication status tracking
     bool _last_communication_valid{true};  // Track decode success from previous cycle
-
-    // Trip handshake state
-    bool _trip_latched{false};  // Latched trip signal (cleared when fault clears AND acknowledged)
-
-    // Alarm confirmation state
-    bool _alarm_pending{false};                         // Latching alarm state (is_inhibited)
-    yeet::control::edge_detector _confirm_alarms_edge;  // Edge detector for confirm_alarms parameter
 
     /**
      * @brief Apply parameter changes to protection components

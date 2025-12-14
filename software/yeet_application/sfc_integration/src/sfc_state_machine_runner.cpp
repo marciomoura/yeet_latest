@@ -58,22 +58,33 @@ void sfc_state_machine_runner::run()
     _outputs.request_extinguish_dc_current = state_outputs.request_extinguish_dc_current;
 
     // Release protections whenever state machine is not in IDLE
-    _outputs.release_protections =
-        (current_state == sfc::sfc_state_id::OPERATION_OFF || current_state == sfc::sfc_state_id::OPERATION_ON ||
-            current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED);
+    _outputs.release_protections = (current_state != sfc::sfc_state_id::IDLE);
 
-    // Trip acknowledgment: Signal to protection that state machine has handled the trip
-    // Conditions: In SHUTDOWN_REQUESTED state + current extinguished + no active faults
-    // This allows protection to clear its latched trip signal and state machine to proceed to OPERATION_OFF
-    _outputs.trip_acknowledged = (current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED) &&
-                                 _outputs.is_current_extinguished && !_inputs.any_protection_fault_active;
+    // Trip acknowledgment: signal to protections that the system has reached a safe condition after a trip/shutdown.
+    // This will cause latched trips to clear when combined with external fault-clear signals.
+    _outputs.trip_acknowledged =
+        (current_state != sfc::sfc_state_id::OPERATION_ON) && !_inputs.any_protection_fault_active.read();
 
     // Main circuit breaker control with safety interlocks
     // MCB close: Only when state machine requests it AND door is NOT open AND emergency_off is NOT active
-    _outputs.mcb_close = state_outputs.mcb_close && !_inputs.door_is_open.read() && !_inputs.emergency_off.read();
+    _outputs.mcb_close = state_outputs.mcb_close && !_inputs.door_is_open.read() && !_inputs.emergency_off.read() &&
+                         !_outputs.shutdown_request;
 
     // MCB open: When state machine requests it OR emergency_off is active (safety override)
-    _outputs.mcb_open = state_outputs.mcb_open || _inputs.emergency_off.read();
+    const bool protection_inhibit_active =
+        _inputs.protection_inhibited.read() || _inputs.machine_side_protection_inhibited.read();
+    const bool protection_trip_active = protection_inhibit_active || _inputs.machine_side_protection_tripped.read();
+
+    // Force MCB open on any trip/inhibit condition.
+    _outputs.mcb_open =
+        state_outputs.mcb_open || _inputs.emergency_off.read() || protection_trip_active || _outputs.shutdown_request;
+
+    // Auxiliaries command: default ON, but must go OFF on any trip or safety shutdown request.
+    // In real hardware this would typically be an enabling command for auxiliary supplies.
+    _outputs.auxiliaries_on_command =
+        !(protection_trip_active || _inputs.emergency_off.read() || _inputs.breaker_is_tripping.read() ||
+            _inputs.door_is_open.read() || _outputs.shutdown_request ||
+            current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED);
 }
 
 void sfc_state_machine_runner::stop()

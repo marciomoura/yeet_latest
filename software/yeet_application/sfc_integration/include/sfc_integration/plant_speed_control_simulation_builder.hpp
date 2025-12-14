@@ -170,6 +170,14 @@ public:
     signal_output<bool> enable_speed_control;
     signal_output<current_pu_t> external_current_reference_pu;
 
+    // State/trip context for torque controller (no full state machine in this builder)
+    signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
+        yeet::application::sfc::sfc_state_id::OPERATION_ON};
+    signal_output<bool> machine_protection_tripped{false};
+
+    // Field current reference for variable-speed operation (no excitation controller in this builder)
+    signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
+
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
     {
@@ -238,6 +246,14 @@ private:
         // Speed controller torque reference → Torque controller input
         signals_connector::connect_output_to_input(
             speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
+
+        // Speed reference (same reference sent to speed controller) → Torque controller input
+        signals_connector::connect_output_to_input(speed_reference, torque_controller.get_inputs().speed_reference);
+
+        // Provide state/trip context to torque controller
+        signals_connector::connect_output_to_input(current_state_id, torque_controller.get_inputs().current_state_id);
+        signals_connector::connect_output_to_input(
+            machine_protection_tripped, torque_controller.get_inputs().machine_protection_tripped);
 
         // Torque controller current reference → Current controller input
         signals_connector::connect_output_to_input(

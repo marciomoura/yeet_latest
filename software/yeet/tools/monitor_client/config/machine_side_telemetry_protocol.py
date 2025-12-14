@@ -117,6 +117,18 @@ class MachineSignalIndex(IntEnum):
     FIBER_RX_DC_LINK_CURRENT_DUP = 74
     FIBER_RX_STATE_ID_DUP = 75
 
+    # === Machine-Side Protections Severity/Status Group (76-81) ===
+    PROTECTION_OVER_FLUX_STATUS = 76
+    PROTECTION_UNDER_FLUX_STATUS = 77
+    PROTECTION_STALL_STATUS = 78
+    PROTECTION_COMMUNICATION_LOSS_STATUS = 79
+    PROTECTION_OVERSPEED_STATUS = 80
+    PROTECTION_MACHINE_OVERVOLTAGE_STATUS = 81
+
+    # === Commutation Notch Duration Group (82-83) ===
+    COMMUTATION_NOTCH_DURATION_LAST_S = 82
+    COMMUTATION_NOTCH_DURATION_FILTERED_S = 83
+
 
 @dataclass
 class MachineMeasurements:

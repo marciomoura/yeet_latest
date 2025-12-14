@@ -1,6 +1,9 @@
 #pragma once
 
+#include <array>
+
 #include "yeet_control/elapsed_timer.hpp"
+#include "yeet_control/lookup_table_1d.hpp"
 #include "yeet_control/rate_of_change_limiter.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
@@ -27,6 +30,27 @@ namespace yeet::application::sfc {
  */
 class sfc_torque_controller {
 public:
+    /// Number of points used for the speed -> torque limit lookup tables
+    static constexpr size_t NUM_SPEED_TORQUE_LIMIT_POINTS = 7;
+
+    /// Default speed axis for the speed -> torque limit lookup tables [pu]
+    static constexpr std::array<speed_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS> kDefaultSpeedTorqueLimitSpeedAxisPu = {
+        speed_pu_t{0.0}, speed_pu_t{0.2}, speed_pu_t{0.4}, speed_pu_t{0.6}, speed_pu_t{0.8}, speed_pu_t{1.0},
+        speed_pu_t{1.1}};
+
+    /// Default speed-based minimum torque limit schedule [pu]
+    ///
+    /// Note: For motoring-only operation, the default minimum is 0.0 pu. If natural commutation requires a
+    /// positive minimum, use configure_minimum_motoring_torque().
+    static constexpr std::array<torque_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS> kDefaultSpeedTorqueLimitMinTorquePu = {
+        torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0},
+        torque_pu_t{0.0}};
+
+    /// Default speed-based maximum torque limit schedule [pu]
+    static constexpr std::array<torque_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS> kDefaultSpeedTorqueLimitMaxTorquePu = {
+        torque_pu_t{1.2}, torque_pu_t{1.2}, torque_pu_t{1.2}, torque_pu_t{1.2}, torque_pu_t{1.2}, torque_pu_t{1.2},
+        torque_pu_t{1.2}};
+
     /**
      * @brief Operating mode for torque reference source
      */
@@ -132,6 +156,34 @@ public:
      */
     void enable_minimum_motoring_torque(bool enable);
 
+    /**
+     * @brief Configures the speed-reference indexed torque limit lookup tables (speed -> min/max torque)
+     *
+     * The lookup tables are evaluated using the speed reference passed to update(). When enabled,
+     * the resulting min/max torque values are combined with any external dynamic limits and the absolute
+     * limits to produce the final clamp.
+     *
+     * The speed axis must be sorted ascending.
+     *
+     * @param speed_axis_pu Speed breakpoints [pu]
+     * @param min_torque_limit_pu Minimum torque limits at each speed breakpoint [pu]
+     * @param max_torque_limit_pu Maximum torque limits at each speed breakpoint [pu]
+     */
+    void configure_speed_based_torque_limit_lookup_table(
+        const std::array<speed_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS>& speed_axis_pu,
+        const std::array<torque_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS>& min_torque_limit_pu,
+        const std::array<torque_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS>& max_torque_limit_pu);
+
+    /**
+     * @brief Enables or disables the speed-based torque limit clamp
+     *
+     * When disabled, the LUT is still evaluated (for observability), but the results do not constrain
+     * the commanded torque.
+     *
+     * @param enable True to apply speed-based limits, false to ignore them
+     */
+    void enable_speed_based_torque_limits(bool enable) noexcept;
+
     // ========== Real-Time Execution ==========
 
     /**
@@ -156,6 +208,7 @@ public:
     void update(torque_pu_t torque_reference,
         torque_pu_t dynamic_max_torque_limit,
         torque_pu_t dynamic_min_torque_limit,
+        speed_pu_t speed_reference_pu,
         bool enable_breakaway_boost);
 
     /**
@@ -205,6 +258,16 @@ public:
      * @return Limited torque reference [pu]
      */
     torque_pu_t get_limited_torque_reference() const;
+
+    /**
+     * @brief Gets the speed-based minimum torque limit evaluated at the current speed reference [pu]
+     */
+    torque_pu_t get_speed_based_min_torque_limit() const;
+
+    /**
+     * @brief Gets the speed-based maximum torque limit evaluated at the current speed reference [pu]
+     */
+    torque_pu_t get_speed_based_max_torque_limit() const;
 
     /**
      * @brief Gets the current operating mode
@@ -294,6 +357,11 @@ private:
     torque_pu_t _minimum_motoring_torque{0.02};
     bool _enable_minimum_motoring_torque{true};
 
+    // Speed-reference indexed torque limit LUT
+    bool _enable_speed_based_torque_limits{false};
+    yeet::control::lookup_table_1d<real_t, NUM_SPEED_TORQUE_LIMIT_POINTS> _speed_torque_min_limit_lookup{};
+    yeet::control::lookup_table_1d<real_t, NUM_SPEED_TORQUE_LIMIT_POINTS> _speed_torque_max_limit_lookup{};
+
     // ========== Dynamic State ==========
     torque_pu_t _base_torque_reference{0.0};
     torque_pu_t _total_torque_reference{0.0};
@@ -303,6 +371,10 @@ private:
     bool _is_saturated{false};
     bool _downstream_saturation{false};
     bool _is_braking_requested{false};
+
+    // Speed-based limits evaluated at current speed reference (for observability)
+    torque_pu_t _speed_based_min_torque_limit{0.0};
+    torque_pu_t _speed_based_max_torque_limit{0.0};
 
     // Dynamic limits (updated each cycle)
     torque_pu_t _dynamic_max_torque_limit{1.2};

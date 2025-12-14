@@ -321,6 +321,81 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
 }
 
 /**
+ * @test SpeedBasedTorqueLimitCapsAppliedTorqueTest
+ * @brief Validates speed-reference-indexed torque limiting in the full closed-loop system
+ *
+ * Ensures the machine-side torque controller respects a configured speed-based maximum torque
+ * during CLOSED_LOOP_OPERATION.
+ */
+TEST_F(ClosedLoopSpeedControlTest, SpeedBasedTorqueLimitCapsAppliedTorqueTest)
+{
+    // Configure speed-based torque limit LUT: constant 0.6 pu max, 0.0 pu min across speed.
+    auto& tq_params = system.machine_side_control.torque_controller.get_parameters();
+    auto speed_axis = tq_params.speed_torque_limit_speed_axis_pu.read();
+    auto min_torque = tq_params.speed_torque_limit_min_torque_pu.read();
+    auto max_torque = tq_params.speed_torque_limit_max_torque_pu.read();
+
+    for (auto& v : min_torque) {
+        v = torque_pu_t{0.0f};
+    }
+    for (auto& v : max_torque) {
+        v = torque_pu_t{0.6f};
+    }
+
+    tq_params.speed_torque_limit_speed_axis_pu.write(speed_axis);
+    tq_params.speed_torque_limit_min_torque_pu.write(min_torque);
+    tq_params.speed_torque_limit_max_torque_pu.write(max_torque);
+    tq_params.enable_speed_based_torque_limits.write(true);
+
+    // Startup sequencer setup to reach closed-loop quickly
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{8.0f};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.0};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{1.0f};
+
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // Command rated speed
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+
+    // Moderate load so the controller requests torque near its limits
+    system.plant.get_parameters().constant_torque.write(torque_pu_t(0.20f));
+
+    // Checker: applied torque must stay below 0.62 pu while active
+    auto torque_cap_checker = simulator.register_checker(yeet::make_range_checker<torque_pu_t>(
+        "speed-based torque max clamp",
+        [&]() -> torque_pu_t {
+            return system.machine_side_control.torque_controller.get_outputs().torque_reference.read();
+        },
+        torque_pu_t{-1.2f}, torque_pu_t{0.62f}, yeet::checker_activation_always{}));
+    torque_cap_checker->deactivate();
+
+    execute_startup_sequence();
+
+    bool success = true;
+
+    // Preflux + virtual startup + transition time
+    success &= simulator.simulate_for(12.0);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "Startup should reach CLOSED_LOOP_OPERATION";
+
+    torque_cap_checker->activate();
+    success &= simulator.simulate_for(5.0);
+    torque_cap_checker->deactivate();
+
+    auto evaluated_max =
+        system.machine_side_control.torque_controller.get_outputs().speed_based_max_torque_limit.read();
+    EXPECT_NEAR(evaluated_max.value(), 0.6f, 0.02f) << "Speed-based max torque output should reflect configuration";
+
+    EXPECT_TRUE(success) << "Simulation failed while checking speed-based torque cap";
+}
+
+/**
  * @test OperatingPointsSpeedAndVoltageSetpointTest
  * @brief Verifies speed tracking and excitation voltage setpoint across operating points
  *

@@ -43,7 +43,15 @@ public:
         }
     }
 
-    void register_callback(std::function<void(void)> callback) { _callback = callback; }
+    void register_callback(std::function<void(void)> callback, bool run_callback_immediately = true)
+    {
+        _callback = callback;
+
+        // Run the callback immediately upon registering callback
+        if (run_callback_immediately) {
+            _callback();
+        }
+    }
 
 private:
     std::function<void(void)> _callback{};

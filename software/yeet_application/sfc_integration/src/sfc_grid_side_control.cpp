@@ -136,7 +136,13 @@ void sfc_grid_side_control::connect_internal_signals()
         .from(grid_protections.get_outputs().is_inhibited)
         .to(&state_machine_inputs::protection_inhibited)
         .from(grid_protections.get_outputs().any_fault_active)
-        .to(&state_machine_inputs::any_protection_fault_active);
+        .to(&state_machine_inputs::any_protection_fault_active)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().shutdown_request)
+        .to(&state_machine_inputs::machine_side_shutdown_request)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().protection_inhibit)
+        .to(&state_machine_inputs::machine_side_protection_inhibited)
+        .from(external_ios.get_fiber_optics_inputs_from_machine().machine_protection_tripped)
+        .to(&state_machine_inputs::machine_side_protection_tripped);
 
     // ==================== Grid Integrator Supervisor Inputs ====================
     wire(grid_integrator_supervisor)
@@ -191,7 +197,9 @@ void sfc_grid_side_control::connect_internal_signals()
         .from(state_machine.get_outputs().release_protections)
         .to(&protections_inputs::release_protections)
         .from(state_machine.get_outputs().trip_acknowledged)
-        .to(&protections_inputs::trip_acknowledged);
+        .to(&protections_inputs::trip_acknowledged)
+        .from(external_ios.get_digital_inputs().door_is_open)
+        .to(&protections_inputs::door_is_open);
 
     // ==================== Current Controller Inputs ====================
     wire(current_controller)
@@ -246,6 +254,10 @@ void sfc_grid_side_control::connect_internal_signals()
         state_machine.get_outputs().mcb_close, external_ios.get_digital_outputs().mcb_close);
     signals_connector::connect_output_to_input(
         state_machine.get_outputs().mcb_open, external_ios.get_digital_outputs().mcb_open);
+
+    // ==================== Auxiliaries Command Output ====================
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().auxiliaries_on_command, external_ios.get_digital_outputs().auxiliaries_on_command);
 }
 
 }  // namespace yeet::application::sfc::integration

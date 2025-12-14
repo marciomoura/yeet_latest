@@ -3,10 +3,7 @@
 namespace yeet::application::sfc::integration {
 
 sfc_machine_side_protections_runner::sfc_machine_side_protections_runner()
-    : base_application(sampling_time),
-      _vhz_protection(sampling_time),
-      _stall_protection(sampling_time),
-      _communication_watchdog(sampling_time)
+    : base_application(sampling_time), _protections(sampling_time)
 {
 }
 
@@ -26,28 +23,30 @@ void sfc_machine_side_protections_runner::initialize()
 
 void sfc_machine_side_protections_runner::reset()
 {
-    _vhz_protection.reset();
-    _stall_protection.reset();
-    _communication_watchdog.reset();
+    _protections.reset();
 
     // Clear communication status
     _last_communication_valid = true;
-
-    // Clear trip latch and alarm pending state
-    _trip_latched = false;
-    _alarm_pending = false;
 
     // Clear all output signals
     _outputs.is_tripped = false;
     _outputs.is_inhibited = false;
     _outputs.any_fault_active = false;
     _outputs.over_flux_tripped = false;
+    _outputs.over_flux_alarmed = false;
     _outputs.under_flux_tripped = false;
+    _outputs.under_flux_alarmed = false;
     _outputs.stall_tripped = false;
+    _outputs.stall_alarmed = false;
     _outputs.over_flux_warning = false;
     _outputs.under_flux_warning = false;
     _outputs.stall_warning = false;
+    _outputs.overspeed_tripped = false;
+    _outputs.overspeed_alarmed = false;
+    _outputs.machine_overvoltage_tripped = false;
+    _outputs.machine_overvoltage_alarmed = false;
     _outputs.communication_loss_tripped = false;
+    _outputs.communication_loss_alarmed = false;
     _outputs.communication_loss_warning = false;
 }
 
@@ -61,118 +60,36 @@ void sfc_machine_side_protections_runner::run()
     }
 
     // Only update protections when both module is enabled AND release signal is active
-    bool module_enabled = _parameters.protection_module_enabled;
-    bool release_signal = _inputs.release_protections;
-    bool enable = module_enabled && release_signal;
+    const bool module_enabled = _parameters.protection_module_enabled;
+    const bool release_signal = _inputs.release_protections;
 
-    // If module is disabled, force clear all trip states and alarms
-    if (!module_enabled) {
-        _vhz_protection.reset();
-        _stall_protection.reset();
-        _communication_watchdog.reset();
-        _trip_latched = false;
-        _alarm_pending = false;
+    _protections.update(_inputs.dc_link_current_pu.read(), _inputs.machine_voltage_magnitude_pu.read(),
+        _inputs.machine_frequency_pu.read(), _inputs.machine_speed.read(), _inputs.startup_active.read(),
+        _inputs.closed_loop_active.read(), module_enabled, release_signal, _last_communication_valid,
+        _inputs.trip_acknowledged.read(), _parameters.confirm_alarms.read());
 
-        // Clear all output signals immediately
-        _outputs.is_tripped = false;
-        _outputs.is_inhibited = false;
-        _outputs.any_fault_active = false;
-        _outputs.over_flux_tripped = false;
-        _outputs.under_flux_tripped = false;
-        _outputs.stall_tripped = false;
-        _outputs.over_flux_warning = false;
-        _outputs.under_flux_warning = false;
-        _outputs.stall_warning = false;
-        _outputs.communication_loss_tripped = false;
-        _outputs.communication_loss_warning = false;
-        return;  // Skip normal protection logic
-    }
-    else if (enable) {
-        // Update V/Hz protection with latest measurements
-        _vhz_protection.update(_inputs.machine_voltage_magnitude_pu, _inputs.machine_frequency);
+    _outputs.is_tripped = _protections.get_is_tripped();
+    _outputs.is_inhibited = _protections.get_is_inhibited();
+    _outputs.any_fault_active = _protections.get_any_fault_active();
 
-        // Update stall protection with latest measurements and startup state
-        _stall_protection.update(_inputs.dc_link_current_pu, _inputs.machine_speed, _inputs.startup_active);
+    _outputs.over_flux_tripped = _protections.get_over_flux_tripped();
+    _outputs.over_flux_alarmed = _protections.get_over_flux_alarmed();
+    _outputs.under_flux_tripped = _protections.get_under_flux_tripped();
+    _outputs.under_flux_alarmed = _protections.get_under_flux_alarmed();
+    _outputs.stall_tripped = _protections.get_stall_tripped();
+    _outputs.stall_alarmed = _protections.get_stall_alarmed();
+    _outputs.over_flux_warning = _protections.get_over_flux_warning();
+    _outputs.under_flux_warning = _protections.get_under_flux_warning();
+    _outputs.stall_warning = _protections.get_stall_warning();
 
-        // Update communication watchdog (uses communication status set via update_communication_status())
-        _communication_watchdog.update(_last_communication_valid);
+    _outputs.overspeed_tripped = _protections.get_overspeed_tripped();
+    _outputs.overspeed_alarmed = _protections.get_overspeed_alarmed();
+    _outputs.machine_overvoltage_tripped = _protections.get_machine_overvoltage_tripped();
+    _outputs.machine_overvoltage_alarmed = _protections.get_machine_overvoltage_alarmed();
 
-        // Attempt to reset protections when release signal is active and fault condition has cleared
-        // This allows latched protections to release when the measured value returns to safe range
-        if (_vhz_protection.can_reset()) {
-            _vhz_protection.reset();
-        }
-        if (_stall_protection.can_reset()) {
-            _stall_protection.reset();
-        }
-    }
-
-    // Read individual protection states
-    bool over_flux_trip = _vhz_protection.is_over_flux_tripped();
-    bool under_flux_trip = _vhz_protection.is_under_flux_tripped();
-    bool stall_trip = _stall_protection.is_tripped();
-    bool comm_loss_trip = _communication_watchdog.is_tripped();
-
-    // Update individual protection outputs
-    _outputs.over_flux_tripped = over_flux_trip;
-    _outputs.under_flux_tripped = under_flux_trip;
-    _outputs.stall_tripped = stall_trip;
-    _outputs.communication_loss_tripped = comm_loss_trip;
-
-    _outputs.over_flux_warning = _vhz_protection.is_over_flux_warning();
-    _outputs.under_flux_warning = _vhz_protection.is_under_flux_warning();
-    _outputs.stall_warning = _stall_protection.is_warning();
-    _outputs.communication_loss_warning = _communication_watchdog.is_warning();
-
-    // ==================== Trip Handshake Logic ====================
-    // Combined trip from individual protections (NOT latched - clears immediately)
-    bool any_protection_tripped = over_flux_trip || under_flux_trip || stall_trip || comm_loss_trip;
-
-    // Output immediate fault status (for state machine to know when fault condition clears)
-    _outputs.any_fault_active = any_protection_tripped;
-
-    // Set trip latch when any protection trips
-    if (any_protection_tripped) {
-        _trip_latched = true;
-    }
-
-    // Clear trip latch logic:
-    // - If alarm is pending (inhibited), trip can ONLY be cleared by state machine acknowledgment
-    // - If alarm is not pending, trip auto-clears when fault condition clears (transient fault)
-    bool can_clear_trip = false;
-    if (_alarm_pending) {
-        // Shutdown mode: Requires state machine acknowledgment
-        can_clear_trip = _inputs.trip_acknowledged;
-    }
-    else {
-        // Normal operation mode: Auto-clear when fault clears
-        can_clear_trip = !any_protection_tripped;
-    }
-
-    if (can_clear_trip) {
-        _trip_latched = false;
-    }
-
-    // Output latched trip signal
-    _outputs.is_tripped = _trip_latched;
-
-    // ==================== Alarm Confirmation Logic ====================
-    // Set alarm pending when trip latch is set
-    if (_trip_latched) {
-        _alarm_pending = true;
-    }
-
-    // Detect rising edge on confirm_alarms parameter
-    bool confirm_edge = _confirm_alarms_edge.update(_parameters.confirm_alarms);
-
-    // Clear alarm pending on confirm_alarms rising edge, but ONLY if trip has been acknowledged
-    // Safety: Cannot confirm alarms while trip is still latched
-    if (confirm_edge && !_trip_latched) {
-        _alarm_pending = false;
-    }
-
-    // Output is_inhibited status (latching alarm requiring confirmation)
-    _outputs.is_inhibited = _alarm_pending;
+    _outputs.communication_loss_tripped = _protections.get_communication_loss_tripped();
+    _outputs.communication_loss_alarmed = _protections.get_communication_loss_alarmed();
+    _outputs.communication_loss_warning = _protections.get_communication_loss_warning();
 }
 
 void sfc_machine_side_protections_runner::stop() { reset(); }
@@ -185,31 +102,47 @@ void sfc_machine_side_protections_runner::update_communication_status(bool commu
 void sfc_machine_side_protections_runner::set_parameters()
 {
     // V/Hz protection configuration
-    _vhz_protection.configure_rated_vhz(_parameters.rated_vhz);
-    _vhz_protection.configure_over_flux_trip_threshold(_parameters.over_flux_trip_threshold);
-    _vhz_protection.configure_over_flux_warning_threshold(_parameters.over_flux_warning_threshold);
-    _vhz_protection.configure_over_flux_trip_delay(_parameters.over_flux_trip_delay);
-    _vhz_protection.configure_over_flux_warning_delay(_parameters.over_flux_warning_delay);
-    _vhz_protection.configure_under_flux_trip_threshold(_parameters.under_flux_trip_threshold);
-    _vhz_protection.configure_under_flux_warning_threshold(_parameters.under_flux_warning_threshold);
-    _vhz_protection.configure_under_flux_trip_delay(_parameters.under_flux_trip_delay);
-    _vhz_protection.configure_under_flux_warning_delay(_parameters.under_flux_warning_delay);
+    _protections.configure_over_flux_trip_threshold(_parameters.over_flux_trip_threshold.read());
+    _protections.configure_over_flux_warning_threshold(_parameters.over_flux_warning_threshold.read());
+    _protections.configure_over_flux_trip_delay(_parameters.over_flux_trip_delay.read());
+    _protections.configure_over_flux_warning_delay(_parameters.over_flux_warning_delay.read());
+    _protections.configure_under_flux_trip_threshold(_parameters.under_flux_trip_threshold.read());
+    _protections.configure_under_flux_warning_threshold(_parameters.under_flux_warning_threshold.read());
+    _protections.configure_under_flux_trip_delay(_parameters.under_flux_trip_delay.read());
+    _protections.configure_under_flux_warning_delay(_parameters.under_flux_warning_delay.read());
 
     // Stall protection configuration
-    _stall_protection.configure_current_threshold(_parameters.stall_current_threshold);
-    _stall_protection.configure_speed_threshold(_parameters.stall_speed_threshold);
-    _stall_protection.configure_trip_delay(_parameters.stall_trip_delay);
-    _stall_protection.configure_warning_delay(_parameters.stall_warning_delay);
+    _protections.configure_stall_current_threshold(_parameters.stall_current_threshold.read());
+    _protections.configure_stall_speed_threshold(_parameters.stall_speed_threshold.read());
+    _protections.configure_stall_trip_delay(_parameters.stall_trip_delay.read());
+    _protections.configure_stall_warning_delay(_parameters.stall_warning_delay.read());
 
     // Communication watchdog configuration
-    _communication_watchdog.configure_timeout_duration(_parameters.comm_timeout);
-    _communication_watchdog.configure_reset_duration(_parameters.comm_reset);
+    _protections.configure_comm_timeout_duration(_parameters.comm_timeout.read());
+    _protections.configure_comm_reset_duration(_parameters.comm_reset.read());
+
+    // Overspeed protection configuration
+    _protections.configure_overspeed_trip_threshold(_parameters.overspeed_trip_threshold.read());
+    _protections.configure_overspeed_trip_delay(_parameters.overspeed_trip_delay.read());
+
+    // Machine-side overvoltage protection configuration
+    _protections.configure_machine_overvoltage_trip_threshold(_parameters.machine_overvoltage_trip_threshold.read());
+    _protections.configure_machine_overvoltage_trip_delay(_parameters.machine_overvoltage_trip_delay.read());
+
+    // Severity routing configuration
+    _protections.configure_over_flux_is_trip(_parameters.over_flux_severity == protection_severity::trip);
+    _protections.configure_under_flux_is_trip(_parameters.under_flux_severity == protection_severity::trip);
+    _protections.configure_stall_is_trip(_parameters.stall_severity == protection_severity::trip);
+    _protections.configure_overspeed_is_trip(_parameters.overspeed_severity == protection_severity::trip);
+    _protections.configure_machine_overvoltage_is_trip(
+        _parameters.machine_overvoltage_severity == protection_severity::trip);
+    _protections.configure_communication_loss_is_trip(
+        _parameters.communication_loss_severity == protection_severity::trip);
 }
 
 void sfc_machine_side_protections_runner::set_parameter_callback()
 {
     // Register callbacks for V/Hz protection parameters
-    _parameters.rated_vhz.register_callback([&]() { set_parameters(); });
     _parameters.over_flux_trip_threshold.register_callback([&]() { set_parameters(); });
     _parameters.over_flux_warning_threshold.register_callback([&]() { set_parameters(); });
     _parameters.over_flux_trip_delay.register_callback([&]() { set_parameters(); });
@@ -228,6 +161,20 @@ void sfc_machine_side_protections_runner::set_parameter_callback()
     // Register callbacks for communication watchdog parameters
     _parameters.comm_timeout.register_callback([&]() { set_parameters(); });
     _parameters.comm_reset.register_callback([&]() { set_parameters(); });
+
+    // Register callbacks for overspeed and machine-side overvoltage parameters
+    _parameters.overspeed_trip_threshold.register_callback([&]() { set_parameters(); });
+    _parameters.overspeed_trip_delay.register_callback([&]() { set_parameters(); });
+    _parameters.machine_overvoltage_trip_threshold.register_callback([&]() { set_parameters(); });
+    _parameters.machine_overvoltage_trip_delay.register_callback([&]() { set_parameters(); });
+
+    // Register callbacks for severity parameters
+    _parameters.over_flux_severity.register_callback([&]() { set_parameters(); });
+    _parameters.under_flux_severity.register_callback([&]() { set_parameters(); });
+    _parameters.stall_severity.register_callback([&]() { set_parameters(); });
+    _parameters.overspeed_severity.register_callback([&]() { set_parameters(); });
+    _parameters.machine_overvoltage_severity.register_callback([&]() { set_parameters(); });
+    _parameters.communication_loss_severity.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

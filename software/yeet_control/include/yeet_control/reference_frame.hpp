@@ -808,6 +808,70 @@ dq<real_t> to_dimensionless_dq(const dq<QuantityType>& quantity_dq)
     return scalar_dq;
 }
 
+/**
+ * @brief Line-to-line (ab, bc, ca) representation of three-phase quantities.
+ *
+ * This is commonly used for line voltages:
+ * - v_ab = v_a - v_b
+ * - v_bc = v_b - v_c
+ * - v_ca = v_c - v_a
+ *
+ * Converting from line-to-line back to phase quantities assumes a balanced system
+ * with no zero-sequence component (a + b + c = 0).
+ *
+ * @tparam T Underlying value type (e.g. real_t, voltage_pu_t)
+ */
+template <typename T = real_t>
+struct line_voltage {
+    using value_type = T;
+
+    constexpr line_voltage() = default;
+    constexpr line_voltage(T v_ab, T v_bc, T v_ca) : _ab(v_ab), _bc(v_bc), _ca(v_ca) {}
+
+    /**
+     * @brief Construct from phase quantities.
+     */
+    constexpr explicit line_voltage(const abc<T>& phase)
+        : _ab(phase.a() - phase.b()), _bc(phase.b() - phase.c()), _ca(phase.c() - phase.a())
+    {
+    }
+
+    /**
+     * @brief Convert to phase quantities (a,b,c) assuming a balanced system.
+     *
+     * Uses v_ab and v_bc; v_ca is redundant under the balanced assumption.
+     */
+    constexpr abc<T> to_phase_balanced() const
+    {
+        const T a = (static_cast<real_t>(2.0 / 3.0) * _ab) + (static_cast<real_t>(1.0 / 3.0) * _bc);
+        const T b = -(static_cast<real_t>(1.0 / 3.0) * _ab) + (static_cast<real_t>(1.0 / 3.0) * _bc);
+        const T c = -(static_cast<real_t>(1.0 / 3.0) * _ab) - (static_cast<real_t>(2.0 / 3.0) * _bc);
+        return abc<T>{a, b, c};
+    }
+
+    T ab() const { return _ab; }
+    T bc() const { return _bc; }
+    T ca() const { return _ca; }
+
+    T& ab() { return _ab; }
+    T& bc() { return _bc; }
+    T& ca() { return _ca; }
+
+private:
+    T _ab{};
+    T _bc{};
+    T _ca{};
+};
+
+/**
+ * @brief Convert phase quantities (a,b,c) to line-to-line quantities (ab, bc, ca).
+ */
+template <typename T>
+constexpr line_voltage<T> to_line_voltage(const abc<T>& phase)
+{
+    return line_voltage<T>{phase};
+}
+
 template <typename T>
 abc<T> to_line(abc<T> phase)
 {

@@ -199,6 +199,44 @@ TEST_P(SfcOpenLoopBackToBack, GridBreakerOpenCausesCurrentDecayToZero)
     EXPECT_FALSE(plant.is_grid_circuit_breaker_closed()) << "Breaker should still be open";
 }
 
+/**
+ * @test GridVoltageSourceMagnitudeTracksGridVoltagePu
+ * @brief Verifies that changing grid_voltage_pu propagates through plant + ADC + measurement chain.
+ *
+ * This is a regression test for cases where users set the grid voltage command but measured
+ * grid voltage stays stuck at 1.0 pu.
+ *
+ * To avoid ambiguity due to load current and source impedance, the grid circuit breaker is opened
+ * so the grid source is effectively unloaded.
+ */
+TEST_P(SfcOpenLoopBackToBack, GridVoltageSourceMagnitudeTracksGridVoltagePu)
+{
+    auto& plant = system.plant.get_plant_model();
+
+    // Unload the grid source so terminal voltage follows the source command closely.
+    plant.set_grid_circuit_breaker_closed(false);
+    simulate_for(0.2);
+
+    auto read_vmag_pu = [&]() {
+        return system.grid_side_measurements.get_outputs().grid_voltage_magnitude_filtered.read().value();
+    };
+
+    // Nominal
+    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{1.0f});
+    simulate_for(0.25);
+    EXPECT_NEAR(read_vmag_pu(), 1.0f, 0.05f);
+
+    // Overvoltage
+    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{1.30f});
+    simulate_for(0.25);
+    EXPECT_NEAR(read_vmag_pu(), 1.30f, 0.07f);
+
+    // Undervoltage
+    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{0.70f});
+    simulate_for(0.25);
+    EXPECT_NEAR(read_vmag_pu(), 0.70f, 0.07f);
+}
+
 INSTANTIATE_TEST_SUITE_P(TopologyTests,
     SfcOpenLoopBackToBack,
     ::testing::Values(

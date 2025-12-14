@@ -4,8 +4,26 @@
  */
 
 #include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
+#include "sfc_integration/protection_severity.hpp"
 
 namespace yeet::application::sfc::telemetry {
+
+namespace {
+
+float protection_status_to_signal(
+    yeet::application::sfc::integration::protection_severity severity, bool tripped, bool alarmed) noexcept
+{
+    const bool is_trip = (severity == yeet::application::sfc::integration::protection_severity::trip);
+    const bool is_active = is_trip ? tripped : alarmed;
+
+    // 0: TRIP OFF, 1: TRIP ON, 2: ALARM OFF, 3: ALARM ON
+    if (is_trip) {
+        return is_active ? 1.0f : 0.0f;
+    }
+    return is_active ? 3.0f : 2.0f;
+}
+
+}  // namespace
 
 yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std::uint32_t timestamp_ms) noexcept
 {
@@ -121,6 +139,28 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(72, fiber_rx.machine_protection_tripped.read() ? 1.0f : 0.0f);
     packet.add_signal(73, fiber_rx.protection_inhibit.read() ? 1.0f : 0.0f);
     packet.add_signal(74, fiber_rx.machine_trip_acknowledged.read() ? 1.0f : 0.0f);
+
+    // === Grid-Side Protections Severity/Status Group (75-79) ===
+    const auto& protection_params = protections.get_parameters();
+    packet.add_signal(75, protection_status_to_signal(protection_params.overcurrent_severity.read(),
+                              protections.get_outputs().overcurrent_tripped.read(),
+                              protections.get_outputs().overcurrent_alarmed.read()));
+    packet.add_signal(76, protection_status_to_signal(protection_params.overvoltage_severity.read(),
+                              protections.get_outputs().overvoltage_tripped.read(),
+                              protections.get_outputs().overvoltage_alarmed.read()));
+    packet.add_signal(77, protection_status_to_signal(protection_params.undervoltage_severity.read(),
+                              protections.get_outputs().undervoltage_tripped.read(),
+                              protections.get_outputs().undervoltage_alarmed.read()));
+    packet.add_signal(78, protection_status_to_signal(protection_params.communication_loss_severity.read(),
+                              protections.get_outputs().communication_loss_tripped.read(),
+                              protections.get_outputs().communication_loss_alarmed.read()));
+    packet.add_signal(79,
+        protection_status_to_signal(protection_params.door_open_severity.read(),
+            protections.get_outputs().door_open_tripped.read(), protections.get_outputs().door_open_alarmed.read()));
+
+    // === Commutation Notch Duration Group (80-81) ===
+    packet.add_signal(80, static_cast<float>(grid_meas.get_outputs().commutation_notch_duration_last.read()));
+    packet.add_signal(81, static_cast<float>(grid_meas.get_outputs().commutation_notch_duration_filtered.read()));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);

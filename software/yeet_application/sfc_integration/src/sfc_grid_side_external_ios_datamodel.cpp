@@ -319,4 +319,9 @@ bool sfc_grid_side_external_ios_datamodel::get_mcb_close() const { return _digit
 
 bool sfc_grid_side_external_ios_datamodel::get_mcb_open() const { return _digital_outputs.mcb_open.read(); }
 
+bool sfc_grid_side_external_ios_datamodel::get_auxiliaries_on_command() const
+{
+    return _digital_outputs.auxiliaries_on_command.read();
+}
+
 }  // namespace yeet::application::sfc::integration

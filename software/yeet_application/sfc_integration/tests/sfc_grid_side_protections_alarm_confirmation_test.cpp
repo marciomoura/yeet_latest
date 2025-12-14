@@ -55,6 +55,9 @@ protected:
         // Release protections
         mock_signal_input::write(inputs.release_protections, true);
 
+        // Door closed by default
+        mock_signal_input::write(inputs.door_is_open, false);
+
         // Note: trip_acknowledged is not initialized here - it will be set by tests as needed
     }
     void trigger_overcurrent()
@@ -175,8 +178,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
     set_trip_acknowledged(true);
     run_cycle();
     ASSERT_FALSE(is_tripped());
-    set_trip_acknowledged(false);
-    run_cycle();
     ASSERT_TRUE(is_inhibited()) << "Alarm should still be latched after trip clears";
 
     // Set confirm_alarms=true WITHOUT going through false first (should already be false from setup, but let's
@@ -196,6 +197,10 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
 
     // Reset confirm_alarms
     set_confirm_alarms(false);
+    run_cycle();
+
+    // Clear acknowledgment after confirmation
+    set_trip_acknowledged(false);
     run_cycle();
 }
 
@@ -234,15 +239,15 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped)
     EXPECT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
-    set_trip_acknowledged(false);
-    run_cycle();
-
     // Now confirmation should work
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after fault removed and confirmation given";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 }
 
 /**
@@ -270,9 +275,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenS
     ASSERT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
     ASSERT_TRUE(is_inhibited());
 
-    set_trip_acknowledged(false);
-    run_cycle();
-
     // Confirm alarm (rising edge)
     set_confirm_alarms(false);
     run_cycle();
@@ -281,6 +283,9 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenS
 
     EXPECT_FALSE(is_inhibited()) << "Alarm should be cleared after confirmation";
     EXPECT_FALSE(is_tripped()) << "Protection should not be tripped";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 }
 
 /**
@@ -302,8 +307,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     set_trip_acknowledged(true);
     run_cycle();
     ASSERT_FALSE(is_tripped());
-    set_trip_acknowledged(false);
-    run_cycle();
 
     // First confirmation
     set_confirm_alarms(false);
@@ -311,6 +314,9 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "First alarm should be cleared";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 
     // Second trip cycle
     trigger_overvoltage();
@@ -324,8 +330,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     set_trip_acknowledged(true);
     run_cycle();
     EXPECT_FALSE(is_tripped());
-    set_trip_acknowledged(false);
-    run_cycle();
 
     // Second confirmation (need new rising edge)
     set_confirm_alarms(false);
@@ -333,6 +337,9 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Second alarm should be cleared";
+
+    set_trip_acknowledged(false);
+    run_cycle();
 }
 
 /**
@@ -453,6 +460,83 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
         EXPECT_FALSE(is_tripped()) << "Should not trip while module disabled (cycle " << i << ")";
         EXPECT_FALSE(is_inhibited()) << "Should not inhibit while module disabled (cycle " << i << ")";
     }
+}
+
+/**
+ * @brief Door open must generate a trip and require confirmation before restart.
+ */
+TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConfirmation)
+{
+    auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+
+    // Prove this works even when not releasing/modulating.
+    mock_signal_input::write(inputs.release_protections, false);
+    mock_signal_input::write(inputs.door_is_open, true);
+
+    run_cycle();
+    EXPECT_TRUE(is_tripped()) << "Door open should trip protections";
+    EXPECT_TRUE(is_inhibited()) << "Door open trip should latch alarm";
+
+    // Close door: fault clears but trip remains latched until acknowledged
+    mock_signal_input::write(inputs.door_is_open, false);
+    run_cycle();
+    EXPECT_TRUE(is_tripped()) << "Trip should remain latched until acknowledged";
+
+    // Acknowledge trip then confirm alarms
+    set_trip_acknowledged(true);
+    run_cycle();
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
+    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched after trip clears";
+
+    set_trip_acknowledged(false);
+    run_cycle();
+
+    set_confirm_alarms(false);
+    run_cycle();
+    set_confirm_alarms(true);
+    run_cycle();
+
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after user confirmation";
+}
+
+/**
+ * @brief Communication loss beyond configured timeout must trip and require confirmation.
+ */
+TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterTimeout)
+{
+    auto& params = _runner->get_parameters();
+    auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+
+    // Configure very short timeout so the test is fast/deterministic.
+    params.comm_timeout.write(duration_t{200e-6});  // 1 cycle at 200us
+    params.comm_reset.write(duration_t{200e-6});
+
+    // Prove comm watchdog runs even when not releasing/modulating.
+    mock_signal_input::write(inputs.release_protections, false);
+
+    _runner->update_communication_status(false);
+    run_cycle();
+
+    EXPECT_TRUE(is_tripped()) << "Communication loss should trip protections";
+    EXPECT_TRUE(is_inhibited()) << "Communication loss trip should latch alarm";
+
+    // Restore communication and allow watchdog to clear its internal trip condition
+    _runner->update_communication_status(true);
+    run_cycle();
+
+    // Trip latch requires acknowledgment
+    set_trip_acknowledged(true);
+    run_cycle();
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
+
+    // Alarm confirmation required
+    set_trip_acknowledged(false);
+    run_cycle();
+    set_confirm_alarms(false);
+    run_cycle();
+    set_confirm_alarms(true);
+    run_cycle();
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after user confirmation";
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -108,16 +108,18 @@ public:
         _runner.run(_current_tick);
 
         _current_tick++;
-    } /**
-       * @brief Simulate for a specified duration using time-based execution.
-       *
-       * This is the traditional batch simulation method used in integration tests.
-       * It executes the required number of ticks to cover the specified time duration.
-       *
-       * @param time Duration to simulate in seconds
-       * @param short_circuit_upon_reaching_max_failures Stop immediately on checker failure
-       * @return true if no checker failures detected, false otherwise
-       */
+    }
+
+    /**
+     * @brief Simulate for a specified duration using time-based execution.
+     *
+     * This is the traditional batch simulation method used in integration tests.
+     * It executes the required number of ticks to cover the specified time duration.
+     *
+     * @param time Duration to simulate in seconds
+     * @param short_circuit_upon_reaching_max_failures Stop immediately on checker failure
+     * @return true if no checker failures detected, false otherwise
+     */
     bool simulate_for(double time, bool short_circuit_upon_reaching_max_failures = false)
     {
         const double simulation_sampling_rate = _runner.get_fastest_sampling_rate();

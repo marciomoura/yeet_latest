@@ -47,7 +47,15 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'current c', 'color': 'y', 'index': GridSignalIndex.GRID_CURRENT_C},
                     {'name': 'current mag.', 'color': 'g', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE},
                 ]
-            }
+            },
+            'commutation_notch_duration': {
+                'title': 'Commutation Notch Duration',
+                'y_label': 'Time (s)',
+                'signals': [
+                    {'name': 'notch last', 'color': 'c', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S},
+                    {'name': 'notch filtered', 'color': 'm', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S},
+                ]
+            },
 
         },
         'observer': {
@@ -144,7 +152,15 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'voltage c', 'color': 'y', 'index': MachineSignalIndex.MACHINE_VOLTAGE_ABC_C},
                     {'name': 'voltage magnitude filtered', 'color': 'g', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED}
                 ]
-            }
+            },
+            'commutation_notch_duration': {
+                'title': 'Commutation Notch Duration',
+                'y_label': 'Time (s)',
+                'signals': [
+                    {'name': 'notch last', 'color': 'c', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S},
+                    {'name': 'notch filtered', 'color': 'm', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S},
+                ]
+            },
         },
         'observer': {
             'observer_estimates': {

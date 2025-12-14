@@ -21,11 +21,14 @@ target_sources(
             sfc_fiber_optic_protocol_test.cpp
             sfc_grid_side_measurements_test.cpp
             sfc_grid_side_modulator_test.cpp
+            sfc_grid_side_protections_test.cpp
             sfc_machine_side_lookup_table_test.cpp
             sfc_machine_side_measurements_test.cpp
             sfc_machine_side_modulator_test.cpp
+            sfc_machine_side_protections_test.cpp
             sfc_mode_detector_test.cpp
             sfc_per_unit_system_test.cpp
+            sfc_protections_trip_handshake_test.cpp
             sfc_soft_starter_speed_generator_test.cpp
             sfc_stall_protection_test.cpp
             sfc_startup_sequencer_test.cpp

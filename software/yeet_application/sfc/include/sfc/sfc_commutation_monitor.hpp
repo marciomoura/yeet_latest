@@ -1,6 +1,8 @@
 #pragma once
 
 #include "yeet_control/edge_detector.hpp"
+#include "yeet_control/elapsed_timer.hpp"
+#include "yeet_control/first_order_low_pass_filter.hpp"
 #include "yeet_control/reference_frame.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
@@ -37,8 +39,19 @@ public:
      * @brief Constructs an SfcCommutationMonitor with the given configuration.
      *
      * @param config The configuration parameters for the monitor.
+     * @param sampling_time Control execution period used to measure notch durations.
      */
-    explicit sfc_commutation_monitor(const Config& config);
+    explicit sfc_commutation_monitor(const Config& config, duration_t sampling_time = duration_t{200e-6F}) noexcept;
+
+    /**
+     * @brief Configure the filter time constant used to smooth the measured notch duration.
+     *
+     * Internally uses yeet_control::first_order_low_pass_filter.
+     *
+     * The time constant $\tau$ is mapped to a cutoff frequency using:
+     * $$ f_c = \frac{1}{2\pi\tau} $$
+     */
+    void configure_notch_duration_filter_time_constant(duration_t time_constant) noexcept;
 
     /**
      * @brief Sets the configuration parameters for the monitor.
@@ -64,6 +77,16 @@ public:
      * @return true if any phase is currently commuting, false otherwise.
      */
     [[nodiscard]] bool is_commuting() const;
+
+    /**
+     * @brief Last completed commutation notch duration [s].
+     */
+    [[nodiscard]] duration_t get_notch_duration_last() const noexcept;
+
+    /**
+     * @brief Filtered commutation notch duration [s].
+     */
+    [[nodiscard]] duration_t get_notch_duration_filtered() const noexcept;
 
 private:
     /**
@@ -94,6 +117,13 @@ private:
     control::edge_detector _p4_detector;
     control::edge_detector _p5_detector;
     control::edge_detector _p6_detector;
+
+    duration_t _sampling_time{200e-6F};
+    duration_t _notch_duration_last{0.0F};
+    duration_t _notch_duration_filter_time_constant{10e-3F};
+
+    control::elapsed_timer _notch_duration_timer;
+    control::first_order_low_pass_filter<duration_t> _notch_duration_filter;
 };
 
 }  // namespace yeet

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc_integration/protection_severity.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
@@ -34,6 +35,9 @@ public:
 
         /// Trip acknowledged by state machine (allows clearing of latched trip)
         signal_input<bool> trip_acknowledged;
+
+        /// Enclosure door is open (treated as a trip condition) [bool]
+        signal_input<bool> door_is_open;
     };
 
     /**
@@ -53,11 +57,20 @@ public:
         /// Overcurrent protection trip status
         signal_output<bool> overcurrent_tripped;
 
+        /// Overcurrent protection alarm status (severity-dependent)
+        signal_output<bool> overcurrent_alarmed;
+
         /// Overvoltage protection trip status
         signal_output<bool> overvoltage_tripped;
 
+        /// Overvoltage protection alarm status (severity-dependent)
+        signal_output<bool> overvoltage_alarmed;
+
         /// Undervoltage protection trip status
         signal_output<bool> undervoltage_tripped;
+
+        /// Undervoltage protection alarm status (severity-dependent)
+        signal_output<bool> undervoltage_alarmed;
 
         /// Overcurrent warning status
         signal_output<bool> overcurrent_warning;
@@ -71,14 +84,39 @@ public:
         /// Communication loss protection trip status
         signal_output<bool> communication_loss_tripped;
 
+        /// Communication loss protection alarm status (severity-dependent)
+        signal_output<bool> communication_loss_alarmed;
+
         /// Communication loss protection warning status
         signal_output<bool> communication_loss_warning;
+
+        /// Door open protection trip status (severity-dependent)
+        signal_output<bool> door_open_tripped;
+
+        /// Door open protection alarm status (severity-dependent)
+        signal_output<bool> door_open_alarmed;
     };
 
     /**
      * @brief Configuration parameters for grid-side protections
      */
     struct parameters {
+        // ========== Per-Protection Severity Selection ==========
+        /// Severity for overcurrent detection (default: trip)
+        parameter<protection_severity> overcurrent_severity{protection_severity::trip};
+
+        /// Severity for overvoltage detection (default: trip)
+        parameter<protection_severity> overvoltage_severity{protection_severity::trip};
+
+        /// Severity for undervoltage detection (default: trip)
+        parameter<protection_severity> undervoltage_severity{protection_severity::trip};
+
+        /// Severity for communication loss detection (default: trip)
+        parameter<protection_severity> communication_loss_severity{protection_severity::trip};
+
+        /// Severity for door open detection (default: trip)
+        parameter<protection_severity> door_open_severity{protection_severity::trip};
+
         // ========== Overcurrent Protection Parameters ==========
         /// Overcurrent trip threshold [pu]
         parameter<current_pu_t> overcurrent_trip_threshold{current_pu_t{1.5f}};
@@ -94,16 +132,16 @@ public:
 
         // ========== Overvoltage Protection Parameters ==========
         /// Overvoltage trip threshold [pu]
-        parameter<voltage_pu_t> overvoltage_trip_threshold{voltage_pu_t{1.25f}};
+        parameter<voltage_pu_t> overvoltage_trip_threshold{voltage_pu_t{1.2f}};
 
         /// Overvoltage warning threshold [pu]
-        parameter<voltage_pu_t> overvoltage_warning_threshold{voltage_pu_t{1.15f}};
+        parameter<voltage_pu_t> overvoltage_warning_threshold{voltage_pu_t{1.1f}};
 
         /// Overvoltage trip delay [s]
-        parameter<duration_t> overvoltage_trip_delay{duration_t{0.1}};
+        parameter<duration_t> overvoltage_trip_delay{duration_t{ms(500.0f)}};
 
         /// Overvoltage warning delay [s]
-        parameter<duration_t> overvoltage_warning_delay{duration_t{0.02}};
+        parameter<duration_t> overvoltage_warning_delay{duration_t{ms(100.0f)}};
 
         // ========== Undervoltage Protection Parameters ==========
         /// Undervoltage trip threshold [pu]
@@ -113,19 +151,19 @@ public:
         parameter<voltage_pu_t> undervoltage_warning_threshold{voltage_pu_t{0.85f}};
 
         /// Undervoltage trip delay [s]
-        parameter<duration_t> undervoltage_trip_delay{duration_t{0.5}};
+        parameter<duration_t> undervoltage_trip_delay{duration_t{ms(100.0f)}};
 
         /// Undervoltage warning delay [s]
-        parameter<duration_t> undervoltage_warning_delay{duration_t{0.1}};
+        parameter<duration_t> undervoltage_warning_delay{duration_t{ms(100.0f)}};
 
         // ========== Communication Watchdog Parameters ==========
         /// Communication timeout threshold [s]
-        /// Default: 50ms
-        parameter<duration_t> comm_timeout{duration_t{0.050}};
+        /// Default: 100ms
+        parameter<duration_t> comm_timeout{duration_t{ms(100.0f)}};
 
         /// Communication reset threshold [s]
         /// Default: 5ms
-        parameter<duration_t> comm_reset{duration_t{0.005}};
+        parameter<duration_t> comm_reset{duration_t{ms(5.0f)}};
 
         // ========== Protection Module Control ==========
         /// Master enable/disable for entire protection module
@@ -156,6 +194,18 @@ public:
     void register_data_model(model_registry& registry)
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
+
+        // Per-protection severity parameters
+        entry.parameters.insert(
+            "overcurrent_severity", yeet::utils::make_enum_accessor(_model_parameters->overcurrent_severity));
+        entry.parameters.insert(
+            "overvoltage_severity", yeet::utils::make_enum_accessor(_model_parameters->overvoltage_severity));
+        entry.parameters.insert(
+            "undervoltage_severity", yeet::utils::make_enum_accessor(_model_parameters->undervoltage_severity));
+        entry.parameters.insert("communication_loss_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->communication_loss_severity));
+        entry.parameters.insert(
+            "door_open_severity", yeet::utils::make_enum_accessor(_model_parameters->door_open_severity));
 
         // Overcurrent parameters
         entry.parameters.insert("overcurrent_trip_threshold",

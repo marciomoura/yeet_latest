@@ -69,6 +69,10 @@ void sfc_startup_sequencer_runner::run()
     _outputs.speed_reference.write(sequencer_outputs.speed_control.speed_reference);
 
     _outputs.is_startup_complete.write(_sequencer.is_startup_complete());
+    const auto state = sequencer_outputs.controller_commands.current_state;
+    const bool startup_active =
+        (state == startup_sequencer_state_t::FLUX_BUILDUP || state == startup_sequencer_state_t::STARTING_PROCEDURE);
+    _outputs.startup_active.write(startup_active);
     _outputs.time_in_current_state.write(_sequencer.get_time_in_current_state());
 
     // Write preset signals

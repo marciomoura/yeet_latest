@@ -139,4 +139,33 @@ inline low_level_access make_angle_accessor(parameter<yeet::angle_wrapped>& para
         [&param](float value_rad) { param.write(yeet::angle_wrapped::from_radians(yeet::angle_t{value_rad})); });
 }
 
+/**
+ * @brief Creates low_level_access for a single element in an array parameter
+ *
+ * This template enables per-element access to std::array<T, N> parameters for datamodel registration.
+ * The element type must support conversion to/from float.
+ *
+ * @tparam ElementT The element type stored in the array (e.g., speed_pu_t, torque_pu_t)
+ * @tparam N The size of the array
+ * @param param Reference to the parameter<std::array<ElementT, N>> object
+ * @param index The array index to access (0-based)
+ * @return low_level_access configured for the specific array element
+ *
+ * @example
+ *     parameter<std::array<speed_pu_t, 7>> speed_axis;
+ *     // Per-element registration for array[0]:
+ *     entry.parameters.insert("speed_axis[0]", make_array_element_accessor(speed_axis, 0));
+ */
+template <typename ElementT, std::size_t N>
+inline low_level_access make_array_element_accessor(
+    parameter<std::array<ElementT, N>>& param, std::size_t index) noexcept
+{
+    return low_level_access([&param, index]() -> float { return static_cast<float>(param.read()[index].value()); },
+        [&param, index](float value) {
+            auto table = param.read();
+            table[index] = ElementT(value);
+            param.write(table);
+        });
+}
+
 }  // namespace yeet::utils

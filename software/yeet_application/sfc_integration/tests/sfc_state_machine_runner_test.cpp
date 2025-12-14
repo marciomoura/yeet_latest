@@ -35,11 +35,14 @@ protected:
         mock_signal_input::write(inputs.stop_command, false);
         mock_signal_input::write(inputs.shutdown_request, false);
         mock_signal_input::write(inputs.is_current_extinguished, false);
-        mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
-        mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
-        mock_signal_input::write(inputs.breaker_is_tripping, false);          // Breaker not tripping by default
-        mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
-        mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
+        mock_signal_input::write(inputs.protection_inhibited, false);           // Protection not inhibited by default
+        mock_signal_input::write(inputs.any_protection_fault_active, false);    // No protection faults by default
+        mock_signal_input::write(inputs.breaker_is_tripping, false);            // Breaker not tripping by default
+        mock_signal_input::write(inputs.emergency_off, false);                  // Emergency off not active by default
+        mock_signal_input::write(inputs.door_is_open, false);                   // Door closed by default
+        mock_signal_input::write(inputs.machine_side_shutdown_request, false);  // No machine-side shutdown
+        mock_signal_input::write(inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
+        mock_signal_input::write(inputs.machine_side_protection_tripped, false);    // No machine-side trip
     }
 
     void disable_all_overrides()
@@ -121,8 +124,42 @@ protected:
         mock_signal_input::write(inputs.is_current_extinguished, value);
     }
 
+    void set_protection_inhibited(bool value)
+    {
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.protection_inhibited, value);
+    }
+
+    void set_machine_side_protection_inhibited(bool value)
+    {
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.machine_side_protection_inhibited, value);
+    }
+
     std::unique_ptr<sfc_state_machine_runner> _runner;
 };
+
+// Any protection inhibit must force shutdown outputs (MCB open, auxiliaries off)
+TEST_F(SfcStateMachineRunnerTest, TripForcesMcbOpenAndAuxiliariesOff)
+{
+    run_cycle();
+
+    set_protection_inhibited(true);
+    run_cycle();
+
+    const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
+    EXPECT_TRUE(outputs.mcb_open.read()) << "MCB open must assert on protection trip";
+    EXPECT_FALSE(outputs.auxiliaries_on_command.read()) << "Auxiliaries command must go off on protection trip";
+
+    // Machine-side inhibit must behave the same
+    set_protection_inhibited(false);
+    set_machine_side_protection_inhibited(true);
+    run_cycle();
+
+    EXPECT_TRUE(outputs.mcb_open.read()) << "MCB open must assert on machine-side protection inhibit";
+    EXPECT_FALSE(outputs.auxiliaries_on_command.read())
+        << "Auxiliaries command must go off on machine-side protection inhibit";
+}
 
 // Test initial state after runner initialization
 TEST_F(SfcStateMachineRunnerTest, InitialState)

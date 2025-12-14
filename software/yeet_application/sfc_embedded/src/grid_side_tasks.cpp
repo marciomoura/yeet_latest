@@ -291,13 +291,18 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
 
     // Process fiber-optic RX data from machine-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
+    bool fiber_comm_valid = false;
     if (inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Use control class method to decode all signals (ensures consistency with host simulator)
         // This updates external_ios with: measured_speed, current_reference, machine_voltage_magnitude,
         // force_commutation_request, shutdown_request
-        control->decode_fiber_optic_rx_from_machine(
+        fiber_comm_valid = control->decode_fiber_optic_rx_from_machine(
             inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length);
     }
+
+    // Feed communication validity into the protections watchdog (trips after configured timeout).
+    // This is updated every cycle so loss of updates or link errors are detected.
+    control->grid_protections.update_communication_status(fiber_comm_valid);
 
     // ==================== EXECUTE CONTROL UPDATE ====================
     // Digital input overrides are automatically applied within the state machine lambdas

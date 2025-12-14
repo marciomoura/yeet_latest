@@ -23,8 +23,8 @@ namespace yeet::application::sfc {
  * - Under-flux trip: 80% of rated V/Hz (0.80 pu)
  * - Under-flux warning: 90% of rated V/Hz (0.90 pu)
  *
- * The protection calculates V/Hz ratio from input voltage (RMS) and frequency,
- * normalizes to per-unit using rated V/Hz reference, and monitors against
+ * The protection calculates the per-unit V/f (flux proxy) from input voltage
+ * magnitude (per-unit) and frequency (per-unit), and monitors against
  * independent over-flux and under-flux thresholds.
  *
  * Both trip conditions latch independently and require explicit reset after
@@ -45,8 +45,7 @@ public:
     static constexpr duration_t default_under_flux_warning_delay = duration_t{2.0};     // 2.0 seconds
     static constexpr real_t default_under_flux_hysteresis = real_t{0.05};               // 5%
 
-    static constexpr flux_pu_t default_rated_vhz = flux_pu_t{1.0};                // 1.0 pu
-    static constexpr frequency_t minimum_frequency_threshold = frequency_t{0.1};  // 0.1 Hz
+    static constexpr frequency_pu_t minimum_frequency_threshold = frequency_pu_t{0.01f};  // 1% pu
 
     /**
      * @brief Constructs the V/Hz protection with specified sampling period.
@@ -120,29 +119,15 @@ public:
     void configure_under_flux_warning_delay(duration_t warning_delay);
 
     /**
-     * @brief Configures the rated V/Hz reference for per-unit normalization.
+     * @brief Updates the protection with per-unit voltage magnitude and per-unit frequency.
      *
-     * For a 50 Hz system with rated voltage V_rated:
-     * rated_vhz = V_rated / 50 Hz
+     * When frequency is below the minimum threshold, protection is bypassed to avoid
+     * division-by-zero and nuisance trips.
      *
-     * @param rated_vhz_value The rated V/Hz value for normalization
+     * @param voltage_magnitude Per-unit voltage magnitude [pu]
+     * @param frequency_pu Machine electrical frequency in per-unit [pu]
      */
-    void configure_rated_vhz(flux_pu_t rated_vhz_value);
-
-    /**
-     * @brief Updates the protection with latest voltage and frequency measurements.
-     *
-     * Calculates V/Hz ratio, normalizes to per-unit, and evaluates against
-     * over-flux and under-flux thresholds.
-     *
-     * Zero-frequency handling: When frequency is below minimum threshold (0.1 Hz),
-     * the V/Hz ratio is set to zero and protection is effectively disabled
-     * to prevent false trips during startup.
-     *
-     * @param voltage_rms RMS voltage magnitude in per-unit [pu]
-     * @param frequency Electrical frequency [Hz]
-     */
-    void update(voltage_pu_t voltage_rms, frequency_t frequency);
+    void update(voltage_pu_t voltage_magnitude, frequency_pu_t frequency_pu);
 
     /**
      * @brief Resets both over-flux and under-flux trip latches if conditions cleared.
@@ -219,7 +204,6 @@ public:
 private:
     control::threshold_protection<flux_pu_t, control::threshold_direction::above> _over_flux_protection;
     control::threshold_protection<flux_pu_t, control::threshold_direction::below> _under_flux_protection;
-    flux_pu_t _rated_vhz{default_rated_vhz};
     flux_pu_t _current_vhz_pu{flux_pu_t{0.0}};
 };
 

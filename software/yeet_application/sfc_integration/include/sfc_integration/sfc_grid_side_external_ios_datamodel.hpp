@@ -252,8 +252,9 @@ public:
      * Flow: state_machine → external_ios → embedded/hardware → main circuit breaker
      */
     struct digital_outputs_t {
-        signal_input<bool> mcb_close;  ///< Main circuit breaker close (level-high)
-        signal_input<bool> mcb_open;   ///< Main circuit breaker open (level-high)
+        signal_input<bool> mcb_close;               ///< Main circuit breaker close (level-high)
+        signal_input<bool> mcb_open;                ///< Main circuit breaker open (level-high)
+        signal_input<bool> auxiliaries_on_command;  ///< Command to energize auxiliaries (level-high)
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -437,6 +438,16 @@ public:
      * @return true if state machine requests breaker open (level-high)
      */
     bool get_mcb_open() const;
+
+    /**
+     * @brief Get auxiliaries on command signal
+     *
+     * Read by embedded code to energize/disable auxiliary systems.
+     * Must go low on any trip/shutdown condition.
+     *
+     * @return true if auxiliaries should be energized (level-high)
+     */
+    bool get_auxiliaries_on_command() const;
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access

@@ -1,12 +1,8 @@
 #pragma once
 
-#include "sfc/sfc_communication_watchdog.hpp"
-#include "sfc/sfc_current_protection.hpp"
-#include "sfc/sfc_overvoltage_protection.hpp"
-#include "sfc/sfc_undervoltage_protection.hpp"
+#include "sfc/sfc_grid_side_protections.hpp"
 #include "sfc_integration/sfc_grid_side_protections_datamodel.hpp"
 #include "yeet/application_interface.hpp"
-#include "yeet_control/edge_detector.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -42,19 +38,20 @@ public:
     void run() override;
     void stop() override;
 
+    /**
+     * @brief Update communication status for watchdog monitoring
+     *
+     * Call this method immediately after attempting to decode fiber-optic RX data.
+     * The watchdog will track consecutive communication failures and trip if threshold exceeded.
+     */
+    void update_communication_status(bool communication_valid);
+
 private:
-    // Protection components
-    sfc::sfc_current_protection _overcurrent_protection;
-    sfc::sfc_overvoltage_protection _overvoltage_protection;
-    sfc::sfc_undervoltage_protection _undervoltage_protection;
-    sfc::sfc_communication_watchdog _communication_watchdog;
+    // Common grid-side protections application
+    sfc::sfc_grid_side_protections _protections;
 
-    // Trip handshake state
-    bool _trip_latched{false};  // Latched trip signal (cleared when fault clears AND acknowledged)
-
-    // Alarm confirmation state
-    bool _alarm_pending{false};                         // Latching alarm state (is_inhibited)
-    yeet::control::edge_detector _confirm_alarms_edge;  // Edge detector for confirm_alarms parameter
+    // Communication status tracking (set via update_communication_status)
+    bool _last_communication_valid{true};
 
     /**
      * @brief Apply parameter changes to protection components

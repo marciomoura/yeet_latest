@@ -44,7 +44,11 @@ void sfc_io_mock_runner::initialize()
 
 void sfc_io_mock_runner::run()
 {
-    _external_ios.set_digital_inputs(_parameters.auxiliaries_are_on.read(), _parameters.mcb_is_closed.read(),
+    // Idealized mock behavior: auxiliaries status follows the commanded output when auxiliaries are available.
+    // This preserves the ability to simulate "auxiliaries not ready" while ensuring trips force auxiliaries off.
+    const bool auxiliaries_are_on = _external_ios.get_auxiliaries_on_command() && _parameters.auxiliaries_are_on.read();
+
+    _external_ios.set_digital_inputs(auxiliaries_are_on, _parameters.mcb_is_closed.read(),
         _parameters.start_command.read(), _parameters.stop_command.read(), _parameters.shutdown_request.read(),
         _parameters.breaker_is_closed.read(), _parameters.breaker_is_tripping.read(), _parameters.emergency_off.read(),
         _parameters.door_is_open.read());

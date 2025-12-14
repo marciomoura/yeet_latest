@@ -72,6 +72,11 @@ Comprehensive explanation of the speed control loop, including its role in the c
 
 Detailed guide to the startup sequencer that coordinates the complete startup procedure from standstill to normal closed-loop operation. Covers flux build-up (pre-fluxing), virtual reference frame control with V/Hz ramping, torque ramping strategies, reference frame switching, and transition to observer-based speed control.
 
+#### 🛡️ [V/Hz Protection](vhz_protection.md)
+**Under-flux and over-flux supervision**
+
+Explains the per-unit flux proxy calculation $V_{pu}/\omega_{pu}$, enable/disable behavior at low speed, and how warning/trip thresholds are applied for both over-flux and under-flux.
+
 ## 🎯 Quick Navigation
 
 ### For New Users

@@ -26,15 +26,18 @@ set(SFC_CORE_HEADERS
     include/sfc/sfc_grid_side_observer.hpp
     include/sfc/sfc_machine_side_observer.hpp
     include/sfc/sfc_grid_side_measurements.hpp
+    include/sfc/sfc_grid_side_protections.hpp
     include/sfc/sfc_grid_side_modulator.hpp
     include/sfc/sfc_machine_side_modulator.hpp
     include/sfc/sfc_machine_side_measurements.hpp
+    include/sfc/sfc_machine_side_protections.hpp
     include/sfc/sfc_dc_link_measurements.hpp
     include/sfc/sfc_commutation_monitor.hpp
     include/sfc/sfc_machine_side_lookup_table.hpp
     include/sfc/sfc_mode_detector.hpp
     include/sfc/sfc_overvoltage_protection.hpp
     include/sfc/sfc_per_unit_system.hpp
+    include/sfc/sfc_protections_trip_handshake.hpp
     include/sfc/sfc_soft_starter_speed_generator.hpp
     include/sfc/sfc_speed_controller.hpp
     include/sfc/sfc_stall_protection.hpp
@@ -64,14 +67,17 @@ set(SFC_CORE_SOURCES
     src/sfc_machine_side_observer.cpp
     src/sfc_grid_side_measurements.cpp
     src/sfc_grid_side_modulator.cpp
+    src/sfc_grid_side_protections.cpp
     src/sfc_machine_side_measurements.cpp
     src/sfc_machine_side_modulator.cpp
+    src/sfc_machine_side_protections.cpp
     src/sfc_overvoltage_protection.cpp
     src/sfc_undervoltage_protection.cpp
     src/sfc_dc_link_measurements.cpp
     src/sfc_commutation_monitor.cpp
     src/sfc_mode_detector.cpp
     src/sfc_per_unit_system.cpp
+    src/sfc_protections_trip_handshake.cpp
     src/sfc_soft_starter_speed_generator.cpp
     src/sfc_speed_controller.cpp
     src/sfc_stall_protection.cpp

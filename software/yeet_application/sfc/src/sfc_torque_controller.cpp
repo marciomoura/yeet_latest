@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 
 namespace yeet::application::sfc {
 
@@ -14,6 +15,9 @@ sfc_torque_controller::sfc_torque_controller(duration_t sampling_time)
     configure_torque_rate_limit(10.0);  // 10 pu/s default
     enable_torque_rate_limiting(true);
     configure_breakaway_boost(torque_pu_t{0.0}, duration_t{0.0});
+    configure_speed_based_torque_limit_lookup_table(
+        kDefaultSpeedTorqueLimitSpeedAxisPu, kDefaultSpeedTorqueLimitMinTorquePu, kDefaultSpeedTorqueLimitMaxTorquePu);
+    enable_speed_based_torque_limits(false);
     set_control_mode(control_mode::SPEED_CONTROL);
 }
 
@@ -58,6 +62,38 @@ void sfc_torque_controller::configure_minimum_motoring_torque(torque_pu_t min_mo
 
 void sfc_torque_controller::enable_minimum_motoring_torque(bool enable) { _enable_minimum_motoring_torque = enable; }
 
+void sfc_torque_controller::configure_speed_based_torque_limit_lookup_table(
+    const std::array<speed_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS>& speed_axis_pu,
+    const std::array<torque_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS>& min_torque_limit_pu,
+    const std::array<torque_pu_t, NUM_SPEED_TORQUE_LIMIT_POINTS>& max_torque_limit_pu)
+{
+    for (size_t i = 0; i < NUM_SPEED_TORQUE_LIMIT_POINTS; ++i) {
+        assert(speed_axis_pu[i].value() >= 0.0 && "Speed axis values must be non-negative.");
+        assert(min_torque_limit_pu[i].value() >= 0.0 && "Min torque limits must be non-negative for motoring.");
+        assert(max_torque_limit_pu[i].value() >= 0.0 && "Max torque limits must be non-negative for motoring.");
+        assert(min_torque_limit_pu[i].value() <= max_torque_limit_pu[i].value() &&
+               "Min torque limit must be <= max torque limit at each breakpoint.");
+    }
+
+    std::array<real_t, NUM_SPEED_TORQUE_LIMIT_POINTS> speed_axis{};
+    std::array<real_t, NUM_SPEED_TORQUE_LIMIT_POINTS> min_torque{};
+    std::array<real_t, NUM_SPEED_TORQUE_LIMIT_POINTS> max_torque{};
+
+    for (size_t i = 0; i < NUM_SPEED_TORQUE_LIMIT_POINTS; ++i) {
+        speed_axis[i] = static_cast<real_t>(speed_axis_pu[i].value());
+        min_torque[i] = static_cast<real_t>(min_torque_limit_pu[i].value());
+        max_torque[i] = static_cast<real_t>(max_torque_limit_pu[i].value());
+    }
+
+    _speed_torque_min_limit_lookup.configure(speed_axis, min_torque);
+    _speed_torque_max_limit_lookup.configure(speed_axis, max_torque);
+}
+
+void sfc_torque_controller::enable_speed_based_torque_limits(bool enable) noexcept
+{
+    _enable_speed_based_torque_limits = enable;
+}
+
 // ========== Real-Time Execution ==========
 
 void sfc_torque_controller::reset()
@@ -72,16 +108,32 @@ void sfc_torque_controller::reset()
     _is_saturated = false;
     _downstream_saturation = false;
     _is_braking_requested = false;
+    _speed_based_min_torque_limit = torque_pu_t{0.0};
+    _speed_based_max_torque_limit = torque_pu_t{0.0};
 }
 
 void sfc_torque_controller::update(torque_pu_t torque_reference,
     torque_pu_t dynamic_max_torque_limit,
     torque_pu_t dynamic_min_torque_limit,
+    speed_pu_t speed_reference_pu,
     bool enable_breakaway_boost)
 {
     // Step 1: Update dynamic limits
-    _dynamic_max_torque_limit = dynamic_max_torque_limit;
-    _dynamic_min_torque_limit = dynamic_min_torque_limit;
+    // Evaluate speed-based schedule (always computed for observability)
+    _speed_based_min_torque_limit = torque_pu_t{_speed_torque_min_limit_lookup.get_value(speed_reference_pu.value())};
+    _speed_based_max_torque_limit = torque_pu_t{_speed_torque_max_limit_lookup.get_value(speed_reference_pu.value())};
+
+    // Combine external dynamic limits with speed-based limits (if enabled)
+    if (_enable_speed_based_torque_limits) {
+        _dynamic_max_torque_limit =
+            torque_pu_t{std::min(dynamic_max_torque_limit.value(), _speed_based_max_torque_limit.value())};
+        _dynamic_min_torque_limit =
+            torque_pu_t{std::max(dynamic_min_torque_limit.value(), _speed_based_min_torque_limit.value())};
+    }
+    else {
+        _dynamic_max_torque_limit = dynamic_max_torque_limit;
+        _dynamic_min_torque_limit = dynamic_min_torque_limit;
+    }
 
     // Step 2: Arbitrate torque reference source
     if (_control_mode == control_mode::MANUAL_TORQUE) {
@@ -160,6 +212,10 @@ torque_pu_t sfc_torque_controller::get_base_torque_reference() const { return _b
 torque_pu_t sfc_torque_controller::get_total_torque_reference() const { return _total_torque_reference; }
 
 torque_pu_t sfc_torque_controller::get_limited_torque_reference() const { return _limited_torque_reference; }
+
+torque_pu_t sfc_torque_controller::get_speed_based_min_torque_limit() const { return _speed_based_min_torque_limit; }
+
+torque_pu_t sfc_torque_controller::get_speed_based_max_torque_limit() const { return _speed_based_max_torque_limit; }
 
 sfc_torque_controller::control_mode sfc_torque_controller::get_control_mode() const { return _control_mode; }
 

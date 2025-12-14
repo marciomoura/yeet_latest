@@ -198,6 +198,12 @@ void sfc_machine_side_control::connect_internal_signals()
     wire(torque_controller)
         .from(speed_controller.get_outputs().torque_reference)
         .to(&torque_ctrl_inputs::torque_reference)
+        .from(startup_sequencer.get_outputs().speed_reference)
+        .to(&torque_ctrl_inputs::speed_reference)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().current_state_id)
+        .to(&torque_ctrl_inputs::current_state_id)
+        .from(machine_protections.get_outputs().is_tripped)
+        .to(&torque_ctrl_inputs::machine_protection_tripped)
         .from(startup_sequencer.get_outputs().torque_control_mode)
         .to(&torque_ctrl_inputs::control_mode)
         .from(startup_sequencer.get_outputs().virtual_torque_reference)
@@ -244,17 +250,18 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&protections_inputs::machine_voltage_magnitude_pu)
         .from(machine_side_observer.get_outputs().estimated_frequency)
         .to(&protections_inputs::machine_frequency)
+        .from(machine_side_observer.get_outputs().estimated_frequency_pu)
+        .to(&protections_inputs::machine_frequency_pu)
         .from(machine_side_observer.get_outputs().estimated_speed)
         .to(&protections_inputs::machine_speed)
         .from(external_ios.get_fiber_optics_inputs_from_grid().grid_release_protections)
         .to(&protections_inputs::release_protections)
         .from(external_ios.get_fiber_optics_inputs_from_grid().grid_trip_acknowledged)
         .to(&protections_inputs::trip_acknowledged)
-        // TODO: Derive startup_active from startup_sequencer.current_state
-        // Should be true when state is ESTABLISHING_EXCITATION, SYNCHRONIZING_VIRTUAL, or ACCELERATING
-        // For now, mock as false until startup_sequencer adds startup_active output
-        .mocked(false)
-        .to(&protections_inputs::startup_active);
+        .from(startup_sequencer.get_outputs().startup_active)
+        .to(&protections_inputs::startup_active)
+        .from(startup_sequencer.get_outputs().is_startup_complete)
+        .to(&protections_inputs::closed_loop_active);
 
     // ==================== External IO Output Connections ====================
     signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,

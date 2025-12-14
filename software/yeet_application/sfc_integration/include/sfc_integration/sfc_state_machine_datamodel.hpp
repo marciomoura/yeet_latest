@@ -52,6 +52,15 @@ public:
 
         /// Enclosure door is open (prevents breaker close) [bool]
         signal_input<bool> door_is_open;
+
+        /// Shutdown request from machine-side (via fiber link) [bool]
+        signal_input<bool> machine_side_shutdown_request;
+
+        /// Machine-side protections inhibited (awaiting confirmation) [bool]
+        signal_input<bool> machine_side_protection_inhibited;
+
+        /// Machine-side protections tripped (latched) [bool]
+        signal_input<bool> machine_side_protection_tripped;
     };
 
     /**
@@ -102,6 +111,9 @@ public:
 
         /// Main circuit breaker open (level-high when breaker should be open) [bool]
         signal_output<bool> mcb_open;
+
+        /// Command to energize auxiliaries (level-high). Must go low on trips/shutdown. [bool]
+        signal_output<bool> auxiliaries_on_command;
     };
 
     /**

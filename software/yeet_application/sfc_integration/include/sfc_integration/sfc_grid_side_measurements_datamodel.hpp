@@ -67,6 +67,12 @@ public:
 
         /// Commutation status signal.
         signal_output<bool> is_commuting;
+
+        /// Last measured commutation notch duration [s]
+        signal_output<duration_t> commutation_notch_duration_last;
+
+        /// Filtered commutation notch duration [s]
+        signal_output<duration_t> commutation_notch_duration_filtered;
     };
 
     /**
@@ -78,6 +84,9 @@ public:
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
+
+        /// Time constant for smoothing commutation notch duration [s]
+        parameter<duration_t> commutation_notch_duration_filter_time_constant{duration_t{10e-3F}};
         // ADC conversion (secondary side) parameters added to enable parameter-driven configuration
         parameter<int> voltage_adc_bits{16};
         parameter<real_t> voltage_adc_full_scale{real_t{10.0}};  // +/- full scale volts (card input)
@@ -120,6 +129,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
         entry.parameters.insert("commutation_end_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
+        entry.parameters.insert("commutation_notch_duration_filter_time_constant",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_notch_duration_filter_time_constant));
         entry.parameters.insert(
             "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
         entry.parameters.insert(
@@ -204,6 +215,12 @@ public:
 
         /// Commutation activity indicator
         signal_output<bool> is_commuting;
+
+        /// Last measured commutation notch duration [s]
+        signal_output<duration_t> commutation_notch_duration_last;
+
+        /// Filtered commutation notch duration [s]
+        signal_output<duration_t> commutation_notch_duration_filtered;
     };
 
     /**
@@ -224,6 +241,9 @@ public:
 
         /// Commutation detection threshold (end) [pu]
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
+
+        /// Time constant for smoothing commutation notch duration [s]
+        parameter<duration_t> commutation_notch_duration_filter_time_constant{duration_t{10e-3F}};
 
         /// ADC resolution [bits]
         parameter<int> voltage_adc_bits{16};
@@ -281,6 +301,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
         entry.parameters.insert("commutation_end_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
+        entry.parameters.insert("commutation_notch_duration_filter_time_constant",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_notch_duration_filter_time_constant));
 
         // int and real_t parameters - use make_units_accessor
         entry.parameters.insert(

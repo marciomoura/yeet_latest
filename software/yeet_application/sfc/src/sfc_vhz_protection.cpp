@@ -15,8 +15,6 @@ sfc_vhz_protection::sfc_vhz_protection(duration_t sampling_period)
     configure_under_flux_warning_threshold(default_under_flux_warning_threshold);
     configure_under_flux_trip_delay(default_under_flux_trip_delay);
     configure_under_flux_warning_delay(default_under_flux_warning_delay);
-
-    configure_rated_vhz(default_rated_vhz);
 }
 
 void sfc_vhz_protection::configure_over_flux_trip_threshold(flux_pu_t trip_threshold, real_t hysteresis_factor)
@@ -59,28 +57,18 @@ void sfc_vhz_protection::configure_under_flux_warning_delay(duration_t warning_d
     _under_flux_protection.configure_warning_delay(warning_delay);
 }
 
-void sfc_vhz_protection::configure_rated_vhz(flux_pu_t rated_vhz_value) { _rated_vhz = rated_vhz_value; }
-
-void sfc_vhz_protection::update(voltage_pu_t voltage_rms, frequency_t frequency)
+void sfc_vhz_protection::update(voltage_pu_t voltage_magnitude, frequency_pu_t frequency_pu)
 {
-    // Zero-frequency protection: Disable V/Hz monitoring at very low frequencies
-    // This prevents division by zero and false trips during startup
-    if (frequency < minimum_frequency_threshold) {
+    // Low-frequency guard: bypass V/Hz protection at very low frequency.
+    if (abs(frequency_pu) < minimum_frequency_threshold) {
         _current_vhz_pu = flux_pu_t{0.0};
-        _over_flux_protection.update(flux_pu_t{0.0});
-        _under_flux_protection.update(flux_pu_t{0.0});
         return;
     }
 
-    // Calculate V/Hz ratio normalized to rated conditions
-    // V/Hz_pu = (V_measured [pu] / f_measured [Hz]) / (V_rated [pu] / f_rated [Hz])
-    // Since V_measured is already in pu (relative to V_rated), and we define
-    // rated_vhz as the normalization constant:
-    // V/Hz_pu = (voltage_rms / frequency) / rated_vhz
-    real_t vhz_actual = voltage_rms.value() / frequency.value();
-    _current_vhz_pu = flux_pu_t{vhz_actual / _rated_vhz.value()};
+    // Compute the flux per-unit ratio: V/Hz = V / f
+    _current_vhz_pu = voltage_magnitude / frequency_pu;
 
-    // Update both protection modules
+    // Update both over-flux and under-flux protections
     _over_flux_protection.update(_current_vhz_pu);
     _under_flux_protection.update(_current_vhz_pu);
 }

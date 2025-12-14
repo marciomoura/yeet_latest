@@ -1,5 +1,10 @@
 #pragma once
 
+#include <array>
+#include <string>
+
+#include "sfc/sfc_state_machine.hpp"
+#include "sfc/sfc_torque_controller.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
@@ -15,11 +20,6 @@
  * and torque-to-current conversion.
  */
 
-namespace yeet::application::sfc {
-// Forward declaration for control_mode enum
-class sfc_torque_controller;
-}  // namespace yeet::application::sfc
-
 namespace yeet::application::sfc::integration {
 
 class sfc_torque_controller_datamodel {
@@ -30,6 +30,15 @@ public:
     struct inputs {
         /// Torque reference from speed controller [pu]
         signal_input<torque_pu_t> torque_reference;
+
+        /// Speed reference used for speed-based torque limiting [pu]
+        signal_input<speed_pu_t> speed_reference;
+
+        /// Grid-side state machine current state ID (received via fiber)
+        signal_input<yeet::application::sfc::sfc_state_id> current_state_id;
+
+        /// Local machine-side protection trip indication
+        signal_input<bool> machine_protection_tripped;
 
         /// Enable signal for breakaway boost from speed generator
         signal_input<bool> enable_breakaway_boost;
@@ -65,12 +74,20 @@ public:
 
         /// Braking requested but clamped to minimum motoring torque
         signal_output<bool> is_braking_requested;
+
+        /// Speed-based minimum torque limit evaluated at current speed reference [pu]
+        signal_output<torque_pu_t> speed_based_min_torque_limit;
+
+        /// Speed-based maximum torque limit evaluated at current speed reference [pu]
+        signal_output<torque_pu_t> speed_based_max_torque_limit;
     };
 
     /**
      * @brief Configuration parameters for the torque controller
      */
     struct parameters {
+        static constexpr size_t NUM_SPEED_TORQUE_POINTS = sfc::sfc_torque_controller::NUM_SPEED_TORQUE_LIMIT_POINTS;
+
         /// Enable override for torque reference testing
         parameter<bool> torque_reference_override = false;
 
@@ -103,6 +120,21 @@ public:
 
         /// Enable minimum motoring torque clamp
         parameter<bool> enable_minimum_motoring_torque = true;
+
+        /// Enable speed-based torque limiting (speed reference -> min/max torque)
+        parameter<bool> enable_speed_based_torque_limits = false;
+
+        /// Speed axis for speed-based torque limit lookup tables [pu]
+        parameter<std::array<speed_pu_t, NUM_SPEED_TORQUE_POINTS>> speed_torque_limit_speed_axis_pu =
+            sfc::sfc_torque_controller::kDefaultSpeedTorqueLimitSpeedAxisPu;
+
+        /// Speed-based minimum torque limits [pu]
+        parameter<std::array<torque_pu_t, NUM_SPEED_TORQUE_POINTS>> speed_torque_limit_min_torque_pu =
+            sfc::sfc_torque_controller::kDefaultSpeedTorqueLimitMinTorquePu;
+
+        /// Speed-based maximum torque limits [pu]
+        parameter<std::array<torque_pu_t, NUM_SPEED_TORQUE_POINTS>> speed_torque_limit_max_torque_pu =
+            sfc::sfc_torque_controller::kDefaultSpeedTorqueLimitMaxTorquePu;
     };
 
 private:
@@ -145,6 +177,28 @@ public:
             "minimum_motoring_torque", yeet::utils::make_units_accessor(_model_parameters->minimum_motoring_torque));
         entry.parameters.insert("enable_minimum_motoring_torque",
             yeet::utils::make_bool_accessor(_model_parameters->enable_minimum_motoring_torque));
+
+        entry.parameters.insert("enable_speed_based_torque_limits",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_speed_based_torque_limits));
+
+        // Per-element accessors for LUT arrays using generic array accessor
+        for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
+            std::string param_name = "speed_torque_limit_speed_axis_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_speed_axis_pu, i));
+        }
+
+        for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
+            std::string param_name = "speed_torque_limit_min_torque_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_min_torque_pu, i));
+        }
+
+        for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
+            std::string param_name = "speed_torque_limit_max_torque_pu[" + std::to_string(i) + "]";
+            entry.parameters.insert(param_name,
+                yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_max_torque_pu, i));
+        }
 
         registry.insert("torque_controller", std::move(entry));
     }

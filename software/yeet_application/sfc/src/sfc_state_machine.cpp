@@ -229,7 +229,7 @@ sfc_state_type* shutdown_requested_state::update(const sfc_state_inputs& inputs)
     // 2. No active protection faults
     // 3. Acknowledgment has been sent (ensures protection module sees the acknowledgment for at least one cycle)
 
-    bool conditions_met =
+    const bool conditions_met =
         inputs.is_current_extinguished.is_true() && !inputs.any_protection_fault_active_event.is_true();
 
     if (conditions_met) {

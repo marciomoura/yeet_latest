@@ -206,6 +206,7 @@ protected:
                                   register_complete_logger(sim, sys->excitation_controller);
                                   register_complete_logger(sim, sys->machine_side_controller);
                                   register_complete_logger(sim, sys->dc_link_measurements);
+                                  register_complete_logger(sim, sys->torque_controller);
                                   register_complete_logger(sim, sys->plant);
                               },
                        [&](plant_sensorless_speed_control_simulation_builder* sys) {
@@ -333,6 +334,49 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
         // Voltage error should be small (closed-loop regulation)
         EXPECT_NEAR(voltage_error.value(), 0.0f, 0.05f)
             << "Excitation voltage control error should be near zero at steady state";
+    }
+}
+
+// ============================================================================
+// Test 1a: Speed-based torque limiting (only builders with torque controller)
+// ============================================================================
+TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitSlowsAcceleration)
+{
+    if constexpr (!std::is_same_v<typename TestFixture::builder_type, plant_speed_control_simulation_builder>) {
+        GTEST_SKIP() << "This builder does not include the torque controller.";
+    }
+    else {
+        // Configure speed-based torque max schedule to a constant 0.6 pu.
+        // With the existing load model, this should noticeably slow acceleration.
+        auto& tq_params = this->system.torque_controller.get_parameters();
+
+        auto speed_axis = tq_params.speed_torque_limit_speed_axis_pu.read();
+        auto min_torque = tq_params.speed_torque_limit_min_torque_pu.read();
+        auto max_torque = tq_params.speed_torque_limit_max_torque_pu.read();
+
+        for (auto& v : min_torque) {
+            v = torque_pu_t{0.0f};
+        }
+        for (auto& v : max_torque) {
+            v = torque_pu_t{0.6f};
+        }
+
+        tq_params.speed_torque_limit_speed_axis_pu.write(speed_axis);
+        tq_params.speed_torque_limit_min_torque_pu.write(min_torque);
+        tq_params.speed_torque_limit_max_torque_pu.write(max_torque);
+        tq_params.enable_speed_based_torque_limits.write(true);
+
+        this->set_speed_reference(speed_pu_t{1.0f});
+        EXPECT_TRUE(this->sim.simulate_for(5.0));
+
+        const auto measured_speed = this->get_measured_speed();
+        EXPECT_LT(measured_speed.value(), 0.85f) << "Acceleration should be limited by 0.6 pu torque cap";
+
+        const auto evaluated_max = this->system.torque_controller.get_outputs().speed_based_max_torque_limit.read();
+        EXPECT_NEAR(evaluated_max.value(), 0.6f, 0.01f);
+
+        const auto applied_torque = this->system.torque_controller.get_outputs().torque_reference.read();
+        EXPECT_LE(applied_torque.value(), 0.6f + 0.02f) << "Applied torque must respect speed-based max";
     }
 }
 
@@ -541,4 +585,85 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRampUpFromLowSpeedNaturalCommutation)
 
     EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.0f}, this->get_tolerance())
         << "Speed tracking error too high at final steady-state hold";
+}
+
+// ============================================================================
+// Test 5: Speed-based torque limiting with custom LUT
+// ============================================================================
+TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitingReducesTorqueAtHighSpeed)
+{
+    // Only plant_speed_control_simulation_builder has a torque_controller
+    if constexpr (!std::is_same_v<typename TestFixture::builder_type, plant_speed_control_simulation_builder>) {
+        GTEST_SKIP() << "This builder does not include the torque controller.";
+    }
+    else {
+        // This test validates that the speed-based torque limiter correctly restricts
+        // torque commands based on the speed reference. We configure a LUT that reduces
+        // maximum torque at higher speeds to simulate field weakening or power limitations.
+
+        // Configure speed-based torque limit LUT:
+        // - At low speed (0.0 pu): full torque (1.2 pu)
+        // - At mid speed (0.5 pu): moderate torque (0.8 pu)
+        // - At high speed (1.0 pu): reduced torque (0.4 pu)
+        std::array<speed_pu_t, 7> speed_axis = {speed_pu_t{0.0}, speed_pu_t{0.2}, speed_pu_t{0.4}, speed_pu_t{0.6},
+            speed_pu_t{0.8}, speed_pu_t{1.0}, speed_pu_t{1.1}};
+        std::array<torque_pu_t, 7> min_torque = {torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0},
+            torque_pu_t{0.0}, torque_pu_t{0.0}, torque_pu_t{0.0}};
+        std::array<torque_pu_t, 7> max_torque = {torque_pu_t{1.2}, torque_pu_t{1.1}, torque_pu_t{0.9}, torque_pu_t{0.7},
+            torque_pu_t{0.5}, torque_pu_t{0.4}, torque_pu_t{0.4}};
+
+        auto& tq_params = this->system.torque_controller.get_parameters();
+        tq_params.speed_torque_limit_speed_axis_pu.write(speed_axis);
+        tq_params.speed_torque_limit_min_torque_pu.write(min_torque);
+        tq_params.speed_torque_limit_max_torque_pu.write(max_torque);
+        tq_params.enable_speed_based_torque_limits.write(true);
+
+        // Phase 1: Accelerate to 0.5 pu speed with light load
+        // At 0.5 pu speed, the LUT gives ~0.85 pu max torque
+        // Total load at 0.5 pu: 0.1 + 0.3*0.25 = 0.175 pu (well within limit)
+        this->set_speed_reference(speed_pu_t{0.5f});
+        this->set_load_torque(torque_pu_t{0.1f});
+        this->enable_speed_control(true);
+
+        EXPECT_TRUE(this->sim.simulate_for(15.0));
+
+        auto speed_mid = this->get_measured_speed();
+        EXPECT_NEAR(speed_mid.value(), 0.5f, this->get_tolerance() + 0.03f) << "Machine should reach 0.5 pu speed";
+
+        // Phase 2: Command higher speed (0.8 pu) where torque is limited to 0.5 pu
+        // Total load at 0.8 pu: 0.25 + 0.3*0.64 = 0.442 pu (close to limit)
+        this->set_speed_reference(speed_pu_t{0.8f});
+        this->set_load_torque(torque_pu_t{0.25f});
+
+        EXPECT_TRUE(this->sim.simulate_for(20.0));
+
+        auto speed_high = this->get_measured_speed();
+        EXPECT_NEAR(speed_high.value(), 0.8f, this->get_tolerance() + 0.05f)
+            << "Machine should reach ~0.8 pu speed with reduced torque limit";
+
+        // Verify torque limit is being applied
+        const auto evaluated_max = this->system.torque_controller.get_outputs().speed_based_max_torque_limit.read();
+        EXPECT_LT(evaluated_max.value(), 0.55f) << "Speed-based max torque should be limited at 0.8 pu speed";
+
+        // Phase 3: Command very high speed (1.0 pu) where torque is limited to 0.4 pu
+        // Total load at 1.0 pu: 0.25 + 0.3*1.0 = 0.55 pu, which exceeds the 0.4 pu limit
+        // Machine cannot reach 1.0 pu with this load
+        this->set_speed_reference(speed_pu_t{1.0f});
+
+        EXPECT_TRUE(this->sim.simulate_for(25.0));
+
+        auto speed_final = this->get_measured_speed();
+        // Due to torque limit (0.4 pu) < load (0.55 pu), machine cannot reach 1.0 pu
+        EXPECT_LT(speed_final.value(), 0.95f) << "Machine should not reach 1.0 pu due to insufficient torque limit";
+        EXPECT_GT(speed_final.value(), 0.6f) << "Machine should stabilize above 0.6 pu";
+
+        // Final validation: with very light load, machine should reach 1.0 pu
+        // Total load at 1.0 pu: 0.05 + 0.3*1.0 = 0.35 pu (within 0.4 pu limit)
+        this->set_load_torque(torque_pu_t{0.05f});
+        EXPECT_TRUE(this->sim.simulate_for(20.0));
+
+        auto speed_reduced_load = this->get_measured_speed();
+        EXPECT_NEAR(speed_reduced_load.value(), 1.0f, this->get_tolerance() + 0.15f)
+            << "With light load, machine should reach 1.0 pu despite torque limit";
+    }
 }

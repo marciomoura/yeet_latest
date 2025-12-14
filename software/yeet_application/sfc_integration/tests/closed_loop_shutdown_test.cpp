@@ -233,10 +233,25 @@ TEST_F(ClosedLoopShutdownTest, ShutdownOnStopCommandTest)
     set_stop_command(true);
 
     bool success = true;
-    success &= simulator.simulate_for(2.0);
+    success &= simulator.simulate_for(0.5);
+
+    // During shutdown request, torque reference must be forced to exact zero
+    // (bypassing minimum motoring torque clamp and any rate limiting).
+    const auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_TRUE(
+        state_machine_state == sfc_state_id::SHUTDOWN_REQUESTED || state_machine_state == sfc_state_id::OPERATION_OFF)
+        << "State machine should be in SHUTDOWN_REQUESTED/OPERATION_OFF after stop";
+
+    const auto applied_torque_ref = system.machine_side_control.torque_controller.get_outputs().torque_reference.read();
+    const auto current_ref = system.machine_side_control.torque_controller.get_outputs().current_reference.read();
+    EXPECT_FLOAT_EQ(applied_torque_ref.value(), 0.0f)
+        << "Applied torque reference must be exactly zero during shutdown";
+    EXPECT_FLOAT_EQ(current_ref.value(), 0.0f) << "Current reference must be exactly zero during shutdown";
+
+    // Continue shutdown
+    success &= simulator.simulate_for(1.5);
 
     // Verify state machine initiated shutdown
-    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
     EXPECT_TRUE(state_machine_state != sfc_state_id::OPERATION_ON) << "State machine should begin shutdown transition";
 
     // Startup sequencer should return to IDLE

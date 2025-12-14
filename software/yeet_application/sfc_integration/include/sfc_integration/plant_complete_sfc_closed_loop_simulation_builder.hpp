@@ -231,8 +231,11 @@ public:
             //   - Current reference: Tells grid the desired current magnitude
             //   - Voltage magnitude: Available machine voltage (affects current control limits)
             //   - Force comm request: Machine requests low-speed assist when load torque is high
-            grid_side_control.decode_fiber_optic_rx_from_machine(
+            bool grid_comm_valid = grid_side_control.decode_fiber_optic_rx_from_machine(
                 machine_side_control.get_fiber_optic_tx_payload(), machine_side_control.get_fiber_optic_tx_length());
+
+            // Update grid-side protection system with communication status for watchdog monitoring
+            grid_side_control.grid_protections.update_communication_status(grid_comm_valid);
         });
 
         // 10ms sampling (100 Hz): State machine, speed controller

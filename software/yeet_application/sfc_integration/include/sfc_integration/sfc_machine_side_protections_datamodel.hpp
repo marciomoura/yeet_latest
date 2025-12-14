@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc_integration/protection_severity.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/signal.hpp"
@@ -32,11 +33,19 @@ public:
         /// Machine electrical frequency [Hz]
         signal_input<frequency_t> machine_frequency;
 
+        /// Machine electrical frequency [pu]
+        signal_input<frequency_pu_t> machine_frequency_pu;
+
         /// Machine rotor speed [pu]
         signal_input<speed_pu_t> machine_speed;
 
         /// Startup active signal (for stall protection state-dependency)
+        /// True during FLUX_BUILDUP and STARTING_PROCEDURE states
         signal_input<bool> startup_active;
+
+        /// Closed-loop operation active signal (for VHz and overspeed protection)
+        /// True when system is in CLOSED_LOOP_OPERATION with observer-based control
+        signal_input<bool> closed_loop_active;
 
         /// Release signal for protections (typically from state machine/supervisor)
         signal_input<bool> release_protections;
@@ -62,11 +71,20 @@ public:
         /// V/Hz over-flux protection trip status
         signal_output<bool> over_flux_tripped;
 
+        /// V/Hz over-flux protection alarm status (severity-dependent)
+        signal_output<bool> over_flux_alarmed;
+
         /// V/Hz under-flux protection trip status
         signal_output<bool> under_flux_tripped;
 
+        /// V/Hz under-flux protection alarm status (severity-dependent)
+        signal_output<bool> under_flux_alarmed;
+
         /// Stall protection trip status
         signal_output<bool> stall_tripped;
+
+        /// Stall protection alarm status (severity-dependent)
+        signal_output<bool> stall_alarmed;
 
         /// V/Hz over-flux warning status
         signal_output<bool> over_flux_warning;
@@ -77,8 +95,23 @@ public:
         /// Stall protection warning status
         signal_output<bool> stall_warning;
 
+        /// Overspeed protection trip status
+        signal_output<bool> overspeed_tripped;
+
+        /// Overspeed protection alarm status (severity-dependent)
+        signal_output<bool> overspeed_alarmed;
+
+        /// Machine-side overvoltage protection trip status
+        signal_output<bool> machine_overvoltage_tripped;
+
+        /// Machine-side overvoltage protection alarm status (severity-dependent)
+        signal_output<bool> machine_overvoltage_alarmed;
+
         /// Communication loss protection trip status
         signal_output<bool> communication_loss_tripped;
+
+        /// Communication loss protection alarm status (severity-dependent)
+        signal_output<bool> communication_loss_alarmed;
 
         /// Communication loss protection warning status
         signal_output<bool> communication_loss_warning;
@@ -88,12 +121,28 @@ public:
      * @brief Configuration parameters for machine-side protections
      */
     struct parameters {
-        // ========== V/Hz Protection Parameters ==========
-        /// Rated V/Hz value for normalization [pu]
-        parameter<flux_pu_t> rated_vhz{flux_pu_t{1.0f}};
+        // ========== Per-Protection Severity Selection ==========
+        /// Severity for over-flux detection (default: trip)
+        parameter<protection_severity> over_flux_severity{protection_severity::alarm_only};
 
+        /// Severity for under-flux detection (default: trip)
+        parameter<protection_severity> under_flux_severity{protection_severity::alarm_only};
+
+        /// Severity for stall detection (default: trip)
+        parameter<protection_severity> stall_severity{protection_severity::alarm_only};
+
+        /// Severity for overspeed detection (default: trip)
+        parameter<protection_severity> overspeed_severity{protection_severity::trip};
+
+        /// Severity for machine overvoltage detection (default: trip)
+        parameter<protection_severity> machine_overvoltage_severity{protection_severity::trip};
+
+        /// Severity for communication loss detection (default: trip)
+        parameter<protection_severity> communication_loss_severity{protection_severity::trip};
+
+        // ========== V/Hz Protection Parameters ==========
         /// Over-flux trip threshold [pu]
-        parameter<flux_pu_t> over_flux_trip_threshold{flux_pu_t{1.10f}};
+        parameter<flux_pu_t> over_flux_trip_threshold{flux_pu_t{10.10f}};
 
         /// Over-flux warning threshold [pu]
         parameter<flux_pu_t> over_flux_warning_threshold{flux_pu_t{1.05f}};
@@ -105,7 +154,7 @@ public:
         parameter<duration_t> over_flux_warning_delay{duration_t{0.5}};
 
         /// Under-flux trip threshold [pu]
-        parameter<flux_pu_t> under_flux_trip_threshold{flux_pu_t{0.80f}};
+        parameter<flux_pu_t> under_flux_trip_threshold{flux_pu_t{0.080f}};
 
         /// Under-flux warning threshold [pu]
         parameter<flux_pu_t> under_flux_warning_threshold{flux_pu_t{0.90f}};
@@ -129,10 +178,24 @@ public:
         /// Stall warning delay [s]
         parameter<duration_t> stall_warning_delay{duration_t{1.0}};
 
+        // ========== Overspeed Protection Parameters ==========
+        /// Overspeed trip threshold [pu]
+        parameter<speed_pu_t> overspeed_trip_threshold{speed_pu_t{1.10f}};
+
+        /// Overspeed trip delay [s]
+        parameter<duration_t> overspeed_trip_delay{duration_t{0.05}};
+
+        // ========== Machine-Side Overvoltage Protection Parameters ==========
+        /// Machine-side overvoltage trip threshold [pu]
+        parameter<voltage_pu_t> machine_overvoltage_trip_threshold{voltage_pu_t{1.10f}};
+
+        /// Machine-side overvoltage trip delay [s]
+        parameter<duration_t> machine_overvoltage_trip_delay{duration_t{0.05}};
+
         // ========== Communication Watchdog Parameters ==========
         /// Communication timeout threshold [s]
-        /// Default: 50ms
-        parameter<duration_t> comm_timeout{duration_t{0.050}};
+        /// Default: 100ms
+        parameter<duration_t> comm_timeout{duration_t{0.100}};
 
         /// Communication reset threshold [s]
         /// Default: 5ms
@@ -168,8 +231,20 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
+        // Per-protection severity parameters
+        entry.parameters.insert(
+            "over_flux_severity", yeet::utils::make_enum_accessor(_model_parameters->over_flux_severity));
+        entry.parameters.insert(
+            "under_flux_severity", yeet::utils::make_enum_accessor(_model_parameters->under_flux_severity));
+        entry.parameters.insert("stall_severity", yeet::utils::make_enum_accessor(_model_parameters->stall_severity));
+        entry.parameters.insert(
+            "overspeed_severity", yeet::utils::make_enum_accessor(_model_parameters->overspeed_severity));
+        entry.parameters.insert("machine_overvoltage_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->machine_overvoltage_severity));
+        entry.parameters.insert("communication_loss_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->communication_loss_severity));
+
         // V/Hz protection parameters
-        entry.parameters.insert("rated_vhz", yeet::utils::make_units_accessor(_model_parameters->rated_vhz));
         entry.parameters.insert(
             "over_flux_trip_threshold", yeet::utils::make_units_accessor(_model_parameters->over_flux_trip_threshold));
         entry.parameters.insert("over_flux_warning_threshold",
@@ -196,6 +271,18 @@ public:
             "stall_trip_delay", yeet::utils::make_units_accessor(_model_parameters->stall_trip_delay));
         entry.parameters.insert(
             "stall_warning_delay", yeet::utils::make_units_accessor(_model_parameters->stall_warning_delay));
+
+        // Overspeed protection parameters
+        entry.parameters.insert(
+            "overspeed_trip_threshold", yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_threshold));
+        entry.parameters.insert(
+            "overspeed_trip_delay", yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_delay));
+
+        // Machine-side overvoltage protection parameters
+        entry.parameters.insert("machine_overvoltage_trip_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_trip_threshold));
+        entry.parameters.insert("machine_overvoltage_trip_delay",
+            yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_trip_delay));
 
         // Communication watchdog parameters
         entry.parameters.insert("comm_timeout", yeet::utils::make_units_accessor(_model_parameters->comm_timeout));

@@ -37,6 +37,8 @@ target_sources(
             # Protection tests
             sfc_grid_side_protections_alarm_confirmation_test.cpp
             sfc_machine_side_protections_alarm_confirmation_test.cpp
+            sfc_machine_side_protections_runner_unit_test.cpp
+            machine_side_protections_integration_test.cpp
             protection_alarm_confirmation_integration_test.cpp)
 
 target_link_libraries(

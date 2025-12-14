@@ -14,9 +14,6 @@ void sfc_speed_controller_runner::initialize()
     set_parameters();
     set_parameter_callback();
 
-    // Initialize to initial speed
-    _sfc_speed_controller.configure_torque_limits_pu(
-        torque_pu_t{0.0}, _parameters.torque_reference_magnitude_limit.read());
     _sfc_speed_controller.reset(_parameters.initial_speed);
 }
 
@@ -58,25 +55,23 @@ void sfc_speed_controller_runner::run()
 
 void sfc_speed_controller_runner::stop() { _sfc_speed_controller.reset(); }
 
-void sfc_speed_controller_runner::set_parameters()
-{
-    // Configure PI controller gains
-    _sfc_speed_controller.configure_pi_gains(_parameters.kp, _parameters.ti);
-
-    // Configure feedforward control based on inertia constant
-    _sfc_speed_controller.configure_feedforward_pu(_parameters.feedforward_inertia);
-
-    // Configure torque limits
-    _sfc_speed_controller.configure_torque_limits_pu(
-        -_parameters.torque_reference_magnitude_limit.read(), _parameters.torque_reference_magnitude_limit.read());
-}
+void sfc_speed_controller_runner::set_parameters() {}
 
 void sfc_speed_controller_runner::set_parameter_callback()
 {
-    _parameters.kp.register_callback([&]() { set_parameters(); });
-    _parameters.ti.register_callback([&]() { set_parameters(); });
-    _parameters.torque_reference_magnitude_limit.register_callback([&]() { set_parameters(); });
-    _parameters.feedforward_inertia.register_callback([&]() { set_parameters(); });
+    _parameters.kp.register_callback(
+        [&]() { _sfc_speed_controller.configure_pi_gains(_parameters.kp, _parameters.ti); });
+    _parameters.ti.register_callback(
+        [&]() { _sfc_speed_controller.configure_pi_gains(_parameters.kp, _parameters.ti); });
+    _parameters.torque_reference_magnitude_limit.register_callback([&]() {
+        // Configure torque limits
+        _sfc_speed_controller.configure_torque_limits_pu(
+            -_parameters.torque_reference_magnitude_limit.read(), _parameters.torque_reference_magnitude_limit.read());
+    });
+    _parameters.feedforward_inertia.register_callback([&]() {
+        // Configure feedforward control based on inertia constant
+        _sfc_speed_controller.configure_feedforward_pu(_parameters.feedforward_inertia);
+    });
 }
 
 }  // namespace yeet::application::sfc::integration

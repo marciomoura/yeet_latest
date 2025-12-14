@@ -34,6 +34,10 @@ void sfc_plant_model_runner::initialize()
 
 void sfc_plant_model_runner::run()
 {
+    // Apply grid operating point parameters (voltage and frequency) before each update
+    // This ensures parameter changes take effect immediately, including fault injections
+    _plant->set_grid_operating_point(_parameters.grid_voltage_pu.read(), _parameters.grid_frequency_pu.read());
+
     // Set inputs to the plant model
     _plant->set_grid_side_pulses(_inputs.grid_firing_pulses.read().to_array());
     _plant->set_machine_side_pulses(_inputs.machine_firing_pulses.read().to_array());

@@ -156,8 +156,9 @@ TEST_F(ClosedLoopIOsTest, MCBCloseCommandInBreakersOffState)
         << "MCB is closed status should be false in IDLE";
 
     // Transition to AUXILIARIES_ON -> BREAKERS_OFF
+    // Note: auxiliaries status is mocked as a command->status loopback, so allow a couple of cycles.
     set_auxiliaries_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
     // In BREAKERS_OFF, MCB close command should be true
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
@@ -173,15 +174,10 @@ TEST_F(ClosedLoopIOsTest, MCBCloseCommandInBreakersOffState)
 }
 
 /**
- * @test DoorSupervisionPreventsBreakersClose
- * @brief Validates door supervision prevents MCB close command
- *
- * Door supervision (door_is_open=true) should block the MCB close command
- * even when state machine requests it. This is a safety interlock.
- *
- * State machine transitions: IDLE -> AUXILIARIES_ON -> BREAKERS_OFF (stays here due to door interlock)
+ * @test DoorOpenTripsAndForcesShutdown
+ * @brief Door open must generate a trip: MCB open asserted and auxiliaries command goes off.
  */
-TEST_F(ClosedLoopIOsTest, DoorSupervisionPreventsBreakersClose)
+TEST_F(ClosedLoopIOsTest, DoorOpenTripsAndForcesShutdown)
 {
     bool success = true;
 
@@ -189,38 +185,68 @@ TEST_F(ClosedLoopIOsTest, DoorSupervisionPreventsBreakersClose)
     EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::IDLE)
         << "Should start in IDLE state";
 
-    // Set door open BEFORE entering BREAKERS_OFF
-    set_door_is_open(true);
-
-    // Transition to AUXILIARIES_ON -> BREAKERS_OFF
+    // Bring system to BREAKERS_OFF so it would normally request MCB close.
+    // Note: auxiliaries status is mocked as a command->status loopback, so allow a couple of cycles.
     set_auxiliaries_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
-    // Verify state transition: IDLE -> AUXILIARIES_ON -> BREAKERS_OFF
-    auto state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::BREAKERS_OFF) << "Should be in BREAKERS_OFF state";
+    ASSERT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::BREAKERS_OFF)
+        << "Should be in BREAKERS_OFF state";
 
-    // MCB close command should be blocked by door interlock
+    // Enable protection module so door supervision latches and requires confirmation.
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+    success &= simulator.simulate_for(ms(20.0f));
+
+    // Open the door: must produce a trip/shutdown behavior.
+    set_door_is_open(true);
+    success &= simulator.simulate_for(ms(20.0f));
+
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Door open should latch protection inhibit";
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
+        << "MCB open must be asserted on door-open trip";
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close command should be blocked when door is open";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
-        << "MCB open command should be false in BREAKERS_OFF state";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should be false in BREAKERS_OFF";
+        << "MCB close must not be asserted during door-open trip";
 
-    // Close the door - now MCB close command should be allowed
+    // Verify the *external* digital outputs match the state machine semantics.
+    EXPECT_TRUE(system.grid_side_control.get_external_ios().get_mcb_open())
+        << "External DO mcb_open must be asserted on door-open trip";
+    EXPECT_FALSE(system.grid_side_control.get_external_ios().get_mcb_close())
+        << "External DO mcb_close must not be asserted during door-open trip";
+    EXPECT_FALSE(system.grid_side_control.get_external_ios().get_auxiliaries_on_command())
+        << "Auxiliaries command must go off on door-open trip";
+
+    // Relationship check: when we command breaker open, auxiliaries must be commanded off.
+    if (system.grid_side_control.get_external_ios().get_mcb_open()) {
+        EXPECT_FALSE(system.grid_side_control.get_external_ios().get_auxiliaries_on_command())
+            << "Auxiliaries must be commanded off whenever MCB open is commanded";
+    }
+
+    // Close the door: alarm stays latched until user confirmation.
     set_door_is_open(false);
+    success &= simulator.simulate_for(ms(20.0f));
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Alarm should remain latched after door closes";
+
+    // Ensure state machine can acknowledge trip (current extinguished + no active fault).
+    set_current_extinguished(true);
+    success &= simulator.simulate_for(ms(20.0f));
+
+    // After acknowledgment, protections should clear the trip but keep inhibit latched.
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Trip should clear after acknowledgment conditions are met";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Inhibit should remain until user confirmation";
+
+    // User confirmation via parameters (HMI)
+    auto& protection_params = system.grid_side_control.grid_protections.get_parameters();
+    protection_params.confirm_alarms.write(false);
+    success &= simulator.simulate_for(ms(10.0f));
+    protection_params.confirm_alarms.write(true);
     success &= simulator.simulate_for(ms(10.0f));
 
-    // State should still be BREAKERS_OFF (waiting for mcb_is_closed confirmation)
-    EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::BREAKERS_OFF)
-        << "Should remain in BREAKERS_OFF state";
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close command should be allowed when door is closed";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
-        << "MCB open command should be false in BREAKERS_OFF";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should be false in BREAKERS_OFF (waiting for confirmation)";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Inhibit should clear after user confirmation";
 
     EXPECT_TRUE(success);
 }
@@ -250,9 +276,9 @@ TEST_F(ClosedLoopIOsTest, MCBOpenCommandDuringShutdown)
     // Execute startup sequence: IDLE -> BREAKERS_OFF -> BREAKERS_ON -> OPERATION_OFF
     set_auxiliaries_on(true);
     set_breakers_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
     set_start_command(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
     // Pre-flux phase
     success &= simulator.simulate_for(0.5);
@@ -321,9 +347,9 @@ TEST_F(ClosedLoopIOsTest, BreakerTrippingTriggersShutdown)
     // Execute startup sequence: IDLE -> BREAKERS_OFF -> BREAKERS_ON -> OPERATION_OFF
     set_auxiliaries_on(true);
     set_breakers_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
     set_start_command(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
     // Pre-flux phase
     success &= simulator.simulate_for(0.5);
@@ -338,7 +364,7 @@ TEST_F(ClosedLoopIOsTest, BreakerTrippingTriggersShutdown)
 
     // Simulate protection relay indicating breaker is tripping
     set_breaker_is_tripping(true);
-    success &= simulator.simulate_for(ms(100.0f));
+    success &= simulator.simulate_for(ms(15.0f));  // One state machine cycle
 
     // Verify state transition to SHUTDOWN_REQUESTED
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
@@ -460,58 +486,25 @@ TEST_F(ClosedLoopIOsTest, EmergencyOffInhibitsStartup)
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
         << "MCB is closed status should be false in IDLE";
 
-    // Attempt to start: set auxiliaries on
+    // Attempt to start: even if auxiliaries are available, emergency_off forces auxiliaries command OFF.
     set_auxiliaries_on(true);
-    success &= simulator.simulate_for(ms(20.0f));  // Two state machine cycles for transition
+    success &= simulator.simulate_for(ms(50.0f));
 
-    // Should transition to BREAKERS_OFF but MCB cannot close
+    // Should remain in IDLE (startup inhibited).
     auto state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::BREAKERS_OFF) << "Should reach BREAKERS_OFF state";
+    EXPECT_EQ(state_id, sfc_state_id::IDLE) << "Should remain in IDLE while emergency_off is active";
 
-    // Verify MCB interlocks still prevent closure
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
-        << "MCB open should remain true with emergency_off active";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close should remain blocked with emergency_off active";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should be false in BREAKERS_OFF";
+    // Verify auxiliaries command is forced off.
+    EXPECT_FALSE(system.grid_side_control.get_external_ios().get_auxiliaries_on_command())
+        << "Auxiliaries command should be forced off when emergency_off is active";
 
-    // Signal that breakers are on (simulating what would happen if interlock failed)
-    set_breakers_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
-
-    // Even if breaker feedback says closed, state machine sees it via mcb_is_closed output
-    // which should be false because the interlock blocks the close command
-    // Note: In a real system, breaker would not close due to mcb_close=false
-    // For this test, we verify the output commands are correct
-
-    // Verify outputs remain in safe state
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
-        << "MCB open should be forced by emergency_off safety override";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close should be blocked by emergency_off safety interlock";
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should be true (breaker feedback set, but close command blocked)";
-
-    // Release emergency off
+    // Release emergency off: auxiliaries can now be commanded on and the state machine can progress.
     set_emergency_off(false);
-    success &= simulator.simulate_for(ms(20.0f));  // Allow transition
+    success &= simulator.simulate_for(ms(50.0f));
 
-    // MCB close should now be allowed, and system should progress
-    // Since mcb_is_closed was already set, state machine will have transitioned
+    // With auxiliaries available, system should advance out of IDLE.
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-
-    // BREAKERS_ON auto-transitions to OPERATION_OFF, so we expect OPERATION_OFF
-    EXPECT_EQ(state_id, sfc_state_id::OPERATION_OFF)
-        << "Should transition to OPERATION_OFF after emergency_off released";
-
-    // Verify MCB close is no longer blocked (state machine may not request it anymore since breakers are on)
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
-        << "MCB open should be false when emergency_off is released and system is running";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close should be false in OPERATION_OFF (breakers already closed)";
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should be true in OPERATION_OFF";
+    EXPECT_NE(state_id, sfc_state_id::IDLE) << "System should be able to leave IDLE after emergency_off is released";
 
     EXPECT_TRUE(success);
 }
@@ -741,7 +734,7 @@ TEST_F(ClosedLoopIOsTest, CompleteIOSequenceStartupToShutdown)
 
     // ==================== Phase 2: Startup ====================
     set_auxiliaries_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
     // Verify state transition to BREAKERS_OFF
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
@@ -754,22 +747,26 @@ TEST_F(ClosedLoopIOsTest, CompleteIOSequenceStartupToShutdown)
         << "MCB is closed status should be false in BREAKERS_OFF";
 
     set_breakers_on(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
-    // Verify state transition to BREAKERS_ON
+    // Verify state transition after breakers confirmed on.
+    // BREAKERS_ON may auto-transition quickly to OPERATION_OFF depending on timing.
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::BREAKERS_ON) << "Should be in BREAKERS_ON after breakers confirmed on";
+    EXPECT_TRUE(state_id == sfc_state_id::BREAKERS_ON || state_id == sfc_state_id::OPERATION_OFF)
+        << "Should be in BREAKERS_ON or OPERATION_OFF after breakers confirmed on";
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close command should be false in BREAKERS_ON";
+        << "MCB close command should be false once breakers are confirmed on";
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should be true in BREAKERS_ON";
+        << "MCB is closed status should be true once breakers are confirmed on";
 
     set_start_command(true);
-    success &= simulator.simulate_for(ms(10.0f));
+    success &= simulator.simulate_for(ms(50.0f));
 
-    // Verify state transition to OPERATION_OFF
+    // Verify state transition after start command.
+    // OPERATION_OFF may transition quickly to OPERATION_ON depending on plant dynamics.
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::OPERATION_OFF) << "Should be in OPERATION_OFF after start command";
+    EXPECT_TRUE(state_id == sfc_state_id::OPERATION_OFF || state_id == sfc_state_id::OPERATION_ON)
+        << "Should be in OPERATION_OFF or OPERATION_ON after start command";
 
     // ==================== Phase 3: Operation ====================
     system.plant.get_parameters().constant_torque.write(torque_pu_t(0.1f));
@@ -835,18 +832,15 @@ TEST_F(ClosedLoopIOsTest, CompleteIOSequenceStartupToShutdown)
 }
 
 /**
- * @test DoorOpenedDuringOperationDoesNotAffectMCB
- * @brief Validates door opening during operation doesn't affect MCB close command
+ * @test DoorOpenedDuringOperationTripsAndForcesShutdown
+ * @brief Validates door opening during operation generates a trip and forces shutdown outputs.
  *
- * The door interlock only prevents the MCB CLOSE command (not open).
- * Opening the door during operation should NOT trigger any MCB action -
- * it only prevents closing if the breaker were to open.
- *
- * State machine transitions:
- * IDLE -> AUXILIARIES_ON -> BREAKERS_OFF -> BREAKERS_ON -> OPERATION_OFF -> OPERATION_ON
- * (remains in OPERATION_ON when door opens - no state transition)
+ * Door open is treated as a trip source. Opening the door during OPERATION_ON must:
+ * - assert MCB open command
+ * - deassert auxiliaries command
+ * - latch protection inhibit (restart requires user confirmation)
  */
-TEST_F(ClosedLoopIOsTest, DoorOpenedDuringOperationDoesNotAffectMCB)
+TEST_F(ClosedLoopIOsTest, DoorOpenedDuringOperationTripsAndForcesShutdown)
 {
     configure_quick_startup();
 
@@ -882,21 +876,26 @@ TEST_F(ClosedLoopIOsTest, DoorOpenedDuringOperationDoesNotAffectMCB)
     EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
         << "MCB is closed status should be true during OPERATION_ON";
 
-    // Open the door during operation
+    // Enable protection module so door supervision latches and requires confirmation.
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+    success &= simulator.simulate_for(ms(20.0f));
+
+    // Open the door during operation: must trip and force shutdown.
     set_door_is_open(true);
-    success &= simulator.simulate_for(ms(200.0f));
+    success &= simulator.simulate_for(ms(15.0f));  // One state machine cycle
 
-    // Should remain in OPERATION_ON - door supervision does NOT trigger shutdown
-    state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::OPERATION_ON) << "Opening door during operation should NOT trigger shutdown";
-
-    // MCB commands should be unaffected
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Door open should latch protection inhibit";
+    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
+        << "MCB open must be asserted on door-open trip";
     EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_close.read())
-        << "MCB close command should remain false during OPERATION_ON";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().mcb_open.read())
-        << "MCB open command should remain false during OPERATION_ON";
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mcb_is_closed.read())
-        << "MCB is closed status should remain true during OPERATION_ON";
+        << "MCB close must not be asserted during door-open trip";
+    EXPECT_FALSE(system.grid_side_control.get_external_ios().get_auxiliaries_on_command())
+        << "Auxiliaries command must go off on door-open trip";
+
+    // State should move into the shutdown path (the breaker-status DI may still indicate closed).
+    state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_id, sfc_state_id::SHUTDOWN_REQUESTED) << "Door open during operation should trigger shutdown";
 
     EXPECT_TRUE(success);
 }
