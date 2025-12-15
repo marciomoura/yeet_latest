@@ -5,22 +5,12 @@
 
 namespace yeet::application::sfc {
 
-namespace {
-
-real_t clamp_real(real_t value, real_t min_value, real_t max_value) { return std::clamp(value, min_value, max_value); }
-
-}  // namespace
-
 sfc_excitation_controller::sfc_excitation_controller(duration_t sampling_time)
     : _sampling_time(sampling_time),
-      // _field_current_rate_limiter(10000.0, sampling_time.value()),  // Commented out - not used in simplified version
       _flux_buildup_timer(sampling_time),
       _voltage_reference_lookup_table(),
       _voltage_pi_controller(sampling_time.value())
 {
-    // Simplified constructor - no lookup table initialization needed
-    // _field_current_lookup_table.configure(kDefaultSpeedAxisPu, kDefaultFieldCurrentReferencePu);
-
     // Default voltage reference lookup table
     std::array<real_t, NUM_VOLTAGE_REFERENCE_POINTS> speed_axis{};
     std::array<real_t, NUM_VOLTAGE_REFERENCE_POINTS> voltage_ref{};
@@ -42,11 +32,6 @@ void sfc_excitation_controller::configure_field_current_setpoint(current_pu_t fi
     assert(field_current_setpoint.value() >= 0.0 && "Field current setpoint must be non-negative.");
 
     _field_current_setpoint = field_current_setpoint;
-
-    // Commented out - simplified version doesn't use lookup table
-    // std::array<real_t, NUM_LOOKUP_POINTS> constant_table;
-    // constant_table.fill(field_current_setpoint.value());
-    // _field_current_lookup_table.configure(kDefaultSpeedAxisPu, constant_table);
 }
 
 void sfc_excitation_controller::configure_low_voltage_field_current_setpoint(current_pu_t field_current_setpoint)
@@ -105,18 +90,6 @@ void sfc_excitation_controller::configure_voltage_pi_output_limits(
     _voltage_pi_controller.enable_output_limits(true);
 }
 
-// Commented out - not used in simplified version
-// void sfc_excitation_controller::configure_constant_flux_speed_threshold(speed_pu_t speed_threshold_pu)
-// {
-//     assert(speed_threshold_pu.value() >= 0.0 && speed_threshold_pu.value() <= 1.0 &&
-//            "Constant flux speed threshold must be between 0.0 and 1.0 pu.");
-//     if (speed_threshold_pu.value() < 0.0 || speed_threshold_pu.value() > 1.0) {
-//         return;
-//     }
-//
-//     _constant_flux_speed_threshold = speed_threshold_pu;
-// }
-
 void sfc_excitation_controller::configure_flux_buildup_duration(duration_t flux_buildup_duration)
 {
     assert(flux_buildup_duration.value() > 0.0 && "Flux build-up duration must be positive.");
@@ -142,23 +115,17 @@ bool sfc_excitation_controller::start_excitation()
     // Start flux build-up timer
     _flux_buildup_timer.reset();
 
-    // Commented out - simplified version doesn't track ramp-down state
-    // _is_ramping_down = false;
-
     return true;
 }
 
 void sfc_excitation_controller::stop_excitation()
 {
     // Simplified: immediate disable, no ramp-down
-    // _is_running = false;
-    // _is_field_established = false;
-    // _enable_excitation = false;
-    // _field_current_reference_pu = current_pu_t{0.0};
-    // _flux_buildup_timer.reset();
-
-    // Commented out - simplified version doesn't use ramp-down
-    // _is_ramping_down = true;
+    _is_running = false;
+    _is_field_established = false;
+    _enable_excitation = false;
+    _field_current_reference_pu = current_pu_t{0.0};
+    _flux_buildup_timer.reset();
 }
 
 void sfc_excitation_controller::update(
@@ -254,11 +221,6 @@ void sfc_excitation_controller::reset()
     _flux_buildup_timer.reset();
 
     _voltage_pi_controller.reset(real_t{0.0});
-
-    // Commented out - simplified version doesn't use these
-    // _is_ramping_down = false;
-    // _last_valid_speed = speed_pu_t{0.0};
-    // _field_current_rate_limiter.reset(0.0);
 }
 
 current_pu_t sfc_excitation_controller::get_field_current_reference_pu() const noexcept
@@ -286,45 +248,5 @@ voltage_pu_t sfc_excitation_controller::get_machine_voltage_error_pu() const noe
 {
     return _machine_voltage_error_pu;
 }
-
-// Commented out - legacy compatibility methods not used in simplified version
-// void sfc_excitation_controller::configure_field_current_lookup_table(
-//     const std::array<real_t, NUM_LOOKUP_POINTS>& speed_axis_pu,
-//     const std::array<real_t, NUM_LOOKUP_POINTS>& field_current_reference)
-// {
-//     assert(
-//         std::is_sorted(speed_axis_pu.begin(), speed_axis_pu.end()) && "Speed axis must be sorted in ascending
-//         order.");
-//
-//     for (const auto& current : field_current_reference) {
-//         assert(current >= 0.0 && "Field current reference values must be non-negative.");
-//     }
-//
-//     _field_current_lookup_table.configure(speed_axis_pu, field_current_reference);
-// }
-//
-// void sfc_excitation_controller::configure_field_established_timeout(duration_t timeout)
-// {
-//     assert(timeout.value() > 0.0 && "Field established timeout must be positive.");
-//     if (timeout.value() <= 0.0) {
-//         return;
-//     }
-//
-//     _field_established_timeout = timeout;
-// }
-//
-// void sfc_excitation_controller::configure_field_current_ramp_down_time(duration_t ramp_down_time)
-// {
-//     assert(ramp_down_time.value() > 0.0 && "Ramp down time must be positive.");
-//     if (ramp_down_time.value() <= 0.0) {
-//         return;
-//     }
-//
-//     const real_t max_field_current =
-//         *std::max_element(kDefaultFieldCurrentReferencePu.begin(), kDefaultFieldCurrentReferencePu.end());
-//     const real_t ramp_rate = max_field_current / ramp_down_time.value();
-//
-//     _field_current_rate_limiter.configure(ramp_rate);
-// }
 
 }  // namespace yeet::application::sfc

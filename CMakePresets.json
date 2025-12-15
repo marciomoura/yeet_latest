@@ -10,14 +10,15 @@
                 "YEET_BUILD_EMBEDDED": "OFF",
                 "YEET_BUILD_TESTING": "ON",
                 "YEET_BUILD_EXAMPLES": "ON",
-                "YEET_ENABLE_CCACHE": "ON"
+                "YEET_ENABLE_CCACHE": "ON",
+                "YEET_SFC_HOST_BUILD": "ON"
             },
             "generator": "Ninja Multi-Config"
         },
         {
             "name": "host-gcc",
             "displayName": "Host Build (GCC)",
-            "description": "Host machine build using GCC - select Debug/Release at build time",
+            "description": "Host build with SFC simulators using GCC - select Debug/Release at build time",
             "inherits": "host-base",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
@@ -27,29 +28,11 @@
         {
             "name": "host-clang",
             "displayName": "Host Build (Clang)",
-            "description": "Host machine build using Clang - select Debug/Release at build time",
+            "description": "Host build with SFC simulators using Clang - select Debug/Release at build time",
             "inherits": "host-base",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/clang.exe",
                 "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/clang++.exe"
-            }
-        },
-        {
-            "name": "host-gcc-sfc",
-            "displayName": "Host Simulators (Both Sides)",
-            "description": "Host simulators build for both grid-side and machine-side using GCC",
-            "inherits": "host-gcc",
-            "cacheVariables": {
-                "YEET_SFC_HOST_BUILD": "ON"
-            }
-        },
-        {
-            "name": "host-clang-sfc",
-            "displayName": "Host Simulators (Both Sides) - Clang",
-            "description": "Host simulators build for both grid-side and machine-side using Clang",
-            "inherits": "host-clang",
-            "cacheVariables": {
-                "YEET_SFC_HOST_BUILD": "ON"
             }
         },
         {
@@ -77,28 +60,6 @@
                 "YEET_ENABLE_CCACHE": "ON"
             },
             "generator": "Ninja Multi-Config"
-        },
-        {
-            "name": "embedded-disc1-grid",
-            "displayName": "STM32F407G-DISC1 Grid-Side",
-            "description": "STM32F407G Discovery Board - Grid-Side Controller",
-            "inherits": "embedded-base",
-            "binaryDir": "${sourceDir}/build-embedded-disc1-grid",
-            "cacheVariables": {
-                "YEET_SFC_EMBEDDED_BOARD": "stm32f407g-disc1",
-                "YEET_SFC_EMBEDDED_SIDE": "GRID"
-            }
-        },
-        {
-            "name": "embedded-disc1-machine",
-            "displayName": "STM32F407G-DISC1 Machine-Side",
-            "description": "STM32F407G Discovery Board - Machine-Side Controller",
-            "inherits": "embedded-base",
-            "binaryDir": "${sourceDir}/build-embedded-disc1-machine",
-            "cacheVariables": {
-                "YEET_SFC_EMBEDDED_BOARD": "stm32f407g-disc1",
-                "YEET_SFC_EMBEDDED_SIDE": "MACHINE"
-            }
         },
         {
             "name": "embedded-cn-grid",
@@ -161,84 +122,6 @@
             "configuration": "RelWithDebInfo"
         },
         {
-            "name": "host-gcc-sfc-debug",
-            "displayName": "Host Simulators - Debug",
-            "configurePreset": "host-gcc-sfc",
-            "configuration": "Debug"
-        },
-        {
-            "name": "host-gcc-sfc-release",
-            "displayName": "Host Simulators - Release",
-            "configurePreset": "host-gcc-sfc",
-            "configuration": "Release"
-        },
-        {
-            "name": "host-gcc-sfc-relwithdebinfo",
-            "displayName": "Host Simulators - RelWithDebInfo",
-            "configurePreset": "host-gcc-sfc",
-            "configuration": "RelWithDebInfo"
-        },
-        {
-            "name": "host-clang-sfc-debug",
-            "displayName": "Host Simulators - Clang Debug",
-            "configurePreset": "host-clang-sfc",
-            "configuration": "Debug"
-        },
-        {
-            "name": "host-clang-sfc-release",
-            "displayName": "Host Simulators - Clang Release",
-            "configurePreset": "host-clang-sfc",
-            "configuration": "Release"
-        },
-        {
-            "name": "host-clang-sfc-relwithdebinfo",
-            "displayName": "Host Simulators - Clang RelWithDebInfo",
-            "configurePreset": "host-clang-sfc",
-            "configuration": "RelWithDebInfo"
-        },
-        {
-            "name": "embedded-disc1-grid-debug",
-            "displayName": "DISC1 Grid - Debug",
-            "configurePreset": "embedded-disc1-grid",
-            "configuration": "Debug"
-        },
-        {
-            "name": "embedded-disc1-grid-release",
-            "displayName": "DISC1 Grid - Release",
-            "configurePreset": "embedded-disc1-grid",
-            "configuration": "Release"
-        },
-        {
-            "name": "embedded-disc1-grid-relwithdebinfo",
-            "displayName": "DISC1 Grid - RelWithDebInfo",
-            "configurePreset": "embedded-disc1-grid",
-            "configuration": "RelWithDebInfo"
-        },
-        {
-            "name": "embedded-disc1-machine-debug",
-            "displayName": "DISC1 Machine - Debug",
-            "configurePreset": "embedded-disc1-machine",
-            "configuration": "Debug"
-        },
-        {
-            "name": "embedded-disc1-machine-release",
-            "displayName": "DISC1 Machine - Release",
-            "configurePreset": "embedded-disc1-machine",
-            "configuration": "Release"
-        },
-        {
-            "name": "embedded-disc1-machine-relwithdebinfo",
-            "displayName": "DISC1 Machine - RelWithDebInfo",
-            "configurePreset": "embedded-disc1-machine",
-            "configuration": "RelWithDebInfo"
-        },
-        {
-            "name": "embedded-cn-grid-debug",
-            "displayName": "CN Grid - Debug",
-            "configurePreset": "embedded-cn-grid",
-            "configuration": "Debug"
-        },
-        {
             "name": "embedded-cn-grid-release",
             "displayName": "CN Grid - Release",
             "configurePreset": "embedded-cn-grid",
@@ -249,12 +132,6 @@
             "displayName": "CN Grid - RelWithDebInfo",
             "configurePreset": "embedded-cn-grid",
             "configuration": "RelWithDebInfo"
-        },
-        {
-            "name": "embedded-cn-machine-debug",
-            "displayName": "CN Machine - Debug",
-            "configurePreset": "embedded-cn-machine",
-            "configuration": "Debug"
         },
         {
             "name": "embedded-cn-machine-release",
