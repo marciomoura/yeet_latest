@@ -853,8 +853,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
         inputs.fiber_optic_rx.data_ready = false;
         inputs.fiber_optic_rx.link_ok = false;
 
-        task_outputs_t outputs = {0};
-
         // Execute low-frequency control task
         // This should contain:
         // - State machine management

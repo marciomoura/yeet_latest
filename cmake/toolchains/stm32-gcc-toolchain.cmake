@@ -80,10 +80,9 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
 # Don't run the linker during CMake's compiler tests
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
-# CPU and FPU options for STM32F407
-# Note: LTO flag will be added conditionally based on build type
-set(CPU_FLAGS_BASE
-    "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16")
+# CPU and FPU options for STM32F407 Note: LTO flag will be added conditionally
+# based on build type
+set(CPU_FLAGS_BASE "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16")
 
 # Performance-optimized flags for Release builds -O3: Maximum speed optimization
 # (aggressive inlining, loop unrolling, vectorization) -flto: Link-Time
@@ -102,46 +101,52 @@ set(RELEASE_FLAGS_COMMON
 # (required for deterministic RT)
 set(RELEASE_FLAGS_CXX "-fno-exceptions -fno-rtti")
 
-# Debug-optimized flags -O0: No optimization (all symbols preserved for debugging)
-# -g3: Maximum debug information (includes macro definitions)
+# Debug-optimized flags -O0: No optimization (all symbols preserved for
+# debugging) -g3: Maximum debug information (includes macro definitions)
 # -fno-inline: Don't inline functions (easier to step through in debugger)
 # -fno-omit-frame-pointer: Keep frame pointer for better backtraces
 
 # Common debug flags for both C and C++
 set(DEBUG_FLAGS_COMMON "-O0 -g3 -fno-inline -fno-omit-frame-pointer")
 
-# RelWithDebInfo flags -O2: Moderate optimization (good balance of speed and debuggability)
-# -g3: Maximum debug information
-# -fno-omit-frame-pointer: Keep frame pointer for better backtraces
+# RelWithDebInfo flags -O2: Moderate optimization (good balance of speed and
+# debuggability) -g3: Maximum debug information -fno-omit-frame-pointer: Keep
+# frame pointer for better backtraces
 set(RELWITHDEBINFO_FLAGS_COMMON "-O2 -g3 -fno-omit-frame-pointer")
 set(RELWITHDEBINFO_FLAGS_CXX "-fno-exceptions -fno-rtti")
 
-# For Ninja Multi-Config generator, CMAKE_BUILD_TYPE may not be set during configuration
-# We need to use generator expressions instead
-# Set base flags without LTO (will be added per-configuration)
+# For Ninja Multi-Config generator, CMAKE_BUILD_TYPE may not be set during
+# configuration We need to use generator expressions instead Set base flags
+# without LTO (will be added per-configuration)
 set(CPU_FLAGS "${CPU_FLAGS_BASE}")
 
-# Set per-configuration flags using CMAKE_<LANG>_FLAGS_<CONFIG>
-# These will be appended to CMAKE_<LANG>_FLAGS_INIT based on the configuration at build time
+# Set per-configuration flags using CMAKE_<LANG>_FLAGS_<CONFIG> These will be
+# appended to CMAKE_<LANG>_FLAGS_INIT based on the configuration at build time
 
-# Debug configuration: -O0 -g3 -fno-inline (no optimization, all symbols preserved)
+# Debug configuration: -O0 -g3 -fno-inline (no optimization, all symbols
+# preserved)
 set(CMAKE_C_FLAGS_DEBUG_INIT "${DEBUG_FLAGS_COMMON}")
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "${DEBUG_FLAGS_COMMON} ${DEBUG_FLAGS_CXX}")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG_INIT "")
 
 # RelWithDebInfo configuration: -O2 -g3 (moderate optimization with debug info)
 set(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "${RELWITHDEBINFO_FLAGS_COMMON}")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "${RELWITHDEBINFO_FLAGS_COMMON} ${RELWITHDEBINFO_FLAGS_CXX}")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT
+    "${RELWITHDEBINFO_FLAGS_COMMON} ${RELWITHDEBINFO_FLAGS_CXX}")
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT "")
 
 # Release configuration: -O3 -flto (maximum optimization)
 set(CMAKE_C_FLAGS_RELEASE_INIT "${RELEASE_FLAGS_COMMON} -flto=auto")
-set(CMAKE_CXX_FLAGS_RELEASE_INIT "${RELEASE_FLAGS_COMMON} ${RELEASE_FLAGS_CXX} -flto=auto")
+set(CMAKE_CXX_FLAGS_RELEASE_INIT
+    "${RELEASE_FLAGS_COMMON} ${RELEASE_FLAGS_CXX} -flto=auto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT "-flto=auto")
 
 # MinSizeRel configuration: -Os (optimize for size)
-set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Os -g -flto=auto -ffunction-sections -fdata-sections")
-set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Os -g -flto=auto -ffunction-sections -fdata-sections ${RELEASE_FLAGS_CXX}")
+set(CMAKE_C_FLAGS_MINSIZEREL_INIT
+    "-Os -g -flto=auto -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT
+    "-Os -g -flto=auto -ffunction-sections -fdata-sections ${RELEASE_FLAGS_CXX}"
+)
 set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL_INIT "-flto=auto")
 
 # Determine build type for status message
@@ -150,11 +155,15 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(STATUS "ARM Toolchain: Debug build with -O0 -g3 (no optimizations) 🐛")
+    message(
+        STATUS "ARM Toolchain: Debug build with -O0 -g3 (no optimizations) 🐛")
 elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    message(STATUS "ARM Toolchain: RelWithDebInfo build with -O2 -g3 (debuggable) 🔧")
+    message(
+        STATUS "ARM Toolchain: RelWithDebInfo build with -O2 -g3 (debuggable) 🔧"
+    )
 elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
-    message(STATUS "ARM Toolchain: MinSizeRel build with -Os -flto (small size) 📦")
+    message(
+        STATUS "ARM Toolchain: MinSizeRel build with -Os -flto (small size) 📦")
 else()
     message(STATUS "ARM Toolchain: Release build with -O3 -flto 🚀")
 endif()
@@ -169,9 +178,15 @@ set(CMAKE_ASM_FLAGS_INIT "${CPU_FLAGS} -x assembler-with-cpp -MMD -MP")
 
 # Linker flags Start with base CPU flags and linker script
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${CPU_FLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS_INIT
-    "${CMAKE_EXE_LINKER_FLAGS_INIT} -T \"${CMAKE_SOURCE_DIR}/boards/stm32f407g-disc1/STM32F407XX_FLASH.ld\""
-)
+
+# Add board-specific linker script YEET_SFC_EMBEDDED_BOARD is set via
+# CMakePresets.json cacheVariables Skip during try_compile (compiler ABI
+# detection) since the variable isn't available yet
+if(YEET_SFC_EMBEDDED_BOARD)
+    set(CMAKE_EXE_LINKER_FLAGS_INIT
+        "${CMAKE_EXE_LINKER_FLAGS_INIT} -T \"${CMAKE_SOURCE_DIR}/boards/${YEET_SFC_EMBEDDED_BOARD}/STM32F407XX_FLASH.ld\""
+    )
+endif()
 
 # Use nano.specs for smaller code size, but add nosys.specs for syscall stubs
 set(CMAKE_EXE_LINKER_FLAGS_INIT

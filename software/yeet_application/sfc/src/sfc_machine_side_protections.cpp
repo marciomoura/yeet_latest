@@ -181,15 +181,6 @@ void sfc_machine_side_protections::update(current_pu_t dc_link_current_pu,
     const bool overspeed_trip_raw = _overspeed_protection.is_tripped();
     const bool machine_overvoltage_trip_raw = _machine_overvoltage_protection.is_tripped();
 
-    const auto vhz_ratio_pu = _vhz_protection.get_vhz_ratio_pu();
-    const bool over_flux_condition_active = vhz_ratio_pu > _over_flux_trip_threshold;
-    const bool under_flux_condition_active = vhz_ratio_pu < _under_flux_trip_threshold;
-    const bool stall_condition_active = _stall_protection.is_stall_condition_active();
-    const bool comm_loss_condition_active = !communication_valid;
-    const bool overspeed_condition_active = machine_speed_pu > _overspeed_trip_threshold;
-    const bool machine_overvoltage_condition_active =
-        machine_voltage_magnitude_pu > _machine_overvoltage_trip_threshold;
-
     // Use raw detector latched outputs (not instantaneous condition checks) for handshake logic.
     // This prevents glitches in condition evaluation from causing premature alarm confirmation.
     const bool any_fault_condition_active = over_flux_trip_raw || under_flux_trip_raw || stall_trip_raw ||

@@ -6,10 +6,9 @@
             "type": "pickString",
             "description": "Select target board",
             "options": [
-                "disc1",
                 "cn"
             ],
-            "default": "zg"
+            "default": "cn"
         },
         {
             "id": "embeddedSide",

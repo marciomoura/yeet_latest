@@ -11,8 +11,8 @@ namespace yeet::control {
 // Constructor
 three_phase_pll::three_phase_pll(duration_t sampling_time)
     : _sampling_time(sampling_time),
-      _frequency_integrator(sampling_time.value()),
       _frequency_pi_controller(sampling_time.value()),
+      _frequency_integrator(sampling_time.value()),
       _lock_timer(default_lock_duration.value(), sampling_time.value()),
       _filter_frequency_estimation(sampling_time.value()),
       _omega_reject_filter(sampling_time.value())

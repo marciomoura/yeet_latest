@@ -172,7 +172,6 @@ void thyristor_bridge::force_natural_turn_off(const abc<current_t>& i_ac_abc, cu
 
     // Upper leg (T1, T3, T5): Only ONE should conduct at a time
     // Turn off all except the one with highest positive current
-    int upper_conducting_count = 0;
     int upper_max_idx = -1;
     real_t upper_max_current = -1e9;
 

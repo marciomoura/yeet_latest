@@ -163,7 +163,7 @@ jobs:
   #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
-  #       board: [stm32f407zg-cn, stm32f407g-disc1]
+  #       board: [stm32f407zg-cn]
   #       side: [GRID, MACHINE]
   #       build_type: [Release]
   #   steps:
@@ -218,7 +218,7 @@ jobs:
 
   #     - name: Configure embedded CMake project
   #       run: |
-  #         PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')"
+  #         PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')"
   #         echo "Using CMake preset: $PRESET_NAME"
   #         cmake --preset=$PRESET_NAME
   #         echo "=== Embedded CMake Configuration Complete ==="
@@ -226,14 +226,14 @@ jobs:
   #     - name: Build embedded target
   #       run: |
   #         echo "=== Starting Embedded Build at $(date) ==="
-  #         PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')-$(echo ${{ matrix.build_type }} | tr '[:upper:]' '[:lower:]')"
+  #         PRESET_NAME="embedded-$(echo ${{ matrix.board }} | sed 's/stm32f407zg-cn/cn/')-$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')-$(echo ${{ matrix.build_type }} | tr '[:upper:]' '[:lower:]')"
   #         echo "Using build preset: $PRESET_NAME"
   #         time cmake --build --preset=$PRESET_NAME --parallel $(nproc)
   #         echo "=== Embedded Build Complete at $(date) ==="
 
   #     - name: Show build artifacts
   #       run: |
-  #         BOARD_SHORT=$(echo ${{ matrix.board }} | sed 's/stm32f407g-disc1/disc1/' | sed 's/stm32f407zg-cn/cn/')
+  #         BOARD_SHORT=$(echo ${{ matrix.board }} | sed 's/stm32f407zg-cn/cn/')
   #         SIDE_LOWER=$(echo ${{ matrix.side }} | tr '[:upper:]' '[:lower:]')
   #         BUILD_DIR="build-embedded-${BOARD_SHORT}-${SIDE_LOWER}"
 
@@ -487,15 +487,15 @@ jobs:
       - name: Build Virtual Controller (Release)
         shell: bash
         run: |
-          cmake --preset=host-gcc-sfc
-          cmake --build --preset host-gcc-release --target sfc_host_simulator
+          cmake --preset=host-gcc
+          cmake --build --preset=host-gcc-release --target sfc_host_simulator
           cp C:/msys64/mingw64/bin/{libgcc_s_seh-1.dll,libstdc++-6.dll,libwinpthread-1.dll} build-host/bin/Release/
           ldd build-host/bin/Release/sfc_host_simulator.exe
 
-      - name: Generate release tag
+      - name: Generate latest release tag
         id: tag
         run: |
-          $TAG = "master"
+          $TAG = "latest"
           echo "tag=$TAG" >> $env:GITHUB_OUTPUT
           echo "Generated tag: $TAG"
 
