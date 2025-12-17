@@ -98,6 +98,12 @@ public:
      */
     alphabeta<voltage_pu_t> get_filtered_voltage_alphabeta() const;
 
+    /**
+     * @brief Gets the observer tracking error (q-axis component from PLL).
+     * @return The q-axis voltage component representing phase tracking error [pu].
+     */
+    voltage_pu_t get_observer_error() const;
+
 private:
     control::srf_pll _pll;
     control::second_order_low_pass_filter<real_t> _filtered_voltage_filter;

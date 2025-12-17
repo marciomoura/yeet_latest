@@ -107,8 +107,8 @@ public:
         // bool parameter - use make_bool_accessor
         entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
 
-        // angle_wrapped parameter - use make_angle_accessor
-        entry.parameters.insert("pulse_width", yeet::utils::make_angle_accessor(_model_parameters->pulse_width));
+        // pulse_width in degrees - use make_units_accessor
+        entry.parameters.insert("pulse_width", yeet::utils::make_units_accessor(_model_parameters->pulse_width));
 
         // Enum parameter - use make_enum_accessor
         entry.parameters.insert("reference_type", yeet::utils::make_enum_accessor(_model_parameters->reference_type));

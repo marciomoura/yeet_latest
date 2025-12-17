@@ -27,9 +27,9 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
         }
     """
     return {
-        'measurements': {
+        'measurements (pu)': {
             'grid_voltages': {
-                'title': 'Grid Voltages',
+                'title': 'Grid Voltages (per-unit)',
                 'y_label': 'Magnitude (pu)',
                 'signals': [
                     {'name': 'voltage a', 'color': 'c', 'index': GridSignalIndex.GRID_VOLTAGE_A},
@@ -39,7 +39,7 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 ]
             },
             'grid_currents': {
-                'title': 'Grid Currents',
+                'title': 'Grid Currents (per-unit)',
                 'y_label': 'Magnitude (pu)',
                 'signals': [
                     {'name': 'current a', 'color': 'c', 'index': GridSignalIndex.GRID_CURRENT_A},
@@ -48,15 +48,26 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'current mag.', 'color': 'g', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE},
                 ]
             },
-            'commutation_notch_duration': {
-                'title': 'Commutation Notch Duration',
-                'y_label': 'Time (s)',
+        },
+        'measurements (si)': {
+            'grid_currents_si': {
+                'title': 'Grid Currents (SI)',
+                'y_label': 'Current (A)',
                 'signals': [
-                    {'name': 'notch last', 'color': 'c', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S},
-                    {'name': 'notch filtered', 'color': 'm', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S},
+                    {'name': 'current A', 'color': 'c', 'index': GridSignalIndex.GRID_CURRENT_A_SI},
+                    {'name': 'current B', 'color': 'm', 'index': GridSignalIndex.GRID_CURRENT_B_SI},
+                    {'name': 'current C', 'color': 'y', 'index': GridSignalIndex.GRID_CURRENT_C_SI},
                 ]
             },
-
+            'grid_voltages_si': {
+                'title': 'Grid Line Voltages (SI)',
+                'y_label': 'Voltage (V)',
+                'signals': [
+                    {'name': 'voltage AB', 'color': 'c', 'index': GridSignalIndex.GRID_VOLTAGE_LINE_AB},
+                    {'name': 'voltage BC', 'color': 'm', 'index': GridSignalIndex.GRID_VOLTAGE_LINE_BC},
+                    {'name': 'voltage CA', 'color': 'y', 'index': GridSignalIndex.GRID_VOLTAGE_LINE_CA},
+                ]
+            },
         },
         'observer': {
             'voltage_freq': {
@@ -65,7 +76,8 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'voltage mag.', 'color': 'c', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE},
                     {'name': 'frequency (pu)', 'color': 'm', 'index': GridSignalIndex.ESTIMATED_FREQUENCY_PU},
-                    {'name': 'angle (pu)', 'color': 'y', 'index': GridSignalIndex.ESTIMATED_REFERENCE_ANGLE}
+                    {'name': 'angle (pu)', 'color': 'y', 'index': GridSignalIndex.ESTIMATED_REFERENCE_ANGLE},
+                    {'name': 'observer error', 'color': 'r', 'index': GridSignalIndex.OBSERVER_ERROR}
                 ]
             }
         },
@@ -142,9 +154,9 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
         }
     """
     return {
-        'measurements': {
+        'measurements (pu)': {
             'voltage_measurements': {
-                'title': 'Machine Voltage Measurements',
+                'title': 'Machine Voltage Measurements (per-unit)',
                 'y_label': 'Voltage (pu)',
                 'signals': [
                     {'name': 'voltage a', 'color': 'c', 'index': MachineSignalIndex.MACHINE_VOLTAGE_ABC_A},
@@ -153,12 +165,15 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                     {'name': 'voltage magnitude filtered', 'color': 'g', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED}
                 ]
             },
-            'commutation_notch_duration': {
-                'title': 'Commutation Notch Duration',
-                'y_label': 'Time (s)',
+        },
+        'measurements (si)': {
+            'voltage_measurements_si': {
+                'title': 'Machine Line Voltages (SI)',
+                'y_label': 'Voltage (V)',
                 'signals': [
-                    {'name': 'notch last', 'color': 'c', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S},
-                    {'name': 'notch filtered', 'color': 'm', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S},
+                    {'name': 'voltage AB', 'color': 'c', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_AB},
+                    {'name': 'voltage BC', 'color': 'm', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_BC},
+                    {'name': 'voltage CA', 'color': 'y', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_CA},
                 ]
             },
         },
@@ -169,7 +184,8 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'estimated voltage mag.', 'color': 'b', 'index': MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE},
                     {'name': 'estimated frequency (pu)', 'color': 'm', 'index': MachineSignalIndex.ESTIMATED_SPEED},
-                    {'name': 'estimated reference angle (pu)', 'color': 'y', 'index': MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE}
+                    {'name': 'estimated reference angle (pu)', 'color': 'y', 'index': MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE},
+                    {'name': 'observer error', 'color': 'r', 'index': MachineSignalIndex.OBSERVER_ERROR}
                 ]
             }
         },
@@ -281,7 +297,7 @@ def get_default_visible_groups(target: str) -> list:
         List of group names that should be visible by default
     """
     if target == 'grid':
-        return ['observer', 'measurements', 'controller'] 
+        return ['observer', 'measurements (pu)', 'controller'] 
     if target == 'machine':
         return ['excitation', 'startup_sequencer', 'torque_controller', 'speed_controller']
     return []

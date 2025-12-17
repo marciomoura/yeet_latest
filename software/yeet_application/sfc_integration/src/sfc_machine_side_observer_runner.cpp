@@ -66,6 +66,7 @@ void sfc_machine_side_observer_runner::run()
     }
 
     _outputs.estimated_voltage_alphabeta_filtered = _sfc_machine_side_observer.get_filtered_voltage_alphabeta();
+    _outputs.observer_error = _sfc_machine_side_observer.get_observer_error();
 }
 void sfc_machine_side_observer_runner::stop() { _sfc_machine_side_observer.reset(); }
 

@@ -64,7 +64,7 @@ inline void clear_analog_outputs(task_outputs_t* outputs) noexcept
     outputs->analog_outputs.valid = false;
 }
 
-inline void write_ao(task_outputs_t* outputs, int idx, float value) noexcept
+inline void write_ao(task_outputs_t* outputs, int idx, float value, float gain, float offset) noexcept
 {
     if (outputs == nullptr) {
         return;
@@ -72,7 +72,16 @@ inline void write_ao(task_outputs_t* outputs, int idx, float value) noexcept
     if (!is_valid_ao_index(idx)) {
         return;
     }
-    outputs->analog_outputs.channels[idx] = value;
+    // Apply gain and offset: output = gain * value + offset
+    float scaled_value = gain * value + offset;
+    // Clamp to 0-10V DAC range
+    if (scaled_value < 0.0f) {
+        scaled_value = 0.0f;
+    }
+    if (scaled_value > 10.0f) {
+        scaled_value = 10.0f;
+    }
+    outputs->analog_outputs.channels[idx] = scaled_value;
     outputs->analog_outputs.valid = true;
 }
 
@@ -199,7 +208,8 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     const auto& io_params = control->external_ios.get_parameters();
     const float excitation_current_reference =
         static_cast<float>(control->external_ios.get_excitation_current_reference());
-    write_ao(outputs, io_params.ao_excitation_current_reference_index.read(), excitation_current_reference);
+    write_ao(outputs, io_params.ao_excitation_current_reference_index.read(), excitation_current_reference,
+        io_params.ao_excitation_current_reference_gain.read(), io_params.ao_excitation_current_reference_offset.read());
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:

@@ -131,6 +131,12 @@ public:
     alphabeta<voltage_pu_t> get_filtered_voltage_alphabeta() const;
 
     /**
+     * @brief Gets the observer tracking error (q-axis component from PLL).
+     * @return The q-axis voltage component representing phase tracking error [pu].
+     */
+    voltage_pu_t get_observer_error() const;
+
+    /**
      * @brief Gets the status of the commutation detection logic.
      * @return True if a commutation is currently detected in any of the thyristors, false otherwise.
      */

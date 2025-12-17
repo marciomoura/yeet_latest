@@ -42,6 +42,10 @@ void sfc_grid_side_measurements_ideal_runner::run()
     _outputs.grid_current_abc = _measurements.get_current_pu();
     _outputs.grid_voltage_magnitude = masked_voltage_abc.to_alphabeta().magnitude();
     _outputs.grid_voltage_magnitude_filtered = _measurement_filters.get_filtered_voltage_magnitude_pu();
+
+    // Populate SI outputs for telemetry
+    _outputs.grid_voltage_line = _measurements.get_voltage_line();
+    _outputs.grid_current = _measurements.get_current();
 }
 
 void sfc_grid_side_measurements_ideal_runner::stop() {}
@@ -125,6 +129,10 @@ void sfc_grid_side_measurements_runner::run()
     _outputs.grid_current_abc = _measurements.get_current_pu();
     _outputs.grid_voltage_magnitude = masked_voltage_abc.to_alphabeta().magnitude();
     _outputs.grid_voltage_magnitude_filtered = _measurement_filters.get_filtered_voltage_magnitude_pu();
+
+    // Populate SI outputs for telemetry
+    _outputs.grid_voltage_line = _measurements.get_voltage_line();
+    _outputs.grid_current = _measurements.get_current();
 }
 
 void sfc_grid_side_measurements_runner::stop() {}
