@@ -30,9 +30,12 @@ public:
     const abc<voltage_pu_t>& get_voltage_pu() const { return _voltage_pu; }
     const abc<current_pu_t>& get_current_pu() const { return _current_pu; }
 
+    const line_voltage<voltage_t>& get_voltage_line() const { return _voltage_line; }
+
 private:
     abc<voltage_pu_t> _voltage_pu{};
     abc<current_pu_t> _current_pu{};
+    line_voltage<voltage_t> _voltage_line{};
 };
 
 /**
@@ -92,6 +95,8 @@ public:
     const abc<voltage_pu_t>& get_voltage_pu() const { return _voltage_pu; }
     const abc<current_pu_t>& get_current_pu() const { return _current_pu; }
 
+    const line_voltage<voltage_t>& get_voltage_line() const { return _voltage_line; }
+
     // Individual raw measurements after ADC conversion
     real_t get_raw_v_ab() const { return _voltage_converter.to_real(_v_ab_counts); }
     real_t get_raw_v_bc() const { return _voltage_converter.to_real(_v_bc_counts); }
@@ -115,6 +120,9 @@ private:
     // Per-unit outputs
     abc<voltage_pu_t> _voltage_pu{};
     abc<current_pu_t> _current_pu{};  // Zero for machine side (no current measurements)
+
+    // SI outputs
+    line_voltage<voltage_t> _voltage_line{};
 };
 
 }  // namespace yeet::application::sfc

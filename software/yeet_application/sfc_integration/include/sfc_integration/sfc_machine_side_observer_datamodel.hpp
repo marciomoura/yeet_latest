@@ -57,6 +57,9 @@ public:
 
         /// Filtered voltage in alpha-beta stationary frame [pu]
         yeet::signal_output<yeet::alphabeta<yeet::voltage_pu_t>> estimated_voltage_alphabeta_filtered;
+
+        /// Observer tracking error (q-axis component from PLL) [pu]
+        yeet::signal_output<yeet::voltage_pu_t> observer_error;
     };
 
     /**

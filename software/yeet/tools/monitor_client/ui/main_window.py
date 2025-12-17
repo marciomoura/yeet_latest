@@ -221,7 +221,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.max_retries: int = 3                       # Maximum retry attempts per missing index
         self.param_request_timer = QtCore.QTimer(self)
         self.param_request_timer.timeout.connect(self._send_next_parameter_request)
-        self.param_request_timer.setInterval(20)  # 50ms between requests (20 requests/sec)
+        self.param_request_timer.setInterval(20)  # 20ms between requests (20 requests/sec)
         self.retry_check_timer = QtCore.QTimer(self)
         self.retry_check_timer.timeout.connect(self._check_for_missing_parameters)
         self.retry_check_timer.setSingleShot(True)  # One-shot timer for retry check

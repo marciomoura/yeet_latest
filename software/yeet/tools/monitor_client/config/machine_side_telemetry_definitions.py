@@ -64,9 +64,12 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
         'measurements': {
             'title': 'Measurements',
             'fields': [
-                {'name': 'voltage mag.', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
-                {'name': 'frequency est.', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage mag. (pu)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
+                {'name': 'frequency est. (pu)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
                 {'name': 'frequency est. (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage line AB (V)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_AB, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage line BC (V)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_BC, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage line CA (V)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_CA, 'type': 'float', 'format': '.2f'},
                 {'name': 'comm. notch last (s)', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S, 'type': 'float', 'format': '.6f'},
                 {'name': 'comm. notch filt. (s)', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S, 'type': 'float', 'format': '.6f'},
             ]

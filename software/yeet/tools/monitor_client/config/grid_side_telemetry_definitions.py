@@ -52,9 +52,15 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
         'measurements': {
             'title': 'Measurements',
             'fields': [
-                {'name': 'voltage magnitude', 'index': GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
-                {'name': 'current magnitude', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE, 'type': 'float', 'format': '.4f'},
-                {'name': 'dc link current', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage magnitude (pu)', 'index': GridSignalIndex.GRID_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
+                {'name': 'current magnitude (pu)', 'index': GridSignalIndex.GRID_CURRENT_MAGNITUDE, 'type': 'float', 'format': '.4f'},
+                {'name': 'dc link current (pu)', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage line AB (V)', 'index': GridSignalIndex.GRID_VOLTAGE_LINE_AB, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage line BC (V)', 'index': GridSignalIndex.GRID_VOLTAGE_LINE_BC, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage line CA (V)', 'index': GridSignalIndex.GRID_VOLTAGE_LINE_CA, 'type': 'float', 'format': '.2f'},
+                {'name': 'current A (A)', 'index': GridSignalIndex.GRID_CURRENT_A_SI, 'type': 'float', 'format': '.2f'},
+                {'name': 'current B (A)', 'index': GridSignalIndex.GRID_CURRENT_B_SI, 'type': 'float', 'format': '.2f'},
+                {'name': 'current C (A)', 'index': GridSignalIndex.GRID_CURRENT_C_SI, 'type': 'float', 'format': '.2f'},
                 {'name': 'comm. notch last (s)', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S, 'type': 'float', 'format': '.6f'},
                 {'name': 'comm. notch filt. (s)', 'index': GridSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S, 'type': 'float', 'format': '.6f'}
             ]

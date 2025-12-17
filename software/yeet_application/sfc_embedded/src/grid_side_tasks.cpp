@@ -65,18 +65,6 @@ inline void clear_analog_outputs(task_outputs_t* outputs) noexcept
     outputs->analog_outputs.valid = false;
 }
 
-inline void write_ao(task_outputs_t* outputs, int idx, float value) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    if (!is_valid_ao_index(idx)) {
-        return;
-    }
-    outputs->analog_outputs.channels[idx] = value;
-    outputs->analog_outputs.valid = true;
-}
-
 }  // namespace
 
 // Ensure functions are compiled with Thumb interworking
@@ -228,18 +216,6 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     clear_analog_outputs(outputs);
 
     const auto& io_params = control->get_external_ios().get_parameters();
-    const float estimated_reference_angle =
-        control->grid_side_observer.get_outputs().estimated_reference_angle.read().get_pu().value();
-    const float grid_voltage_a = control->grid_measurements.get_outputs().grid_voltage_abc.read().a();
-    const float grid_voltage_a_unmasked = control->grid_measurements.get_outputs().grid_voltage_abc_unmasked.read().a();
-    const float grid_voltage_alpha_filtered =
-        control->grid_measurements.get_outputs().grid_voltage_alphabeta_filtered.read().alpha();
-
-    write_ao(outputs, io_params.ao_estimated_reference_angle_index.read(), estimated_reference_angle);
-    write_ao(outputs, io_params.ao_grid_voltage_a_index.read(), grid_voltage_a);
-    write_ao(outputs, io_params.ao_grid_voltage_a_unmasked_index.read(), grid_voltage_a_unmasked);
-    write_ao(outputs, io_params.ao_grid_voltage_alpha_filtered_index.read(), grid_voltage_alpha_filtered);
-
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:

@@ -87,4 +87,10 @@ alphabeta<voltage_pu_t> sfc_grid_side_observer::get_filtered_voltage_alphabeta()
     return _filtered_voltage_alphabeta;
 }
 
+voltage_pu_t sfc_grid_side_observer::get_observer_error() const
+{
+    // The q-axis component of the DQ vector is the tracking error in the PLL
+    return _pll.get_dq_vector().q();
+}
+
 }  // namespace yeet::application::sfc

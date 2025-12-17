@@ -79,6 +79,9 @@ public:
 
         /// Filtered commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_filtered;
+
+        /// Line voltages (unmasked) [V]
+        signal_output<line_voltage<voltage_t>> machine_voltage_line;
     };
 
     /**
@@ -200,6 +203,9 @@ public:
 
         /// Filtered commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_filtered;
+
+        /// Line voltages (unmasked) [V]
+        signal_output<line_voltage<voltage_t>> machine_voltage_line;
     };
 
     /**

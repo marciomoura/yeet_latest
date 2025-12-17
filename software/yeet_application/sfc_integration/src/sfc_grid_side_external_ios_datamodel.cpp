@@ -302,16 +302,6 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
     io_entry.parameters.insert("do_mcb_close_index", yeet::utils::make_units_accessor(_parameters.do_mcb_close_index));
     io_entry.parameters.insert("do_mcb_open_index", yeet::utils::make_units_accessor(_parameters.do_mcb_open_index));
 
-    // Analog output mapping indices
-    io_entry.parameters.insert("ao_estimated_reference_angle_index",
-        yeet::utils::make_units_accessor(_parameters.ao_estimated_reference_angle_index));
-    io_entry.parameters.insert(
-        "ao_grid_voltage_a_index", yeet::utils::make_units_accessor(_parameters.ao_grid_voltage_a_index));
-    io_entry.parameters.insert("ao_grid_voltage_a_unmasked_index",
-        yeet::utils::make_units_accessor(_parameters.ao_grid_voltage_a_unmasked_index));
-    io_entry.parameters.insert("ao_grid_voltage_alpha_filtered_index",
-        yeet::utils::make_units_accessor(_parameters.ao_grid_voltage_alpha_filtered_index));
-
     registry.insert("grid_io_indexes", std::move(io_entry));
 }
 

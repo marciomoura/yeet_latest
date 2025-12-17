@@ -63,33 +63,28 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register DC current lookup table entries individually
-        auto& dc_current_table = _model_parameters->dc_current_pu_lookup_table;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
             std::string param_name = "dc_current_pu_lookup_table[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
-                low_level_access([&dc_current_table,
-                                     i]() -> float { return static_cast<float>(dc_current_table.read()[i].value()); },
-                    [&dc_current_table, i](float value) {
-                        auto table = dc_current_table.read();
-                        table[i] = current_pu_t(value);
-                        dc_current_table.write(table);
-                    }));
+            entry.parameters.insert(
+                param_name, yeet::utils::make_array_element_accessor(_model_parameters->dc_current_pu_lookup_table, i));
         }
 
-        // Register firing angle lookup table entries individually
-        auto& firing_angle_table = _model_parameters->firing_angle_lookup_table;
+        // Register firing angle lookup table entries individually (real_t doesn't have .value() method)
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            std::string param_name = "firing_angle_lookup_table[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
-                low_level_access([&firing_angle_table, i]() -> float { return firing_angle_table.read()[i]; },
-                    [&firing_angle_table, i](float value) {
-                        auto table = firing_angle_table.read();
-                        table[i] = real_t(value);
-                        firing_angle_table.write(table);
-                    }));
+            std::string param_name = "firing_angle_lookup_table_deg[" + std::to_string(i) + "]";
+            entry.parameters.insert(
+                param_name, low_level_access(
+                                [this, i]() -> float {
+                                    return static_cast<float>(_model_parameters->firing_angle_lookup_table.read()[i]);
+                                },
+                                [this, i](float value) {
+                                    auto table = _model_parameters->firing_angle_lookup_table.read();
+                                    table[i] = real_t(value);
+                                    _model_parameters->firing_angle_lookup_table.write(table);
+                                }));
         }
 
-        registry.insert("controller", std::move(entry));
+        registry.insert("stator_voltage_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

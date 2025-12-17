@@ -10,6 +10,9 @@ void sfc_machine_side_measurements_ideal::update(sfc_per_unit_system::machine_si
     // Convert to per-unit using peak phase base values
     _voltage_pu = to_pu(raw_voltages, bases.base_voltage_peak_phase);
     _current_pu = to_pu(raw_currents, bases.base_current_peak_phase);
+
+    // Store SI values
+    _voltage_line = yeet::to_line_voltage(raw_voltages);
 }
 
 // Implementation for realistic measurements (with ADC simulation)
@@ -70,6 +73,9 @@ void sfc_machine_side_measurements::update(sfc_per_unit_system::machine_side_bas
     const abc<current_t> raw_currents{current_t{0.0}, current_t{0.0}, current_t{0.0}};
 
     _current_pu = to_pu(raw_currents, bases.base_current_peak_phase);
+
+    // Store SI values
+    _voltage_line = yeet::to_line_voltage(raw_voltages);
 }
 
 void sfc_machine_side_measurements::reset()
@@ -78,6 +84,7 @@ void sfc_machine_side_measurements::reset()
     _v_bc_counts = {};
     _voltage_pu = abc<voltage_pu_t>{};
     _current_pu = abc<current_pu_t>{};
+    _voltage_line = line_voltage<voltage_t>{};
 }
 
 }  // namespace yeet::application::sfc

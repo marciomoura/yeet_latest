@@ -25,6 +25,7 @@ void sfc_grid_side_observer_runner::run()
     _outputs.estimated_frequency_pu = _sfc_grid_side_observer.get_estimated_frequency_pu();
     _outputs.estimated_voltage_magnitude = _sfc_grid_side_observer.get_estimated_voltage_magnitude();
     _outputs.estimated_voltage_alphabeta_filtered = _sfc_grid_side_observer.get_filtered_voltage_alphabeta();
+    _outputs.observer_error = _sfc_grid_side_observer.get_observer_error();
 }
 
 void sfc_grid_side_observer_runner::stop() { _sfc_grid_side_observer.reset(); }

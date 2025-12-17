@@ -93,6 +93,8 @@ public:
         yeet::parameter<int> do_excitation_release_index{1};
 
         yeet::parameter<int> ao_excitation_current_reference_index{0};
+        yeet::parameter<real_t> ao_excitation_current_reference_gain{1.0};
+        yeet::parameter<real_t> ao_excitation_current_reference_offset{0.0};
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================

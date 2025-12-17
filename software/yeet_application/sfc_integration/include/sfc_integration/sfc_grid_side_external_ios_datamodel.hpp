@@ -119,12 +119,6 @@ public:
         // Defaults match the legacy commented mapping in grid_side_tasks.cpp (DO7/DO8).
         yeet::parameter<int> do_mcb_close_index{6};
         yeet::parameter<int> do_mcb_open_index{7};
-
-        // Defaults match the legacy monitoring AOs in grid_side_tasks.cpp (AO0..AO3).
-        yeet::parameter<int> ao_estimated_reference_angle_index{0};
-        yeet::parameter<int> ao_grid_voltage_a_index{1};
-        yeet::parameter<int> ao_grid_voltage_a_unmasked_index{2};
-        yeet::parameter<int> ao_grid_voltage_alpha_filtered_index{3};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
