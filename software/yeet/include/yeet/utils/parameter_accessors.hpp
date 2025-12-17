@@ -121,7 +121,7 @@ inline low_level_access make_enum_accessor(parameter<EnumT>& param) noexcept
 namespace yeet::utils {
 
 /**
- * @brief Creates low_level_access for angle_wrapped parameters
+ * @brief Creates low_level_access for angle_wrapped parameters (radians interface)
  *
  * Converts between angle_wrapped and float (radians):
  * - angle_wrapped to float: extract radians via get_radians()
@@ -131,12 +131,32 @@ namespace yeet::utils {
  * implicit float conversion operator.
  *
  * @param param Reference to the parameter<yeet::angle_wrapped> object
- * @return low_level_access configured for angle_wrapped type
+ * @return low_level_access configured for angle_wrapped type (radians)
  */
-inline low_level_access make_angle_accessor(parameter<yeet::angle_wrapped>& param) noexcept
+inline low_level_access make_angle_wrapped_accessor(parameter<yeet::angle_wrapped>& param) noexcept
 {
     return low_level_access([&param]() -> float { return static_cast<float>(param.read().get_radians()); },
         [&param](float value_rad) { param.write(yeet::angle_wrapped::from_radians(yeet::angle_t{value_rad})); });
+}
+
+/**
+ * @brief Creates low_level_access for angle_wrapped parameters (degrees interface)
+ *
+ * Converts between angle_wrapped and float (degrees):
+ * - angle_wrapped to float: extract degrees via get_degrees()
+ * - float to angle_wrapped: construct from degrees via from_degrees()
+ *
+ * This accessor provides a user-friendly degrees interface while maintaining
+ * internal representation in radians. Useful for configuration parameters where
+ * degrees are the preferred engineering unit.
+ *
+ * @param param Reference to the parameter<yeet::angle_wrapped> object
+ * @return low_level_access configured for angle_wrapped type (degrees)
+ */
+inline low_level_access make_degrees_angle_wrapped_accessor(parameter<yeet::angle_wrapped>& param) noexcept
+{
+    return low_level_access([&param]() -> float { return static_cast<float>(param.read().get_degrees()); },
+        [&param](float value_deg) { param.write(yeet::angle_wrapped::from_degrees(value_deg)); });
 }
 
 /**

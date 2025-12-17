@@ -101,8 +101,8 @@ public:
     {
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
-        entry.parameters.insert(
-            "force_commutation_angle", yeet::utils::make_units_accessor(_model_parameters->force_commutation_angle));
+        entry.parameters.insert("force_commutation_angle",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->force_commutation_angle));
         entry.parameters.insert(
             "commutation_timeout", yeet::utils::make_units_accessor(_model_parameters->commutation_timeout));
 
