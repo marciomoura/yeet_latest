@@ -98,7 +98,7 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         entry.parameters.insert("forced_commutation_firing_angle",
-            yeet::utils::make_units_accessor(_model_parameters->forced_commutation_firing_angle));
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->forced_commutation_firing_angle));
 
         registry.insert("modulator", std::move(entry));
     }
