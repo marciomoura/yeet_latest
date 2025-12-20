@@ -32,17 +32,16 @@ def _get_section_order() -> List[str]:
         List of section keys in preferred display order
     """
     return [
+        'digital_io',
         'system',
-        'measurements',
         'protections',
-        'startup_sequencer',
-        'speed_controller',
-        'torque_controller',
-        'controller',
+        'fiber_optic_rx',
+        'measurements',
         'modulator',
         'excitation_controller',
+        'startup_sequencer',
+        'speed_torque_controller',
         'pulse_generator',
-        'fiber_optic_rx',
     ]
 
 
@@ -53,25 +52,12 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
         OrderedDict with section definitions in canonical order.
     """
     all_sections = {
-        'system': {
-            'title': 'System',
-            'fields': [
-                {'name': 'modulator release pulses', 'index': MachineSignalIndex.MODULATOR_RELEASE_PULSES_INPUT, 'type': 'bool', 'format': 'bool'},
-                {'name': 'torque is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'startup complete', 'index': MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE, 'type': 'bool', 'format': 'bool'}
-            ]
-        },
         'measurements': {
             'title': 'Measurements',
             'fields': [
                 {'name': 'voltage mag. (pu)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
                 {'name': 'frequency est. (pu)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
-                {'name': 'frequency est. (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY, 'type': 'float', 'format': '.2f'},
-                {'name': 'voltage line AB (V)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_AB, 'type': 'float', 'format': '.2f'},
-                {'name': 'voltage line BC (V)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_BC, 'type': 'float', 'format': '.2f'},
-                {'name': 'voltage line CA (V)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_LINE_CA, 'type': 'float', 'format': '.2f'},
-                {'name': 'comm. notch last (s)', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_LAST_S, 'type': 'float', 'format': '.6f'},
-                {'name': 'comm. notch filt. (s)', 'index': MachineSignalIndex.COMMUTATION_NOTCH_DURATION_FILTERED_S, 'type': 'float', 'format': '.6f'},
+                {'name': 'frequency est. (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_HZ, 'type': 'float', 'format': '.2f'}
             ]
         },
         'modulator': {
@@ -80,56 +66,26 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'operating mode', 'index': MachineSignalIndex.MODULATOR_OPERATING_MODE, 'type': 'int', 'format': '.0f'},
                 {'name': 'firing angle (pu)', 'index': MachineSignalIndex.MODULATOR_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
                 {'name': 'request force commutation', 'index': MachineSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
-                {'name': 'force commutation ack', 'index': MachineSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release pulses (out)', 'index': MachineSignalIndex.MODULATOR_RELEASE_PULSES_OUTPUT, 'type': 'bool', 'format': 'bool'},
                 {'name': 'commutation state', 'index': MachineSignalIndex.MODULATOR_COMMUTATION_STATE, 'type': 'int', 'format': '.0f'},
                 {'name': 'rotor sector', 'index': MachineSignalIndex.MODULATOR_CURRENT_ROTOR_SECTOR, 'type': 'float', 'format': '.2f'}
             ]
         },
-        'controller': {
-            'title': 'Machine Controller',
-            'fields': [
-                {'name': 'firing angle (pu)', 'index': MachineSignalIndex.CONTROLLER_FIRING_ANGLE, 'type': 'float', 'format': '.4f'},
-                {'name': 'current reference', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'current measured', 'index': MachineSignalIndex.CONTROLLER_DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
-                {'name': 'machine speed', 'index': MachineSignalIndex.CONTROLLER_MACHINE_SPEED, 'type': 'float', 'format': '.4f'},
-            ]
-        },
-        'torque_controller': {
-            'title': 'Torque Controller',
-            'fields': [
-                {'name': 'torque reference', 'index': MachineSignalIndex.TORQUE_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'max torque limit', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MAX_LIMIT, 'type': 'float', 'format': '.4f'},
-                {'name': 'min torque limit', 'index': MachineSignalIndex.TORQUE_DYNAMIC_MIN_LIMIT, 'type': 'float', 'format': '.4f'},
-                {'name': 'breakaway boost enabled', 'index': MachineSignalIndex.TORQUE_ENABLE_BREAKAWAY_BOOST, 'type': 'bool', 'format': 'bool'},
-                {'name': 'is saturated', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_INPUT, 'type': 'bool', 'format': 'bool'},
-                {'name': 'is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
-            ]
-        },
-        'speed_controller': {
-            'title': 'Speed Controller',
+        'speed_torque_controller': {
+            'title': 'Speed + Torque Controller',
             'fields': [
                 {'name': 'speed reference', 'index': MachineSignalIndex.SPEED_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
                 {'name': 'measured speed', 'index': MachineSignalIndex.SPEED_MEASURED_SPEED, 'type': 'float', 'format': '.4f'},
                 {'name': 'pi output', 'index': MachineSignalIndex.SPEED_PI_OUTPUT, 'type': 'float', 'format': '.4f'},
                 {'name': 'is saturated', 'index': MachineSignalIndex.SPEED_IS_SATURATED, 'type': 'bool', 'format': 'bool'},
-            ]
-        },
-        'startup_sequencer': {
-            'title': 'Startup Sequencer',
-            'fields': [
-                {'name': 'speed ref.', 'index': MachineSignalIndex.STARTUP_SPEED_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'virtual rotor freq.', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_FREQUENCY, 'type': 'float', 'format': '.4f'},
-                {'name': 'virtual rotor angle', 'index': MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_ANGLE, 'type': 'float', 'format': '.4f'},
-                {'name': 'virtual torque ref.', 'index': MachineSignalIndex.STARTUP_VIRTUAL_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
-                {'name': 'release speed ctrl', 'index': MachineSignalIndex.STARTUP_RELEASE_SPEED_CONTROLLER, 'type': 'bool', 'format': 'bool'},
-                {'name': 'release excitation', 'index': MachineSignalIndex.STARTUP_RELEASE_EXCITATION, 'type': 'bool', 'format': 'bool'},
-                {'name': 'release torque ctrl', 'index': MachineSignalIndex.STARTUP_RELEASE_TORQUE_CONTROLLER, 'type': 'bool', 'format': 'bool'},
-                {'name': 'release pulses', 'index': MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES, 'type': 'bool', 'format': 'bool'},
-                {'name': 'startup complete', 'index': MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'torque reference', 'index': MachineSignalIndex.TORQUE_TORQUE_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'current reference', 'index': MachineSignalIndex.TORQUE_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
+                {'name': 'is saturated', 'index': MachineSignalIndex.TORQUE_IS_SATURATED_OUTPUT, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is active', 'index': MachineSignalIndex.TORQUE_IS_ACTIVE, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'excitation_controller': {
-            'title': 'Excitation Controller',
+            'title': 'Stator Voltage Control',
             'fields': [
                 {'name': 'field current ref.', 'index': MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
                 {'name': 'prefluxing elapsed time', 'index': MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME, 'type': 'float', 'format': '.4f'},
@@ -144,12 +100,12 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'virtual ref. active', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE, 'type': 'bool', 'format': 'bool'},
                 {'name': 'virtual ref. angle (pu)', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
                 {'name': 'individual override active', 'index': MachineSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse 1', 'index': MachineSignalIndex.PULSE_GENERATOR_P1, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse 2', 'index': MachineSignalIndex.PULSE_GENERATOR_P2, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse 3', 'index': MachineSignalIndex.PULSE_GENERATOR_P3, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse 4', 'index': MachineSignalIndex.PULSE_GENERATOR_P4, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse 5', 'index': MachineSignalIndex.PULSE_GENERATOR_P5, 'type': 'bool', 'format': 'bool'},
-                {'name': 'pulse 6', 'index': MachineSignalIndex.PULSE_GENERATOR_P6, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 1', 'index': MachineSignalIndex.PULSE_P1, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 2', 'index': MachineSignalIndex.PULSE_P2, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 3', 'index': MachineSignalIndex.PULSE_P3, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 4', 'index': MachineSignalIndex.PULSE_P4, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 5', 'index': MachineSignalIndex.PULSE_P5, 'type': 'bool', 'format': 'bool'},
+                {'name': 'pulse 6', 'index': MachineSignalIndex.PULSE_P6, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'protections': {
@@ -185,8 +141,18 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'force comm. ack', 'index': MachineSignalIndex.FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'release pulses', 'index': MachineSignalIndex.FIBER_RX_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
                 {'name': 'grid release protections', 'index': MachineSignalIndex.FIBER_RX_GRID_RELEASE_PROTECTIONS, 'type': 'bool', 'format': 'bool'},
-                {'name': 'grid trip ack', 'index': MachineSignalIndex.FIBER_RX_GRID_TRIP_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'state machine ID', 'index': MachineSignalIndex.FIBER_RX_STATE_ID, 'type': 'int', 'format': '.0f'},
+            ]
+        },
+        'digital_io': {
+            'title': 'Digital I/O',
+            'fields': [
+                {'name': 'DI: Excitation Status', 'index': MachineSignalIndex.DI_EXCITATION_STATUS, 'type': 'bool', 'format': 'bool'},
+                {'name': 'DI: External Fault', 'index': MachineSignalIndex.DI_EXTERNAL_FAULT, 'type': 'bool', 'format': 'bool'},
+                {'name': 'DO: Excitation On Cmd', 'index': MachineSignalIndex.DO_EXCITATION_ON_COMMAND, 'type': 'bool', 'format': 'bool'},
+                {'name': 'DO: Excitation Off Cmd', 'index': MachineSignalIndex.DO_EXCITATION_OFF_COMMAND, 'type': 'bool', 'format': 'bool'},
+
+                {'name': 'AO: Excitation Current Ref', 'index': MachineSignalIndex.AO_EXCITATION_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
             ]
         }
     }
@@ -208,6 +174,5 @@ def get_default_visible_sections() -> list:
         List of section names that should be visible by default
     """
     section_order = _get_section_order()
-    # Machine-side has: system, startup_sequencer, speed_controller, torque_controller, measurements, observer, modulator
-    visible = ['system', 'startup_sequencer', 'speed_controller', 'torque_controller', 'measurements', 'observer']
+    visible = ['speed_torque_controller', 'measurements', 'observer']
     return [s for s in section_order if s in visible]

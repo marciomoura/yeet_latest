@@ -6,6 +6,7 @@
 #include "yeet/network_telemetry_manager.hpp"
 
 #include <cstring>
+#include <iostream>
 
 namespace yeet::telemetry {
 
@@ -42,6 +43,17 @@ telemetry_transmission telemetry_manager::update(bool previous_tx_pending) noexc
 
     // Encode packet to binary buffer
     std::size_t encoded_size = telemetry::encode_telemetry_packet(packet, _packet_buffer);
+
+#ifdef HOST_BUILD
+    if (_verbose) {
+        static int encode_count = 0;
+        if (++encode_count <= 10 || encode_count % 100 == 0) {
+            std::cout << "[TELEMETRY_MGR] Encode result: size=" << encoded_size
+                      << ", signal_count=" << packet.get_signal_count() << " (call #" << encode_count << ")"
+                      << std::endl;
+        }
+    }
+#endif
 
     if (encoded_size > 0) {
         // Increment timestamp (approximately 10 ms per call if called at 1 kHz with decimation=10)

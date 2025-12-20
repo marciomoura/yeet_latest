@@ -71,14 +71,13 @@ std::size_t encode_telemetry_packet(const telemetry_packet& packet, std::uint8_t
     buffer[offset++] = static_cast<std::uint8_t>((header.reserved >> 24) & 0xFF);
 
     // Encode signal array (only the signals that were pushed)
+    // Signals are stored as raw uint32_t values (floats are bit-cast)
     const auto& signals = packet.get_signals();
     const std::uint16_t signal_count = packet.get_signal_count();
 
     for (std::uint16_t i = 0; i < signal_count; ++i) {
-        // Encode float as 4 bytes (little-endian IEEE 754)
-        const float value = signals[i];
-        const std::uint32_t* value_ptr = reinterpret_cast<const std::uint32_t*>(&value);
-        const std::uint32_t raw = *value_ptr;
+        // Encode uint32_t as 4 bytes (little-endian)
+        const std::uint32_t raw = signals[i];
 
         buffer[offset++] = static_cast<std::uint8_t>(raw & 0xFF);
         buffer[offset++] = static_cast<std::uint8_t>((raw >> 8) & 0xFF);

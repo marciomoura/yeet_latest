@@ -15,14 +15,14 @@ Example Usage:
     if client.connect():
         # Discover all parameters
         params = client.get_all_parameters()
-        print(f"Found {len(params)} parameters")
+        # print(f"Found {len(params)} parameters")
         
         # Set a parameter
         success = client.set_parameter('grid_observer', 'kp', 0.5)
         
         # Query current value
         value = client.get_parameter('grid_observer', 'kp')
-        print(f"Current Kp: {value.value}")
+        # print(f"Current Kp: {value.value}")
 """
 
 import errno
@@ -307,10 +307,13 @@ class ParameterClient:
                 
                 if not response:
                     logger.warning(f"Empty response on COUNT attempt {attempt + 1}/{max_retries}")
+                    # Don't break - retry with delay
+                    time.sleep(0.1)
                     continue
                 
-                count = self._decoder.decode_count_response(response)
-                if count is not None:
+                result = self._decoder.decode_count_response(response)
+                if result is not None:
+                    count, _ = result
                     if self.verbose:
                         logger.info(f"[COUNT] Decoded count: {count}")
                     return count
@@ -321,12 +324,20 @@ class ParameterClient:
                     else:
                         # Log even in non-verbose mode when decode fails
                         logger.info(f"[COUNT] Decode failed. Response length: {len(response)}, first 32 bytes: {response[:32].hex()}")
+                    # Retry with delay
+                    time.sleep(0.1)
             
             except socket.timeout:
                 logger.warning(f"Timeout on COUNT attempt {attempt + 1}/{max_retries}")
+                # Continue retrying on timeout
+                time.sleep(0.1)
             except (socket.error, OSError) as e:
                 logger.error(f"Socket error on COUNT attempt {attempt + 1}/{max_retries}: {e}")
-                break  # Don't retry on socket errors
+                # Still retry - socket might recover
+                time.sleep(0.2)
+                if attempt == max_retries - 1:
+                    # Last attempt - give up
+                    return None
         
         return None
     
@@ -352,19 +363,27 @@ class ParameterClient:
                 response = sock.recv(512)
                 if not response:
                     logger.warning(f"Empty response for index {index} attempt {attempt + 1}/{max_retries}")
+                    time.sleep(0.05)
                     continue
                 
-                param = self._decoder.decode_get_by_index_response(response)
-                if param:
+                result = self._decoder.decode_get_by_index_response(response)
+                if result:
+                    param, _ = result
                     return param
                 else:
                     logger.warning(f"Failed to decode index {index} response on attempt {attempt + 1}/{max_retries}")
+                    time.sleep(0.05)
             
             except socket.timeout:
                 logger.warning(f"Timeout for index {index} attempt {attempt + 1}/{max_retries}")
+                time.sleep(0.05)
             except (socket.error, OSError) as e:
                 logger.error(f"Socket error for index {index} attempt {attempt + 1}/{max_retries}: {e}")
-                break  # Don't retry on socket errors
+                # Continue retrying even on socket errors - might be transient
+                time.sleep(0.1)
+                if attempt == max_retries - 1:
+                    # Last attempt - give up on this parameter
+                    return None
         
         return None
     
@@ -519,9 +538,10 @@ class ParameterClient:
             
             # Receive response
             response = active_socket.recv(1024)
-            result = self._decoder.decode_set_response(response)
+            decode_result = self._decoder.decode_set_response(response)
             
-            if result:
+            if decode_result:
+                result, _ = decode_result
                 status = result['status']
                 
                 if status == ParameterSetStatus.SUCCESS:

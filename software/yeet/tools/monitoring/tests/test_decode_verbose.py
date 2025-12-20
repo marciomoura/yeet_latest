@@ -18,23 +18,19 @@ def create_test_packet():
     
     # Header (16 bytes)
     packet_type = int(PacketType.GRID_SIDE_TELEMETRY)
-    protocol_version = 1
-    payload_length = 56  # 20 + 8 + 12 + 12 + 4
-    flags = (TelemetryFlags.MEASUREMENTS | 
-             TelemetryFlags.OBSERVER | 
-             TelemetryFlags.MODULATOR |
-             TelemetryFlags.CONTROLLER | 
-             TelemetryFlags.STATE_MACHINE)
+    protocol_version = 2
+    signal_count = 14  # 5 + 2 + 3 + 3 + 1
     timestamp_ms = 1000
     sequence_number = 100
+    reserved = 0
     
     header = struct.pack('<BBHIII',
                         packet_type,
                         protocol_version,
-                        payload_length,
-                        flags,
+                        signal_count,
                         timestamp_ms,
-                        sequence_number)
+                        sequence_number,
+                        reserved)
     
     # Measurements (20 bytes)
     measurements = struct.pack('<fffff',

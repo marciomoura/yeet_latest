@@ -108,30 +108,28 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'signals': [
                     {'name': 'request force commutation', 'color': 'c', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION},
                     {'name': 'request extinguish dc', 'color': 'm', 'index': GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC},
-                    {'name': 'force commutation ack', 'color': 'y', 'index': GridSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK},
+                    # NOTE: 'force commutation ack' is now packed in BOOL_PACK_1 (bit 1) - not directly plottable
                 ]
             }
         },
         'pulse_generator': {
-            'firing_pulses': {
-                'title': 'Firing Pulses (P1-P6)',
-                'y_label': 'Pulse State',
-                'signals': [
-                    {'name': 'pulse 1', 'color': 'r', 'index': GridSignalIndex.PULSE_GENERATOR_P1},
-                    {'name': 'pulse 2', 'color': 'g', 'index': GridSignalIndex.PULSE_GENERATOR_P2},
-                    {'name': 'pulse 3', 'color': 'b', 'index': GridSignalIndex.PULSE_GENERATOR_P3},
-                    {'name': 'pulse 4', 'color': 'c', 'index': GridSignalIndex.PULSE_GENERATOR_P4},
-                    {'name': 'pulse 5', 'color': 'm', 'index': GridSignalIndex.PULSE_GENERATOR_P5},
-                    {'name': 'pulse 6', 'color': 'y', 'index': GridSignalIndex.PULSE_GENERATOR_P6},
-                ]
-            },
+            # NOTE: Firing pulses P1-P6 are now packed in BOOL_PACK_1 (bits 19-24) - not directly plottable
+            # 'firing_pulses': {
+            #     'title': 'Firing Pulses (P1-P6)',
+            #     'y_label': 'Pulse State',
+            #     'signals': []
+            # },
             'virtual_reference': {
                 'title': 'Virtual Reference Generator',
                 'y_label': 'Angle (pu) / State',
                 'signals': [
                     {'name': 'virtual ref. angle', 'color': 'g', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE},
-                    {'name': 'virtual ref. active', 'color': 'r', 'index': GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE},
-                    {'name': 'individual override active', 'color': 'c', 'index': GridSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE},
+                    {'name': 'pulse 1', 'color': 'r', 'index': GridSignalIndex.PULSE_P1},
+                    {'name': 'pulse 2', 'color': 'b', 'index': GridSignalIndex.PULSE_P2},
+                    {'name': 'pulse 3', 'color': 'c', 'index': GridSignalIndex.PULSE_P3},
+                    {'name': 'pulse 4', 'color': 'm', 'index': GridSignalIndex.PULSE_P4},
+                    {'name': 'pulse 5', 'color': 'y', 'index': GridSignalIndex.PULSE_P5},
+                    {'name': 'pulse 6', 'color': 'w', 'index': GridSignalIndex.PULSE_P6}
                 ]
             }
         }
@@ -262,25 +260,23 @@ def get_machine_side_plots() -> Dict[str, Dict[str, Any]]:
             }
         },
         'pulse_generator': {
-            'firing_pulses': {
-                'title': 'Firing Pulses (P1-P6)',
-                'y_label': 'Pulse State',
-                'signals': [
-                    {'name': 'pulse 1', 'color': 'r', 'index': MachineSignalIndex.PULSE_GENERATOR_P1},
-                    {'name': 'pulse 2', 'color': 'g', 'index': MachineSignalIndex.PULSE_GENERATOR_P2},
-                    {'name': 'pulse 3', 'color': 'b', 'index': MachineSignalIndex.PULSE_GENERATOR_P3},
-                    {'name': 'pulse 4', 'color': 'c', 'index': MachineSignalIndex.PULSE_GENERATOR_P4},
-                    {'name': 'pulse 5', 'color': 'm', 'index': MachineSignalIndex.PULSE_GENERATOR_P5},
-                    {'name': 'pulse 6', 'color': 'y', 'index': MachineSignalIndex.PULSE_GENERATOR_P6},
-                ]
-            },
+            # NOTE: Firing pulses P1-P6 are now packed in BOOL_PACK_1 (bits 16-21) - not directly plottable
+            # 'firing_pulses': {
+            #     'title': 'Firing Pulses (P1-P6)',
+            #     'y_label': 'Pulse State',
+            #     'signals': []
+            # },
             'virtual_reference': {
                 'title': 'Virtual Reference Generator',
                 'y_label': 'Angle (pu) / State',
                 'signals': [
                     {'name': 'virtual ref. angle', 'color': 'g', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE},
-                    {'name': 'virtual ref. active', 'color': 'r', 'index': MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE},
-                    {'name': 'individual override active', 'color': 'c', 'index': MachineSignalIndex.PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE},
+                    {'name': 'pulse 1', 'color': 'r', 'index': MachineSignalIndex.PULSE_P1},
+                    {'name': 'pulse 2', 'color': 'b', 'index': MachineSignalIndex.PULSE_P2},
+                    {'name': 'pulse 3', 'color': 'c', 'index': MachineSignalIndex.PULSE_P3},
+                    {'name': 'pulse 4', 'color': 'm', 'index': MachineSignalIndex.PULSE_P4},
+                    {'name': 'pulse 5', 'color': 'y', 'index': MachineSignalIndex.PULSE_P5},
+                    {'name': 'pulse 6', 'color': 'w', 'index': MachineSignalIndex.PULSE_P6}
                 ]
             }
         }

@@ -36,6 +36,7 @@
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_types.hpp"
+#include "sfc_integration/sfc_io_types.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/adc_value.hpp"
@@ -71,30 +72,79 @@ public:
      * @brief Parameters for test/simulation signal injection
      *
      * Override flags enable parameter-based mocking for testing.
-     * When override flag is enabled, parameter values are used instead of
-     * values from the excitation controller.
+     * Each digital input/output has a pair of parameters:
+     * - di_<signal>_override / do_<signal>_override: Enable override for this signal
+     * - di_<signal>_override_value / do_<signal>_override_value: Value to use when override enabled
      */
     struct parameters {
-        yeet::parameter<bool> override_excitation_outputs{false};
-        yeet::parameter<bool> excitation_start_command{false};
-        yeet::parameter<bool> excitation_stop_command{false};
-        yeet::parameter<current_pu_t> excitation_current_reference{current_pu_t{0.0}};
-        yeet::parameter<bool> override_excitation_inputs{false};
-        yeet::parameter<current_pu_t> excitation_current_actual{current_pu_t{0.0}};
-        yeet::parameter<bool> excitation_running{false};
+        // ==================== Digital Input Overrides ====================
+        /// Enable override for excitation_status input
+        yeet::parameter<bool> di_excitation_status_override{false};
+        /// Override value for excitation_status (when override enabled)
+        yeet::parameter<bool> di_excitation_status_override_value{false};
+
+        /// Enable override for external_fault input
+        yeet::parameter<bool> di_external_fault_override{false};
+        /// Override value for external_fault (when override enabled)
+        yeet::parameter<bool> di_external_fault_override_value{false};
+
+        // ==================== Digital Output Overrides ====================
+        /// Enable override for excitation_on_command output
+        yeet::parameter<bool> do_excitation_on_command_override{false};
+        /// Override value for excitation_on_command (when override enabled)
+        yeet::parameter<bool> do_excitation_on_command_override_value{false};
+
+        /// Enable override for excitation_off_command output
+        yeet::parameter<bool> do_excitation_off_command_override{false};
+        /// Override value for excitation_off_command (when override enabled)
+        yeet::parameter<bool> do_excitation_off_command_override_value{false};
+
+        // ==================== Analog Input Overrides ====================
+        /// Enable override for excitation_current_actual input
+        yeet::parameter<bool> ai_excitation_current_actual_override{false};
+        /// Override value for excitation_current_actual (when override enabled)
+        yeet::parameter<current_pu_t> ai_excitation_current_actual_override_value{current_pu_t{0.0}};
+
+        // ==================== Analog Output Overrides ====================
+        /// Enable override for excitation_current_reference output
+        yeet::parameter<bool> ao_excitation_current_reference_override{false};
+        /// Override value for excitation_current_reference (when override enabled)
+        yeet::parameter<current_pu_t> ao_excitation_current_reference_override_value{current_pu_t{0.0}};
+
+        // ==================== Analog Output Scaling Parameters ====================
+        /// Gain for excitation_current_reference output (scaling factor)
+        yeet::parameter<real_t> ao_excitation_current_reference_gain{real_t{1.0}};
+        /// Offset for excitation_current_reference output (added after gain)
+        yeet::parameter<real_t> ao_excitation_current_reference_offset{real_t{0.0}};
+        /// Minimum value for excitation_current_reference output (after gain and offset)
+        yeet::parameter<real_t> ao_excitation_current_reference_minimum{real_t{0.0}};
+        /// Maximum value for excitation_current_reference output (after gain and offset)
+        yeet::parameter<real_t> ao_excitation_current_reference_maximum{real_t{1.0}};
 
         // ==================== IO Index Mapping (IO Channel Selection) ====================
         // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
         // N comes from TASK_IO_NUM_DIGITAL_INPUTS / TASK_IO_NUM_DIGITAL_OUTPUTS / TASK_IO_NUM_ANALOG_OUTPUTS.
-        yeet::parameter<int> di_excitation_running_index{0};
 
-        // Defaults match current machine_side_tasks.cpp mapping.
-        yeet::parameter<int> do_fiber_link_ok_index{0};
-        yeet::parameter<int> do_excitation_release_index{1};
+        // Digital Input Indices
+        yeet::parameter<int> di_excitation_status_index{0};
+        yeet::parameter<int> di_external_fault_index{1};
+
+        // Digital Output Indices
+        yeet::parameter<int> do_excitation_on_command_index{0};
+        yeet::parameter<int> do_excitation_off_command_index{1};
 
         yeet::parameter<int> ao_excitation_current_reference_index{0};
-        yeet::parameter<real_t> ao_excitation_current_reference_gain{1.0};
-        yeet::parameter<real_t> ao_excitation_current_reference_offset{0.0};
+
+        // ==================== IO Polarity Configuration ====================
+        // Configure signal polarity (active high or active low)
+
+        // Digital Input Polarity
+        yeet::parameter<io_polarity_t> di_excitation_status_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_external_fault_polarity{io_polarity_t::ACTIVE_HIGH};
+
+        // Digital Output Polarity
+        yeet::parameter<io_polarity_t> do_excitation_on_command_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_excitation_off_command_polarity{io_polarity_t::ACTIVE_HIGH};
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements) ====================
@@ -130,7 +180,6 @@ public:
      * - dc_link_current_reference: From torque_controller.current_reference
      * - machine_voltage_magnitude: From machine_side_observer.estimated_voltage_magnitude
      * - force_commutation_request: From machine_side_modulator (when low-speed assist needed)
-     * - shutdown_request: From machine_side_supervisor (emergency shutdown)
      * - machine_protection_tripped: From protection system
      * - protection_inhibit: Protection system inhibited (awaiting acknowledgment)
      * - machine_trip_acknowledged: Machine-side trip acknowledgment
@@ -144,10 +193,9 @@ public:
         signal_output<current_pu_t> dc_link_current_reference{current_pu_t{0.0}};  ///< DC link current reference [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude{voltage_pu_t{0.0}};  ///< Machine voltage magnitude [pu]
         signal_output<bool> force_commutation_request{false};                      ///< Force commutation requested
-        signal_output<bool> shutdown_request{false};            ///< Shutdown request from machine side
-        signal_output<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
-        signal_output<bool> protection_inhibit{false};          ///< Protection inhibited (awaiting ack)
-        signal_output<bool> machine_trip_acknowledged{false};   ///< Machine-side trip acknowledgment
+        signal_output<bool> machine_protection_tripped{false};                     ///< Machine-side protections tripped
+        signal_output<bool> protection_inhibit{false};         ///< Protection inhibited (awaiting ack)
+        signal_output<bool> machine_trip_acknowledged{false};  ///< Machine-side trip acknowledgment
     };
 
     // ==================== FIBER-OPTICS INPUTS FROM GRID-SIDE ====================
@@ -166,6 +214,7 @@ public:
      * - grid_voltage_magnitude: Grid-side voltage magnitude observer output
      * - current_state_id: Grid-side state machine current state ID
      * - grid_release_protections: Grid-side protection release signal (from state machine)
+     * - machine_release_protections: Machine-side protection release signal (via fiber optics from grid state machine)
      * - grid_trip_acknowledged: Grid-side trip acknowledgment (from state machine)
      *
      * **Timing:** Updated at 1ms (after grid-side update, before machine-side uses them)
@@ -182,37 +231,61 @@ public:
         external_signal<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};        ///< Grid-side state ID
         external_signal<bool> grid_release_protections{false};  ///< Grid protection release (from grid state machine)
-        external_signal<bool> grid_trip_acknowledged{false};    ///< Grid trip acknowledgment (from grid state machine)
+        external_signal<bool> machine_release_protections{false};  ///< Machine protection release (via fiber optics)
     };
 
-    // ==================== EXCITATION OUTPUTS (Commands to External System) ====================
+    // ==================== DIGITAL OUTPUTS ====================
 
     /**
-     * @brief Excitation control command outputs
+     * @brief Digital output signals from machine-side control
      *
-     * These are OUTPUT commands from the excitation controller to the external excitation system.
-     * The excitation_controller_runner generates these commands based on control logic.
+     * These are OUTPUT commands from the machine-side control system.
+     * Wired to physical digital output pins via index parameters.
+     */
+    struct digital_outputs_t {
+        signal_input<bool> excitation_on_command;   ///< Excitation controller ON command
+        signal_input<bool> excitation_off_command;  ///< Excitation controller OFF command
+    };
+
+    // ==================== EXCITATION OUTPUTS (Analog Reference) ====================
+
+    /**
+     * @brief Excitation analog output (current reference)
+     *
+     * Analog output command from the excitation controller to the external excitation system.
+     * The excitation_controller_runner generates this reference based on control logic.
      *
      * Flow: excitation_controller → external_ios → embedded/hardware → excitation system
      */
     struct excitation_outputs_t {
-        signal_input<bool> excitation_release;                    ///< Excitation release command (DO)
         signal_input<current_pu_t> excitation_current_reference;  ///< Excitation current reference (AO)
     };
 
-    // ==================== EXCITATION INPUTS (Feedback from External System) ====================
+    // ==================== DIGITAL INPUTS ====================
 
     /**
-     * @brief Excitation system feedback inputs
+     * @brief Digital input signals to machine-side control
      *
-     * These are INPUT signals from the external excitation system.
-     * Optional signals for monitoring and closed-loop control.
+     * These are INPUT signals from external systems.
+     * Wired from physical digital input pins via index parameters.
+     */
+    struct digital_inputs_t {
+        signal_output<bool> excitation_status;  ///< Excitation controller status feedback
+        signal_output<bool> external_fault;     ///< External fault input (OR'd with protections)
+    };
+
+    // ==================== EXCITATION INPUTS (Analog Feedback) ====================
+
+    /**
+     * @brief Excitation analog input (current feedback)
+     *
+     * Analog input signal from the external excitation system.
+     * Optional signal for monitoring and closed-loop control.
      *
      * Flow: excitation system → embedded/hardware → external_ios → excitation_controller
      */
     struct excitation_inputs_t {
         signal_output<current_pu_t> excitation_current_actual;  ///< Actual excitation current (AI - optional)
-        signal_output<bool> excitation_running;                 ///< Excitation running status (DI - optional)
     };
 
     // ==================== THYRISTOR OUTPUT (Pulse Control) ====================
@@ -244,7 +317,7 @@ public:
      * @brief Get parameters structure (mutable)
      * @return Mutable reference to parameters (for tests to set override flags)
      */
-    parameters& get_parameters() { return _parameters; }
+    // parameters& get_parameters() { return _parameters; }
 
     /**
      * @brief Get analog inputs structure (const)
@@ -293,6 +366,30 @@ public:
      * @return Mutable reference to fiber_optics_inputs_from_grid
      */
     fiber_optics_inputs_from_grid_t& get_fiber_optics_inputs_from_grid() { return _fiber_optics_inputs_from_grid; }
+
+    /**
+     * @brief Get digital inputs structure (const)
+     * @return Const reference to digital_inputs
+     */
+    const digital_inputs_t& get_digital_inputs() const { return _digital_inputs; }
+
+    /**
+     * @brief Get digital inputs structure (mutable)
+     * @return Mutable reference to digital_inputs
+     */
+    digital_inputs_t& get_digital_inputs() { return _digital_inputs; }
+
+    /**
+     * @brief Get digital outputs structure (const)
+     * @return Const reference to digital_outputs
+     */
+    const digital_outputs_t& get_digital_outputs() const { return _digital_outputs; }
+
+    /**
+     * @brief Get digital outputs structure (mutable)
+     * @return Mutable reference to digital_outputs
+     */
+    digital_outputs_t& get_digital_outputs() { return _digital_outputs; }
 
     /**
      * @brief Get excitation output signals (const)
@@ -360,24 +457,45 @@ public:
     fiber_optic::machine_to_grid_message get_fiber_optics_tx() const;
 
     /**
-     * @brief Set excitation input signals from external system
+     * @brief Set digital inputs from hardware
+     *
+     * Called from embedded code at 1ms with digital input readings.
+     * Applies polarity inversion and override logic.
+     *
+     * @param excitation_status Excitation controller status feedback
+     * @param external_fault External fault input
+     */
+    void set_digital_inputs(bool excitation_status, bool external_fault);
+
+    /**
+     * @brief Set excitation analog input from external system
      *
      * Called from embedded code or plant builder with feedback from excitation system.
      * Respects override_excitation_inputs flag if set for test injection.
      *
      * @param excitation_current_actual Actual excitation current [pu] (optional)
-     * @param excitation_running Excitation running status (optional)
      */
-    void set_excitation_inputs(current_pu_t excitation_current_actual, bool excitation_running);
+    void set_excitation_inputs(current_pu_t excitation_current_actual);
 
     /**
-     * @brief Get excitation release command output
+     * @brief Get excitation ON command output
      *
-     * Read by embedded code to send release command to external excitation system.
+     * Read by embedded code to send ON command to external excitation system.
+     * Applies polarity inversion based on configuration.
      *
-     * @return true if excitation controller requests release (field energization)
+     * @return true if excitation controller requests ON (field energization)
      */
-    bool get_excitation_release_command() const;
+    bool get_excitation_on_command() const;
+
+    /**
+     * @brief Get excitation OFF command output
+     *
+     * Read by embedded code to send OFF command to external excitation system.
+     * Applies polarity inversion based on configuration.
+     *
+     * @return true if excitation controller requests OFF (field de-energization)
+     */
+    bool get_excitation_off_command() const;
 
     /**
      * @brief Get excitation current reference output
@@ -416,20 +534,10 @@ public:
     void register_callbacks();
 
 private:
-    /**
-     * @brief Apply excitation output overrides if enabled
-     * @return true if overrides were applied, false if controller outputs should be used
-     */
-    bool apply_excitation_overrides();
-
-    /**
-     * @brief Apply excitation input overrides if enabled
-     * @return true if overrides were applied, false if real signals should be used
-     */
-    bool apply_excitation_input_overrides();
-
     parameters _parameters;
     analog_inputs_t _analog_inputs;
+    digital_inputs_t _digital_inputs;
+    digital_outputs_t _digital_outputs;
     fiber_optics_outputs_to_grid_t _fiber_optics_outputs_to_grid;
     fiber_optics_inputs_from_grid_t _fiber_optics_inputs_from_grid;
     excitation_outputs_t _excitation_outputs;

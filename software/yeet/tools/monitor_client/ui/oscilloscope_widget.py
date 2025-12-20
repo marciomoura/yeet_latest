@@ -491,7 +491,8 @@ class OscilloscopeWidget(QtWidgets.QWidget):
                 for plot_name, plot_item in plots.items():
                     vb = plot_item.getViewBox()
                     if vb and callback:
-                        vb.wheelEvent = lambda event, cb=callback, v=vb: cb(v, event)
+                        # Accept axis keyword argument from pyqtgraph but ignore it
+                        vb.wheelEvent = lambda event, cb=callback, v=vb, **kwargs: cb(v, event)
         
         except Exception as e:
             logger.error(f"Wheel handler configuration error: {e}", exc_info=True)

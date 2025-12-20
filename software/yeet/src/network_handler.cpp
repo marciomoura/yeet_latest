@@ -1,6 +1,7 @@
 #include "yeet/network_handler.hpp"
 
 #include <cstring>
+#include <iostream>
 
 #include "yeet/network_command_parser.hpp"
 
@@ -192,10 +193,19 @@ void network_handler::process_telemetry(
     const network_inputs_t* inputs, network_outputs_t* outputs, bool parameter_response_pending)
 {
 #ifdef HOST_BUILD
-    static int call_count = 0;
-    if (++call_count % 100 == 0) {  // Print every 100 calls to avoid spam
-        printf("[DEBUG] process_telemetry() called %d times, telemetry_started=%d, param_pending=%d\n", call_count,
-            telemetry_started_ ? 1 : 0, parameter_response_pending ? 1 : 0);
+    if (verbose_) {
+        static bool first_call = true;
+        if (first_call) {
+            std::cout << "[DEBUG_INIT] process_telemetry() FIRST CALL - telemetry_started="
+                      << (telemetry_started_ ? 1 : 0) << std::endl;
+            first_call = false;
+        }
+        static int call_count = 0;
+        if (++call_count % 10000 == 0) {  // Print every 10000 calls to avoid spam
+            std::cout << "[DEBUG] process_telemetry() called " << call_count
+                      << " times, telemetry_started=" << (telemetry_started_ ? 1 : 0)
+                      << ", param_pending=" << (parameter_response_pending ? 1 : 0) << std::endl;
+        }
     }
 #endif
 
@@ -212,6 +222,15 @@ void network_handler::process_telemetry(
 
             // Transmit packet if ready
             if (tx.is_ready()) {
+#ifdef HOST_BUILD
+                if (verbose_) {
+                    static int tx_count = 0;
+                    if (++tx_count <= 10 || tx_count % 10000 == 0) {
+                        std::cout << "[NETWORK_HANDLER] Got packet from telemetry_manager: " << tx.size
+                                  << " bytes (tx #" << tx_count << ")" << std::endl;
+                    }
+                }
+#endif
                 // Validate packet before transmission
                 if (validate_outgoing_packet(tx.data, tx.size)) {
                     // Check if we need to send sync frame before this packet
@@ -222,8 +241,8 @@ void network_handler::process_telemetry(
                         outputs->network_tx.tx_length = static_cast<std::uint16_t>(sync_size + tx.size);
                         send_sync_before_next_packet_ = false;
 #ifdef HOST_BUILD
-                        printf("[SYNC+TELEMETRY] Sending sync frame + telemetry: %u bytes\n",
-                            outputs->network_tx.tx_length);
+                        // printf("[SYNC+TELEMETRY] Sending sync frame + telemetry: %u bytes\n",
+                        //     outputs->network_tx.tx_length);
 #endif
                     }
                     else {
@@ -231,7 +250,7 @@ void network_handler::process_telemetry(
                         std::memcpy(outputs->network_tx.tx_buffer, tx.data, tx.size);
                         outputs->network_tx.tx_length = static_cast<std::uint16_t>(tx.size);
 #ifdef HOST_BUILD
-                        printf("[TELEMETRY] Transmitting telemetry packet: %zu bytes\n", tx.size);
+                        // printf("[TELEMETRY] Transmitting telemetry packet: %zu bytes\n", tx.size);
 #endif
                     }
 
@@ -243,12 +262,24 @@ void network_handler::process_telemetry(
                         sync_frame_counter_ = 0;
                         send_sync_before_next_packet_ = true;
 #ifdef HOST_BUILD
-                        printf(
-                            "[SYNC] Will send sync frame before next packet (after %u packets)\n", SYNC_FRAME_INTERVAL);
+                        if (verbose_) {
+                            std::cout << "[SYNC] Will send sync frame before next packet (after " << SYNC_FRAME_INTERVAL
+                                      << " packets)" << std::endl;
+                        }
 #endif
                     }
                 }
                 // If validation fails, discard corrupted packet (silent drop)
+#ifdef HOST_BUILD
+                else {
+                    static int validation_failures = 0;
+                    if (verbose_ && ++validation_failures <= 5) {
+                        std::cout << "[ERROR] Packet validation failed! packet_type=0x" << std::hex
+                                  << static_cast<int>(tx.data[0]) << ", protocol_ver=0x" << static_cast<int>(tx.data[1])
+                                  << ", size=" << std::dec << tx.size << std::endl;
+                    }
+                }
+#endif
             }
         }
         // If telemetry not started, do nothing (just listen for commands/parameters)
@@ -269,7 +300,7 @@ bool network_handler::validate_outgoing_packet(const std::uint8_t* buffer, std::
     }
 
     const std::uint8_t packet_type_byte = buffer[0];
-    const std::uint8_t protocol_version = buffer[1];
+    const std::uint8_t protocol_version_byte = buffer[1];
 
     // Valid packet types (must match network_telemetry.hpp):
     // - 0x01-0x02: telemetry (grid/machine)
@@ -283,8 +314,8 @@ bool network_handler::validate_outgoing_packet(const std::uint8_t* buffer, std::
                             (packet_type_byte == 0x30) ||                              // command
                             (packet_type_byte >= 0x40 && packet_type_byte <= 0x49);    // parameters
 
-    // Protocol version must be 0x01
-    const bool valid_version = (protocol_version == 0x01);
+    // Protocol version must be 0x01 or 0x02
+    const bool valid_version = (protocol_version_byte == 0x01 || protocol_version_byte == 0x02);
 
     return valid_type && valid_version;
 }

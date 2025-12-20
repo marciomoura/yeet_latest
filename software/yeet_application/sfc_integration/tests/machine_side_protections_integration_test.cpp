@@ -81,9 +81,9 @@ protected:
         yeet::mock_signal_input::write(machine_protections.get_inputs().machine_frequency_pu, frequency_pu_t{0.0f});
         yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
         yeet::mock_signal_input::write(machine_protections.get_inputs().release_protections, false);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().trip_acknowledged, false);
         yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
         yeet::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
+        yeet::mock_signal_input::write(machine_protections.get_inputs().excitation_is_on, true);
 
         // Connect machine-side protections trip into the grid-side state machine input.
         // This is the integration contract: any machine-side trip must force grid-side control shutdown.
@@ -100,11 +100,12 @@ protected:
 
         // Fixed state-machine inputs for all tests (no other trips/inhibits requested).
         yeet::mock_signal_input::write(state_machine.get_inputs().auxiliaries_are_on, true);
-        yeet::mock_signal_input::write(state_machine.get_inputs().mcb_is_closed, true);
+        yeet::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_closed, true);
         yeet::mock_signal_input::write(state_machine.get_inputs().start_command, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().stop_command, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().shutdown_request, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().breaker_is_tripping, false);
+        yeet::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_tripping, false);
+        yeet::mock_signal_input::write(state_machine.get_inputs().external_fault, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().emergency_off, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().door_is_open, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().protection_inhibited, false);
@@ -119,11 +120,16 @@ protected:
 
     void enter_operation_on()
     {
+        // First, set turn_on_command to transition from IDLE to AUXILIARIES_ON
+        state_machine.get_parameters().turn_on_command.write(true);
+        simulate_for(0.05);
+
+        // Then set start_command to transition through BREAKERS_OFF -> BREAKERS_ON -> OPERATION_ON
         yeet::mock_signal_input::write(state_machine.get_inputs().start_command, true);
         simulate_for(0.05);
 
         const auto& sm_out = state_machine.get_outputs();
-        EXPECT_FALSE(sm_out.mcb_open.read());
+        EXPECT_FALSE(sm_out.mv_breaker_open.read());
         EXPECT_TRUE(sm_out.auxiliaries_on_command.read());
     }
 
@@ -133,17 +139,23 @@ protected:
         // Use durations > 10ms to guarantee at least one simulation tick per step.
         constexpr double tick = 0.02;
 
-        // Set trip_acknowledged high - must remain high during confirm_alarms rising edge
-        yeet::mock_signal_input::write(machine_protections.get_inputs().trip_acknowledged, true);
+        // With simplified handshake, trip auto-clears when fault clears (no trip_acknowledged needed).
+        // We just need to confirm alarms to clear the inhibit latch.
+        // Note: Fault condition must already be cleared before calling this function.
         simulate_for(tick);
 
-        // Confirm alarms: rising edge on confirm_alarms clears inhibit while trip_acknowledged is high
+        // Confirm alarms: rising edge on confirm_alarms clears inhibit when no faults active
         auto& params = machine_protections.get_parameters();
         params.confirm_alarms.write(false);
         simulate_for(tick);
         params.confirm_alarms.write(true);
         simulate_for(tick);
         params.confirm_alarms.write(false);
+        simulate_for(tick);
+
+        // After a protection trip, the IDLE state has a trip latch that requires
+        // turn_on_command to be released before allowing restart.
+        state_machine.get_parameters().turn_on_command.write(false);
         simulate_for(tick);
     }
 
@@ -185,7 +197,6 @@ protected:
 
         // Always release protections in these tests.
         yeet::mock_signal_input::write(machine_protections.get_inputs().release_protections, true);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().trip_acknowledged, false);
         yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
 
         restore_safe_protection_parameter_defaults();
@@ -196,7 +207,7 @@ protected:
     void expect_trip_shutdown() const
     {
         const auto& sm_out = state_machine.get_outputs();
-        EXPECT_TRUE(sm_out.mcb_open.read()) << "Trip should command MCB open";
+        EXPECT_TRUE(sm_out.mv_breaker_open.read()) << "Trip should command MV Breaker open";
         EXPECT_FALSE(sm_out.auxiliaries_on_command.read()) << "Trip should command auxiliaries off";
     }
 
@@ -220,6 +231,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, OverspeedTripsControl)
 {
     configure_machine_side_protections_for_test();
 
+    // Overspeed protection requires closed_loop_active to be true
+    yeet::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
     yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
 
     auto& p = machine_protections.get_parameters();

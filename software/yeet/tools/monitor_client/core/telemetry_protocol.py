@@ -9,9 +9,46 @@ structure. Signal indices and data models are imported from configuration module
 
 import struct
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Optional, List, Tuple, Union
+import logging
+import os
+from pathlib import Path
+
+# Set up logger (inherits level from root logger, controlled by --verbose flag)
+logger = logging.getLogger(__name__)
+
+
+def enable_telemetry_debug_log(log_file: Optional[str] = None) -> bool:
+    """Enable telemetry debug logging to file.
+    
+    Args:
+        log_file: Path to log file. If None, uses './telemetry_debug.log' in current directory.
+    
+    Returns:
+        True if log file handler was successfully added, False otherwise.
+    """
+    if log_file is None:
+        log_file = os.path.join(os.getcwd(), 'telemetry_debug.log')
+    
+    try:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        fh = logging.FileHandler(str(log_path), mode='w')
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        logger.info("="*80)
+        logger.info(f"TELEMETRY DECODER DEBUG LOG INITIALIZED: {log_path}")
+        logger.info("="*80)
+        return True
+    except Exception as e:
+        # Log to console if file creation fails
+        logger.warning(f"Could not create telemetry debug log file '{log_file}': {e}")
+        return False
 
 # Import signal indices and dataclasses from config
 from ..config.grid_side_telemetry_protocol import (
@@ -23,6 +60,8 @@ from ..config.grid_side_telemetry_protocol import (
     StateMachineData,
     OperationModeMonitorData,
     PulseGeneratorData,
+    GridProtectionsData,
+    FiberOpticRxFromMachineData,
 )
 from ..config.machine_side_telemetry_protocol import (
     MachineSignalIndex,
@@ -35,14 +74,35 @@ from ..config.machine_side_telemetry_protocol import (
     SpeedControllerData,
     StartupSequencerData,
     ExcitationControllerData,
+    MachineProtectionsData,
+    MachinePulseGeneratorData,
+    MachineFiberOpticRxData,
 )
 
 
 # Protocol constants
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2  # v2: signals are uint32 (floats bit-cast, booleans can be packed)
 MAX_SIGNALS = 256
 MAX_PACKET_SIZE = 16 + (MAX_SIGNALS * 4)
 SYNC_MAGIC = 0xDEADBEEF  # Magic number for stream synchronization
+
+
+def uint32_to_float(raw: int) -> float:
+    """Reinterpret uint32 bits as IEEE 754 float.
+    
+    Protocol v2 transmits all signals as uint32_t. Floats are bit-cast
+    on the C++ side and need to be reinterpreted here.
+    """
+    return struct.unpack('<f', struct.pack('<I', raw))[0]
+
+
+def unpack_bools(packed: int, count: int = 32) -> list[bool]:
+    """Unpack a uint32 into a list of booleans.
+    
+    Protocol v2 can pack up to 32 booleans into a single uint32.
+    Bit 0 is the first boolean, bit 31 is the last.
+    """
+    return [(packed >> i) & 1 == 1 for i in range(count)]
 
 
 class PacketType(IntEnum):
@@ -79,19 +139,81 @@ class TelemetryPacketHeader:
 
 @dataclass
 class GridSideTelemetryPacket:
-    """Grid-side telemetry packet with variable-length signal array."""
+    """Grid-side telemetry packet with variable-length signal array.
+    
+    Protocol v2 with grouped boolean packing:
+    - Total signals: 46 (indices 0-45)
+    - Indices 44-45: Grouped boolean packs (40 bools → 2 uint32)
+    """
     header: TelemetryPacketHeader
     signals: List[float]
+    raw_signals: List[int] = field(default_factory=list)  # Raw uint32 values before float conversion
     
+    def __post_init__(self):
+        """Automatically expand signals array with unpacked booleans for backward compatibility."""
+        self._expand_signals_with_bools()
+
+    def _expand_signals_with_bools(self):
+        """Unpack booleans from packs and append them to the signals array.
+        
+        This allows the UI and other components to access packed booleans
+        via virtual indices (46+ for grid).
+        """
+        # Unpack booleans
+        bools1 = self._get_bool_pack_1()
+        bools2 = self._get_bool_pack_2()
+        all_bools = bools1 + bools2
+        
+        # Append as floats (1.0 or 0.0)
+        for b in all_bools:
+            self.signals.append(1.0 if b else 0.0)
+
     def get_signal(self, index: int, default: float = 0.0) -> float:
         """Get signal by index with bounds checking."""
         if 0 <= index < len(self.signals):
             return self.signals[index]
         return default
     
+    def get_raw_signal(self, index: int, default: int = 0) -> int:
+        """Get raw uint32 signal by index (for boolean packs)."""
+        if self.raw_signals and 0 <= index < len(self.raw_signals):
+            return self.raw_signals[index]
+        return default
+    
     def get_bool_signal(self, index: int, default: bool = False) -> bool:
         """Get boolean signal (converts 1.0/0.0 to True/False)."""
         return bool(self.get_signal(index, 1.0 if default else 0.0))
+    
+    def _get_bool_pack_1(self) -> list[bool]:
+        """Unpack boolean pack #1 (index 42, bits 0-31).
+        
+        Returns 32 booleans in order:
+        - Bits 0-2: Modulator control (release_pulses, force_comm_ack, freeze_integrator)
+        - Bits 3-4: Current controller status (is_active, is_saturated)
+        - Bits 5-11: State machine flags (7 flags)
+        - Bits 12-14: Mode monitor (has_mode_changed, current_is_zero, is_discontinuous_mode)
+        - Bits 15-18: Pulse generator (release_pulses_output, release_pulses_input, virtual_ref_active, individual_override)
+        - Bits 19-24: Firing pulses (p1-p6)
+        - Bits 25-31: Protections part 1 (is_tripped, is_inhibited, any_fault_active, overcurrent_tripped, overvoltage_tripped, undervoltage_tripped, overcurrent_warning)
+        """
+        raw = self.get_raw_signal(GridSignalIndex.BOOL_PACK_1, 0)
+        logger.debug(f"_get_bool_pack_1: raw_signal[42] = 0x{raw:08X} ({raw})")
+        bools = unpack_bools(raw, 32)
+        logger.debug(f"_get_bool_pack_1: unpacked {len(bools)} bools: {bools[:8]}...")
+        return bools
+    
+    def _get_bool_pack_2(self) -> list[bool]:
+        """Unpack boolean pack #2 (index 43, bits 0-7).
+        
+        Returns 8 booleans in order:
+        - Bits 0-3: Protections part 2 (overvoltage_warning, undervoltage_warning, comm_loss_tripped, comm_loss_warning)
+        - Bits 4-7: Fiber optic RX (request_force_comm, shutdown_request, machine_protection_tripped, protection_inhibit)
+        """
+        raw = self.get_raw_signal(GridSignalIndex.BOOL_PACK_2, 0)
+        logger.debug(f"_get_bool_pack_2: raw_signal[43] = 0x{raw:08X} ({raw})")
+        bools = unpack_bools(raw, 8)
+        logger.debug(f"_get_bool_pack_2: unpacked {len(bools)} bools: {bools}")
+        return bools
     
     @property
     def measurements(self) -> GridMeasurements:
@@ -120,6 +242,7 @@ class GridSideTelemetryPacket:
     @property
     def modulator(self) -> GridModulatorData:
         """Extract modulator signals from signal array."""
+        bools1 = self._get_bool_pack_1()
         return GridModulatorData(
             release_pulses_input=self.get_bool_signal(GridSignalIndex.MODULATOR_RELEASE_PULSES_INPUT),
             firing_angle_input_pu=self.get_signal(GridSignalIndex.MODULATOR_FIRING_ANGLE_INPUT),
@@ -128,12 +251,13 @@ class GridSideTelemetryPacket:
             request_extinguish_dc=self.get_bool_signal(GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC),
             request_force_commutation=self.get_bool_signal(GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION),
             modulator_state=int(self.get_signal(GridSignalIndex.MODULATOR_STATE)),
-            release_pulses_output=self.get_bool_signal(GridSignalIndex.MODULATOR_RELEASE_PULSES_OUTPUT),
+            release_pulses_output=bools1[0],  # Bit 0: Modulator release_pulses (output)
         )
     
     @property
     def controller(self) -> GridControllerData:
         """Extract controller state from signal array."""
+        bools1 = self._get_bool_pack_1()
         return GridControllerData(
             current_reference=self.get_signal(GridSignalIndex.CURRENT_REFERENCE),
             current_measured=self.get_signal(GridSignalIndex.CURRENT_MEASURED),
@@ -142,60 +266,162 @@ class GridSideTelemetryPacket:
             current_reference_output=self.get_signal(GridSignalIndex.CURRENT_REFERENCE_OUTPUT),
             current_error_pu=self.get_signal(GridSignalIndex.CURRENT_ERROR),
             pi_output_pu=self.get_signal(GridSignalIndex.CURRENT_PI_OUTPUT),
-            is_active=self.get_bool_signal(GridSignalIndex.CURRENT_IS_ACTIVE),
-            is_saturated=self.get_bool_signal(GridSignalIndex.CURRENT_IS_SATURATED),
+            is_active=bools1[3],  # Bit 3: Current controller is_active
+            is_saturated=bools1[4],  # Bit 4: Current controller is_saturated
         )
     
     @property
     def state_machine(self) -> StateMachineData:
         """Extract state machine flags from signal array."""
+        bools1 = self._get_bool_pack_1()
         return StateMachineData(
             current_state=int(self.get_signal(GridSignalIndex.STATE_MACHINE_STATE)),
-            release_pulses=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_RELEASE_PULSES),
-            auxiliaries_are_on=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_AUXILIARIES_ON),
-            mcb_is_closed=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_BREAKERS_CLOSED),
-            start_command=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_START_COMMAND),
-            stop_command=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_STOP_COMMAND),
-            is_current_extinguished=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED),
-            is_shutdown_requested=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_SHUTDOWN_REQUEST),
+            release_pulses=bools1[5],  # Bit 5: State machine release_pulses
+            auxiliaries_are_on=bools1[6],  # Bit 6: State machine auxiliaries_on
+            mcb_is_closed=bools1[7],  # Bit 7: State machine breaker_closed
+            start_command=bools1[8],  # Bit 8: State machine start_cmd
+            stop_command=bools1[9],  # Bit 9: State machine stop_cmd
+            is_current_extinguished=bools1[10],  # Bit 10: State machine current_extinguished
+            is_shutdown_requested=bools1[11],  # Bit 11: State machine shutdown_request
         )
     
     @property
     def operation_mode_monitor(self) -> OperationModeMonitorData:
         """Extract operation mode monitor from signal array."""
+        bools1 = self._get_bool_pack_1()
         return OperationModeMonitorData(
             preset_request=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_PRESET_REQUEST),
-            has_mode_changed=self.get_bool_signal(GridSignalIndex.MODE_MONITOR_HAS_MODE_CHANGED),
-            current_is_zero=self.get_bool_signal(GridSignalIndex.MODE_MONITOR_CURRENT_IS_ZERO),
-            is_discontinuous_mode=self.get_bool_signal(GridSignalIndex.MODE_MONITOR_IS_DISCONTINUOUS_MODE),
+            has_mode_changed=bools1[12],  # Bit 12: Mode monitor mode_changed
+            current_is_zero=bools1[13],  # Bit 13: Mode monitor current_zero
+            is_discontinuous_mode=bools1[14],  # Bit 14: Mode monitor discontinuous_mode
         )
     
     @property
     def pulse_generator(self) -> PulseGeneratorData:
         """Extract pulse generator outputs from signal array."""
+        bools1 = self._get_bool_pack_1()
         return PulseGeneratorData(
-            release_pulses=self.get_bool_signal(GridSignalIndex.PULSE_GENERATOR_RELEASE_PULSES),
+            release_pulses=bools1[15],  # Bit 15: Pulse gen release_pulses (output)
             actual_firing_angle_pu=self.get_signal(GridSignalIndex.PULSE_GENERATOR_ACTUAL_FIRING_ANGLE),
-            release_pulses_input=self.get_bool_signal(GridSignalIndex.PULSE_GENERATOR_RELEASE_PULSES_INPUT),
+            release_pulses_input=bools1[16],  # Bit 16: Pulse gen release_pulses (input)
+            virtual_reference_active=bools1[17],  # Bit 17: Pulse gen virtual_ref_active
+            virtual_reference_angle_pu=self.get_signal(GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE),
+            individual_override_active=bools1[18],  # Bit 18: Pulse gen individual_override
+            p1=bools1[19],  # Bit 19: Firing pulse p1
+            p2=bools1[20],  # Bit 20: Firing pulse p2
+            p3=bools1[21],  # Bit 21: Firing pulse p3
+            p4=bools1[22],  # Bit 22: Firing pulse p4
+            p5=bools1[23],  # Bit 23: Firing pulse p5
+            p6=bools1[24],  # Bit 24: Firing pulse p6
+        )
+    
+    @property
+    def protections(self) -> GridProtectionsData:
+        """Extract protection flags from signal array."""
+        bools1 = self._get_bool_pack_1()
+        bools2 = self._get_bool_pack_2()
+        return GridProtectionsData(
+            is_tripped=bools1[25],  # Bit 25
+            is_inhibited=bools1[26],  # Bit 26
+            any_fault_active=bools1[27],  # Bit 27
+            overcurrent_tripped=bools1[28],  # Bit 28
+            overvoltage_tripped=bools1[29],  # Bit 29
+            undervoltage_tripped=bools1[30],  # Bit 30
+            overcurrent_warning=bools1[31],  # Bit 31
+            overvoltage_warning=bools2[0],  # Pack 2, Bit 0
+            undervoltage_warning=bools2[1],  # Pack 2, Bit 1
+            communication_loss_tripped=bools2[2],  # Pack 2, Bit 2
+            communication_loss_warning=bools2[3],  # Pack 2, Bit 3
+        )
+    
+    @property
+    def fiber_rx(self) -> FiberOpticRxFromMachineData:
+        """Extract fiber optic RX signals from signal array."""
+        bools2 = self._get_bool_pack_2()
+        return FiberOpticRxFromMachineData(
+            measured_speed_pu=self.get_signal(GridSignalIndex.FIBER_RX_MEASURED_SPEED),
+            dc_link_current_reference_pu=self.get_signal(GridSignalIndex.FIBER_RX_DC_LINK_CURRENT_REFERENCE),
+            machine_voltage_magnitude_pu=self.get_signal(GridSignalIndex.FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE),
+            force_commutation_request=bools2[4],  # Pack 2, Bit 4
+            shutdown_request=bools2[5],  # Pack 2, Bit 5
+            machine_protection_tripped=bools2[6],  # Pack 2, Bit 6
+            protection_inhibit=bools2[7],  # Pack 2, Bit 7
+            machine_trip_acknowledged=False,  # Not in the C++ grouped packing
         )
 
 
 @dataclass
 class MachineSideTelemetryPacket:
-    """Machine-side telemetry packet with variable-length signal array."""
+    """Machine-side telemetry packet with variable-length signal array.
+    
+    Protocol v2 with grouped boolean packing:
+    - Total signals: 52 (indices 0-51)
+    - Indices 50-51: Grouped boolean packs (37 bools → 2 uint32)
+    """
     header: TelemetryPacketHeader
     signals: List[float]
+    raw_signals: List[int] = field(default_factory=list)  # Raw uint32 values before float conversion
     
+    def __post_init__(self):
+        """Automatically expand signals array with unpacked booleans for backward compatibility."""
+        self._expand_signals_with_bools()
+
+    def _expand_signals_with_bools(self):
+        """Unpack booleans from packs and append them to the signals array.
+        
+        This allows the UI and other components to access packed booleans
+        via virtual indices (52+ for machine).
+        """
+        # Unpack booleans
+        bools1 = self._get_bool_pack_1()
+        bools2 = self._get_bool_pack_2()
+        all_bools = bools1 + bools2
+        
+        # Append as floats (1.0 or 0.0)
+        for b in all_bools:
+            self.signals.append(1.0 if b else 0.0)
+
     def get_signal(self, index: int, default: float = 0.0) -> float:
         """Get signal by index with bounds checking."""
         if 0 <= index < len(self.signals):
             return self.signals[index]
         return default
     
+    def get_raw_signal(self, index: int, default: int = 0) -> int:
+        """Get raw uint32 signal by index (for boolean packs)."""
+        if self.raw_signals and 0 <= index < len(self.raw_signals):
+            return self.raw_signals[index]
+        return default
+    
     def get_bool_signal(self, index: int, default: bool = False) -> bool:
         """Get boolean signal (converts 1.0/0.0 to True/False)."""
         return bool(self.get_signal(index, 1.0 if default else 0.0))
+
+    def _get_bool_pack_1(self) -> list[bool]:
+        """Unpack boolean pack #1 (index 51, bits 0-31).
+        
+        Returns 32 booleans in order:
+        - Bits 0-2: Modulator status (release_pulses, request_force_comm, force_comm_ack)
+        - Bits 3-7: Torque controller (enable_boost, is_sat_in, is_sat_out, is_active, is_boost_active)
+        - Bit 8: Speed controller (is_saturated)
+        - Bits 9-13: Startup sequencer (rel_speed, rel_exc, rel_torque, rel_pulses, is_complete)
+        - Bits 14-15: Pulse generator (virtual_ref_active, individual_override)
+        - Bits 16-21: Firing pulses (p1-p6)
+        - Bits 22-31: Protections part 1 (is_tripped, is_inhibited, any_fault, over_flux_t, under_flux_t, stall_t, over_flux_w, under_flux_w, stall_w, comm_loss_t)
+        """
+        raw = self.get_raw_signal(MachineSignalIndex.BOOL_PACK_1, 0)
+        return unpack_bools(raw, 32)
     
+    def _get_bool_pack_2(self) -> list[bool]:
+        """Unpack boolean pack #2 (index 52, bits 0-4).
+        
+        Returns 5 booleans in order:
+        - Bit 0: Protection part 2 (comm_loss_w)
+        - Bits 1-4: Fiber optic RX (is_forced_comm, force_comm_ack, release_pulses, grid_rel_prot)
+        """
+        raw = self.get_raw_signal(MachineSignalIndex.BOOL_PACK_2, 0)
+        return unpack_bools(raw, 5)
+
     @property
     def measurements(self) -> MachineMeasurements:
         """Extract machine measurements from signal array."""
@@ -208,7 +434,7 @@ class MachineSideTelemetryPacket:
             estimated_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE),
             estimated_frequency_pu=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU),
             estimated_reference_angle_pu=self.get_signal(MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE),
-            estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY),
+            estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ),
         )
     
     @property
@@ -217,18 +443,19 @@ class MachineSideTelemetryPacket:
         return MachineObserverData(
             estimated_frequency_pu=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU),
             estimated_reference_angle_pu=self.get_signal(MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE),
-            estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY),
+            estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ),
         )
     
     @property
     def modulator(self) -> MachineModulatorData:
         """Extract machine modulator signals from signal array."""
+        bools1 = self._get_bool_pack_1()
         return MachineModulatorData(
-            release_pulses_input=self.get_bool_signal(MachineSignalIndex.MODULATOR_RELEASE_PULSES_INPUT),
+            release_pulses_input=self.get_signal(MachineSignalIndex.MODULATOR_RELEASE_PULSES_INPUT) > 0.5,
             operating_mode=int(self.get_signal(MachineSignalIndex.MODULATOR_OPERATING_MODE)),
-            release_pulses_output=self.get_bool_signal(MachineSignalIndex.MODULATOR_RELEASE_PULSES_OUTPUT),
-            request_force_commutation=self.get_bool_signal(MachineSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION),
-            force_commutation_acknowledged=self.get_bool_signal(MachineSignalIndex.MODULATOR_FORCE_COMMUTATION_ACK),
+            release_pulses_output=bools1[0],
+            request_force_commutation=bools1[1],
+            force_commutation_acknowledged=bools1[2],
             firing_angle_pu=self.get_signal(MachineSignalIndex.MODULATOR_FIRING_ANGLE),
             current_rotor_sector_normalized=self.get_signal(MachineSignalIndex.MODULATOR_CURRENT_ROTOR_SECTOR),
             commutation_state=int(self.get_signal(MachineSignalIndex.MODULATOR_COMMUTATION_STATE)),
@@ -246,37 +473,40 @@ class MachineSideTelemetryPacket:
     @property
     def torque_controller(self) -> TorqueControllerOutputsData:
         """Extract torque controller state from signal array."""
+        bools1 = self._get_bool_pack_1()
         return TorqueControllerOutputsData(
             current_reference_pu=self.get_signal(MachineSignalIndex.TORQUE_CURRENT_REFERENCE),
-            is_saturated=self.get_bool_signal(MachineSignalIndex.TORQUE_IS_SATURATED_OUTPUT),
-            is_active=self.get_bool_signal(MachineSignalIndex.TORQUE_IS_ACTIVE),
-            is_breakaway_boost_active=self.get_bool_signal(MachineSignalIndex.TORQUE_IS_BREAKAWAY_BOOST_ACTIVE),
+            is_saturated=bools1[5],
+            is_active=bools1[6],
+            is_breakaway_boost_active=bools1[7],
         )
     
     @property
     def speed_controller(self) -> SpeedControllerData:
         """Extract speed controller state from signal array."""
+        bools1 = self._get_bool_pack_1()
         return SpeedControllerData(
             speed_reference_pu=self.get_signal(MachineSignalIndex.SPEED_SPEED_REFERENCE),
             measured_speed_pu=self.get_signal(MachineSignalIndex.SPEED_MEASURED_SPEED),
             torque_reference_pu=self.get_signal(MachineSignalIndex.SPEED_TORQUE_REFERENCE),
             pi_output_pu=self.get_signal(MachineSignalIndex.SPEED_PI_OUTPUT),
-            is_saturated=self.get_bool_signal(MachineSignalIndex.SPEED_IS_SATURATED),
+            is_saturated=bools1[8],
         )
     
     @property
     def startup_sequencer(self) -> StartupSequencerData:
         """Extract startup sequencer state from signal array."""
+        bools1 = self._get_bool_pack_1()
         return StartupSequencerData(
             speed_reference_pu=self.get_signal(MachineSignalIndex.STARTUP_SPEED_REFERENCE),
             virtual_rotor_frequency_pu=self.get_signal(MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_FREQUENCY),
             virtual_rotor_angle_pu=self.get_signal(MachineSignalIndex.STARTUP_VIRTUAL_ROTOR_ANGLE),
             virtual_torque_reference_pu=self.get_signal(MachineSignalIndex.STARTUP_VIRTUAL_TORQUE_REFERENCE),
-            release_speed_controller=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_SPEED_CONTROLLER),
-            release_excitation=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_EXCITATION),
-            release_torque_controller=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_TORQUE_CONTROLLER),
-            release_machine_side_pulses=self.get_bool_signal(MachineSignalIndex.STARTUP_RELEASE_MACHINE_SIDE_PULSES),
-            is_startup_complete=self.get_bool_signal(MachineSignalIndex.STARTUP_IS_STARTUP_COMPLETE),
+            release_speed_controller=bools1[9],
+            release_excitation=bools1[10],
+            release_torque_controller=bools1[11],
+            release_machine_side_pulses=bools1[12],
+            is_startup_complete=bools1[13],
         )
     
     @property
@@ -285,7 +515,6 @@ class MachineSideTelemetryPacket:
         return ExcitationControllerData(
             field_current_reference_pu=self.get_signal(MachineSignalIndex.EXCITATION_FIELD_CURRENT_REFERENCE),
             prefluxing_elapsed_time_s=self.get_signal(MachineSignalIndex.EXCITATION_PREFLUXING_ELAPSED_TIME),
-
             machine_voltage_reference_pu=self.get_signal(MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_REFERENCE_PU),
             machine_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_MAGNITUDE_PU),
             machine_voltage_error_pu=self.get_signal(MachineSignalIndex.EXCITATION_MACHINE_VOLTAGE_ERROR_PU),
@@ -312,7 +541,56 @@ class MachineSideTelemetryPacket:
             mode=0,
             mode_changed=False,
             current_zero=False,
-            discontinuous_mode=False,
+            is_discontinuous_mode=False,
+        )
+
+    @property
+    def protections(self) -> MachineProtectionsData:
+        """Extract machine protection status from signal array."""
+        bools1 = self._get_bool_pack_1()
+        bools2 = self._get_bool_pack_2()
+        return MachineProtectionsData(
+            is_tripped=bools1[22],
+            is_inhibited=bools1[23],
+            any_fault_active=bools1[24],
+            over_flux_tripped=bools1[25],
+            under_flux_tripped=bools1[26],
+            stall_tripped=bools1[27],
+            over_flux_warning=bools1[28],
+            under_flux_warning=bools1[29],
+            stall_warning=bools1[30],
+            communication_loss_tripped=bools1[31],
+            communication_loss_warning=bools2[0],
+        )
+
+    @property
+    def pulse_generator(self) -> MachinePulseGeneratorData:
+        """Extract machine pulse generator state from signal array."""
+        bools1 = self._get_bool_pack_1()
+        return MachinePulseGeneratorData(
+            virtual_reference_active=bools1[14],
+            virtual_reference_angle_pu=self.get_signal(MachineSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE),
+            individual_override_active=bools1[15],
+            p1=bools1[16],
+            p2=bools1[17],
+            p3=bools1[18],
+            p4=bools1[19],
+            p5=bools1[20],
+            p6=bools1[21],
+        )
+
+    @property
+    def fiber_optic(self) -> MachineFiberOpticRxData:
+        """Extract fiber optic RX data from signal array."""
+        bools2 = self._get_bool_pack_2()
+        return MachineFiberOpticRxData(
+            dc_link_current_pu=self.get_signal(MachineSignalIndex.FIBER_DC_LINK_CURRENT),
+            grid_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.FIBER_GRID_VOLTAGE_MAGNITUDE),
+            current_state_id=int(self.get_signal(MachineSignalIndex.FIBER_CURRENT_STATE_ID)),
+            is_forced_commutation=bools2[1],
+            force_commutation_acknowledged=bools2[2],
+            release_pulses=bools2[3],
+            grid_release_protections=bools2[4],
         )
     
     # @property
@@ -337,14 +615,19 @@ class TelemetryDecoder:
     CRC_SIZE = 4  # CRC32 = 4 bytes
     SYNC_FRAME_SIZE = 4  # Sync magic number = 4 bytes
     
-    def __init__(self, require_crc: bool = False):
+    def __init__(self, require_crc: bool = False, debug_log: Optional[str] = None):
         """Initialize telemetry decoder.
         
         Args:
             require_crc: If True, require and validate CRC32 at end of packet.
                          If False, support both CRC and non-CRC packets (for backward compatibility).
+            debug_log: Path to debug log file. If provided, enables detailed decoding logs.
         """
         self.require_crc = require_crc
+        
+        # Enable debug logging if requested
+        if debug_log:
+            enable_telemetry_debug_log(debug_log)
     
     @staticmethod
     def is_sync_frame(data: bytes) -> bool:
@@ -381,18 +664,25 @@ class TelemetryDecoder:
     
     def decode(self, data: bytes, verbose: bool = False) -> Optional[Tuple[Union[GridSideTelemetryPacket, MachineSideTelemetryPacket], int]]:
         """Decode binary telemetry data into structured packet (grid or machine side)."""
+        logger.debug(f"decode() called with {len(data)} bytes")
+        
         if len(data) < self.HEADER_SIZE:
+            logger.warning(f"Data too short: {len(data)} < {self.HEADER_SIZE}")
             if verbose:
                 hex_preview = data[:min(16, len(data))].hex() if len(data) > 0 else "(empty)"
-                print(f"[DECODE ERROR] Data too short: {len(data)} bytes, expected >= {self.HEADER_SIZE} bytes. Data (hex): {hex_preview}")
+                # print(f"[DECODE ERROR] Data too short: {len(data)} bytes, expected >= {self.HEADER_SIZE} bytes. Data (hex): {hex_preview}")
+                pass
             return None
             
         try:
             header_data = struct.unpack(self.HEADER_FORMAT, data[:self.HEADER_SIZE])
+            logger.debug(f"Header unpacked: {header_data}")
         except struct.error as e:
+            logger.error(f"Header unpack failed: {e}")
             if verbose:
-                print(f"[DECODE ERROR] Failed to unpack header: {e}")
-                print(f"[DECODE ERROR] Data (hex): {data[:self.HEADER_SIZE].hex()}")
+                # print(f"[DECODE ERROR] Failed to unpack header: {e}")
+                # print(f"[DECODE ERROR] Data (hex): {data[:self.HEADER_SIZE].hex()}")
+                pass
             return None
             
         header = TelemetryPacketHeader(
@@ -403,6 +693,8 @@ class TelemetryDecoder:
             sequence_number=header_data[4],
             reserved=header_data[5]
         )
+        
+        logger.debug(f"Decoded header: type=0x{header.packet_type:02X}, ver={header.protocol_version}, signals={header.signal_count}, seq={header.sequence_number}")
         
         if verbose:
             print(f"[DECODE] Header decoded successfully:")
@@ -418,6 +710,7 @@ class TelemetryDecoder:
                 print(f"[DECODE ERROR] Unsupported packet type: 0x{header.packet_type:02X}")
             return None
         
+        # Only support protocol v2 (uint32 with bit-cast floats and packed bools)
         if header.protocol_version != PROTOCOL_VERSION:
             if verbose:
                 print(f"[DECODE ERROR] Protocol version mismatch: got {header.protocol_version}, expected {PROTOCOL_VERSION}")
@@ -452,22 +745,37 @@ class TelemetryDecoder:
             return None
         
         signals = []
+        raw_signals = []  # Keep raw uint32 values for boolean packs
         offset = self.HEADER_SIZE
+        
+        logger.debug(f"Decoding {header.signal_count} signals starting at offset {offset}")
         
         for i in range(header.signal_count):
             if offset + self.SIGNAL_SIZE > len(data):
+                logger.error(f"Insufficient data for signal {i} at offset {offset}")
                 if verbose:
                     print(f"[DECODE ERROR] Insufficient data for signal {i} at offset {offset}")
                 return None
             
             try:
-                signal_value = struct.unpack('<f', data[offset:offset + self.SIGNAL_SIZE])[0]
+                # Protocol v2: signals are uint32, reinterpret as float
+                raw_uint32 = struct.unpack('<I', data[offset:offset + self.SIGNAL_SIZE])[0]
+                raw_signals.append(raw_uint32)  # Store raw value
+                signal_value = uint32_to_float(raw_uint32)  # Convert to float
                 signals.append(signal_value)
+                
+                # Log boolean packs specifically
+                if i == 44 or i == 45:
+                    logger.debug(f"  Signal[{i}] (BOOL_PACK): raw=0x{raw_uint32:08X}, as_float={signal_value}")
+                
                 offset += self.SIGNAL_SIZE
             except struct.error as e:
+                logger.error(f"Failed to unpack signal {i}: {e}")
                 if verbose:
                     print(f"[DECODE ERROR] Failed to unpack signal {i}: {e}")
                 return None
+        
+        logger.debug(f"Successfully decoded {len(signals)} signals, {len(raw_signals)} raw values")
         
         # Validate CRC if present
         if has_crc:
@@ -496,14 +804,19 @@ class TelemetryDecoder:
         
         # Create appropriate packet type
         if header.packet_type == PacketType.GRID_SIDE_TELEMETRY:
+            logger.debug("Creating GridSideTelemetryPacket")
             packet: Union[GridSideTelemetryPacket, MachineSideTelemetryPacket] = GridSideTelemetryPacket(
                 header=header,
-                signals=signals
+                signals=signals,
+                raw_signals=raw_signals
             )
         else:  # MACHINE_SIDE_TELEMETRY
+            logger.debug("Creating MachineSideTelemetryPacket")
             packet = MachineSideTelemetryPacket(
                 header=header,
-                signals=signals
+                signals=signals,
+                raw_signals=raw_signals
             )
         
+        logger.debug(f"Packet created successfully, returning {offset} bytes consumed")
         return (packet, offset)

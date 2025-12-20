@@ -55,11 +55,9 @@ public:
 
     void initialize()
     {
-        set_auxiliaries_on(false);
-        set_breakers_on(false);
+        set_turn_on_command(false);
         set_start_command(false);
         set_stop_command(false);
-        set_shutdown_request(false);
         set_current_extinguished(false);
 
         system.initialize();
@@ -67,16 +65,15 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    // State machine control helpers using io_mock (tests real code path via set_digital_inputs)
-    void set_auxiliaries_on(bool on) { system.io_mock.get_parameters().auxiliaries_are_on.write(on); }
+    // State machine control helpers
+    void set_turn_on_command(bool on)
+    {
+        system.grid_side_control.state_machine.get_parameters().turn_on_command.write(on);
+    }
 
-    void set_breakers_on(bool on) { system.io_mock.get_parameters().mcb_is_closed.write(on); }
+    void set_start_command(bool start) { system.grid_io_mock.get_parameters().start_command.write(start); }
 
-    void set_start_command(bool start) { system.io_mock.get_parameters().start_command.write(start); }
-
-    void set_stop_command(bool stop) { system.io_mock.get_parameters().stop_command.write(stop); }
-
-    void set_shutdown_request(bool shutdown) { system.io_mock.get_parameters().shutdown_request.write(shutdown); }
+    void set_stop_command(bool stop) { system.grid_io_mock.get_parameters().stop_command.write(stop); }
 
     void set_current_extinguished(bool extinguished)
     {
@@ -84,12 +81,23 @@ public:
             system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
     }
 
+    // Fault injection: Simulate breaker trip (for flying restart tests)
+    // Uses override to force breaker status without going through state machine
+    void force_breaker_trip()
+    {
+        system.grid_io_mock.get_parameters().override_mv_breaker_is_closed.write(true);
+        system.grid_io_mock.get_parameters().override_mv_breaker_is_closed_value.write(false);
+    }
+
+    // Clear fault injection and restore normal IO mock operation
+    void clear_breaker_override() { system.grid_io_mock.get_parameters().override_mv_breaker_is_closed.write(false); }
+
     // Complete startup sequence following state machine logic
+    // Uses turn_on_command to trigger IO mock → auxiliaries → breakers flow
     void execute_startup_sequence()
     {
-        set_auxiliaries_on(true);
-        set_breakers_on(true);
-        simulate_for(0.2);
+        set_turn_on_command(true);
+        simulate_for(0.3);  // Allow IO mock to process auxiliaries and breakers with delays
         set_start_command(true);
         simulate_for(0.1);
     }
@@ -174,7 +182,7 @@ TEST_F(ClosedLoopRestartTest, RestartCapabilityTest)
     EXPECT_NEAR(first_cycle_speed.value(), 0.4f, 0.15f) << "First cycle should reach target speed";
 
     // Initiate Shutdown
-    set_shutdown_request(true);
+    set_stop_command(true);
     success &= simulator.simulate_for(1.0);
 
     // Complete shutdown cycle
@@ -185,7 +193,7 @@ TEST_F(ClosedLoopRestartTest, RestartCapabilityTest)
     EXPECT_EQ(shutdown_state, startup_sequencer_state_t::IDLE) << "Startup sequencer should be IDLE after shutdown";
 
     // Prepare for restart - clear shutdown conditions
-    set_shutdown_request(false);
+    set_stop_command(false);
     set_current_extinguished(false);
     set_start_command(false);
     success &= simulator.simulate_for(0.5);
@@ -248,8 +256,8 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartCapabilityTest)
     auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
     EXPECT_GT(operating_speed.value(), 0.4f) << "Machine should be at significant speed";
 
-    // Simulate a trip - breakers open unexpectedly
-    set_breakers_on(false);
+    // Simulate a trip - breakers open unexpectedly (fault injection)
+    force_breaker_trip();
     success &= simulator.simulate_for(0.2);
 
     // Verify pulses blocked
@@ -259,10 +267,10 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartCapabilityTest)
     // Brief pause before restart (no coast simulation in internal model)
     success &= simulator.simulate_for(0.5);
 
-    // Flying Restart - close breakers and re-initiate start
-    set_breakers_on(true);
+    // Flying Restart - clear fault and let IO mock restore breaker status
+    clear_breaker_override();
     set_start_command(true);
-    success &= simulator.simulate_for(0.2);
+    success &= simulator.simulate_for(0.3);  // Allow IO mock to process breaker close with delay
 
     // Verify pulses released for restart
     auto pulses_released = system.grid_side_control.state_machine.get_outputs().release_pulses.read();
@@ -321,19 +329,19 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartWithAutoStartTest)
     EXPECT_EQ(first_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
         << "First startup should reach CLOSED_LOOP_OPERATION";
 
-    // Simulate a temporary trip - breakers open
-    set_breakers_on(false);
+    // Simulate a temporary trip - breakers open (fault injection)
+    force_breaker_trip();
     success &= simulator.simulate_for(0.5);
 
     // Verify shutdown
     auto pulses_blocked = !system.grid_side_control.state_machine.get_outputs().release_pulses.read();
     EXPECT_TRUE(pulses_blocked) << "Pulses should be blocked after breaker trip";
 
-    // Auto-restart scenario: start_command remains true, breakers re-close
+    // Auto-restart scenario: start_command remains true, clear fault to restore breaker
     // (simulating auto-reclose or operator re-engagement)
-    set_breakers_on(true);
+    clear_breaker_override();
     // Note: start_command is already true from initial startup
-    success &= simulator.simulate_for(0.3);
+    success &= simulator.simulate_for(0.3);  // Allow IO mock to process breaker close with delay
 
     // Verify auto-restart initiated
     auto pulses_released = system.grid_side_control.state_machine.get_outputs().release_pulses.read();

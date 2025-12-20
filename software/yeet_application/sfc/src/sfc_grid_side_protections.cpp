@@ -8,7 +8,7 @@ sfc_grid_side_protections::sfc_grid_side_protections(duration_t sampling_time) n
       _undervoltage_protection(sampling_time),
       _communication_watchdog(sampling_time)
 {
-    _trip_handshake.configure_trip_clear_policy(sfc_trip_clear_policy::ack_and_fault_clear);
+    _trip_handshake.configure_trip_clear_policy(sfc_trip_clear_policy::auto_clear);
 }
 
 void sfc_grid_side_protections::reset() noexcept
@@ -43,30 +43,35 @@ void sfc_grid_side_protections::reset() noexcept
     _door_open_alarmed = false;
 }
 
-void sfc_grid_side_protections::update(current_pu_t dc_link_current_pu,
-    voltage_pu_t grid_voltage_magnitude_pu,
-    bool door_is_open,
-    bool module_enabled,
-    bool release_protections,
-    bool communication_valid,
-    bool trip_acknowledged,
-    bool confirm_alarms) noexcept
+void sfc_grid_side_protections::update_overcurrent_protection(current_pu_t dc_link_current_pu) noexcept
 {
-    (void)release_protections;
+    _overcurrent_protection.update(dc_link_current_pu);
+}
 
+void sfc_grid_side_protections::update_overvoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept
+{
+    _overvoltage_protection.update(grid_voltage_magnitude_pu);
+}
+
+void sfc_grid_side_protections::update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept
+{
+    _undervoltage_protection.update(grid_voltage_magnitude_pu);
+}
+
+void sfc_grid_side_protections::update_communication_watchdog(bool communication_valid) noexcept
+{
+    _communication_watchdog.update(communication_valid);
+}
+
+void sfc_grid_side_protections::resolve_protections(
+    bool door_is_open, bool module_enabled, bool confirm_alarms) noexcept
+{
     if (!module_enabled) {
         reset();
         return;
     }
 
-    // Communication watchdog must run whenever the protection module is enabled.
-    _communication_watchdog.update(communication_valid);
-
-    // Keep the underlying fault detectors running whenever the module is enabled.
-    _overcurrent_protection.update(dc_link_current_pu);
-    _overvoltage_protection.update(grid_voltage_magnitude_pu);
-    _undervoltage_protection.update(grid_voltage_magnitude_pu);
-
+    // Reset protections that are ready to be reset (condition cleared + no latched trip)
     if (_overcurrent_protection.can_reset()) {
         _overcurrent_protection.reset();
     }
@@ -119,7 +124,7 @@ void sfc_grid_side_protections::update(current_pu_t dc_link_current_pu,
 
     _any_fault_active = any_fault_active;
 
-    _trip_handshake.update(any_protection_tripped, any_fault_active, trip_acknowledged, confirm_alarms);
+    _trip_handshake.update(any_protection_tripped, any_fault_active, confirm_alarms);
 
     if (_trip_handshake.get_trip_cleared_pulse()) {
         _overcurrent_protection.update(current_pu_t{0.0f});

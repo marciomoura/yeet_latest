@@ -223,6 +223,12 @@ public:
      */
     void rebuild_parameter_cache();
 
+    /**
+     * @brief Set verbose logging
+     * @param verbose True to enable verbose logging
+     */
+    void set_verbose(bool verbose) noexcept { verbose_ = verbose; }
+
 private:
     /**
      * @brief Build parameter cache from model_registry
@@ -257,6 +263,11 @@ private:
      * @brief Sequence counter for response packets
      */
     std::uint32_t sequence_counter_;
+
+    /**
+     * @brief Verbose logging flag
+     */
+    bool verbose_ = false;
 };
 
 }  // namespace yeet::telemetry

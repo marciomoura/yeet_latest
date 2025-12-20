@@ -166,12 +166,12 @@ public:
                     }));
         }
 
-        entry.parameters.insert("voltage_pi_kp", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_kp));
-        entry.parameters.insert("voltage_pi_ti", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_ti));
+        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_kp));
+        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_ti));
         entry.parameters.insert(
-            "voltage_pi_output_min_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_min_pu));
+            "pi_output_min_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_min_pu));
         entry.parameters.insert(
-            "voltage_pi_output_max_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_max_pu));
+            "pi_output_max_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_max_pu));
 
         entry.parameters.insert("constant_flux_speed_threshold",
             yeet::utils::make_units_accessor(_model_parameters->constant_flux_speed_threshold));

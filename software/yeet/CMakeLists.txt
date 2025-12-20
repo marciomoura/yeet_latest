@@ -46,6 +46,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
 # gate host-only dependencies (e.g., cpptrace).
 if(YEET_BUILD_EMBEDDED)
     target_compile_definitions(${PROJECT_NAME} PUBLIC YEET_BUILD_EMBEDDED=1)
+else()
+    # For host builds, define HOST_BUILD for debug logging
+    target_compile_definitions(${PROJECT_NAME} PRIVATE HOST_BUILD)
 endif()
 
 # Link cpptrace for stacktrace support (host builds only)

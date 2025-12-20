@@ -47,11 +47,12 @@ public:
         /// True when system is in CLOSED_LOOP_OPERATION with observer-based control
         signal_input<bool> closed_loop_active;
 
+        /// Excitation system status (feedback from excitation controller)
+        /// True when excitation is energized and operating normally
+        signal_input<bool> excitation_is_on;
+
         /// Release signal for protections (typically from state machine/supervisor)
         signal_input<bool> release_protections;
-
-        /// Trip acknowledged by state machine (allows clearing of latched trip)
-        signal_input<bool> trip_acknowledged;
     };
 
     /**
@@ -115,6 +116,12 @@ public:
 
         /// Communication loss protection warning status
         signal_output<bool> communication_loss_warning;
+
+        /// Loss of excitation protection trip status
+        signal_output<bool> loss_of_excitation_tripped;
+
+        /// Loss of excitation protection alarm status (severity-dependent)
+        signal_output<bool> loss_of_excitation_alarmed;
     };
 
     /**
@@ -139,6 +146,9 @@ public:
 
         /// Severity for communication loss detection (default: trip)
         parameter<protection_severity> communication_loss_severity{protection_severity::trip};
+
+        /// Severity for loss of excitation detection (default: trip)
+        parameter<protection_severity> loss_of_excitation_severity{protection_severity::trip};
 
         // ========== V/Hz Protection Parameters ==========
         /// Over-flux trip threshold [pu]
@@ -201,6 +211,11 @@ public:
         /// Default: 5ms
         parameter<duration_t> comm_reset{duration_t{0.005}};
 
+        // ========== Loss of Excitation Protection Parameters ==========
+        /// Loss of excitation trip delay [s]
+        /// Default: 50ms (fast detection for critical fault)
+        parameter<duration_t> loss_of_excitation_trip_delay{duration_t{0.05}};
+
         // ========== Protection Module Control ==========
         /// Master enable/disable for entire protection module
         parameter<bool> protection_module_enabled{false};
@@ -243,6 +258,8 @@ public:
             yeet::utils::make_enum_accessor(_model_parameters->machine_overvoltage_severity));
         entry.parameters.insert("communication_loss_severity",
             yeet::utils::make_enum_accessor(_model_parameters->communication_loss_severity));
+        entry.parameters.insert("loss_of_excitation_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->loss_of_excitation_severity));
 
         // V/Hz protection parameters
         entry.parameters.insert(
@@ -287,6 +304,10 @@ public:
         // Communication watchdog parameters
         entry.parameters.insert("comm_timeout", yeet::utils::make_units_accessor(_model_parameters->comm_timeout));
         entry.parameters.insert("comm_reset", yeet::utils::make_units_accessor(_model_parameters->comm_reset));
+
+        // Loss of excitation protection parameters
+        entry.parameters.insert("loss_of_excitation_trip_delay",
+            yeet::utils::make_units_accessor(_model_parameters->loss_of_excitation_trip_delay));
 
         // Protection module control
         entry.parameters.insert(

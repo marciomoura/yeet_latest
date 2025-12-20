@@ -190,6 +190,17 @@ public:
     void configure_flying_restart(const flying_restart_config& config);
 
     /**
+     * @brief Forces virtual reference mode operation (for commissioning)
+     *
+     * When enabled, the sequencer always uses VIRTUAL reference frame source
+     * regardless of state. This is useful during commissioning when the machine
+     * side is short-circuited and no voltage measurements are available.
+     *
+     * @param force_virtual If true, always use virtual reference mode
+     */
+    void configure_force_virtual_mode(bool force_virtual);
+
+    /**
      * @brief Starts the startup sequence
      *
      * Called when the main state machine enters OPERATION_ON or by manual command.
@@ -304,6 +315,7 @@ private:
     virtual_torque_config _virtual_torque_config;
     speed_reference_rate_limit_config _speed_reference_rate_limit_config;
     flying_restart_config _flying_restart_config;
+    bool _force_virtual_mode_operation{false};
 
     // State
     startup_sequencer_state_t _current_state{startup_sequencer_state_t::IDLE};

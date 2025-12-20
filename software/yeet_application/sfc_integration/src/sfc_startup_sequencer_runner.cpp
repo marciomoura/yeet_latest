@@ -117,6 +117,9 @@ void sfc_startup_sequencer_runner::set_parameters()
     flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
     flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
     _sequencer.configure_flying_restart(flying_restart_cfg);
+
+    // Configure force virtual mode operation
+    _sequencer.configure_force_virtual_mode(_parameters.force_virtual_mode_operation.read());
 }
 
 void sfc_startup_sequencer_runner::set_parameter_callback()
@@ -143,6 +146,9 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
     _parameters.flying_restart_voltage_threshold.register_callback([&]() { set_parameters(); });
     _parameters.flying_restart_observer_settling_time.register_callback([&]() { set_parameters(); });
     _parameters.auto_start_stop_enabled.register_callback([&]() { set_parameters(); });
+
+    // Register callback for force virtual mode operation
+    _parameters.force_virtual_mode_operation.register_callback([&]() { set_parameters(); });
 }
 
 void sfc_startup_sequencer_runner::clamp_speed_reference_to_virtual_frequency_final()

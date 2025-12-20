@@ -77,8 +77,8 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Include synchronization signals in fiber-optic protocol
     tx_msg.state_id = static_cast<std::uint8_t>(state_machine.get_outputs().current_state_id.read());
     // Include protection signals from grid-side state machine
-    tx_msg.grid_release_protections = state_machine.get_outputs().release_protections.read();
-    tx_msg.grid_trip_acknowledged = state_machine.get_outputs().trip_acknowledged.read();
+    tx_msg.grid_release_protections = state_machine.get_outputs().release_grid_protections.read();
+    tx_msg.machine_release_protections = state_machine.get_outputs().release_machine_protections.read();
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
@@ -117,8 +117,8 @@ void sfc_grid_side_control::connect_internal_signals()
     wire(state_machine)
         .from(external_ios.get_digital_inputs().auxiliaries_are_on)
         .to(&state_machine_inputs::auxiliaries_are_on)
-        .from(external_ios.get_digital_inputs().mcb_is_closed)
-        .to(&state_machine_inputs::mcb_is_closed)
+        .from(external_ios.get_digital_inputs().mv_breaker_is_closed)
+        .to(&state_machine_inputs::mv_breaker_is_closed)
         .from(external_ios.get_digital_inputs().start_command)
         .to(&state_machine_inputs::start_command)
         .from(external_ios.get_digital_inputs().stop_command)
@@ -127,8 +127,10 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&state_machine_inputs::shutdown_request)
         .from(operation_mode_monitor.get_outputs().current_is_zero)
         .to(&state_machine_inputs::is_current_extinguished)
-        .from(external_ios.get_digital_inputs().breaker_is_tripping)
-        .to(&state_machine_inputs::breaker_is_tripping)
+        .from(external_ios.get_digital_inputs().mv_breaker_is_tripping)
+        .to(&state_machine_inputs::mv_breaker_is_tripping)
+        .from(external_ios.get_digital_inputs().external_fault)
+        .to(&state_machine_inputs::external_fault)
         .from(external_ios.get_digital_inputs().emergency_off)
         .to(&state_machine_inputs::emergency_off)
         .from(external_ios.get_digital_inputs().door_is_open)
@@ -194,10 +196,8 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&protections_inputs::dc_link_current_pu)
         .from(grid_side_observer.get_outputs().estimated_voltage_magnitude)
         .to(&protections_inputs::grid_voltage_magnitude_pu)
-        .from(state_machine.get_outputs().release_protections)
+        .from(state_machine.get_outputs().release_grid_protections)
         .to(&protections_inputs::release_protections)
-        .from(state_machine.get_outputs().trip_acknowledged)
-        .to(&protections_inputs::trip_acknowledged)
         .from(external_ios.get_digital_inputs().door_is_open)
         .to(&protections_inputs::door_is_open);
 
@@ -251,13 +251,33 @@ void sfc_grid_side_control::connect_internal_signals()
 
     // ==================== Main Circuit Breaker Outputs ====================
     signals_connector::connect_output_to_input(
-        state_machine.get_outputs().mcb_close, external_ios.get_digital_outputs().mcb_close);
+        state_machine.get_outputs().mv_breaker_close, external_ios.get_digital_outputs().mv_breaker_close);
     signals_connector::connect_output_to_input(
-        state_machine.get_outputs().mcb_open, external_ios.get_digital_outputs().mcb_open);
+        state_machine.get_outputs().mv_breaker_open, external_ios.get_digital_outputs().mv_breaker_open);
 
     // ==================== Auxiliaries Command Output ====================
     signals_connector::connect_output_to_input(
         state_machine.get_outputs().auxiliaries_on_command, external_ios.get_digital_outputs().auxiliaries_on_command);
+
+    // ==================== ACU Fan Outputs ====================
+    // All four ACU fans are driven by auxiliaries_on_command
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().auxiliaries_on_command, external_ios.get_digital_outputs().on_command_acu_fan_1);
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().auxiliaries_on_command, external_ios.get_digital_outputs().on_command_acu_fan_2);
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().auxiliaries_on_command, external_ios.get_digital_outputs().on_command_acu_fan_3);
+    signals_connector::connect_output_to_input(
+        state_machine.get_outputs().auxiliaries_on_command, external_ios.get_digital_outputs().on_command_acu_fan_4);
+
+    // ==================== Software Trip Outputs ====================
+    // All three software trip outputs are driven by protection trip status
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().is_tripped, external_ios.get_digital_outputs().software_trip_1);
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().is_tripped, external_ios.get_digital_outputs().software_trip_2);
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().is_tripped, external_ios.get_digital_outputs().software_trip_3);
 }
 
 }  // namespace yeet::application::sfc::integration

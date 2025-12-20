@@ -70,18 +70,17 @@ public:
         }
 
         // Register firing angle lookup table entries individually (real_t doesn't have .value() method)
+        auto& firing_angle_table = _model_parameters->firing_angle_lookup_table;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
             std::string param_name = "firing_angle_lookup_table_deg[" + std::to_string(i) + "]";
-            entry.parameters.insert(
-                param_name, low_level_access(
-                                [this, i]() -> float {
-                                    return static_cast<float>(_model_parameters->firing_angle_lookup_table.read()[i]);
-                                },
-                                [this, i](float value) {
-                                    auto table = _model_parameters->firing_angle_lookup_table.read();
-                                    table[i] = real_t(value);
-                                    _model_parameters->firing_angle_lookup_table.write(table);
-                                }));
+            entry.parameters.insert(param_name,
+                low_level_access(
+                    [&firing_angle_table, i]() -> float { return static_cast<float>(firing_angle_table.read()[i]); },
+                    [&firing_angle_table, i](float value) {
+                        auto table = firing_angle_table.read();
+                        table[i] = real_t(value);
+                        firing_angle_table.write(table);
+                    }));
         }
 
         registry.insert("stator_voltage_controller", std::move(entry));

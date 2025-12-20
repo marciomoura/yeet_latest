@@ -18,7 +18,7 @@ void sfc_protections_trip_handshake::reset() noexcept
 }
 
 void sfc_protections_trip_handshake::update(
-    bool any_trip_request, bool any_fault_condition_active, bool trip_acknowledged, bool confirm_alarms) noexcept
+    bool any_trip_request, bool any_fault_condition_active, bool confirm_alarms) noexcept
 {
     _trip_cleared_pulse = false;
 
@@ -28,31 +28,34 @@ void sfc_protections_trip_handshake::update(
         _alarm_pending = true;
     }
 
-    bool can_clear_trip = false;
-    if (_alarm_pending) {
-        if (_trip_clear_policy == sfc_trip_clear_policy::ack_only) {
-            can_clear_trip = trip_acknowledged;
+    // Trip latch clears based on configured policy
+    bool should_clear = false;
+
+    if (_trip_latched) {
+        switch (_trip_clear_policy) {
+            case sfc_trip_clear_policy::auto_clear:
+                // Clear automatically when fault is gone (no acknowledgement required)
+                if (!any_fault_condition_active) {
+                    should_clear = true;
+                }
+                break;
+
+            default:
+                // Only auto_clear is supported
+                break;
         }
-        else {
-            can_clear_trip = trip_acknowledged && !any_fault_condition_active;
-        }
-    }
-    else {
-        // Prior to any trip occurring, allow the latched output to remain clear.
-        // This branch matches existing runner behavior where a non-pending alarm
-        // implies no latched shutdown state.
-        can_clear_trip = !any_trip_request;
     }
 
-    if (can_clear_trip && _trip_latched) {
+    if (should_clear) {
         _trip_latched = false;
         _trip_cleared_pulse = true;
     }
 
     const bool confirm_edge = _confirm_alarms_edge.update(confirm_alarms);
 
-    // Only allow alarm confirmation once trip is cleared.
-    if (confirm_edge && !_trip_latched) {
+    // Alarm confirmation (user acknowledgment): rising edge on confirm_alarms clears inhibit
+    // ONLY when no active fault conditions exist (trip must be cleared first)
+    if (confirm_edge && !_trip_latched && !any_fault_condition_active) {
         _alarm_pending = false;
     }
 }

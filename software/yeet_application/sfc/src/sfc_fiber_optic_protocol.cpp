@@ -22,7 +22,7 @@ namespace yeet::application::sfc::fiber_optic {
     //   Bit 1:      Force commutation acknowledged
     //   Bit 2:      Release pulses
     //   Bit 3:      Grid release protections
-    //   Bit 4:      Grid trip acknowledged
+    //   Bit 4:      Machine release protections
     //   Bits 5-24:  Reserved for future use
     //   Bits 25-31: State machine state ID (0-127)
 
@@ -37,7 +37,7 @@ namespace yeet::application::sfc::fiber_optic {
     // Pack control flags into word 2
     std::uint32_t packed_flags = 0;
 
-    // Encode boolean flags at the beginning (bits 0-4)
+    // Encode boolean flags at the beginning (bits 0-5)
     if (msg.is_forced_commutation) {
         packed_flags |= (1U << grid_to_machine_message::is_forced_commutation_bit_pos);
     }
@@ -50,8 +50,8 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.grid_release_protections) {
         packed_flags |= (1U << grid_to_machine_message::grid_release_protections_bit_pos);
     }
-    if (msg.grid_trip_acknowledged) {
-        packed_flags |= (1U << grid_to_machine_message::grid_trip_acknowledged_bit_pos);
+    if (msg.machine_release_protections) {
+        packed_flags |= (1U << grid_to_machine_message::machine_release_protections_bit_pos);
     }
 
     // Encode state ID at the end (bits 25-31)
@@ -87,13 +87,14 @@ namespace yeet::application::sfc::fiber_optic {
     // Extract packed word 2
     const std::uint32_t packed_flags = payload[2];
 
-    // Decode boolean flags from the beginning (bits 0-4)
+    // Decode boolean flags from the beginning (bits 0-5)
     msg.is_forced_commutation = (packed_flags & (1U << grid_to_machine_message::is_forced_commutation_bit_pos)) != 0;
     msg.force_commutation_acknowledged = (packed_flags & (1U << grid_to_machine_message::force_comm_ack_bit_pos)) != 0;
     msg.release_pulses = (packed_flags & (1U << grid_to_machine_message::release_pulses_bit_pos)) != 0;
     msg.grid_release_protections =
         (packed_flags & (1U << grid_to_machine_message::grid_release_protections_bit_pos)) != 0;
-    msg.grid_trip_acknowledged = (packed_flags & (1U << grid_to_machine_message::grid_trip_acknowledged_bit_pos)) != 0;
+    msg.machine_release_protections =
+        (packed_flags & (1U << grid_to_machine_message::machine_release_protections_bit_pos)) != 0;
 
     // Decode state ID from the end (bits 25-31)
     msg.state_id = static_cast<std::uint8_t>(
@@ -138,9 +139,6 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.protection_inhibit) {
         packed_flags |= (1U << machine_to_grid_message::protection_inhibit_bit_pos);
     }
-    if (msg.machine_trip_acknowledged) {
-        packed_flags |= (1U << machine_to_grid_message::machine_trip_acknowledged_bit_pos);
-    }
     payload[3] = packed_flags;
 
     return machine_to_grid_payload_length;
@@ -177,8 +175,6 @@ namespace yeet::application::sfc::fiber_optic {
     msg.machine_protection_tripped =
         (packed_flags & (1U << machine_to_grid_message::machine_protection_tripped_bit_pos)) != 0;
     msg.protection_inhibit = (packed_flags & (1U << machine_to_grid_message::protection_inhibit_bit_pos)) != 0;
-    msg.machine_trip_acknowledged =
-        (packed_flags & (1U << machine_to_grid_message::machine_trip_acknowledged_bit_pos)) != 0;
 
     return msg;
 }

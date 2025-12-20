@@ -21,6 +21,7 @@ using ssize_t = SSIZE_T;
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #endif
@@ -53,6 +54,7 @@ host_tcp_server::host_tcp_server()
       host_(),
       queue_overflow_count_(0)
 {
+    flush_buffer_.reserve(8192);
 }
 
 host_tcp_server::~host_tcp_server() { shutdown(); }
@@ -60,7 +62,9 @@ host_tcp_server::~host_tcp_server() { shutdown(); }
 bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
 {
     if (is_initialized()) {
-        std::cerr << "TCP server already initialized\n";
+        if (verbose_) {
+            std::cerr << "TCP server already initialized\n";
+        }
         return false;
     }
 
@@ -70,14 +74,18 @@ bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
     // Create server socket
     server_socket_ = static_cast<int>(socket(AF_INET, SOCK_STREAM, 0));
     if (server_socket_ < 0) {
-        std::cerr << "Failed to create server socket\n";
+        if (verbose_) {
+            std::cerr << "Failed to create server socket\n";
+        }
         return false;
     }
 
     // Set socket options - allow address reuse
     int opt = 1;
     if (setsockopt(server_socket_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) < 0) {
-        std::cerr << "Failed to set SO_REUSEADDR\n";
+        if (verbose_) {
+            std::cerr << "Failed to set SO_REUSEADDR\n";
+        }
 #ifdef _WIN32
         closesocket(server_socket_);
 #else
@@ -97,7 +105,9 @@ bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
     }
     else {
         if (inet_pton(AF_INET, host_.c_str(), &server_addr.sin_addr) <= 0) {
-            std::cerr << "Invalid bind address: " << host_ << "\n";
+            if (verbose_) {
+                std::cerr << "Invalid bind address: " << host_ << "\n";
+            }
 #ifdef _WIN32
             closesocket(server_socket_);
 #else
@@ -109,7 +119,9 @@ bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
     }
 
     if (bind(server_socket_, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
-        std::cerr << "Failed to bind to " << host_ << ":" << port_ << "\n";
+        if (verbose_) {
+            std::cerr << "Failed to bind to " << host_ << ":" << port_ << "\n";
+        }
 #ifdef _WIN32
         closesocket(server_socket_);
 #else
@@ -121,7 +133,9 @@ bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
 
     // Start listening
     if (listen(server_socket_, 1) < 0) {
-        std::cerr << "Failed to listen on socket\n";
+        if (verbose_) {
+            std::cerr << "Failed to listen on socket\n";
+        }
 #ifdef _WIN32
         closesocket(server_socket_);
 #else
@@ -133,7 +147,9 @@ bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
 
     // Set server socket to non-blocking
     if (!set_nonblocking(server_socket_)) {
-        std::cerr << "Failed to set server socket non-blocking\n";
+        if (verbose_) {
+            std::cerr << "Failed to set server socket non-blocking\n";
+        }
 #ifdef _WIN32
         closesocket(server_socket_);
 #else
@@ -143,7 +159,9 @@ bool host_tcp_server::initialize(std::uint16_t port, const std::string& host)
         return false;
     }
 
-    std::cout << "TCP server listening on " << host_ << ":" << port_ << "\n";
+    if (verbose_) {
+        std::cout << "TCP server listening on " << host_ << ":" << port_ << "\n";
+    }
     return true;
 }
 
@@ -184,9 +202,18 @@ bool host_tcp_server::accept_client()
     // Set client socket to non-blocking
     set_nonblocking(client_socket_);
 
+    // Optimize socket for high-speed telemetry
+    int nodelay = 1;
+    setsockopt(client_socket_, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&nodelay), sizeof(nodelay));
+
+    int sndbuf = 2 * 1024 * 1024;  // 2MB send buffer
+    setsockopt(client_socket_, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<const char*>(&sndbuf), sizeof(sndbuf));
+
     char client_ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
-    std::cout << "Client connected from " << client_ip << ":" << ntohs(client_addr.sin_port) << "\n";
+    if (verbose_) {
+        std::cout << "Client connected from " << client_ip << ":" << ntohs(client_addr.sin_port) << "\n";
+    }
 
     return true;
 }
@@ -212,14 +239,18 @@ int host_tcp_server::receive_data(std::uint8_t* buffer, std::size_t max_len)
 #endif
 
         // Error occurred
-        std::cerr << "Receive error, disconnecting client\n";
+        if (verbose_) {
+            std::cerr << "Receive error, disconnecting client\n";
+        }
         disconnect_client();
         return -1;
     }
 
     if (received == 0) {
         // Client disconnected gracefully
-        std::cout << "Client disconnected\n";
+        if (verbose_) {
+            std::cout << "Client disconnected\n";
+        }
         disconnect_client();
         return -1;
     }
@@ -237,18 +268,18 @@ bool host_tcp_server::send_data(const std::uint8_t* data, std::size_t len)
 
     // Check if adding this data would overflow queue
     if (send_queue_.size() + len > MAX_QUEUE_SIZE) {
-        // Drop oldest data to make room
-        std::size_t bytes_to_drop = (send_queue_.size() + len) - MAX_QUEUE_SIZE;
-        send_queue_.erase(send_queue_.begin(), send_queue_.begin() + bytes_to_drop);
+        // Drop NEW data to preserve stream alignment of existing packets
         queue_overflow_count_++;
 
         // Optionally log warning (limit frequency to avoid spam)
         static auto last_warning = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>(now - last_warning).count() >= 5) {
-            std::cerr << "[TCP] Send queue overflow, dropped " << bytes_to_drop << " bytes (client too slow)\n";
+        if (verbose_ && std::chrono::duration_cast<std::chrono::seconds>(now - last_warning).count() >= 5) {
+            std::cerr << "[TCP] Send queue full (" << send_queue_.size() << " bytes), dropping new packet of " << len
+                      << " bytes (client too slow)\n";
             last_warning = now;
         }
+        return false;
     }
 
     // Add data to queue
@@ -273,11 +304,10 @@ std::size_t host_tcp_server::flush_send_queue()
     std::size_t total_sent = 0;
     const std::size_t chunk_size = std::min<std::size_t>(send_queue_.size(), 8192);  // Send up to 8KB per call
 
-    // Copy chunk to temporary buffer (deque doesn't have data() method)
-    std::vector<std::uint8_t> buffer(chunk_size);
-    std::copy(send_queue_.begin(), send_queue_.begin() + chunk_size, buffer.begin());
+    // Copy chunk to pre-allocated buffer (deque doesn't have data() method)
+    flush_buffer_.assign(send_queue_.begin(), send_queue_.begin() + chunk_size);
 
-    std::size_t sent = try_send_immediate(buffer.data(), chunk_size);
+    std::size_t sent = try_send_immediate(flush_buffer_.data(), chunk_size);
 
     if (sent > 0) {
         send_queue_.erase(send_queue_.begin(), send_queue_.begin() + sent);
@@ -308,7 +338,9 @@ std::size_t host_tcp_server::try_send_immediate(const std::uint8_t* data, std::s
 #endif
 
         // Error occurred
-        std::cerr << "[TCP] Send error, disconnecting client\n";
+        if (verbose_) {
+            std::cerr << "[TCP] Send error, disconnecting client\n";
+        }
         disconnect_client();
         return 0;
     }

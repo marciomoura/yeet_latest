@@ -69,21 +69,25 @@ public:
 
     void simulate_for(double time) { simulator.simulate_for(time); }
 
-    // State machine control helpers using io_mock (tests real code path via set_digital_inputs)
-    void set_auxiliaries_on(bool on) { system.io_mock.get_parameters().auxiliaries_are_on.write(on); }
+    // State machine control helpers
+    // turn_on_command: Energizes system (IDLE → AUXILIARIES_ON → BREAKERS_ON via IO mock)
+    // start_command: Starts operation (BREAKERS_ON → OPERATION_ON)
+    void set_turn_on_command(bool on)
+    {
+        system.grid_side_control.state_machine.get_parameters().turn_on_command.write(on);
+    }
 
-    void set_breakers_on(bool on) { system.io_mock.get_parameters().mcb_is_closed.write(on); }
+    void set_start_command(bool start) { system.grid_io_mock.get_parameters().start_command.write(start); }
 
-    void set_start_command(bool start) { system.io_mock.get_parameters().start_command.write(start); }
-
-    void set_stop_command(bool stop) { system.io_mock.get_parameters().stop_command.write(stop); }
+    void set_stop_command(bool stop) { system.grid_io_mock.get_parameters().stop_command.write(stop); }
 
     // Execute startup sequence to reach OPERATION_ON state
     // NOTE: start_command must remain true to stay in OPERATION_ON state
+    // Uses turn_on_command to trigger IO mock → auxiliaries → breakers flow
     void execute_startup_sequence()
     {
-        set_auxiliaries_on(true);
-        set_breakers_on(true);
+        set_turn_on_command(true);
+        simulate_for(0.3);  // Allow IO mock to process auxiliaries and breakers with delays
         set_start_command(true);
         simulate_for(0.1);
         // Keep start_command=true - state machine requires it to stay in OPERATION_ON
