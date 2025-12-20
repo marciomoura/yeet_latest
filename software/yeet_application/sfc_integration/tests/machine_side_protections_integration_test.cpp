@@ -13,12 +13,65 @@ namespace {
 
 class MachineSideProtectionsIntegrationTest : public ::testing::Test {
 protected:
+    struct mock_storage {
+        current_pu_t dc_link_current_pu;
+        voltage_pu_t machine_voltage_magnitude_pu;
+        frequency_t machine_frequency;
+        frequency_pu_t machine_frequency_pu;
+        speed_pu_t machine_speed;
+        bool release_protections;
+        bool trip_acknowledged;
+        bool startup_active;
+        bool closed_loop_active;
+
+        bool auxiliaries_are_on;
+        bool mcb_is_closed;
+        bool start_command;
+        bool stop_command;
+        bool shutdown_request;
+        bool breaker_is_tripping;
+        bool emergency_off;
+        bool door_is_open;
+        bool protection_inhibited;
+        bool machine_side_shutdown_request;
+        bool any_protection_fault_active;
+        bool is_current_extinguished;
+    };
+
+    static inline mock_storage _storage{};
+
     void SetUp() override
     {
         simulator.configure_sampler_sampling_rate(yeet::ms(10.0f));
 
         machine_protections.initialize();
         state_machine.initialize();
+
+        // Connect mock storage
+        auto& mp_in = machine_protections.get_inputs();
+        yeet::mock_signal_input::connect(mp_in.dc_link_current_pu, _storage.dc_link_current_pu);
+        yeet::mock_signal_input::connect(mp_in.machine_voltage_magnitude_pu, _storage.machine_voltage_magnitude_pu);
+        yeet::mock_signal_input::connect(mp_in.machine_frequency, _storage.machine_frequency);
+        yeet::mock_signal_input::connect(mp_in.machine_frequency_pu, _storage.machine_frequency_pu);
+        yeet::mock_signal_input::connect(mp_in.machine_speed, _storage.machine_speed);
+        yeet::mock_signal_input::connect(mp_in.release_protections, _storage.release_protections);
+        yeet::mock_signal_input::connect(mp_in.trip_acknowledged, _storage.trip_acknowledged);
+        yeet::mock_signal_input::connect(mp_in.startup_active, _storage.startup_active);
+        yeet::mock_signal_input::connect(mp_in.closed_loop_active, _storage.closed_loop_active);
+
+        auto& sm_in = state_machine.get_inputs();
+        yeet::mock_signal_input::connect(sm_in.auxiliaries_are_on, _storage.auxiliaries_are_on);
+        yeet::mock_signal_input::connect(sm_in.mcb_is_closed, _storage.mcb_is_closed);
+        yeet::mock_signal_input::connect(sm_in.start_command, _storage.start_command);
+        yeet::mock_signal_input::connect(sm_in.stop_command, _storage.stop_command);
+        yeet::mock_signal_input::connect(sm_in.shutdown_request, _storage.shutdown_request);
+        yeet::mock_signal_input::connect(sm_in.breaker_is_tripping, _storage.breaker_is_tripping);
+        yeet::mock_signal_input::connect(sm_in.emergency_off, _storage.emergency_off);
+        yeet::mock_signal_input::connect(sm_in.door_is_open, _storage.door_is_open);
+        yeet::mock_signal_input::connect(sm_in.protection_inhibited, _storage.protection_inhibited);
+        yeet::mock_signal_input::connect(sm_in.machine_side_shutdown_request, _storage.machine_side_shutdown_request);
+        yeet::mock_signal_input::connect(sm_in.any_protection_fault_active, _storage.any_protection_fault_active);
+        yeet::mock_signal_input::connect(sm_in.is_current_extinguished, _storage.is_current_extinguished);
 
         // Ensure all machine-side protections inputs have connected storage before the first run.
         yeet::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{0.0f});

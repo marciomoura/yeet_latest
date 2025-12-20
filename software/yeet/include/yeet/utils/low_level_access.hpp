@@ -25,7 +25,7 @@ public:
     {
         const storage_type<T> typed_storage = _storage.get_storage_with_type<T>();
 
-        const std::shared_ptr<T> internal_storage = typed_storage.get_internal_storage();
+        T* internal_storage = typed_storage.get_internal_storage();
 
         _read_as_float_function = [internal_storage]() { return static_cast<float>(*internal_storage); };
     }
@@ -57,7 +57,7 @@ public:
             return {};
         }
 
-        const std::shared_ptr<T> internal_storage = typed_storage.get_internal_storage();
+        T* internal_storage = typed_storage.get_internal_storage();
         if (!internal_storage) {
             return {};
         }
@@ -83,7 +83,7 @@ public:
             return;
         }
 
-        std::shared_ptr<T> internal_storage = typed_storage.get_internal_storage();
+        T* internal_storage = typed_storage.get_internal_storage();
         if (!internal_storage) {
             return;
         }

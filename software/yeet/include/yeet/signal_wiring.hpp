@@ -27,17 +27,17 @@ private:
 template <typename InputsStruct, typename T>
 class pending_mock {
 public:
-    pending_mock(InputsStruct& inputs, T value) : _inputs(inputs), _value(value) {}
+    pending_mock(InputsStruct& inputs, T& storage) : _inputs(inputs), _storage(storage) {}
 
     input_wiring_builder<InputsStruct> to(signal_input<T> InputsStruct::* input_ptr)
     {
-        mock_signal_input::write(_inputs.*input_ptr, _value);
+        mock_signal_input::connect(_inputs.*input_ptr, _storage);
         return input_wiring_builder<InputsStruct>(_inputs);
     }
 
 private:
     InputsStruct& _inputs;
-    T _value;
+    T& _storage;
 };
 
 template <typename InputsStruct>
@@ -52,9 +52,9 @@ public:
     }
 
     template <typename T>
-    pending_mock<InputsStruct, T> mocked(T value)
+    pending_mock<InputsStruct, T> mocked(T& storage)
     {
-        return pending_mock<InputsStruct, T>(_inputs, value);
+        return pending_mock<InputsStruct, T>(_inputs, storage);
     }
 
 private:

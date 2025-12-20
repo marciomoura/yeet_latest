@@ -16,7 +16,7 @@ template <typename T>
 class signal_output {
 public:
     signal_output() = default;
-    signal_output(T value) : _value(std::make_shared<T>(value)) {}
+    signal_output(T value) : _data(value) {}
     ~signal_output() = default;
 
     low_level_access get_low_level_access() { return low_level_access(_value); }
@@ -39,7 +39,8 @@ protected:
 private:
     friend class signals_connector;
 
-    storage_type<T> _value{std::make_shared<T>()};
+    T _data{};
+    storage_type<T> _value{&_data};
 };
 
 class mock_signal_input;
@@ -77,18 +78,14 @@ public:
     template <typename T>
     static void write(signal_input<T>& input, T const& value)
     {
-        mock_signal_input(input, value);
+        assert(!input.empty() && "Mock storage must be connected before writing");
+        input.write(value);
     }
 
-protected:
-    // Mocking for easy simulation access
     template <typename T>
-    mock_signal_input(signal_input<T>& signal, T const& value)
+    static void connect(signal_input<T>& input, T& storage)
     {
-        if (signal.empty()) {
-            signal.connect(storage_type<T>(std::make_shared<T>()));
-        }
-        signal.write(value);
+        input.connect(storage_type<T>(&storage));
     }
 };
 

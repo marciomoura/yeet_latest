@@ -6,10 +6,47 @@ namespace yeet::application::sfc::integration {
 
 class SfcStateMachineRunnerTest : public ::testing::Test {
 protected:
+    struct mock_storage {
+        bool auxiliaries_are_on;
+        bool mcb_is_closed;
+        bool start_command;
+        bool stop_command;
+        bool shutdown_request;
+        bool is_current_extinguished;
+        bool protection_inhibited;
+        bool any_protection_fault_active;
+        bool breaker_is_tripping;
+        bool emergency_off;
+        bool door_is_open;
+        bool machine_side_shutdown_request;
+        bool machine_side_protection_inhibited;
+        bool machine_side_protection_tripped;
+    };
+
+    static inline mock_storage _storage{};
+
     void SetUp() override
     {
         // Initialize the runner (base_application automatically initializes _inputs, _outputs, _parameters)
         _runner = std::make_unique<sfc_state_machine_runner>();
+
+        // Connect mock storage
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::connect(inputs.auxiliaries_are_on, _storage.auxiliaries_are_on);
+        mock_signal_input::connect(inputs.mcb_is_closed, _storage.mcb_is_closed);
+        mock_signal_input::connect(inputs.start_command, _storage.start_command);
+        mock_signal_input::connect(inputs.stop_command, _storage.stop_command);
+        mock_signal_input::connect(inputs.shutdown_request, _storage.shutdown_request);
+        mock_signal_input::connect(inputs.is_current_extinguished, _storage.is_current_extinguished);
+        mock_signal_input::connect(inputs.protection_inhibited, _storage.protection_inhibited);
+        mock_signal_input::connect(inputs.any_protection_fault_active, _storage.any_protection_fault_active);
+        mock_signal_input::connect(inputs.breaker_is_tripping, _storage.breaker_is_tripping);
+        mock_signal_input::connect(inputs.emergency_off, _storage.emergency_off);
+        mock_signal_input::connect(inputs.door_is_open, _storage.door_is_open);
+        mock_signal_input::connect(inputs.machine_side_shutdown_request, _storage.machine_side_shutdown_request);
+        mock_signal_input::connect(
+            inputs.machine_side_protection_inhibited, _storage.machine_side_protection_inhibited);
+        mock_signal_input::connect(inputs.machine_side_protection_tripped, _storage.machine_side_protection_tripped);
 
         // Reset all input signals to false
         reset_all_inputs();

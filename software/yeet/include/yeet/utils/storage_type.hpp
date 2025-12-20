@@ -19,8 +19,8 @@ class storage_type {
 public:
     static_assert(!std::is_void_v<T>, "T must not be void");
 
-    storage_type() : _value{} {}
-    storage_type(std::shared_ptr<T> value) : _value(value) {}
+    storage_type() : _value{nullptr} {}
+    storage_type(T* value) : _value(value) {}
     ~storage_type() = default;
 
     operator T() const
@@ -50,12 +50,6 @@ public:
         return *_value = value;
     }
 
-    T& operator=(T&& value)
-    {
-        assert(_value != nullptr);
-        return *_value = std::move(value);
-    }
-
     void connect(storage_type<T> storage)
     {
         _value = storage.get_internal_storage();
@@ -72,27 +66,20 @@ public:
     bool empty() const { return _value == nullptr; }
 
     // Type safety checks in the get_internal_storage method to ensure that the type being retrieved is compatible with
-    // the stored type. This can be done using std::dynamic_pointer_cast for polymorphic types or
-    // std::static_pointer_cast for non-polymorphic types.
+    // the stored type.
     template <typename U = T>
-    std::shared_ptr<U> get_internal_storage() const
+    U* get_internal_storage() const
     {
-        // static_assert(!std::is_void_v<U>, "U must not be void");
-        // static_assert(std::is_copy_constructible_v<U>, "U must be copy constructible");
-        // static_assert(std::is_base_of_v<T, U> || std::is_base_of_v<U, T>, "U must be a base or derived class of T");
-        // static_assert(std::is_same_v<T, U> || std::is_polymorphic_v<T> || std::is_polymorphic_v<U>,
-        //               "T and U must be the same type or polymorphic types");
         if constexpr (std::is_same_v<T, U>) {
             return _value;
         }
         else {
-            static_assert(std::is_default_constructible_v<U>, "U must be default constructible");
-            return std::static_pointer_cast<U>(_value);
+            return static_cast<U*>(static_cast<void*>(_value));
         }
     }
 
 private:
-    std::shared_ptr<T> _value;
+    T* _value;
 };
 
 class storage_type_erased {
@@ -103,14 +90,10 @@ public:
     storage_type_erased(storage_type<T> storage)
     {
         static_assert(!std::is_void_v<T>, "T must not be void");
-        static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
-        static_assert(std::is_copy_constructible_v<T>, "T must be copy constructible");
 
         assert(!storage.empty() && "Storage must not be empty");
 
-        std::shared_ptr<void> _value_casted_as_void =
-            std::static_pointer_cast<void>(storage.template get_internal_storage<T>());
-        _value = _value_casted_as_void;
+        _value = static_cast<void*>(storage.template get_internal_storage<T>());
 
         assert(_value != nullptr && "Failed to cast storage to void");
     }
@@ -124,11 +107,11 @@ public:
             return storage_type<T>();
         }
 
-        return storage_type<T>(std::static_pointer_cast<T>(_value));
+        return storage_type<T>(static_cast<T*>(_value));
     }
 
 private:
-    std::shared_ptr<void> _value{};
+    void* _value{nullptr};
 };
 
 #endif  // YEET_UTILS_STORAGE_TYPE_HPP

@@ -55,30 +55,35 @@ public:
 
     void mock_inputs()
     {
+        static bool true_storage = true;
+        static bool false_storage = false;
+        static angle_wrapped zero_angle_storage{0.0};
+        static frequency_pu_t zero_freq_storage{0.0};
+
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
         // Mock machine-side observer signals (no startup sequencer in this builder)
         yeet::wire(machine_side_observer)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_machine_side_observer_datamodel::inputs::release_observer)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_observer)
-            .mocked(angle_wrapped{0.0})
+            .mocked(zero_angle_storage)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_angle)
-            .mocked(frequency_pu_t{0.0})
+            .mocked(zero_freq_storage)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_frequency);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 

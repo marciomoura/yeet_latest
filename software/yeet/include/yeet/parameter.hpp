@@ -15,7 +15,7 @@ template <typename T>
 class parameter {
 public:
     parameter() = default;
-    parameter(T value) : _value(std::make_shared<T>(value)) {}
+    parameter(T value) : _data(value) {}
     ~parameter() = default;
 
     low_level_access get_low_level_access() { return low_level_access(_value); }
@@ -56,7 +56,8 @@ public:
 private:
     std::function<void(void)> _callback{};
 
-    storage_type<T> _value{std::make_shared<T>()};
+    T _data{};
+    storage_type<T> _value{&_data};
 };
 
 class parameter_registry {

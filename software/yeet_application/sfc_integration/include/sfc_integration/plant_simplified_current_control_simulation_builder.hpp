@@ -51,19 +51,22 @@ public:
 
     void mock_inputs()
     {
+        static bool false_storage = false;
+        static bool true_storage = true;
+
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 

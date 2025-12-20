@@ -68,12 +68,15 @@ public:
 
     void mock_inputs()
     {
+        static bool grid_release_storage = true;
+        static bool machine_release_storage = true;
+
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(grid_release_storage)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(machine_release_storage)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 

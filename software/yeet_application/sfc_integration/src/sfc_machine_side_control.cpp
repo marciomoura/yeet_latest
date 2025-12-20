@@ -277,10 +277,11 @@ void sfc_machine_side_control::connect_internal_signals()
 
     // Mock speed_generator outputs during startup sequencer coordination
     // These will be reconnected when speed_generator is reintegrated
+    static bool false_storage = false;
     wire(torque_controller)
-        .mocked(false)
+        .mocked(false_storage)
         .to(&torque_ctrl_inputs::enable_breakaway_boost)
-        .mocked(false)
+        .mocked(false_storage)
         .to(&torque_ctrl_inputs::is_saturated);
 }
 

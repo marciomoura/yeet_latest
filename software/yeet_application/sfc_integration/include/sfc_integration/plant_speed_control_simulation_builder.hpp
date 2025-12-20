@@ -54,38 +54,43 @@ public:
 
     void mock_inputs()
     {
+        static bool false_storage = false;
+        static bool true_storage = true;
+        static auto control_mode_storage = sfc::sfc_torque_controller::control_mode::SPEED_CONTROL;
+        static torque_pu_t zero_torque_storage{0.0f};
+
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
         yeet::wire(speed_controller)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_speed_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_speed_controller_datamodel::inputs::preset_request);
 
         // Torque controller mocks (no speed_generator or startup_sequencer in this builder)
         yeet::wire(torque_controller)
-            .mocked(false)
+            .mocked(false_storage)
             .to(&sfc_torque_controller_datamodel::inputs::enable_breakaway_boost)
-            .mocked(sfc::sfc_torque_controller::control_mode::SPEED_CONTROL)
+            .mocked(control_mode_storage)
             .to(&sfc_torque_controller_datamodel::inputs::control_mode)
-            .mocked(torque_pu_t{0.0f})
+            .mocked(zero_torque_storage)
             .to(&sfc_torque_controller_datamodel::inputs::manual_torque_reference);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
 
         // Excitation command (no startup_sequencer in this builder)
         yeet::wire(excitation_controller)
-            .mocked(true)
+            .mocked(true_storage)
             .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
     }
     void initialize()
