@@ -26,14 +26,17 @@ public:
 
     void reset() noexcept;
 
-    void update(current_pu_t dc_link_current_pu,
-        voltage_pu_t grid_voltage_magnitude_pu,
-        bool door_is_open,
-        bool module_enabled,
-        bool release_protections,
-        bool communication_valid,
-        bool trip_acknowledged,
-        bool confirm_alarms) noexcept;
+    void resolve_protections(bool door_is_open, bool module_enabled, bool confirm_alarms) noexcept;
+
+    // -------------------- Individual Protection Updates --------------------
+
+    void update_overcurrent_protection(current_pu_t dc_link_current_pu) noexcept;
+
+    void update_overvoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept;
+
+    void update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept;
+
+    void update_communication_watchdog(bool communication_valid) noexcept;
 
     // -------------------- Configuration (severity routing) --------------------
 

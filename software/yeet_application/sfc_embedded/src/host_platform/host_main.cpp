@@ -65,12 +65,16 @@
 namespace {
 // Global flag for graceful shutdown on Ctrl+C
 std::atomic<bool> shutdown_requested(false);
+// Global flag for verbose logging (used in signal handler)
+std::atomic<bool> global_verbose(false);
 
 // Signal handler for Ctrl+C
 void signal_handler(int signal)
 {
     if (signal == SIGINT) {
-        std::cout << "\n[MAIN] Shutdown requested (Ctrl+C)" << std::endl;
+        if (global_verbose.load()) {
+            std::cout << "\n[MAIN] Shutdown requested (Ctrl+C)" << std::endl;
+        }
         shutdown_requested.store(true);
     }
 }
@@ -114,7 +118,9 @@ config parse_args(int argc, char* argv[])
             std::exit(0);
         }
         else {
-            std::cerr << "[ERROR] Unknown argument: " << argv[i] << std::endl;
+            if (cfg.verbose) {
+                std::cerr << "[ERROR] Unknown argument: " << argv[i] << std::endl;
+            }
             std::exit(1);
         }
     }
@@ -157,7 +163,11 @@ void handle_grid_telemetry(
         grid_network(&network_infra, &network_inputs, &network_outputs);
 
         if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+            if (!telemetry_server.send_data(
+                    network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length)) {
+                // Queue overflow - force sync frame on next successful packet to help client recover
+                network_infra.network_handler.force_resync();
+            }
         }
     }
 
@@ -174,7 +184,11 @@ void handle_grid_telemetry(
         grid_network(&network_infra, &network_inputs, &network_outputs);
 
         if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+            if (!telemetry_server.send_data(
+                    network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length)) {
+                // Queue overflow - force sync frame on next successful packet
+                network_infra.network_handler.force_resync();
+            }
         }
     }
 }
@@ -214,7 +228,11 @@ void handle_machine_telemetry(
         machine_network(&network_infra, &network_inputs, &network_outputs);
 
         if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+            if (!telemetry_server.send_data(
+                    network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length)) {
+                // Queue overflow - force sync frame on next successful packet
+                network_infra.network_handler.force_resync();
+            }
         }
     }
 
@@ -231,7 +249,11 @@ void handle_machine_telemetry(
         machine_network(&network_infra, &network_inputs, &network_outputs);
 
         if (network_outputs.network_tx.transmit_request && network_outputs.network_tx.tx_length > 0) {
-            telemetry_server.send_data(network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length);
+            if (!telemetry_server.send_data(
+                    network_outputs.network_tx.tx_buffer, network_outputs.network_tx.tx_length)) {
+                // Queue overflow - force sync frame on next successful packet
+                network_infra.network_handler.force_resync();
+            }
         }
     }
 }
@@ -245,28 +267,35 @@ int main(int argc, char* argv[])
 
     // Parse command line
     config cfg = parse_args(argc, argv);
+    global_verbose.store(cfg.verbose);
 
-    std::cout << "======================================" << std::endl;
-    std::cout << "  SFC Dual-Controller with Plant Model" << std::endl;
-    std::cout << "======================================" << std::endl;
-    std::cout << "Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
-    std::cout << "Machine telemetry: localhost:" << cfg.machine_port << std::endl;
-    std::cout << "Control frequency: " << cfg.frequency_hz << " Hz" << std::endl;
-    std::cout << "Telemetry rate:    20000 Hz (50 µs)" << std::endl;
-    std::cout << "Real-time pacing:  OFF (as fast as possible)" << std::endl;
-    std::cout << "Verbose logging:   " << (cfg.verbose ? "ON" : "OFF") << std::endl;
-    std::cout << "Plant model:       Complete 6p-6p topology" << std::endl;
-    std::cout << "======================================" << std::endl;
+    if (cfg.verbose) {
+        std::cout << "======================================" << std::endl;
+        std::cout << "  SFC Dual-Controller with Plant Model" << std::endl;
+        std::cout << "======================================" << std::endl;
+        std::cout << "Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
+        std::cout << "Machine telemetry: localhost:" << cfg.machine_port << std::endl;
+        std::cout << "Control frequency: " << cfg.frequency_hz << " Hz" << std::endl;
+        std::cout << "Telemetry rate:    20000 Hz (50 µs)" << std::endl;
+        std::cout << "Real-time pacing:  OFF (as fast as possible)" << std::endl;
+        std::cout << "Verbose logging:   " << (cfg.verbose ? "ON" : "OFF") << std::endl;
+        std::cout << "Plant model:       Complete 6p-6p topology" << std::endl;
+        std::cout << "======================================" << std::endl;
+    }
 
     // Install signal handler for graceful shutdown
     std::signal(SIGINT, signal_handler);
 
     // Initialize plant and control systems first
-    std::cout << "[INIT] Initializing plant model and control systems..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Initializing plant model and control systems..." << std::endl;
+    }
     plant_complete_sfc_closed_loop_simulation_builder simulator_builder;
 
     // Use unified simulator architecture for real-time tick-based execution
-    std::cout << "[INIT] Creating unified simulator for real-time execution..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Creating unified simulator for real-time execution..." << std::endl;
+    }
     yeet::simulator simulator;
 
     // Register all applications with the simulator
@@ -278,57 +307,91 @@ int main(int argc, char* argv[])
     initialize_mock_signal_inputs(simulator_builder);
 
     // Initialize the system (SAME as test fixture SetUp())
-    std::cout << "[INIT] Initializing control system..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Initializing control system..." << std::endl;
+    }
     simulator_builder.initialize();
 
-    std::cout << "[INIT] Initializing timing loop..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Initializing timing loop..." << std::endl;
+    }
     host_timing_loop control_loop(cfg.frequency_hz);
 
-    std::cout << "[INIT] Initializing embedded task interface (for telemetry system)..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Initializing embedded task interface (for telemetry system)..." << std::endl;
+    }
     // Initialize using the plant builder's control instances instead of the static instances
     // grid_embedded_init(&simulator_builder.grid_side_control);
     // machine_embedded_init(&simulator_builder.machine_side_control);
 
     // Create network infrastructure for telemetry (tied to the plant builder's control instances)
-    std::cout << "[INIT] Creating network telemetry infrastructure..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Creating network telemetry infrastructure..." << std::endl;
+    }
     grid_side_network_infrastructure grid_network_infra(simulator_builder.grid_side_control);
     machine_side_network_infrastructure machine_network_infra(simulator_builder.machine_side_control);
 
+    grid_network_infra.parameter_handler.set_verbose(cfg.verbose);
+    grid_network_infra.network_handler.set_verbose(cfg.verbose);
+    grid_network_infra.telemetry_manager.set_verbose(cfg.verbose);
+
+    machine_network_infra.parameter_handler.set_verbose(cfg.verbose);
+    machine_network_infra.network_handler.set_verbose(cfg.verbose);
+    machine_network_infra.telemetry_manager.set_verbose(cfg.verbose);
+
     // Register plant model parameters in machine-side registry (for host application only)
-    std::cout << "[INIT] Registering plant model parameters in machine-side registry..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Registering plant model parameters in machine-side registry..." << std::endl;
+    }
     simulator_builder.machine_side_control.register_plant_datamodel(
         machine_network_infra.registry, simulator_builder.plant);
     machine_network_infra.parameter_handler.rebuild_parameter_cache();
 
     // ==================== TCP Server Initialization ====================
-    std::cout << "[INIT] Starting TCP servers for telemetry..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Starting TCP servers for telemetry..." << std::endl;
+    }
     host_tcp_server grid_telemetry_server;
+    grid_telemetry_server.set_verbose(cfg.verbose);
     if (!grid_telemetry_server.initialize(cfg.grid_port, "0.0.0.0")) {
-        std::cerr << "[ERROR] Failed to initialize grid TCP server on port " << cfg.grid_port << std::endl;
+        if (cfg.verbose) {
+            std::cerr << "[ERROR] Failed to initialize grid TCP server on port " << cfg.grid_port << std::endl;
+        }
         return 1;
     }
-    std::cout << "[INIT] Grid TCP server listening on port " << cfg.grid_port << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Grid TCP server listening on port " << cfg.grid_port << std::endl;
+    }
 
     host_tcp_server machine_telemetry_server;
+    machine_telemetry_server.set_verbose(cfg.verbose);
     if (!machine_telemetry_server.initialize(cfg.machine_port, "0.0.0.0")) {
-        std::cerr << "[ERROR] Failed to initialize machine TCP server on port " << cfg.machine_port << std::endl;
+        if (cfg.verbose) {
+            std::cerr << "[ERROR] Failed to initialize machine TCP server on port " << cfg.machine_port << std::endl;
+        }
         return 1;
     }
-    std::cout << "[INIT] Machine TCP server listening on port " << cfg.machine_port << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Machine TCP server listening on port " << cfg.machine_port << std::endl;
+    }
 
-    std::cout << "\n======================================" << std::endl;
-    std::cout << "  TCP Servers Ready - You can connect monitors now" << std::endl;
-    std::cout << "======================================" << std::endl;
-    std::cout << "Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
-    std::cout << "Machine telemetry: localhost:" << cfg.machine_port << std::endl;
-    std::cout << "\nWaiting 3 seconds for monitor connections..." << std::endl;
-    std::cout << "======================================\n" << std::endl;
+    if (cfg.verbose) {
+        std::cout << "\n======================================" << std::endl;
+        std::cout << "  TCP Servers Ready - You can connect monitors now" << std::endl;
+        std::cout << "======================================" << std::endl;
+        std::cout << "Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
+        std::cout << "Machine telemetry: localhost:" << cfg.machine_port << std::endl;
+        std::cout << "\nWaiting 3 seconds for monitor connections..." << std::endl;
+        std::cout << "======================================\n" << std::endl;
 
-    // Give time for monitors to connect
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+        // Give time for monitors to connect
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
 
     // ==================== Telemetry Lambda Runner (50µs = 20 kHz) ====================
-    std::cout << "[INIT] Registering telemetry lambda runner (20 kHz / 50 µs)..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Registering telemetry lambda runner (20 kHz / 50 µs)..." << std::endl;
+    }
     constexpr double telemetry_period = 50e-6;  // 50 microseconds
     simulator.register_lambda_runner(telemetry_period, [&]() {
         // TCP server processing
@@ -343,31 +406,35 @@ int main(int argc, char* argv[])
     });
 
     // ==================== Prepare System for Startup (wait for user start command) ====================
-    std::cout << "[INIT] Preparing system for startup (waiting for start command)..." << std::endl;
-    std::cout << "[CONFIG] Configuration:" << std::endl;
-    std::cout << "         - Initial speed: 0.01 pu (near standstill)" << std::endl;
-    std::cout << "         - Virtual frequency: 0 → 0.1 pu in 10s" << std::endl;
-    std::cout << "         - Virtual torque: 0 → 0.3 pu in 1s" << std::endl;
-    std::cout << "         - Speed rate limit: 20 s/pu (0.05 pu/s)" << std::endl;
-    std::cout << "         - Pre-fluxing: 1.0s" << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] Preparing system for startup (waiting for start command)..." << std::endl;
+        std::cout << "[CONFIG] Configuration:" << std::endl;
+        std::cout << "         - Initial speed: 0.01 pu (near standstill)" << std::endl;
+        std::cout << "         - Virtual frequency: 0 → 0.1 pu in 10s" << std::endl;
+        std::cout << "         - Virtual torque: 0 → 0.3 pu in 1s" << std::endl;
+        std::cout << "         - Speed rate limit: 20 s/pu (0.05 pu/s)" << std::endl;
+        std::cout << "         - Pre-fluxing: 1.0s" << std::endl;
+    }
 
     // Use the shared preparation procedure (configures plant and control, but does NOT start)
     auto startup_config = yeet::application::sfc::integration::create_default_startup_config();
     yeet::application::sfc::integration::prepare_for_startup(simulator_builder, simulator, startup_config);
 
-    std::cout << "[INIT] System prepared - auxiliaries ON, MCB closed" << std::endl;
-    std::cout << "[INIT] State machine: OPERATION_OFF (waiting for start command)" << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[INIT] System prepared - auxiliaries ON, MCB closed" << std::endl;
+        std::cout << "[INIT] State machine: OPERATION_OFF (waiting for start command)" << std::endl;
 
-    // ==================== START REAL-TIME CONTROL LOOP ====================
-    std::cout << "\n======================================" << std::endl;
-    std::cout << "  Initialization Complete - Waiting for Start Command" << std::endl;
-    std::cout << "======================================" << std::endl;
-    std::cout << "[READY] Control loop running at " << cfg.frequency_hz << " Hz" << std::endl;
-    std::cout << "[READY] Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
-    std::cout << "[READY] Machine telemetry: localhost:" << cfg.machine_port << std::endl;
-    std::cout << "[READY] Send 'start_command = true' via telemetry to begin" << std::endl;
-    std::cout << "[READY] Press Ctrl+C to stop" << std::endl;
-    std::cout << "======================================" << std::endl;
+        // ==================== START REAL-TIME CONTROL LOOP ====================
+        std::cout << "\n======================================" << std::endl;
+        std::cout << "  Initialization Complete - Waiting for Start Command" << std::endl;
+        std::cout << "======================================" << std::endl;
+        std::cout << "[READY] Control loop running at " << cfg.frequency_hz << " Hz" << std::endl;
+        std::cout << "[READY] Grid telemetry:    localhost:" << cfg.grid_port << std::endl;
+        std::cout << "[READY] Machine telemetry: localhost:" << cfg.machine_port << std::endl;
+        std::cout << "[READY] Send 'start_command = true' via telemetry to begin" << std::endl;
+        std::cout << "[READY] Press Ctrl+C to stop" << std::endl;
+        std::cout << "======================================" << std::endl;
+    }
 
     // Start control loop AFTER initialization
     control_loop.start();
@@ -417,8 +484,8 @@ int main(int argc, char* argv[])
                       << (machine_telemetry_server.is_client_connected() ? "CONNECTED" : "disconnected")
                       << " (queue: " << machine_queue << " bytes)" << std::endl;
 
-            if (grid_telemetry_server.get_queue_overflow_count() > 0 ||
-                machine_telemetry_server.get_queue_overflow_count() > 0) {
+            if (cfg.verbose && (grid_telemetry_server.get_queue_overflow_count() > 0 ||
+                                   machine_telemetry_server.get_queue_overflow_count() > 0)) {
                 std::cout << "[WARNING] Queue overflows - Grid: " << grid_telemetry_server.get_queue_overflow_count()
                           << " | Machine: " << machine_telemetry_server.get_queue_overflow_count() << std::endl;
             }
@@ -426,29 +493,37 @@ int main(int argc, char* argv[])
     }
 
     // Shutdown
-    std::cout << "\n[SHUTDOWN] Stopping control loop..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "\n[SHUTDOWN] Stopping control loop..." << std::endl;
+    }
     control_loop.stop();
 
-    std::cout << "[SHUTDOWN] Closing grid TCP server..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[SHUTDOWN] Closing grid TCP server..." << std::endl;
+    }
     grid_telemetry_server.shutdown();
 
-    std::cout << "[SHUTDOWN] Closing machine TCP server..." << std::endl;
+    if (cfg.verbose) {
+        std::cout << "[SHUTDOWN] Closing machine TCP server..." << std::endl;
+    }
     machine_telemetry_server.shutdown();
 
     // Print final statistics
-    timing_statistics final_stats = control_loop.get_statistics();
-    std::cout << "\n======================================" << std::endl;
-    std::cout << "  Final Statistics" << std::endl;
-    std::cout << "======================================" << std::endl;
-    std::cout << "Total cycles:      " << final_stats.total_cycles << std::endl;
-    std::cout << "Average cycle:     " << final_stats.average_cycle_time_ms << " ms" << std::endl;
-    std::cout << "Max cycle:         " << final_stats.max_cycle_time_ms << " ms" << std::endl;
-    std::cout << "Min cycle:         " << final_stats.min_cycle_time_ms << " ms" << std::endl;
-    std::cout << "Overrun count:     " << final_stats.overrun_count << std::endl;
-    std::cout << "Total runtime:     " << control_loop.get_elapsed_time_ms() / 1000.0f << " s" << std::endl;
-    std::cout << "======================================" << std::endl;
+    if (cfg.verbose) {
+        timing_statistics final_stats = control_loop.get_statistics();
+        std::cout << "\n======================================" << std::endl;
+        std::cout << "  Final Statistics" << std::endl;
+        std::cout << "======================================" << std::endl;
+        std::cout << "Total cycles:      " << final_stats.total_cycles << std::endl;
+        std::cout << "Average cycle:     " << final_stats.average_cycle_time_ms << " ms" << std::endl;
+        std::cout << "Max cycle:         " << final_stats.max_cycle_time_ms << " ms" << std::endl;
+        std::cout << "Min cycle:         " << final_stats.min_cycle_time_ms << " ms" << std::endl;
+        std::cout << "Overrun count:     " << final_stats.overrun_count << std::endl;
+        std::cout << "Total runtime:     " << control_loop.get_elapsed_time_ms() / 1000.0f << " s" << std::endl;
+        std::cout << "======================================" << std::endl;
 
-    std::cout << "[SHUTDOWN] Complete" << std::endl;
+        std::cout << "[SHUTDOWN] Complete" << std::endl;
+    }
 
     return 0;
 }

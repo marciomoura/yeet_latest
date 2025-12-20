@@ -14,7 +14,8 @@
 // Mocks
 #include "sfc_grid_side_hardware_mock_runner.hpp"
 #include "sfc_integration/plant_hardware_definition.hpp"  // hardware scaling parameter staging
-#include "sfc_integration/sfc_io_mock_runner.hpp"
+#include "sfc_integration/sfc_grid_io_mock_runner.hpp"
+#include "sfc_integration/sfc_machine_io_mock_runner.hpp"
 #include "sfc_machine_side_hardware_mock_runner.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -47,7 +48,8 @@ public:
           plant{_per_unit_system},
           grid_side_hardware_mock{duration_t{10e-6}},
           machine_side_hardware_mock{duration_t{10e-6}},
-          io_mock{grid_side_control.get_external_ios()}
+          grid_io_mock{},
+          machine_io_mock{}
     {
         *grid_side_control.per_unit_system = *_per_unit_system;
         *machine_side_control.per_unit_system = *_per_unit_system;
@@ -73,19 +75,6 @@ public:
 
         // Connect all signal flows between control classes and plant
         connect_all_components();
-        mock_inputs();
-    }
-
-    void mock_inputs()
-    {
-        // Configure machine-side excitation control via datamodel overrides
-        machine_side_control.external_ios.get_parameters().override_excitation_outputs.write(true);
-        machine_side_control.external_ios.get_parameters().excitation_start_command.write(true);
-        machine_side_control.external_ios.get_parameters().excitation_stop_command.write(false);
-
-        // Note: Grid-side external I/O digital inputs are initialized with safe defaults
-        // in sfc_grid_side_external_ios_datamodel constructor. This ensures signal storage
-        // is allocated before the wire() DSL connects them to state machine inputs.
     }
 
     void initialize()
@@ -94,7 +83,8 @@ public:
         plant.initialize();
         grid_side_hardware_mock.initialize();
         machine_side_hardware_mock.initialize();
-        io_mock.initialize();
+        grid_io_mock.initialize();
+        machine_io_mock.initialize();
         grid_side_control.initialize();
         machine_side_control.initialize();
     }
@@ -184,17 +174,58 @@ public:
         // 1ms sampling (1 kHz): Current controller, machine controller, operation mode monitor, fiber-optic exchange
         // High-speed inner control loop: Regulates DC link current (grid-side) and machine current (machine-side)
         simulation.register_lambda_runner(1e-3, [&]() {
-            // ========== I/O MOCK UPDATE ==========
-            // Push digital input values to external_ios via set_digital_inputs()
-            // This simulates the supervisory controller sending commands to the SFC
-            io_mock.run();
-
             // ========== GRID-SIDE CONTROL UPDATE ==========
             // Grid-side current controller:
             //   Input: Measured grid current, current reference (from higher-level speed control)
             //   Calculates: Firing angle to regulate DC link current
             //   Output: Firing pulses for grid-side thyristor bridge
             grid_side_control.update_1ms();
+
+            // ========== GRID-SIDE -> GRID IO MOCKS ==========
+            // We should write to the grid IO mocks.
+            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_1_on_command,
+                grid_side_control.get_external_ios().get_on_command_acu_fan_1());
+            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_2_on_command,
+                grid_side_control.get_external_ios().get_on_command_acu_fan_2());
+            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_3_on_command,
+                grid_side_control.get_external_ios().get_on_command_acu_fan_3());
+            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_4_on_command,
+                grid_side_control.get_external_ios().get_on_command_acu_fan_4());
+            mock_signal_input::write<bool>(grid_io_mock.get_inputs().auxiliaries_on_command,
+                grid_side_control.get_external_ios().get_auxiliaries_on_command());
+            mock_signal_input::write<bool>(grid_io_mock.get_inputs().mv_breaker_close,
+                grid_side_control.get_external_ios().get_mv_breaker_close());
+            mock_signal_input::write<bool>(
+                grid_io_mock.get_inputs().mv_breaker_open, grid_side_control.get_external_ios().get_mv_breaker_open());
+
+            // ========== MACHINE-SIDE -> MACHINE IO MOCKS ==========
+            // We should write to the machine IO mocks.
+            mock_signal_input::write<bool>(machine_io_mock.get_inputs().excitation_on_command,
+                machine_side_control.external_ios.get_excitation_on_command());
+            mock_signal_input::write<bool>(machine_io_mock.get_inputs().excitation_off_command,
+                machine_side_control.external_ios.get_excitation_off_command());
+
+            // ========== I/O MOCK UPDATE ==========
+            // Bidirectional IO mocks model physical hardware:
+            //   - Read commands from state machine outputs (via signal connections)
+            //   - Model hardware delays (breakers, contactors, excitation)
+            //   - Write status back to external_ios (DI setters)
+            // Note: Must run AFTER control updates so state machine outputs are available
+            grid_io_mock.run();     // Grid-side hardware simulator
+            machine_io_mock.run();  // Machine-side hardware simulator
+
+            // ========== TRANSFER IO MOCK OUTPUTS TO EXTERNAL_IOS ==========
+            // Grid IO mock outputs hardware status which must flow to external_ios digital inputs
+            // This enables the state machine to see hardware feedback (breaker closed, auxiliaries on, etc.)
+            grid_side_control.external_ios.set_digital_inputs(grid_io_mock.get_outputs().auxiliaries_are_on.read(),
+                grid_io_mock.get_outputs().mv_breaker_is_closed.read(), grid_io_mock.get_outputs().start_command.read(),
+                grid_io_mock.get_outputs().stop_command.read(),
+                grid_io_mock.get_outputs().mv_breaker_is_tripping.read(),
+                grid_io_mock.get_outputs().emergency_off.read(), grid_io_mock.get_outputs().door_is_open.read(),
+                grid_io_mock.get_outputs().external_fault.read(), grid_io_mock.get_outputs().fans_are_running.read());
+
+            machine_side_control.external_ios.set_digital_inputs(machine_io_mock.get_outputs().excitation_status.read(),
+                machine_io_mock.get_outputs().external_fault.read());
 
             // ========== FIBER-OPTIC CROSS-LINK: GRID → MACHINE ==========
             // Grid sends its state to machine-side for synchronization
@@ -288,19 +319,12 @@ public:
     sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;
     sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;
 
-    // I/O mock (simulates supervisory controller sending digital inputs)
-    sfc_io_mock_runner io_mock;
+    // I/O mocks (simulate external hardware behavior)
+    sfc_grid_io_mock_runner grid_io_mock;        // Grid-side IO hardware simulator
+    sfc_machine_io_mock_runner machine_io_mock;  // Machine-side IO hardware simulator
 
     // Plant model
     sfc_plant_model_runner plant;
-
-    // External control signals for state machine
-    signal_output<bool> auxiliaries_are_on;
-    signal_output<bool> mcb_is_closed;
-    signal_output<bool> start_command;
-    signal_output<bool> stop_command;
-    signal_output<bool> shutdown_request;
-    signal_output<bool> is_current_extinguished;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -370,9 +394,24 @@ private:
             machine_side_control.get_excitation_controller().get_outputs().field_current_reference,
             plant.get_inputs().field_current_reference);
 
-        // ==================== External Disturbances → Plant ====================
-        // Note: Load torque is now configured via plant.get_parameters().constant_torque parameter
-        // instead of a signal connection. This allows runtime configuration via telemetry interface.
+        // // ==================== External Disturbances → Plant ====================
+        // // Note: Load torque is now configured via plant.get_parameters().constant_torque parameter
+        // // instead of a signal connection. This allows runtime configuration via telemetry interface.
+
+        // // ==================== Grid IO Mock ↔ Control System ====================
+        // // Connect state machine command outputs to grid_io_mock inputs
+        // // State machine issues commands, grid_io_mock models hardware delays and feedback
+        // signals_connector::connect_output_to_input(
+        //     grid_side_control.state_machine.get_outputs().mv_breaker_close,
+        //     grid_io_mock.get_inputs().mv_breaker_close);
+        // signals_connector::connect_output_to_input(
+        //     grid_side_control.state_machine.get_outputs().mv_breaker_open,
+        //     grid_io_mock.get_inputs().mv_breaker_open);
+        // signals_connector::connect_output_to_input(grid_side_control.state_machine.get_outputs().auxiliaries_on_command,
+        //     grid_io_mock.get_inputs().auxiliaries_on_command);
+
+        // Note: Fan commands (acu_fan_1..4_on_command) are not connected since fan status
+        // is not critical for state machine operation. They can be connected later if needed.
     }
 };
 

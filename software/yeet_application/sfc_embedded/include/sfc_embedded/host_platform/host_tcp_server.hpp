@@ -92,6 +92,13 @@ public:
     bool is_client_connected() const noexcept { return client_socket_ >= 0; }
 
     /**
+     * @brief Set verbose logging mode
+     *
+     * @param verbose true to enable verbose logging, false to disable
+     */
+    void set_verbose(bool verbose) noexcept { verbose_ = verbose; }
+
+    /**
      * @brief Process network events (accept connections, detect disconnects)
      *
      * Should be called periodically from main loop. Handles:
@@ -192,16 +199,20 @@ private:
     std::size_t try_send_immediate(const std::uint8_t* data, std::size_t len);
 
 private:
-    int server_socket_;   ///< Server socket descriptor (-1 if not initialized)
-    int client_socket_;   ///< Client socket descriptor (-1 if not connected)
-    std::uint16_t port_;  ///< Server port number
-    std::string host_;    ///< Server bind address
+    int server_socket_;     ///< Server socket descriptor (-1 if not initialized)
+    int client_socket_;     ///< Client socket descriptor (-1 if not connected)
+    std::uint16_t port_;    ///< Server port number
+    std::string host_;      ///< Server bind address
+    bool verbose_ = false;  ///< Verbose logging mode
 
     // Send queue for non-blocking operation
-    static constexpr std::size_t MAX_QUEUE_SIZE = 1024 * 1024;  ///< 1 MB max queue
-    std::deque<std::uint8_t> send_queue_;                       ///< Pending data to send
-    mutable std::mutex queue_mutex_;                            ///< Protects send queue
-    std::uint32_t queue_overflow_count_;                        ///< Number of queue overflows
+    static constexpr std::size_t MAX_QUEUE_SIZE = 10 * 1024 * 1024;  ///< 10 MB max queue
+    std::deque<std::uint8_t> send_queue_;                            ///< Pending data to send
+    mutable std::mutex queue_mutex_;                                 ///< Protects send queue
+    std::uint32_t queue_overflow_count_;                             ///< Number of queue overflows
+
+    // Pre-allocated buffer for flushing queue to avoid heap churn
+    std::vector<std::uint8_t> flush_buffer_;
 };
 
 }  // namespace yeet::application::sfc::host

@@ -33,9 +33,6 @@ public:
         /// Release signal for protections (typically from state machine/supervisor)
         signal_input<bool> release_protections;
 
-        /// Trip acknowledged by state machine (allows clearing of latched trip)
-        signal_input<bool> trip_acknowledged;
-
         /// Enclosure door is open (treated as a trip condition) [bool]
         signal_input<bool> door_is_open;
     };

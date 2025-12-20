@@ -13,6 +13,9 @@ enum class sfc_trip_clear_policy {
 
     /// Clear latched trip only when acknowledged AND the fault condition is no longer active.
     ack_and_fault_clear,
+
+    /// Clear latched trip automatically when the fault condition is no longer active (no acknowledgement required).
+    auto_clear,
 };
 
 /**
@@ -43,11 +46,9 @@ public:
      *
      * @param any_trip_request True if any protection (severity-routed) requests a trip.
      * @param any_fault_condition_active True if the underlying fault condition is still active.
-     * @param trip_acknowledged Acknowledge from state machine/supervisor.
      * @param confirm_alarms Operator/supervisor confirmation input (rising edge clears inhibit).
      */
-    void update(
-        bool any_trip_request, bool any_fault_condition_active, bool trip_acknowledged, bool confirm_alarms) noexcept;
+    void update(bool any_trip_request, bool any_fault_condition_active, bool confirm_alarms) noexcept;
 
     /**
      * @brief Latched trip output.

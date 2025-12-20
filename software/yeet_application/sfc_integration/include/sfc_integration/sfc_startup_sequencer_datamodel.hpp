@@ -153,6 +153,11 @@ public:
 
         /// Enable automatic start/stop based on state machine state
         parameter<bool> auto_start_stop_enabled = true;
+
+        /// Force virtual reference mode operation (for commissioning with short-circuited machine side)
+        /// When enabled, the sequencer always uses VIRTUAL reference frame regardless of state.
+        /// This is useful during commissioning when the inverter side is short-circuited.
+        parameter<bool> force_virtual_mode_operation = false;
     };
 
 private:
@@ -204,6 +209,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_observer_settling_time));
         entry.parameters.insert(
             "auto_start_stop_enabled", yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
+        entry.parameters.insert("force_virtual_mode_operation",
+            yeet::utils::make_bool_accessor(_model_parameters->force_virtual_mode_operation));
 
         registry.insert("startup_sequencer", std::move(entry));
     }

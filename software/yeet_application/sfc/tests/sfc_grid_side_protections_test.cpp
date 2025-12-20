@@ -4,7 +4,7 @@
 
 namespace yeet::application::sfc {
 
-TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsWithAckThenConfirm)
+TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsAutomatically)
 {
     constexpr duration_t ts{200e-6};
     sfc_grid_side_protections protections(ts);
@@ -18,25 +18,37 @@ TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsWithAckThenConfirm)
     protections.reset();
 
     // Trip on door open
-    protections.update(current_pu_t{0.0f}, voltage_pu_t{1.0f}, true, true, true, true, false, false);
+    protections.update_communication_watchdog(true);
+    protections.update_overcurrent_protection(current_pu_t{0.0f});
+    protections.update_overvoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.resolve_protections(true, true, false);
 
     EXPECT_TRUE(protections.get_door_open_tripped());
     EXPECT_TRUE(protections.get_is_tripped());
     EXPECT_TRUE(protections.get_is_inhibited());
 
-    // Close door + acknowledge clears trip (grid-side policy = ack_only)
-    protections.update(current_pu_t{0.0f}, voltage_pu_t{1.0f}, false, true, true, true, true, false);
+    // Close door - trip clears automatically with auto_clear policy
+    protections.update_communication_watchdog(true);
+    protections.update_overcurrent_protection(current_pu_t{0.0f});
+    protections.update_overvoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.resolve_protections(false, true, false);
 
     EXPECT_FALSE(protections.get_is_tripped());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Confirm rising edge clears inhibit
-    protections.update(current_pu_t{0.0f}, voltage_pu_t{1.0f}, false, true, true, true, false, true);
+    protections.update_communication_watchdog(true);
+    protections.update_overcurrent_protection(current_pu_t{0.0f});
+    protections.update_overvoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.resolve_protections(false, true, true);
 
     EXPECT_FALSE(protections.get_is_inhibited());
 }
 
-TEST(SfcGridSideProtectionsTest, CommunicationWatchdogRunsEvenWhenReleaseIsFalse)
+TEST(SfcGridSideProtectionsTest, CommunicationWatchdogRunsWhenModuleEnabled)
 {
     constexpr duration_t ts{200e-6};
     sfc_grid_side_protections protections(ts);
@@ -47,8 +59,12 @@ TEST(SfcGridSideProtectionsTest, CommunicationWatchdogRunsEvenWhenReleaseIsFalse
 
     protections.reset();
 
-    // Module enabled but release_protections is false -> watchdog should still run and trip.
-    protections.update(current_pu_t{0.0f}, voltage_pu_t{1.0f}, false, true, false, false, false, false);
+    // Module enabled - watchdog should run and trip on communication loss
+    protections.update_communication_watchdog(false);
+    protections.update_overcurrent_protection(current_pu_t{0.0f});
+    protections.update_overvoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.resolve_protections(false, true, false);
 
     EXPECT_TRUE(protections.get_communication_loss_tripped());
     EXPECT_TRUE(protections.get_is_tripped());
@@ -63,7 +79,11 @@ TEST(SfcGridSideProtectionsTest, AlarmSeverityDoesNotTripAggregate)
 
     protections.reset();
 
-    protections.update(current_pu_t{0.0f}, voltage_pu_t{1.0f}, true, true, true, true, false, false);
+    protections.update_communication_watchdog(true);
+    protections.update_overcurrent_protection(current_pu_t{0.0f});
+    protections.update_overvoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.resolve_protections(true, true, false);
 
     EXPECT_FALSE(protections.get_is_tripped());
     EXPECT_FALSE(protections.get_is_inhibited());

@@ -48,6 +48,8 @@ void sfc_machine_side_protections_runner::reset()
     _outputs.communication_loss_tripped = false;
     _outputs.communication_loss_alarmed = false;
     _outputs.communication_loss_warning = false;
+    _outputs.loss_of_excitation_tripped = false;
+    _outputs.loss_of_excitation_alarmed = false;
 }
 
 void sfc_machine_side_protections_runner::run()
@@ -63,10 +65,19 @@ void sfc_machine_side_protections_runner::run()
     const bool module_enabled = _parameters.protection_module_enabled;
     const bool release_signal = _inputs.release_protections;
 
-    _protections.update(_inputs.dc_link_current_pu.read(), _inputs.machine_voltage_magnitude_pu.read(),
-        _inputs.machine_frequency_pu.read(), _inputs.machine_speed.read(), _inputs.startup_active.read(),
-        _inputs.closed_loop_active.read(), module_enabled, release_signal, _last_communication_valid,
-        _inputs.trip_acknowledged.read(), _parameters.confirm_alarms.read());
+    if (module_enabled) {
+        _protections.update_communication_watchdog(_last_communication_valid);
+        _protections.update_vhz_protection(_inputs.machine_voltage_magnitude_pu.read(),
+            _inputs.machine_frequency_pu.read(), _inputs.closed_loop_active.read());
+        _protections.update_stall_protection(
+            _inputs.dc_link_current_pu.read(), _inputs.machine_speed.read(), _inputs.startup_active.read());
+        _protections.update_overspeed_protection(_inputs.machine_speed.read(), _inputs.closed_loop_active.read());
+        _protections.update_machine_overvoltage_protection(_inputs.machine_voltage_magnitude_pu.read());
+        _protections.update_loss_of_excitation_protection(
+            _inputs.excitation_is_on.read(), _inputs.startup_active.read(), _inputs.closed_loop_active.read());
+    }
+
+    _protections.resolve_protections(module_enabled, _parameters.confirm_alarms.read());
 
     _outputs.is_tripped = _protections.get_is_tripped();
     _outputs.is_inhibited = _protections.get_is_inhibited();
@@ -90,6 +101,9 @@ void sfc_machine_side_protections_runner::run()
     _outputs.communication_loss_tripped = _protections.get_communication_loss_tripped();
     _outputs.communication_loss_alarmed = _protections.get_communication_loss_alarmed();
     _outputs.communication_loss_warning = _protections.get_communication_loss_warning();
+
+    _outputs.loss_of_excitation_tripped = _protections.get_loss_of_excitation_tripped();
+    _outputs.loss_of_excitation_alarmed = _protections.get_loss_of_excitation_alarmed();
 }
 
 void sfc_machine_side_protections_runner::stop() { reset(); }
@@ -129,6 +143,9 @@ void sfc_machine_side_protections_runner::set_parameters()
     _protections.configure_machine_overvoltage_trip_threshold(_parameters.machine_overvoltage_trip_threshold.read());
     _protections.configure_machine_overvoltage_trip_delay(_parameters.machine_overvoltage_trip_delay.read());
 
+    // Loss of excitation protection configuration
+    _protections.configure_loss_of_excitation_trip_delay(_parameters.loss_of_excitation_trip_delay.read());
+
     // Severity routing configuration
     _protections.configure_over_flux_is_trip(_parameters.over_flux_severity == protection_severity::trip);
     _protections.configure_under_flux_is_trip(_parameters.under_flux_severity == protection_severity::trip);
@@ -138,6 +155,8 @@ void sfc_machine_side_protections_runner::set_parameters()
         _parameters.machine_overvoltage_severity == protection_severity::trip);
     _protections.configure_communication_loss_is_trip(
         _parameters.communication_loss_severity == protection_severity::trip);
+    _protections.configure_loss_of_excitation_is_trip(
+        _parameters.loss_of_excitation_severity == protection_severity::trip);
 }
 
 void sfc_machine_side_protections_runner::set_parameter_callback()
@@ -168,6 +187,9 @@ void sfc_machine_side_protections_runner::set_parameter_callback()
     _parameters.machine_overvoltage_trip_threshold.register_callback([&]() { set_parameters(); });
     _parameters.machine_overvoltage_trip_delay.register_callback([&]() { set_parameters(); });
 
+    // Register callbacks for loss of excitation parameters
+    _parameters.loss_of_excitation_trip_delay.register_callback([&]() { set_parameters(); });
+
     // Register callbacks for severity parameters
     _parameters.over_flux_severity.register_callback([&]() { set_parameters(); });
     _parameters.under_flux_severity.register_callback([&]() { set_parameters(); });
@@ -175,6 +197,7 @@ void sfc_machine_side_protections_runner::set_parameter_callback()
     _parameters.overspeed_severity.register_callback([&]() { set_parameters(); });
     _parameters.machine_overvoltage_severity.register_callback([&]() { set_parameters(); });
     _parameters.communication_loss_severity.register_callback([&]() { set_parameters(); });
+    _parameters.loss_of_excitation_severity.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

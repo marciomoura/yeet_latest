@@ -26,17 +26,25 @@ public:
 
     void reset() noexcept;
 
-    void update(current_pu_t dc_link_current_pu,
-        voltage_pu_t machine_voltage_magnitude_pu,
+    void resolve_protections(bool module_enabled, bool confirm_alarms) noexcept;
+
+    // -------------------- Individual Protection Updates --------------------
+
+    void update_vhz_protection(voltage_pu_t machine_voltage_magnitude_pu,
         frequency_pu_t machine_frequency_pu,
-        speed_pu_t machine_speed_pu,
-        bool startup_active,
-        bool closed_loop_active,
-        bool module_enabled,
-        bool release_protections,
-        bool communication_valid,
-        bool trip_acknowledged,
-        bool confirm_alarms) noexcept;
+        bool closed_loop_active) noexcept;
+
+    void update_stall_protection(
+        current_pu_t dc_link_current_pu, speed_pu_t machine_speed_pu, bool startup_active) noexcept;
+
+    void update_overspeed_protection(speed_pu_t machine_speed_pu, bool closed_loop_active) noexcept;
+
+    void update_machine_overvoltage_protection(voltage_pu_t machine_voltage_magnitude_pu) noexcept;
+
+    void update_loss_of_excitation_protection(
+        bool excitation_is_on, bool startup_active, bool closed_loop_active) noexcept;
+
+    void update_communication_watchdog(bool communication_valid) noexcept;
 
     // -------------------- Configuration (severity routing) --------------------
 
@@ -46,6 +54,7 @@ public:
     void configure_overspeed_is_trip(bool is_trip) noexcept;
     void configure_machine_overvoltage_is_trip(bool is_trip) noexcept;
     void configure_communication_loss_is_trip(bool is_trip) noexcept;
+    void configure_loss_of_excitation_is_trip(bool is_trip) noexcept;
 
     // -------------------- Configuration (per-protection parameters) --------------------
 
@@ -78,6 +87,9 @@ public:
     void configure_machine_overvoltage_trip_threshold(voltage_pu_t threshold) noexcept;
     void configure_machine_overvoltage_trip_delay(duration_t delay) noexcept;
 
+    // Loss of excitation protection
+    void configure_loss_of_excitation_trip_delay(duration_t delay) noexcept;
+
     // -------------------- Outputs --------------------
 
     bool get_is_tripped() const noexcept;
@@ -101,6 +113,9 @@ public:
     bool get_communication_loss_tripped() const noexcept;
     bool get_communication_loss_alarmed() const noexcept;
 
+    bool get_loss_of_excitation_tripped() const noexcept;
+    bool get_loss_of_excitation_alarmed() const noexcept;
+
     bool get_over_flux_warning() const noexcept;
     bool get_under_flux_warning() const noexcept;
     bool get_stall_warning() const noexcept;
@@ -117,6 +132,8 @@ private:
     yeet::control::threshold_protection<speed_pu_t, yeet::control::threshold_direction::above> _overspeed_protection;
     yeet::control::threshold_protection<voltage_pu_t, yeet::control::threshold_direction::above>
         _machine_overvoltage_protection;
+    yeet::control::threshold_protection<real_t, yeet::control::threshold_direction::below>
+        _loss_of_excitation_protection;
 
     sfc_protections_trip_handshake _trip_handshake;
 
@@ -127,6 +144,7 @@ private:
     bool _overspeed_is_trip{true};
     bool _machine_overvoltage_is_trip{true};
     bool _comm_loss_is_trip{true};
+    bool _loss_of_excitation_is_trip{true};
 
     // Cache of thresholds for present-time fault condition detection
     flux_pu_t _over_flux_trip_threshold{flux_pu_t{1.10f}};
@@ -155,6 +173,9 @@ private:
 
     bool _communication_loss_tripped{false};
     bool _communication_loss_alarmed{false};
+
+    bool _loss_of_excitation_tripped{false};
+    bool _loss_of_excitation_alarmed{false};
 
     bool _over_flux_warning{false};
     bool _under_flux_warning{false};

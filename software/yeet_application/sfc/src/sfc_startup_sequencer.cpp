@@ -55,6 +55,11 @@ void sfc_startup_sequencer::configure_flying_restart(const flying_restart_config
     _flying_restart_config = config;
 }
 
+void sfc_startup_sequencer::configure_force_virtual_mode(bool force_virtual)
+{
+    _force_virtual_mode_operation = force_virtual;
+}
+
 bool sfc_startup_sequencer::start_sequence()
 {
     // Can only start from IDLE state
@@ -326,7 +331,7 @@ void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency
     _preset_requested = false;
 
     // Check if duration has elapsed
-    if (has_elapsed) {
+    if (has_elapsed && !_force_virtual_mode_operation) {
         // Virtual flux phase complete - transition to closed-loop
         transition_to_closed_loop_operation(speed_pu_t{_virtual_frequency.value()});
     }
@@ -402,7 +407,8 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
 
     switch (_current_state) {
         case startup_sequencer_state_t::IDLE:
-            _outputs.controller_commands.reference_frame_source = reference_frame_source_t::ESTIMATED;
+            _outputs.controller_commands.reference_frame_source =
+                _force_virtual_mode_operation ? reference_frame_source_t::VIRTUAL : reference_frame_source_t::ESTIMATED;
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::SPEED_CONTROL;
             _outputs.controller_commands.release_machine_side_pulses = false;
             // During observer settling (start requested), enable excitation in parallel so the

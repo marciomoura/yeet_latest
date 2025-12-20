@@ -125,12 +125,19 @@ public:
      */
     [[nodiscard]] constexpr std::uint32_t get_decimation_factor() const noexcept { return _decimation_factor; }
 
+    /**
+     * @brief Set verbose logging
+     * @param verbose True to enable verbose logging
+     */
+    void set_verbose(bool verbose) noexcept { _verbose = verbose; }
+
 private:
     telemetry::telemetry_builder& _builder; /**< Telemetry packet builder interface */
     bool _is_streaming = false;             /**< Streaming active flag */
     std::uint32_t _timestamp_ms = 0;        /**< System timestamp in milliseconds */
     std::uint32_t _decimation_counter = 0;  /**< Counter for rate control */
     std::uint32_t _decimation_factor = 10;  /**< Transmit every Nth call */
+    bool _verbose = false;                  /**< Verbose logging flag */
 
     // Internal buffer for encoded packet (allocated on stack of this object)
     alignas(std::uint32_t) std::uint8_t _packet_buffer[telemetry::max_packet_size];

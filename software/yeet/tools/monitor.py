@@ -13,10 +13,16 @@ Usage:
 
 import sys
 import logging
+import argparse
+
+# Parse args early to check for verbose flag
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('--verbose', action='store_true')
+args, _ = parser.parse_known_args()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG if args.verbose else logging.WARNING,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     datefmt='%H:%M:%S'
 )

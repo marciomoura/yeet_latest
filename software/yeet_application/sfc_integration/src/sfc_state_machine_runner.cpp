@@ -20,20 +20,20 @@ void sfc_state_machine_runner::initialize()
 
 void sfc_state_machine_runner::run()
 {
-    // First, populate signal outputs with combined input + override logic
-    // These signal outputs provide visibility into what values are actually being used
+    // First, update input echo outputs so state machine events see current values
+    // These are read by the state machine event lambdas during update()
     _outputs.auxiliaries_are_on = _parameters.auxiliaries_are_on_override.read()
                                       ? _parameters.auxiliaries_are_on_override_value.read()
                                       : _inputs.auxiliaries_are_on.read();
 
-    _outputs.mcb_is_closed = _parameters.mcb_is_closed_override.read() ? _parameters.mcb_is_closed_override_value.read()
-                                                                       : _inputs.mcb_is_closed.read();
+    _outputs.mv_breaker_is_closed = _parameters.mv_breaker_is_closed_override.read()
+                                        ? _parameters.mv_breaker_is_closed_override_value.read()
+                                        : _inputs.mv_breaker_is_closed.read();
 
-    _outputs.start_command = _parameters.start_command_override.read() ? _parameters.start_command_override_value.read()
-                                                                       : _inputs.start_command.read();
-
-    _outputs.stop_command = _parameters.stop_command_override.read() ? _parameters.stop_command_override_value.read()
-                                                                     : _inputs.stop_command.read();
+    // Echo start/stop commands from inputs (which come from external_ios, sourced from grid_io_mock)
+    // Parameters can override for direct testing without IO mock
+    _outputs.start_command = _parameters.start_command.read() || _inputs.start_command.read();
+    _outputs.stop_command = _parameters.stop_command.read() || _inputs.stop_command.read();
 
     _outputs.shutdown_request = _parameters.shutdown_request_override.read()
                                     ? _parameters.shutdown_request_override_value.read()
@@ -46,45 +46,26 @@ void sfc_state_machine_runner::run()
     // Execute state machine update with pre-configured event lambdas
     _sfc_state_machine.update(_state_machine_inputs);
 
-    // Map state machine outputs to runner outputs (inlined)
-    const sfc::sfc_state_outputs state_outputs = _sfc_state_machine.get_outputs();
+    // Get state machine outputs and apply safety interlocks
+    sfc::sfc_state_outputs state_outputs = _sfc_state_machine.get_outputs();
+    sfc::sfc_state_machine::apply_safety_interlocks(state_outputs, _state_machine_inputs);
     const sfc::sfc_state_id current_state = _sfc_state_machine.get_current_state();
 
-    // Primary output signals
+    // Map state machine outputs directly to runner outputs
     _outputs.release_pulses = state_outputs.pulse_releases;
     _outputs.current_state_id = current_state;
     _outputs.has_transitioned = _sfc_state_machine.has_transitioned();
     _outputs.preset_request = state_outputs.freeze_integrator;
     _outputs.request_extinguish_dc_current = state_outputs.request_extinguish_dc_current;
 
-    // Release protections whenever state machine is not in IDLE
-    _outputs.release_protections = (current_state != sfc::sfc_state_id::IDLE);
+    // Physical output commands (already include safety interlocks from state machine)
+    _outputs.auxiliaries_on_command = state_outputs.auxiliaries_on_command;
+    _outputs.mv_breaker_close = state_outputs.mv_breaker_close;
+    _outputs.mv_breaker_open = state_outputs.mv_breaker_open;
 
-    // Trip acknowledgment: signal to protections that the system has reached a safe condition after a trip/shutdown.
-    // This will cause latched trips to clear when combined with external fault-clear signals.
-    _outputs.trip_acknowledged =
-        (current_state != sfc::sfc_state_id::OPERATION_ON) && !_inputs.any_protection_fault_active.read();
-
-    // Main circuit breaker control with safety interlocks
-    // MCB close: Only when state machine requests it AND door is NOT open AND emergency_off is NOT active
-    _outputs.mcb_close = state_outputs.mcb_close && !_inputs.door_is_open.read() && !_inputs.emergency_off.read() &&
-                         !_outputs.shutdown_request;
-
-    // MCB open: When state machine requests it OR emergency_off is active (safety override)
-    const bool protection_inhibit_active =
-        _inputs.protection_inhibited.read() || _inputs.machine_side_protection_inhibited.read();
-    const bool protection_trip_active = protection_inhibit_active || _inputs.machine_side_protection_tripped.read();
-
-    // Force MCB open on any trip/inhibit condition.
-    _outputs.mcb_open =
-        state_outputs.mcb_open || _inputs.emergency_off.read() || protection_trip_active || _outputs.shutdown_request;
-
-    // Auxiliaries command: default ON, but must go OFF on any trip or safety shutdown request.
-    // In real hardware this would typically be an enabling command for auxiliary supplies.
-    _outputs.auxiliaries_on_command =
-        !(protection_trip_active || _inputs.emergency_off.read() || _inputs.breaker_is_tripping.read() ||
-            _inputs.door_is_open.read() || _outputs.shutdown_request ||
-            current_state == sfc::sfc_state_id::SHUTDOWN_REQUESTED);
+    // Protection coordination - separate grid and machine side release signals
+    _outputs.release_grid_protections = state_outputs.release_grid_protections;
+    _outputs.release_machine_protections = state_outputs.release_machine_protections;
 }
 
 void sfc_state_machine_runner::stop()

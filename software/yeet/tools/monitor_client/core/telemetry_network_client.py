@@ -12,7 +12,7 @@ Architecture:
 
 Example Usage:
     def on_packet_received(packet):
-        print(f"Voltage: {packet.measurements.grid_voltage_magnitude_pu}")
+        # print(f"Voltage: {packet.measurements.grid_voltage_magnitude_pu}")
     
     client = TelemetryNetworkClient('192.168.2.100', 7000)
     client.set_packet_callback(on_packet_received)
@@ -96,7 +96,7 @@ class TelemetryNetworkClient:
         Example:
             def on_packet(packet):
                 if packet.measurements:
-                    print(f"DC Current: {packet.measurements.dc_link_current_pu:.3f} pu")
+                    # print(f"DC Current: {packet.measurements.dc_link_current_pu:.3f} pu")
             
             client.set_packet_callback(on_packet)
         """
@@ -364,9 +364,9 @@ class TelemetryNetworkClient:
             
         Example:
             stats = client.get_statistics()
-            print(f"Received: {stats['packets_received']}")
-            print(f"Lost: {stats['packets_lost']}")
-            print(f"Loss rate: {stats['loss_rate_percent']:.2f}%")
+            # print(f"Received: {stats['packets_received']}")
+            # print(f"Lost: {stats['packets_lost']}")
+            # print(f"Loss rate: {stats['loss_rate_percent']:.2f}%")
         """
         with self._stats_lock:
             total = self._packets_received + self._packets_lost

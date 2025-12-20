@@ -7,85 +7,14 @@
 #include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/machine_side_network_telemetry_builder.hpp"
+#include "sfc_embedded/task_io_helpers.hpp"
 #include "sfc_integration/sfc_machine_side_control.hpp"
 #include "yeet/network_handler.hpp"
 #include "yeet/network_telemetry_manager.hpp"
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 
-namespace {
-
-inline bool is_valid_di_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_DIGITAL_INPUTS; }
-
-inline bool is_valid_do_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_DIGITAL_OUTPUTS; }
-
-inline bool is_valid_ao_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_ANALOG_OUTPUTS; }
-
-inline bool read_di(const task_inputs_t* inputs, int idx) noexcept
-{
-    if (inputs == nullptr || !inputs->digital_inputs.valid) {
-        return false;
-    }
-    if (!is_valid_di_index(idx)) {
-        return false;
-    }
-    return inputs->digital_inputs.signals[idx];
-}
-
-inline void clear_digital_outputs(task_outputs_t* outputs) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    for (auto& s : outputs->digital_outputs.signals) {
-        s = false;
-    }
-}
-
-inline void write_do(task_outputs_t* outputs, int idx, bool value) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    if (!is_valid_do_index(idx)) {
-        return;
-    }
-    outputs->digital_outputs.signals[idx] = value;
-}
-
-inline void clear_analog_outputs(task_outputs_t* outputs) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    for (auto& c : outputs->analog_outputs.channels) {
-        c = 0.0f;
-    }
-    outputs->analog_outputs.valid = false;
-}
-
-inline void write_ao(task_outputs_t* outputs, int idx, float value, float gain, float offset) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    if (!is_valid_ao_index(idx)) {
-        return;
-    }
-    // Apply gain and offset: output = gain * value + offset
-    float scaled_value = gain * value + offset;
-    // Clamp to 0-10V DAC range
-    if (scaled_value < 0.0f) {
-        scaled_value = 0.0f;
-    }
-    if (scaled_value > 10.0f) {
-        scaled_value = 10.0f;
-    }
-    outputs->analog_outputs.channels[idx] = scaled_value;
-    outputs->analog_outputs.valid = true;
-}
-
-}  // namespace
+using namespace yeet::embedded::io;
 
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
@@ -203,7 +132,6 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     control->update_200us();
 
     // ==================== ANALOG OUTPUTS (DAC) → EXCITATION COMMANDS ====================
-    clear_analog_outputs(outputs);
 
     const auto& io_params = control->external_ios.get_parameters();
     const float excitation_current_reference =
@@ -243,9 +171,15 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // Map hardware digital inputs to state machine control signals via I/O interface
     const auto& io_params = control->external_ios.get_parameters();
     if (inputs != nullptr && inputs->digital_inputs.valid) {
-        // Excitation feedback/status is selectable via DI mapping; analog excitation feedback is hardwired/optional.
-        const bool excitation_running = read_di(inputs, io_params.di_excitation_running_index.read());
-        control->external_ios.set_excitation_inputs(yeet::current_pu_t{0.0f}, excitation_running);
+        // Read digital inputs from hardware
+        const bool excitation_status = read_di(inputs, io_params.di_excitation_status_index.read());
+        const bool external_fault = read_di(inputs, io_params.di_external_fault_index.read());
+
+        // Set digital inputs in datamodel (applies polarity inversion)
+        control->external_ios.set_digital_inputs(excitation_status, external_fault);
+
+        // Set analog excitation feedback (optional)
+        control->external_ios.set_excitation_inputs(yeet::current_pu_t{0.0f});
     }
 
     // Process fiber-optic RX data from grid-side controller
@@ -281,14 +215,12 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
 
     // ==================== DIGITAL OUTPUTS → STATUS / COMMANDS ====================
     // Drive mapped logical outputs onto the physical DO array.
-    clear_digital_outputs(outputs);
-
-    // Fiber link status from RX (direct pass-through)
-    write_do(outputs, io_params.do_fiber_link_ok_index.read(), inputs->fiber_optic_rx.link_ok);
 
     // Excitation command outputs from control system to external excitation hardware
     write_do(
-        outputs, io_params.do_excitation_release_index.read(), control->external_ios.get_excitation_release_command());
+        outputs, io_params.do_excitation_on_command_index.read(), control->external_ios.get_excitation_on_command());
+    write_do(
+        outputs, io_params.do_excitation_off_command_index.read(), control->external_ios.get_excitation_off_command());
 
     // Excitation current reference output (analog output - would typically use analog_outputs)
     // For now, we'll map it to a digital output as a placeholder

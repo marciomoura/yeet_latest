@@ -30,7 +30,7 @@ from typing import Callable, Optional, List
 
 from PyQt5 import QtCore
 
-from .telemetry_protocol import GridSideTelemetryPacket, MachineSideTelemetryPacket, TelemetryDecoder
+from .telemetry_protocol import GridSideTelemetryPacket, MachineSideTelemetryPacket, TelemetryDecoder, PROTOCOL_VERSION
 from .parameter_protocol import (
     ParameterMetadata,
     ParameterValue,
@@ -68,13 +68,14 @@ class UnifiedNetworkClient(QtCore.QObject):
     connected_changed = QtCore.pyqtSignal(bool)
     error_occurred = QtCore.pyqtSignal(str)
     
-    def __init__(self, host: str = '192.168.2.100', port: int = 7000, verbose: bool = False, parent=None):
+    def __init__(self, host: str = '192.168.2.100', port: int = 7000, verbose: bool = False, debug_log: Optional[str] = None, parent=None):
         """Initialize unified network client.
         
         Args:
             host: Controller IP address
             port: Controller TCP port
             verbose: Enable verbose logging
+            debug_log: Path to telemetry debug log file (enables detailed packet decoding logs)
             parent: Qt parent object
         """
         super().__init__(parent)
@@ -88,7 +89,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         
         # Protocol handlers
         # Enable CRC checking for telemetry - server now appends CRC32 to all packets
-        self._telemetry_decoder = TelemetryDecoder(require_crc=True)  # Enforce CRC validation
+        self._telemetry_decoder = TelemetryDecoder(require_crc=True, debug_log=debug_log)  # Enforce CRC validation
         self._param_encoder = ParameterProtocolEncoder()
         self._param_decoder = ParameterProtocolDecoder()
         
@@ -106,7 +107,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         
         # Track consecutive empty polls to detect stalled connections
         self._empty_poll_count = 0
-        self._max_empty_polls = 5000  # If 5000 polls (5s at 1ms rate) get no data while streaming, socket may be stalled
+        self._max_empty_polls = 10000  # If 10000 polls (10s at 1ms rate) get no data while streaming, socket may be stalled
         
         # Resilience tracking
         self._consecutive_errors = 0
@@ -115,7 +116,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._packet_timeout_ms = 10000  # 10 seconds without packets = timeout
         self._packet_timeout_enabled = True  # Can be disabled during parameter loading
         self._telemetry_streaming = False  # Track if telemetry should be streaming
-        self._recv_buffer_max_size = 500000  # 500KB max buffer (handle high-rate bursts)
+        self._recv_buffer_max_size = 5 * 1024 * 1024  # 5MB max buffer (handle high-rate bursts)
         
         # Qt timer for polling socket
         self._poll_timer = QtCore.QTimer(self)
@@ -394,59 +395,66 @@ class UnifiedNetworkClient(QtCore.QObject):
             logger.debug(f"Network polling active: {self._poll_count} polls, {self._packets_received} packets received")
         
         try:
-            # Read available data (non-blocking)
-            data = self._socket.recv(4096)
+            # Read available data (non-blocking) in a loop to drain OS buffer
+            # Use larger chunk size for high-speed telemetry
+            while True:
+                try:
+                    data = self._socket.recv(65536)
+                    
+                    if not data:
+                        # Connection closed by remote
+                        if self._empty_poll_count == 0: # Only log once
+                            logger.warning("Connection closed by controller")
+                            self._handle_connection_error("Connection closed by remote")
+                        return
+                    
+                    # Successfully received data - reset empty poll counter
+                    self._empty_poll_count = 0
+                    
+                    # Log data reception
+                    if self.verbose:
+                        logger.debug(f"Received {len(data)} bytes from socket (buffer now {len(self._recv_buffer) + len(data)} bytes)")
+                    
+                    # Check buffer overflow
+                    if len(self._recv_buffer) + len(data) > self._recv_buffer_max_size:
+                        logger.error(f"Receive buffer overflow ({len(self._recv_buffer)} + {len(data)} > {self._recv_buffer_max_size}), clearing buffer")
+                        self._recv_buffer.clear()
+                        self._consecutive_errors += 1
+                        return
+                    
+                    # Append to receive buffer
+                    self._recv_buffer.extend(data)
+                    
+                    # Update last packet time
+                    self._last_packet_time = QtCore.QDateTime.currentMSecsSinceEpoch()
+                    
+                    # Reset error counter on successful receive
+                    self._consecutive_errors = 0
+                    
+                except BlockingIOError:
+                    # No more data available for now
+                    break
+                except (ConnectionResetError, ConnectionAbortedError) as e:
+                    logger.error(f"Connection error: {e}")
+                    self._handle_connection_error(str(e))
+                    return
             
-            if not data:
-                # Connection closed by remote
-                logger.warning("Connection closed by controller")
-                self._handle_connection_error("Connection closed by remote")
-                return
-            
-            # Successfully received data - reset empty poll counter
-            self._empty_poll_count = 0
-            
-            # Log data reception
-            if self.verbose:
-                logger.debug(f"Received {len(data)} bytes from socket (buffer now {len(self._recv_buffer) + len(data)} bytes)")
-            
-            # Check buffer overflow
-            if len(self._recv_buffer) + len(data) > self._recv_buffer_max_size:
-                logger.error(f"Receive buffer overflow ({len(self._recv_buffer)} + {len(data)} > {self._recv_buffer_max_size}), clearing buffer")
-                self._recv_buffer.clear()
-                self._consecutive_errors += 1
-                return
-            
-            # Append to receive buffer
-            self._recv_buffer.extend(data)
-            
-            # Update last packet time
-            self._last_packet_time = QtCore.QDateTime.currentMSecsSinceEpoch()
-            
-            # Reset error counter on successful receive
-            self._consecutive_errors = 0
-            
-            # DON'T process packets here - let deferred timer handle it
-            # This keeps _poll_socket() fast and responsive to incoming data
-            
-        except BlockingIOError:
-            # No data available - normal for non-blocking socket
-            # But if telemetry is streaming and we get too many empty polls in a row,
+            # If telemetry is streaming and we get too many empty polls in a row,
             # the socket may be stalled and need reconnection
-            if self._telemetry_streaming:
+            if self._telemetry_streaming and self._empty_poll_count > self._max_empty_polls:
                 self._empty_poll_count += 1
                 if self._empty_poll_count > self._max_empty_polls:
                     logger.error(f"Socket appears stalled: {self._empty_poll_count} consecutive empty polls while telemetry streaming")
                     self._handle_connection_error("Socket stalled - no data")
-                    return
-            pass
-        except ConnectionResetError as e:
-            logger.error(f"Connection reset by peer: {e}")
-            self._handle_connection_error("Connection reset")
-        except ConnectionAbortedError as e:
-            logger.error(f"Connection aborted: {e}")
-            self._handle_connection_error("Connection aborted")
-        except OSError as e:
+            elif self._telemetry_streaming:
+                self._empty_poll_count += 1
+            
+        except Exception as e:
+            error_msg = f"Socket error during receive: {e}"
+            logger.error(error_msg, exc_info=True)
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= self._max_consecutive_errors:
+                self._handle_connection_error(f"Too many consecutive errors ({self._consecutive_errors})")
             # Socket error (could be EWOULDBLOCK, EAGAIN, or actual error)
             if e.errno not in [10035, 10060]:  # Windows: WSAEWOULDBLOCK, WSAETIMEDOUT
                 logger.error(f"Socket OS error: {e}")
@@ -474,7 +482,7 @@ class UnifiedNetworkClient(QtCore.QObject):
             # With large window sizes (1800+ samples), UI updates are heavy,
             # so we need aggressive packet processing to prevent buffer overflow
             packets_processed = 0
-            max_packets_per_tick = 200  # Aggressively process packets to prevent buffer overflow
+            max_packets_per_tick = 1000  # Aggressively process packets to prevent buffer overflow
             
             while (len(self._recv_buffer) >= 4 and  # Minimum size for sync frame or packet header
                    packets_processed < max_packets_per_tick and
@@ -527,7 +535,17 @@ class UnifiedNetworkClient(QtCore.QObject):
         Returns:
             True if handled (packet discarded or found), False if need more data
         """
-        # Try decoding as telemetry anyway
+        # Truly unknown - search for next valid sync point
+        # First, search for the 0xDEADBEEF sync frame (most reliable)
+        sync_magic = b'\xEF\xBE\xAD\xDE' # 0xDEADBEEF in little-endian
+        magic_pos = self._recv_buffer.find(sync_magic)
+        
+        if magic_pos >= 0:
+            logger.info(f"Found sync magic (0xDEADBEEF) at offset {magic_pos}, discarding {magic_pos} bytes")
+            del self._recv_buffer[:magic_pos]
+            return True
+            
+        # If no magic found, try decoding as telemetry anyway (might be a valid packet with weird type)
         consumed = self._process_telemetry_packet()
         if consumed:
             if self.verbose:
@@ -542,33 +560,38 @@ class UnifiedNetworkClient(QtCore.QObject):
                     logger.debug(f"Packet type 0x{packet_type:02x} was actually valid parameter response")
                 return True
         
-        # Truly unknown - search for next valid sync point (limited search)
-        logger.warning(f"Unknown packet type 0x{packet_type:02x} at buffer start, attempting resync")
+        # Search for next valid packet header (limited search)
+        logger.warning(f"Unknown packet type 0x{packet_type:02x} at buffer start, attempting header search")
         
         found_sync = False
-        for i in range(1, min(100, len(self._recv_buffer))):
+        # Scan up to 2KB for a valid header
+        for i in range(1, min(2048, len(self._recv_buffer))):
             test_byte = self._recv_buffer[i]
             if test_byte in [0x01, 0x02, 0x41, 0x47, 0x49]:
-                if i + 16 <= len(self._recv_buffer):
-                    if test_byte in [0x01, 0x02] and self._recv_buffer[i+1] == 0x01:
+                # Basic validation: check protocol version for telemetry
+                if test_byte in [0x01, 0x02]:
+                    if i + 1 < len(self._recv_buffer) and self._recv_buffer[i+1] == PROTOCOL_VERSION:
                         logger.info(f"Found potential telemetry sync at offset {i}, discarding {i} bytes")
                         del self._recv_buffer[:i]
                         found_sync = True
                         break
-                    elif test_byte in [0x41, 0x47, 0x49]:
-                        logger.info(f"Found potential parameter sync at offset {i}, discarding {i} bytes")
-                        del self._recv_buffer[:i]
-                        found_sync = True
-                        break
+                else:
+                    # Parameter packets don't have a version byte at offset 1 in the same way, 
+                    # but we can still try to sync to them
+                    logger.info(f"Found potential parameter sync at offset {i}, discarding {i} bytes")
+                    del self._recv_buffer[:i]
+                    found_sync = True
+                    break
         
         if not found_sync:
-            logger.error(f"Could not resync, clearing entire buffer ({len(self._recv_buffer)} bytes)")
-            if len(self._recv_buffer) >= 32:
-                hex_data = bytes(self._recv_buffer[:32]).hex()
-                logger.error(f"Buffer start (hex): {hex_data}")
-                logger.error(f"Buffer start (ASCII): {repr(bytes(self._recv_buffer[:32]))}")
-            self._recv_buffer.clear()
-            self._consecutive_errors += 1
+            # If we have a lot of data and still no sync, clear some of it to avoid memory bloat
+            if len(self._recv_buffer) > 4096:
+                logger.error(f"Could not resync in first 2KB, discarding 4KB of buffer ({len(self._recv_buffer)} bytes total)")
+                del self._recv_buffer[:4096]
+                self._consecutive_errors += 1
+            else:
+                # Need more data to find a sync point
+                return False
         
         return True  # Handled (cleared or resynced)
     
@@ -646,10 +669,13 @@ class UnifiedNetworkClient(QtCore.QObject):
         """
         try:
             # Try to decode telemetry packet
-            result = self._telemetry_decoder.decode(bytes(self._recv_buffer))
+            result = self._telemetry_decoder.decode(bytes(self._recv_buffer), verbose=self.verbose)
             
             if result:
                 packet, bytes_consumed = result
+                
+                if self.verbose:
+                    logger.debug(f"Successfully decoded packet: consumed {bytes_consumed} bytes, packet type 0x{packet.header.packet_type:02x}, seq={packet.header.sequence_number}")
                 
                 # Successfully decoded - remove consumed bytes from buffer
                 del self._recv_buffer[:bytes_consumed]
@@ -683,6 +709,8 @@ class UnifiedNetworkClient(QtCore.QObject):
                 return True
             else:
                 # Need more data
+                if self.verbose:
+                    logger.debug(f"Decoder needs more data (buffer has {len(self._recv_buffer)} bytes)")
                 return False
         
         except Exception as e:
@@ -712,7 +740,7 @@ class UnifiedNetworkClient(QtCore.QObject):
             
             # Validate protocol version (byte 1) before attempting decode
             protocol_version = self._recv_buffer[1]
-            if protocol_version != 0x01:
+            if protocol_version != PROTOCOL_VERSION:
                 # This is likely telemetry data being misidentified as a parameter packet
                 # Don't spam warnings - this happens with batched telemetry packets
                 if self.verbose:
@@ -728,8 +756,13 @@ class UnifiedNetworkClient(QtCore.QObject):
                             found_valid = True
                             break
                     # Check for valid telemetry packet type
-                    if self._recv_buffer[i] in [0x01, 0x02]:
+                    if self._recv_buffer[i] in [0x01, 0x02] and i + 1 < len(self._recv_buffer) and self._recv_buffer[i+1] == PROTOCOL_VERSION:
                         del self._recv_buffer[:i]  # Discard up to telemetry packet
+                        found_valid = True
+                        break
+                    # Check for valid parameter packet type
+                    elif self._recv_buffer[i] in [0x41, 0x47, 0x49] and i + 1 < len(self._recv_buffer) and self._recv_buffer[i+1] == PROTOCOL_VERSION:
+                        del self._recv_buffer[:i]  # Discard up to parameter packet
                         found_valid = True
                         break
                 

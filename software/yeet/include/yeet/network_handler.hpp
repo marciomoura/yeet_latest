@@ -55,6 +55,20 @@ public:
      */
     bool is_telemetry_started() const { return telemetry_started_; }
 
+    /**
+     * @brief Set verbose logging
+     * @param verbose True to enable verbose logging
+     */
+    void set_verbose(bool verbose) noexcept { verbose_ = verbose; }
+
+    /**
+     * @brief Force a synchronization frame (0xDEADBEEF) before the next telemetry packet
+     *
+     * Used when network congestion or overflows are detected to help the client
+     * re-synchronize with the byte stream.
+     */
+    void force_resync() noexcept { send_sync_before_next_packet_ = true; }
+
 private:
     /**
      * @brief Process incoming commands (START, STOP)
@@ -114,6 +128,7 @@ private:
     std::uint8_t batch_buffer_[MAX_BATCHED_BYTES];          ///< Buffer for batched packets
     std::size_t batch_count_;                               ///< Number of packets in current batch
     std::size_t batch_bytes_;                               ///< Total bytes in current batch
+    bool verbose_ = false;                                  ///< Verbose logging flag
 };
 
 }  // namespace yeet::telemetry

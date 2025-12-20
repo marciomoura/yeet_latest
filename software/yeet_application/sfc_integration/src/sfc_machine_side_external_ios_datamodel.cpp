@@ -10,17 +10,44 @@ sfc_machine_side_external_ios_datamodel::sfc_machine_side_external_ios_datamodel
 
 void sfc_machine_side_external_ios_datamodel::register_callbacks()
 {
-    auto excitation_outputs_callback = [this]() { apply_excitation_overrides(); };
-    auto excitation_inputs_callback = [this]() { apply_excitation_input_overrides(); };
+    // Digital input callbacks
+    auto excitation_status_callback = [this]() {
+        if (_parameters.di_excitation_status_override.read()) {
+            _digital_inputs.excitation_status.write(_parameters.di_excitation_status_override_value.read());
+        }
+    };
+    _parameters.di_excitation_status_override.register_callback(excitation_status_callback);
+    _parameters.di_excitation_status_override_value.register_callback(excitation_status_callback);
 
-    _parameters.override_excitation_outputs.register_callback(excitation_outputs_callback);
-    _parameters.excitation_start_command.register_callback(excitation_outputs_callback);
-    _parameters.excitation_stop_command.register_callback(excitation_outputs_callback);
-    _parameters.excitation_current_reference.register_callback(excitation_outputs_callback);
+    auto external_fault_callback = [this]() {
+        if (_parameters.di_external_fault_override.read()) {
+            _digital_inputs.external_fault.write(_parameters.di_external_fault_override_value.read());
+        }
+    };
+    _parameters.di_external_fault_override.register_callback(external_fault_callback);
+    _parameters.di_external_fault_override_value.register_callback(external_fault_callback);
 
-    _parameters.override_excitation_inputs.register_callback(excitation_inputs_callback);
-    _parameters.excitation_current_actual.register_callback(excitation_inputs_callback);
-    _parameters.excitation_running.register_callback(excitation_inputs_callback);
+    // Digital output callbacks - no action needed, overrides applied in getters
+    auto digital_output_callback = [this]() { /* Overrides applied in getters */ };
+    _parameters.do_excitation_on_command_override.register_callback(digital_output_callback);
+    _parameters.do_excitation_on_command_override_value.register_callback(digital_output_callback);
+    _parameters.do_excitation_off_command_override.register_callback(digital_output_callback);
+    _parameters.do_excitation_off_command_override_value.register_callback(digital_output_callback);
+
+    // Analog input callbacks
+    auto excitation_current_actual_callback = [this]() {
+        if (_parameters.ai_excitation_current_actual_override.read()) {
+            _excitation_inputs.excitation_current_actual.write(
+                _parameters.ai_excitation_current_actual_override_value.read());
+        }
+    };
+    _parameters.ai_excitation_current_actual_override.register_callback(excitation_current_actual_callback);
+    _parameters.ai_excitation_current_actual_override_value.register_callback(excitation_current_actual_callback);
+
+    // Analog output callbacks - no action needed, overrides applied in getters
+    auto analog_output_callback = [this]() { /* Overrides applied in getters */ };
+    _parameters.ao_excitation_current_reference_override.register_callback(analog_output_callback);
+    _parameters.ao_excitation_current_reference_override_value.register_callback(analog_output_callback);
 }
 
 // ==================== SIMPLIFIED SETTERS (Called from Embedded/Plant) ====================
@@ -30,6 +57,29 @@ void sfc_machine_side_external_ios_datamodel::set_analog_inputs(
 {
     _analog_inputs.v_ab_counts.write(v_ab_counts);
     _analog_inputs.v_bc_counts.write(v_bc_counts);
+}
+
+void sfc_machine_side_external_ios_datamodel::set_digital_inputs(bool excitation_status, bool external_fault)
+{
+    // Lambda to apply polarity inversion
+    auto apply_polarity = [](bool value, io_polarity_t polarity) -> bool {
+        return (polarity == io_polarity_t::ACTIVE_LOW) ? !value : value;
+    };
+
+    // Apply polarity inversion to each digital input
+    const bool excitation_status_inverted =
+        apply_polarity(excitation_status, _parameters.di_excitation_status_polarity.read());
+    const bool external_fault_inverted = apply_polarity(external_fault, _parameters.di_external_fault_polarity.read());
+
+    // Write to digital input signals (overrides will take precedence if enabled)
+    if (!_parameters.di_excitation_status_override.read()) {
+        _digital_inputs.excitation_status.write(excitation_status_inverted);
+    }
+
+    // External fault can be overridden for testing
+    if (!_parameters.di_external_fault_override.read()) {
+        _digital_inputs.external_fault.write(external_fault_inverted);
+    }
 }
 
 void sfc_machine_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_optic::grid_to_machine_message& msg)
@@ -46,7 +96,7 @@ void sfc_machine_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_op
     _fiber_optics_inputs_from_grid.dc_link_current.write(msg.dc_link_current);
     _fiber_optics_inputs_from_grid.grid_voltage_magnitude.write(msg.grid_voltage_magnitude);
     _fiber_optics_inputs_from_grid.grid_release_protections.write(msg.grid_release_protections);
-    _fiber_optics_inputs_from_grid.grid_trip_acknowledged.write(msg.grid_trip_acknowledged);
+    _fiber_optics_inputs_from_grid.machine_release_protections.write(msg.machine_release_protections);
 }
 
 fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::get_fiber_optics_tx() const
@@ -56,38 +106,57 @@ fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::ge
     msg.dc_link_current_reference = _fiber_optics_outputs_to_grid.dc_link_current_reference.read();
     msg.machine_voltage_magnitude = _fiber_optics_outputs_to_grid.machine_voltage_magnitude.read();
     msg.force_commutation_request = _fiber_optics_outputs_to_grid.force_commutation_request.read();
-    msg.shutdown_request = _fiber_optics_outputs_to_grid.shutdown_request.read();
+    msg.shutdown_request = false;  // Removed: shutdown_request is now a state machine parameter only
     msg.machine_protection_tripped = _fiber_optics_outputs_to_grid.machine_protection_tripped.read();
     msg.protection_inhibit = _fiber_optics_outputs_to_grid.protection_inhibit.read();
-    msg.machine_trip_acknowledged = _fiber_optics_outputs_to_grid.machine_trip_acknowledged.read();
     return msg;
 }
 
-void sfc_machine_side_external_ios_datamodel::set_excitation_inputs(
-    current_pu_t excitation_current_actual, bool excitation_running)
+void sfc_machine_side_external_ios_datamodel::set_excitation_inputs(current_pu_t excitation_current_actual)
 {
-    const bool excitation_input_overrides_written = apply_excitation_input_overrides();
-    if (!excitation_input_overrides_written) {
+    if (!_parameters.ai_excitation_current_actual_override.read()) {
         _excitation_inputs.excitation_current_actual.write(excitation_current_actual);
-        _excitation_inputs.excitation_running.write(excitation_running);
     }
 }
 
-bool sfc_machine_side_external_ios_datamodel::get_excitation_release_command() const
+bool sfc_machine_side_external_ios_datamodel::get_excitation_on_command() const
 {
+    bool raw_value{};
     // Check if test override is active
-    if (_parameters.override_excitation_outputs.read()) {
-        return _parameters.excitation_start_command.read();  // Re-use start command for release
+    if (_parameters.do_excitation_on_command_override.read()) {
+        raw_value = _parameters.do_excitation_on_command_override_value.read();
     }
-    // Otherwise return the command from the excitation controller
-    return _excitation_outputs.excitation_release.read();
+    else {
+        // Otherwise return the command from the excitation controller
+        raw_value = _digital_outputs.excitation_on_command.read();
+    }
+
+    // Apply polarity inversion
+    return (_parameters.do_excitation_on_command_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !raw_value : raw_value;
+}
+
+bool sfc_machine_side_external_ios_datamodel::get_excitation_off_command() const
+{
+    bool raw_value{};
+    // Check if test override is active
+    if (_parameters.do_excitation_off_command_override.read()) {
+        raw_value = _parameters.do_excitation_off_command_override_value.read();
+    }
+    else {
+        // Otherwise return the command from the excitation controller
+        raw_value = _digital_outputs.excitation_off_command.read();
+    }
+
+    // Apply polarity inversion
+    return (_parameters.do_excitation_off_command_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !raw_value
+                                                                                                : raw_value;
 }
 
 current_pu_t sfc_machine_side_external_ios_datamodel::get_excitation_current_reference() const
 {
     // Check if test override is active
-    if (_parameters.override_excitation_outputs.read()) {
-        return _parameters.excitation_current_reference.read();
+    if (_parameters.ao_excitation_current_reference_override.read()) {
+        return _parameters.ao_excitation_current_reference_override_value.read();
     }
     // Otherwise return the reference from the excitation controller
     return _excitation_outputs.excitation_current_reference.read();
@@ -100,44 +169,53 @@ control::six_pulse_generator::pulses sfc_machine_side_external_ios_datamodel::ge
 
 // ==================== PRIVATE HELPER METHODS ====================
 
-bool sfc_machine_side_external_ios_datamodel::apply_excitation_overrides()
-{
-    // This is a no-op since overrides are applied in the getters
-    // Kept for callback registration consistency
-    return _parameters.override_excitation_outputs.read();
-}
-
-bool sfc_machine_side_external_ios_datamodel::apply_excitation_input_overrides()
-{
-    if (!_parameters.override_excitation_inputs.read()) {
-        return false;
-    }
-
-    _excitation_inputs.excitation_current_actual.write(_parameters.excitation_current_actual.read());
-    _excitation_inputs.excitation_running.write(_parameters.excitation_running.read());
-
-    return true;
-}
-
 void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
 {
     yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
 
+    // Digital Input Overrides
     entry.parameters.insert(
-        "exc_override_excitation_outputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_outputs));
+        "di_excitation_status_override", yeet::utils::make_bool_accessor(_parameters.di_excitation_status_override));
+    entry.parameters.insert("di_excitation_status_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_excitation_status_override_value));
     entry.parameters.insert(
-        "exc_excitation_start_command", yeet::utils::make_bool_accessor(_parameters.excitation_start_command));
-    entry.parameters.insert(
-        "exc_excitation_stop_command", yeet::utils::make_bool_accessor(_parameters.excitation_stop_command));
-    entry.parameters.insert(
-        "exc_excitation_current_reference", yeet::utils::make_units_accessor(_parameters.excitation_current_reference));
-    entry.parameters.insert(
-        "exc_override_excitation_inputs", yeet::utils::make_bool_accessor(_parameters.override_excitation_inputs));
-    entry.parameters.insert(
-        "exc_excitation_current_actual", yeet::utils::make_units_accessor(_parameters.excitation_current_actual));
-    entry.parameters.insert("exc_excitation_running", yeet::utils::make_bool_accessor(_parameters.excitation_running));
+        "di_external_fault_override", yeet::utils::make_bool_accessor(_parameters.di_external_fault_override));
+    entry.parameters.insert("di_external_fault_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_external_fault_override_value));
 
-    registry.insert("machine_side_external_ios", std::move(entry));
+    // Digital Output Overrides
+    entry.parameters.insert("do_excitation_on_command_override",
+        yeet::utils::make_bool_accessor(_parameters.do_excitation_on_command_override));
+    entry.parameters.insert("do_excitation_on_command_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_excitation_on_command_override_value));
+    entry.parameters.insert("do_excitation_off_command_override",
+        yeet::utils::make_bool_accessor(_parameters.do_excitation_off_command_override));
+    entry.parameters.insert("do_excitation_off_command_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_excitation_off_command_override_value));
+
+    // Analog Input Overrides
+    entry.parameters.insert("ai_excitation_current_actual_override",
+        yeet::utils::make_bool_accessor(_parameters.ai_excitation_current_actual_override));
+    entry.parameters.insert("ai_excitation_current_actual_override_value",
+        yeet::utils::make_units_accessor(_parameters.ai_excitation_current_actual_override_value));
+
+    // Analog Output Overrides
+    entry.parameters.insert("ao_excitation_current_reference_override",
+        yeet::utils::make_bool_accessor(_parameters.ao_excitation_current_reference_override));
+    entry.parameters.insert("ao_excitation_current_reference_override_value",
+        yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_override_value));
+
+    // Analog Output Scaling Parameters
+    entry.parameters.insert("ao_excitation_current_reference_gain",
+        yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_gain));
+    entry.parameters.insert("ao_excitation_current_reference_offset",
+        yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_offset));
+    entry.parameters.insert("ao_excitation_current_reference_minimum",
+        yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_minimum));
+    entry.parameters.insert("ao_excitation_current_reference_maximum",
+        yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_maximum));
+
+    registry.insert("machine_io_override", std::move(entry));
 
     // ==================== IO Index Mapping Parameters ====================
     // Keep IO index mapping parameters in a separate component so they don't mix
@@ -146,19 +224,33 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
 
     // Digital input mapping indices
     io_entry.parameters.insert(
-        "di_excitation_running_index", yeet::utils::make_units_accessor(_parameters.di_excitation_running_index));
+        "di_excitation_status_index", yeet::utils::make_units_accessor(_parameters.di_excitation_status_index));
+    io_entry.parameters.insert(
+        "di_external_fault_index", yeet::utils::make_units_accessor(_parameters.di_external_fault_index));
+
+    // Digital input polarity
+    io_entry.parameters.insert(
+        "di_excitation_status_polarity", yeet::utils::make_enum_accessor(_parameters.di_excitation_status_polarity));
+    io_entry.parameters.insert(
+        "di_external_fault_polarity", yeet::utils::make_enum_accessor(_parameters.di_external_fault_polarity));
 
     // Digital output mapping indices
     io_entry.parameters.insert(
-        "do_fiber_link_ok_index", yeet::utils::make_units_accessor(_parameters.do_fiber_link_ok_index));
-    io_entry.parameters.insert(
-        "do_excitation_release_index", yeet::utils::make_units_accessor(_parameters.do_excitation_release_index));
+        "do_excitation_on_command_index", yeet::utils::make_units_accessor(_parameters.do_excitation_on_command_index));
+    io_entry.parameters.insert("do_excitation_off_command_index",
+        yeet::utils::make_units_accessor(_parameters.do_excitation_off_command_index));
+
+    // Digital output polarity
+    io_entry.parameters.insert("do_excitation_on_command_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_excitation_on_command_polarity));
+    io_entry.parameters.insert("do_excitation_off_command_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_excitation_off_command_polarity));
 
     // Analog output mapping indices
     io_entry.parameters.insert("ao_excitation_current_reference_index",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_index));
 
-    registry.insert("machine_io_indexes", std::move(io_entry));
+    registry.insert("machine_io_configurations", std::move(io_entry));
 }
 
 }  // namespace yeet::application::sfc::integration

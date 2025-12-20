@@ -80,6 +80,14 @@ public:
         mock_signal_input(input, value);
     }
 
+    template <typename T>
+    static signal_input<T> create_mocked(T const& value = {})
+    {
+        signal_input<T> input;
+        mock_signal_input(input, value);
+        return input;
+    }
+
 protected:
     // Mocking for easy simulation access
     template <typename T>

@@ -55,145 +55,175 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(8, static_cast<float>(observer.get_outputs().estimated_frequency.read()));
     packet.add_signal(9, static_cast<float>(observer.get_outputs().observer_error.read()));
 
-    // === Modulator Group (10-17) ===
+    // === Modulator Group (10-16) ===
     packet.add_signal(10, static_cast<float>(modulator.get_inputs().release_pulses.read()));
-    packet.add_signal(11, static_cast<float>(static_cast<int>(
-                              modulator.get_inputs().operating_mode.read())));           // Operating mode indicator
-    packet.add_signal(12, modulator.get_outputs().release_pulses.read() ? 1.0f : 0.0f);  // Are pulses released
-    packet.add_signal(13, modulator.get_outputs().request_force_commutation.read()
-                              ? 1.0f
-                              : 0.0f);  // Force commutation request (to grid side)
-    packet.add_signal(14,
-        modulator.get_inputs().force_commutation_acknowledged.read()
-            ? 1.0f
-            : 0.0f);  // Force commutation acknowledged (from grid side)
-    packet.add_signal(15, static_cast<float>(modulator.get_outputs().firing_angle.read().get_pu()));
-    packet.add_signal(16, static_cast<float>(modulator.get_outputs().current_rotor_sector.read()));
-    packet.add_signal(17, static_cast<float>(static_cast<int>(modulator.get_outputs().commutation_state.read())));
+    packet.add_signal(11, static_cast<float>(static_cast<int>(modulator.get_inputs().operating_mode.read())));
 
-    // === Machine-Side Controller Group (18-20) ===
-    packet.add_signal(18, static_cast<float>(machine_controller.get_outputs().firing_angle.read().get_pu()));
-    packet.add_signal(19, static_cast<float>(machine_controller.get_inputs().dc_link_current.read()));
-    packet.add_signal(20, static_cast<float>(machine_controller.get_inputs().machine_speed.read()));
+    // Pack 3 modulator status booleans (bits 0-2)
+    packet.add_bool_pack(
+        12, {modulator.get_outputs().release_pulses.read(), modulator.get_outputs().request_force_commutation.read(),
+                modulator.get_inputs().force_commutation_acknowledged.read()});
 
-    // === Torque Controller Group (21-29) ===
-    packet.add_signal(21, static_cast<float>(torque_controller.get_inputs().torque_reference.read()));
-    packet.add_signal(22, 0.0f);  // Reserved (was dynamic_max_torque_limit)
-    packet.add_signal(23, 0.0f);  // Reserved (was dynamic_min_torque_limit)
-    packet.add_signal(24, torque_controller.get_inputs().enable_breakaway_boost.read() ? 1.0f : 0.0f);
-    packet.add_signal(25, torque_controller.get_inputs().is_saturated.read() ? 1.0f : 0.0f);
-    packet.add_signal(26, static_cast<float>(torque_controller.get_outputs().current_reference.read()));
-    packet.add_signal(27, torque_controller.get_outputs().is_saturated.read() ? 1.0f : 0.0f);
-    packet.add_signal(28, torque_controller.get_outputs().is_active.read() ? 1.0f : 0.0f);
-    packet.add_signal(29, torque_controller.get_outputs().is_breakaway_boost_active.read() ? 1.0f : 0.0f);
+    packet.add_signal(13, static_cast<float>(modulator.get_outputs().firing_angle.read().get_pu()));
+    packet.add_signal(14, static_cast<float>(modulator.get_outputs().current_rotor_sector.read()));
+    packet.add_signal(15, static_cast<float>(static_cast<int>(modulator.get_outputs().commutation_state.read())));
 
-    // === Speed Controller Group (30-34) ===
-    packet.add_signal(30, static_cast<float>(speed_controller.get_inputs().speed_reference.read()));
-    packet.add_signal(31, static_cast<float>(speed_controller.get_inputs().measured_speed.read()));
-    packet.add_signal(32, static_cast<float>(speed_controller.get_outputs().torque_reference.read()));
-    packet.add_signal(33, static_cast<float>(speed_controller.get_outputs().pi_output.read()));
-    packet.add_signal(34, speed_controller.get_outputs().is_saturated.read() ? 1.0f : 0.0f);
+    // === Machine-Side Controller Group (16-18) ===
+    packet.add_signal(16, static_cast<float>(machine_controller.get_outputs().firing_angle.read().get_pu()));
+    packet.add_signal(17, static_cast<float>(machine_controller.get_inputs().dc_link_current.read()));
+    packet.add_signal(18, static_cast<float>(machine_controller.get_inputs().machine_speed.read()));
 
-    // === Startup Sequencer Group (35-43) ===
-    packet.add_signal(35, static_cast<float>(startup_sequencer.get_outputs().speed_reference.read()));
-    packet.add_signal(36, static_cast<float>(startup_sequencer.get_outputs().virtual_rotor_frequency.read()));
-    packet.add_signal(37, static_cast<float>(startup_sequencer.get_outputs().virtual_rotor_angle.read().get_pu()));
-    packet.add_signal(38, static_cast<float>(startup_sequencer.get_outputs().virtual_torque_reference.read()));
-    packet.add_signal(39, startup_sequencer.get_outputs().release_speed_controller.read() ? 1.0f : 0.0f);
-    packet.add_signal(40, startup_sequencer.get_outputs().release_excitation.read() ? 1.0f : 0.0f);
-    packet.add_signal(41, startup_sequencer.get_outputs().release_torque_controller.read() ? 1.0f : 0.0f);
-    packet.add_signal(42, startup_sequencer.get_outputs().release_machine_side_pulses.read() ? 1.0f : 0.0f);
-    packet.add_signal(43, startup_sequencer.get_outputs().is_startup_complete.read() ? 1.0f : 0.0f);
+    // === Torque Controller Group (19-23) ===
+    packet.add_signal(19, static_cast<float>(torque_controller.get_inputs().torque_reference.read()));
+    packet.add_signal(20, 0.0f);  // Reserved (was dynamic_max_torque_limit)
+    packet.add_signal(21, 0.0f);  // Reserved (was dynamic_min_torque_limit)
 
-    // === Excitation Controller Group (44-45) ===
-    packet.add_signal(44, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
-    packet.add_signal(45, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
+    // Pack 5 torque controller status booleans (bits 0-4)
+    packet.add_bool_pack(
+        22, {torque_controller.get_inputs().enable_breakaway_boost.read(),
+                torque_controller.get_inputs().is_saturated.read(), torque_controller.get_outputs().is_saturated.read(),
+                torque_controller.get_outputs().is_active.read(),
+                torque_controller.get_outputs().is_breakaway_boost_active.read()});
 
-    // === Excitation Voltage Control Diagnostics (77-79) ===
-    packet.add_signal(77, static_cast<float>(excitation_controller.get_outputs().machine_voltage_reference_pu.read()));
-    packet.add_signal(78, static_cast<float>(excitation_controller.get_outputs().machine_voltage_magnitude_pu.read()));
-    packet.add_signal(79, static_cast<float>(excitation_controller.get_outputs().machine_voltage_error_pu.read()));
+    packet.add_signal(23, static_cast<float>(torque_controller.get_outputs().current_reference.read()));
 
-    // === Pulse Generator Group (46-54) ===
-    packet.add_signal(46, pulse_generator.get_outputs().virtual_reference_active.read() ? 1.0f : 0.0f);
-    packet.add_signal(47, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));
-    packet.add_signal(48, pulse_generator.get_outputs().individual_override_active.read() ? 1.0f : 0.0f);
-    const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
-    packet.add_signal(49, firing_pulses.p1 ? 1.0f : 0.0f);
-    packet.add_signal(50, firing_pulses.p2 ? 1.0f : 0.0f);
-    packet.add_signal(51, firing_pulses.p3 ? 1.0f : 0.0f);
-    packet.add_signal(52, firing_pulses.p4 ? 1.0f : 0.0f);
-    packet.add_signal(53, firing_pulses.p5 ? 1.0f : 0.0f);
-    packet.add_signal(54, firing_pulses.p6 ? 1.0f : 0.0f);
+    // === Speed Controller Group (24-28) ===
+    packet.add_signal(24, static_cast<float>(speed_controller.get_inputs().speed_reference.read()));
+    packet.add_signal(25, static_cast<float>(speed_controller.get_inputs().measured_speed.read()));
+    packet.add_signal(26, static_cast<float>(speed_controller.get_outputs().torque_reference.read()));
+    packet.add_signal(27, static_cast<float>(speed_controller.get_outputs().pi_output.read()));
 
-    // === Machine-Side Protections Group (55-65) ===
+    // Pack speed controller saturated flag (bit 0)
+    packet.add_bool_pack(28, {speed_controller.get_outputs().is_saturated.read()});
+
+    // === Startup Sequencer Group (29-33) ===
+    packet.add_signal(29, static_cast<float>(startup_sequencer.get_outputs().speed_reference.read()));
+    packet.add_signal(30, static_cast<float>(startup_sequencer.get_outputs().virtual_rotor_frequency.read()));
+    packet.add_signal(31, static_cast<float>(startup_sequencer.get_outputs().virtual_rotor_angle.read().get_pu()));
+    packet.add_signal(32, static_cast<float>(startup_sequencer.get_outputs().virtual_torque_reference.read()));
+
+    // Pack 5 startup sequencer release flags (bits 0-4)
+    packet.add_bool_pack(33, {startup_sequencer.get_outputs().release_speed_controller.read(),
+                                 startup_sequencer.get_outputs().release_excitation.read(),
+                                 startup_sequencer.get_outputs().release_torque_controller.read(),
+                                 startup_sequencer.get_outputs().release_machine_side_pulses.read(),
+                                 startup_sequencer.get_outputs().is_startup_complete.read()});
+
+    // === Excitation Controller Group (34-37) ===
+    packet.add_signal(34, static_cast<float>(excitation_controller.get_outputs().field_current_reference.read()));
+    packet.add_signal(35, static_cast<float>(excitation_controller.get_outputs().prefluxing_elapsed_time.read()));
+
+    // === Excitation Voltage Control Diagnostics (36-38) ===
+    packet.add_signal(36, static_cast<float>(excitation_controller.get_outputs().machine_voltage_reference_pu.read()));
+    packet.add_signal(37, static_cast<float>(excitation_controller.get_outputs().machine_voltage_magnitude_pu.read()));
+    packet.add_signal(38, static_cast<float>(excitation_controller.get_outputs().machine_voltage_error_pu.read()));
+
+    // === Pulse Generator Group (39) ===
+    packet.add_signal(39, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));
+
+    // === Machine-Side Protections Group (40-45) ===
     const auto& protections = _control.machine_protections;
-    packet.add_signal(55, protections.get_outputs().is_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(56, protections.get_outputs().is_inhibited.read() ? 1.0f : 0.0f);
-    packet.add_signal(57, protections.get_outputs().any_fault_active.read() ? 1.0f : 0.0f);
-    packet.add_signal(58, protections.get_outputs().over_flux_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(59, protections.get_outputs().under_flux_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(60, protections.get_outputs().stall_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(61, protections.get_outputs().over_flux_warning.read() ? 1.0f : 0.0f);
-    packet.add_signal(62, protections.get_outputs().under_flux_warning.read() ? 1.0f : 0.0f);
-    packet.add_signal(63, protections.get_outputs().stall_warning.read() ? 1.0f : 0.0f);
-    packet.add_signal(64, protections.get_outputs().communication_loss_tripped.read() ? 1.0f : 0.0f);
-    packet.add_signal(65, protections.get_outputs().communication_loss_warning.read() ? 1.0f : 0.0f);
-
-    // === Fiber Optic RX from Grid-Side Group (66-76) ===
-    const auto& fiber_rx = _control.external_ios.get_fiber_optics_inputs_from_grid();
-    packet.add_signal(66, static_cast<float>(fiber_rx.dc_link_current.read()));
-    packet.add_signal(67, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));
-    packet.add_signal(68, (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation) ? 1.0f : 0.0f);
-    packet.add_signal(69, fiber_rx.force_commutation_acknowledged.read() ? 1.0f : 0.0f);
-    packet.add_signal(70, fiber_rx.release_pulses.read() ? 1.0f : 0.0f);
-    packet.add_signal(71, fiber_rx.grid_release_protections.read() ? 1.0f : 0.0f);
-    packet.add_signal(72, fiber_rx.grid_trip_acknowledged.read() ? 1.0f : 0.0f);
-    packet.add_signal(73, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));
-    packet.add_signal(74, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));  // Duplicate for convenience
-    packet.add_signal(75, static_cast<float>(fiber_rx.dc_link_current.read()));         // Duplicate for convenience
-    packet.add_signal(
-        76, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));  // Duplicate for convenience
-
-    // === Machine-Side Protections Severity/Status Group (77-82) ===
     const auto& protection_params = protections.get_parameters();
-    packet.add_signal(77,
+    packet.add_signal(40,
         protection_status_to_signal(protection_params.over_flux_severity.read(),
             protections.get_outputs().over_flux_tripped.read(), protections.get_outputs().over_flux_alarmed.read()));
-    packet.add_signal(78,
+    packet.add_signal(41,
         protection_status_to_signal(protection_params.under_flux_severity.read(),
             protections.get_outputs().under_flux_tripped.read(), protections.get_outputs().under_flux_alarmed.read()));
     packet.add_signal(
-        79, protection_status_to_signal(protection_params.stall_severity.read(),
+        42, protection_status_to_signal(protection_params.stall_severity.read(),
                 protections.get_outputs().stall_tripped.read(), protections.get_outputs().stall_alarmed.read()));
-    packet.add_signal(80, protection_status_to_signal(protection_params.communication_loss_severity.read(),
+    packet.add_signal(43, protection_status_to_signal(protection_params.communication_loss_severity.read(),
                               protections.get_outputs().communication_loss_tripped.read(),
                               protections.get_outputs().communication_loss_alarmed.read()));
-    packet.add_signal(81,
+    packet.add_signal(44,
         protection_status_to_signal(protection_params.overspeed_severity.read(),
             protections.get_outputs().overspeed_tripped.read(), protections.get_outputs().overspeed_alarmed.read()));
-    packet.add_signal(82, protection_status_to_signal(protection_params.machine_overvoltage_severity.read(),
+    packet.add_signal(45, protection_status_to_signal(protection_params.machine_overvoltage_severity.read(),
                               protections.get_outputs().machine_overvoltage_tripped.read(),
                               protections.get_outputs().machine_overvoltage_alarmed.read()));
 
-    // === Commutation Notch Duration Group (83-84) ===
-    packet.add_signal(83, static_cast<float>(measurements.get_outputs().commutation_notch_duration_last.read()));
-    packet.add_signal(84, static_cast<float>(measurements.get_outputs().commutation_notch_duration_filtered.read()));
+    // === Fiber Optic RX from Grid-Side Group (46-48) ===
+    const auto& fiber_rx = _control.external_ios.get_fiber_optics_inputs_from_grid();
+    packet.add_signal(46, static_cast<float>(fiber_rx.dc_link_current.read()));
+    packet.add_signal(47, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));
+    packet.add_signal(48, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));
 
-    // === Line Voltages (Unmasked) Group (85-87) ===
+    // === Commutation Notch Duration Group (49-50) ===
+    packet.add_signal(49, static_cast<float>(measurements.get_outputs().commutation_notch_duration_last.read()));
+    packet.add_signal(50, static_cast<float>(measurements.get_outputs().commutation_notch_duration_filtered.read()));
+
+    // === Grouped Boolean Packs (51-52) ===
+    // Pack all machine-side booleans into 2 consecutive uint32 words for maximum compression
+    // Bits 0-31 (Word 1): Modulator(3) + Torque(5) + Speed(1) + Startup(5) + PulseGen(2) + FiringPulses(6) +
+    // Protections(9) Bits 32-36 (Word 2): Protections(2) + FiberOptic(4)
+    const auto& firing_pulses = pulse_generator.get_outputs().firing_pulses.read();
+    packet.add_bool_pack(51,
+        {// Bits 0-2: Modulator status
+            modulator.get_outputs().release_pulses.read(), modulator.get_outputs().request_force_commutation.read(),
+            modulator.get_inputs().force_commutation_acknowledged.read(),
+            // Bits 3-7: Torque controller
+            torque_controller.get_inputs().enable_breakaway_boost.read(),
+            torque_controller.get_inputs().is_saturated.read(), torque_controller.get_outputs().is_saturated.read(),
+            torque_controller.get_outputs().is_active.read(),
+            torque_controller.get_outputs().is_breakaway_boost_active.read(),
+            // Bit 8: Speed controller
+            speed_controller.get_outputs().is_saturated.read(),
+            // Bits 9-13: Startup sequencer
+            startup_sequencer.get_outputs().release_speed_controller.read(),
+            startup_sequencer.get_outputs().release_excitation.read(),
+            startup_sequencer.get_outputs().release_torque_controller.read(),
+            startup_sequencer.get_outputs().release_machine_side_pulses.read(),
+            startup_sequencer.get_outputs().is_startup_complete.read(),
+            // Bits 14-15: Pulse generator
+            pulse_generator.get_outputs().virtual_reference_active.read(),
+            pulse_generator.get_outputs().individual_override_active.read(),
+            // Bits 16-21: Firing pulses (p1-p6)
+            firing_pulses.p1, firing_pulses.p2, firing_pulses.p3, firing_pulses.p4, firing_pulses.p5, firing_pulses.p6,
+            // Bits 22-31: Protections (first 10)
+            protections.get_outputs().is_tripped.read(), protections.get_outputs().is_inhibited.read(),
+            protections.get_outputs().any_fault_active.read(), protections.get_outputs().over_flux_tripped.read(),
+            protections.get_outputs().under_flux_tripped.read(), protections.get_outputs().stall_tripped.read(),
+            protections.get_outputs().over_flux_warning.read(), protections.get_outputs().under_flux_warning.read(),
+            protections.get_outputs().stall_warning.read(),
+            protections.get_outputs().communication_loss_tripped.read()});
+
+    packet.add_bool_pack(52, {// Bit 0: Protection (last 1)
+                                 protections.get_outputs().communication_loss_warning.read(),
+                                 // Bits 1-4: Fiber optic RX
+                                 (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation),
+                                 fiber_rx.force_commutation_acknowledged.read(), fiber_rx.release_pulses.read(),
+                                 fiber_rx.grid_release_protections.read()});
+
+    // === Line Voltages (Unmasked) Group (53-55) ===
     const auto& machine_voltage_line = measurements.get_outputs().machine_voltage_line.read();
-    packet.add_signal(85, static_cast<float>(machine_voltage_line.ab()));
-    packet.add_signal(86, static_cast<float>(machine_voltage_line.bc()));
-    packet.add_signal(87, static_cast<float>(machine_voltage_line.ca()));
+    packet.add_signal(53, static_cast<float>(machine_voltage_line.ab()));
+    packet.add_signal(54, static_cast<float>(machine_voltage_line.bc()));
+    packet.add_signal(55, static_cast<float>(machine_voltage_line.ca()));
 
-    // === Filtered Voltage Group (88-91) ===
+    // === Filtered Voltage Group (56-59) ===
     const auto& machine_voltage_abc_filtered = measurements.get_outputs().machine_voltage_abc_filtered.read();
-    packet.add_signal(88, static_cast<float>(machine_voltage_abc_filtered.a()));
-    packet.add_signal(89, static_cast<float>(machine_voltage_abc_filtered.b()));
-    packet.add_signal(90, static_cast<float>(machine_voltage_abc_filtered.c()));
+    packet.add_signal(56, static_cast<float>(machine_voltage_abc_filtered.a()));
+    packet.add_signal(57, static_cast<float>(machine_voltage_abc_filtered.b()));
+    packet.add_signal(58, static_cast<float>(machine_voltage_abc_filtered.c()));
     const auto& machine_voltage_magnitude_filtered =
         measurements.get_outputs().machine_voltage_magnitude_filtered.read();
-    packet.add_signal(91, static_cast<float>(machine_voltage_magnitude_filtered));
+    packet.add_signal(59, static_cast<float>(machine_voltage_magnitude_filtered));
+
+    // === Machine-Side Digital Inputs (60-61) ===
+    const auto& machine_ios = _control.external_ios;
+    const auto& machine_digital_inputs = machine_ios.get_digital_inputs();
+    packet.add_signal(60, static_cast<float>(machine_digital_inputs.excitation_status.read()));
+    packet.add_signal(61, static_cast<float>(machine_digital_inputs.external_fault.read()));
+
+    // === Machine-Side Digital Outputs (62-63) ===
+    // Use getter methods which apply polarity inversion and overrides
+    packet.add_signal(62, static_cast<float>(machine_ios.get_excitation_on_command()));
+    packet.add_signal(63, static_cast<float>(machine_ios.get_excitation_off_command()));
+
+    // === Machine-Side Analog Outputs (64) ===
+    // Use getter method which applies overrides and scaling
+    packet.add_signal(64, static_cast<float>(machine_ios.get_excitation_current_reference()));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);

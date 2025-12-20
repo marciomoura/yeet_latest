@@ -8,64 +8,14 @@
 #include "sfc/sfc_fiber_optic_protocol.hpp"
 #include "sfc/sfc_types.hpp"
 #include "sfc_embedded/grid_side_network_telemetry_builder.hpp"
+#include "sfc_embedded/task_io_helpers.hpp"
 #include "sfc_integration/sfc_grid_side_control.hpp"
 #include "yeet/network_handler.hpp"
 #include "yeet/network_telemetry_manager.hpp"
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 
-namespace {
-
-inline bool is_valid_di_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_DIGITAL_INPUTS; }
-
-inline bool is_valid_do_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_DIGITAL_OUTPUTS; }
-
-inline bool is_valid_ao_index(int idx) noexcept { return idx >= 0 && idx < TASK_IO_NUM_ANALOG_OUTPUTS; }
-
-inline bool read_di(const task_inputs_t* inputs, int idx) noexcept
-{
-    if (inputs == nullptr || !inputs->digital_inputs.valid) {
-        return false;
-    }
-    if (!is_valid_di_index(idx)) {
-        return false;
-    }
-    return inputs->digital_inputs.signals[idx];
-}
-
-inline void clear_digital_outputs(task_outputs_t* outputs) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    for (auto& s : outputs->digital_outputs.signals) {
-        s = false;
-    }
-}
-
-inline void write_do(task_outputs_t* outputs, int idx, bool value) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    if (!is_valid_do_index(idx)) {
-        return;
-    }
-    outputs->digital_outputs.signals[idx] = value;
-}
-
-inline void clear_analog_outputs(task_outputs_t* outputs) noexcept
-{
-    if (outputs == nullptr) {
-        return;
-    }
-    for (auto& c : outputs->analog_outputs.channels) {
-        c = 0.0f;
-    }
-    outputs->analog_outputs.valid = false;
-}
-
-}  // namespace
+using namespace yeet::embedded::io;
 
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
@@ -140,16 +90,9 @@ grid_side_network_infrastructure::grid_side_network_infrastructure(
 ARM_FUNCTION
 void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_control* control)
 {
-    // ==================== INITIALIZE DIGITAL INPUTS ====================
-    // Set safe default values for supervisory controller inputs via external_ios datamodel
-    control->get_external_ios().get_digital_inputs().auxiliaries_are_on.write(true);
-    control->get_external_ios().get_digital_inputs().mcb_is_closed.write(true);
-    control->get_external_ios().get_digital_inputs().start_command.write(false);
-    control->get_external_ios().get_digital_inputs().stop_command.write(false);
-    control->get_external_ios().get_digital_inputs().shutdown_request.write(false);
-
     // Initialize grid-side control subsystem
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
+    // Digital inputs are already default-initialized to safe values (false) by the datamodel
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
     control->initialize();
 
@@ -162,12 +105,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
     // #endif
-
-    // Prepare the inputs to be "ready"
-    control->get_external_ios().get_parameters().di_auxiliaries_are_on_override.write(true);
-    control->get_external_ios().get_parameters().di_auxiliaries_are_on_override_value.write(true);
-    control->get_external_ios().get_parameters().di_mcb_is_closed_override.write(true);
-    control->get_external_ios().get_parameters().di_mcb_is_closed_override_value.write(true);
 }
 
 ARM_FUNCTION
@@ -213,9 +150,6 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
-    clear_analog_outputs(outputs);
-
-    const auto& io_params = control->get_external_ios().get_parameters();
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:
@@ -255,14 +189,14 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     if (inputs != nullptr && inputs->digital_inputs.valid) {
         // Update supervisory digital inputs from hardware I/O with configurable channel mapping.
         control->external_ios.set_digital_inputs(read_di(inputs, io_params.di_auxiliaries_are_on_index.read()),
-            read_di(inputs, io_params.di_mcb_is_closed_index.read()),
+            read_di(inputs, io_params.di_mv_breaker_is_closed_index.read()),
             read_di(inputs, io_params.di_start_command_index.read()),
             read_di(inputs, io_params.di_stop_command_index.read()),
-            read_di(inputs, io_params.di_shutdown_request_index.read()),
-            read_di(inputs, io_params.di_breaker_is_closed_index.read()),
-            read_di(inputs, io_params.di_breaker_is_tripping_index.read()),
+            read_di(inputs, io_params.di_mv_breaker_is_tripping_index.read()),
             read_di(inputs, io_params.di_emergency_off_index.read()),
-            read_di(inputs, io_params.di_door_is_open_index.read()));
+            read_di(inputs, io_params.di_door_is_open_index.read()),
+            read_di(inputs, io_params.di_external_fault_index.read()),
+            read_di(inputs, io_params.di_fans_are_running_index.read()));
     }
 
     // Process fiber-optic RX data from machine-side controller
@@ -297,51 +231,21 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     outputs->fiber_optic_tx.transmit_request = true;
 
     // ==================== DIGITAL OUTPUTS → EXTERNAL COMMANDS ====================
-    // Drive mapped breaker commands onto the physical DO array.
-    clear_digital_outputs(outputs);
-    write_do(outputs, io_params.do_mcb_close_index.read(), control->external_ios.get_mcb_close());
-    write_do(outputs, io_params.do_mcb_open_index.read(), control->external_ios.get_mcb_open());
+    // Drive mapped breaker commands onto the physical DO array
+    write_do(outputs, io_params.do_mv_breaker_close_index.read(), control->external_ios.get_mv_breaker_close());
+    write_do(outputs, io_params.do_mv_breaker_open_index.read(), control->external_ios.get_mv_breaker_open());
+    // Note: auxiliaries_on_command is available but not currently mapped to hardware DO
 
-    // ==================== DIGITAL OUTPUTS → STATUS INDICATORS ====================
-    // Map control system status to hardware digital outputs via I/O interface
-    // Based on typical HMI and system monitoring requirements
-    // if (outputs != nullptr) {
-    // Read status signals from I/O interface digital outputs
-    // const bool pulse_releases = get_grid_side_control().get_io().digital_outputs.pulse_releases.read();
-    // const bool is_current_zero = get_grid_side_control().get_io().digital_outputs.is_current_zero.read();
-    // const bool current_saturated =
-    //     get_grid_side_control().get_io().digital_outputs.current_controller_saturated.read();
-    // const auto operating_mode = get_grid_side_control().get_io().digital_outputs.operating_mode.read();
+    // ACU fan commands
+    write_do(outputs, io_params.do_on_command_acu_fan_1_index.read(), control->external_ios.get_on_command_acu_fan_1());
+    write_do(outputs, io_params.do_on_command_acu_fan_2_index.read(), control->external_ios.get_on_command_acu_fan_2());
+    write_do(outputs, io_params.do_on_command_acu_fan_3_index.read(), control->external_ios.get_on_command_acu_fan_3());
+    write_do(outputs, io_params.do_on_command_acu_fan_4_index.read(), control->external_ios.get_on_command_acu_fan_4());
 
-    // Status output mapping:
-    // outputs->digital_outputs.signals[0] = pulse_releases;     // DO1: System running
-    // outputs->digital_outputs.signals[1] = is_current_zero;    // DO2: Current zero status
-    // outputs->digital_outputs.signals[2] = current_saturated;  // DO3: Controller saturation
-    // outputs->digital_outputs.signals[3] =
-    //     (operating_mode ==
-    //         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);  // DO4: Forced commutation mode
-    // outputs->digital_outputs.signals[4] =
-    //     (operating_mode ==
-    //         yeet::application::sfc::sfc_operating_mode_t::natural_commutation);  // DO5: Natural commutation mode
-    // outputs->digital_outputs.signals[5] = inputs->fiber_optic_rx.link_ok;        // DO6: Fiber link status
-
-    // Main circuit breaker control outputs
-    // outputs->digital_outputs.signals[6] = control->external_ios.get_mcb_close();  // DO7: MCB close
-    // outputs->digital_outputs.signals[7] = control->external_ios.get_mcb_open();   // DO8: MCB open
-
-    // for (auto& n : outputs->digital_outputs.signals) {
-    //     n = true;
-    // }
-
-    // outputs->digital_outputs.signals[0] = true;  // DO1: System running
-    // outputs->digital_outputs.signals[1] = true;  // DO2: Current zero status
-    // outputs->digital_outputs.signals[2] = true;  // DO3: Controller saturation
-    // outputs->digital_outputs.signals[3] = true;  // DO4: Forced commutation mode
-    // outputs->digital_outputs.signals[4] = true;
-    // outputs->digital_outputs.signals[5] = true;  // DO6: Fiber link status
-
-    // Additional outputs (DO7-DO17) available for application-specific status
-    // }
+    // Software trip signals
+    write_do(outputs, io_params.do_software_trip_1_index.read(), control->external_ios.get_software_trip_1());
+    write_do(outputs, io_params.do_software_trip_2_index.read(), control->external_ios.get_software_trip_2());
+    write_do(outputs, io_params.do_software_trip_3_index.read(), control->external_ios.get_software_trip_3());
 }
 
 ARM_FUNCTION

@@ -9,6 +9,7 @@ protected:
     void SetUp() override
     {
         state_machine.reset();
+        turn_on = false;
         auxiliaries_on = false;
         breakers_on = false;
         start = false;
@@ -32,38 +33,48 @@ protected:
     // Helper: navigate to OPERATION_ON state
     void navigate_to_operation_on()
     {
-        auxiliaries_on = true;
+        turn_on = true;
         auto inputs = create_default_inputs();
         state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
 
-        breakers_on = true;
+        auxiliaries_on = true;
         inputs = create_default_inputs();
         state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+
+        breakers_on = true;
+        inputs = create_default_inputs();
         state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
+        state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
 
         start = true;
         inputs = create_default_inputs();
-        state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
         state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
     }
 
+    // Helper members for computed event values (must be members to avoid dangling references)
+    bool computed_any_fault() const { return emergency_off || breaker_is_tripping || any_fault_active; }
+    bool computed_is_inhibited() const { return door_is_open || !protection_not_inhibited; }
+    bool computed_protection_trip() const { return !protection_not_inhibited || any_fault_active; }
+
     sfc_state_inputs create_default_inputs()
     {
-        sfc_state_inputs inputs{.auxiliaries_are_on_event = mock_event("auxiliaries_on", auxiliaries_on),
-            .mcb_is_closed_event = mock_event("breakers_on", breakers_on),
+        sfc_state_inputs inputs{.turn_on_command = mock_event("turn_on", turn_on),
             .start_command = mock_event("start", start),
             .stop_command = mock_event("stop", stop),
             .shutdown_request = mock_event("shutdown_request", shutdown_request),
+            .auxiliaries_are_on_event = mock_event("auxiliaries_on", auxiliaries_on),
+            .mcb_is_closed_event = mock_event("breakers_on", breakers_on),
             .is_current_extinguished = mock_event("current_extinguished", current_extinguished),
-            .protection_not_inhibited_event = mock_event("protection_not_inhibited", protection_not_inhibited),
-            .any_protection_fault_active_event = mock_event("any_fault_active", any_fault_active),
-            .breaker_is_tripping_event = mock_event("breaker_is_tripping", breaker_is_tripping),
-            .emergency_off_event = mock_event("emergency_off", emergency_off),
-            .door_is_open_event = mock_event("door_is_open", door_is_open)};
+            .any_fault_active_event = sfc_state_event("any_fault_active", [this]() { return computed_any_fault(); }),
+            .is_inhibited_from_starting_event =
+                sfc_state_event("is_inhibited", [this]() { return computed_is_inhibited(); }),
+            .protection_trip_active_event =
+                sfc_state_event("protection_trip", [this]() { return computed_protection_trip(); })};
         return inputs;
     }
 
     sfc_state_machine state_machine;
+    bool turn_on;
     bool auxiliaries_on;
     bool breakers_on;
     bool start;
@@ -88,7 +99,7 @@ TEST_F(SfcStateMachineTest, InitialState)
 // Test IDLE -> AUXILIARIES_ON transition
 TEST_F(SfcStateMachineTest, IdleToAuxiliariesOn)
 {
-    auxiliaries_on = true;
+    turn_on = true;  // Command to energize system
     auto inputs = create_default_inputs();
     state_machine.update(inputs);
 
@@ -102,12 +113,12 @@ TEST_F(SfcStateMachineTest, IdleToAuxiliariesOn)
 TEST_F(SfcStateMachineTest, AuxiliariesOnToBreakersOn)
 {
     // Navigate to AUXILIARIES_ON state
-    auxiliaries_on = true;
+    turn_on = true;
     auto inputs = create_default_inputs();
-    state_machine.update(inputs);
+    state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
 
-    // First transition to BREAKERS_OFF when breakers command is given
-    breakers_on = true;
+    // Auxiliaries feedback confirms they are on -> BREAKERS_OFF
+    auxiliaries_on = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);
 
@@ -116,7 +127,9 @@ TEST_F(SfcStateMachineTest, AuxiliariesOnToBreakersOn)
     verify_state(sfc_state_id::BREAKERS_OFF, expected);
     EXPECT_TRUE(state_machine.has_transitioned());
 
-    // Then transition to BREAKERS_ON when breakers actually close
+    // Breakers closed feedback -> BREAKERS_ON
+    breakers_on = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);
     verify_state(sfc_state_id::BREAKERS_ON, expected);
     EXPECT_TRUE(state_machine.has_transitioned());
@@ -126,17 +139,19 @@ TEST_F(SfcStateMachineTest, AuxiliariesOnToBreakersOn)
 TEST_F(SfcStateMachineTest, BreakersOnToOperationOff)
 {
     // Navigate to BREAKERS_ON state through proper sequence
-    auxiliaries_on = true;
+    turn_on = true;
     auto inputs = create_default_inputs();
     state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
 
-    breakers_on = true;
+    auxiliaries_on = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+
+    breakers_on = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
 
-    // Then transition to OPERATION_OFF with start command
-    start = true;
+    // Then auto-transition to OPERATION_OFF (no faults/inhibits)
     inputs = create_default_inputs();
     state_machine.update(inputs);
 
@@ -150,23 +165,26 @@ TEST_F(SfcStateMachineTest, BreakersOnToOperationOff)
 TEST_F(SfcStateMachineTest, OperationOffToOperationOn)
 {
     // Navigate to OPERATION_OFF state through proper sequence
-    auxiliaries_on = true;
+    turn_on = true;
     auto inputs = create_default_inputs();
     state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
 
-    breakers_on = true;
+    auxiliaries_on = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
-    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
 
-    start = true;
+    breakers_on = true;
     inputs = create_default_inputs();
+    state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
     state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
 
     sfc_state_outputs expected{};
     expected.pulse_releases = false;
     verify_state(sfc_state_id::OPERATION_OFF, expected);
 
+    // Now send start command
+    start = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_OFF -> OPERATION_ON
 
     // Should be in OPERATION_ON due to our start command being active
@@ -235,29 +253,32 @@ TEST_F(SfcStateMachineTest, CompleteStartupSequence)
     sfc_state_outputs expected{};
     verify_state(sfc_state_id::IDLE, expected);
 
-    // 1. Turn on auxiliaries
-    auxiliaries_on = true;
+    // 1. Turn on system (command)
+    turn_on = true;
     auto inputs = create_default_inputs();
     state_machine.update(inputs);
     verify_state(sfc_state_id::AUXILIARIES_ON, expected);
 
-    // 2. Command breakers closed -> BREAKERS_OFF
-    breakers_on = true;
+    // 2. Auxiliaries feedback confirms they are on -> BREAKERS_OFF
+    auxiliaries_on = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);
     verify_state(sfc_state_id::BREAKERS_OFF, expected);
 
     // 3. Breakers actually close -> BREAKERS_ON
+    breakers_on = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);
     verify_state(sfc_state_id::BREAKERS_ON, expected);
 
-    // 4. Start operation -> OPERATION_OFF
-    start = true;
+    // 4. Auto-transition to OPERATION_OFF (no faults/inhibits)
     inputs = create_default_inputs();
     state_machine.update(inputs);
     verify_state(sfc_state_id::OPERATION_OFF, expected);
 
-    // 5. Continue to OPERATION_ON
+    // 5. Start command -> OPERATION_ON
+    start = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);
     expected.pulse_releases = true;
     verify_state(sfc_state_id::OPERATION_ON, expected);
@@ -294,22 +315,16 @@ TEST_F(SfcStateMachineTest, CompleteShutdownSequence)
     expected.pulse_releases = false;
     verify_state(sfc_state_id::OPERATION_OFF, expected);
 
-    // 3. Turn off breakers
-    breakers_on = false;
-    start = false;  // Remove start command
+    // 3. Turn off system (turn_on command goes false) -> regress through states
+    turn_on = false;
     inputs = create_default_inputs();
-    state_machine.update(inputs);
+    state_machine.update(inputs);  // OPERATION_OFF -> BREAKERS_ON (due to turn_on=false)
     verify_state(sfc_state_id::BREAKERS_ON, expected);
 
-    // 4. Breakers actually open -> BREAKERS_OFF
-    state_machine.update(inputs);
+    state_machine.update(inputs);  // BREAKERS_ON -> BREAKERS_OFF (due to turn_on=false)
     verify_state(sfc_state_id::BREAKERS_OFF, expected);
 
-    // 5. Turn off auxiliaries, in this case we go directly to idle
-    auxiliaries_on = false;
-    inputs = create_default_inputs();
-    state_machine.update(inputs);  // BREAKERS_OFF -> IDLE
-    state_machine.update(inputs);  // AUXILIARIES_ON -> IDLE
+    state_machine.update(inputs);  // BREAKERS_OFF -> IDLE (due to turn_on=false)
     verify_state(sfc_state_id::IDLE, expected);
 }
 
@@ -433,20 +448,23 @@ TEST_F(SfcStateMachineTest, ShutdownSequenceWithExtinguishOutput)
 
 // ==================== Tests for MCB outputs ====================
 
-// Test mcb_close output is true in BREAKERS_OFF state
+// Test mv_breaker_close output is true in BREAKERS_OFF state
 TEST_F(SfcStateMachineTest, McbCloseOutputInBreakersOffState)
 {
-    auxiliaries_on = true;
+    turn_on = true;
     auto inputs = create_default_inputs();
     state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
+
+    auxiliaries_on = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
 
     auto outputs = state_machine.get_outputs();
-    EXPECT_TRUE(outputs.mcb_close);
-    EXPECT_FALSE(outputs.mcb_open);
+    EXPECT_TRUE(outputs.mv_breaker_close);
+    EXPECT_FALSE(outputs.mv_breaker_open);
 }
 
-// Test mcb_open output is true in SHUTDOWN_REQUESTED state
+// Test mv_breaker_open output is true in SHUTDOWN_REQUESTED state
 TEST_F(SfcStateMachineTest, McbOpenOutputInShutdownRequestedState)
 {
     navigate_to_operation_on();
@@ -456,8 +474,8 @@ TEST_F(SfcStateMachineTest, McbOpenOutputInShutdownRequestedState)
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
     auto outputs = state_machine.get_outputs();
-    EXPECT_TRUE(outputs.mcb_open);
-    EXPECT_FALSE(outputs.mcb_close);
+    EXPECT_TRUE(outputs.mv_breaker_open);
+    EXPECT_FALSE(outputs.mv_breaker_close);
 }
 
 // ==================== Tests for reset_controllers output ====================
@@ -521,13 +539,16 @@ TEST_F(SfcStateMachineTest, ResetControllersPulsesOnReEntryToOperationOn)
 // Test that OPERATION_OFF -> OPERATION_ON is blocked when protection is inhibited
 TEST_F(SfcStateMachineTest, ProtectionInhibitedBlocksOperationOn)
 {
-    auxiliaries_on = true;
+    turn_on = true;
     auto inputs = create_default_inputs();
     state_machine.update(inputs);  // IDLE -> AUXILIARIES_ON
 
-    breakers_on = true;
+    auxiliaries_on = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);  // AUXILIARIES_ON -> BREAKERS_OFF
+
+    breakers_on = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);  // BREAKERS_OFF -> BREAKERS_ON
     state_machine.update(inputs);  // BREAKERS_ON -> OPERATION_OFF
 
@@ -549,10 +570,10 @@ TEST_F(SfcStateMachineTest, ProtectionInhibitedBlocksOperationOn)
     EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::OPERATION_ON);
 }
 
-// ==================== Tests for any_protection_fault_active condition ====================
+// ==================== Tests for fault/trip during shutdown ====================
 
-// Test that SHUTDOWN_REQUESTED -> OPERATION_OFF is blocked when fault is active
-TEST_F(SfcStateMachineTest, ActiveFaultBlocksExitFromShutdown)
+// Test that fault during shutdown goes directly to IDLE (trip path) and requires turn_on toggle
+TEST_F(SfcStateMachineTest, FaultDuringShutdownGoesToIdleWithTripLatch)
 {
     navigate_to_operation_on();
 
@@ -561,25 +582,35 @@ TEST_F(SfcStateMachineTest, ActiveFaultBlocksExitFromShutdown)
     auto inputs = create_default_inputs();
     state_machine.update(inputs);  // OPERATION_ON -> SHUTDOWN_REQUESTED
 
-    // Current extinguished but fault still active
+    // Current extinguished but fault still active - should go to IDLE
     current_extinguished = true;
     any_fault_active = true;
     stop = false;
     inputs = create_default_inputs();
     state_machine.update(inputs);
+
+    // Should be in IDLE (trip path)
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::IDLE);
+
+    // Trip latch should be active - turn_on still true but we should stay in IDLE
+    any_fault_active = false;  // Clear fault
+    inputs = create_default_inputs();
+    state_machine.update(inputs);
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::IDLE);
+
+    // Release turn_on to clear trip latch
+    turn_on = false;
+    inputs = create_default_inputs();
     state_machine.update(inputs);
 
-    // Should stay in SHUTDOWN_REQUESTED
-    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::SHUTDOWN_REQUESTED);
+    // Trip latch should be cleared, but still in IDLE (turn_on is false)
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::IDLE);
 
-    // Clear fault
-    any_fault_active = false;
+    // Now turn_on again - should transition to AUXILIARIES_ON
+    turn_on = true;
     inputs = create_default_inputs();
-    state_machine.update(inputs);  // First cycle (acknowledgment)
-    state_machine.update(inputs);  // Second cycle -> OPERATION_OFF
-
-    // Now should transition to OPERATION_OFF
-    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::OPERATION_OFF);
+    state_machine.update(inputs);
+    EXPECT_EQ(state_machine.get_current_state(), sfc_state_id::AUXILIARIES_ON);
 }
 
 // ==================== Tests for emergency triggers ====================
@@ -695,16 +726,18 @@ TEST_F(SfcStateMachineTest, FreezeIntegratorInPreOperationStates)
 {
     // IDLE
     auto outputs = state_machine.get_outputs();
-    EXPECT_FALSE(outputs.freeze_integrator);  // IDLE has no freeze
+    EXPECT_TRUE(outputs.freeze_integrator);  // IDLE has no freeze
 
     // AUXILIARIES_ON
-    auxiliaries_on = true;
+    turn_on = true;
     auto inputs = create_default_inputs();
     state_machine.update(inputs);
     outputs = state_machine.get_outputs();
     EXPECT_TRUE(outputs.freeze_integrator);
 
     // BREAKERS_OFF
+    auxiliaries_on = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);
     outputs = state_machine.get_outputs();
     EXPECT_TRUE(outputs.freeze_integrator);
@@ -717,13 +750,14 @@ TEST_F(SfcStateMachineTest, FreezeIntegratorInPreOperationStates)
     EXPECT_TRUE(outputs.freeze_integrator);
 
     // OPERATION_OFF
-    start = true;
     inputs = create_default_inputs();
     state_machine.update(inputs);
     outputs = state_machine.get_outputs();
     EXPECT_TRUE(outputs.freeze_integrator);
 
     // OPERATION_ON - freeze should be false
+    start = true;
+    inputs = create_default_inputs();
     state_machine.update(inputs);
     outputs = state_machine.get_outputs();
     EXPECT_FALSE(outputs.freeze_integrator);

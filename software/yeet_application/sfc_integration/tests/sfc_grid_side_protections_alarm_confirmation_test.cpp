@@ -36,10 +36,6 @@ protected:
 
         // Set safe initial inputs
         reset_inputs();
-
-        // Initialize trip_acknowledged to false (simulate no state machine acknowledgment)
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.trip_acknowledged, false);
     }
 
     void reset_inputs()
@@ -57,8 +53,6 @@ protected:
 
         // Door closed by default
         mock_signal_input::write(inputs.door_is_open, false);
-
-        // Note: trip_acknowledged is not initialized here - it will be set by tests as needed
     }
     void trigger_overcurrent()
     {
@@ -91,12 +85,6 @@ protected:
     {
         auto& params = _runner->get_parameters();
         params.confirm_alarms.write(value);
-    }
-
-    void set_trip_acknowledged(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.trip_acknowledged, value);
     }
 
     bool is_tripped() const
@@ -142,20 +130,9 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, AlarmLatchesOnTrip)
     clear_fault_conditions();
     run_cycle();
 
-    // Protection is latching - still tripped until state machine acknowledges
-    EXPECT_TRUE(is_tripped()) << "Latching protection should remain tripped until acknowledged";
+    // Protection is latching - trip clears after fault removal
+    EXPECT_FALSE(is_tripped()) << "Latching protection should clear trip after fault removal";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
-
-    // State machine acknowledges trip (simulating SHUTDOWN_REQUESTED state)
-    set_trip_acknowledged(true);
-    run_cycle();
-
-    EXPECT_FALSE(is_tripped()) << "Protection should clear after trip acknowledged";
-    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched after protection clears";
-
-    // Clear acknowledgment (state machine exits SHUTDOWN_REQUESTED)
-    set_trip_acknowledged(false);
-    run_cycle();
 }
 
 /**
@@ -171,14 +148,8 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
     run_cycle();
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should remain latched";
+    ASSERT_FALSE(is_tripped()) << "Trip should clear when fault is removed";
     ASSERT_TRUE(is_inhibited()) << "Alarm should be latched";
-
-    // Acknowledge trip
-    set_trip_acknowledged(true);
-    run_cycle();
-    ASSERT_FALSE(is_tripped());
-    ASSERT_TRUE(is_inhibited()) << "Alarm should still be latched after trip clears";
 
     // Set confirm_alarms=true WITHOUT going through false first (should already be false from setup, but let's
     // initialize the edge detector) By setting it to false explicitly and running a cycle, the edge detector knows the
@@ -197,10 +168,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
 
     // Reset confirm_alarms
     set_confirm_alarms(false);
-    run_cycle();
-
-    // Clear acknowledgment after confirmation
-    set_trip_acknowledged(false);
     run_cycle();
 }
 
@@ -230,13 +197,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped)
     // Now clear the fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should remain latched until acknowledged";
-    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
-
-    // State machine acknowledges trip
-    set_trip_acknowledged(true);
-    run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
+    EXPECT_FALSE(is_tripped()) << "Trip should clear when fault is removed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Now confirmation should work
@@ -245,9 +206,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped)
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after fault removed and confirmation given";
-
-    set_trip_acknowledged(false);
-    run_cycle();
 }
 
 /**
@@ -266,13 +224,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenS
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should remain latched until acknowledged";
-    ASSERT_TRUE(is_inhibited());
-
-    // State machine acknowledges trip
-    set_trip_acknowledged(true);
-    run_cycle();
-    ASSERT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
+    ASSERT_FALSE(is_tripped()) << "Trip should clear when fault is removed";
     ASSERT_TRUE(is_inhibited());
 
     // Confirm alarm (rising edge)
@@ -283,9 +235,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenS
 
     EXPECT_FALSE(is_inhibited()) << "Alarm should be cleared after confirmation";
     EXPECT_FALSE(is_tripped()) << "Protection should not be tripped";
-
-    set_trip_acknowledged(false);
-    run_cycle();
 }
 
 /**
@@ -298,15 +247,12 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     // First trip cycle
     trigger_overcurrent();
     run_cycle();
+    ASSERT_TRUE(is_tripped()) << "Trip should occur on fault";
+    ASSERT_TRUE(is_inhibited());
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should remain latched";
+    ASSERT_FALSE(is_tripped()) << "Trip is cleared after fault removal";
     ASSERT_TRUE(is_inhibited());
-
-    // Acknowledge first trip
-    set_trip_acknowledged(true);
-    run_cycle();
-    ASSERT_FALSE(is_tripped());
 
     // First confirmation
     set_confirm_alarms(false);
@@ -315,21 +261,13 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "First alarm should be cleared";
 
-    set_trip_acknowledged(false);
-    run_cycle();
-
     // Second trip cycle
     trigger_overvoltage();
     run_cycle();
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Second trip should latch";
+    EXPECT_FALSE(is_tripped()) << "Second trip is cleared after fault removal";
     EXPECT_TRUE(is_inhibited()) << "Second trip should re-latch alarm";
-
-    // Acknowledge second trip
-    set_trip_acknowledged(true);
-    run_cycle();
-    EXPECT_FALSE(is_tripped());
 
     // Second confirmation (need new rising edge)
     set_confirm_alarms(false);
@@ -337,9 +275,6 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     set_confirm_alarms(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Second alarm should be cleared";
-
-    set_trip_acknowledged(false);
-    run_cycle();
 }
 
 /**
@@ -477,20 +412,13 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConf
     EXPECT_TRUE(is_tripped()) << "Door open should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Door open trip should latch alarm";
 
-    // Close door: fault clears but trip remains latched until acknowledged
+    // Close door: fault clears
     mock_signal_input::write(inputs.door_is_open, false);
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should remain latched until acknowledged";
+    EXPECT_FALSE(is_tripped()) << "Trip should clear when door is closed";
+    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
-    // Acknowledge trip then confirm alarms
-    set_trip_acknowledged(true);
-    run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
-    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched after trip clears";
-
-    set_trip_acknowledged(false);
-    run_cycle();
-
+    // Confirm alarms
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);
@@ -523,15 +451,9 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterT
     // Restore communication and allow watchdog to clear its internal trip condition
     _runner->update_communication_status(true);
     run_cycle();
-
-    // Trip latch requires acknowledgment
-    set_trip_acknowledged(true);
-    run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after acknowledgment";
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after communication restored";
 
     // Alarm confirmation required
-    set_trip_acknowledged(false);
-    run_cycle();
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);

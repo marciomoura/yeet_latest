@@ -116,10 +116,10 @@ class ParameterEditDialog(QtWidgets.QDialog):
 class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     """Minimal telemetry monitor with parameters, plots, and dashboard."""
     
-    def __init__(self, host: str, port: int, target: str = 'grid', verbose: bool = False, decimate: int = 0, window_size: int = 2):
+    def __init__(self, host: str, port: int, target: str = 'grid', verbose: bool = False, decimate: int = 0, window_size: int = 2, debug_log: Optional[str] = None):
         super().__init__()
         
-        logger.info(f"=== Monitor with Parameters (target={target}, verbose={verbose}, decimate={decimate}, window={window_size}) ===")
+        logger.info(f"=== Monitor with Parameters (target={target}, verbose={verbose}, decimate={decimate}, window={window_size}, debug_log={debug_log}) ===")
         
         self.target_side = target  # 'grid' or 'machine'
         self.setWindowTitle(f"SFC Monitor - Parameters + Telemetry [{target.upper()}]")
@@ -221,10 +221,13 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.max_retries: int = 3                       # Maximum retry attempts per missing index
         self.param_request_timer = QtCore.QTimer(self)
         self.param_request_timer.timeout.connect(self._send_next_parameter_request)
-        self.param_request_timer.setInterval(20)  # 20ms between requests (20 requests/sec)
+        self.param_request_timer.setInterval(20)  # 20ms between requests (50 requests/sec)
         self.retry_check_timer = QtCore.QTimer(self)
         self.retry_check_timer.timeout.connect(self._check_for_missing_parameters)
         self.retry_check_timer.setSingleShot(True)  # One-shot timer for retry check
+        self.param_watchdog_timer = QtCore.QTimer(self)
+        self.param_watchdog_timer.timeout.connect(self._on_parameter_load_watchdog)
+        self.param_watchdog_timer.setSingleShot(True)  # One-shot watchdog timer
         
         # Build UI
         central = QtWidgets.QWidget()
@@ -365,7 +368,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         main_layout.addLayout(content_layout, 1)
         
         # Network client
-        self.network_client = UnifiedNetworkClient(host, port, verbose=verbose, parent=self)
+        self.network_client = UnifiedNetworkClient(host, port, verbose=verbose, debug_log=debug_log, parent=self)
         self.network_client.connected_changed.connect(self._on_connection_changed)
         self.network_client.telemetry_packet_received.connect(self._on_packet)
         self.network_client.parameter_response_received.connect(self._on_parameter_response)
@@ -590,6 +593,26 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             self.status_label.setText("Connected - Ready")
         else:
             self.status_label.setText("Disconnected")
+            
+            # Handle disconnection during parameter loading
+            if self.param_loading:
+                logger.warning("Connection lost during parameter loading")
+                self.param_loading = False
+                self.load_params_btn.setEnabled(False)  # Still disconnected
+                self.param_request_timer.stop()
+                self.retry_check_timer.stop()
+                self.param_watchdog_timer.stop()
+                self.pending_parameter_indices.clear()
+                self.param_status_label.setText("Disconnected during parameter load")
+                
+                # Show warning
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Connection Lost",
+                    "Network connection lost during parameter loading.\\n\\n"
+                    "Please reconnect and try again."
+                )
+            
             # Keep parameters persisted when disconnected
             # Only clear on window destruction or explicit reload
             if self.parameters:
@@ -1135,6 +1158,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.total_parameter_count = 0
         self.retry_attempt = 0
         
+        # Start watchdog timer (60 seconds max for entire parameter load process)
+        self.param_watchdog_timer.start(60000)
+        logger.info("Started parameter load watchdog timer (60s)")
+        
         # Request parameter count
         logger.info("Sending parameter count request...")
         if not self.network_client.send_parameter_count_request():
@@ -1145,6 +1172,9 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             
             # Re-enable timeout
             self.network_client.set_packet_timeout_enabled(True)
+            
+            # Cancel watchdog
+            self.param_watchdog_timer.stop()
             
             # Restart telemetry if it was running
             if self.was_streaming_before_param_load:
@@ -1158,6 +1188,22 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _send_next_parameter_request(self):
         """Send next parameter request from queue (called by timer)."""
+        # Check if still connected
+        if not self.network_client or not self.network_client.connected:
+            logger.warning("Network disconnected during parameter load - stopping")
+            self.param_request_timer.stop()
+            self.retry_check_timer.stop()
+            self.param_loading = False
+            self.load_params_btn.setEnabled(True)
+            self.param_status_label.setText("Disconnected during parameter load")
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Connection Lost",
+                "Network connection lost during parameter loading.\n\n"
+                "Please reconnect and try again."
+            )
+            return
+        
         if not self.pending_parameter_indices:
             # All requests sent, stop timer and schedule retry check
             self.param_request_timer.stop()
@@ -1174,11 +1220,17 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         # Send next request
         index = self.pending_parameter_indices.pop(0)
-        if self.network_client.send_parameter_get_by_index_request(index):
-            self.requested_parameter_indices.add(index)  # Track that we requested this index
-        else:
-            logger.error(f"Failed to send parameter request for index {index}")
-            # Continue anyway - will be detected as missing and retried
+        try:
+            if self.network_client.send_parameter_get_by_index_request(index):
+                self.requested_parameter_indices.add(index)  # Track that we requested this index
+            else:
+                logger.error(f"Failed to send parameter request for index {index}")
+                # Re-add to queue for retry
+                self.pending_parameter_indices.insert(0, index)
+        except Exception as e:
+            logger.error(f"Exception sending parameter request for index {index}: {e}")
+            # Re-add to queue for retry
+            self.pending_parameter_indices.insert(0, index)
         
         # Update status
         remaining = len(self.pending_parameter_indices)
@@ -1245,6 +1297,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # Stop timers and clear queues
         self.param_request_timer.stop()
         self.retry_check_timer.stop()
+        self.param_watchdog_timer.stop()  # Stop watchdog
         self.pending_parameter_indices.clear()
         
         # Re-enable packet timeout
@@ -1264,6 +1317,28 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             logger.info("Restarting telemetry after parameter load")
             self.network_client.start_telemetry()
             self.was_streaming_before_param_load = False
+    
+    def _on_parameter_load_watchdog(self):
+        """Handle parameter load timeout (watchdog timer)."""
+        if not self.param_loading:
+            return  # Already completed
+        
+        logger.error("Parameter load watchdog timeout - forcing completion")
+        
+        received_count = len(self.received_parameter_indices)
+        total = self.total_parameter_count if self.total_parameter_count > 0 else 0
+        
+        QtWidgets.QMessageBox.critical(
+            self,
+            "Parameter Load Timeout",
+            f"Parameter loading did not complete within 60 seconds.\\n\\n"
+            f"Received: {received_count}/{total if total > 0 else '?'} parameters\\n\\n"
+            "The process has been terminated to prevent indefinite hang.\\n"
+            "You can try again or continue with the parameters that were loaded."
+        )
+        
+        # Force completion
+        self._complete_parameter_load()
     
     def _check_parameter_load_timeout(self):
         """Check if parameter loading timed out (global 30-second timeout)."""
@@ -1299,12 +1374,24 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _on_parameter_response(self, response: dict):
         """Handle parameter response from controller."""
+        if not self.param_loading:
+            # Ignore responses when not loading (might be stale responses)
+            return
+        
         try:
             response_type = response.get('type')
             
             if response_type == 'count_response':
                 # Received parameter count, now request each by index
                 total_count = response.get('total_parameters', 0)
+                if total_count <= 0:
+                    logger.warning(f"Invalid parameter count received: {total_count}")
+                    self.param_loading = False
+                    self.load_params_btn.setEnabled(True)
+                    self.network_client.set_packet_timeout_enabled(True)
+                    self.param_status_label.setText("No parameters available")
+                    return
+                
                 self.total_parameter_count = total_count
                 logger.info(f"Received parameter count: {total_count}")
                 self.param_status_label.setText(f"Loading {total_count} parameters...")
@@ -1315,13 +1402,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 # Start timer to send requests gradually
                 if len(self.pending_parameter_indices) > 0:
                     self.param_request_timer.start()
-                    logger.info(f"Starting gradual parameter load (50ms between requests)")
-                else:
-                    # No parameters - finish immediately
-                    self.param_loading = False
-                    self.load_params_btn.setEnabled(True)
-                    self.network_client.set_packet_timeout_enabled(True)
-                    self.param_status_label.setText("No parameters available")
+                    logger.info(f"Starting gradual parameter load (20ms between requests)")
             
             elif response_type == 'get_by_index_response':
                 # Received parameter metadata
@@ -1343,6 +1424,8 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                         # Cancel retry check timer if running
                         self.retry_check_timer.stop()
                         self._complete_parameter_load()
+                else:
+                    logger.warning(f"Received get_by_index_response with no metadata")
             
             elif response_type == 'set_response':
                 # Parameter set response
@@ -1351,7 +1434,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 name = response.get('name')
                 new_value = response.get('new_value')
                 
-                if status.name == 'SUCCESS':
+                if status and hasattr(status, 'name') and status.name == 'SUCCESS':
                     logger.info(f"Parameter set: {component}.{name} = {new_value}")
                     # Update tree
                     self._update_parameter_in_tree(component, name, new_value)
@@ -1361,6 +1444,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         except Exception as e:
             logger.error(f"Parameter response error: {e}", exc_info=True)
+            # Don't crash - continue loading
     
     def _add_parameter_to_tree(self, metadata: ParameterMetadata):
         """Add parameter to tree widget."""
@@ -1735,6 +1819,7 @@ def main():
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--decimate', type=int, default=1, help='Process 1 out of N packets')
     parser.add_argument('--window', type=int, default=1000, help='Number of samples to display on X-axis')
+    parser.add_argument('--debug-log', type=str, default=None, help='Enable telemetry debug logging to specified file (e.g., ./telemetry_debug.log)')
     args = parser.parse_args()
     
     # Auto-determine port based on target if not explicitly specified
@@ -1742,7 +1827,7 @@ def main():
         args.port = 7000 if args.target == 'grid' else 7001
     
     app = QtWidgets.QApplication(sys.argv)
-    window = TelemetryMonitorWindow(args.host, args.port, args.target, args.verbose, args.decimate, args.window)
+    window = TelemetryMonitorWindow(args.host, args.port, args.target, args.verbose, args.decimate, args.window, args.debug_log)
     window.show()
     return app.exec_()
 

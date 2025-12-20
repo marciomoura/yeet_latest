@@ -177,13 +177,13 @@ inline void configure_plant_for_startup(
 /**
  * @brief Execute state machine startup sequence
  *
- * Transitions the state machine from OPERATION_OFF to OPERATION_ON by:
- * 1. Enabling auxiliaries
- * 2. Closing main circuit breaker
- * 3. Issuing start command
+ * Transitions the state machine from IDLE to OPERATION_ON by:
+ * 1. Setting turn_on_command (triggers IDLE → AUXILIARIES_ON via IO mock)
+ * 2. IO mock processes auxiliaries_on_command → auxiliaries_are_on feedback
+ * 3. State machine transitions to BREAKERS_OFF → BREAKERS_ON (via IO mock breaker close delay)
+ * 4. Issuing start_command to go BREAKERS_ON → OPERATION_ON
  *
- * Uses the io_mock runner to send digital inputs through set_digital_inputs(),
- * matching the embedded code path where hardware values flow through external_ios.
+ * Uses the proper signal flow: turn_on_command → state machine → IO mock → external_ios.
  *
  * @param system The plant-complete SFC closed-loop simulation builder
  * @param simulator The simulator instance
@@ -192,17 +192,13 @@ inline void configure_plant_for_startup(
 inline bool execute_state_machine_startup(
     plant_complete_sfc_closed_loop_simulation_builder& system, yeet::simulator& simulator)
 {
-    // Use io_mock to set digital inputs via set_digital_inputs()
-    // This tests the real code path matching embedded operation
-    auto& io = system.io_mock.get_parameters();
+    // Enable turn_on_command to energize system
+    // State machine: IDLE → AUXILIARIES_ON → BREAKERS_OFF → BREAKERS_ON
+    system.grid_side_control.state_machine.get_parameters().turn_on_command.write(true);
+    simulator.simulate_for(0.3);  // Allow IO mock to process auxiliaries and breaker delays
 
-    // Enable auxiliaries and close MCB
-    io.auxiliaries_are_on.write(true);
-    io.mcb_is_closed.write(true);
-    simulator.simulate_for(0.2);
-
-    // Issue start command
-    io.start_command.write(true);
+    // Issue start command to go to OPERATION_ON
+    system.grid_io_mock.get_parameters().start_command.write(true);
     simulator.simulate_for(0.1);
 
     // Verify state machine is operational
@@ -299,7 +295,7 @@ inline speed_pu_t ramp_to_target_speed(plant_complete_sfc_closed_loop_simulation
  * 3. Enable auxiliaries and close MCB (ready to start)
  *
  * After calling this function, the system is in OPERATION_OFF state but ready to receive
- * a start command. When start_command is set to true (via io_mock or telemetry), the
+ * a start command. When start_command is set to true (via grid_io_mock or telemetry), the
  * system will transition to OPERATION_ON and begin the normal startup sequence.
  *
  * @param system The plant-complete SFC closed-loop simulation builder
@@ -316,13 +312,11 @@ inline void prepare_for_startup(plant_complete_sfc_closed_loop_simulation_builde
     // Step 2: Configure plant model
     configure_plant_for_startup(system, config);
 
-    // Step 3: Enable auxiliaries and close MCB (but do NOT issue start command)
-    auto& io = system.io_mock.get_parameters();
-    io.auxiliaries_are_on.write(true);
-    io.mcb_is_closed.write(true);
+    // Step 3: Enable turn_on_command to energize auxiliaries and close breaker via IO mock
+    system.grid_side_control.state_machine.get_parameters().turn_on_command.write(true);
 
-    // Run a few cycles to let the configuration settle
-    simulator.simulate_for(0.2);
+    // Run a few cycles to let IO mock process auxiliaries and breaker close delays
+    simulator.simulate_for(0.3);
 
     // System is now ready - start_command is still false
     // User must send start_command via telemetry to begin operation

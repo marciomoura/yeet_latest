@@ -23,7 +23,7 @@ protected:
         mock_signal_input::write(dut.get_inputs().startup_active, false);
         mock_signal_input::write(dut.get_inputs().closed_loop_active, true);
         mock_signal_input::write(dut.get_inputs().release_protections, true);
-        mock_signal_input::write(dut.get_inputs().trip_acknowledged, false);
+        mock_signal_input::write(dut.get_inputs().excitation_is_on, true);
 
         auto& p = dut.get_parameters();
         p.protection_module_enabled.write(true);
@@ -57,14 +57,6 @@ protected:
         }
     }
 
-    void pulse_trip_acknowledged(std::size_t high_cycles = 10)
-    {
-        mock_signal_input::write(dut.get_inputs().trip_acknowledged, true);
-        step(high_cycles);
-        mock_signal_input::write(dut.get_inputs().trip_acknowledged, false);
-        step(10);
-    }
-
     void pulse_confirm_alarms()
     {
         auto& p = dut.get_parameters();
@@ -96,11 +88,7 @@ TEST_F(MachineSideProtectionsRunnerUnitTest, OverspeedTripCanBeClearedByAcknowle
     mock_signal_input::write(dut.get_inputs().machine_speed, speed_pu_t{0.0f});
     step(20);
 
-    // Acknowledge trip - must remain high during confirm
-    mock_signal_input::write(dut.get_inputs().trip_acknowledged, true);
-    step(10);
-
-    // Confirm alarms while trip_acknowledged is still high
+    // Confirm alarms
     p.confirm_alarms.write(false);
     step(5);
     p.confirm_alarms.write(true);

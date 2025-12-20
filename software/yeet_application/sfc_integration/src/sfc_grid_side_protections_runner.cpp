@@ -53,9 +53,17 @@ void sfc_grid_side_protections_runner::run()
         _parameters.force_reset_all = false;  // Clear flag after reset
     }
 
-    _protections.update(_inputs.dc_link_current_pu, _inputs.grid_voltage_magnitude_pu, _inputs.door_is_open,
-        _parameters.protection_module_enabled, _inputs.release_protections, _last_communication_valid,
-        static_cast<bool>(_inputs.trip_acknowledged), static_cast<bool>(_parameters.confirm_alarms));
+    const bool module_enabled = _parameters.protection_module_enabled;
+
+    if (module_enabled) {
+        _protections.update_communication_watchdog(_last_communication_valid);
+        _protections.update_overcurrent_protection(_inputs.dc_link_current_pu);
+        _protections.update_overvoltage_protection(_inputs.grid_voltage_magnitude_pu);
+        _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu);
+    }
+
+    _protections.resolve_protections(
+        _inputs.door_is_open, module_enabled, static_cast<bool>(_parameters.confirm_alarms));
 
     _outputs.is_tripped = _protections.get_is_tripped();
     _outputs.is_inhibited = _protections.get_is_inhibited();

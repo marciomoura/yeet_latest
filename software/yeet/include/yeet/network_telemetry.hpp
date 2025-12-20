@@ -49,8 +49,11 @@ namespace yeet::telemetry {
  * Protocol Constants
  * ============================================================================ */
 
-/** @brief Protocol version (increment when changing packet structure) */
-static constexpr std::uint8_t protocol_version = 1;
+/** @brief Protocol version (increment when changing packet structure)
+ *  Version 1: float signals
+ *  Version 2: uint32_t signals (floats as bit-cast, booleans packed)
+ */
+static constexpr std::uint8_t protocol_version = 2;
 
 /** @brief Synchronization magic number (0xDEADBEEF) sent at stream start */
 static constexpr std::uint32_t sync_magic = 0xDEADBEEF;
@@ -62,7 +65,7 @@ static constexpr std::size_t max_signals = 256;
 static constexpr std::size_t crc_size = 4;
 
 /** @brief Maximum encoded packet size (header + max signals + CRC32) */
-static constexpr std::size_t max_packet_size = 16 + (max_signals * sizeof(float)) + crc_size;
+static constexpr std::size_t max_packet_size = 16 + (max_signals * sizeof(std::uint32_t)) + crc_size;
 
 /* ============================================================================
  * Packet Type Enumeration
@@ -169,15 +172,15 @@ public:
     telemetry_packet() noexcept : _header{}, _signal_count(0), _signals{} {}
 
     /**
-     * @brief Push a signal value into the packet
+     * @brief Push a raw uint32_t value into the packet
      *
      * Adds a signal to the payload array. Signals are added sequentially
      * in the order they are pushed. Index mapping is documented externally.
      *
-     * @param value Signal value to add
+     * @param value Raw uint32_t value to add
      * @return true if signal was added, false if packet is full
      */
-    bool push_signal(float value) noexcept
+    bool push_signal(std::uint32_t value) noexcept
     {
         if (_signal_count >= max_signals) {
             return false;
@@ -187,27 +190,89 @@ public:
     }
 
     /**
-     * @brief Add a signal at a specific index in the packet
+     * @brief Push a float value into the packet (bit-cast to uint32_t)
      *
-     * Adds a signal at the specified index position. This allows
-     * explicit control over signal placement rather than sequential ordering.
-     * The signal count is automatically updated if needed.
+     * The float is reinterpreted as uint32_t for transmission.
+     * Python side will reinterpret back to float.
+     *
+     * @param value Float value to add
+     * @return true if signal was added, false if packet is full
+     */
+    bool push_float(float value) noexcept
+    {
+        std::uint32_t raw;
+        std::memcpy(&raw, &value, sizeof(raw));
+        return push_signal(raw);
+    }
+
+    /**
+     * @brief Add a raw uint32_t signal at a specific index
      *
      * @param index Signal index (0-based position in payload)
-     * @param value Signal value to add
+     * @param value Raw uint32_t value to add
      * @return true if signal was added, false if index is out of range
      */
-    bool add_signal(std::uint16_t index, float value) noexcept
+    bool add_signal(std::uint16_t index, std::uint32_t value) noexcept
     {
         if (index >= max_signals) {
             return false;
         }
         _signals[index] = value;
-        // Update signal count if this index extends beyond current count
         if (index >= _signal_count) {
             _signal_count = index + 1;
         }
         return true;
+    }
+
+    /**
+     * @brief Add a float signal at a specific index (bit-cast to uint32_t)
+     *
+     * The float is reinterpreted as uint32_t for transmission.
+     * Python side will reinterpret back to float.
+     *
+     * @param index Signal index (0-based position in payload)
+     * @param value Float value to add
+     * @return true if signal was added, false if index is out of range
+     */
+    bool add_signal(std::uint16_t index, float value) noexcept
+    {
+        std::uint32_t raw;
+        std::memcpy(&raw, &value, sizeof(raw));
+        return add_signal(index, raw);
+    }
+
+    /**
+     * @brief Add a packed boolean word at a specific index
+     *
+     * Packs up to 32 boolean values into a single uint32_t word.
+     * Each boolean occupies one bit, starting from LSB.
+     * Use this to efficiently pack multiple boolean signals.
+     *
+     * Example:
+     * @code
+     * packet.add_bool_pack(50, {pulse1, pulse2, pulse3, pulse4, pulse5, pulse6});
+     * // Bit 0 = pulse1, Bit 1 = pulse2, ..., Bit 5 = pulse6
+     * @endcode
+     *
+     * @param index Signal index (0-based position in payload)
+     * @param bools Initializer list of boolean values (max 32)
+     * @return true if signal was added, false if index is out of range
+     */
+    bool add_bool_pack(std::uint16_t index, std::initializer_list<bool> bools) noexcept
+    {
+        if (index >= max_signals) {
+            return false;
+        }
+        std::uint32_t packed = 0;
+        std::uint32_t bit = 0;
+        for (bool b : bools) {
+            if (bit >= 32) break;
+            if (b) {
+                packed |= (1u << bit);
+            }
+            ++bit;
+        }
+        return add_signal(index, packed);
     }
 
     /**
@@ -251,7 +316,7 @@ public:
     /**
      * @brief Get signal array (const)
      */
-    const std::array<float, max_signals>& get_signals() const noexcept { return _signals; }
+    const std::array<std::uint32_t, max_signals>& get_signals() const noexcept { return _signals; }
 
     /**
      * @brief Calculate encoded size of this packet
@@ -260,13 +325,13 @@ public:
      */
     std::size_t get_encoded_size() const noexcept
     {
-        return sizeof(header_t) + (_signal_count * sizeof(float)) + crc_size;
+        return sizeof(header_t) + (_signal_count * sizeof(std::uint32_t)) + crc_size;
     }
 
 private:
-    header_t _header;                        /**< Packet header (16 bytes) */
-    std::uint16_t _signal_count;             /**< Current number of signals */
-    std::array<float, max_signals> _signals; /**< Signal payload array */
+    header_t _header;                                /**< Packet header (16 bytes) */
+    std::uint16_t _signal_count;                     /**< Current number of signals */
+    std::array<std::uint32_t, max_signals> _signals; /**< Signal payload array (raw uint32_t) */
 };
 
 /* ============================================================================

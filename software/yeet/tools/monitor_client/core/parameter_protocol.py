@@ -29,7 +29,7 @@ Example Usage:
     # Decode response
     response = sock.recv(1024)
     metadata = decoder.decode_list_response(response)
-    print(f"Parameter: {metadata.name}, Range: [{metadata.min_value}, {metadata.max_value}]")
+    # print(f"Parameter: {metadata.name}, Range: [{metadata.min_value}, {metadata.max_value}]")
 """
 
 import struct
@@ -39,7 +39,7 @@ from typing import Optional, List
 
 
 # Protocol constants (match C++ telemetry.hpp)
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 
 # Packet types (extending telemetry protocol)
 class PacketType(IntEnum):

@@ -57,9 +57,6 @@ std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
     tx_msg.shutdown_request = machine_integrator_supervisor.get_outputs().request_shutdown.read();
     tx_msg.machine_protection_tripped = machine_protections.get_outputs().is_tripped.read();
     tx_msg.protection_inhibit = machine_protections.get_outputs().is_inhibited.read();
-    // Machine-side doesn't have a state machine with trip_acknowledged yet
-    // This could be added in future if machine-side needs independent acknowledgment logic
-    tx_msg.machine_trip_acknowledged = false;
     _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
 }
@@ -254,24 +251,27 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&protections_inputs::machine_frequency_pu)
         .from(machine_side_observer.get_outputs().estimated_speed)
         .to(&protections_inputs::machine_speed)
-        .from(external_ios.get_fiber_optics_inputs_from_grid().grid_release_protections)
+        .from(external_ios.get_fiber_optics_inputs_from_grid().machine_release_protections)
         .to(&protections_inputs::release_protections)
-        .from(external_ios.get_fiber_optics_inputs_from_grid().grid_trip_acknowledged)
-        .to(&protections_inputs::trip_acknowledged)
         .from(startup_sequencer.get_outputs().startup_active)
         .to(&protections_inputs::startup_active)
         .from(startup_sequencer.get_outputs().is_startup_complete)
-        .to(&protections_inputs::closed_loop_active);
+        .to(&protections_inputs::closed_loop_active)
+        .from(external_ios.get_digital_inputs().excitation_status)
+        .to(&protections_inputs::excitation_is_on);
 
     // ==================== External IO Output Connections ====================
     signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
         external_ios.get_thyristor_control_output().firing_pulses);
 
     // Excitation command outputs from excitation controller to external IOs
-    // Map excitation_start_command to excitation_release (DO)
+    // Digital outputs: ON command, OFF command
     signals_connector::connect_output_to_input(excitation_controller.get_outputs().excitation_start_command,
-        external_ios.get_excitation_outputs().excitation_release);
-    // Map field_current_reference to excitation_current_reference (AO)
+        external_ios.get_digital_outputs().excitation_on_command);
+    signals_connector::connect_output_to_input(excitation_controller.get_outputs().excitation_stop_command,
+        external_ios.get_digital_outputs().excitation_off_command);
+
+    // Analog output: field current reference
     signals_connector::connect_output_to_input(excitation_controller.get_outputs().field_current_reference,
         external_ios.get_excitation_outputs().excitation_current_reference);
 

@@ -4,6 +4,7 @@
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_types.hpp"
+#include "sfc_integration/sfc_io_types.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/adc_value.hpp"
@@ -19,7 +20,7 @@ namespace yeet::application::sfc::integration {
  * the grid-side control system:
  *
  * **Inputs:**
- * - Supervisory digital commands (auxiliaries_are_on, mcb_is_closed, start/stop)
+ * - Supervisory digital commands (auxiliaries_are_on, mv_breaker_is_closed, start/stop)
  * - Analog measurements (ADC counts from hardware mock)
  * - Cross-coupled signals from machine-side (speed, current reference, voltage, force commutation)
  *
@@ -62,10 +63,10 @@ public:
         /// Override value for auxiliaries_are_on (when override enabled)
         yeet::parameter<bool> di_auxiliaries_are_on_override_value{false};
 
-        /// Enable override for mcb_is_closed input
-        yeet::parameter<bool> di_mcb_is_closed_override{false};
-        /// Override value for mcb_is_closed (when override enabled)
-        yeet::parameter<bool> di_mcb_is_closed_override_value{false};
+        /// Enable override for mv_breaker_is_closed input
+        yeet::parameter<bool> di_mv_breaker_is_closed_override{false};
+        /// Override value for mv_breaker_is_closed (when override enabled)
+        yeet::parameter<bool> di_mv_breaker_is_closed_override_value{false};
 
         /// Enable override for start_command input
         yeet::parameter<bool> di_start_command_override{false};
@@ -82,15 +83,15 @@ public:
         /// Override value for shutdown_request (when override enabled)
         yeet::parameter<bool> di_shutdown_request_override_value{false};
 
-        /// Enable override for breaker_is_closed input
-        yeet::parameter<bool> di_breaker_is_closed_override{false};
-        /// Override value for breaker_is_closed (when override enabled)
-        yeet::parameter<bool> di_breaker_is_closed_override_value{false};
+        /// Enable override for mv_breaker_is_tripping input
+        yeet::parameter<bool> di_mv_breaker_is_tripping_override{false};
+        /// Override value for mv_breaker_is_tripping (when override enabled)
+        yeet::parameter<bool> di_mv_breaker_is_tripping_override_value{false};
 
-        /// Enable override for breaker_is_tripping input
-        yeet::parameter<bool> di_breaker_is_tripping_override{false};
-        /// Override value for breaker_is_tripping (when override enabled)
-        yeet::parameter<bool> di_breaker_is_tripping_override_value{false};
+        /// Enable override for external_fault input
+        yeet::parameter<bool> di_external_fault_override{false};
+        /// Override value for external_fault (when override enabled)
+        yeet::parameter<bool> di_external_fault_override_value{false};
 
         /// Enable override for emergency_off input
         yeet::parameter<bool> di_emergency_off_override{false};
@@ -102,23 +103,58 @@ public:
         /// Override value for door_is_open (when override enabled)
         yeet::parameter<bool> di_door_is_open_override_value{false};
 
+        /// Enable override for fans_are_running input
+        yeet::parameter<bool> di_fans_are_running_override{false};
+        /// Override value for fans_are_running (when override enabled)
+        yeet::parameter<bool> di_fans_are_running_override_value{false};
+
         // ==================== IO Index Mapping (IO Channel Selection) ====================
         // Select which physical IO channel (0..N-1) maps to each logical signal.
         // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
         // N comes from TASK_IO_NUM_DIGITAL_INPUTS / TASK_IO_NUM_DIGITAL_OUTPUTS / TASK_IO_NUM_ANALOG_OUTPUTS.
         yeet::parameter<int> di_auxiliaries_are_on_index{0};
-        yeet::parameter<int> di_mcb_is_closed_index{1};
+        yeet::parameter<int> di_mv_breaker_is_closed_index{1};
         yeet::parameter<int> di_start_command_index{2};
         yeet::parameter<int> di_stop_command_index{3};
         yeet::parameter<int> di_shutdown_request_index{4};
-        yeet::parameter<int> di_breaker_is_closed_index{5};
-        yeet::parameter<int> di_breaker_is_tripping_index{6};
+        yeet::parameter<int> di_mv_breaker_is_tripping_index{6};
         yeet::parameter<int> di_emergency_off_index{7};
         yeet::parameter<int> di_door_is_open_index{8};
+        yeet::parameter<int> di_external_fault_index{9};
+        yeet::parameter<int> di_fans_are_running_index{10};
 
-        // Defaults match the legacy commented mapping in grid_side_tasks.cpp (DO7/DO8).
-        yeet::parameter<int> do_mcb_close_index{6};
-        yeet::parameter<int> do_mcb_open_index{7};
+        // Digital output indices
+        yeet::parameter<int> do_mv_breaker_close_index{0};
+        yeet::parameter<int> do_mv_breaker_open_index{1};
+        yeet::parameter<int> do_on_command_acu_fan_1_index{2};
+        yeet::parameter<int> do_on_command_acu_fan_2_index{3};
+        yeet::parameter<int> do_on_command_acu_fan_3_index{4};
+        yeet::parameter<int> do_on_command_acu_fan_4_index{5};
+        yeet::parameter<int> do_software_trip_1_index{6};
+        yeet::parameter<int> do_software_trip_2_index{7};
+        yeet::parameter<int> do_software_trip_3_index{8};
+
+        // ==================== IO Polarity Configuration ====================
+        // Configure signal polarity (active high or active low)
+        yeet::parameter<io_polarity_t> di_auxiliaries_are_on_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_mv_breaker_is_closed_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_start_command_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_stop_command_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_shutdown_request_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_mv_breaker_is_tripping_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_emergency_off_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_door_is_open_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_external_fault_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_fans_are_running_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_mv_breaker_close_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_mv_breaker_open_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_on_command_acu_fan_1_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_on_command_acu_fan_2_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_on_command_acu_fan_3_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_on_command_acu_fan_4_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_software_trip_1_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_software_trip_2_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_software_trip_3_polarity{io_polarity_t::ACTIVE_HIGH};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
@@ -132,15 +168,16 @@ public:
      * Flow: External command → signals_connector → digital_inputs → grid-side state machine
      */
     struct digital_inputs_t {
-        signal_output<bool> auxiliaries_are_on;   ///< Auxiliary systems ready (cooling, oil pump, etc.)
-        signal_output<bool> mcb_is_closed;        ///< Grid breakers closed
-        signal_output<bool> start_command;        ///< Start operation command
-        signal_output<bool> stop_command;         ///< Stop operation command
-        signal_output<bool> shutdown_request;     ///< Emergency shutdown request
-        signal_output<bool> breaker_is_closed;    ///< Main circuit breaker is closed (optional status)
-        signal_output<bool> breaker_is_tripping;  ///< Protection relay indicates breaker is tripping
-        signal_output<bool> emergency_off;        ///< Emergency off button pressed
-        signal_output<bool> door_is_open;         ///< Enclosure door is open (prevents breaker close)
+        signal_output<bool> auxiliaries_are_on;      ///< Auxiliary systems ready (cooling, oil pump, etc.)
+        signal_output<bool> mv_breaker_is_closed;    ///< Medium voltage breaker closed
+        signal_output<bool> start_command;           ///< Start operation command
+        signal_output<bool> stop_command;            ///< Stop operation command
+        signal_output<bool> shutdown_request;        ///< Emergency shutdown request
+        signal_output<bool> mv_breaker_is_tripping;  ///< MV breaker protection relay indicates tripping
+        signal_output<bool> emergency_off;           ///< Emergency off button pressed
+        signal_output<bool> door_is_open;            ///< Enclosure door is open (prevents breaker close)
+        signal_output<bool> external_fault;          ///< External fault signal (ORs to protection trip)
+        signal_output<bool> fans_are_running;        ///< ACU fans feedback (auxiliaries ready confirmation)
     };
 
     // ==================== ANALOG INPUTS (ADC Measurements - Grid Measurements Only) ====================
@@ -232,7 +269,6 @@ public:
         external_signal<bool> shutdown_request{false};            ///< Shutdown request from machine side
         external_signal<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
         external_signal<bool> protection_inhibit{false};          ///< Protection system inhibited (awaiting ack)
-        external_signal<bool> machine_trip_acknowledged{false};   ///< Machine-side trip acknowledgment
     };
 
     // ==================== DIGITAL OUTPUTS (Main Circuit Breaker Control) ====================
@@ -246,9 +282,16 @@ public:
      * Flow: state_machine → external_ios → embedded/hardware → main circuit breaker
      */
     struct digital_outputs_t {
-        signal_input<bool> mcb_close;               ///< Main circuit breaker close (level-high)
-        signal_input<bool> mcb_open;                ///< Main circuit breaker open (level-high)
+        signal_input<bool> mv_breaker_close;        ///< MV breaker close command (before polarity inversion)
+        signal_input<bool> mv_breaker_open;         ///< MV breaker open command (before polarity inversion)
         signal_input<bool> auxiliaries_on_command;  ///< Command to energize auxiliaries (level-high)
+        signal_input<bool> on_command_acu_fan_1;    ///< ACU reactor fan ON command (from auxiliaries_on)
+        signal_input<bool> on_command_acu_fan_2;    ///< ACU converter 1 fan ON command (from auxiliaries_on)
+        signal_input<bool> on_command_acu_fan_3;    ///< ACU converter 2 fan ON command (from auxiliaries_on)
+        signal_input<bool> on_command_acu_fan_4;    ///< ACU control fan ON command (from auxiliaries_on)
+        signal_input<bool> software_trip_1;         ///< Software trip signal 1 (common trip)
+        signal_input<bool> software_trip_2;         ///< Software trip signal 2 (trip/emergency stop)
+        signal_input<bool> software_trip_3;         ///< Software trip signal 3 (software trip)
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -263,11 +306,11 @@ public:
      */
     const parameters& get_parameters() const { return _parameters; }
 
-    /**
-     * @brief Get parameters structure (mutable)
-     * @return Mutable reference to parameters (for tests to set override flags)
-     */
-    parameters& get_parameters() { return _parameters; }
+    // /**
+    //  * @brief Get parameters structure (mutable)
+    //  * @return Mutable reference to parameters (for tests to set override flags)
+    //  */
+    // parameters& get_parameters() { return _parameters; }
 
     /**
      * @brief Get digital inputs structure (const)
@@ -383,14 +426,14 @@ public:
      * @param door_is_open Enclosure door is open
      */
     void set_digital_inputs(bool auxiliaries_are_on,
-        bool mcb_is_closed,
+        bool mv_breaker_is_closed,
         bool start_command,
         bool stop_command,
-        bool shutdown_request,
-        bool breaker_is_closed,
-        bool breaker_is_tripping,
+        bool mv_breaker_is_tripping,
         bool emergency_off,
-        bool door_is_open);
+        bool door_is_open,
+        bool external_fault,
+        bool fans_are_running);
 
     /**
      * @brief Set fiber-optics inputs from machine-side using protocol message
@@ -421,17 +464,18 @@ public:
      *
      * @return true if state machine requests breaker close (level-high)
      */
-    bool get_mcb_close() const;
+    bool get_mv_breaker_close() const;
 
     /**
-     * @brief Get main circuit breaker open signal
+     * @brief Get MV breaker open signal
      *
-     * Read by embedded code to send open signal to main circuit breaker.
+     * Read by embedded code to send open signal to MV breaker.
      * This includes both normal shutdowns and protection trips.
+     * Output polarity inversion applied based on do_mv_breaker_open_polarity parameter.
      *
-     * @return true if state machine requests breaker open (level-high)
+     * @return true if state machine requests breaker open (with polarity applied)
      */
-    bool get_mcb_open() const;
+    bool get_mv_breaker_open() const;
 
     /**
      * @brief Get auxiliaries on command signal
@@ -442,6 +486,23 @@ public:
      * @return true if auxiliaries should be energized (level-high)
      */
     bool get_auxiliaries_on_command() const;
+
+    /**
+     * @brief Get ACU fan ON command signals (all driven by auxiliaries_on)
+     * These methods apply polarity inversion for each output
+     */
+    bool get_on_command_acu_fan_1() const;
+    bool get_on_command_acu_fan_2() const;
+    bool get_on_command_acu_fan_3() const;
+    bool get_on_command_acu_fan_4() const;
+
+    /**
+     * @brief Get software trip signals (all driven by protection trip/inhibit status)
+     * These methods apply polarity inversion for each output
+     */
+    bool get_software_trip_1() const;
+    bool get_software_trip_2() const;
+    bool get_software_trip_3() const;
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access
@@ -469,14 +530,14 @@ private:
      * otherwise use the hardware value passed in.
      */
     void apply_digital_input_overrides(bool auxiliaries_are_on,
-        bool mcb_is_closed,
+        bool mv_breaker_is_closed,
         bool start_command,
         bool stop_command,
-        bool shutdown_request,
-        bool breaker_is_closed,
-        bool breaker_is_tripping,
+        bool mv_breaker_is_tripping,
         bool emergency_off,
-        bool door_is_open);
+        bool door_is_open,
+        bool external_fault,
+        bool fans_are_running);
 
     parameters _parameters;
     digital_inputs_t _digital_inputs;
