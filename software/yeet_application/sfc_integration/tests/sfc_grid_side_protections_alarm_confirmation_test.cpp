@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "sfc_integration/sfc_grid_side_protections_runner.hpp"
+#include "yeet/signal_wiring.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -15,10 +16,28 @@ namespace yeet::application::sfc::integration {
  */
 class SfcGridSideProtectionsAlarmConfirmationTest : public ::testing::Test {
 protected:
+    struct mock_storage {
+        voltage_pu_t grid_voltage_magnitude_pu{1.0f};
+        current_pu_t dc_link_current_pu{0.5f};
+        bool release_protections{true};
+        bool door_is_open{false};
+    } _storage;
+
     void SetUp() override
     {
         _runner = std::make_unique<sfc_grid_side_protections_runner>();
         _runner->initialize();
+
+        // Wire mock inputs to storage
+        yeet::wire(*_runner)
+            .mocked(_storage.grid_voltage_magnitude_pu)
+            .to(&sfc_grid_side_protections_datamodel::inputs::grid_voltage_magnitude_pu)
+            .mocked(_storage.dc_link_current_pu)
+            .to(&sfc_grid_side_protections_datamodel::inputs::dc_link_current_pu)
+            .mocked(_storage.release_protections)
+            .to(&sfc_grid_side_protections_datamodel::inputs::release_protections)
+            .mocked(_storage.door_is_open)
+            .to(&sfc_grid_side_protections_datamodel::inputs::door_is_open);
 
         // Configure protection thresholds for testing
         auto& params = _runner->get_parameters();
@@ -40,30 +59,26 @@ protected:
 
     void reset_inputs()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-
         // Safe grid voltage magnitude (1.0 pu)
-        mock_signal_input::write(inputs.grid_voltage_magnitude_pu, voltage_pu_t{1.0f});
+        _storage.grid_voltage_magnitude_pu = voltage_pu_t{1.0f};
 
         // Safe DC link current (0.5 pu)
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
+        _storage.dc_link_current_pu = current_pu_t{0.5f};
 
         // Release protections
-        mock_signal_input::write(inputs.release_protections, true);
+        _storage.release_protections = true;
 
         // Door closed by default
-        mock_signal_input::write(inputs.door_is_open, false);
+        _storage.door_is_open = false;
     }
     void trigger_overcurrent()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{1.5f});  // Above 1.2 threshold
+        _storage.dc_link_current_pu = current_pu_t{1.5f};  // Above 1.2 threshold
     }
 
     void trigger_overvoltage()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.grid_voltage_magnitude_pu, voltage_pu_t{1.3f});  // Above 1.15 threshold
+        _storage.grid_voltage_magnitude_pu = voltage_pu_t{1.3f};  // Above 1.15 threshold
     }
 
     void clear_fault_conditions()
@@ -74,10 +89,9 @@ protected:
     void release_protections()
     {
         // Toggle release signal to reset latched protections
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.release_protections, false);
+        _storage.release_protections = false;
         run_cycle();
-        mock_signal_input::write(inputs.release_protections, true);
+        _storage.release_protections = true;
         run_cycle();
     }
 
@@ -402,18 +416,16 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
  */
 TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConfirmation)
 {
-    auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-
     // Prove this works even when not releasing/modulating.
-    mock_signal_input::write(inputs.release_protections, false);
-    mock_signal_input::write(inputs.door_is_open, true);
+    _storage.release_protections = false;
+    _storage.door_is_open = true;
 
     run_cycle();
     EXPECT_TRUE(is_tripped()) << "Door open should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Door open trip should latch alarm";
 
     // Close door: fault clears
-    mock_signal_input::write(inputs.door_is_open, false);
+    _storage.door_is_open = false;
     run_cycle();
     EXPECT_FALSE(is_tripped()) << "Trip should clear when door is closed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
@@ -433,14 +445,13 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConf
 TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterTimeout)
 {
     auto& params = _runner->get_parameters();
-    auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
 
     // Configure very short timeout so the test is fast/deterministic.
     params.comm_timeout.write(duration_t{200e-6});  // 1 cycle at 200us
     params.comm_reset.write(duration_t{200e-6});
 
     // Prove comm watchdog runs even when not releasing/modulating.
-    mock_signal_input::write(inputs.release_protections, false);
+    _storage.release_protections = false;
 
     _runner->update_communication_status(false);
     run_cycle();

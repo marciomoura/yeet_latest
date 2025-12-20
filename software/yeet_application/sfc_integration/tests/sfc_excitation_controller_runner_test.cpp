@@ -2,13 +2,32 @@
 
 #include <gtest/gtest.h>
 
+#include "yeet/signal_wiring.hpp"
+
 namespace yeet::application::sfc::integration {
 
 class SfcExcitationControllerRunnerTest : public ::testing::Test {
 protected:
+    struct mock_storage {
+        speed_pu_t machine_rotor_speed_pu;
+        voltage_pu_t machine_voltage_magnitude_pu;
+        bool release_excitation;
+    };
+
+    static inline mock_storage _storage{};
+
     void SetUp() override
     {
         _runner = std::make_unique<sfc_excitation_controller_runner>();
+
+        // Connect mock storage using signal wiring DSL
+        yeet::wire(_runner->get_signal_flow_datamodel())
+            .mocked(_storage.machine_rotor_speed_pu)
+            .to(&sfc_excitation_controller_datamodel::inputs::machine_rotor_speed_pu)
+            .mocked(_storage.machine_voltage_magnitude_pu)
+            .to(&sfc_excitation_controller_datamodel::inputs::machine_voltage_magnitude_pu)
+            .mocked(_storage.release_excitation)
+            .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
 
         // Reset all input signals
         reset_all_inputs();
@@ -26,31 +45,18 @@ protected:
 
     void reset_all_inputs()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_rotor_speed_pu, speed_pu_t{0.0});
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.0});
-        mock_signal_input::write(inputs.release_excitation, false);
+        _storage.machine_rotor_speed_pu = speed_pu_t{0.0};
+        _storage.machine_voltage_magnitude_pu = voltage_pu_t{0.0};
+        _storage.release_excitation = false;
     }
 
     void run_cycle() { _runner->run(); }
 
-    void set_machine_speed(speed_pu_t speed)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_rotor_speed_pu, speed);
-    }
+    void set_machine_speed(speed_pu_t speed) { _storage.machine_rotor_speed_pu = speed; }
 
-    void set_machine_voltage_magnitude(voltage_pu_t voltage)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
-    }
+    void set_machine_voltage_magnitude(voltage_pu_t voltage) { _storage.machine_voltage_magnitude_pu = voltage; }
 
-    void set_release_excitation(bool release)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.release_excitation, release);
-    }
+    void set_release_excitation(bool release) { _storage.release_excitation = release; }
 
     current_pu_t get_field_current_reference()
     {

@@ -132,10 +132,10 @@ TEST(mock_signal_input_test, signal_input_mock)
 
     EXPECT_TRUE(input.empty());
 
-    yeet::mock_signal_input::connect(input, storage);
+    yeet::utils::mock_signal_input::connect(input, storage);
 
     for (auto& n : {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
-        yeet::mock_signal_input::write(input, n);
+        yeet::utils::mock_signal_input::write(input, n);
         EXPECT_EQ(input.read(), n);
     }
 

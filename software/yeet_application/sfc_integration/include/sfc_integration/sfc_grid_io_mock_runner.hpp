@@ -3,6 +3,7 @@
 #include "sfc_integration/sfc_grid_side_external_ios_datamodel.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
@@ -31,13 +32,23 @@ class sfc_grid_io_mock_runner {
 public:
     struct inputs {
         // Commands from control system (external_ios digital outputs)
-        signal_input<bool> mv_breaker_close{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> mv_breaker_open{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> auxiliaries_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_1_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_2_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_3_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_4_on_command{mock_signal_input::create_mocked<bool>()};
+        signal_input<bool> mv_breaker_close;
+        signal_input<bool> mv_breaker_open;
+        signal_input<bool> auxiliaries_on_command;
+        signal_input<bool> acu_fan_1_on_command;
+        signal_input<bool> acu_fan_2_on_command;
+        signal_input<bool> acu_fan_3_on_command;
+        signal_input<bool> acu_fan_4_on_command;
+    };
+
+    struct mock_storage {
+        bool mv_breaker_close;
+        bool mv_breaker_open;
+        bool auxiliaries_on_command;
+        bool acu_fan_1_on_command;
+        bool acu_fan_2_on_command;
+        bool acu_fan_3_on_command;
+        bool acu_fan_4_on_command;
     };
 
     struct outputs {
@@ -107,7 +118,24 @@ public:
         parameter<bool> override_fans_are_running_value{false};
     };
 
-    sfc_grid_io_mock_runner() = default;
+    sfc_grid_io_mock_runner()
+    {
+        yeet::wire(_inputs)
+            .mocked(_storage.mv_breaker_close)
+            .to(&inputs::mv_breaker_close)
+            .mocked(_storage.mv_breaker_open)
+            .to(&inputs::mv_breaker_open)
+            .mocked(_storage.auxiliaries_on_command)
+            .to(&inputs::auxiliaries_on_command)
+            .mocked(_storage.acu_fan_1_on_command)
+            .to(&inputs::acu_fan_1_on_command)
+            .mocked(_storage.acu_fan_2_on_command)
+            .to(&inputs::acu_fan_2_on_command)
+            .mocked(_storage.acu_fan_3_on_command)
+            .to(&inputs::acu_fan_3_on_command)
+            .mocked(_storage.acu_fan_4_on_command)
+            .to(&inputs::acu_fan_4_on_command);
+    }
 
     void register_datamodel(yeet::model_registry& registry);
     void initialize();
@@ -125,6 +153,7 @@ private:
     inputs _inputs;
     outputs _outputs;
     parameters _parameters;
+    mock_storage _storage{};
 
     // Internal state for modeling hardware dynamics
     duration_t _breaker_transition_timer{0.0};

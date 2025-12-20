@@ -43,7 +43,9 @@ private:
     storage_type<T> _value{&_data};
 };
 
+namespace utils {
 class mock_signal_input;
+}
 
 template <typename T>
 class signal_input {
@@ -63,13 +65,15 @@ public:
     bool empty() const { return _value.empty(); }
 
 private:
-    friend class mock_signal_input;
+    friend class utils::mock_signal_input;
 
     // Mocking for easy simulation access
     void write(T const& value) noexcept { _value = value; }
 
     storage_type<T> _value{};
 };
+
+namespace utils {
 
 class mock_signal_input {
 public:
@@ -88,6 +92,8 @@ public:
         input.connect(storage_type<T>(&storage));
     }
 };
+
+}  // namespace utils
 
 class signals_connector {
 public:

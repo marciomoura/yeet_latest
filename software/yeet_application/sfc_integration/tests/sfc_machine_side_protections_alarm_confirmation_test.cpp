@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "sfc_integration/sfc_machine_side_protections_runner.hpp"
+#include "yeet/signal_wiring.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -16,10 +17,43 @@ namespace yeet::application::sfc::integration {
  */
 class SfcMachineSideProtectionsAlarmConfirmationTest : public ::testing::Test {
 protected:
+    struct mock_storage {
+        voltage_pu_t machine_voltage_magnitude_pu{0.5f};
+        frequency_t machine_frequency{50.0};
+        current_pu_t dc_link_current_pu{0.5f};
+        speed_pu_t machine_speed{0.5f};
+        frequency_pu_t machine_frequency_pu{0.5f};
+        bool startup_active{false};
+        bool closed_loop_active{false};
+        bool release_protections{true};
+        bool excitation_is_on{true};
+    } _storage;
+
     void SetUp() override
     {
         _runner = std::make_unique<sfc_machine_side_protections_runner>();
         _runner->initialize();
+
+        // Wire mock inputs to storage
+        yeet::wire(*_runner)
+            .mocked(_storage.machine_voltage_magnitude_pu)
+            .to(&sfc_machine_side_protections_datamodel::inputs::machine_voltage_magnitude_pu)
+            .mocked(_storage.machine_frequency)
+            .to(&sfc_machine_side_protections_datamodel::inputs::machine_frequency)
+            .mocked(_storage.dc_link_current_pu)
+            .to(&sfc_machine_side_protections_datamodel::inputs::dc_link_current_pu)
+            .mocked(_storage.machine_speed)
+            .to(&sfc_machine_side_protections_datamodel::inputs::machine_speed)
+            .mocked(_storage.machine_frequency_pu)
+            .to(&sfc_machine_side_protections_datamodel::inputs::machine_frequency_pu)
+            .mocked(_storage.startup_active)
+            .to(&sfc_machine_side_protections_datamodel::inputs::startup_active)
+            .mocked(_storage.closed_loop_active)
+            .to(&sfc_machine_side_protections_datamodel::inputs::closed_loop_active)
+            .mocked(_storage.release_protections)
+            .to(&sfc_machine_side_protections_datamodel::inputs::release_protections)
+            .mocked(_storage.excitation_is_on)
+            .to(&sfc_machine_side_protections_datamodel::inputs::excitation_is_on);
 
         // Configure protection thresholds for testing
         auto& params = _runner->get_parameters();
@@ -64,66 +98,61 @@ protected:
 
     void reset_inputs()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-
         // Safe baseline for all tests:
         // - Keep V/Hz at a safe value
         // - Keep speed below overspeed thresholds used in tests
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.5f});
+        _storage.machine_voltage_magnitude_pu = voltage_pu_t{0.5f};
 
         // Safe machine frequency (50 Hz)
-        mock_signal_input::write(inputs.machine_frequency, frequency_t{50.0});
+        _storage.machine_frequency = frequency_t{50.0};
 
         // Safe DC link current (0.5 pu)
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
+        _storage.dc_link_current_pu = current_pu_t{0.5f};
 
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.5f});
-        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{0.5f});
+        _storage.machine_speed = speed_pu_t{0.5f};
+        _storage.machine_frequency_pu = frequency_pu_t{0.5f};
 
         // Not in startup
-        mock_signal_input::write(inputs.startup_active, false);
+        _storage.startup_active = false;
 
         // Not in closed loop
-        mock_signal_input::write(inputs.closed_loop_active, false);
+        _storage.closed_loop_active = false;
 
         // Release protections
-        mock_signal_input::write(inputs.release_protections, true);
+        _storage.release_protections = true;
 
         // Excitation is on by default
-        mock_signal_input::write(inputs.excitation_is_on, true);
+        _storage.excitation_is_on = true;
     }
 
     void trigger_over_flux()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         // V/Hz_pu = V_pu / speed_pu.
         // With speed_pu=1.0: V/Hz_pu = V_pu.
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{1.2f});
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
-        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
+        _storage.machine_voltage_magnitude_pu = voltage_pu_t{1.2f};
+        _storage.machine_speed = speed_pu_t{1.0f};
+        _storage.machine_frequency_pu = frequency_pu_t{1.0f};
         // VHz protection requires closed-loop operation
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        _storage.closed_loop_active = true;
     }
 
     void trigger_under_flux()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         // V/Hz_pu = V_pu / speed_pu.
         // With speed_pu=1.0: V/Hz_pu = V_pu.
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.75f});
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
-        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
+        _storage.machine_voltage_magnitude_pu = voltage_pu_t{0.75f};
+        _storage.machine_speed = speed_pu_t{1.0f};
+        _storage.machine_frequency_pu = frequency_pu_t{1.0f};
         // VHz protection requires closed-loop operation
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        _storage.closed_loop_active = true;
     }
 
     void trigger_stall()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         // Stall requires: current > 1.3 pu AND speed < 0.10 pu AND startup_active
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{1.4f});
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.05f});
-        mock_signal_input::write(inputs.startup_active, true);
+        _storage.dc_link_current_pu = current_pu_t{1.4f};
+        _storage.machine_speed = speed_pu_t{0.05f};
+        _storage.startup_active = true;
     }
 
     void trigger_overspeed(speed_pu_t trip_threshold = speed_pu_t{0.90f}, speed_pu_t speed = speed_pu_t{1.0f})
@@ -132,10 +161,9 @@ protected:
         params.overspeed_trip_threshold.write(trip_threshold);
         params.overspeed_trip_delay.write(duration_t{0.0});
 
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_speed, speed);
+        _storage.machine_speed = speed;
         // Overspeed protection requires closed-loop operation
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        _storage.closed_loop_active = true;
     }
 
     void trigger_machine_overvoltage(
@@ -145,8 +173,7 @@ protected:
         params.machine_overvoltage_trip_threshold.write(trip_threshold);
         params.machine_overvoltage_trip_delay.write(duration_t{0.0});
 
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
+        _storage.machine_voltage_magnitude_pu = voltage;
     }
 
     void clear_fault_conditions()
@@ -154,10 +181,9 @@ protected:
         reset_inputs();
         // VHz and overspeed protections need to see safe values while closed_loop is active
         // to allow their internal detectors to reset before the trip handshake can clear
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        _storage.closed_loop_active = true;
         run_cycle();  // Let protections see safe values and reset detectors
-        mock_signal_input::write(inputs.closed_loop_active, false);
+        _storage.closed_loop_active = false;
     }
 
     void set_confirm_alarms(bool value)
@@ -411,11 +437,10 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
     params.protection_module_enabled.write(false);
 
     // Inject multiple severe fault conditions
-    auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-    mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{2.0f});  // Severe over-flux
-    mock_signal_input::write(inputs.machine_frequency, frequency_t{10.0});              // Very low frequency
-    mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{2.0f});            // High current
-    mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.01f});                  // Near-stall speed
+    _storage.machine_voltage_magnitude_pu = voltage_pu_t{2.0f};  // Severe over-flux
+    _storage.machine_frequency = frequency_t{10.0};              // Very low frequency
+    _storage.dc_link_current_pu = current_pu_t{2.0f};            // High current
+    _storage.machine_speed = speed_pu_t{0.01f};                  // Near-stall speed
 
     // Run multiple cycles
     for (int i = 0; i < 10; ++i) {

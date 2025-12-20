@@ -3,6 +3,7 @@
 #include "sfc_integration/sfc_machine_side_external_ios_datamodel.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
 
@@ -33,6 +34,11 @@ public:
         signal_input<bool> excitation_off_command;
     };
 
+    struct mock_storage {
+        bool excitation_on_command;
+        bool excitation_off_command;
+    };
+
     struct outputs {
         // Hardware status feedback (external_ios digital inputs)
         signal_output<bool> excitation_status;
@@ -57,7 +63,14 @@ public:
         parameter<bool> override_excitation_status_value{false};
     };
 
-    sfc_machine_io_mock_runner() = default;
+    sfc_machine_io_mock_runner()
+    {
+        yeet::wire(_inputs)
+            .mocked(_storage.excitation_on_command)
+            .to(&inputs::excitation_on_command)
+            .mocked(_storage.excitation_off_command)
+            .to(&inputs::excitation_off_command);
+    }
 
     void register_datamodel(yeet::model_registry& registry);
     void initialize();
@@ -75,6 +88,7 @@ private:
     inputs _inputs;
     outputs _outputs;
     parameters _parameters;
+    mock_storage _storage{};
 
     // Internal state for modeling hardware dynamics
     duration_t _excitation_transition_timer{0.0};

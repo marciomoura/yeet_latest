@@ -2,22 +2,25 @@
 
 #include <gtest/gtest.h>
 
+#include "yeet/signal_wiring.hpp"
+
 namespace yeet::application::sfc::integration {
 
 class SfcStateMachineRunnerTest : public ::testing::Test {
 protected:
     struct mock_storage {
         bool auxiliaries_are_on;
-        bool mcb_is_closed;
+        bool mv_breaker_is_closed;
         bool start_command;
         bool stop_command;
         bool shutdown_request;
         bool is_current_extinguished;
         bool protection_inhibited;
         bool any_protection_fault_active;
-        bool breaker_is_tripping;
+        bool mv_breaker_is_tripping;
         bool emergency_off;
         bool door_is_open;
+        bool external_fault;
         bool machine_side_shutdown_request;
         bool machine_side_protection_inhibited;
         bool machine_side_protection_tripped;
@@ -30,23 +33,38 @@ protected:
         // Initialize the runner (base_application automatically initializes _inputs, _outputs, _parameters)
         _runner = std::make_unique<sfc_state_machine_runner>();
 
-        // Connect mock storage
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::connect(inputs.auxiliaries_are_on, _storage.auxiliaries_are_on);
-        mock_signal_input::connect(inputs.mcb_is_closed, _storage.mcb_is_closed);
-        mock_signal_input::connect(inputs.start_command, _storage.start_command);
-        mock_signal_input::connect(inputs.stop_command, _storage.stop_command);
-        mock_signal_input::connect(inputs.shutdown_request, _storage.shutdown_request);
-        mock_signal_input::connect(inputs.is_current_extinguished, _storage.is_current_extinguished);
-        mock_signal_input::connect(inputs.protection_inhibited, _storage.protection_inhibited);
-        mock_signal_input::connect(inputs.any_protection_fault_active, _storage.any_protection_fault_active);
-        mock_signal_input::connect(inputs.breaker_is_tripping, _storage.breaker_is_tripping);
-        mock_signal_input::connect(inputs.emergency_off, _storage.emergency_off);
-        mock_signal_input::connect(inputs.door_is_open, _storage.door_is_open);
-        mock_signal_input::connect(inputs.machine_side_shutdown_request, _storage.machine_side_shutdown_request);
-        mock_signal_input::connect(
-            inputs.machine_side_protection_inhibited, _storage.machine_side_protection_inhibited);
-        mock_signal_input::connect(inputs.machine_side_protection_tripped, _storage.machine_side_protection_tripped);
+        // Connect mock storage using signal wiring DSL
+        yeet::wire(_runner->get_signal_flow_datamodel())
+            .mocked(_storage.auxiliaries_are_on)
+            .to(&sfc_state_machine_datamodel::inputs::auxiliaries_are_on)
+            .mocked(_storage.mv_breaker_is_closed)
+            .to(&sfc_state_machine_datamodel::inputs::mv_breaker_is_closed)
+            .mocked(_storage.start_command)
+            .to(&sfc_state_machine_datamodel::inputs::start_command)
+            .mocked(_storage.stop_command)
+            .to(&sfc_state_machine_datamodel::inputs::stop_command)
+            .mocked(_storage.shutdown_request)
+            .to(&sfc_state_machine_datamodel::inputs::shutdown_request)
+            .mocked(_storage.is_current_extinguished)
+            .to(&sfc_state_machine_datamodel::inputs::is_current_extinguished)
+            .mocked(_storage.protection_inhibited)
+            .to(&sfc_state_machine_datamodel::inputs::protection_inhibited)
+            .mocked(_storage.any_protection_fault_active)
+            .to(&sfc_state_machine_datamodel::inputs::any_protection_fault_active)
+            .mocked(_storage.mv_breaker_is_tripping)
+            .to(&sfc_state_machine_datamodel::inputs::mv_breaker_is_tripping)
+            .mocked(_storage.emergency_off)
+            .to(&sfc_state_machine_datamodel::inputs::emergency_off)
+            .mocked(_storage.door_is_open)
+            .to(&sfc_state_machine_datamodel::inputs::door_is_open)
+            .mocked(_storage.external_fault)
+            .to(&sfc_state_machine_datamodel::inputs::external_fault)
+            .mocked(_storage.machine_side_shutdown_request)
+            .to(&sfc_state_machine_datamodel::inputs::machine_side_shutdown_request)
+            .mocked(_storage.machine_side_protection_inhibited)
+            .to(&sfc_state_machine_datamodel::inputs::machine_side_protection_inhibited)
+            .mocked(_storage.machine_side_protection_tripped)
+            .to(&sfc_state_machine_datamodel::inputs::machine_side_protection_tripped);
 
         // Reset all input signals to false
         reset_all_inputs();
@@ -65,22 +83,21 @@ protected:
 
     void reset_all_inputs()
     {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.auxiliaries_are_on, false);
-        mock_signal_input::write(inputs.mv_breaker_is_closed, false);
-        mock_signal_input::write(inputs.start_command, false);
-        mock_signal_input::write(inputs.stop_command, false);
-        mock_signal_input::write(inputs.shutdown_request, false);
-        mock_signal_input::write(inputs.is_current_extinguished, false);
-        mock_signal_input::write(inputs.protection_inhibited, false);           // Protection not inhibited by default
-        mock_signal_input::write(inputs.any_protection_fault_active, false);    // No protection faults by default
-        mock_signal_input::write(inputs.mv_breaker_is_tripping, false);         // Breaker not tripping by default
-        mock_signal_input::write(inputs.emergency_off, false);                  // Emergency off not active by default
-        mock_signal_input::write(inputs.door_is_open, false);                   // Door closed by default
-        mock_signal_input::write(inputs.machine_side_shutdown_request, false);  // No machine-side shutdown
-        mock_signal_input::write(inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
-        mock_signal_input::write(inputs.machine_side_protection_tripped, false);    // No machine-side trip
-        mock_signal_input::write(inputs.external_fault, false);                     // No external fault by default
+        _storage.auxiliaries_are_on = false;
+        _storage.mv_breaker_is_closed = false;
+        _storage.start_command = false;
+        _storage.stop_command = false;
+        _storage.shutdown_request = false;
+        _storage.is_current_extinguished = false;
+        _storage.protection_inhibited = false;               // Protection not inhibited by default
+        _storage.any_protection_fault_active = false;        // No protection faults by default
+        _storage.mv_breaker_is_tripping = false;             // Breaker not tripping by default
+        _storage.emergency_off = false;                      // Emergency off not active by default
+        _storage.door_is_open = false;                       // Door closed by default
+        _storage.machine_side_shutdown_request = false;      // No machine-side shutdown
+        _storage.machine_side_protection_inhibited = false;  // No machine-side inhibit
+        _storage.machine_side_protection_tripped = false;    // No machine-side trip
+        _storage.external_fault = false;                     // No external fault by default
     }
 
     void disable_all_overrides()
@@ -135,53 +152,21 @@ protected:
         parameters.turn_on_command.write(value);
     }
 
-    void set_auxiliaries_on(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.auxiliaries_are_on, value);
-    }
+    void set_auxiliaries_on(bool value) { _storage.auxiliaries_are_on = value; }
 
-    void set_breakers_on(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.mv_breaker_is_closed, value);
-    }
+    void set_breakers_on(bool value) { _storage.mv_breaker_is_closed = value; }
 
-    void set_start_command(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.start_command, value);
-    }
+    void set_start_command(bool value) { _storage.start_command = value; }
 
-    void set_stop_command(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.stop_command, value);
-    }
+    void set_stop_command(bool value) { _storage.stop_command = value; }
 
-    void set_shutdown_request(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.shutdown_request, value);
-    }
+    void set_shutdown_request(bool value) { _storage.shutdown_request = value; }
 
-    void set_current_extinguished(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.is_current_extinguished, value);
-    }
+    void set_current_extinguished(bool value) { _storage.is_current_extinguished = value; }
 
-    void set_protection_inhibited(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.protection_inhibited, value);
-    }
+    void set_protection_inhibited(bool value) { _storage.protection_inhibited = value; }
 
-    void set_machine_side_protection_inhibited(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_side_protection_inhibited, value);
-    }
+    void set_machine_side_protection_inhibited(bool value) { _storage.machine_side_protection_inhibited = value; }
 
     std::unique_ptr<sfc_state_machine_runner> _runner;
 };

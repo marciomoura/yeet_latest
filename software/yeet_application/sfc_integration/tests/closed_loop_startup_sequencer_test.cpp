@@ -17,6 +17,7 @@
 #include "sfc_integration/sfc_plant_model_datamodel.hpp"
 #include "sfc_loggers.hpp"
 #include "sfc_plant_configuration.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet_testing/simulator_checker.hpp"
 #include "yeet_testing/simulator_gtest.hpp"
 
@@ -26,6 +27,10 @@ using namespace yeet;
 
 class ClosedLoopStartupSequencerTest : public ::testing::Test {
 public:
+    struct mock_storage {
+        bool is_current_extinguished{false};
+    } _storage;
+
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
@@ -33,6 +38,11 @@ public:
 
         // Register all applications with the simulator
         system.register_applications(simulator);
+
+        // Wire mock inputs to storage
+        yeet::wire(system.grid_side_control.state_machine)
+            .mocked(_storage.is_current_extinguished)
+            .to(&sfc_state_machine_datamodel::inputs::is_current_extinguished);
 
         // Configure topology to use internal model
         system.plant.get_parameters().topology.write(sfc_plant_model_datamodel::topology_type::simulink);
@@ -89,11 +99,7 @@ public:
         system.grid_io_mock.get_parameters().override_mv_breaker_is_closed_value.write(on);
     }
 
-    void set_current_extinguished(bool extinguished)
-    {
-        yeet::mock_signal_input::write(
-            system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
-    }
+    void set_current_extinguished(bool extinguished) { _storage.is_current_extinguished = extinguished; }
 
     // Complete startup sequence following state machine logic
     // Uses turn_on_command to trigger IO mock → auxiliaries → breakers flow

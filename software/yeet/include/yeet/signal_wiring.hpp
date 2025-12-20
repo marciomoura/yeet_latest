@@ -1,6 +1,8 @@
 #ifndef YEET_SIGNAL_WIRING_HPP
 #define YEET_SIGNAL_WIRING_HPP
 
+#include <type_traits>
+
 #include "signal.hpp"
 
 namespace yeet {
@@ -31,7 +33,7 @@ public:
 
     input_wiring_builder<InputsStruct> to(signal_input<T> InputsStruct::* input_ptr)
     {
-        mock_signal_input::connect(_inputs.*input_ptr, _storage);
+        utils::mock_signal_input::connect(_inputs.*input_ptr, _storage);
         return input_wiring_builder<InputsStruct>(_inputs);
     }
 
@@ -61,16 +63,27 @@ private:
     InputsStruct& _inputs;
 };
 
+template <typename T, typename = void>
+struct has_get_inputs : std::false_type {};
+
+template <typename T>
+struct has_get_inputs<T, std::void_t<decltype(std::declval<T>().get_inputs())>> : std::true_type {};
+
 template <typename InputsStruct>
 input_wiring_builder<InputsStruct> wire_inputs(InputsStruct& inputs)
 {
     return input_wiring_builder<InputsStruct>(inputs);
 }
 
-template <typename Component>
-auto wire(Component& component)
+template <typename T>
+auto wire(T& obj)
 {
-    return input_wiring_builder<std::remove_reference_t<decltype(component.get_inputs())>>(component.get_inputs());
+    if constexpr (has_get_inputs<T>::value) {
+        return input_wiring_builder<std::remove_reference_t<decltype(obj.get_inputs())>>(obj.get_inputs());
+    }
+    else {
+        return input_wiring_builder<T>(obj);
+    }
 }
 
 }  // namespace yeet

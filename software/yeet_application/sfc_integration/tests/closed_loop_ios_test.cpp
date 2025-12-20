@@ -42,6 +42,8 @@ using namespace yeet;
 
 class ClosedLoopIOsTest : public ::testing::Test {
 public:
+    static inline bool is_current_extinguished_storage = false;
+
     void SetUp() override
     {
         // Configure sampler sampling rate for detailed data capture
@@ -49,6 +51,11 @@ public:
 
         // Register all applications with the simulator
         system.register_applications(simulator);
+
+        // Connect mock storage using wire() DSL
+        yeet::wire(system.grid_side_control.state_machine)
+            .mocked(is_current_extinguished_storage)
+            .to(&sfc_state_machine_datamodel::inputs::is_current_extinguished);
 
         // Configure topology to use internal model
         system.plant.get_parameters().topology.write(sfc_plant_model_datamodel::topology_type::internal);
@@ -106,11 +113,7 @@ public:
         system.grid_io_mock.get_parameters().override_mv_breaker_is_closed_value.write(on);
     }
 
-    void set_current_extinguished(bool extinguished)
-    {
-        yeet::mock_signal_input::write(
-            system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
-    }
+    void set_current_extinguished(bool extinguished) { is_current_extinguished_storage = extinguished; }
 
     void set_breaker_is_tripping(bool tripping)
     {
