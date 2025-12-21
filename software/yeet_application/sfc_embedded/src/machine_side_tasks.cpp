@@ -16,6 +16,34 @@
 
 using namespace yeet::embedded::io;
 
+namespace {
+// ==================== IO CONFIGURATION (Indices and Polarity) ====================
+// These constants define the physical IO mapping for the machine-side controller.
+// Change these values to match your target hardware wiring.
+
+using yeet::application::sfc::integration::io_polarity_t;
+
+// Digital Inputs
+constexpr int DI_EXCITATION_STATUS_INDEX = 0;
+constexpr io_polarity_t DI_EXCITATION_STATUS_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_EXTERNAL_FAULT_INDEX = 1;
+constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_START_COMMAND_INDEX = 2;
+constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+// Digital Outputs
+constexpr int DO_EXCITATION_ON_COMMAND_INDEX = 0;
+constexpr io_polarity_t DO_EXCITATION_ON_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_EXCITATION_OFF_COMMAND_INDEX = 1;
+constexpr io_polarity_t DO_EXCITATION_OFF_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+// Analog Outputs
+constexpr int AO_EXCITATION_CURRENT_REFERENCE_INDEX = 0;
+}  // namespace
+
 // Ensure functions are compiled with Thumb interworking
 #ifdef __arm__
 #define ARM_FUNCTION __attribute__((target("thumb")))
@@ -98,6 +126,30 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
         yeet::control::six_pulse_generator::reference_type::line);
     control->machine_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // ==================== IO CONFIGURATION ====================
+    auto& io_params = control->external_ios.get_parameters();
+
+    // Digital Input Indices
+    io_params.di_excitation_status_index.write(DI_EXCITATION_STATUS_INDEX);
+    io_params.di_external_fault_index.write(DI_EXTERNAL_FAULT_INDEX);
+    io_params.di_start_command_index.write(DI_START_COMMAND_INDEX);
+
+    // Digital Input Polarity
+    io_params.di_excitation_status_polarity.write(DI_EXCITATION_STATUS_POLARITY);
+    io_params.di_external_fault_polarity.write(DI_EXTERNAL_FAULT_POLARITY);
+    io_params.di_start_command_polarity.write(DI_START_COMMAND_POLARITY);
+
+    // Digital Output Indices
+    io_params.do_excitation_on_command_index.write(DO_EXCITATION_ON_COMMAND_INDEX);
+    io_params.do_excitation_off_command_index.write(DO_EXCITATION_OFF_COMMAND_INDEX);
+
+    // Digital Output Polarity
+    io_params.do_excitation_on_command_polarity.write(DO_EXCITATION_ON_COMMAND_POLARITY);
+    io_params.do_excitation_off_command_polarity.write(DO_EXCITATION_OFF_COMMAND_POLARITY);
+
+    // Analog Output Indices
+    io_params.ao_excitation_current_reference_index.write(AO_EXCITATION_CURRENT_REFERENCE_INDEX);
 
     // Configure protections to be enabled by default for embedded target
     control->machine_protections.get_parameters().protection_module_enabled.write(true);

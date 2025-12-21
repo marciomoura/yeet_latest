@@ -306,11 +306,11 @@ public:
      */
     const parameters& get_parameters() const { return _parameters; }
 
-    // /**
-    //  * @brief Get parameters structure (mutable)
-    //  * @return Mutable reference to parameters (for tests to set override flags)
-    //  */
-    // parameters& get_parameters() { return _parameters; }
+    /**
+     * @brief Get parameters structure (mutable)
+     * @return Mutable reference to parameters (for tests to set override flags)
+     */
+    parameters& get_parameters() { return _parameters; }
 
     /**
      * @brief Get digital inputs structure (const)
