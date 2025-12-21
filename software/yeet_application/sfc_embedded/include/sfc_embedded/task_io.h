@@ -191,6 +191,14 @@ typedef struct {
         bool transmit_request;                       /**< true = transmit this cycle */
     } fiber_optic_tx;
 
+    /**
+     * @brief System status indicators (LEDs)
+     */
+    struct {
+        bool trip;  /**< true = system tripped (FAULT LED) */
+        bool alarm; /**< true = system alarm (ALARM LED) */
+    } status;
+
 } task_outputs_t;
 
 #ifdef __cplusplus

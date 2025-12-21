@@ -95,6 +95,7 @@ public:
     bool get_is_tripped() const noexcept;
     bool get_is_inhibited() const noexcept;
     bool get_any_fault_active() const noexcept;
+    bool get_any_alarm_active() const noexcept;
 
     bool get_over_flux_tripped() const noexcept;
     bool get_over_flux_alarmed() const noexcept;
@@ -156,6 +157,7 @@ private:
     bool _is_tripped{false};
     bool _is_inhibited{false};
     bool _any_fault_active{false};
+    bool _any_alarm_active{false};
 
     bool _over_flux_tripped{false};
     bool _over_flux_alarmed{false};

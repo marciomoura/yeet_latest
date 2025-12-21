@@ -28,6 +28,7 @@ void sfc_grid_side_protections_runner::reset()
     _outputs.is_tripped = _protections.get_is_tripped();
     _outputs.is_inhibited = _protections.get_is_inhibited();
     _outputs.any_fault_active = _protections.get_any_fault_active();
+    _outputs.any_alarm_active = _protections.get_any_alarm_active();
 
     _outputs.overcurrent_tripped = _protections.get_overcurrent_tripped();
     _outputs.overcurrent_alarmed = _protections.get_overcurrent_alarmed();
@@ -68,6 +69,7 @@ void sfc_grid_side_protections_runner::run()
     _outputs.is_tripped = _protections.get_is_tripped();
     _outputs.is_inhibited = _protections.get_is_inhibited();
     _outputs.any_fault_active = _protections.get_any_fault_active();
+    _outputs.any_alarm_active = _protections.get_any_alarm_active();
 
     _outputs.overcurrent_tripped = _protections.get_overcurrent_tripped();
     _outputs.overcurrent_alarmed = _protections.get_overcurrent_alarmed();

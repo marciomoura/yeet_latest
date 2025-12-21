@@ -140,10 +140,14 @@ public:
             "voltage_threshold_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_threshold_pu));
 
         // Register voltage reference lookup table entries individually
+        static constexpr std::string_view speed_axis_names[] = {"voltage_reference_speed_axis_pu[0]",
+            "voltage_reference_speed_axis_pu[1]", "voltage_reference_speed_axis_pu[2]",
+            "voltage_reference_speed_axis_pu[3]", "voltage_reference_speed_axis_pu[4]",
+            "voltage_reference_speed_axis_pu[5]", "voltage_reference_speed_axis_pu[6]"};
+
         auto& speed_axis_param = _model_parameters->voltage_reference_speed_axis_pu;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            std::string param_name = "voltage_reference_speed_axis_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
+            entry.parameters.insert(speed_axis_names[i],
                 low_level_access([&speed_axis_param,
                                      i]() -> float { return static_cast<float>(speed_axis_param.read()[i].value()); },
                     [&speed_axis_param, i](float value) {
@@ -153,10 +157,13 @@ public:
                     }));
         }
 
+        static constexpr std::string_view voltage_ref_names[] = {"voltage_reference_pu[0]", "voltage_reference_pu[1]",
+            "voltage_reference_pu[2]", "voltage_reference_pu[3]", "voltage_reference_pu[4]", "voltage_reference_pu[5]",
+            "voltage_reference_pu[6]"};
+
         auto& voltage_ref_param = _model_parameters->voltage_reference_pu;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            std::string param_name = "voltage_reference_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
+            entry.parameters.insert(voltage_ref_names[i],
                 low_level_access([&voltage_ref_param,
                                      i]() -> float { return static_cast<float>(voltage_ref_param.read()[i].value()); },
                     [&voltage_ref_param, i](float value) {

@@ -114,7 +114,7 @@ void parameter_handler::build_parameter_cache()
 
     // Iterate through all entries in model_registry
     registry_->iterate_entries(
-        [this](const std::string& component, const std::string& name, const low_level_access& accessor) {
+        [this](std::string_view component, std::string_view name, const low_level_access& accessor) {
             if (parameter_cache_size_ >= MAX_PARAMETERS) {
                 YEET_PARAM_LOG("[PARAM] ERROR: Parameter cache full! Cannot add " << component << "." << name);
                 return;
@@ -123,15 +123,18 @@ void parameter_handler::build_parameter_cache()
             // Create cache entry
             parameter_cache_entry& entry = parameter_cache_[parameter_cache_size_];
 
-            std::strncpy(entry.component, component.c_str(), sizeof(entry.component) - 1);
-            entry.component[sizeof(entry.component) - 1] = '\0';
+            std::size_t comp_len = std::min(sizeof(entry.component) - 1, component.size());
+            std::memcpy(entry.component, component.data(), comp_len);
+            entry.component[comp_len] = '\0';
 
-            std::strncpy(entry.name, name.c_str(), sizeof(entry.name) - 1);
-            entry.name[sizeof(entry.name) - 1] = '\0';
+            std::size_t name_len = std::min(sizeof(entry.name) - 1, name.size());
+            std::memcpy(entry.name, name.data(), name_len);
+            entry.name[name_len] = '\0';
 
             // Generate display name from component.name
-            std::strncpy(entry.display_name, name.c_str(), sizeof(entry.display_name) - 1);
-            entry.display_name[sizeof(entry.display_name) - 1] = '\0';
+            std::size_t display_len = std::min(sizeof(entry.display_name) - 1, name.size());
+            std::memcpy(entry.display_name, name.data(), display_len);
+            entry.display_name[display_len] = '\0';
 
             // TODO: Extract unit from type metadata when available
             entry.unit[0] = '\0';

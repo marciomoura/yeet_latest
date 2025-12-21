@@ -182,21 +182,33 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->enable_speed_based_torque_limits));
 
         // Per-element accessors for LUT arrays using generic array accessor
+        static constexpr std::string_view speed_axis_names[] = {"speed_torque_limit_speed_axis_pu[0]",
+            "speed_torque_limit_speed_axis_pu[1]", "speed_torque_limit_speed_axis_pu[2]",
+            "speed_torque_limit_speed_axis_pu[3]", "speed_torque_limit_speed_axis_pu[4]",
+            "speed_torque_limit_speed_axis_pu[5]", "speed_torque_limit_speed_axis_pu[6]"};
+
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            std::string param_name = "speed_torque_limit_speed_axis_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
+            entry.parameters.insert(speed_axis_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_speed_axis_pu, i));
         }
 
+        static constexpr std::string_view min_torque_names[] = {"speed_torque_limit_min_torque_pu[0]",
+            "speed_torque_limit_min_torque_pu[1]", "speed_torque_limit_min_torque_pu[2]",
+            "speed_torque_limit_min_torque_pu[3]", "speed_torque_limit_min_torque_pu[4]",
+            "speed_torque_limit_min_torque_pu[5]", "speed_torque_limit_min_torque_pu[6]"};
+
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            std::string param_name = "speed_torque_limit_min_torque_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
+            entry.parameters.insert(min_torque_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_min_torque_pu, i));
         }
 
+        static constexpr std::string_view max_torque_names[] = {"speed_torque_limit_max_torque_pu[0]",
+            "speed_torque_limit_max_torque_pu[1]", "speed_torque_limit_max_torque_pu[2]",
+            "speed_torque_limit_max_torque_pu[3]", "speed_torque_limit_max_torque_pu[4]",
+            "speed_torque_limit_max_torque_pu[5]", "speed_torque_limit_max_torque_pu[6]"};
+
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            std::string param_name = "speed_torque_limit_max_torque_pu[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
+            entry.parameters.insert(max_torque_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_max_torque_pu, i));
         }
 

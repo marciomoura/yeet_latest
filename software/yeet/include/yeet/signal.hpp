@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <memory>
+#include <string_view>
 
 #include "utils/low_level_access.hpp"
 #include "utils/low_level_access_registry.hpp"
@@ -112,7 +113,7 @@ public:
 class signal_registry {
 public:
     template <typename T>
-    void insert(const std::string& name, signal_output<T>& signal)
+    void insert(std::string_view name, signal_output<T>& signal)
     {
         _registry.insert(name, signal.get_low_level_access());
     }
@@ -121,7 +122,7 @@ public:
 
     void clear() { _registry.clear(); }
 
-    std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
+    std::optional<low_level_access> get(std::string_view name) const { return _registry.get(name); }
 
     auto begin() { return _registry.begin(); }
     auto end() { return _registry.end(); }
