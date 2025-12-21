@@ -7,7 +7,6 @@ namespace yeet::application::sfc {
 TEST(SfcProtectionsTripHandshakeTest, StartsCleared)
 {
     sfc_protections_trip_handshake handshake;
-    handshake.configure_trip_clear_policy(sfc_trip_clear_policy::auto_clear);
     handshake.reset();
 
     EXPECT_FALSE(handshake.get_is_tripped());
@@ -15,10 +14,9 @@ TEST(SfcProtectionsTripHandshakeTest, StartsCleared)
     EXPECT_FALSE(handshake.get_trip_cleared_pulse());
 }
 
-TEST(SfcProtectionsTripHandshakeTest, TripAutoClearsWhenFaultClears_AutoClear)
+TEST(SfcProtectionsTripHandshakeTest, TripLatchesAndRequiresConfirmation)
 {
     sfc_protections_trip_handshake handshake;
-    handshake.configure_trip_clear_policy(sfc_trip_clear_policy::auto_clear);
     handshake.reset();
 
     // Trip occurs
@@ -26,10 +24,16 @@ TEST(SfcProtectionsTripHandshakeTest, TripAutoClearsWhenFaultClears_AutoClear)
     EXPECT_TRUE(handshake.get_is_tripped());
     EXPECT_TRUE(handshake.get_is_inhibited());
 
-    // Fault clears -> trip auto-clears
+    // Fault clears -> trip remains latched (requires confirmation)
     handshake.update(false, false, false);
-    EXPECT_FALSE(handshake.get_is_tripped());
+    EXPECT_TRUE(handshake.get_is_tripped());
     EXPECT_TRUE(handshake.get_is_inhibited());
+    EXPECT_FALSE(handshake.get_trip_cleared_pulse());
+
+    // Rising edge confirm clears trip and inhibit
+    handshake.update(false, false, true);
+    EXPECT_FALSE(handshake.get_is_tripped());
+    EXPECT_FALSE(handshake.get_is_inhibited());
     EXPECT_TRUE(handshake.get_trip_cleared_pulse());
 
     // Pulse is one-cycle
@@ -37,10 +41,9 @@ TEST(SfcProtectionsTripHandshakeTest, TripAutoClearsWhenFaultClears_AutoClear)
     EXPECT_FALSE(handshake.get_trip_cleared_pulse());
 }
 
-TEST(SfcProtectionsTripHandshakeTest, ConfirmAlarmsClearsInhibitOnlyAfterTripClears)
+TEST(SfcProtectionsTripHandshakeTest, ConfirmationDoesNotClearIfFaultActive)
 {
     sfc_protections_trip_handshake handshake;
-    handshake.configure_trip_clear_policy(sfc_trip_clear_policy::auto_clear);
     handshake.reset();
 
     // Trip occurs
@@ -48,30 +51,18 @@ TEST(SfcProtectionsTripHandshakeTest, ConfirmAlarmsClearsInhibitOnlyAfterTripCle
     EXPECT_TRUE(handshake.get_is_tripped());
     EXPECT_TRUE(handshake.get_is_inhibited());
 
-    // Rising edge confirm while still tripped must NOT clear inhibit
-    handshake.update(true, true, true);
+    // Rising edge confirm while fault is still active must NOT clear trip or inhibit
+    handshake.update(false, true, true);
     EXPECT_TRUE(handshake.get_is_tripped());
     EXPECT_TRUE(handshake.get_is_inhibited());
 
-    // Fault clears -> trip auto-clears
+    // Fault clears
     handshake.update(false, false, false);
-    EXPECT_FALSE(handshake.get_is_tripped());
-    EXPECT_TRUE(handshake.get_is_inhibited());
+    EXPECT_TRUE(handshake.get_is_tripped());
 
-    // Rising edge confirm clears inhibit
+    // New rising edge confirm clears everything
     handshake.update(false, false, true);
     EXPECT_FALSE(handshake.get_is_tripped());
-    EXPECT_FALSE(handshake.get_is_inhibited());
-
-    // Holding confirm high does not re-trigger
-    handshake.update(false, false, true);
-    EXPECT_FALSE(handshake.get_is_inhibited());
-
-    // Another rising edge after going low works again
-    handshake.update(true, true, false);
-    handshake.update(false, false, false);
-    EXPECT_TRUE(handshake.get_is_inhibited());
-    handshake.update(false, false, true);
     EXPECT_FALSE(handshake.get_is_inhibited());
 }
 

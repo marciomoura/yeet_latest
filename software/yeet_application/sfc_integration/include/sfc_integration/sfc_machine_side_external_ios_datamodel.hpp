@@ -88,6 +88,11 @@ public:
         /// Override value for external_fault (when override enabled)
         yeet::parameter<bool> di_external_fault_override_value{false};
 
+        /// Enable override for start_command input
+        yeet::parameter<bool> di_start_command_override{false};
+        /// Override value for start_command (when override enabled)
+        yeet::parameter<bool> di_start_command_override_value{false};
+
         // ==================== Digital Output Overrides ====================
         /// Enable override for excitation_on_command output
         yeet::parameter<bool> do_excitation_on_command_override{false};
@@ -128,6 +133,7 @@ public:
         // Digital Input Indices
         yeet::parameter<int> di_excitation_status_index{0};
         yeet::parameter<int> di_external_fault_index{1};
+        yeet::parameter<int> di_start_command_index{2};
 
         // Digital Output Indices
         yeet::parameter<int> do_excitation_on_command_index{0};
@@ -141,6 +147,7 @@ public:
         // Digital Input Polarity
         yeet::parameter<io_polarity_t> di_excitation_status_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> di_external_fault_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> di_start_command_polarity{io_polarity_t::ACTIVE_HIGH};
 
         // Digital Output Polarity
         yeet::parameter<io_polarity_t> do_excitation_on_command_polarity{io_polarity_t::ACTIVE_HIGH};
@@ -272,6 +279,7 @@ public:
     struct digital_inputs_t {
         signal_output<bool> excitation_status;  ///< Excitation controller status feedback
         signal_output<bool> external_fault;     ///< External fault input (OR'd with protections)
+        signal_output<bool> start_command;      ///< Start command (used for alarm confirmation)
     };
 
     // ==================== EXCITATION INPUTS (Analog Feedback) ====================
@@ -464,8 +472,9 @@ public:
      *
      * @param excitation_status Excitation controller status feedback
      * @param external_fault External fault input
+     * @param start_command Start command (used for alarm confirmation)
      */
-    void set_digital_inputs(bool excitation_status, bool external_fault);
+    void set_digital_inputs(bool excitation_status, bool external_fault, bool start_command);
 
     /**
      * @brief Set excitation analog input from external system

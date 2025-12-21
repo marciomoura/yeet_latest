@@ -312,7 +312,7 @@ inline void prepare_for_startup(plant_complete_sfc_closed_loop_simulation_builde
     // Step 2: Configure plant model
     configure_plant_for_startup(system, config);
 
-    // Step 3: Enable turn_on_command to energize auxiliaries and close breaker via IO mock
+    // Step 4: Enable turn_on_command to energize auxiliaries and close breaker via IO mock
     system.grid_side_control.state_machine.get_parameters().turn_on_command.write(true);
 
     // Run a few cycles to let IO mock process auxiliaries and breaker close delays

@@ -416,19 +416,21 @@ public:
      * This is the ONLY method the embedded code should call for digital inputs.
      *
      * @param auxiliaries_are_on Auxiliary systems ready
-     * @param mcb_is_closed Grid breakers closed
+     * @param mv_breaker_is_closed Grid breakers closed
      * @param start_command Start operation
      * @param stop_command Stop operation
-     * @param shutdown_request Emergency shutdown
-     * @param breaker_is_closed Main circuit breaker is closed (optional status)
-     * @param breaker_is_tripping Protection relay indicates breaker is tripping
+     * @param shutdown_request Emergency shutdown request
+     * @param mv_breaker_is_tripping Protection relay indicates breaker is tripping
      * @param emergency_off Emergency off button pressed
      * @param door_is_open Enclosure door is open
+     * @param external_fault External fault signal
+     * @param fans_are_running ACU fans feedback
      */
     void set_digital_inputs(bool auxiliaries_are_on,
         bool mv_breaker_is_closed,
         bool start_command,
         bool stop_command,
+        bool shutdown_request,
         bool mv_breaker_is_tripping,
         bool emergency_off,
         bool door_is_open,
@@ -533,6 +535,7 @@ private:
         bool mv_breaker_is_closed,
         bool start_command,
         bool stop_command,
+        bool shutdown_request,
         bool mv_breaker_is_tripping,
         bool emergency_off,
         bool door_is_open,

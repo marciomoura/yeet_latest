@@ -130,9 +130,18 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, AlarmLatchesOnTrip)
     clear_fault_conditions();
     run_cycle();
 
-    // Protection is latching - trip clears after fault removal
-    EXPECT_FALSE(is_tripped()) << "Latching protection should clear trip after fault removal";
+    // Protection is latching - trip stays active until confirmed
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
+
+    // Confirm alarms
+    set_confirm_alarms(true);
+    run_cycle();
+    set_confirm_alarms(false);
+    run_cycle();
+
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
 /**
@@ -148,7 +157,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
     run_cycle();
     clear_fault_conditions();
     run_cycle();
-    ASSERT_FALSE(is_tripped()) << "Trip should clear when fault is removed";
+    ASSERT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     ASSERT_TRUE(is_inhibited()) << "Alarm should be latched";
 
     // Set confirm_alarms=true WITHOUT going through false first (should already be false from setup, but let's
@@ -197,7 +206,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped)
     // Now clear the fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear when fault is removed";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Now confirmation should work
@@ -224,7 +233,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenS
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    ASSERT_FALSE(is_tripped()) << "Trip should clear when fault is removed";
+    ASSERT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     ASSERT_TRUE(is_inhibited());
 
     // Confirm alarm (rising edge)
@@ -251,7 +260,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     ASSERT_TRUE(is_inhibited());
     clear_fault_conditions();
     run_cycle();
-    ASSERT_FALSE(is_tripped()) << "Trip is cleared after fault removal";
+    ASSERT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     ASSERT_TRUE(is_inhibited());
 
     // First confirmation
@@ -266,7 +275,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     run_cycle();
     clear_fault_conditions();
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Second trip is cleared after fault removal";
+    EXPECT_TRUE(is_tripped()) << "Second trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Second trip should re-latch alarm";
 
     // Second confirmation (need new rising edge)
@@ -415,7 +424,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConf
     // Close door: fault clears
     mock_signal_input::write(inputs.door_is_open, false);
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear when door is closed";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Confirm alarms
@@ -451,7 +460,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterT
     // Restore communication and allow watchdog to clear its internal trip condition
     _runner->update_communication_status(true);
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after communication restored";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
 
     // Alarm confirmation required
     set_confirm_alarms(false);

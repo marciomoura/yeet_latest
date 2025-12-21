@@ -46,6 +46,7 @@ public:
         signal_output<bool> mv_breaker_is_closed;
         signal_output<bool> start_command;
         signal_output<bool> stop_command;
+        signal_output<bool> shutdown_request;
         signal_output<bool> mv_breaker_is_tripping;
         signal_output<bool> emergency_off;
         signal_output<bool> door_is_open;
@@ -80,6 +81,9 @@ public:
 
         /// Stop command from HMI/SCADA
         parameter<bool> stop_command{false};
+
+        /// Emergency shutdown request from supervisory system
+        parameter<bool> shutdown_request{false};
 
         /// Emergency off button pressed
         parameter<bool> emergency_off{false};

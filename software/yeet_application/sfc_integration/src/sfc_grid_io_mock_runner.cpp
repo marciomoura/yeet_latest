@@ -220,6 +220,7 @@ void sfc_grid_io_mock_runner::apply_overrides_and_write_to_external_ios()
     _outputs.mv_breaker_is_closed = breaker_status;
     _outputs.start_command = _parameters.start_command.read();
     _outputs.stop_command = _parameters.stop_command.read();
+    _outputs.shutdown_request = _parameters.shutdown_request.read();
     _outputs.mv_breaker_is_tripping = _parameters.mv_breaker_is_tripping.read();
     _outputs.emergency_off = _parameters.emergency_off.read();
     _outputs.door_is_open = _parameters.door_is_open.read();
