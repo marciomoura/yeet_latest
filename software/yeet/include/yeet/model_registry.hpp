@@ -3,7 +3,7 @@
 
 #include <functional>
 #include <map>
-#include <string>
+#include <string_view>
 
 #include "parameter.hpp"
 #include "signal.hpp"
@@ -25,7 +25,7 @@ public:
     model_registry(model_registry&&) = default;
     model_registry& operator=(model_registry&&) = default;
 
-    void insert(const std::string& name, model_registry_entry&& entry)
+    void insert(std::string_view name, model_registry_entry&& entry)
     {
         if (_registry_map.find(name) != _registry_map.end()) {
             assert(false && "Entry already exists in registry");
@@ -35,7 +35,7 @@ public:
         _registry_map[name] = std::move(entry);
     }
 
-    std::optional<low_level_access> get_signal(const std::string& name) const
+    std::optional<low_level_access> get_signal(std::string_view name) const
     {
         auto it = _registry_map.find(name);
 
@@ -47,7 +47,7 @@ public:
         return it->second.signals.get(name);
     }
 
-    std::optional<low_level_access> get_parameter(const std::string& name) const
+    std::optional<low_level_access> get_parameter(std::string_view name) const
     {
         auto it = _registry_map.find(name);
 
@@ -60,8 +60,7 @@ public:
     }
 
     void iterate_entries(
-        std::function<void(const std::string& group, const std::string& name, const low_level_access& llaccess)> func)
-        const
+        std::function<void(std::string_view group, std::string_view name, const low_level_access& llaccess)> func) const
     {
         for (auto& [group, entry] : _registry_map) {
             for (auto it = entry.signals.cbegin(); it != entry.signals.cend(); ++it) {
@@ -75,7 +74,7 @@ public:
     }
 
 private:
-    std::map<std::string, model_registry_entry> _registry_map{};
+    std::map<std::string_view, model_registry_entry> _registry_map{};
 };
 
 }  // namespace yeet

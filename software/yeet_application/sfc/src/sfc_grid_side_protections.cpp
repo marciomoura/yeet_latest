@@ -23,6 +23,7 @@ void sfc_grid_side_protections::reset() noexcept
     _is_tripped = false;
     _is_inhibited = false;
     _any_fault_active = false;
+    _any_alarm_active = false;
 
     _overcurrent_tripped = false;
     _overcurrent_alarmed = false;
@@ -122,7 +123,11 @@ void sfc_grid_side_protections::resolve_protections(
     const bool any_fault_active =
         overcurrent_trip_raw || overvoltage_trip_raw || undervoltage_trip_raw || comm_loss_trip_raw || door_open_raw;
 
+    const bool any_alarm_active =
+        overcurrent_alarm || overvoltage_alarm || undervoltage_alarm || comm_loss_alarm || door_open_alarm;
+
     _any_fault_active = any_fault_active;
+    _any_alarm_active = any_alarm_active;
 
     _trip_handshake.update(any_protection_tripped, any_fault_active, confirm_alarms);
 
@@ -151,6 +156,7 @@ void sfc_grid_side_protections::resolve_protections(
         _door_open_tripped = false;
         _door_open_alarmed = false;
         _any_fault_active = false;
+        _any_alarm_active = false;
     }
 
     _is_tripped = _trip_handshake.get_is_tripped();
@@ -248,6 +254,8 @@ bool sfc_grid_side_protections::get_is_tripped() const noexcept { return _is_tri
 bool sfc_grid_side_protections::get_is_inhibited() const noexcept { return _is_inhibited; }
 
 bool sfc_grid_side_protections::get_any_fault_active() const noexcept { return _any_fault_active; }
+
+bool sfc_grid_side_protections::get_any_alarm_active() const noexcept { return _any_alarm_active; }
 
 bool sfc_grid_side_protections::get_overcurrent_tripped() const noexcept { return _overcurrent_tripped; }
 

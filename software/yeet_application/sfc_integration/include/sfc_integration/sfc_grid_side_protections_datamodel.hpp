@@ -51,6 +51,9 @@ public:
         /// Clears immediately when fault condition clears, unlike is_tripped which latches
         signal_output<bool> any_fault_active;
 
+        /// Any individual protection currently in alarm state (severity-dependent)
+        signal_output<bool> any_alarm_active;
+
         /// Overcurrent protection trip status
         signal_output<bool> overcurrent_tripped;
 

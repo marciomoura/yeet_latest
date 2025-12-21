@@ -131,6 +131,11 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     control->update_200us();
 
+    // Update hardware status flags for LED indicators
+    outputs->status.trip = control->machine_protections.get_outputs().is_tripped ||
+                           control->machine_protections.get_outputs().is_inhibited;
+    outputs->status.alarm = control->machine_protections.get_outputs().any_alarm_active;
+
     // ==================== ANALOG OUTPUTS (DAC) → EXCITATION COMMANDS ====================
 
     const auto& io_params = control->external_ios.get_parameters();

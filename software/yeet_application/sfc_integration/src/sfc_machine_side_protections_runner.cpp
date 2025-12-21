@@ -32,6 +32,7 @@ void sfc_machine_side_protections_runner::reset()
     _outputs.is_tripped = false;
     _outputs.is_inhibited = false;
     _outputs.any_fault_active = false;
+    _outputs.any_alarm_active = false;
     _outputs.over_flux_tripped = false;
     _outputs.over_flux_alarmed = false;
     _outputs.under_flux_tripped = false;
@@ -82,6 +83,7 @@ void sfc_machine_side_protections_runner::run()
     _outputs.is_tripped = _protections.get_is_tripped();
     _outputs.is_inhibited = _protections.get_is_inhibited();
     _outputs.any_fault_active = _protections.get_any_fault_active();
+    _outputs.any_alarm_active = _protections.get_any_alarm_active();
 
     _outputs.over_flux_tripped = _protections.get_over_flux_tripped();
     _outputs.over_flux_alarmed = _protections.get_over_flux_alarmed();

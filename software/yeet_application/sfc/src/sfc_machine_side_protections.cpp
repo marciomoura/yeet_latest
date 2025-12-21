@@ -41,6 +41,7 @@ void sfc_machine_side_protections::reset() noexcept
     _is_tripped = false;
     _is_inhibited = false;
     _any_fault_active = false;
+    _any_alarm_active = false;
 
     _over_flux_tripped = false;
     _over_flux_alarmed = false;
@@ -261,7 +262,11 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool any_protection_tripped = over_flux_trip || under_flux_trip || stall_trip || comm_loss_trip ||
                                         overspeed_trip || machine_overvoltage_trip || loss_of_excitation_trip;
 
+    const bool any_alarm_active = over_flux_alarm || under_flux_alarm || stall_alarm || comm_loss_alarm ||
+                                  overspeed_alarm || machine_overvoltage_alarm || loss_of_excitation_alarm;
+
     _any_fault_active = any_fault_condition_active;
+    _any_alarm_active = any_alarm_active;
 
     _trip_handshake.update(any_protection_tripped, any_fault_condition_active, confirm_alarms);
 
@@ -297,6 +302,7 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
         _loss_of_excitation_tripped = false;
         _loss_of_excitation_alarmed = false;
         _any_fault_active = false;
+        _any_alarm_active = false;
     }
 
     _is_tripped = _trip_handshake.get_is_tripped();
@@ -418,6 +424,8 @@ void sfc_machine_side_protections::configure_loss_of_excitation_trip_delay(durat
 bool sfc_machine_side_protections::get_is_tripped() const noexcept { return _is_tripped; }
 bool sfc_machine_side_protections::get_is_inhibited() const noexcept { return _is_inhibited; }
 bool sfc_machine_side_protections::get_any_fault_active() const noexcept { return _any_fault_active; }
+
+bool sfc_machine_side_protections::get_any_alarm_active() const noexcept { return _any_alarm_active; }
 
 bool sfc_machine_side_protections::get_over_flux_tripped() const noexcept { return _over_flux_tripped; }
 bool sfc_machine_side_protections::get_over_flux_alarmed() const noexcept { return _over_flux_alarmed; }

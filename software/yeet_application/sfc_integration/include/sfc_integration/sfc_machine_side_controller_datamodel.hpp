@@ -63,17 +63,23 @@ public:
         model_registry_entry entry{signal_registry{}, parameter_registry{}};
 
         // Register DC current lookup table entries individually
+        static constexpr std::string_view dc_current_names[] = {"dc_current_pu_lookup_table[0]",
+            "dc_current_pu_lookup_table[1]", "dc_current_pu_lookup_table[2]", "dc_current_pu_lookup_table[3]",
+            "dc_current_pu_lookup_table[4]", "dc_current_pu_lookup_table[5]"};
+
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            std::string param_name = "dc_current_pu_lookup_table[" + std::to_string(i) + "]";
-            entry.parameters.insert(
-                param_name, yeet::utils::make_array_element_accessor(_model_parameters->dc_current_pu_lookup_table, i));
+            entry.parameters.insert(dc_current_names[i],
+                yeet::utils::make_array_element_accessor(_model_parameters->dc_current_pu_lookup_table, i));
         }
 
         // Register firing angle lookup table entries individually (real_t doesn't have .value() method)
+        static constexpr std::string_view firing_angle_names[] = {"firing_angle_lookup_table_deg[0]",
+            "firing_angle_lookup_table_deg[1]", "firing_angle_lookup_table_deg[2]", "firing_angle_lookup_table_deg[3]",
+            "firing_angle_lookup_table_deg[4]", "firing_angle_lookup_table_deg[5]"};
+
         auto& firing_angle_table = _model_parameters->firing_angle_lookup_table;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            std::string param_name = "firing_angle_lookup_table_deg[" + std::to_string(i) + "]";
-            entry.parameters.insert(param_name,
+            entry.parameters.insert(firing_angle_names[i],
                 low_level_access(
                     [&firing_angle_table, i]() -> float { return static_cast<float>(firing_angle_table.read()[i]); },
                     [&firing_angle_table, i](float value) {

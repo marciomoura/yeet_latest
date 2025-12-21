@@ -139,6 +139,11 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     control->update_200us();
 
+    // Update hardware status flags for LED indicators
+    outputs->status.trip =
+        control->grid_protections.get_outputs().is_tripped || control->grid_protections.get_outputs().is_inhibited;
+    outputs->status.alarm = control->grid_protections.get_outputs().any_alarm_active;
+
     // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
     // Map control system signals to DAC outputs for monitoring and testing
     // The AD5724 provides 4 analog output channels (±5V or ±10V range)
