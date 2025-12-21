@@ -575,15 +575,16 @@ static void Update_System_LEDs()
     // FAULT LED turns ON if communication timeout detected OR stability not yet achieved
     bool fiber_optic_fault = fiber_status.communication_timeout || !fiber_status.communication_stable;
 
-    // Combined fault condition: hardware failures OR fiber optic communication issues
-    bool fault_condition = hardware_fault || fiber_optic_fault;
+    // Combined fault condition: hardware failures OR fiber optic communication issues OR application trip
+    bool fault_condition = hardware_fault || fiber_optic_fault || task_outputs.status.trip;
 
     // Apply the calculated fault condition to the FAULT LED
     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, fault_condition ? 1 : 0);
 
     // ALARM LED - indicates warning conditions (can be controlled by application)
-    // For now, keep it off (will be controlled by application layer if needed)
-    FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, fiber_optic_fault ? 1 : 0);
+    // Combined conditions: fiber optic communication issues OR application alarm
+    bool alarm_condition = fiber_optic_fault || task_outputs.status.alarm;
+    FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, alarm_condition ? 1 : 0);
 
     // Write LED states to hardware
     FSMC_GPIO_WriteLEDs(&fsmc_gpio_instance);

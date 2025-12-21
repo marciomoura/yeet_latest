@@ -275,7 +275,7 @@ TEST_F(ClosedLoopIOsTest, DoorOpenTripsAndForcesShutdown)
     // - is_tripped remains true (trip is latched)
     // - is_inhibited remains true (alarm not confirmed)
     // This is expected behavior - trip acknowledgment only occurs in SHUTDOWN_REQUESTED
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
         << "Trip clears after door is closed";
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
         << "Inhibit should remain latched in BREAKERS_OFF";

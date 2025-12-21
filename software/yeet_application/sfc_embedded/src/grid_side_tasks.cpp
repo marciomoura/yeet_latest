@@ -26,6 +26,73 @@ using namespace yeet::embedded::io;
 
 #define RECTIFIER_MODE 1
 
+namespace {
+// ==================== IO CONFIGURATION (Indices and Polarity) ====================
+// These constants define the physical IO mapping for the grid-side controller.
+// Change these values to match your target hardware wiring.
+
+using yeet::application::sfc::integration::io_polarity_t;
+
+// Digital Inputs
+constexpr int DI_AUXILIARIES_ARE_ON_INDEX = 0;
+constexpr io_polarity_t DI_AUXILIARIES_ARE_ON_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_MV_BREAKER_IS_CLOSED_INDEX = 1;
+constexpr io_polarity_t DI_MV_BREAKER_IS_CLOSED_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_START_COMMAND_INDEX = 2;
+constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_STOP_COMMAND_INDEX = 3;
+constexpr io_polarity_t DI_STOP_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_SHUTDOWN_REQUEST_INDEX = 4;
+constexpr io_polarity_t DI_SHUTDOWN_REQUEST_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_MV_BREAKER_IS_TRIPPING_INDEX = 6;
+constexpr io_polarity_t DI_MV_BREAKER_IS_TRIPPING_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_EMERGENCY_OFF_INDEX = 7;
+constexpr io_polarity_t DI_EMERGENCY_OFF_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_DOOR_IS_OPEN_INDEX = 8;
+constexpr io_polarity_t DI_DOOR_IS_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_EXTERNAL_FAULT_INDEX = 9;
+constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_FANS_ARE_RUNNING_INDEX = 10;
+constexpr io_polarity_t DI_FANS_ARE_RUNNING_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+// Digital Outputs
+constexpr int DO_MV_BREAKER_CLOSE_INDEX = 0;
+constexpr io_polarity_t DO_MV_BREAKER_CLOSE_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_MV_BREAKER_OPEN_INDEX = 1;
+constexpr io_polarity_t DO_MV_BREAKER_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_ON_COMMAND_ACU_FAN_1_INDEX = 2;
+constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_ON_COMMAND_ACU_FAN_2_INDEX = 3;
+constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_ON_COMMAND_ACU_FAN_3_INDEX = 4;
+constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_ON_COMMAND_ACU_FAN_4_INDEX = 5;
+constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_4_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_SOFTWARE_TRIP_1_INDEX = 6;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_SOFTWARE_TRIP_2_INDEX = 7;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_SOFTWARE_TRIP_3_INDEX = 8;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
+}  // namespace
+
 extern "C" {
 
 // ==================== Static Instances for Embedded Single-Controller Build ====================
@@ -104,6 +171,55 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::control::six_pulse_generator::reference_type::line);
     control->grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // ==================== IO CONFIGURATION ====================
+    auto& io_params = control->get_external_ios().get_parameters();
+
+    // Digital Input Indices
+    io_params.di_auxiliaries_are_on_index.write(DI_AUXILIARIES_ARE_ON_INDEX);
+    io_params.di_mv_breaker_is_closed_index.write(DI_MV_BREAKER_IS_CLOSED_INDEX);
+    io_params.di_start_command_index.write(DI_START_COMMAND_INDEX);
+    io_params.di_stop_command_index.write(DI_STOP_COMMAND_INDEX);
+    io_params.di_shutdown_request_index.write(DI_SHUTDOWN_REQUEST_INDEX);
+    io_params.di_mv_breaker_is_tripping_index.write(DI_MV_BREAKER_IS_TRIPPING_INDEX);
+    io_params.di_emergency_off_index.write(DI_EMERGENCY_OFF_INDEX);
+    io_params.di_door_is_open_index.write(DI_DOOR_IS_OPEN_INDEX);
+    io_params.di_external_fault_index.write(DI_EXTERNAL_FAULT_INDEX);
+    io_params.di_fans_are_running_index.write(DI_FANS_ARE_RUNNING_INDEX);
+
+    // Digital Input Polarity
+    io_params.di_auxiliaries_are_on_polarity.write(DI_AUXILIARIES_ARE_ON_POLARITY);
+    io_params.di_mv_breaker_is_closed_polarity.write(DI_MV_BREAKER_IS_CLOSED_POLARITY);
+    io_params.di_start_command_polarity.write(DI_START_COMMAND_POLARITY);
+    io_params.di_stop_command_polarity.write(DI_STOP_COMMAND_POLARITY);
+    io_params.di_shutdown_request_polarity.write(DI_SHUTDOWN_REQUEST_POLARITY);
+    io_params.di_mv_breaker_is_tripping_polarity.write(DI_MV_BREAKER_IS_TRIPPING_POLARITY);
+    io_params.di_emergency_off_polarity.write(DI_EMERGENCY_OFF_POLARITY);
+    io_params.di_door_is_open_polarity.write(DI_DOOR_IS_OPEN_POLARITY);
+    io_params.di_external_fault_polarity.write(DI_EXTERNAL_FAULT_POLARITY);
+    io_params.di_fans_are_running_polarity.write(DI_FANS_ARE_RUNNING_POLARITY);
+
+    // Digital Output Indices
+    io_params.do_mv_breaker_close_index.write(DO_MV_BREAKER_CLOSE_INDEX);
+    io_params.do_mv_breaker_open_index.write(DO_MV_BREAKER_OPEN_INDEX);
+    io_params.do_on_command_acu_fan_1_index.write(DO_ON_COMMAND_ACU_FAN_1_INDEX);
+    io_params.do_on_command_acu_fan_2_index.write(DO_ON_COMMAND_ACU_FAN_2_INDEX);
+    io_params.do_on_command_acu_fan_3_index.write(DO_ON_COMMAND_ACU_FAN_3_INDEX);
+    io_params.do_on_command_acu_fan_4_index.write(DO_ON_COMMAND_ACU_FAN_4_INDEX);
+    io_params.do_software_trip_1_index.write(DO_SOFTWARE_TRIP_1_INDEX);
+    io_params.do_software_trip_2_index.write(DO_SOFTWARE_TRIP_2_INDEX);
+    io_params.do_software_trip_3_index.write(DO_SOFTWARE_TRIP_3_INDEX);
+
+    // Digital Output Polarity
+    io_params.do_mv_breaker_close_polarity.write(DO_MV_BREAKER_CLOSE_POLARITY);
+    io_params.do_mv_breaker_open_polarity.write(DO_MV_BREAKER_OPEN_POLARITY);
+    io_params.do_on_command_acu_fan_1_polarity.write(DO_ON_COMMAND_ACU_FAN_1_POLARITY);
+    io_params.do_on_command_acu_fan_2_polarity.write(DO_ON_COMMAND_ACU_FAN_2_POLARITY);
+    io_params.do_on_command_acu_fan_3_polarity.write(DO_ON_COMMAND_ACU_FAN_3_POLARITY);
+    io_params.do_on_command_acu_fan_4_polarity.write(DO_ON_COMMAND_ACU_FAN_4_POLARITY);
+    io_params.do_software_trip_1_polarity.write(DO_SOFTWARE_TRIP_1_POLARITY);
+    io_params.do_software_trip_2_polarity.write(DO_SOFTWARE_TRIP_2_POLARITY);
+    io_params.do_software_trip_3_polarity.write(DO_SOFTWARE_TRIP_3_POLARITY);
 
     // Configure protections to be enabled by default for embedded target
     control->grid_protections.get_parameters().protection_module_enabled.write(true);
