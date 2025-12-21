@@ -5,9 +5,9 @@ halt
 // Erase flash
 erase
 // Load the ELF file
-loadfile ../build-embedded-cn-machine/bin/Release/yeet_embedded_app_machine.elf
+loadfile build-embedded-cn-machine/bin/Release/yeet_embedded_app_machine.elf
 // Verify programming
-verifybin ../build-embedded-cn-machine/bin/Release/yeet_embedded_app_machine.elf 0x08000000
+verifybin build-embedded-cn-machine/bin/Release/yeet_embedded_app_machine.elf 0x08000000
 // Reset and run
 r
 go

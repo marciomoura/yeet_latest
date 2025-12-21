@@ -287,7 +287,7 @@
             "detail": "Flash selected embedded target to STM32 via ST-Link"
         },
         {
-            "label": "Flash CN Grid (JLink) - Debug",
+            "label": "Flash CN Grid (JLink) - RelWithDebInfo",
             "type": "shell",
             "command": "C:/DevEnv/SEGGER/JLink_V876/JLink.exe",
             "args": [
@@ -300,7 +300,7 @@
                 "-autoconnect",
                 "1",
                 "-CommandFile",
-                "${workspaceFolder}/.vscode/jlink_flash_cn_grid_debug.jlink"
+                "${workspaceFolder}/.vscode/jlink_flash_cn_grid_relwithdebinfo.jlink"
             ],
             "group": {
                 "kind": "test",
@@ -310,7 +310,7 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "detail": "Flash CN Grid-Side Debug build via JLink"
+            "detail": "Flash CN Grid-Side RelWithDebInfo build via JLink"
         },
         {
             "label": "Flash CN Grid (JLink) - Release",
@@ -339,7 +339,7 @@
             "detail": "Flash CN Grid-Side Release build via JLink"
         },
         {
-            "label": "Flash CN Machine (JLink) - Debug",
+            "label": "Flash CN Machine (JLink) - RelWithDebInfo",
             "type": "shell",
             "command": "C:/DevEnv/SEGGER/JLink_V876/JLink.exe",
             "args": [
@@ -352,7 +352,7 @@
                 "-autoconnect",
                 "1",
                 "-CommandFile",
-                "${workspaceFolder}/.vscode/jlink_flash_cn_machine_debug.jlink"
+                "${workspaceFolder}/.vscode/jlink_flash_cn_machine_relwithdebinfo.jlink"
             ],
             "group": {
                 "kind": "test",
@@ -362,7 +362,7 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "detail": "Flash CN Machine-Side Debug build via JLink"
+            "detail": "Flash CN Machine-Side RelWithDebInfo build via JLink"
         },
         {
             "label": "Flash CN Machine (JLink) - Release",
