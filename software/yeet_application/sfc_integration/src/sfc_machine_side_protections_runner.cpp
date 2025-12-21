@@ -162,42 +162,78 @@ void sfc_machine_side_protections_runner::set_parameters()
 void sfc_machine_side_protections_runner::set_parameter_callback()
 {
     // Register callbacks for V/Hz protection parameters
-    _parameters.over_flux_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.over_flux_warning_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.over_flux_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.over_flux_warning_delay.register_callback([&]() { set_parameters(); });
-    _parameters.under_flux_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.under_flux_warning_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.under_flux_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.under_flux_warning_delay.register_callback([&]() { set_parameters(); });
+    _parameters.over_flux_trip_threshold.register_callback(
+        [&]() { _protections.configure_over_flux_trip_threshold(_parameters.over_flux_trip_threshold); });
+    _parameters.over_flux_warning_threshold.register_callback(
+        [&]() { _protections.configure_over_flux_warning_threshold(_parameters.over_flux_warning_threshold); });
+    _parameters.over_flux_trip_delay.register_callback(
+        [&]() { _protections.configure_over_flux_trip_delay(_parameters.over_flux_trip_delay); });
+    _parameters.over_flux_warning_delay.register_callback(
+        [&]() { _protections.configure_over_flux_warning_delay(_parameters.over_flux_warning_delay); });
+    _parameters.under_flux_trip_threshold.register_callback(
+        [&]() { _protections.configure_under_flux_trip_threshold(_parameters.under_flux_trip_threshold); });
+    _parameters.under_flux_warning_threshold.register_callback(
+        [&]() { _protections.configure_under_flux_warning_threshold(_parameters.under_flux_warning_threshold); });
+    _parameters.under_flux_trip_delay.register_callback(
+        [&]() { _protections.configure_under_flux_trip_delay(_parameters.under_flux_trip_delay); });
+    _parameters.under_flux_warning_delay.register_callback(
+        [&]() { _protections.configure_under_flux_warning_delay(_parameters.under_flux_warning_delay); });
 
     // Register callbacks for stall protection parameters
-    _parameters.stall_current_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.stall_speed_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.stall_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.stall_warning_delay.register_callback([&]() { set_parameters(); });
+    _parameters.stall_current_threshold.register_callback(
+        [&]() { _protections.configure_stall_current_threshold(_parameters.stall_current_threshold); });
+    _parameters.stall_speed_threshold.register_callback(
+        [&]() { _protections.configure_stall_speed_threshold(_parameters.stall_speed_threshold); });
+    _parameters.stall_trip_delay.register_callback(
+        [&]() { _protections.configure_stall_trip_delay(_parameters.stall_trip_delay); });
+    _parameters.stall_warning_delay.register_callback(
+        [&]() { _protections.configure_stall_warning_delay(_parameters.stall_warning_delay); });
 
     // Register callbacks for communication watchdog parameters
-    _parameters.comm_timeout.register_callback([&]() { set_parameters(); });
-    _parameters.comm_reset.register_callback([&]() { set_parameters(); });
+    _parameters.comm_timeout.register_callback(
+        [&]() { _protections.configure_comm_timeout_duration(_parameters.comm_timeout); });
+    _parameters.comm_reset.register_callback(
+        [&]() { _protections.configure_comm_reset_duration(_parameters.comm_reset); });
 
     // Register callbacks for overspeed and machine-side overvoltage parameters
-    _parameters.overspeed_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.overspeed_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.machine_overvoltage_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.machine_overvoltage_trip_delay.register_callback([&]() { set_parameters(); });
+    _parameters.overspeed_trip_threshold.register_callback(
+        [&]() { _protections.configure_overspeed_trip_threshold(_parameters.overspeed_trip_threshold); });
+    _parameters.overspeed_trip_delay.register_callback(
+        [&]() { _protections.configure_overspeed_trip_delay(_parameters.overspeed_trip_delay); });
+    _parameters.machine_overvoltage_trip_threshold.register_callback([&]() {
+        _protections.configure_machine_overvoltage_trip_threshold(_parameters.machine_overvoltage_trip_threshold);
+    });
+    _parameters.machine_overvoltage_trip_delay.register_callback(
+        [&]() { _protections.configure_machine_overvoltage_trip_delay(_parameters.machine_overvoltage_trip_delay); });
 
     // Register callbacks for loss of excitation parameters
-    _parameters.loss_of_excitation_trip_delay.register_callback([&]() { set_parameters(); });
+    _parameters.loss_of_excitation_trip_delay.register_callback(
+        [&]() { _protections.configure_loss_of_excitation_trip_delay(_parameters.loss_of_excitation_trip_delay); });
 
     // Register callbacks for severity parameters
-    _parameters.over_flux_severity.register_callback([&]() { set_parameters(); });
-    _parameters.under_flux_severity.register_callback([&]() { set_parameters(); });
-    _parameters.stall_severity.register_callback([&]() { set_parameters(); });
-    _parameters.overspeed_severity.register_callback([&]() { set_parameters(); });
-    _parameters.machine_overvoltage_severity.register_callback([&]() { set_parameters(); });
-    _parameters.communication_loss_severity.register_callback([&]() { set_parameters(); });
-    _parameters.loss_of_excitation_severity.register_callback([&]() { set_parameters(); });
+    _parameters.over_flux_severity.register_callback([&]() {
+        _protections.configure_over_flux_is_trip(_parameters.over_flux_severity == protection_severity::trip);
+    });
+    _parameters.under_flux_severity.register_callback([&]() {
+        _protections.configure_under_flux_is_trip(_parameters.under_flux_severity == protection_severity::trip);
+    });
+    _parameters.stall_severity.register_callback(
+        [&]() { _protections.configure_stall_is_trip(_parameters.stall_severity == protection_severity::trip); });
+    _parameters.overspeed_severity.register_callback([&]() {
+        _protections.configure_overspeed_is_trip(_parameters.overspeed_severity == protection_severity::trip);
+    });
+    _parameters.machine_overvoltage_severity.register_callback([&]() {
+        _protections.configure_machine_overvoltage_is_trip(
+            _parameters.machine_overvoltage_severity == protection_severity::trip);
+    });
+    _parameters.communication_loss_severity.register_callback([&]() {
+        _protections.configure_communication_loss_is_trip(
+            _parameters.communication_loss_severity == protection_severity::trip);
+    });
+    _parameters.loss_of_excitation_severity.register_callback([&]() {
+        _protections.configure_loss_of_excitation_is_trip(
+            _parameters.loss_of_excitation_severity == protection_severity::trip);
+    });
 }
 
 }  // namespace yeet::application::sfc::integration

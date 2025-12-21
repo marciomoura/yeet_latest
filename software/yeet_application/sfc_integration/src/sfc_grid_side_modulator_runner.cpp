@@ -47,18 +47,18 @@ void sfc_grid_side_modulator_runner::stop() { _sfc_grid_side_modulator.reset(); 
 
 void sfc_grid_side_modulator_runner::set_parameters()
 {
-    // Note: force_commutation_angle and commutation_timeout parameters exist in datamodel
-    // but are not yet configurable in the core sfc_grid_side_modulator component.
-    // These are currently hardcoded in the core implementation:
-    // - force_commutation_angle: 150° (hardcoded)
-    // - commutation_timeout: Not yet implemented
-    // Future enhancement: Add configure methods to the core component.
+    _sfc_grid_side_modulator.configure_force_commutation_angle(_parameters.force_commutation_angle.read());
+    _sfc_grid_side_modulator.configure_commutation_timeout(_parameters.commutation_timeout.read());
 }
 
 void sfc_grid_side_modulator_runner::set_parameter_callback()
 {
-    _parameters.force_commutation_angle.register_callback([&]() { set_parameters(); });
-    _parameters.commutation_timeout.register_callback([&]() { set_parameters(); });
+    _parameters.force_commutation_angle.register_callback([&]() {
+        _sfc_grid_side_modulator.configure_force_commutation_angle(_parameters.force_commutation_angle.read());
+    });
+
+    _parameters.commutation_timeout.register_callback(
+        [&]() { _sfc_grid_side_modulator.configure_commutation_timeout(_parameters.commutation_timeout.read()); });
 }
 
 }  // namespace yeet::application::sfc::integration

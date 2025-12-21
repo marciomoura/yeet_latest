@@ -199,19 +199,50 @@ void sfc_torque_controller_runner::set_parameters()
 
 void sfc_torque_controller_runner::set_parameter_callback()
 {
-    _parameters.absolute_min_torque.register_callback([&]() { set_parameters(); });
-    _parameters.absolute_max_torque.register_callback([&]() { set_parameters(); });
-    _parameters.torque_to_current_factor.register_callback([&]() { set_parameters(); });
-    _parameters.torque_rate_limit.register_callback([&]() { set_parameters(); });
-    _parameters.enable_torque_rate_limiting.register_callback([&]() { set_parameters(); });
-    _parameters.breakaway_boost_torque.register_callback([&]() { set_parameters(); });
-    _parameters.breakaway_boost_duration.register_callback([&]() { set_parameters(); });
-    _parameters.minimum_motoring_torque.register_callback([&]() { set_parameters(); });
-    _parameters.enable_minimum_motoring_torque.register_callback([&]() { set_parameters(); });
-    _parameters.enable_speed_based_torque_limits.register_callback([&]() { set_parameters(); });
-    _parameters.speed_torque_limit_speed_axis_pu.register_callback([&]() { set_parameters(); });
-    _parameters.speed_torque_limit_min_torque_pu.register_callback([&]() { set_parameters(); });
-    _parameters.speed_torque_limit_max_torque_pu.register_callback([&]() { set_parameters(); });
+    _parameters.absolute_min_torque.register_callback([&]() {
+        _sfc_torque_controller.configure_absolute_torque_limits(
+            _parameters.absolute_min_torque, _parameters.absolute_max_torque);
+    });
+    _parameters.absolute_max_torque.register_callback([&]() {
+        _sfc_torque_controller.configure_absolute_torque_limits(
+            _parameters.absolute_min_torque, _parameters.absolute_max_torque);
+    });
+    _parameters.torque_to_current_factor.register_callback(
+        [&]() { _sfc_torque_controller.configure_torque_to_current_factor(_parameters.torque_to_current_factor); });
+    _parameters.torque_rate_limit.register_callback(
+        [&]() { _sfc_torque_controller.configure_torque_rate_limit(_parameters.torque_rate_limit); });
+    _parameters.enable_torque_rate_limiting.register_callback(
+        [&]() { _sfc_torque_controller.enable_torque_rate_limiting(_parameters.enable_torque_rate_limiting); });
+    _parameters.breakaway_boost_torque.register_callback([&]() {
+        _sfc_torque_controller.configure_breakaway_boost(
+            _parameters.breakaway_boost_torque, _parameters.breakaway_boost_duration);
+    });
+    _parameters.breakaway_boost_duration.register_callback([&]() {
+        _sfc_torque_controller.configure_breakaway_boost(
+            _parameters.breakaway_boost_torque, _parameters.breakaway_boost_duration);
+    });
+    _parameters.minimum_motoring_torque.register_callback(
+        [&]() { _sfc_torque_controller.configure_minimum_motoring_torque(_parameters.minimum_motoring_torque); });
+    _parameters.enable_minimum_motoring_torque.register_callback(
+        [&]() { _sfc_torque_controller.enable_minimum_motoring_torque(_parameters.enable_minimum_motoring_torque); });
+    _parameters.enable_speed_based_torque_limits.register_callback([&]() {
+        _sfc_torque_controller.enable_speed_based_torque_limits(_parameters.enable_speed_based_torque_limits);
+    });
+    _parameters.speed_torque_limit_speed_axis_pu.register_callback([&]() {
+        _sfc_torque_controller.configure_speed_based_torque_limit_lookup_table(
+            _parameters.speed_torque_limit_speed_axis_pu, _parameters.speed_torque_limit_min_torque_pu,
+            _parameters.speed_torque_limit_max_torque_pu);
+    });
+    _parameters.speed_torque_limit_min_torque_pu.register_callback([&]() {
+        _sfc_torque_controller.configure_speed_based_torque_limit_lookup_table(
+            _parameters.speed_torque_limit_speed_axis_pu, _parameters.speed_torque_limit_min_torque_pu,
+            _parameters.speed_torque_limit_max_torque_pu);
+    });
+    _parameters.speed_torque_limit_max_torque_pu.register_callback([&]() {
+        _sfc_torque_controller.configure_speed_based_torque_limit_lookup_table(
+            _parameters.speed_torque_limit_speed_axis_pu, _parameters.speed_torque_limit_min_torque_pu,
+            _parameters.speed_torque_limit_max_torque_pu);
+    });
 }
 
 }  // namespace yeet::application::sfc::integration

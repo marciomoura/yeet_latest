@@ -25,6 +25,9 @@ public:
     void stop() override;
 
 private:
+    void set_parameters();
+    void set_parameter_callback();
+
     sfc::sfc_machine_side_observer _sfc_machine_side_observer;
     bool _previous_preset_observer{false};
 };

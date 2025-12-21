@@ -63,6 +63,18 @@ public:
     void reset();
 
     /**
+     * @brief Configures the forced commutation angle.
+     * @param angle The angle to apply during forced commutation.
+     */
+    void configure_force_commutation_angle(angle_t angle) noexcept;
+
+    /**
+     * @brief Configures the commutation timeout.
+     * @param timeout The maximum duration for a commutation event.
+     */
+    void configure_commutation_timeout(duration_t timeout) noexcept;
+
+    /**
      * @brief Gets the current firing angle output.
      * @return The firing angle in radians to be applied to the grid-side converter.
      */
@@ -138,6 +150,7 @@ private:
 
     // Configuration parameters
     angle_t _force_commutation_angle_rad{deg_to_rad(150.0)};  ///< 150° for forced commutation
+    duration_t _commutation_timeout{0.1f};                    ///< Default 100ms timeout
 
     // Internal state
     grid_side_modulator_state_t _current_state{grid_side_modulator_state_t::running};

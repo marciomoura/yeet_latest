@@ -125,30 +125,103 @@ void sfc_startup_sequencer_runner::set_parameters()
 void sfc_startup_sequencer_runner::set_parameter_callback()
 {
     // Register callbacks for all virtual frequency parameters
-    _parameters.virtual_frequency_initial.register_callback([&]() { set_parameters(); });
+    _parameters.virtual_frequency_initial.register_callback([&]() {
+        sfc::virtual_frequency_config freq_cfg;
+        freq_cfg.initial = _parameters.virtual_frequency_initial.read();
+        freq_cfg.final = _parameters.virtual_frequency_final.read();
+        freq_cfg.duration = _parameters.virtual_frequency_duration.read();
+        _sequencer.configure_virtual_frequency(freq_cfg);
+    });
     _parameters.virtual_frequency_final.register_callback([&]() {
-        set_parameters();
+        sfc::virtual_frequency_config freq_cfg;
+        freq_cfg.initial = _parameters.virtual_frequency_initial.read();
+        freq_cfg.final = _parameters.virtual_frequency_final.read();
+        freq_cfg.duration = _parameters.virtual_frequency_duration.read();
+        _sequencer.configure_virtual_frequency(freq_cfg);
         clamp_speed_reference_to_virtual_frequency_final();
     });
-    _parameters.virtual_frequency_duration.register_callback([&]() { set_parameters(); });
+    _parameters.virtual_frequency_duration.register_callback([&]() {
+        sfc::virtual_frequency_config freq_cfg;
+        freq_cfg.initial = _parameters.virtual_frequency_initial.read();
+        freq_cfg.final = _parameters.virtual_frequency_final.read();
+        freq_cfg.duration = _parameters.virtual_frequency_duration.read();
+        _sequencer.configure_virtual_frequency(freq_cfg);
+    });
 
     // Register callbacks for all virtual torque parameters
-    _parameters.virtual_torque_initial.register_callback([&]() { set_parameters(); });
-    _parameters.virtual_torque_final.register_callback([&]() { set_parameters(); });
-    _parameters.virtual_torque_duration.register_callback([&]() { set_parameters(); });
+    _parameters.virtual_torque_initial.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_final.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_duration.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
 
     // Register callbacks for speed reference rate limit parameters
-    _parameters.speed_reference_rate_limit_seconds_per_pu.register_callback([&]() { set_parameters(); });
-    _parameters.speed_reference_rate_limit_enabled.register_callback([&]() { set_parameters(); });
+    _parameters.speed_reference_rate_limit_seconds_per_pu.register_callback([&]() {
+        sfc::speed_reference_rate_limit_config rate_limit_cfg;
+        rate_limit_cfg.seconds_per_pu = _parameters.speed_reference_rate_limit_seconds_per_pu.read();
+        rate_limit_cfg.enabled = _parameters.speed_reference_rate_limit_enabled.read();
+        _sequencer.configure_speed_reference_rate_limit(rate_limit_cfg);
+    });
+    _parameters.speed_reference_rate_limit_enabled.register_callback([&]() {
+        sfc::speed_reference_rate_limit_config rate_limit_cfg;
+        rate_limit_cfg.seconds_per_pu = _parameters.speed_reference_rate_limit_seconds_per_pu.read();
+        rate_limit_cfg.enabled = _parameters.speed_reference_rate_limit_enabled.read();
+        _sequencer.configure_speed_reference_rate_limit(rate_limit_cfg);
+    });
 
     // Register callbacks for flying restart parameters
-    _parameters.flying_restart_speed_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.flying_restart_voltage_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.flying_restart_observer_settling_time.register_callback([&]() { set_parameters(); });
-    _parameters.auto_start_stop_enabled.register_callback([&]() { set_parameters(); });
+    _parameters.flying_restart_speed_threshold.register_callback([&]() {
+        sfc::flying_restart_config flying_restart_cfg;
+        flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
+        flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
+        flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
+        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        _sequencer.configure_flying_restart(flying_restart_cfg);
+    });
+    _parameters.flying_restart_voltage_threshold.register_callback([&]() {
+        sfc::flying_restart_config flying_restart_cfg;
+        flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
+        flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
+        flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
+        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        _sequencer.configure_flying_restart(flying_restart_cfg);
+    });
+    _parameters.flying_restart_observer_settling_time.register_callback([&]() {
+        sfc::flying_restart_config flying_restart_cfg;
+        flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
+        flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
+        flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
+        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        _sequencer.configure_flying_restart(flying_restart_cfg);
+    });
+    _parameters.auto_start_stop_enabled.register_callback([&]() {
+        sfc::flying_restart_config flying_restart_cfg;
+        flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
+        flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
+        flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
+        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        _sequencer.configure_flying_restart(flying_restart_cfg);
+    });
 
     // Register callback for force virtual mode operation
-    _parameters.force_virtual_mode_operation.register_callback([&]() { set_parameters(); });
+    _parameters.force_virtual_mode_operation.register_callback(
+        [&]() { _sequencer.configure_force_virtual_mode(_parameters.force_virtual_mode_operation.read()); });
 }
 
 void sfc_startup_sequencer_runner::clamp_speed_reference_to_virtual_frequency_final()

@@ -118,47 +118,90 @@ void sfc_soft_starter_speed_generator_runner::set_parameters()
 void sfc_soft_starter_speed_generator_runner::set_parameter_callback()
 {
     // Register callbacks for all profile 1 parameters
-    _parameters.profile_1_enabled.register_callback([&]() { set_parameters(); });
-    _parameters.profile_1_target_speed.register_callback([&]() { set_parameters(); });
-    _parameters.profile_1_acceleration_time.register_callback([&]() { set_parameters(); });
-    _parameters.profile_1_torque_limit_max.register_callback([&]() { set_parameters(); });
-    _parameters.profile_1_torque_limit_min.register_callback([&]() { set_parameters(); });
-    _parameters.profile_1_initial_torque_boost.register_callback([&]() { set_parameters(); });
-    _parameters.profile_1_boost_duration.register_callback([&]() { set_parameters(); });
+    auto configure_p1 = [&]() {
+        if (_parameters.profile_1_enabled.read()) {
+            _speed_generator.configure_profile(
+                sfc::acceleration_profile_t::PROFILE_1, build_profile_config(sfc::acceleration_profile_t::PROFILE_1));
+        }
+        else {
+            _speed_generator.disable_profile(sfc::acceleration_profile_t::PROFILE_1);
+        }
+    };
+    _parameters.profile_1_enabled.register_callback(configure_p1);
+    _parameters.profile_1_target_speed.register_callback(configure_p1);
+    _parameters.profile_1_acceleration_time.register_callback(configure_p1);
+    _parameters.profile_1_torque_limit_max.register_callback(configure_p1);
+    _parameters.profile_1_torque_limit_min.register_callback(configure_p1);
+    _parameters.profile_1_initial_torque_boost.register_callback(configure_p1);
+    _parameters.profile_1_boost_duration.register_callback(configure_p1);
 
     // Register callbacks for all profile 2 parameters
-    _parameters.profile_2_enabled.register_callback([&]() { set_parameters(); });
-    _parameters.profile_2_target_speed.register_callback([&]() { set_parameters(); });
-    _parameters.profile_2_acceleration_time.register_callback([&]() { set_parameters(); });
-    _parameters.profile_2_torque_limit_max.register_callback([&]() { set_parameters(); });
-    _parameters.profile_2_torque_limit_min.register_callback([&]() { set_parameters(); });
-    _parameters.profile_2_initial_torque_boost.register_callback([&]() { set_parameters(); });
-    _parameters.profile_2_boost_duration.register_callback([&]() { set_parameters(); });
+    auto configure_p2 = [&]() {
+        if (_parameters.profile_2_enabled.read()) {
+            _speed_generator.configure_profile(
+                sfc::acceleration_profile_t::PROFILE_2, build_profile_config(sfc::acceleration_profile_t::PROFILE_2));
+        }
+        else {
+            _speed_generator.disable_profile(sfc::acceleration_profile_t::PROFILE_2);
+        }
+    };
+    _parameters.profile_2_enabled.register_callback(configure_p2);
+    _parameters.profile_2_target_speed.register_callback(configure_p2);
+    _parameters.profile_2_acceleration_time.register_callback(configure_p2);
+    _parameters.profile_2_torque_limit_max.register_callback(configure_p2);
+    _parameters.profile_2_torque_limit_min.register_callback(configure_p2);
+    _parameters.profile_2_initial_torque_boost.register_callback(configure_p2);
+    _parameters.profile_2_boost_duration.register_callback(configure_p2);
 
     // Register callbacks for all profile 3 parameters
-    _parameters.profile_3_enabled.register_callback([&]() { set_parameters(); });
-    _parameters.profile_3_target_speed.register_callback([&]() { set_parameters(); });
-    _parameters.profile_3_acceleration_time.register_callback([&]() { set_parameters(); });
-    _parameters.profile_3_torque_limit_max.register_callback([&]() { set_parameters(); });
-    _parameters.profile_3_torque_limit_min.register_callback([&]() { set_parameters(); });
-    _parameters.profile_3_initial_torque_boost.register_callback([&]() { set_parameters(); });
-    _parameters.profile_3_boost_duration.register_callback([&]() { set_parameters(); });
+    auto configure_p3 = [&]() {
+        if (_parameters.profile_3_enabled.read()) {
+            _speed_generator.configure_profile(
+                sfc::acceleration_profile_t::PROFILE_3, build_profile_config(sfc::acceleration_profile_t::PROFILE_3));
+        }
+        else {
+            _speed_generator.disable_profile(sfc::acceleration_profile_t::PROFILE_3);
+        }
+    };
+    _parameters.profile_3_enabled.register_callback(configure_p3);
+    _parameters.profile_3_target_speed.register_callback(configure_p3);
+    _parameters.profile_3_acceleration_time.register_callback(configure_p3);
+    _parameters.profile_3_torque_limit_max.register_callback(configure_p3);
+    _parameters.profile_3_torque_limit_min.register_callback(configure_p3);
+    _parameters.profile_3_initial_torque_boost.register_callback(configure_p3);
+    _parameters.profile_3_boost_duration.register_callback(configure_p3);
 
     // Register callbacks for all profile 4 parameters
-    _parameters.profile_4_enabled.register_callback([&]() { set_parameters(); });
-    _parameters.profile_4_target_speed.register_callback([&]() { set_parameters(); });
-    _parameters.profile_4_acceleration_time.register_callback([&]() { set_parameters(); });
-    _parameters.profile_4_torque_limit_max.register_callback([&]() { set_parameters(); });
-    _parameters.profile_4_torque_limit_min.register_callback([&]() { set_parameters(); });
-    _parameters.profile_4_initial_torque_boost.register_callback([&]() { set_parameters(); });
-    _parameters.profile_4_boost_duration.register_callback([&]() { set_parameters(); });
+    auto configure_p4 = [&]() {
+        if (_parameters.profile_4_enabled.read()) {
+            _speed_generator.configure_profile(
+                sfc::acceleration_profile_t::PROFILE_4, build_profile_config(sfc::acceleration_profile_t::PROFILE_4));
+        }
+        else {
+            _speed_generator.disable_profile(sfc::acceleration_profile_t::PROFILE_4);
+        }
+    };
+    _parameters.profile_4_enabled.register_callback(configure_p4);
+    _parameters.profile_4_target_speed.register_callback(configure_p4);
+    _parameters.profile_4_acceleration_time.register_callback(configure_p4);
+    _parameters.profile_4_torque_limit_max.register_callback(configure_p4);
+    _parameters.profile_4_torque_limit_min.register_callback(configure_p4);
+    _parameters.profile_4_initial_torque_boost.register_callback(configure_p4);
+    _parameters.profile_4_boost_duration.register_callback(configure_p4);
 
     // Register callbacks for deceleration and limits
-    _parameters.deceleration_time.register_callback([&]() { set_parameters(); });
-    _parameters.min_speed_limit.register_callback([&]() { set_parameters(); });
-    _parameters.max_speed_limit.register_callback([&]() { set_parameters(); });
-    _parameters.max_torque_limit.register_callback([&]() { set_parameters(); });
-    _parameters.min_torque_limit.register_callback([&]() { set_parameters(); });
+    _parameters.deceleration_time.register_callback(
+        [&]() { _speed_generator.configure_deceleration(_parameters.deceleration_time.read()); });
+
+    auto configure_limits = [&]() {
+        _speed_generator.configure_absolute_limits(_parameters.min_speed_limit.read(),
+            _parameters.max_speed_limit.read(), _parameters.max_torque_limit.read(),
+            _parameters.min_torque_limit.read());
+    };
+    _parameters.min_speed_limit.register_callback(configure_limits);
+    _parameters.max_speed_limit.register_callback(configure_limits);
+    _parameters.max_torque_limit.register_callback(configure_limits);
+    _parameters.min_torque_limit.register_callback(configure_limits);
 }
 
 void sfc_soft_starter_speed_generator_runner::handle_commands()

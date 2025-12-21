@@ -78,19 +78,50 @@ void sfc_excitation_controller_runner::set_parameters()
 
 void sfc_excitation_controller_runner::set_parameter_callback()
 {
-    _parameters.field_current_setpoint.register_callback([&]() { set_parameters(); });
-    _parameters.low_voltage_field_current_setpoint_pu.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_threshold_pu.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_reference_speed_axis_pu.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_reference_pu.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_pi_kp.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_pi_ti.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_pi_output_min_pu.register_callback([&]() { set_parameters(); });
-    _parameters.voltage_pi_output_max_pu.register_callback([&]() { set_parameters(); });
-    _parameters.prefluxing_duration.register_callback([&]() { set_parameters(); });
+    _parameters.field_current_setpoint.register_callback([&]() {
+        _sfc_excitation_controller.configure_field_current_setpoint(_parameters.field_current_setpoint.read());
+    });
 
-    // Commented out - simplified version doesn't use speed threshold parameter
-    // _parameters.constant_flux_speed_threshold.register_callback([&]() { set_parameters(); });
+    _parameters.low_voltage_field_current_setpoint_pu.register_callback([&]() {
+        _sfc_excitation_controller.configure_low_voltage_field_current_setpoint(
+            _parameters.low_voltage_field_current_setpoint_pu.read());
+    });
+
+    _parameters.voltage_threshold_pu.register_callback(
+        [&]() { _sfc_excitation_controller.configure_voltage_threshold(_parameters.voltage_threshold_pu.read()); });
+
+    _parameters.voltage_reference_speed_axis_pu.register_callback([&]() {
+        _sfc_excitation_controller.configure_voltage_reference_lookup_table(
+            _parameters.voltage_reference_speed_axis_pu.read(), _parameters.voltage_reference_pu.read());
+    });
+
+    _parameters.voltage_reference_pu.register_callback([&]() {
+        _sfc_excitation_controller.configure_voltage_reference_lookup_table(
+            _parameters.voltage_reference_speed_axis_pu.read(), _parameters.voltage_reference_pu.read());
+    });
+
+    _parameters.voltage_pi_kp.register_callback([&]() {
+        _sfc_excitation_controller.configure_voltage_pi_gains(
+            _parameters.voltage_pi_kp.read(), _parameters.voltage_pi_ti.read());
+    });
+
+    _parameters.voltage_pi_ti.register_callback([&]() {
+        _sfc_excitation_controller.configure_voltage_pi_gains(
+            _parameters.voltage_pi_kp.read(), _parameters.voltage_pi_ti.read());
+    });
+
+    _parameters.voltage_pi_output_min_pu.register_callback([&]() {
+        _sfc_excitation_controller.configure_voltage_pi_output_limits(
+            _parameters.voltage_pi_output_min_pu.read(), _parameters.voltage_pi_output_max_pu.read());
+    });
+
+    _parameters.voltage_pi_output_max_pu.register_callback([&]() {
+        _sfc_excitation_controller.configure_voltage_pi_output_limits(
+            _parameters.voltage_pi_output_min_pu.read(), _parameters.voltage_pi_output_max_pu.read());
+    });
+
+    _parameters.prefluxing_duration.register_callback(
+        [&]() { _sfc_excitation_controller.configure_flux_buildup_duration(_parameters.prefluxing_duration.read()); });
 }
 
 }  // namespace yeet::application::sfc::integration

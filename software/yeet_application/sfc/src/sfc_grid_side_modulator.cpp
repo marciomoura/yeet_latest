@@ -147,6 +147,16 @@ void sfc_grid_side_modulator::reset()
     _main_pi_reset_requested = false;
 }
 
+void sfc_grid_side_modulator::configure_force_commutation_angle(angle_t angle) noexcept
+{
+    _force_commutation_angle_rad = angle;
+}
+
+void sfc_grid_side_modulator::configure_commutation_timeout(duration_t timeout) noexcept
+{
+    _commutation_timeout = timeout;
+}
+
 angle_t sfc_grid_side_modulator::get_firing_angle_rad() const noexcept { return _current_firing_angle_rad; }
 
 grid_side_modulator_state_t sfc_grid_side_modulator::get_current_state() const noexcept { return _current_state; }

@@ -80,9 +80,6 @@ public:
 
         /// Frequency estimation filter cutoff frequency [Hz]
         yeet::parameter<frequency_t> frequency_filter_cutoff = frequency_t{10.0};
-
-        /// Commutation detection voltage threshold [pu]
-        yeet::parameter<real_t> commutation_detection_threshold = 0.15;
     };
 
 private:
@@ -111,8 +108,6 @@ public:
             "initial_frequency", yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
         entry.parameters.insert(
             "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
-        entry.parameters.insert("commutation_detection_threshold",
-            yeet::utils::make_units_accessor(_model_parameters->commutation_detection_threshold));
 
         registry.insert("observer", std::move(entry));
     }

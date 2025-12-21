@@ -11,14 +11,32 @@ void sfc_machine_side_observer_runner::register_datamodel(yeet::model_registry& 
 
 void sfc_machine_side_observer_runner::initialize()
 {
-    // Configure PLL with parameters from datamodel
-    _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
-
-    // Configure frequency filter
-    _sfc_machine_side_observer.configure_frequency_filter(_parameters.frequency_filter_cutoff);
+    set_parameters();
+    set_parameter_callback();
 
     // Set initial speed
     _sfc_machine_side_observer.reset(_parameters.initial_frequency);
+}
+
+void sfc_machine_side_observer_runner::set_parameters()
+{
+    _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
+    _sfc_machine_side_observer.configure_frequency_filter(_parameters.frequency_filter_cutoff);
+}
+
+void sfc_machine_side_observer_runner::set_parameter_callback()
+{
+    _parameters.kp.register_callback([&]() {
+        _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
+    });
+    _parameters.ti.register_callback([&]() {
+        _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
+    });
+    _parameters.nominal_frequency.register_callback([&]() {
+        _sfc_machine_side_observer.configure_pll(_parameters.kp, _parameters.ti, _parameters.nominal_frequency);
+    });
+    _parameters.frequency_filter_cutoff.register_callback(
+        [&]() { _sfc_machine_side_observer.configure_frequency_filter(_parameters.frequency_filter_cutoff); });
 }
 
 void sfc_machine_side_observer_runner::run()

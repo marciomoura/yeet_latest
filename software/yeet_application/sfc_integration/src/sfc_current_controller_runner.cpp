@@ -79,13 +79,28 @@ void sfc_current_controller_runner::set_controller_parameters()
 
 void sfc_current_controller_runner::set_parameter_callback()
 {
-    _parameters.kp.register_callback([&]() { set_controller_parameters(); });
-    _parameters.ti.register_callback([&]() { set_controller_parameters(); });
-    _parameters.min_firing_angle.register_callback([&]() { set_limit_parameters(); });
-    _parameters.max_firing_angle.register_callback([&]() { set_limit_parameters(); });
-    _parameters.current_reference_magnitude_limit.register_callback([&]() { set_limit_parameters(); });
-    _parameters.pi_output_min.register_callback([&]() { set_pi_output_limits(); });
-    _parameters.pi_output_max.register_callback([&]() { set_pi_output_limits(); });
+    _parameters.kp.register_callback(
+        [&]() { _sfc_current_controller.configure_pi_gains(_parameters.kp, _parameters.ti); });
+    _parameters.ti.register_callback(
+        [&]() { _sfc_current_controller.configure_pi_gains(_parameters.kp, _parameters.ti); });
+    _parameters.min_firing_angle.register_callback([&]() {
+        _sfc_current_controller.configure_firing_angle_limits_radians(
+            _parameters.min_firing_angle.read().get_radians(), _parameters.max_firing_angle.read().get_radians());
+    });
+    _parameters.max_firing_angle.register_callback([&]() {
+        _sfc_current_controller.configure_firing_angle_limits_radians(
+            _parameters.min_firing_angle.read().get_radians(), _parameters.max_firing_angle.read().get_radians());
+    });
+    _parameters.current_reference_magnitude_limit.register_callback([&]() {
+        const current_pu_t limit = _parameters.current_reference_magnitude_limit.read();
+        _sfc_current_controller.configure_current_limits_pu(-limit, limit);
+    });
+    _parameters.pi_output_min.register_callback([&]() {
+        _sfc_current_controller.configure_pi_output_limits(_parameters.pi_output_min, _parameters.pi_output_max);
+    });
+    _parameters.pi_output_max.register_callback([&]() {
+        _sfc_current_controller.configure_pi_output_limits(_parameters.pi_output_min, _parameters.pi_output_max);
+    });
 }
 
 }  // namespace yeet::application::sfc::integration

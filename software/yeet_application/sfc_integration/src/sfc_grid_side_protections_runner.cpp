@@ -123,24 +123,55 @@ void sfc_grid_side_protections_runner::set_parameters()
 void sfc_grid_side_protections_runner::set_parameter_callback()
 {
     // Register callbacks for all protection parameters
-    _parameters.overcurrent_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.overcurrent_warning_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.overcurrent_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.overcurrent_warning_delay.register_callback([&]() { set_parameters(); });
+    _parameters.overcurrent_severity.register_callback([&]() {
+        _protections.configure_overcurrent_is_trip(_parameters.overcurrent_severity == protection_severity::trip);
+    });
+    _parameters.overvoltage_severity.register_callback([&]() {
+        _protections.configure_overvoltage_is_trip(_parameters.overvoltage_severity == protection_severity::trip);
+    });
+    _parameters.undervoltage_severity.register_callback([&]() {
+        _protections.configure_undervoltage_is_trip(_parameters.undervoltage_severity == protection_severity::trip);
+    });
+    _parameters.communication_loss_severity.register_callback([&]() {
+        _protections.configure_communication_loss_is_trip(
+            _parameters.communication_loss_severity == protection_severity::trip);
+    });
+    _parameters.door_open_severity.register_callback([&]() {
+        _protections.configure_door_open_is_trip(_parameters.door_open_severity == protection_severity::trip);
+    });
 
-    _parameters.overvoltage_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.overvoltage_warning_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.overvoltage_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.overvoltage_warning_delay.register_callback([&]() { set_parameters(); });
+    _parameters.overcurrent_trip_threshold.register_callback(
+        [&]() { _protections.configure_overcurrent_trip_threshold(_parameters.overcurrent_trip_threshold); });
+    _parameters.overcurrent_warning_threshold.register_callback(
+        [&]() { _protections.configure_overcurrent_warning_threshold(_parameters.overcurrent_warning_threshold); });
+    _parameters.overcurrent_trip_delay.register_callback(
+        [&]() { _protections.configure_overcurrent_trip_delay(_parameters.overcurrent_trip_delay); });
+    _parameters.overcurrent_warning_delay.register_callback(
+        [&]() { _protections.configure_overcurrent_warning_delay(_parameters.overcurrent_warning_delay); });
 
-    _parameters.undervoltage_trip_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.undervoltage_warning_threshold.register_callback([&]() { set_parameters(); });
-    _parameters.undervoltage_trip_delay.register_callback([&]() { set_parameters(); });
-    _parameters.undervoltage_warning_delay.register_callback([&]() { set_parameters(); });
+    _parameters.overvoltage_trip_threshold.register_callback(
+        [&]() { _protections.configure_overvoltage_trip_threshold(_parameters.overvoltage_trip_threshold); });
+    _parameters.overvoltage_warning_threshold.register_callback(
+        [&]() { _protections.configure_overvoltage_warning_threshold(_parameters.overvoltage_warning_threshold); });
+    _parameters.overvoltage_trip_delay.register_callback(
+        [&]() { _protections.configure_overvoltage_trip_delay(_parameters.overvoltage_trip_delay); });
+    _parameters.overvoltage_warning_delay.register_callback(
+        [&]() { _protections.configure_overvoltage_warning_delay(_parameters.overvoltage_warning_delay); });
+
+    _parameters.undervoltage_trip_threshold.register_callback(
+        [&]() { _protections.configure_undervoltage_trip_threshold(_parameters.undervoltage_trip_threshold); });
+    _parameters.undervoltage_warning_threshold.register_callback(
+        [&]() { _protections.configure_undervoltage_warning_threshold(_parameters.undervoltage_warning_threshold); });
+    _parameters.undervoltage_trip_delay.register_callback(
+        [&]() { _protections.configure_undervoltage_trip_delay(_parameters.undervoltage_trip_delay); });
+    _parameters.undervoltage_warning_delay.register_callback(
+        [&]() { _protections.configure_undervoltage_warning_delay(_parameters.undervoltage_warning_delay); });
 
     // Register callbacks for communication watchdog parameters
-    _parameters.comm_timeout.register_callback([&]() { set_parameters(); });
-    _parameters.comm_reset.register_callback([&]() { set_parameters(); });
+    _parameters.comm_timeout.register_callback(
+        [&]() { _protections.configure_comm_timeout_duration(_parameters.comm_timeout); });
+    _parameters.comm_reset.register_callback(
+        [&]() { _protections.configure_comm_reset_duration(_parameters.comm_reset); });
 }
 
 }  // namespace yeet::application::sfc::integration

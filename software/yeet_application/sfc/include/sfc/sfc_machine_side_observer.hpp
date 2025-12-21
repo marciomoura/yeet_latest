@@ -53,12 +53,6 @@ public:
     void configure_frequency_filter(frequency_t cutoff_frequency, real_t damping_ratio = 0.707);
 
     /**
-     * @brief Configures the voltage threshold for commutation failure detection.
-     * @param threshold_pu The per-unit voltage threshold.
-     */
-    void configure_commutation_failure_threshold(voltage_pu_t threshold_pu);
-
-    /**
      * @brief Executes one update cycle of the grid observer.
      *
      * All inputs required for the estimation must be passed in this call.
