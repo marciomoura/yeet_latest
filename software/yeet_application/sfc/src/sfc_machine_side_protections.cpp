@@ -10,8 +10,6 @@ sfc_machine_side_protections::sfc_machine_side_protections(duration_t sampling_t
       _machine_overvoltage_protection(sampling_time),
       _loss_of_excitation_protection(sampling_time)
 {
-    _trip_handshake.configure_trip_clear_policy(sfc_trip_clear_policy::auto_clear);
-
     // Configure threshold-based protections with safe defaults.
     // Without configuration, threshold_protection defaults to zero thresholds which
     // causes immediate trips for any positive-valued measurement.

@@ -27,6 +27,14 @@ void sfc_machine_side_external_ios_datamodel::register_callbacks()
     _parameters.di_external_fault_override.register_callback(external_fault_callback);
     _parameters.di_external_fault_override_value.register_callback(external_fault_callback);
 
+    auto start_command_callback = [this]() {
+        if (_parameters.di_start_command_override.read()) {
+            _digital_inputs.start_command.write(_parameters.di_start_command_override_value.read());
+        }
+    };
+    _parameters.di_start_command_override.register_callback(start_command_callback);
+    _parameters.di_start_command_override_value.register_callback(start_command_callback);
+
     // Digital output callbacks - no action needed, overrides applied in getters
     auto digital_output_callback = [this]() { /* Overrides applied in getters */ };
     _parameters.do_excitation_on_command_override.register_callback(digital_output_callback);
@@ -59,7 +67,8 @@ void sfc_machine_side_external_ios_datamodel::set_analog_inputs(
     _analog_inputs.v_bc_counts.write(v_bc_counts);
 }
 
-void sfc_machine_side_external_ios_datamodel::set_digital_inputs(bool excitation_status, bool external_fault)
+void sfc_machine_side_external_ios_datamodel::set_digital_inputs(
+    bool excitation_status, bool external_fault, bool start_command)
 {
     // Lambda to apply polarity inversion
     auto apply_polarity = [](bool value, io_polarity_t polarity) -> bool {
@@ -70,6 +79,7 @@ void sfc_machine_side_external_ios_datamodel::set_digital_inputs(bool excitation
     const bool excitation_status_inverted =
         apply_polarity(excitation_status, _parameters.di_excitation_status_polarity.read());
     const bool external_fault_inverted = apply_polarity(external_fault, _parameters.di_external_fault_polarity.read());
+    const bool start_command_inverted = apply_polarity(start_command, _parameters.di_start_command_polarity.read());
 
     // Write to digital input signals (overrides will take precedence if enabled)
     if (!_parameters.di_excitation_status_override.read()) {
@@ -79,6 +89,11 @@ void sfc_machine_side_external_ios_datamodel::set_digital_inputs(bool excitation
     // External fault can be overridden for testing
     if (!_parameters.di_external_fault_override.read()) {
         _digital_inputs.external_fault.write(external_fault_inverted);
+    }
+
+    // Start command can be overridden for testing
+    if (!_parameters.di_start_command_override.read()) {
+        _digital_inputs.start_command.write(start_command_inverted);
     }
 }
 
@@ -182,6 +197,10 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
         "di_external_fault_override", yeet::utils::make_bool_accessor(_parameters.di_external_fault_override));
     entry.parameters.insert("di_external_fault_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_external_fault_override_value));
+    entry.parameters.insert(
+        "di_start_command_override", yeet::utils::make_bool_accessor(_parameters.di_start_command_override));
+    entry.parameters.insert("di_start_command_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_start_command_override_value));
 
     // Digital Output Overrides
     entry.parameters.insert("do_excitation_on_command_override",
@@ -227,12 +246,16 @@ void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_reg
         "di_excitation_status_index", yeet::utils::make_units_accessor(_parameters.di_excitation_status_index));
     io_entry.parameters.insert(
         "di_external_fault_index", yeet::utils::make_units_accessor(_parameters.di_external_fault_index));
+    io_entry.parameters.insert(
+        "di_start_command_index", yeet::utils::make_units_accessor(_parameters.di_start_command_index));
 
     // Digital input polarity
     io_entry.parameters.insert(
         "di_excitation_status_polarity", yeet::utils::make_enum_accessor(_parameters.di_excitation_status_polarity));
     io_entry.parameters.insert(
         "di_external_fault_polarity", yeet::utils::make_enum_accessor(_parameters.di_external_fault_polarity));
+    io_entry.parameters.insert(
+        "di_start_command_polarity", yeet::utils::make_enum_accessor(_parameters.di_start_command_polarity));
 
     // Digital output mapping indices
     io_entry.parameters.insert(

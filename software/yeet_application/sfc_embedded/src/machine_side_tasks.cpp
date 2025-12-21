@@ -98,6 +98,23 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
         yeet::control::six_pulse_generator::reference_type::line);
     control->machine_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // Configure protections to be enabled by default for embedded target
+    control->machine_protections.get_parameters().protection_module_enabled.write(true);
+    control->machine_protections.get_parameters().over_flux_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().under_flux_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().stall_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().overspeed_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().machine_overvoltage_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().communication_loss_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().loss_of_excitation_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
     // #endif
 
     // Initialize machine-side control subsystem
@@ -179,9 +196,10 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         // Read digital inputs from hardware
         const bool excitation_status = read_di(inputs, io_params.di_excitation_status_index.read());
         const bool external_fault = read_di(inputs, io_params.di_external_fault_index.read());
+        const bool start_command = read_di(inputs, io_params.di_start_command_index.read());
 
         // Set digital inputs in datamodel (applies polarity inversion)
-        control->external_ios.set_digital_inputs(excitation_status, external_fault);
+        control->external_ios.set_digital_inputs(excitation_status, external_fault, start_command);
 
         // Set analog excitation feedback (optional)
         control->external_ios.set_excitation_inputs(yeet::current_pu_t{0.0f});

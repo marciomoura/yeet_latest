@@ -344,15 +344,15 @@ TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
         system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value(), 0.0f, 0.01f)
         << "DC-link current should be near zero";
 
-    // Trip should auto-clear once fault condition is removed
-    EXPECT_FALSE(is_protection_tripped()) << "Trip latch should clear automatically once fault clears";
+    // Trip should stay active until confirmed
+    EXPECT_TRUE(is_protection_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_protection_inhibited())
         << "Protection is_inhibited should still be latched, requires user confirmation";
     EXPECT_TRUE(is_current_extinguished_output()) << "is_current_extinguished output should be true";
 
     // Verify preconditions for alarm confirmation
     EXPECT_FALSE(is_any_fault_active()) << "No active faults before confirmation";
-    EXPECT_FALSE(is_protection_tripped()) << "Trip should be cleared before confirmation";
+    EXPECT_TRUE(is_protection_tripped()) << "Trip should stay active until confirmed";
 
     // User confirms alarm (rising edge) - this clears the inhibit latch
     // Inhibit only clears if no active faults exist (already verified above)
@@ -479,8 +479,8 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
         system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value(), 0.0f, 0.01f)
         << "DC-link current should be near zero";
 
-    // Verify trip latch auto-cleared (fault no longer active) and inhibit still latched
-    EXPECT_FALSE(is_protection_tripped()) << "Trip latch should auto-clear when fault clears";
+    // Verify trip latch stayed active until confirmed
+    EXPECT_TRUE(is_protection_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_protection_inhibited()) << "Protection is_inhibited should still be true";
     EXPECT_TRUE(is_current_extinguished_output()) << "is_current_extinguished output should be true";
 
@@ -492,8 +492,9 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
     simulate_for(0.5f);
     system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
 
-    // Verify inhibit cleared after alarm confirmation
+    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(is_protection_tripped()) << "Trip should clear after alarm confirmation";
 
     // Release turn_on command before restart (required after protection trip in IDLE)
     set_turn_on_command(false);
@@ -567,8 +568,8 @@ TEST_F(ClosedLoopProtectionsTest, OvercurrentRecoveryWithAlarmConfirmation)
 
     // Allow time for the protection delay/filtering and for the state machine to react.
     simulate_for(ms(100.0f));
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
-        << "Protection should trip on overcurrent, but the trip is already cleared";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Protection should stay tripped until confirmed";
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
         << "Alarm should latch (is_inhibited)";
     EXPECT_NE(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON)
@@ -594,8 +595,10 @@ TEST_F(ClosedLoopProtectionsTest, OvercurrentRecoveryWithAlarmConfirmation)
     simulate_for(0.5f);
     system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
 
-    // Verify inhibit cleared after alarm confirmation
+    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Trip should clear after alarm confirmation";
 
     // Release turn_on command before restart (required after protection trip in IDLE)
     set_turn_on_command(false);
@@ -697,8 +700,8 @@ TEST_F(ClosedLoopProtectionsTest, MachineOvervoltageRecoveryWithAlarmConfirmatio
         << "Machine-side any_fault_active should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
-    // Trip latch auto-clears when fault clears (no acknowledgment needed)
-    EXPECT_FALSE(is_machine_protection_tripped()) << "Machine-side trip latch should auto-clear when fault clears";
+    // Trip latch stays active until confirmed
+    EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Machine-side inhibit should still be latched";
 
     // Confirm alarms on the machine side (rising edge).
@@ -709,8 +712,9 @@ TEST_F(ClosedLoopProtectionsTest, MachineOvervoltageRecoveryWithAlarmConfirmatio
     simulate_for(0.5f);
     machine_params.confirm_alarms.write(false);
 
-    // Verify inhibit cleared after alarm confirmation
+    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_machine_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(is_machine_protection_tripped()) << "Trip should clear after alarm confirmation";
 
     // Release turn_on command before restart (required after protection trip in IDLE)
     set_turn_on_command(false);
@@ -803,8 +807,8 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverFluxRecoveryWithAlarmConfirmation)
         << "Machine-side any_fault_active should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
-    // Trip latch auto-clears when fault clears (no acknowledgment needed)
-    EXPECT_FALSE(is_machine_protection_tripped()) << "Machine-side trip latch should auto-clear when fault clears";
+    // Trip latch stays active until confirmed
+    EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
 
     // Confirm alarms on the machine side (rising edge).
     machine_params.confirm_alarms.write(false);
@@ -813,6 +817,10 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverFluxRecoveryWithAlarmConfirmation)
     machine_params.confirm_alarms.write(true);
     simulate_for(0.5f);
     machine_params.confirm_alarms.write(false);
+
+    // Verify inhibit and trip cleared after alarm confirmation
+    EXPECT_FALSE(is_machine_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(is_machine_protection_tripped()) << "Trip should clear after alarm confirmation";
 
     // Verify inhibit cleared after alarm confirmation
     EXPECT_FALSE(is_machine_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
@@ -905,8 +913,8 @@ TEST_F(ClosedLoopProtectionsTest, MachineUnderFluxRecoveryWithAlarmConfirmation)
         << "Machine-side any_fault_active should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
-    // Trip latch auto-clears when fault clears (no acknowledgment needed)
-    EXPECT_FALSE(is_machine_protection_tripped()) << "Machine-side trip latch should auto-clear when fault clears";
+    // Trip latch stays active until confirmed
+    EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
 
     machine_params.confirm_alarms.write(false);
     simulate_for(0.5f);
@@ -914,8 +922,9 @@ TEST_F(ClosedLoopProtectionsTest, MachineUnderFluxRecoveryWithAlarmConfirmation)
     simulate_for(0.5f);
     machine_params.confirm_alarms.write(false);
 
-    // Verify inhibit cleared after alarm confirmation
+    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_machine_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(is_machine_protection_tripped()) << "Trip should clear after alarm confirmation";
 
     // Release turn_on command before restart (required after protection trip in IDLE)
     set_turn_on_command(false);
@@ -994,8 +1003,8 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverspeedRecoveryWithAlarmConfirmation)
         << "Machine-side any_fault_active should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
-    // Trip latch auto-clears when fault clears (no acknowledgment needed)
-    EXPECT_FALSE(is_machine_protection_tripped()) << "Machine-side trip latch should auto-clear when fault clears";
+    // Trip latch stays active until confirmed
+    EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
 
     // Confirm alarms on the machine side (rising edge).
     machine_params.confirm_alarms.write(false);
@@ -1005,8 +1014,9 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverspeedRecoveryWithAlarmConfirmation)
     simulate_for(0.5f);
     machine_params.confirm_alarms.write(false);
 
-    // Verify inhibit cleared after alarm confirmation
+    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_machine_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(is_machine_protection_tripped()) << "Trip should clear after alarm confirmation";
 
     // Release turn_on command before restart (required after protection trip in IDLE)
     set_turn_on_command(false);
@@ -1123,8 +1133,8 @@ TEST_F(ClosedLoopProtectionsTest, MachineLossOfExcitationRecoveryWithAlarmConfir
         << "Machine-side any_fault_active should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
-    // Trip latch auto-clears when fault clears (no acknowledgment needed)
-    EXPECT_FALSE(is_machine_protection_tripped()) << "Machine-side trip latch should auto-clear when fault clears";
+    // Trip latch stays active until confirmed
+    EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
 
     // Confirm alarms on the machine side (rising edge).
     machine_params.confirm_alarms.write(false);
@@ -1133,8 +1143,9 @@ TEST_F(ClosedLoopProtectionsTest, MachineLossOfExcitationRecoveryWithAlarmConfir
     simulate_for(0.5f);
     machine_params.confirm_alarms.write(false);
 
-    // Verify inhibit cleared after alarm confirmation
+    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_machine_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+    EXPECT_FALSE(is_machine_protection_tripped()) << "Trip should clear after alarm confirmation";
 
     // Release turn_on command before restart (required after protection trip in IDLE)
     set_turn_on_command(false);

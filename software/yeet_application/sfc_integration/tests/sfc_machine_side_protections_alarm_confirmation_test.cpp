@@ -203,8 +203,17 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverFluxTri
     clear_fault_conditions();
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Latching protection should clear trip after fault removal";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
+
+    // Confirm alarms
+    set_confirm_alarms(true);
+    run_cycle();
+    set_confirm_alarms(false);
+    run_cycle();
+
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
 /**
@@ -224,8 +233,17 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnStallTrip)
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after fault removal";
-    EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
+
+    // Confirm
+    set_confirm_alarms(true);
+    run_cycle();
+    set_confirm_alarms(false);
+    run_cycle();
+
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
 /**
@@ -245,8 +263,17 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverspeedTr
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after fault removal";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
+
+    // Confirm
+    set_confirm_alarms(true);
+    run_cycle();
+    set_confirm_alarms(false);
+    run_cycle();
+
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
 /**
@@ -266,8 +293,17 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnMachineOver
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after fault removal";
+    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
+
+    // Confirm
+    set_confirm_alarms(true);
+    run_cycle();
+    set_confirm_alarms(false);
+    run_cycle();
+
+    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
 /**
@@ -284,7 +320,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWh
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    ASSERT_FALSE(is_tripped());
+    ASSERT_TRUE(is_tripped());
     ASSERT_TRUE(is_inhibited());
 
     // Confirm alarm (rising edge)
@@ -320,7 +356,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_FALSE(is_tripped());
+    EXPECT_TRUE(is_tripped());
     EXPECT_TRUE(is_inhibited());
 
     // Now confirmation should work
@@ -436,7 +472,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, MultipleFaultTypesCycle)
     ASSERT_TRUE(is_tripped());
     clear_fault_conditions();
     run_cycle();
-    ASSERT_FALSE(is_tripped());
+    ASSERT_TRUE(is_tripped());
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);
@@ -450,6 +486,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, MultipleFaultTypesCycle)
     EXPECT_TRUE(is_inhibited()) << "Second fault should re-latch alarm";
     clear_fault_conditions();
     run_cycle();
+    ASSERT_TRUE(is_tripped());
     set_confirm_alarms(false);
     run_cycle();
     set_confirm_alarms(true);

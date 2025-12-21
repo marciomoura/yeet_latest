@@ -104,6 +104,19 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::control::six_pulse_generator::reference_type::line);
     control->grid_side_pulse_generator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // Configure protections to be enabled by default for embedded target
+    control->grid_protections.get_parameters().protection_module_enabled.write(true);
+    control->grid_protections.get_parameters().overcurrent_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().overvoltage_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().undervoltage_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().communication_loss_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().door_open_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
     // #endif
 }
 
@@ -197,6 +210,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
             read_di(inputs, io_params.di_mv_breaker_is_closed_index.read()),
             read_di(inputs, io_params.di_start_command_index.read()),
             read_di(inputs, io_params.di_stop_command_index.read()),
+            read_di(inputs, io_params.di_shutdown_request_index.read()),
             read_di(inputs, io_params.di_mv_breaker_is_tripping_index.read()),
             read_di(inputs, io_params.di_emergency_off_index.read()),
             read_di(inputs, io_params.di_door_is_open_index.read()),

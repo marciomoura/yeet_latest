@@ -37,6 +37,7 @@ public:
         // Hardware status feedback (external_ios digital inputs)
         signal_output<bool> excitation_status;
         signal_output<bool> external_fault;
+        signal_output<bool> start_command;
     };
 
     struct parameters {
@@ -50,6 +51,9 @@ public:
         // ==================== EXTERNAL SUPERVISORY INPUTS ====================
         /// External fault from protection relay
         parameter<bool> external_fault{false};
+
+        /// Start command from HMI/SCADA (used for alarm confirmation)
+        parameter<bool> start_command{false};
 
         // ==================== OUTPUT OVERRIDES (Fault Injection) ====================
         /// Override excitation status feedback

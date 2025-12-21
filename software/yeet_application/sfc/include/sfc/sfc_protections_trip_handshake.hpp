@@ -5,37 +5,18 @@
 namespace yeet::application::sfc {
 
 /**
- * @brief Policy controlling when a latched trip may be cleared.
- */
-enum class sfc_trip_clear_policy {
-    /// Clear latched trip when the supervisor/state-machine acknowledges.
-    ack_only,
-
-    /// Clear latched trip only when acknowledged AND the fault condition is no longer active.
-    ack_and_fault_clear,
-
-    /// Clear latched trip automatically when the fault condition is no longer active (no acknowledgement required).
-    auto_clear,
-};
-
-/**
  * @brief Shared trip + alarm confirmation handshake used by SFC protection runners.
  *
  * Responsibilities:
  * - Latch `is_tripped` when any protection reports a trip.
  * - Latch `is_inhibited` (alarm pending) whenever a trip has occurred.
- * - Clear `is_tripped` based on a configured policy and the provided acknowledge/fault signals.
+ * - Clear `is_tripped` only on a rising edge of `confirm_alarms` AND only when the fault is gone.
  * - Clear `is_inhibited` only on a rising edge of `confirm_alarms` AND only when not tripped.
  *
  * This block is allocation-free and intended for hard real-time usage.
  */
 class sfc_protections_trip_handshake {
 public:
-    /**
-     * @brief Configure how a latched trip may be cleared.
-     */
-    void configure_trip_clear_policy(sfc_trip_clear_policy policy) noexcept;
-
     /**
      * @brief Reset internal states to a safe initial condition.
      */
@@ -66,8 +47,6 @@ public:
     bool get_trip_cleared_pulse() const noexcept;
 
 private:
-    sfc_trip_clear_policy _trip_clear_policy{sfc_trip_clear_policy::ack_only};
-
     bool _trip_latched{false};
     bool _alarm_pending{false};
     bool _trip_cleared_pulse{false};

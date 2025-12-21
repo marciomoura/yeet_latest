@@ -106,6 +106,7 @@ void sfc_machine_io_mock_runner::apply_overrides_and_write_to_external_ios()
     // Write all hardware status to signal outputs
     _outputs.excitation_status = excitation_feedback;
     _outputs.external_fault = _parameters.external_fault.read();
+    _outputs.start_command = _parameters.start_command.read();
 }
 
 }  // namespace yeet::application::sfc::integration

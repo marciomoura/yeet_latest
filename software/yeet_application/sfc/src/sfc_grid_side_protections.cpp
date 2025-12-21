@@ -8,7 +8,6 @@ sfc_grid_side_protections::sfc_grid_side_protections(duration_t sampling_time) n
       _undervoltage_protection(sampling_time),
       _communication_watchdog(sampling_time)
 {
-    _trip_handshake.configure_trip_clear_policy(sfc_trip_clear_policy::auto_clear);
 }
 
 void sfc_grid_side_protections::reset() noexcept
