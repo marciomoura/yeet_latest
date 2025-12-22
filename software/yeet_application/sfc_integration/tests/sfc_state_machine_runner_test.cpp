@@ -11,6 +11,25 @@ protected:
         // Initialize the runner (base_application automatically initializes _inputs, _outputs, _parameters)
         _runner = std::make_unique<sfc_state_machine_runner>();
 
+        // Connect storage to signals (required by raw pointer API)
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::connect(inputs.auxiliaries_are_on, _storage_auxiliaries_are_on);
+        yeet::utils::mock_signal_input::connect(inputs.mv_breaker_is_closed, _storage_mv_breaker_is_closed);
+        yeet::utils::mock_signal_input::connect(inputs.start_command, _storage_start_command);
+        yeet::utils::mock_signal_input::connect(inputs.stop_command, _storage_stop_command);
+        yeet::utils::mock_signal_input::connect(inputs.is_current_extinguished, _storage_is_current_extinguished);
+        yeet::utils::mock_signal_input::connect(inputs.protection_inhibited, _storage_protection_inhibited);
+        yeet::utils::mock_signal_input::connect(
+            inputs.any_protection_fault_active, _storage_any_protection_fault_active);
+        yeet::utils::mock_signal_input::connect(inputs.mv_breaker_is_tripping, _storage_mv_breaker_is_tripping);
+        yeet::utils::mock_signal_input::connect(inputs.emergency_off, _storage_emergency_off);
+        yeet::utils::mock_signal_input::connect(inputs.door_is_open, _storage_door_is_open);
+        yeet::utils::mock_signal_input::connect(
+            inputs.machine_side_protection_inhibited, _storage_machine_side_protection_inhibited);
+        yeet::utils::mock_signal_input::connect(
+            inputs.machine_side_protection_tripped, _storage_machine_side_protection_tripped);
+        yeet::utils::mock_signal_input::connect(inputs.external_fault, _storage_external_fault);
+
         // CRITICAL: Reset all input signals BEFORE initialize() to ensure they have storage
         // The state machine event lambdas will try to read these during the first run() call
         reset_all_inputs();
@@ -35,14 +54,17 @@ protected:
         yeet::utils::mock_signal_input::write(inputs.start_command, false);
         yeet::utils::mock_signal_input::write(inputs.stop_command, false);
         yeet::utils::mock_signal_input::write(inputs.is_current_extinguished, false);
-        yeet::utils::mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
-        yeet::utils::mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
-        yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_tripping, false);       // Breaker not tripping by default
-        yeet::utils::mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
-        yeet::utils::mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
-        yeet::utils::mock_signal_input::write(inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
-        yeet::utils::mock_signal_input::write(inputs.machine_side_protection_tripped, false);    // No machine-side trip
-        yeet::utils::mock_signal_input::write(inputs.external_fault, false);                     // No external fault by default
+        yeet::utils::mock_signal_input::write(
+            inputs.protection_inhibited, false);  // Protection not inhibited by default
+        yeet::utils::mock_signal_input::write(
+            inputs.any_protection_fault_active, false);                               // No protection faults by default
+        yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_tripping, false);  // Breaker not tripping by default
+        yeet::utils::mock_signal_input::write(inputs.emergency_off, false);  // Emergency off not active by default
+        yeet::utils::mock_signal_input::write(inputs.door_is_open, false);   // Door closed by default
+        yeet::utils::mock_signal_input::write(
+            inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
+        yeet::utils::mock_signal_input::write(inputs.machine_side_protection_tripped, false);  // No machine-side trip
+        yeet::utils::mock_signal_input::write(inputs.external_fault, false);  // No external fault by default
     }
 
     void disable_all_overrides()
@@ -151,6 +173,21 @@ protected:
     }
 
     std::unique_ptr<sfc_state_machine_runner> _runner;
+
+    // Storage for mocked signals (required by raw pointer API)
+    bool _storage_auxiliaries_are_on{false};
+    bool _storage_mv_breaker_is_closed{false};
+    bool _storage_start_command{false};
+    bool _storage_stop_command{false};
+    bool _storage_is_current_extinguished{false};
+    bool _storage_protection_inhibited{false};
+    bool _storage_any_protection_fault_active{false};
+    bool _storage_mv_breaker_is_tripping{false};
+    bool _storage_emergency_off{false};
+    bool _storage_door_is_open{false};
+    bool _storage_machine_side_protection_inhibited{false};
+    bool _storage_machine_side_protection_tripped{false};
+    bool _storage_external_fault{false};
 };
 
 // Any protection inhibit must force shutdown outputs (MCB open, auxiliaries off)
