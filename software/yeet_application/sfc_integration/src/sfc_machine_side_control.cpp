@@ -54,7 +54,6 @@ std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
     tx_msg.dc_link_current_reference = torque_controller.get_outputs().current_reference.read();
     tx_msg.machine_voltage_magnitude = machine_measurements.get_outputs().machine_voltage_magnitude.read();
     tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
-    tx_msg.shutdown_request = machine_integrator_supervisor.get_outputs().request_shutdown.read();
     tx_msg.machine_protection_tripped = machine_protections.get_outputs().is_tripped.read();
     tx_msg.protection_inhibit = machine_protections.get_outputs().is_inhibited.read();
     _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
@@ -258,7 +257,9 @@ void sfc_machine_side_control::connect_internal_signals()
         .from(startup_sequencer.get_outputs().is_startup_complete)
         .to(&protections_inputs::closed_loop_active)
         .from(external_ios.get_digital_inputs().excitation_status)
-        .to(&protections_inputs::excitation_is_on);
+        .to(&protections_inputs::excitation_is_on)
+        .from(external_ios.get_digital_inputs().external_fault)
+        .to(&protections_inputs::external_fault);
 
     // ==================== External IO Output Connections ====================
     signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,

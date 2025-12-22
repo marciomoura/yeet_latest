@@ -16,6 +16,7 @@ void sfc_machine_io_mock_runner::register_datamodel(yeet::model_registry& regist
 
     // External supervisory inputs
     entry.parameters.insert("external_fault", yeet::utils::make_bool_accessor(_parameters.external_fault));
+    entry.parameters.insert("start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
 
     // Output overrides
     entry.parameters.insert(

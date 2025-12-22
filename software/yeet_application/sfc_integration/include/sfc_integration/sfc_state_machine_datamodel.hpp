@@ -32,9 +32,6 @@ public:
         /// Stop command [bool]
         signal_input<bool> stop_command;
 
-        /// Emergency shutdown request [bool]
-        signal_input<bool> shutdown_request;
-
         /// Current has been extinguished [bool]
         signal_input<bool> is_current_extinguished;
 
@@ -55,9 +52,6 @@ public:
 
         /// Enclosure door is open (prevents breaker close) [bool]
         signal_input<bool> door_is_open;
-
-        /// Shutdown request from machine-side (via fiber link) [bool]
-        signal_input<bool> machine_side_shutdown_request;
 
         /// Machine-side protections inhibited (awaiting confirmation) [bool]
         signal_input<bool> machine_side_protection_inhibited;
@@ -103,9 +97,6 @@ public:
         /// Stop command [bool]
         signal_output<bool> stop_command;
 
-        /// Emergency shutdown request [bool]
-        signal_output<bool> shutdown_request;
-
         /// Current has been extinguished [bool]
         signal_output<bool> is_current_extinguished;
 
@@ -148,11 +139,6 @@ public:
         /// Override value for mv_breaker_is_closed (when override enabled)
         parameter<bool> mv_breaker_is_closed_override_value{false};
 
-        /// Enable override for shutdown_request input
-        parameter<bool> shutdown_request_override{false};
-        /// Override value for shutdown_request (when override enabled)
-        parameter<bool> shutdown_request_override_value{false};
-
         /// Enable override for is_current_extinguished input
         parameter<bool> is_current_extinguished_override{false};
         /// Override value for is_current_extinguished (when override enabled)
@@ -191,11 +177,6 @@ public:
         entry.parameters.insert("turn_on_command", yeet::utils::make_bool_accessor(_model_parameters->turn_on_command));
         entry.parameters.insert("start_command", yeet::utils::make_bool_accessor(_model_parameters->start_command));
         entry.parameters.insert("stop_command", yeet::utils::make_bool_accessor(_model_parameters->stop_command));
-
-        entry.parameters.insert(
-            "shutdown_request_override", yeet::utils::make_bool_accessor(_model_parameters->shutdown_request_override));
-        entry.parameters.insert("shutdown_request_override_value",
-            yeet::utils::make_bool_accessor(_model_parameters->shutdown_request_override_value));
 
         entry.parameters.insert("is_current_extinguished_override",
             yeet::utils::make_bool_accessor(_model_parameters->is_current_extinguished_override));

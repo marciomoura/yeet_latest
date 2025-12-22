@@ -28,9 +28,6 @@ public:
         /// Forced commutation freeze request from grid-side modulator
         signal_input<bool> forced_commutation_freeze_integrator;
 
-        /// Trip signal from external sources (operator or fault)
-        signal_input<bool> machine_side_shutdown_request;
-
         /// Trip signal from grid-side protections (overcurrent, overvoltage, undervoltage)
         signal_input<bool> grid_protection_shutdown_request;
 

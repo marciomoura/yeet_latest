@@ -35,6 +35,12 @@ public:
 
         /// Enclosure door is open (treated as a trip condition) [bool]
         signal_input<bool> door_is_open;
+
+        /// External fault signal from hardware [bool]
+        signal_input<bool> external_fault;
+
+        /// Emergency off signal from hardware [bool]
+        signal_input<bool> emergency_off;
     };
 
     /**
@@ -95,6 +101,18 @@ public:
 
         /// Door open protection alarm status (severity-dependent)
         signal_output<bool> door_open_alarmed;
+
+        /// External fault protection trip status (severity-dependent)
+        signal_output<bool> external_fault_tripped;
+
+        /// External fault protection alarm status (severity-dependent)
+        signal_output<bool> external_fault_alarmed;
+
+        /// Emergency off protection trip status (severity-dependent)
+        signal_output<bool> emergency_off_tripped;
+
+        /// Emergency off protection alarm status (severity-dependent)
+        signal_output<bool> emergency_off_alarmed;
     };
 
     /**
@@ -116,6 +134,12 @@ public:
 
         /// Severity for door open detection (default: trip)
         parameter<protection_severity> door_open_severity{protection_severity::trip};
+
+        /// Severity for external fault detection (default: trip)
+        parameter<protection_severity> external_fault_severity{protection_severity::trip};
+
+        /// Severity for emergency off detection (default: trip)
+        parameter<protection_severity> emergency_off_severity{protection_severity::trip};
 
         // ========== Overcurrent Protection Parameters ==========
         /// Overcurrent trip threshold [pu]
@@ -206,6 +230,10 @@ public:
             yeet::utils::make_enum_accessor(_model_parameters->communication_loss_severity));
         entry.parameters.insert(
             "door_open_severity", yeet::utils::make_enum_accessor(_model_parameters->door_open_severity));
+        entry.parameters.insert(
+            "external_fault_severity", yeet::utils::make_enum_accessor(_model_parameters->external_fault_severity));
+        entry.parameters.insert(
+            "emergency_off_severity", yeet::utils::make_enum_accessor(_model_parameters->emergency_off_severity));
 
         // Overcurrent parameters
         entry.parameters.insert("overcurrent_trip_threshold",

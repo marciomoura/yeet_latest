@@ -44,6 +44,10 @@ void sfc_grid_side_protections_runner::reset()
     _outputs.communication_loss_warning = _protections.get_communication_loss_warning();
     _outputs.door_open_tripped = _protections.get_door_open_tripped();
     _outputs.door_open_alarmed = _protections.get_door_open_alarmed();
+    _outputs.external_fault_tripped = _protections.get_external_fault_tripped();
+    _outputs.external_fault_alarmed = _protections.get_external_fault_alarmed();
+    _outputs.emergency_off_tripped = _protections.get_emergency_off_tripped();
+    _outputs.emergency_off_alarmed = _protections.get_emergency_off_alarmed();
 }
 
 void sfc_grid_side_protections_runner::run()
@@ -61,6 +65,8 @@ void sfc_grid_side_protections_runner::run()
         _protections.update_overcurrent_protection(_inputs.dc_link_current_pu);
         _protections.update_overvoltage_protection(_inputs.grid_voltage_magnitude_pu);
         _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu);
+        _protections.update_external_fault(_inputs.external_fault);
+        _protections.update_emergency_off(_inputs.emergency_off);
     }
 
     _protections.resolve_protections(
@@ -85,6 +91,10 @@ void sfc_grid_side_protections_runner::run()
     _outputs.communication_loss_warning = _protections.get_communication_loss_warning();
     _outputs.door_open_tripped = _protections.get_door_open_tripped();
     _outputs.door_open_alarmed = _protections.get_door_open_alarmed();
+    _outputs.external_fault_tripped = _protections.get_external_fault_tripped();
+    _outputs.external_fault_alarmed = _protections.get_external_fault_alarmed();
+    _outputs.emergency_off_tripped = _protections.get_emergency_off_tripped();
+    _outputs.emergency_off_alarmed = _protections.get_emergency_off_alarmed();
 }
 
 void sfc_grid_side_protections_runner::stop() { reset(); }
@@ -102,6 +112,8 @@ void sfc_grid_side_protections_runner::set_parameters()
     _protections.configure_communication_loss_is_trip(
         _parameters.communication_loss_severity == protection_severity::trip);
     _protections.configure_door_open_is_trip(_parameters.door_open_severity == protection_severity::trip);
+    _protections.configure_external_fault_is_trip(_parameters.external_fault_severity == protection_severity::trip);
+    _protections.configure_emergency_off_is_trip(_parameters.emergency_off_severity == protection_severity::trip);
 
     _protections.configure_overcurrent_trip_threshold(_parameters.overcurrent_trip_threshold);
     _protections.configure_overcurrent_warning_threshold(_parameters.overcurrent_warning_threshold);
@@ -140,6 +152,12 @@ void sfc_grid_side_protections_runner::set_parameter_callback()
     });
     _parameters.door_open_severity.register_callback([&]() {
         _protections.configure_door_open_is_trip(_parameters.door_open_severity == protection_severity::trip);
+    });
+    _parameters.external_fault_severity.register_callback([&]() {
+        _protections.configure_external_fault_is_trip(_parameters.external_fault_severity == protection_severity::trip);
+    });
+    _parameters.emergency_off_severity.register_callback([&]() {
+        _protections.configure_emergency_off_is_trip(_parameters.emergency_off_severity == protection_severity::trip);
     });
 
     _parameters.overcurrent_trip_threshold.register_callback(

@@ -14,7 +14,6 @@ void sfc_machine_side_integrator_supervisor_runner::initialize()
     _outputs.freeze_integrator = false;
     _outputs.preset_request = false;
     _outputs.release_pulses = false;
-    _outputs.request_shutdown = false;
 
     _previous_release_speed_controller = false;
 }
@@ -34,14 +33,6 @@ void sfc_machine_side_integrator_supervisor_runner::run()
     }
     else {
         _outputs.release_pulses = _inputs.grid_side_release_pulses;
-    }
-
-    if (_parameters.is_tripped_override) {
-        _outputs.request_shutdown = _parameters.is_tripped_override_value;
-    }
-    else {
-        // Propagate machine-side protection trips to grid-side via fiber optics
-        _outputs.request_shutdown = _inputs.protection_shutdown_request;
     }
 
     if (_parameters.freeze_override) {
@@ -66,7 +57,6 @@ void sfc_machine_side_integrator_supervisor_runner::stop()
     _outputs.freeze_integrator = false;
     _outputs.preset_request = false;
     _outputs.release_pulses = false;
-    _outputs.request_shutdown = true;
 
     // Reset edge detector state to ensure proper detection on restart
     _previous_release_speed_controller = false;

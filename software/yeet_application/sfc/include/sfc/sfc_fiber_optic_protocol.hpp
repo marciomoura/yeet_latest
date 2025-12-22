@@ -172,14 +172,12 @@ struct machine_to_grid_message {
     yeet::current_pu_t dc_link_current_reference{0.0f}; /**< DC link current reference [pu] */
     yeet::voltage_pu_t machine_voltage_magnitude{0.0f}; /**< Machine voltage magnitude [pu] */
     bool force_commutation_request{false};              /**< Force commutation requested by machine side */
-    bool shutdown_request{false};           /**< Shutdown request from machine side (brings current to zero) */
-    bool machine_protection_tripped{false}; /**< Machine-side protections have tripped */
-    bool protection_inhibit{false};         /**< Protection system inhibited (awaiting user acknowledgment) */
+    bool machine_protection_tripped{false};             /**< Machine-side protections have tripped */
+    bool protection_inhibit{false}; /**< Protection system inhibited (awaiting user acknowledgment) */
 
     // Bit field layout for Word 3 encoding
     enum bit_positions : std::uint8_t {
         force_comm_req_bit_pos = 0,              // Bit 0
-        shutdown_request_bit_pos = 1,            // Bit 1
         machine_protection_tripped_bit_pos = 2,  // Bit 2
         protection_inhibit_bit_pos = 3           // Bit 3
     };
@@ -195,7 +193,7 @@ struct machine_to_grid_message {
  * - Word 2: Machine voltage magnitude [pu] (IEEE 754 float bits)
  * - Word 3: Packed control flags
  *   - Bit 0: Force commutation request
- *   - Bit 1: Shutdown request
+ *   - Bit 1: Reserved
  *   - Bit 2: Machine protection tripped
  *   - Bit 3: Protection inhibit (awaiting acknowledgment)
  *   - Bit 4: Machine trip acknowledged
@@ -231,7 +229,7 @@ struct machine_to_grid_message {
  * - Word 2: Machine voltage magnitude [pu] (IEEE 754 float bits)
  * - Word 3: Packed control flags
  *   - Bit 0: Force commutation request
- *   - Bit 1: Shutdown request
+ *   - Bit 1: Reserved
  *   - Bit 2: Machine protection tripped
  *   - Bit 3: Protection inhibit (awaiting acknowledgment)
  *   - Bit 4: Machine trip acknowledged

@@ -31,6 +31,7 @@ protected:
         yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
         yeet::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
         yeet::mock_signal_input::write(machine_protections.get_inputs().excitation_is_on, true);
+        yeet::mock_signal_input::write(machine_protections.get_inputs().external_fault, false);
 
         // Connect machine-side protections trip into the grid-side state machine input.
         // This is the integration contract: any machine-side trip must force grid-side control shutdown.
@@ -50,13 +51,11 @@ protected:
         yeet::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_closed, true);
         yeet::mock_signal_input::write(state_machine.get_inputs().start_command, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().stop_command, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().shutdown_request, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_tripping, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().external_fault, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().emergency_off, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().door_is_open, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().protection_inhibited, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().machine_side_shutdown_request, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().any_protection_fault_active, false);
         yeet::mock_signal_input::write(state_machine.get_inputs().is_current_extinguished, true);
 

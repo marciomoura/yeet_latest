@@ -413,7 +413,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripAllFlagsFalse)
 {
     machine_to_grid_message original{};
     original.force_commutation_request = false;
-    original.shutdown_request = false;
+
     original.machine_protection_tripped = false;
 
     [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
@@ -421,7 +421,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripAllFlagsFalse)
 
     ASSERT_TRUE(decoded.has_value());
     EXPECT_FALSE(decoded->force_commutation_request);
-    EXPECT_FALSE(decoded->shutdown_request);
+
     EXPECT_FALSE(decoded->machine_protection_tripped);
 }
 
@@ -429,7 +429,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripAllFlagsTrue)
 {
     machine_to_grid_message original{};
     original.force_commutation_request = true;
-    original.shutdown_request = true;
+
     original.machine_protection_tripped = true;
 
     [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
@@ -437,7 +437,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripAllFlagsTrue)
 
     ASSERT_TRUE(decoded.has_value());
     EXPECT_TRUE(decoded->force_commutation_request);
-    EXPECT_TRUE(decoded->shutdown_request);
+
     EXPECT_TRUE(decoded->machine_protection_tripped);
 }
 
@@ -451,21 +451,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripIndividualFlagForceCommutationRequest
 
     ASSERT_TRUE(decoded.has_value());
     EXPECT_TRUE(decoded->force_commutation_request);
-    EXPECT_FALSE(decoded->shutdown_request);
-    EXPECT_FALSE(decoded->machine_protection_tripped);
-}
 
-TEST_F(MachineToGridProtocolTest, RoundTripIndividualFlagShutdownRequest)
-{
-    machine_to_grid_message original{};
-    original.shutdown_request = true;
-
-    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
-    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
-
-    ASSERT_TRUE(decoded.has_value());
-    EXPECT_FALSE(decoded->force_commutation_request);
-    EXPECT_TRUE(decoded->shutdown_request);
     EXPECT_FALSE(decoded->machine_protection_tripped);
 }
 
@@ -479,7 +465,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripIndividualFlagMachineProtectionTrippe
 
     ASSERT_TRUE(decoded.has_value());
     EXPECT_FALSE(decoded->force_commutation_request);
-    EXPECT_FALSE(decoded->shutdown_request);
+
     EXPECT_TRUE(decoded->machine_protection_tripped);
 }
 
@@ -492,7 +478,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripCompleteMessageAllFieldsSet)
     original.dc_link_current_reference = yeet::current_pu_t{0.88f};
     original.machine_voltage_magnitude = yeet::voltage_pu_t{0.95f};
     original.force_commutation_request = true;
-    original.shutdown_request = false;
+
     original.machine_protection_tripped = true;
 
     [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
@@ -503,7 +489,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripCompleteMessageAllFieldsSet)
     EXPECT_FLOAT_EQ(decoded->dc_link_current_reference.value(), 0.88f);
     EXPECT_FLOAT_EQ(decoded->machine_voltage_magnitude.value(), 0.95f);
     EXPECT_TRUE(decoded->force_commutation_request);
-    EXPECT_FALSE(decoded->shutdown_request);
+
     EXPECT_TRUE(decoded->machine_protection_tripped);
 }
 
@@ -514,7 +500,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripCompleteMessageMixedFields)
     original.dc_link_current_reference = yeet::current_pu_t{0.0f};
     original.machine_voltage_magnitude = yeet::voltage_pu_t{0.1f};
     original.force_commutation_request = false;
-    original.shutdown_request = true;
+
     original.machine_protection_tripped = false;
 
     [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
@@ -525,7 +511,7 @@ TEST_F(MachineToGridProtocolTest, RoundTripCompleteMessageMixedFields)
     EXPECT_FLOAT_EQ(decoded->dc_link_current_reference.value(), 0.0f);
     EXPECT_FLOAT_EQ(decoded->machine_voltage_magnitude.value(), 0.1f);
     EXPECT_FALSE(decoded->force_commutation_request);
-    EXPECT_TRUE(decoded->shutdown_request);
+
     EXPECT_FALSE(decoded->machine_protection_tripped);
 }
 

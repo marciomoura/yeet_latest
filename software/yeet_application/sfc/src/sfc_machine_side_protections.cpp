@@ -36,6 +36,8 @@ void sfc_machine_side_protections::reset() noexcept
     _loss_of_excitation_protection.reset();
     _trip_handshake.reset();
 
+    _external_fault_active = false;
+
     _is_tripped = false;
     _is_inhibited = false;
     _any_fault_active = false;
@@ -60,6 +62,9 @@ void sfc_machine_side_protections::reset() noexcept
 
     _loss_of_excitation_tripped = false;
     _loss_of_excitation_alarmed = false;
+
+    _external_fault_tripped = false;
+    _external_fault_alarmed = false;
 
     _over_flux_warning = false;
     _under_flux_warning = false;
@@ -132,6 +137,8 @@ void sfc_machine_side_protections::update_communication_watchdog(bool communicat
 {
     _communication_watchdog.update(communication_valid);
 }
+
+void sfc_machine_side_protections::update_external_fault(bool active) noexcept { _external_fault_active = active; }
 
 void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool confirm_alarms) noexcept
 {
@@ -214,12 +221,13 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool overspeed_trip_raw = _overspeed_protection.is_tripped();
     const bool machine_overvoltage_trip_raw = _machine_overvoltage_protection.is_tripped();
     const bool loss_of_excitation_trip_raw = _loss_of_excitation_protection.is_tripped();
+    const bool external_fault_raw = _external_fault_active;
 
     // Use raw detector latched outputs (not instantaneous condition checks) for handshake logic.
     // This prevents glitches in condition evaluation from causing premature alarm confirmation.
     const bool any_fault_condition_active = over_flux_trip_raw || under_flux_trip_raw || stall_trip_raw ||
                                             comm_loss_trip_raw || overspeed_trip_raw || machine_overvoltage_trip_raw ||
-                                            loss_of_excitation_trip_raw;
+                                            loss_of_excitation_trip_raw || external_fault_raw;
 
     const bool over_flux_trip = _over_flux_is_trip && over_flux_trip_raw;
     const bool under_flux_trip = _under_flux_is_trip && under_flux_trip_raw;
@@ -228,6 +236,7 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool overspeed_trip = _overspeed_is_trip && overspeed_trip_raw;
     const bool machine_overvoltage_trip = _machine_overvoltage_is_trip && machine_overvoltage_trip_raw;
     const bool loss_of_excitation_trip = _loss_of_excitation_is_trip && loss_of_excitation_trip_raw;
+    const bool external_fault_trip = _external_fault_is_trip && external_fault_raw;
 
     const bool over_flux_alarm = (!_over_flux_is_trip) && over_flux_trip_raw;
     const bool under_flux_alarm = (!_under_flux_is_trip) && under_flux_trip_raw;
@@ -236,6 +245,7 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool overspeed_alarm = (!_overspeed_is_trip) && overspeed_trip_raw;
     const bool machine_overvoltage_alarm = (!_machine_overvoltage_is_trip) && machine_overvoltage_trip_raw;
     const bool loss_of_excitation_alarm = (!_loss_of_excitation_is_trip) && loss_of_excitation_trip_raw;
+    const bool external_fault_alarm = (!_external_fault_is_trip) && external_fault_raw;
 
     _over_flux_tripped = over_flux_trip;
     _over_flux_alarmed = over_flux_alarm;
@@ -251,6 +261,8 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     _machine_overvoltage_alarmed = machine_overvoltage_alarm;
     _loss_of_excitation_tripped = loss_of_excitation_trip;
     _loss_of_excitation_alarmed = loss_of_excitation_alarm;
+    _external_fault_tripped = external_fault_trip;
+    _external_fault_alarmed = external_fault_alarm;
 
     _over_flux_warning = _vhz_protection.is_over_flux_warning();
     _under_flux_warning = _vhz_protection.is_under_flux_warning();
@@ -258,10 +270,12 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     _communication_loss_warning = _communication_watchdog.is_warning();
 
     const bool any_protection_tripped = over_flux_trip || under_flux_trip || stall_trip || comm_loss_trip ||
-                                        overspeed_trip || machine_overvoltage_trip || loss_of_excitation_trip;
+                                        overspeed_trip || machine_overvoltage_trip || loss_of_excitation_trip ||
+                                        external_fault_trip;
 
     const bool any_alarm_active = over_flux_alarm || under_flux_alarm || stall_alarm || comm_loss_alarm ||
-                                  overspeed_alarm || machine_overvoltage_alarm || loss_of_excitation_alarm;
+                                  overspeed_alarm || machine_overvoltage_alarm || loss_of_excitation_alarm ||
+                                  external_fault_alarm;
 
     _any_fault_active = any_fault_condition_active;
     _any_alarm_active = any_alarm_active;
@@ -299,6 +313,8 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
         _machine_overvoltage_alarmed = false;
         _loss_of_excitation_tripped = false;
         _loss_of_excitation_alarmed = false;
+        _external_fault_tripped = false;
+        _external_fault_alarmed = false;
         _any_fault_active = false;
         _any_alarm_active = false;
     }
@@ -461,6 +477,14 @@ bool sfc_machine_side_protections::get_loss_of_excitation_tripped() const noexce
 bool sfc_machine_side_protections::get_loss_of_excitation_alarmed() const noexcept
 {
     return _loss_of_excitation_alarmed;
+}
+
+bool sfc_machine_side_protections::get_external_fault_tripped() const noexcept { return _external_fault_tripped; }
+bool sfc_machine_side_protections::get_external_fault_alarmed() const noexcept { return _external_fault_alarmed; }
+
+void sfc_machine_side_protections::configure_external_fault_is_trip(bool is_trip) noexcept
+{
+    _external_fault_is_trip = is_trip;
 }
 
 bool sfc_machine_side_protections::get_over_flux_warning() const noexcept { return _over_flux_warning; }

@@ -38,6 +38,10 @@ public:
 
     void update_communication_watchdog(bool communication_valid) noexcept;
 
+    void update_external_fault(bool active) noexcept;
+
+    void update_emergency_off(bool active) noexcept;
+
     // -------------------- Configuration (severity routing) --------------------
 
     void configure_overcurrent_is_trip(bool is_trip) noexcept;
@@ -45,6 +49,8 @@ public:
     void configure_undervoltage_is_trip(bool is_trip) noexcept;
     void configure_communication_loss_is_trip(bool is_trip) noexcept;
     void configure_door_open_is_trip(bool is_trip) noexcept;
+    void configure_external_fault_is_trip(bool is_trip) noexcept;
+    void configure_emergency_off_is_trip(bool is_trip) noexcept;
 
     // -------------------- Configuration (per-protection parameters) --------------------
 
@@ -95,6 +101,14 @@ public:
     bool get_door_open_tripped() const noexcept;
     bool get_door_open_alarmed() const noexcept;
 
+    bool get_external_fault_tripped() const noexcept;
+    bool get_external_fault_alarmed() const noexcept;
+    bool get_external_fault_warning() const noexcept;
+
+    bool get_emergency_off_tripped() const noexcept;
+    bool get_emergency_off_alarmed() const noexcept;
+    bool get_emergency_off_warning() const noexcept;
+
 private:
     // Owned protection blocks
     sfc_current_protection _overcurrent_protection;
@@ -104,12 +118,17 @@ private:
 
     sfc_protections_trip_handshake _trip_handshake;
 
+    bool _external_fault_active{false};
+    bool _emergency_off_active{false};
+
     // Severity routing configuration
     bool _overcurrent_is_trip{true};
     bool _overvoltage_is_trip{true};
     bool _undervoltage_is_trip{true};
     bool _comm_loss_is_trip{true};
     bool _door_open_is_trip{true};
+    bool _external_fault_is_trip{true};
+    bool _emergency_off_is_trip{true};
 
     // Outputs (latched/derived)
     bool _is_tripped{false};
@@ -134,6 +153,12 @@ private:
 
     bool _door_open_tripped{false};
     bool _door_open_alarmed{false};
+
+    bool _external_fault_tripped{false};
+    bool _external_fault_alarmed{false};
+
+    bool _emergency_off_tripped{false};
+    bool _emergency_off_alarmed{false};
 };
 
 }  // namespace yeet::application::sfc

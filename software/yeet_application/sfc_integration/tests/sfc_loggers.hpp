@@ -646,8 +646,6 @@ static inline void register_minimal_state_machine_logger(
         group + "input start_command", [&]() { return state_machine.get_inputs().start_command.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input stop_command", [&]() { return state_machine.get_inputs().stop_command.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "input shutdown_request", [&]() { return state_machine.get_inputs().shutdown_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input is_current_extinguished",
         [&]() { return state_machine.get_inputs().is_current_extinguished.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input protection_inhibited",
@@ -662,8 +660,6 @@ static inline void register_minimal_state_machine_logger(
         group + "input emergency_off", [&]() { return state_machine.get_inputs().emergency_off.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input door_is_open", [&]() { return state_machine.get_inputs().door_is_open.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input machine_side_shutdown_request",
-        [&]() { return state_machine.get_inputs().machine_side_shutdown_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input machine_side_protection_inhibited",
         [&]() { return state_machine.get_inputs().machine_side_protection_inhibited.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input machine_side_protection_tripped",
@@ -708,8 +704,6 @@ static inline void register_complete_state_machine_logger(
         group + "ored_command start_command", [&]() { return state_machine.get_outputs().start_command.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "ored_command stop_command", [&]() { return state_machine.get_outputs().stop_command.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "ored_command shutdown_request",
-        [&]() { return state_machine.get_outputs().shutdown_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "ored_command is_current_extinguished",
         [&]() { return state_machine.get_outputs().is_current_extinguished.read(); }));
 
@@ -879,8 +873,6 @@ static inline void register_minimal_machine_side_integrator_supervisor_logger(
         group + "output preset_request", [&]() { return integrator_supervisor.get_outputs().preset_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output release_pulses", [&]() { return integrator_supervisor.get_outputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output request_shutdown",
-        [&]() { return integrator_supervisor.get_outputs().request_shutdown.read(); }));
 }
 
 static inline void register_complete_machine_side_integrator_supervisor_logger(
@@ -907,8 +899,6 @@ static inline void register_minimal_grid_side_integrator_supervisor_logger(
     simulator.register_sampler_entry(
         yeet::make_lambda_sampler<bool>(group + "input forced_commutation_freeze_integrator",
             [&]() { return integrator_supervisor.get_inputs().forced_commutation_freeze_integrator.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input machine_side_shutdown_request",
-        [&]() { return integrator_supervisor.get_inputs().machine_side_shutdown_request.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "input preset_complete", [&]() { return integrator_supervisor.get_inputs().preset_complete.read(); }));
 

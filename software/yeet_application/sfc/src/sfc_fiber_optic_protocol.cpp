@@ -130,9 +130,6 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.force_commutation_request) {
         packed_flags |= (1U << machine_to_grid_message::force_comm_req_bit_pos);
     }
-    if (msg.shutdown_request) {
-        packed_flags |= (1U << machine_to_grid_message::shutdown_request_bit_pos);
-    }
     if (msg.machine_protection_tripped) {
         packed_flags |= (1U << machine_to_grid_message::machine_protection_tripped_bit_pos);
     }
@@ -171,7 +168,6 @@ namespace yeet::application::sfc::fiber_optic {
     // Decode packed control flags from word 3
     const std::uint32_t packed_flags = payload[3];
     msg.force_commutation_request = (packed_flags & (1U << machine_to_grid_message::force_comm_req_bit_pos)) != 0;
-    msg.shutdown_request = (packed_flags & (1U << machine_to_grid_message::shutdown_request_bit_pos)) != 0;
     msg.machine_protection_tripped =
         (packed_flags & (1U << machine_to_grid_message::machine_protection_tripped_bit_pos)) != 0;
     msg.protection_inhibit = (packed_flags & (1U << machine_to_grid_message::protection_inhibit_bit_pos)) != 0;

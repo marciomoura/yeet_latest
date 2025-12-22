@@ -133,7 +133,7 @@ public:
         // Digital Input Indices
         yeet::parameter<int> di_excitation_status_index{0};
         yeet::parameter<int> di_external_fault_index{1};
-        yeet::parameter<int> di_start_command_index{2};
+        yeet::parameter<int> di_start_command_index{3};
 
         // Digital Output Indices
         yeet::parameter<int> do_excitation_on_command_index{0};

@@ -91,6 +91,9 @@ protected:
 
         // Excitation is on by default
         mock_signal_input::write(inputs.excitation_is_on, true);
+
+        // External fault is inactive by default
+        mock_signal_input::write(inputs.external_fault, false);
     }
 
     void trigger_over_flux()

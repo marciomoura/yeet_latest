@@ -58,9 +58,6 @@ public:
 
         /// Enable for both controllers to release pulses
         signal_output<bool> release_pulses;
-
-        /// Status: fault condition active (propagated back to grid-side via fiber optics)
-        signal_output<bool> request_shutdown;
     };
 
     /**

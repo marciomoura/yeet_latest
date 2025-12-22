@@ -35,10 +35,6 @@ void sfc_state_machine_runner::run()
     _outputs.start_command = _parameters.start_command.read() || _inputs.start_command.read();
     _outputs.stop_command = _parameters.stop_command.read() || _inputs.stop_command.read();
 
-    _outputs.shutdown_request = _parameters.shutdown_request_override.read()
-                                    ? _parameters.shutdown_request_override_value.read()
-                                    : _inputs.shutdown_request.read();
-
     _outputs.is_current_extinguished = _parameters.is_current_extinguished_override.read()
                                            ? _parameters.is_current_extinguished_override_value.read()
                                            : _inputs.is_current_extinguished.read();
