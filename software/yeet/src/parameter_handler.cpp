@@ -6,9 +6,7 @@
 #include "yeet/parameter_handler.hpp"
 
 #include <cmath>
-#include <cstdio>
 #include <cstring>
-#include <string_view>
 
 #ifdef HOST_BUILD
 #include <iostream>
@@ -33,19 +31,21 @@ constexpr int k_task_io_num_digital_inputs = 48;
 constexpr int k_task_io_num_digital_outputs = 48;
 constexpr int k_task_io_num_analog_outputs = 4;
 
-inline bool ends_with(std::string_view s, const char* suffix) noexcept
+inline bool ends_with(const std::string& s, const char* suffix) noexcept
 {
+    const std::string_view sv{s};
     const std::string_view suf{suffix};
-    return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
+    return sv.size() >= suf.size() && sv.compare(sv.size() - suf.size(), suf.size(), suf) == 0;
 }
 
-inline bool starts_with(std::string_view s, const char* prefix) noexcept
+inline bool starts_with(const std::string& s, const char* prefix) noexcept
 {
+    const std::string_view sv{s};
     const std::string_view pre{prefix};
-    return s.size() >= pre.size() && s.compare(0, pre.size(), pre) == 0;
+    return sv.size() >= pre.size() && sv.compare(0, pre.size(), pre) == 0;
 }
 
-inline bool is_index_parameter_name(std::string_view name) noexcept
+inline bool is_index_parameter_name(const std::string& name) noexcept
 {
     // IO index mapping parameters use the naming convention:
     //   di_{name}_index, do_{name}_index, ao_{name}_index
@@ -53,7 +53,7 @@ inline bool is_index_parameter_name(std::string_view name) noexcept
            (starts_with(name, "di_") || starts_with(name, "do_") || starts_with(name, "ao_"));
 }
 
-inline bool get_index_parameter_range(std::string_view name, float& min_value, float& max_value) noexcept
+inline bool get_index_parameter_range(const std::string& name, float& min_value, float& max_value) noexcept
 {
     if (starts_with(name, "di_") && ends_with(name, "_index")) {
         min_value = 0.0f;
@@ -96,7 +96,7 @@ inline void write_error_message(char* dst, std::size_t dst_size, const char* mes
 namespace yeet::telemetry {
 
 parameter_handler::parameter_handler(const model_registry* registry)
-    : registry_(registry), parameter_cache_{}, parameter_cache_size_(0), sequence_counter_(0)
+    : registry_(registry), parameter_cache_{}, sequence_counter_(0)
 {
     if (!registry_) {
         YEET_PARAM_LOG("[PARAM] ERROR: model_registry pointer is null!");
@@ -110,34 +110,21 @@ parameter_handler::parameter_handler(const model_registry* registry)
 
 void parameter_handler::build_parameter_cache()
 {
-    parameter_cache_size_ = 0;
+    parameter_cache_.clear();
 
     // Iterate through all entries in model_registry
     registry_->iterate_entries(
-        [this](std::string_view component, std::string_view name, const low_level_access& accessor) {
-            if (parameter_cache_size_ >= MAX_PARAMETERS) {
-                YEET_PARAM_LOG("[PARAM] ERROR: Parameter cache full! Cannot add " << component << "." << name);
-                return;
-            }
-
+        [this](const std::string& component, const std::string& name, const low_level_access& accessor) {
             // Create cache entry
-            parameter_cache_entry& entry = parameter_cache_[parameter_cache_size_];
-
-            std::size_t comp_len = std::min(sizeof(entry.component) - 1, component.size());
-            std::memcpy(entry.component, component.data(), comp_len);
-            entry.component[comp_len] = '\0';
-
-            std::size_t name_len = std::min(sizeof(entry.name) - 1, name.size());
-            std::memcpy(entry.name, name.data(), name_len);
-            entry.name[name_len] = '\0';
+            parameter_cache_entry entry;
+            entry.component = component;
+            entry.name = name;
 
             // Generate display name from component.name
-            std::size_t display_len = std::min(sizeof(entry.display_name) - 1, name.size());
-            std::memcpy(entry.display_name, name.data(), display_len);
-            entry.display_name[display_len] = '\0';
+            entry.display_name = name;
 
             // TODO: Extract unit from type metadata when available
-            entry.unit[0] = '\0';
+            entry.unit = "";  // Could parse from type string later
 
             // Currently only support float32
             entry.type = parameter_value_type::float32;
@@ -150,12 +137,12 @@ void parameter_handler::build_parameter_cache()
 
             // Apply per-parameter constraints for IO mapping indices.
             // This enables parameter SET rejection for out-of-range mappings.
-            (void)get_index_parameter_range(name, entry.min_value, entry.max_value);
+            (void)get_index_parameter_range(entry.name, entry.min_value, entry.max_value);
 
             // Store accessor for direct read/write
             entry.accessor = accessor;
 
-            parameter_cache_size_++;
+            parameter_cache_.push_back(std::move(entry));
         });
 
     // Only log parameter cache in verbose mode
@@ -177,9 +164,8 @@ void parameter_handler::rebuild_parameter_cache()
 
 parameter_cache_entry* parameter_handler::find_parameter(const char* component, const char* name)
 {
-    for (std::size_t i = 0; i < parameter_cache_size_; ++i) {
-        auto& param = parameter_cache_[i];
-        if (std::strcmp(param.component, component) == 0 && std::strcmp(param.name, name) == 0) {
+    for (auto& param : parameter_cache_) {
+        if (param.component == component && param.name == name) {
             return &param;
         }
     }
@@ -205,9 +191,7 @@ bool parameter_handler::handle_set_request(
 
     // Copy component and name
     std::strncpy(response.component, request.component, sizeof(response.component) - 1);
-    response.component[sizeof(response.component) - 1] = '\0';
     std::strncpy(response.name, request.name, sizeof(response.name) - 1);
-    response.name[sizeof(response.name) - 1] = '\0';
 
     // Find parameter
     parameter_cache_entry* param = find_parameter(request.component, request.name);
@@ -268,9 +252,7 @@ bool parameter_handler::handle_get_request(
 
     // Copy component and name
     std::strncpy(response.component, request.component, sizeof(response.component) - 1);
-    response.component[sizeof(response.component) - 1] = '\0';
     std::strncpy(response.name, request.name, sizeof(response.name) - 1);
-    response.name[sizeof(response.name) - 1] = '\0';
 
     // Find parameter
     parameter_cache_entry* param = find_parameter(request.component, request.name);
@@ -301,7 +283,7 @@ bool parameter_handler::handle_count_request(parameter_count_response_packet& re
     response.header.timestamp_ms = 0;
 
     // Count
-    response.total_parameters = static_cast<std::uint16_t>(parameter_cache_size_);
+    response.total_parameters = static_cast<std::uint16_t>(parameter_cache_.size());
 
     YEET_PARAM_LOG("[PARAM] COUNT: Returning " << response.total_parameters << " parameters");
 
@@ -322,12 +304,12 @@ bool parameter_handler::handle_get_by_index_request(
     response.header.timestamp_ms = 0;
 
     // Check index bounds
-    if (request.parameter_index >= parameter_cache_size_) {
+    if (request.parameter_index >= parameter_cache_.size()) {
         response.status = 1;  // INDEX_OUT_OF_RANGE
         response.parameter_index = request.parameter_index;
-        response.total_parameters = static_cast<std::uint16_t>(parameter_cache_size_);
+        response.total_parameters = static_cast<std::uint16_t>(parameter_cache_.size());
         YEET_PARAM_LOG("[PARAM] GET_BY_INDEX FAILED: Index "
-                       << request.parameter_index << " out of range (max: " << parameter_cache_size_ - 1 << ")");
+                       << request.parameter_index << " out of range (max: " << parameter_cache_.size() - 1 << ")");
         return true;
     }
 
@@ -335,20 +317,14 @@ bool parameter_handler::handle_get_by_index_request(
     const auto& param = parameter_cache_[request.parameter_index];
 
     // Fill response
-    std::strncpy(response.component, param.component, sizeof(response.component) - 1);
-    response.component[sizeof(response.component) - 1] = '\0';
-    std::strncpy(response.name, param.name, sizeof(response.name) - 1);
-    response.name[sizeof(response.name) - 1] = '\0';
-    std::strncpy(response.display_name, param.display_name, sizeof(response.display_name) - 1);
-    response.display_name[sizeof(response.display_name) - 1] = '\0';
-    std::strncpy(response.unit, param.unit, sizeof(response.unit) - 1);
-    response.unit[sizeof(response.unit) - 1] = '\0';
+    std::strncpy(response.component, param.component.c_str(), sizeof(response.component) - 1);
+    std::strncpy(response.name, param.name.c_str(), sizeof(response.name) - 1);
+    std::strncpy(response.display_name, param.display_name.c_str(), sizeof(response.display_name) - 1);
+    std::strncpy(response.unit, param.unit.c_str(), sizeof(response.unit) - 1);
 
     // Generate description from display name (could be enhanced later)
-    char description[128];
-    std::snprintf(description, sizeof(description), "Parameter %s", param.display_name);
-    std::strncpy(response.description, description, sizeof(response.description) - 1);
-    response.description[sizeof(response.description) - 1] = '\0';
+    std::string description = "Parameter " + param.display_name;
+    std::strncpy(response.description, description.c_str(), sizeof(response.description) - 1);
 
     response.type = static_cast<std::uint8_t>(param.type);
     response.min_value = param.min_value;
@@ -359,7 +335,7 @@ bool parameter_handler::handle_get_by_index_request(
     response.current_value = param.accessor.read<float>();
 
     response.parameter_index = request.parameter_index;
-    response.total_parameters = static_cast<std::uint16_t>(parameter_cache_size_);
+    response.total_parameters = static_cast<std::uint16_t>(parameter_cache_.size());
     response.status = 0;  // SUCCESS
 
     YEET_PARAM_LOG("[PARAM] GET_BY_INDEX: Returning parameter " << request.parameter_index << " (" << param.component

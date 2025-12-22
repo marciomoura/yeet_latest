@@ -34,7 +34,7 @@ namespace yeet::application::sfc::integration {
  * - Simplified configuration without state machine, modulators, or speed controller
  *
  * Signal Flow:
- * Plant → Raw Measurements → Observers → Estimated Values → Controllers → Pulse Generators → Plant
+ * Plant Ã¢â€ â€™ Raw Measurements Ã¢â€ â€™ Observers Ã¢â€ â€™ Estimated Values Ã¢â€ â€™ Controllers Ã¢â€ â€™ Pulse Generators Ã¢â€ â€™ Plant
  */
 class plant_sensorless_current_control_simulation_builder {
 public:
@@ -57,28 +57,28 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
         // Mock machine-side observer signals (no startup sequencer in this builder)
         yeet::wire(machine_side_observer)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_observer_datamodel::inputs::release_observer)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_observer)
-            .mocked(angle_wrapped{0.0})
+            .mocked(_mock_storage_angle_zero)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_angle)
-            .mocked(frequency_pu_t{0.0})
+            .mocked(_mock_storage_freq_zero)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_frequency);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 
@@ -174,7 +174,7 @@ private:
 
     void connect_all_components()
     {
-        // ==================== Plant Model → Raw Measurements ====================
+        // ==================== Plant Model Ã¢â€ â€™ Raw Measurements ====================
         // Connect plant outputs to measurement components
 
         // Grid measurements: Raw grid voltages and currents from plant
@@ -209,7 +209,7 @@ private:
         signals_connector::connect_output_to_input(
             grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
-        // ==================== Raw Measurements → Observers ====================
+        // ==================== Raw Measurements Ã¢â€ â€™ Observers ====================
         // Connect filtered measurements to observers for estimation
 
         // Grid side observer inputs: filtered grid voltage and firing pulses
@@ -220,7 +220,7 @@ private:
         signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_abc,
             machine_side_observer.get_inputs().machine_voltage_pu);
 
-        // ==================== Observers → Current Controller ====================
+        // ==================== Observers Ã¢â€ â€™ Current Controller ====================
         // Connect observer-estimated values to current controller (key difference from direct measurement)
 
         // DC link current feedback (still use direct measurement as it's most reliable)
@@ -233,7 +233,7 @@ private:
         signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_voltage_magnitude,
             current_controller.get_inputs().machine_voltage_magnitude);
 
-        // ==================== Observers → Machine Side Controller ====================
+        // ==================== Observers Ã¢â€ â€™ Machine Side Controller ====================
         // Connect observer-estimated speed to machine side controller for lookup table
 
         // DC link current for lookup table input (direct measurement)
@@ -244,21 +244,21 @@ private:
         signals_connector::connect_output_to_input(
             machine_side_observer.get_outputs().estimated_speed, machine_side_controller.get_inputs().machine_speed);
 
-        // ==================== Current Controller → Grid Pulse Generator ====================
+        // ==================== Current Controller Ã¢â€ â€™ Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
             current_controller.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
 
-        // ==================== Machine Side Controller → Machine Pulse Generator ====================
+        // ==================== Machine Side Controller Ã¢â€ â€™ Machine Pulse Generator ====================
         // Connect machine side controller output to machine-side firing angle control
 
         // Firing angle command from machine side controller to machine pulse generator
         signals_connector::connect_output_to_input(
             machine_side_controller.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
 
-        // ==================== Pulse Generators → Plant Model ====================
+        // ==================== Pulse Generators Ã¢â€ â€™ Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
 
         signals_connector::connect_output_to_input(
@@ -271,7 +271,7 @@ private:
         signals_connector::connect_output_to_input(
             field_current_reference_pu, plant.get_inputs().field_current_reference);
 
-        // ==================== Plant Model → Pulse Generators ====================
+        // ==================== Plant Model Ã¢â€ â€™ Pulse Generators ====================
         // For sensorless operation, use observer-estimated angles instead of direct plant angles
 
         // Grid side: Use observer-estimated angle for pulse generator synchronization
@@ -289,6 +289,12 @@ private:
         signals_connector::connect_output_to_input(
             current_reference, current_controller.get_inputs().current_reference);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
+    angle_wrapped _mock_storage_angle_zero{0.0};
+    frequency_pu_t _mock_storage_freq_zero{0.0};
 };
 
 }  // namespace yeet::application::sfc::integration

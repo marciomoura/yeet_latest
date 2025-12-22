@@ -68,7 +68,7 @@ public:
             "dc_current_pu_lookup_table[4]", "dc_current_pu_lookup_table[5]"};
 
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(dc_current_names[i],
+            entry.parameters.insert(std::string(dc_current_names[i]),
                 yeet::utils::make_array_element_accessor(_model_parameters->dc_current_pu_lookup_table, i));
         }
 
@@ -79,7 +79,7 @@ public:
 
         auto& firing_angle_table = _model_parameters->firing_angle_lookup_table;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(firing_angle_names[i],
+            entry.parameters.insert(std::string(firing_angle_names[i]),
                 low_level_access(
                     [&firing_angle_table, i]() -> float { return static_cast<float>(firing_angle_table.read()[i]); },
                     [&firing_angle_table, i](float value) {

@@ -20,18 +20,59 @@ protected:
         machine_protections.initialize();
         state_machine.initialize();
 
+        // Connect storage to signals (required by raw pointer API)
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().dc_link_current_pu, _storage_mp_dc_current);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().machine_voltage_magnitude_pu, _storage_mp_machine_voltage);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().machine_frequency, _storage_mp_machine_frequency);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().machine_frequency_pu, _storage_mp_machine_frequency_pu);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().machine_speed, _storage_mp_machine_speed);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().release_protections, _storage_mp_release_protections);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().startup_active, _storage_mp_startup_active);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().closed_loop_active, _storage_mp_closed_loop_active);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().excitation_is_on, _storage_mp_excitation_is_on);
+        yeet::utils::mock_signal_input::connect(
+            machine_protections.get_inputs().external_fault, _storage_mp_external_fault);
+
+        yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().auxiliaries_are_on, _storage_sm_auxiliaries_are_on);
+        yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().mv_breaker_is_closed, _storage_sm_mv_breaker_is_closed);
+        yeet::utils::mock_signal_input::connect(state_machine.get_inputs().start_command, _storage_sm_start_command);
+        yeet::utils::mock_signal_input::connect(state_machine.get_inputs().stop_command, _storage_sm_stop_command);
+        yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().mv_breaker_is_tripping, _storage_sm_mv_breaker_is_tripping);
+        yeet::utils::mock_signal_input::connect(state_machine.get_inputs().external_fault, _storage_sm_external_fault);
+        yeet::utils::mock_signal_input::connect(state_machine.get_inputs().emergency_off, _storage_sm_emergency_off);
+        yeet::utils::mock_signal_input::connect(state_machine.get_inputs().door_is_open, _storage_sm_door_is_open);
+        yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().protection_inhibited, _storage_sm_protection_inhibited);
+        yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().any_protection_fault_active, _storage_sm_any_protection_fault_active);
+        yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().is_current_extinguished, _storage_sm_is_current_extinguished);
+
         // Ensure all machine-side protections inputs have connected storage before the first run.
-        yeet::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{0.0f});
-        yeet::mock_signal_input::write(
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{0.0f});
+        yeet::utils::mock_signal_input::write(
             machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{0.0f});
-        yeet::mock_signal_input::write(machine_protections.get_inputs().machine_frequency, frequency_t{0.0f});
-        yeet::mock_signal_input::write(machine_protections.get_inputs().machine_frequency_pu, frequency_pu_t{0.0f});
-        yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
-        yeet::mock_signal_input::write(machine_protections.get_inputs().release_protections, false);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().excitation_is_on, true);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().external_fault, false);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_frequency, frequency_t{0.0f});
+        yeet::utils::mock_signal_input::write(
+            machine_protections.get_inputs().machine_frequency_pu, frequency_pu_t{0.0f});
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().release_protections, false);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().excitation_is_on, true);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().external_fault, false);
 
         // Connect machine-side protections trip into the grid-side state machine input.
         // This is the integration contract: any machine-side trip must force grid-side control shutdown.
@@ -47,17 +88,17 @@ protected:
         simulator.register_runner(state_machine);
 
         // Fixed state-machine inputs for all tests (no other trips/inhibits requested).
-        yeet::mock_signal_input::write(state_machine.get_inputs().auxiliaries_are_on, true);
-        yeet::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_closed, true);
-        yeet::mock_signal_input::write(state_machine.get_inputs().start_command, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().stop_command, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_tripping, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().external_fault, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().emergency_off, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().door_is_open, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().protection_inhibited, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().any_protection_fault_active, false);
-        yeet::mock_signal_input::write(state_machine.get_inputs().is_current_extinguished, true);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().auxiliaries_are_on, true);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_closed, true);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().start_command, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().stop_command, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_tripping, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().external_fault, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().emergency_off, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().door_is_open, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().protection_inhibited, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().any_protection_fault_active, false);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().is_current_extinguished, true);
 
         simulator.initialize();
     }
@@ -71,7 +112,7 @@ protected:
         simulate_for(0.05);
 
         // Then set start_command to transition through BREAKERS_OFF -> BREAKERS_ON -> OPERATION_ON
-        yeet::mock_signal_input::write(state_machine.get_inputs().start_command, true);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().start_command, true);
         simulate_for(0.05);
 
         const auto& sm_out = state_machine.get_outputs();
@@ -142,8 +183,8 @@ protected:
         params.protection_module_enabled.write(true);
 
         // Always release protections in these tests.
-        yeet::mock_signal_input::write(machine_protections.get_inputs().release_protections, true);
-        yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().release_protections, true);
+        yeet::utils::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
 
         restore_safe_protection_parameter_defaults();
 
@@ -171,6 +212,31 @@ protected:
     yeet::simulator simulator;
     sfc_machine_side_protections_runner machine_protections;
     sfc_state_machine_runner state_machine;
+
+    // Storage for machine protections mocked signals (required by raw pointer API)
+    current_pu_t _storage_mp_dc_current{0.0f};
+    voltage_pu_t _storage_mp_machine_voltage{0.0f};
+    frequency_t _storage_mp_machine_frequency{0.0f};
+    frequency_pu_t _storage_mp_machine_frequency_pu{0.0f};
+    speed_pu_t _storage_mp_machine_speed{0.0f};
+    bool _storage_mp_release_protections{false};
+    bool _storage_mp_startup_active{false};
+    bool _storage_mp_closed_loop_active{true};
+    bool _storage_mp_excitation_is_on{true};
+    bool _storage_mp_external_fault{false};
+
+    // Storage for state machine mocked signals
+    bool _storage_sm_auxiliaries_are_on{true};
+    bool _storage_sm_mv_breaker_is_closed{true};
+    bool _storage_sm_start_command{false};
+    bool _storage_sm_stop_command{false};
+    bool _storage_sm_mv_breaker_is_tripping{false};
+    bool _storage_sm_external_fault{false};
+    bool _storage_sm_emergency_off{false};
+    bool _storage_sm_door_is_open{false};
+    bool _storage_sm_protection_inhibited{false};
+    bool _storage_sm_any_protection_fault_active{false};
+    bool _storage_sm_is_current_extinguished{true};
 };
 
 TEST_F(MachineSideProtectionsIntegrationTest, OverspeedTripsControl)
@@ -178,8 +244,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, OverspeedTripsControl)
     configure_machine_side_protections_for_test();
 
     // Overspeed protection requires closed_loop_active to be true
-    yeet::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().closed_loop_active, true);
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
 
     auto& p = machine_protections.get_parameters();
     p.overspeed_trip_threshold.write(speed_pu_t{0.90f});
@@ -198,7 +264,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, MachineOvervoltageTripsControl)
 {
     configure_machine_side_protections_for_test();
 
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(
+        machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
 
     // Trip at 0.9 pu while operating near 1.0 pu voltage magnitude.
     auto& p = machine_protections.get_parameters();
@@ -218,11 +285,12 @@ TEST_F(MachineSideProtectionsIntegrationTest, VhzOverFluxTripsControl)
 {
     configure_machine_side_protections_for_test();
 
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_frequency_pu, frequency_pu_t{1.0f});
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(
+        machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_frequency_pu, frequency_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
 
-    // With V≈1.0 pu and speed≈1.0 pu, flux_pu ≈ V_pu/speed_pu ≈ 1.0.
+    // With Vâ‰ˆ1.0 pu and speedâ‰ˆ1.0 pu, flux_pu â‰ˆ V_pu/speed_pu â‰ˆ 1.0.
     // Trip at 0.9 pu => deterministic trip.
     auto& p = machine_protections.get_parameters();
     p.over_flux_trip_threshold.write(flux_pu_t{0.90f});
@@ -242,9 +310,9 @@ TEST_F(MachineSideProtectionsIntegrationTest, StallTripsControlWhenUnableToAccel
     configure_machine_side_protections_for_test();
 
     // For determinism, force startup_active high here (even though production wiring comes from startup sequencer).
-    yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, true);
-    yeet::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{1.0f});
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().startup_active, true);
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
 
     // Stall protection is state-dependent on startup_active.
     auto& p = machine_protections.get_parameters();
@@ -266,7 +334,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     enter_operation_on();
 
     // ---- 1) Trip on machine overvoltage ----
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(
+        machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{1.0f});
     {
         auto& p = machine_protections.get_parameters();
         p.machine_overvoltage_trip_threshold.write(voltage_pu_t{0.90f});
@@ -278,7 +347,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     expect_trip_shutdown();
 
     // Clear fault condition first
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{0.0f});
+    yeet::utils::mock_signal_input::write(
+        machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{0.0f});
     simulate_for(0.01);
 
     clear_trip_and_confirm_alarms();
@@ -305,7 +375,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     enter_operation_on();
 
     // ---- 2) Trip on overspeed ----
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
     {
         auto& p = machine_protections.get_parameters();
         p.overspeed_trip_threshold.write(speed_pu_t{0.90f});
@@ -317,7 +387,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     expect_trip_shutdown();
 
     // Clear fault condition
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
     simulate_for(0.01);
 
     EXPECT_FLOAT_EQ(machine_protections.get_inputs().machine_speed.read().value(), 0.0f);
@@ -339,9 +409,9 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     enter_operation_on();
 
     // ---- 3) Trip on stall ----
-    yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, true);
-    yeet::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{1.0f});
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().startup_active, true);
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{0.0f});
     {
         auto& p = machine_protections.get_parameters();
         p.stall_current_threshold.write(current_pu_t{0.90f});
@@ -356,9 +426,9 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     // Clear fault condition
     // Restore defaults before switching signals used to clear stall.
     restore_safe_protection_parameter_defaults();
-    yeet::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
-    yeet::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{0.0f});
-    yeet::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().startup_active, false);
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().dc_link_current_pu, current_pu_t{0.0f});
+    yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
     simulate_for(0.01);
 
     clear_trip_and_confirm_alarms();

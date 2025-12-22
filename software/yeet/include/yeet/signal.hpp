@@ -3,7 +3,6 @@
 
 #include <cassert>
 #include <memory>
-#include <string_view>
 
 #include "utils/low_level_access.hpp"
 #include "utils/low_level_access_registry.hpp"
@@ -17,7 +16,7 @@ template <typename T>
 class signal_output {
 public:
     signal_output() = default;
-    signal_output(T value) : _value(std::make_shared<T>(value)) {}
+    signal_output(T value) : _data(value) {}
     ~signal_output() = default;
 
     low_level_access get_low_level_access() { return low_level_access(_value); }
@@ -40,10 +39,13 @@ protected:
 private:
     friend class signals_connector;
 
-    storage_type<T> _value{std::make_shared<T>()};
+    T _data{};
+    storage_type<T> _value{&_data};
 };
 
+namespace utils {
 class mock_signal_input;
+}
 
 template <typename T>
 class signal_input {
@@ -63,13 +65,15 @@ public:
     bool empty() const { return _value.empty(); }
 
 private:
-    friend class mock_signal_input;
+    friend class utils::mock_signal_input;
 
     // Mocking for easy simulation access
     void write(T const& value) noexcept { _value = value; }
 
     storage_type<T> _value{};
 };
+
+namespace utils {
 
 class mock_signal_input {
 public:
@@ -78,28 +82,18 @@ public:
     template <typename T>
     static void write(signal_input<T>& input, T const& value)
     {
-        mock_signal_input(input, value);
+        assert(!input.empty() && "Mock storage must be connected before writing");
+        input.write(value);
     }
 
     template <typename T>
-    static signal_input<T> create_mocked(T const& value = {})
+    static void connect(signal_input<T>& input, T& storage)
     {
-        signal_input<T> input;
-        mock_signal_input(input, value);
-        return input;
-    }
-
-protected:
-    // Mocking for easy simulation access
-    template <typename T>
-    mock_signal_input(signal_input<T>& signal, T const& value)
-    {
-        if (signal.empty()) {
-            signal.connect(storage_type<T>(std::make_shared<T>()));
-        }
-        signal.write(value);
+        input.connect(storage_type<T>(&storage));
     }
 };
+
+}  // namespace utils
 
 class signals_connector {
 public:
@@ -113,7 +107,7 @@ public:
 class signal_registry {
 public:
     template <typename T>
-    void insert(std::string_view name, signal_output<T>& signal)
+    void insert(const std::string& name, signal_output<T>& signal)
     {
         _registry.insert(name, signal.get_low_level_access());
     }
@@ -122,7 +116,7 @@ public:
 
     void clear() { _registry.clear(); }
 
-    std::optional<low_level_access> get(std::string_view name) const { return _registry.get(name); }
+    std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
 
     auto begin() { return _registry.begin(); }
     auto end() { return _registry.end(); }

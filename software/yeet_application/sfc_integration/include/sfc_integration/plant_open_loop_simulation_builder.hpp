@@ -70,10 +70,10 @@ public:
     {
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 
@@ -220,6 +220,10 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
 };
 
 }  // namespace yeet::application::sfc::integration

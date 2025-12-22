@@ -10,6 +10,13 @@ protected:
     {
         _runner = std::make_unique<sfc_excitation_controller_runner>();
 
+        // Connect storage to signals (required by raw pointer API)
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::connect(inputs.machine_rotor_speed_pu, _storage_machine_rotor_speed_pu);
+        yeet::utils::mock_signal_input::connect(
+            inputs.machine_voltage_magnitude_pu, _storage_machine_voltage_magnitude_pu);
+        yeet::utils::mock_signal_input::connect(inputs.release_excitation, _storage_release_excitation);
+
         // Reset all input signals
         reset_all_inputs();
 
@@ -27,9 +34,9 @@ protected:
     void reset_all_inputs()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_rotor_speed_pu, speed_pu_t{0.0});
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.0});
-        mock_signal_input::write(inputs.release_excitation, false);
+        yeet::utils::mock_signal_input::write(inputs.machine_rotor_speed_pu, speed_pu_t{0.0});
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.0});
+        yeet::utils::mock_signal_input::write(inputs.release_excitation, false);
     }
 
     void run_cycle() { _runner->run(); }
@@ -37,19 +44,19 @@ protected:
     void set_machine_speed(speed_pu_t speed)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_rotor_speed_pu, speed);
+        yeet::utils::mock_signal_input::write(inputs.machine_rotor_speed_pu, speed);
     }
 
     void set_machine_voltage_magnitude(voltage_pu_t voltage)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
     }
 
     void set_release_excitation(bool release)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.release_excitation, release);
+        yeet::utils::mock_signal_input::write(inputs.release_excitation, release);
     }
 
     current_pu_t get_field_current_reference()
@@ -65,6 +72,11 @@ protected:
     }
 
     std::unique_ptr<sfc_excitation_controller_runner> _runner;
+
+    // Storage for mocked signals (required by raw pointer API)
+    speed_pu_t _storage_machine_rotor_speed_pu{0.0};
+    voltage_pu_t _storage_machine_voltage_magnitude_pu{0.0};
+    bool _storage_release_excitation{false};
 };
 
 // ============================================================================

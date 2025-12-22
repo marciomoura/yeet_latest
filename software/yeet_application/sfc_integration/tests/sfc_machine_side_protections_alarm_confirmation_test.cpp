@@ -58,6 +58,19 @@ protected:
 
         params.confirm_alarms.write(false);
 
+        // Connect storage to signals (required by raw pointer API)
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::connect(inputs.machine_voltage_magnitude_pu, _storage_machine_voltage);
+        yeet::utils::mock_signal_input::connect(inputs.machine_frequency, _storage_machine_frequency);
+        yeet::utils::mock_signal_input::connect(inputs.dc_link_current_pu, _storage_dc_link_current);
+        yeet::utils::mock_signal_input::connect(inputs.machine_speed, _storage_machine_speed);
+        yeet::utils::mock_signal_input::connect(inputs.machine_frequency_pu, _storage_machine_frequency_pu);
+        yeet::utils::mock_signal_input::connect(inputs.startup_active, _storage_startup_active);
+        yeet::utils::mock_signal_input::connect(inputs.closed_loop_active, _storage_closed_loop_active);
+        yeet::utils::mock_signal_input::connect(inputs.release_protections, _storage_release_protections);
+        yeet::utils::mock_signal_input::connect(inputs.excitation_is_on, _storage_excitation_is_on);
+        yeet::utils::mock_signal_input::connect(inputs.external_fault, _storage_external_fault);
+
         // Set safe initial inputs
         reset_inputs();
     }
@@ -69,31 +82,31 @@ protected:
         // Safe baseline for all tests:
         // - Keep V/Hz at a safe value
         // - Keep speed below overspeed thresholds used in tests
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.5f});
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.5f});
 
         // Safe machine frequency (50 Hz)
-        mock_signal_input::write(inputs.machine_frequency, frequency_t{50.0});
+        yeet::utils::mock_signal_input::write(inputs.machine_frequency, frequency_t{50.0});
 
         // Safe DC link current (0.5 pu)
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
+        yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
 
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.5f});
-        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{0.5f});
+        yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.5f});
+        yeet::utils::mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{0.5f});
 
         // Not in startup
-        mock_signal_input::write(inputs.startup_active, false);
+        yeet::utils::mock_signal_input::write(inputs.startup_active, false);
 
         // Not in closed loop
-        mock_signal_input::write(inputs.closed_loop_active, false);
+        yeet::utils::mock_signal_input::write(inputs.closed_loop_active, false);
 
         // Release protections
-        mock_signal_input::write(inputs.release_protections, true);
+        yeet::utils::mock_signal_input::write(inputs.release_protections, true);
 
         // Excitation is on by default
-        mock_signal_input::write(inputs.excitation_is_on, true);
+        yeet::utils::mock_signal_input::write(inputs.excitation_is_on, true);
 
         // External fault is inactive by default
-        mock_signal_input::write(inputs.external_fault, false);
+        yeet::utils::mock_signal_input::write(inputs.external_fault, false);
     }
 
     void trigger_over_flux()
@@ -101,11 +114,11 @@ protected:
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         // V/Hz_pu = V_pu / speed_pu.
         // With speed_pu=1.0: V/Hz_pu = V_pu.
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{1.2f});
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
-        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{1.2f});
+        yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
+        yeet::utils::mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
         // VHz protection requires closed-loop operation
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        yeet::utils::mock_signal_input::write(inputs.closed_loop_active, true);
     }
 
     void trigger_under_flux()
@@ -113,20 +126,20 @@ protected:
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         // V/Hz_pu = V_pu / speed_pu.
         // With speed_pu=1.0: V/Hz_pu = V_pu.
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.75f});
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
-        mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.75f});
+        yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{1.0f});
+        yeet::utils::mock_signal_input::write(inputs.machine_frequency_pu, frequency_pu_t{1.0f});
         // VHz protection requires closed-loop operation
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        yeet::utils::mock_signal_input::write(inputs.closed_loop_active, true);
     }
 
     void trigger_stall()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         // Stall requires: current > 1.3 pu AND speed < 0.10 pu AND startup_active
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{1.4f});
-        mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.05f});
-        mock_signal_input::write(inputs.startup_active, true);
+        yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{1.4f});
+        yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.05f});
+        yeet::utils::mock_signal_input::write(inputs.startup_active, true);
     }
 
     void trigger_overspeed(speed_pu_t trip_threshold = speed_pu_t{0.90f}, speed_pu_t speed = speed_pu_t{1.0f})
@@ -136,9 +149,9 @@ protected:
         params.overspeed_trip_delay.write(duration_t{0.0});
 
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_speed, speed);
+        yeet::utils::mock_signal_input::write(inputs.machine_speed, speed);
         // Overspeed protection requires closed-loop operation
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        yeet::utils::mock_signal_input::write(inputs.closed_loop_active, true);
     }
 
     void trigger_machine_overvoltage(
@@ -149,7 +162,7 @@ protected:
         params.machine_overvoltage_trip_delay.write(duration_t{0.0});
 
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
     }
 
     void clear_fault_conditions()
@@ -158,9 +171,9 @@ protected:
         // VHz and overspeed protections need to see safe values while closed_loop is active
         // to allow their internal detectors to reset before the trip handshake can clear
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.closed_loop_active, true);
+        yeet::utils::mock_signal_input::write(inputs.closed_loop_active, true);
         run_cycle();  // Let protections see safe values and reset detectors
-        mock_signal_input::write(inputs.closed_loop_active, false);
+        yeet::utils::mock_signal_input::write(inputs.closed_loop_active, false);
     }
 
     void set_confirm_alarms(bool value)
@@ -184,6 +197,18 @@ protected:
     void run_cycle() { _runner->run(); }
 
     std::unique_ptr<sfc_machine_side_protections_runner> _runner;
+
+    // Storage for mocked signals (required by raw pointer API)
+    voltage_pu_t _storage_machine_voltage{0.5f};
+    frequency_t _storage_machine_frequency{50.0};
+    current_pu_t _storage_dc_link_current{0.5f};
+    speed_pu_t _storage_machine_speed{0.5f};
+    frequency_pu_t _storage_machine_frequency_pu{0.5f};
+    bool _storage_startup_active{false};
+    bool _storage_closed_loop_active{false};
+    bool _storage_release_protections{true};
+    bool _storage_excitation_is_on{true};
+    bool _storage_external_fault{false};
 };
 
 /**
@@ -451,10 +476,10 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
 
     // Inject multiple severe fault conditions
     auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-    mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{2.0f});  // Severe over-flux
-    mock_signal_input::write(inputs.machine_frequency, frequency_t{10.0});              // Very low frequency
-    mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{2.0f});            // High current
-    mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.01f});                  // Near-stall speed
+    yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{2.0f});  // Severe over-flux
+    yeet::utils::mock_signal_input::write(inputs.machine_frequency, frequency_t{10.0});    // Very low frequency
+    yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{2.0f});  // High current
+    yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.01f});        // Near-stall speed
 
     // Run multiple cycles
     for (int i = 0; i < 10; ++i) {

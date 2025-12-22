@@ -6,14 +6,17 @@
 #include <cstdint>
 #include <memory>
 
-TEST(low_level_access, empty) {
+TEST(low_level_access, empty)
+{
     low_level_access llaccess;
     EXPECT_TRUE(llaccess.empty());
 }
 
-TEST(low_level_access, set_storage_type) {
-    storage_type<std::int32_t> storage = storage_type<std::int32_t>(std::make_shared<std::int32_t>());
-    std::shared_ptr<std::int32_t> internal_storage = storage.get_internal_storage();
+TEST(low_level_access, set_storage_type)
+{
+    std::int32_t data = 0;
+    storage_type<std::int32_t> storage = storage_type<std::int32_t>(&data);
+    std::int32_t* internal_storage = storage.get_internal_storage();
 
     low_level_access llaccess{storage};
 

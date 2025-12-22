@@ -35,7 +35,7 @@ namespace yeet::application::sfc::integration {
  * - Simplified configuration without state machine, modulators, or operation mode monitor
  *
  * Signal Flow:
- * Plant → Raw Measurements → Observers → Estimated Values → Speed Controller → Current Controller → Pulse Generators →
+ * Plant Ã¢â€ â€™ Raw Measurements Ã¢â€ â€™ Observers Ã¢â€ â€™ Estimated Values Ã¢â€ â€™ Speed Controller Ã¢â€ â€™ Current Controller Ã¢â€ â€™ Pulse Generators Ã¢â€ â€™
  * Plant
  */
 class plant_sensorless_speed_control_simulation_builder {
@@ -60,41 +60,41 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
         yeet::wire(speed_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_speed_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_speed_controller_datamodel::inputs::preset_request)
             // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
-            .mocked(torque_pu_t{0.0})
+            .mocked(_mock_storage_torque_zero)
             .to(&sfc_speed_controller_datamodel::inputs::applied_torque_reference);
 
         // Mock machine-side observer signals (no startup sequencer in this builder)
         yeet::wire(machine_side_observer)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_observer_datamodel::inputs::release_observer)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_observer)
-            .mocked(angle_wrapped{0.0})
+            .mocked(_mock_storage_angle_zero)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_angle)
-            .mocked(frequency_pu_t{0.0})
+            .mocked(_mock_storage_freq_zero)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_frequency);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
 
         // Excitation command (no startup_sequencer in this builder)
         yeet::wire(excitation_controller)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
     }
     void initialize()
@@ -208,7 +208,7 @@ private:
         auto& grid_pulse_gen_model = grid_side_pulse_generator.get_signal_flow_datamodel();
         auto& machine_pulse_gen_model = machine_side_pulse_generator.get_signal_flow_datamodel();
 
-        // ==================== Plant Model → Raw Measurements ====================
+        // ==================== Plant Model Ã¢â€ â€™ Raw Measurements ====================
         // Connect plant outputs to measurement components (as in simplified current control)
 
         // Grid measurements: Raw grid voltages and currents from plant
@@ -243,7 +243,7 @@ private:
         signals_connector::connect_output_to_input(
             grid_measurements.get_outputs().grid_current_abc, dc_link_model.get_inputs().grid_current_abc);
 
-        // ==================== Measurements → Excitation Controller ====================
+        // ==================== Measurements Ã¢â€ â€™ Excitation Controller ====================
         // Provide speed and voltage magnitude feedback for excitation voltage regulation
 
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_speed,
@@ -251,7 +251,7 @@ private:
         signals_connector::connect_output_to_input(machine_meas_model.get_outputs().machine_voltage_magnitude_filtered,
             excitation_controller.get_inputs().machine_voltage_magnitude_pu);
 
-        // ==================== Raw Measurements → Observers ====================
+        // ==================== Raw Measurements Ã¢â€ â€™ Observers ====================
         // Connect filtered measurements to observers for estimation
 
         // Grid side observer inputs: filtered grid voltage and firing pulses
@@ -262,30 +262,30 @@ private:
         signals_connector::connect_output_to_input(machine_meas_model.get_outputs().machine_voltage_abc,
             machine_observer_model.get_inputs().machine_voltage_pu);
 
-        // ==================== Machine Observer → Speed Controller ====================
+        // ==================== Machine Observer Ã¢â€ â€™ Speed Controller ====================
         // Connect machine observer estimated speed to speed controller feedback (key sensorless connection)
 
         // Speed feedback from machine observer instead of direct measurement
         signals_connector::connect_output_to_input(
             machine_observer_model.get_outputs().estimated_speed, speed_ctrl_model.get_inputs().measured_speed);
 
-        // ==================== Speed Controller → Current Controller ====================
+        // ==================== Speed Controller Ã¢â€ â€™ Current Controller ====================
         // Connect speed controller output to current controller reference (cascade control)
 
         // Current reference from speed controller to current controller (1:1 torque-to-current assumption)
         // NOTE: In full SFC system, torque controller sits between speed and current controllers
-        // Using intermediate signal for type conversion (torque_pu_t → current_pu_t)
+        // Using intermediate signal for type conversion (torque_pu_t Ã¢â€ â€™ current_pu_t)
         signals_connector::connect_output_to_input(
             current_reference_from_speed_ctrl, current_ctrl_model.get_inputs().current_reference);
 
-        // ==================== DC Link Measurements → Current Controller ====================
+        // ==================== DC Link Measurements Ã¢â€ â€™ Current Controller ====================
         // Connect DC link current feedback to current controller
 
         // DC link current feedback (still use direct measurement as it's most reliable)
         signals_connector::connect_output_to_input(
             dc_link_model.get_outputs().dc_current_filtered_pu, current_ctrl_model.get_inputs().current_measured);
 
-        // ==================== Observers → Current Controller (Feedforward) ====================
+        // ==================== Observers Ã¢â€ â€™ Current Controller (Feedforward) ====================
         // Connect observer-estimated values to current controller feedforward inputs
 
         // Feedforward signals from observers instead of direct measurements
@@ -294,7 +294,7 @@ private:
         signals_connector::connect_output_to_input(machine_observer_model.get_outputs().estimated_voltage_magnitude,
             current_ctrl_model.get_inputs().machine_voltage_magnitude);
 
-        // ==================== Observers → Machine Side Controller ====================
+        // ==================== Observers Ã¢â€ â€™ Machine Side Controller ====================
         // Connect observer-estimated values to machine side controller for lookup table
 
         // DC link current for lookup table input (use torque reference, 1:1 assumption)
@@ -307,21 +307,21 @@ private:
         signals_connector::connect_output_to_input(
             machine_observer_model.get_outputs().estimated_speed, machine_ctrl_model.get_inputs().machine_speed);
 
-        // ==================== Current Controller → Grid Pulse Generator ====================
+        // ==================== Current Controller Ã¢â€ â€™ Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
             current_ctrl_model.get_outputs().firing_angle, grid_pulse_gen_model.get_inputs().firing_angle);
 
-        // ==================== Machine Side Controller → Machine Pulse Generator ====================
+        // ==================== Machine Side Controller Ã¢â€ â€™ Machine Pulse Generator ====================
         // Connect machine side controller output to machine-side firing angle control
 
         // Firing angle command from machine side controller to machine pulse generator
         signals_connector::connect_output_to_input(
             machine_ctrl_model.get_outputs().firing_angle, machine_pulse_gen_model.get_inputs().firing_angle);
 
-        // ==================== Pulse Generators → Plant Model ====================
+        // ==================== Pulse Generators Ã¢â€ â€™ Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
         // Note: load_torque is now configured via plant_model.get_parameters().constant_torque parameter
 
@@ -335,7 +335,7 @@ private:
         signals_connector::connect_output_to_input(excitation_controller.get_outputs().field_current_reference,
             plant_model.get_inputs().field_current_reference);
 
-        // ==================== Observer Estimates → Pulse Generators ====================
+        // ==================== Observer Estimates Ã¢â€ â€™ Pulse Generators ====================
         // For sensorless operation, use observer-estimated angles instead of direct plant angles
 
         // Grid side: Use observer-estimated angle for pulse generator synchronization
@@ -362,6 +362,13 @@ private:
         // Note: This would typically be switched in via a mode selector in a real application
         // For now, we just provide the signal output for potential use
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
+    angle_wrapped _mock_storage_angle_zero{0.0};
+    frequency_pu_t _mock_storage_freq_zero{0.0};
+    torque_pu_t _mock_storage_torque_zero{0.0};
 };
 
 }  // namespace yeet::application::sfc::integration

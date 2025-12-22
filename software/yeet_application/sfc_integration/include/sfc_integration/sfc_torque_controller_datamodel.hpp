@@ -188,7 +188,7 @@ public:
             "speed_torque_limit_speed_axis_pu[5]", "speed_torque_limit_speed_axis_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            entry.parameters.insert(speed_axis_names[i],
+            entry.parameters.insert(std::string(speed_axis_names[i]),
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_speed_axis_pu, i));
         }
 
@@ -198,7 +198,7 @@ public:
             "speed_torque_limit_min_torque_pu[5]", "speed_torque_limit_min_torque_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            entry.parameters.insert(min_torque_names[i],
+            entry.parameters.insert(std::string(min_torque_names[i]),
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_min_torque_pu, i));
         }
 
@@ -208,7 +208,7 @@ public:
             "speed_torque_limit_max_torque_pu[5]", "speed_torque_limit_max_torque_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            entry.parameters.insert(max_torque_names[i],
+            entry.parameters.insert(std::string(max_torque_names[i]),
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_max_torque_pu, i));
         }
 
