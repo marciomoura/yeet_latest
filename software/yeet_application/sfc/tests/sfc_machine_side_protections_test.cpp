@@ -99,7 +99,7 @@ TEST_F(SfcMachineSideProtectionsFixture, OverspeedTripLatchesAndClearsAutomatica
     // Fault clears automatically with auto_clear policy
     update_all(current_pu_t{0.0f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.0f}, false, true, true, true,
         true, true, false);
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_is_tripped());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Ensure confirm is deasserted for at least one cycle, then apply a rising edge.
@@ -148,7 +148,7 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationTripLatchesAndClearsAut
     // Excitation restored - trip clears automatically with auto_clear policy
     update_all(current_pu_t{0.5f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{0.5f}, true, false, true, true,
         true, true, false);
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_is_tripped());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Ensure confirm is deasserted, then apply rising edge

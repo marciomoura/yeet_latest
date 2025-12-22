@@ -121,7 +121,6 @@ fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::ge
     msg.dc_link_current_reference = _fiber_optics_outputs_to_grid.dc_link_current_reference.read();
     msg.machine_voltage_magnitude = _fiber_optics_outputs_to_grid.machine_voltage_magnitude.read();
     msg.force_commutation_request = _fiber_optics_outputs_to_grid.force_commutation_request.read();
-    msg.shutdown_request = false;  // Removed: shutdown_request is now a state machine parameter only
     msg.machine_protection_tripped = _fiber_optics_outputs_to_grid.machine_protection_tripped.read();
     msg.protection_inhibit = _fiber_optics_outputs_to_grid.protection_inhibit.read();
     return msg;

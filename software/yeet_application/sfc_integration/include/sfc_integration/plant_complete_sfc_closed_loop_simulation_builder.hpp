@@ -219,13 +219,14 @@ public:
             // This enables the state machine to see hardware feedback (breaker closed, auxiliaries on, etc.)
             grid_side_control.external_ios.set_digital_inputs(grid_io_mock.get_outputs().auxiliaries_are_on.read(),
                 grid_io_mock.get_outputs().mv_breaker_is_closed.read(), grid_io_mock.get_outputs().start_command.read(),
-                grid_io_mock.get_outputs().stop_command.read(), grid_io_mock.get_outputs().shutdown_request.read(),
+                grid_io_mock.get_outputs().stop_command.read(),
                 grid_io_mock.get_outputs().mv_breaker_is_tripping.read(),
                 grid_io_mock.get_outputs().emergency_off.read(), grid_io_mock.get_outputs().door_is_open.read(),
                 grid_io_mock.get_outputs().external_fault.read(), grid_io_mock.get_outputs().fans_are_running.read());
 
             machine_side_control.external_ios.set_digital_inputs(machine_io_mock.get_outputs().excitation_status.read(),
-                machine_io_mock.get_outputs().external_fault.read(), machine_io_mock.get_outputs().start_command.read());
+                machine_io_mock.get_outputs().external_fault.read(),
+                machine_io_mock.get_outputs().start_command.read());
 
             // ========== FIBER-OPTIC CROSS-LINK: GRID → MACHINE ==========
             // Grid sends its state to machine-side for synchronization

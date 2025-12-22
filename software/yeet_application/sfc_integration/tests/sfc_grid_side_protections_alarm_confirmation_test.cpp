@@ -53,6 +53,10 @@ protected:
 
         // Door closed by default
         mock_signal_input::write(inputs.door_is_open, false);
+
+        // External fault and emergency off inactive by default
+        mock_signal_input::write(inputs.external_fault, false);
+        mock_signal_input::write(inputs.emergency_off, false);
     }
     void trigger_overcurrent()
     {

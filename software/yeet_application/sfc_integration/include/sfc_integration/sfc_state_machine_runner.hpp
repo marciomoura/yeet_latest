@@ -24,8 +24,8 @@ public:
               sfc::sfc_state_event("stop_command", [this]() { return _outputs.stop_command.read(); }),
               sfc::sfc_state_event("shutdown_request",
                   [this]() {
-                      // Combine shutdown request with machine-side shutdown requests and latched trips
-                      return _outputs.shutdown_request.read() || _inputs.machine_side_shutdown_request.read() ||
+                      // Combine emergency off, external fault, and latched trips
+                      return _inputs.emergency_off.read() || _inputs.external_fault.read() ||
                              _inputs.machine_side_protection_tripped.read();
                   }),
               sfc::sfc_state_event("auxiliaries_are_on", [this]() { return _outputs.auxiliaries_are_on.read(); }),

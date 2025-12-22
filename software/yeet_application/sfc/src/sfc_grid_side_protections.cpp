@@ -19,6 +19,9 @@ void sfc_grid_side_protections::reset() noexcept
 
     _trip_handshake.reset();
 
+    _external_fault_active = false;
+    _emergency_off_active = false;
+
     _is_tripped = false;
     _is_inhibited = false;
     _any_fault_active = false;
@@ -41,6 +44,12 @@ void sfc_grid_side_protections::reset() noexcept
 
     _door_open_tripped = false;
     _door_open_alarmed = false;
+
+    _external_fault_tripped = false;
+    _external_fault_alarmed = false;
+
+    _emergency_off_tripped = false;
+    _emergency_off_alarmed = false;
 }
 
 void sfc_grid_side_protections::update_overcurrent_protection(current_pu_t dc_link_current_pu) noexcept
@@ -62,6 +71,10 @@ void sfc_grid_side_protections::update_communication_watchdog(bool communication
 {
     _communication_watchdog.update(communication_valid);
 }
+
+void sfc_grid_side_protections::update_external_fault(bool active) noexcept { _external_fault_active = active; }
+
+void sfc_grid_side_protections::update_emergency_off(bool active) noexcept { _emergency_off_active = active; }
 
 void sfc_grid_side_protections::resolve_protections(
     bool door_is_open, bool module_enabled, bool confirm_alarms) noexcept
@@ -87,18 +100,24 @@ void sfc_grid_side_protections::resolve_protections(
     const bool undervoltage_trip_raw = _undervoltage_protection.is_tripped();
     const bool comm_loss_trip_raw = _communication_watchdog.is_tripped();
     const bool door_open_raw = door_is_open;
+    const bool external_fault_raw = _external_fault_active;
+    const bool emergency_off_raw = _emergency_off_active;
 
     const bool overcurrent_trip = _overcurrent_is_trip && overcurrent_trip_raw;
     const bool overvoltage_trip = _overvoltage_is_trip && overvoltage_trip_raw;
     const bool undervoltage_trip = _undervoltage_is_trip && undervoltage_trip_raw;
     const bool comm_loss_trip = _comm_loss_is_trip && comm_loss_trip_raw;
     const bool door_open_trip = _door_open_is_trip && door_open_raw;
+    const bool external_fault_trip = _external_fault_is_trip && external_fault_raw;
+    const bool emergency_off_trip = _emergency_off_is_trip && emergency_off_raw;
 
     const bool overcurrent_alarm = (!_overcurrent_is_trip) && overcurrent_trip_raw;
     const bool overvoltage_alarm = (!_overvoltage_is_trip) && overvoltage_trip_raw;
     const bool undervoltage_alarm = (!_undervoltage_is_trip) && undervoltage_trip_raw;
     const bool comm_loss_alarm = (!_comm_loss_is_trip) && comm_loss_trip_raw;
     const bool door_open_alarm = (!_door_open_is_trip) && door_open_raw;
+    const bool external_fault_alarm = (!_external_fault_is_trip) && external_fault_raw;
+    const bool emergency_off_alarm = (!_emergency_off_is_trip) && emergency_off_raw;
 
     _overcurrent_tripped = overcurrent_trip;
     _overcurrent_alarmed = overcurrent_alarm;
@@ -110,20 +129,24 @@ void sfc_grid_side_protections::resolve_protections(
     _communication_loss_alarmed = comm_loss_alarm;
     _door_open_tripped = door_open_trip;
     _door_open_alarmed = door_open_alarm;
+    _external_fault_tripped = external_fault_trip;
+    _external_fault_alarmed = external_fault_alarm;
+    _emergency_off_tripped = emergency_off_trip;
+    _emergency_off_alarmed = emergency_off_alarm;
 
     _overcurrent_warning = _overcurrent_protection.is_warning();
     _overvoltage_warning = _overvoltage_protection.is_warning();
     _undervoltage_warning = _undervoltage_protection.is_warning();
     _communication_loss_warning = _communication_watchdog.is_warning();
 
-    const bool any_protection_tripped =
-        overcurrent_trip || overvoltage_trip || undervoltage_trip || comm_loss_trip || door_open_trip;
+    const bool any_protection_tripped = overcurrent_trip || overvoltage_trip || undervoltage_trip || comm_loss_trip ||
+                                        door_open_trip || external_fault_trip || emergency_off_trip;
 
-    const bool any_fault_active =
-        overcurrent_trip_raw || overvoltage_trip_raw || undervoltage_trip_raw || comm_loss_trip_raw || door_open_raw;
+    const bool any_fault_active = overcurrent_trip_raw || overvoltage_trip_raw || undervoltage_trip_raw ||
+                                  comm_loss_trip_raw || door_open_raw || external_fault_raw || emergency_off_raw;
 
-    const bool any_alarm_active =
-        overcurrent_alarm || overvoltage_alarm || undervoltage_alarm || comm_loss_alarm || door_open_alarm;
+    const bool any_alarm_active = overcurrent_alarm || overvoltage_alarm || undervoltage_alarm || comm_loss_alarm ||
+                                  door_open_alarm || external_fault_alarm || emergency_off_alarm;
 
     _any_fault_active = any_fault_active;
     _any_alarm_active = any_alarm_active;
@@ -143,6 +166,9 @@ void sfc_grid_side_protections::resolve_protections(
         _communication_watchdog.update(true);
         _communication_watchdog.reset();
 
+        _external_fault_active = false;
+        _emergency_off_active = false;
+
         // Clear severity-routed outputs immediately.
         _overcurrent_tripped = false;
         _overcurrent_alarmed = false;
@@ -154,6 +180,10 @@ void sfc_grid_side_protections::resolve_protections(
         _communication_loss_alarmed = false;
         _door_open_tripped = false;
         _door_open_alarmed = false;
+        _external_fault_tripped = false;
+        _external_fault_alarmed = false;
+        _emergency_off_tripped = false;
+        _emergency_off_alarmed = false;
         _any_fault_active = false;
         _any_alarm_active = false;
     }
@@ -177,6 +207,16 @@ void sfc_grid_side_protections::configure_communication_loss_is_trip(bool is_tri
 }
 
 void sfc_grid_side_protections::configure_door_open_is_trip(bool is_trip) noexcept { _door_open_is_trip = is_trip; }
+
+void sfc_grid_side_protections::configure_external_fault_is_trip(bool is_trip) noexcept
+{
+    _external_fault_is_trip = is_trip;
+}
+
+void sfc_grid_side_protections::configure_emergency_off_is_trip(bool is_trip) noexcept
+{
+    _emergency_off_is_trip = is_trip;
+}
 
 void sfc_grid_side_protections::configure_overcurrent_trip_threshold(current_pu_t threshold) noexcept
 {
@@ -283,5 +323,13 @@ bool sfc_grid_side_protections::get_communication_loss_warning() const noexcept 
 bool sfc_grid_side_protections::get_door_open_tripped() const noexcept { return _door_open_tripped; }
 
 bool sfc_grid_side_protections::get_door_open_alarmed() const noexcept { return _door_open_alarmed; }
+
+bool sfc_grid_side_protections::get_external_fault_tripped() const noexcept { return _external_fault_tripped; }
+
+bool sfc_grid_side_protections::get_external_fault_alarmed() const noexcept { return _external_fault_alarmed; }
+
+bool sfc_grid_side_protections::get_emergency_off_tripped() const noexcept { return _emergency_off_tripped; }
+
+bool sfc_grid_side_protections::get_emergency_off_alarmed() const noexcept { return _emergency_off_alarmed; }
 
 }  // namespace yeet::application::sfc

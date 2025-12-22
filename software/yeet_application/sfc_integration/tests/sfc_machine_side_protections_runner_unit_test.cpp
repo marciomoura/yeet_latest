@@ -24,6 +24,7 @@ protected:
         mock_signal_input::write(dut.get_inputs().closed_loop_active, true);
         mock_signal_input::write(dut.get_inputs().release_protections, true);
         mock_signal_input::write(dut.get_inputs().excitation_is_on, true);
+        mock_signal_input::write(dut.get_inputs().external_fault, false);
 
         auto& p = dut.get_parameters();
         p.protection_module_enabled.write(true);

@@ -22,7 +22,6 @@ void sfc_grid_side_external_ios_datamodel::set_digital_inputs(bool auxiliaries_a
     bool mv_breaker_is_closed,
     bool start_command,
     bool stop_command,
-    bool shutdown_request,
     bool mv_breaker_is_tripping,
     bool emergency_off,
     bool door_is_open,
@@ -30,7 +29,7 @@ void sfc_grid_side_external_ios_datamodel::set_digital_inputs(bool auxiliaries_a
     bool fans_are_running)
 {
     apply_digital_input_overrides(auxiliaries_are_on, mv_breaker_is_closed, start_command, stop_command,
-        shutdown_request, mv_breaker_is_tripping, emergency_off, door_is_open, external_fault, fans_are_running);
+        mv_breaker_is_tripping, emergency_off, door_is_open, external_fault, fans_are_running);
 }
 
 void sfc_grid_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_optic::machine_to_grid_message& msg)
@@ -62,7 +61,6 @@ void sfc_grid_side_external_ios_datamodel::apply_digital_input_overrides(bool au
     bool mv_breaker_is_closed,
     bool start_command,
     bool stop_command,
-    bool shutdown_request,
     bool mv_breaker_is_tripping,
     bool emergency_off,
     bool door_is_open,
@@ -92,11 +90,6 @@ void sfc_grid_side_external_ios_datamodel::apply_digital_input_overrides(bool au
     bool stop_cmd = apply_polarity(stop_command, _parameters.di_stop_command_polarity.read());
     _digital_inputs.stop_command.write(
         _parameters.di_stop_command_override.read() ? _parameters.di_stop_command_override_value.read() : stop_cmd);
-
-    bool shutdown_req = apply_polarity(shutdown_request, _parameters.di_shutdown_request_polarity.read());
-    _digital_inputs.shutdown_request.write(_parameters.di_shutdown_request_override.read()
-                                               ? _parameters.di_shutdown_request_override_value.read()
-                                               : shutdown_req);
 
     bool breaker_trip = apply_polarity(mv_breaker_is_tripping, _parameters.di_mv_breaker_is_tripping_polarity.read());
     _digital_inputs.mv_breaker_is_tripping.write(_parameters.di_mv_breaker_is_tripping_override.read()
@@ -176,18 +169,6 @@ void sfc_grid_side_external_ios_datamodel::register_callbacks()
         }
     });
 
-    // Shutdown request
-    _parameters.di_shutdown_request_override.register_callback([this]() {
-        if (_parameters.di_shutdown_request_override.read()) {
-            _digital_inputs.shutdown_request.write(_parameters.di_shutdown_request_override_value.read());
-        }
-    });
-    _parameters.di_shutdown_request_override_value.register_callback([this]() {
-        if (_parameters.di_shutdown_request_override.read()) {
-            _digital_inputs.shutdown_request.write(_parameters.di_shutdown_request_override_value.read());
-        }
-    });
-
     // MV Breaker is tripping
     _parameters.di_mv_breaker_is_tripping_override.register_callback([this]() {
         if (_parameters.di_mv_breaker_is_tripping_override.read()) {
@@ -262,8 +243,6 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
         "di_start_command_polarity", yeet::utils::make_enum_accessor(_parameters.di_start_command_polarity));
     entry.parameters.insert(
         "di_stop_command_polarity", yeet::utils::make_enum_accessor(_parameters.di_stop_command_polarity));
-    entry.parameters.insert(
-        "di_shutdown_request_polarity", yeet::utils::make_enum_accessor(_parameters.di_shutdown_request_polarity));
     entry.parameters.insert("di_mv_breaker_is_tripping_polarity",
         yeet::utils::make_enum_accessor(_parameters.di_mv_breaker_is_tripping_polarity));
     entry.parameters.insert(
@@ -295,11 +274,6 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
         "di_stop_command_override", yeet::utils::make_bool_accessor(_parameters.di_stop_command_override));
     entry.parameters.insert(
         "di_stop_command_override_value", yeet::utils::make_bool_accessor(_parameters.di_stop_command_override_value));
-
-    entry.parameters.insert(
-        "di_shutdown_request_override", yeet::utils::make_bool_accessor(_parameters.di_shutdown_request_override));
-    entry.parameters.insert("di_shutdown_request_override_value",
-        yeet::utils::make_bool_accessor(_parameters.di_shutdown_request_override_value));
 
     entry.parameters.insert("di_mv_breaker_is_tripping_override",
         yeet::utils::make_bool_accessor(_parameters.di_mv_breaker_is_tripping_override));
@@ -343,8 +317,6 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_regist
         "di_start_command_index", yeet::utils::make_units_accessor(_parameters.di_start_command_index));
     io_entry.parameters.insert(
         "di_stop_command_index", yeet::utils::make_units_accessor(_parameters.di_stop_command_index));
-    io_entry.parameters.insert(
-        "di_shutdown_request_index", yeet::utils::make_units_accessor(_parameters.di_shutdown_request_index));
     io_entry.parameters.insert("di_mv_breaker_is_tripping_index",
         yeet::utils::make_units_accessor(_parameters.di_mv_breaker_is_tripping_index));
     io_entry.parameters.insert(

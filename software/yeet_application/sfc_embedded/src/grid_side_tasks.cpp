@@ -46,9 +46,6 @@ constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 constexpr int DI_STOP_COMMAND_INDEX = 3;
 constexpr io_polarity_t DI_STOP_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_SHUTDOWN_REQUEST_INDEX = 4;
-constexpr io_polarity_t DI_SHUTDOWN_REQUEST_POLARITY = io_polarity_t::ACTIVE_HIGH;
-
 constexpr int DI_MV_BREAKER_IS_TRIPPING_INDEX = 6;
 constexpr io_polarity_t DI_MV_BREAKER_IS_TRIPPING_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
@@ -180,7 +177,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_mv_breaker_is_closed_index.write(DI_MV_BREAKER_IS_CLOSED_INDEX);
     io_params.di_start_command_index.write(DI_START_COMMAND_INDEX);
     io_params.di_stop_command_index.write(DI_STOP_COMMAND_INDEX);
-    io_params.di_shutdown_request_index.write(DI_SHUTDOWN_REQUEST_INDEX);
     io_params.di_mv_breaker_is_tripping_index.write(DI_MV_BREAKER_IS_TRIPPING_INDEX);
     io_params.di_emergency_off_index.write(DI_EMERGENCY_OFF_INDEX);
     io_params.di_door_is_open_index.write(DI_DOOR_IS_OPEN_INDEX);
@@ -192,7 +188,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_mv_breaker_is_closed_polarity.write(DI_MV_BREAKER_IS_CLOSED_POLARITY);
     io_params.di_start_command_polarity.write(DI_START_COMMAND_POLARITY);
     io_params.di_stop_command_polarity.write(DI_STOP_COMMAND_POLARITY);
-    io_params.di_shutdown_request_polarity.write(DI_SHUTDOWN_REQUEST_POLARITY);
     io_params.di_mv_breaker_is_tripping_polarity.write(DI_MV_BREAKER_IS_TRIPPING_POLARITY);
     io_params.di_emergency_off_polarity.write(DI_EMERGENCY_OFF_POLARITY);
     io_params.di_door_is_open_polarity.write(DI_DOOR_IS_OPEN_POLARITY);
@@ -326,7 +321,6 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
             read_di(inputs, io_params.di_mv_breaker_is_closed_index.read()),
             read_di(inputs, io_params.di_start_command_index.read()),
             read_di(inputs, io_params.di_stop_command_index.read()),
-            read_di(inputs, io_params.di_shutdown_request_index.read()),
             read_di(inputs, io_params.di_mv_breaker_is_tripping_index.read()),
             read_di(inputs, io_params.di_emergency_off_index.read()),
             read_di(inputs, io_params.di_door_is_open_index.read()),

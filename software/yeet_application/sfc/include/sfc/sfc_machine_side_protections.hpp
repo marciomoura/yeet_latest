@@ -46,6 +46,8 @@ public:
 
     void update_communication_watchdog(bool communication_valid) noexcept;
 
+    void update_external_fault(bool active) noexcept;
+
     // -------------------- Configuration (severity routing) --------------------
 
     void configure_over_flux_is_trip(bool is_trip) noexcept;
@@ -55,6 +57,7 @@ public:
     void configure_machine_overvoltage_is_trip(bool is_trip) noexcept;
     void configure_communication_loss_is_trip(bool is_trip) noexcept;
     void configure_loss_of_excitation_is_trip(bool is_trip) noexcept;
+    void configure_external_fault_is_trip(bool is_trip) noexcept;
 
     // -------------------- Configuration (per-protection parameters) --------------------
 
@@ -117,6 +120,12 @@ public:
     bool get_loss_of_excitation_tripped() const noexcept;
     bool get_loss_of_excitation_alarmed() const noexcept;
 
+    bool get_external_fault_tripped() const noexcept;
+    bool get_external_fault_alarmed() const noexcept;
+
+    bool get_emergency_off_tripped() const noexcept;
+    bool get_emergency_off_alarmed() const noexcept;
+
     bool get_over_flux_warning() const noexcept;
     bool get_under_flux_warning() const noexcept;
     bool get_stall_warning() const noexcept;
@@ -138,6 +147,8 @@ private:
 
     sfc_protections_trip_handshake _trip_handshake;
 
+    bool _external_fault_active{false};
+
     // Severity routing configuration
     bool _over_flux_is_trip{true};
     bool _under_flux_is_trip{true};
@@ -146,6 +157,7 @@ private:
     bool _machine_overvoltage_is_trip{true};
     bool _comm_loss_is_trip{true};
     bool _loss_of_excitation_is_trip{true};
+    bool _external_fault_is_trip{true};
 
     // Cache of thresholds for present-time fault condition detection
     flux_pu_t _over_flux_trip_threshold{flux_pu_t{1.10f}};
@@ -178,6 +190,9 @@ private:
 
     bool _loss_of_excitation_tripped{false};
     bool _loss_of_excitation_alarmed{false};
+
+    bool _external_fault_tripped{false};
+    bool _external_fault_alarmed{false};
 
     bool _over_flux_warning{false};
     bool _under_flux_warning{false};

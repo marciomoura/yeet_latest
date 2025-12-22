@@ -34,14 +34,12 @@ protected:
         mock_signal_input::write(inputs.mv_breaker_is_closed, false);
         mock_signal_input::write(inputs.start_command, false);
         mock_signal_input::write(inputs.stop_command, false);
-        mock_signal_input::write(inputs.shutdown_request, false);
         mock_signal_input::write(inputs.is_current_extinguished, false);
-        mock_signal_input::write(inputs.protection_inhibited, false);           // Protection not inhibited by default
-        mock_signal_input::write(inputs.any_protection_fault_active, false);    // No protection faults by default
-        mock_signal_input::write(inputs.mv_breaker_is_tripping, false);         // Breaker not tripping by default
-        mock_signal_input::write(inputs.emergency_off, false);                  // Emergency off not active by default
-        mock_signal_input::write(inputs.door_is_open, false);                   // Door closed by default
-        mock_signal_input::write(inputs.machine_side_shutdown_request, false);  // No machine-side shutdown
+        mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
+        mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
+        mock_signal_input::write(inputs.mv_breaker_is_tripping, false);       // Breaker not tripping by default
+        mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
+        mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
         mock_signal_input::write(inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
         mock_signal_input::write(inputs.machine_side_protection_tripped, false);    // No machine-side trip
         mock_signal_input::write(inputs.external_fault, false);                     // No external fault by default
@@ -54,7 +52,6 @@ protected:
         // Override is now disabled by default, but we can explicitly set it to be safe
         parameters.auxiliaries_are_on_override.write(false);
         parameters.mv_breaker_is_closed_override.write(false);
-        parameters.shutdown_request_override.write(false);
         parameters.is_current_extinguished_override.write(false);
 
         // Start and stop commands are now simple parameters (no override mechanism)
@@ -123,16 +120,22 @@ protected:
         mock_signal_input::write(inputs.stop_command, value);
     }
 
-    void set_shutdown_request(bool value)
-    {
-        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.shutdown_request, value);
-    }
-
     void set_current_extinguished(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         mock_signal_input::write(inputs.is_current_extinguished, value);
+    }
+
+    void set_emergency_off(bool value)
+    {
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.emergency_off, value);
+    }
+
+    void set_external_fault(bool value)
+    {
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        mock_signal_input::write(inputs.external_fault, value);
     }
 
     void set_protection_inhibited(bool value)
@@ -523,7 +526,7 @@ TEST_F(SfcStateMachineRunnerTest, EmergencyShutdownRequest)
     verify_state(sfc::sfc_state_id::OPERATION_ON, true);
 
     // Test emergency shutdown signal
-    set_shutdown_request(true);
+    set_emergency_off(true);
     run_cycle();
 
     // NOTE: Emergency shutdown behavior depends on state machine implementation

@@ -132,7 +132,6 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
             state_machine.get_outputs().release_pulses.read(), state_machine.get_outputs().auxiliaries_are_on.read(),
             state_machine.get_outputs().mv_breaker_is_closed.read(), state_machine.get_outputs().start_command.read(),
             state_machine.get_outputs().stop_command.read(), state_machine.get_outputs().is_current_extinguished.read(),
-            state_machine.get_outputs().shutdown_request.read(),
             // Bits 12-14: Mode monitor
             mode_monitor.get_outputs().has_mode_changed.read(), mode_monitor.get_outputs().current_is_zero.read(),
             mode_monitor.get_outputs().is_discontinuous_mode.read(),
@@ -153,9 +152,9 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
             protections.get_outputs().overvoltage_warning.read(), protections.get_outputs().undervoltage_warning.read(),
             protections.get_outputs().communication_loss_tripped.read(),
             protections.get_outputs().communication_loss_warning.read(),
-            // Bits 4-7: Fiber optic RX
-            fiber_rx.request_force_commutation.read(), fiber_rx.shutdown_request.read(),
-            fiber_rx.machine_protection_tripped.read(), fiber_rx.protection_inhibit.read()});
+            // Bits 4-6: Fiber optic RX
+            fiber_rx.request_force_commutation.read(), fiber_rx.machine_protection_tripped.read(),
+            fiber_rx.protection_inhibit.read()});
 
     // === Line Voltages (Unmasked) Group (44-46) ===
     const auto& grid_voltage_line = grid_meas.get_outputs().grid_voltage_line.read();

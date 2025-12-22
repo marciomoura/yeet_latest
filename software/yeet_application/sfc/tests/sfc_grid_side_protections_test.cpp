@@ -35,7 +35,7 @@ TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsAutomatically)
     protections.update_undervoltage_protection(voltage_pu_t{1.0f});
     protections.resolve_protections(false, true, false);
 
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_is_tripped());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Confirm rising edge clears inhibit

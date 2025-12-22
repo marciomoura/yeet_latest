@@ -51,6 +51,8 @@ void sfc_machine_side_protections_runner::reset()
     _outputs.communication_loss_warning = false;
     _outputs.loss_of_excitation_tripped = false;
     _outputs.loss_of_excitation_alarmed = false;
+    _outputs.external_fault_tripped = false;
+    _outputs.external_fault_alarmed = false;
 }
 
 void sfc_machine_side_protections_runner::run()
@@ -76,6 +78,7 @@ void sfc_machine_side_protections_runner::run()
         _protections.update_machine_overvoltage_protection(_inputs.machine_voltage_magnitude_pu.read());
         _protections.update_loss_of_excitation_protection(
             _inputs.excitation_is_on.read(), _inputs.startup_active.read(), _inputs.closed_loop_active.read());
+        _protections.update_external_fault(_inputs.external_fault.read());
     }
 
     _protections.resolve_protections(module_enabled, _parameters.confirm_alarms.read());
@@ -106,6 +109,9 @@ void sfc_machine_side_protections_runner::run()
 
     _outputs.loss_of_excitation_tripped = _protections.get_loss_of_excitation_tripped();
     _outputs.loss_of_excitation_alarmed = _protections.get_loss_of_excitation_alarmed();
+
+    _outputs.external_fault_tripped = _protections.get_external_fault_tripped();
+    _outputs.external_fault_alarmed = _protections.get_external_fault_alarmed();
 }
 
 void sfc_machine_side_protections_runner::stop() { reset(); }
@@ -159,6 +165,7 @@ void sfc_machine_side_protections_runner::set_parameters()
         _parameters.communication_loss_severity == protection_severity::trip);
     _protections.configure_loss_of_excitation_is_trip(
         _parameters.loss_of_excitation_severity == protection_severity::trip);
+    _protections.configure_external_fault_is_trip(_parameters.external_fault_severity == protection_severity::trip);
 }
 
 void sfc_machine_side_protections_runner::set_parameter_callback()
@@ -235,6 +242,9 @@ void sfc_machine_side_protections_runner::set_parameter_callback()
     _parameters.loss_of_excitation_severity.register_callback([&]() {
         _protections.configure_loss_of_excitation_is_trip(
             _parameters.loss_of_excitation_severity == protection_severity::trip);
+    });
+    _parameters.external_fault_severity.register_callback([&]() {
+        _protections.configure_external_fault_is_trip(_parameters.external_fault_severity == protection_severity::trip);
     });
 }
 

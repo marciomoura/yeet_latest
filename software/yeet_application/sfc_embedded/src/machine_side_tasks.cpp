@@ -30,7 +30,10 @@ constexpr io_polarity_t DI_EXCITATION_STATUS_POLARITY = io_polarity_t::ACTIVE_HI
 constexpr int DI_EXTERNAL_FAULT_INDEX = 1;
 constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_START_COMMAND_INDEX = 2;
+constexpr int DI_EMERGENCY_OFF_INDEX = 2;
+constexpr io_polarity_t DI_EMERGENCY_OFF_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DI_START_COMMAND_INDEX = 3;
 constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 // Digital Outputs

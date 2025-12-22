@@ -53,6 +53,9 @@ public:
 
         /// Release signal for protections (typically from state machine/supervisor)
         signal_input<bool> release_protections;
+
+        /// External fault signal from hardware [bool]
+        signal_input<bool> external_fault;
     };
 
     /**
@@ -125,6 +128,15 @@ public:
 
         /// Loss of excitation protection alarm status (severity-dependent)
         signal_output<bool> loss_of_excitation_alarmed;
+
+        /// External fault protection trip status
+        signal_output<bool> external_fault_tripped;
+
+        /// External fault protection alarm status (severity-dependent)
+        signal_output<bool> external_fault_alarmed;
+
+        /// External fault protection warning status
+        signal_output<bool> external_fault_warning;
     };
 
     /**
@@ -152,6 +164,9 @@ public:
 
         /// Severity for loss of excitation detection (default: trip)
         parameter<protection_severity> loss_of_excitation_severity{protection_severity::trip};
+
+        /// Severity for external fault detection (default: trip)
+        parameter<protection_severity> external_fault_severity{protection_severity::trip};
 
         // ========== V/Hz Protection Parameters ==========
         /// Over-flux trip threshold [pu]

@@ -78,11 +78,6 @@ public:
         /// Override value for stop_command (when override enabled)
         yeet::parameter<bool> di_stop_command_override_value{false};
 
-        /// Enable override for shutdown_request input
-        yeet::parameter<bool> di_shutdown_request_override{false};
-        /// Override value for shutdown_request (when override enabled)
-        yeet::parameter<bool> di_shutdown_request_override_value{false};
-
         /// Enable override for mv_breaker_is_tripping input
         yeet::parameter<bool> di_mv_breaker_is_tripping_override{false};
         /// Override value for mv_breaker_is_tripping (when override enabled)
@@ -116,7 +111,6 @@ public:
         yeet::parameter<int> di_mv_breaker_is_closed_index{1};
         yeet::parameter<int> di_start_command_index{2};
         yeet::parameter<int> di_stop_command_index{3};
-        yeet::parameter<int> di_shutdown_request_index{4};
         yeet::parameter<int> di_mv_breaker_is_tripping_index{6};
         yeet::parameter<int> di_emergency_off_index{7};
         yeet::parameter<int> di_door_is_open_index{8};
@@ -140,7 +134,6 @@ public:
         yeet::parameter<io_polarity_t> di_mv_breaker_is_closed_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> di_start_command_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> di_stop_command_polarity{io_polarity_t::ACTIVE_HIGH};
-        yeet::parameter<io_polarity_t> di_shutdown_request_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> di_mv_breaker_is_tripping_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> di_emergency_off_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> di_door_is_open_polarity{io_polarity_t::ACTIVE_HIGH};
@@ -172,7 +165,6 @@ public:
         signal_output<bool> mv_breaker_is_closed;    ///< Medium voltage breaker closed
         signal_output<bool> start_command;           ///< Start operation command
         signal_output<bool> stop_command;            ///< Stop operation command
-        signal_output<bool> shutdown_request;        ///< Emergency shutdown request
         signal_output<bool> mv_breaker_is_tripping;  ///< MV breaker protection relay indicates tripping
         signal_output<bool> emergency_off;           ///< Emergency off button pressed
         signal_output<bool> door_is_open;            ///< Enclosure door is open (prevents breaker close)
@@ -266,7 +258,6 @@ public:
         external_signal<voltage_pu_t> machine_voltage_magnitude{
             voltage_pu_t{0.0}};                                   ///< Machine back-EMF magnitude [pu]
         external_signal<bool> request_force_commutation{false};   ///< Force commutation request
-        external_signal<bool> shutdown_request{false};            ///< Shutdown request from machine side
         external_signal<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
         external_signal<bool> protection_inhibit{false};          ///< Protection system inhibited (awaiting ack)
     };
@@ -430,7 +421,6 @@ public:
         bool mv_breaker_is_closed,
         bool start_command,
         bool stop_command,
-        bool shutdown_request,
         bool mv_breaker_is_tripping,
         bool emergency_off,
         bool door_is_open,
@@ -535,7 +525,6 @@ private:
         bool mv_breaker_is_closed,
         bool start_command,
         bool stop_command,
-        bool shutdown_request,
         bool mv_breaker_is_tripping,
         bool emergency_off,
         bool door_is_open,

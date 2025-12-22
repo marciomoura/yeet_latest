@@ -13,8 +13,8 @@
             <input>
                 <name>voltage_source_grid_side</name>
                 <device>0</device>
-                <input_address>2</input_address>
-                <child_input_address>[0, 1, 2]</child_input_address>
+                <input_address>5</input_address>
+                <child_input_address>[3, 4, 5]</child_input_address>
                 <device>0</device>
             	<input_type>ThreePhaseInput</input_type>
                 <waveform_type>Sine</waveform_type>
@@ -23,6 +23,21 @@
                 <phase>0.0</phase>
                 <use_harmonics>False</use_harmonics>
                 <harmonics>[(2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0), (2, 0.0, 0.0)]</harmonics>
+                <harmonics_type>per_rms_unit_harmonics</harmonics_type>
+            </input>
+            <input>
+                <name>voltage_source_machine_side</name>
+                <device>0</device>
+                <input_address>2</input_address>
+                <child_input_address>[0, 1, 2]</child_input_address>
+                <device>0</device>
+            	<input_type>ThreePhaseInput</input_type>
+                <waveform_type>Sine</waveform_type>
+                <rms>1143.153533</rms>
+                <frequency>50.0</frequency>
+                <phase>0.0</phase>
+                <use_harmonics>False</use_harmonics>
+                <harmonics>[]</harmonics>
                 <harmonics_type>per_rms_unit_harmonics</harmonics_type>
             </input></inputs>
         <pvs>
@@ -1071,7 +1086,7 @@
                 <device>0</device>
                 <is_inverted>False</is_inverted>
                 <software_control>True</software_control>
-                <software_value>1</software_value>
+                <software_value>0</software_value>
                 <locked>False</locked>
                 <digital_signal>
                 	<name>const_0</name>
@@ -1765,7 +1780,7 @@
         </digital_channels>
         <switching_blocks>
             <switching_block>
-                <name>grid-side-bridge</name>
+                <name>Three Phase Thyristor Rectifier1</name>
                 <type>regular_conv</type>
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
@@ -1816,7 +1831,7 @@
                 </switches>
             </switching_block>
             <switching_block>
-                <name>machine-side-bridge</name>
+                <name>Three Phase Thyristor Rectifier2</name>
                 <type>regular_conv</type>
                 <scm_comp_type>thy_leg</scm_comp_type>
                 <device>0</device>
@@ -1870,16 +1885,6 @@
         <batteries>
         </batteries>
         <scada_inputs>
-            <scada_input>
-                <name>excitation_voltage</name>
-                <device>0</device>
-                <value>10.0</value>
-            </scada_input>
-            <scada_input>
-                <name>machine_input</name>
-                <device>0</device>
-                <value>34.0</value>
-            </scada_input>
         </scada_inputs>
         <tunable_parameters>
         </tunable_parameters>
