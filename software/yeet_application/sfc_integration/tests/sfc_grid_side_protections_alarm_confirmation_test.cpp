@@ -34,6 +34,15 @@ protected:
 
         params.confirm_alarms.write(false);  // Start with no confirmation command
 
+        // Connect storage to signals (required by raw pointer API)
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::connect(inputs.grid_voltage_magnitude_pu, _storage_grid_voltage);
+        yeet::utils::mock_signal_input::connect(inputs.dc_link_current_pu, _storage_dc_link_current);
+        yeet::utils::mock_signal_input::connect(inputs.release_protections, _storage_release_protections);
+        yeet::utils::mock_signal_input::connect(inputs.door_is_open, _storage_door_is_open);
+        yeet::utils::mock_signal_input::connect(inputs.external_fault, _storage_external_fault);
+        yeet::utils::mock_signal_input::connect(inputs.emergency_off, _storage_emergency_off);
+
         // Set safe initial inputs
         reset_inputs();
     }
@@ -107,6 +116,14 @@ protected:
     void run_cycle() { _runner->run(); }
 
     std::unique_ptr<sfc_grid_side_protections_runner> _runner;
+
+    // Storage for mocked signals (required by raw pointer API)
+    voltage_pu_t _storage_grid_voltage{1.0f};
+    current_pu_t _storage_dc_link_current{0.5f};
+    bool _storage_release_protections{true};
+    bool _storage_door_is_open{false};
+    bool _storage_external_fault{false};
+    bool _storage_emergency_off{false};
 };
 
 /**

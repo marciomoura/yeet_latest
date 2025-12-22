@@ -58,6 +58,19 @@ protected:
 
         params.confirm_alarms.write(false);
 
+        // Connect storage to signals (required by raw pointer API)
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::connect(inputs.machine_voltage_magnitude_pu, _storage_machine_voltage);
+        yeet::utils::mock_signal_input::connect(inputs.machine_frequency, _storage_machine_frequency);
+        yeet::utils::mock_signal_input::connect(inputs.dc_link_current_pu, _storage_dc_link_current);
+        yeet::utils::mock_signal_input::connect(inputs.machine_speed, _storage_machine_speed);
+        yeet::utils::mock_signal_input::connect(inputs.machine_frequency_pu, _storage_machine_frequency_pu);
+        yeet::utils::mock_signal_input::connect(inputs.startup_active, _storage_startup_active);
+        yeet::utils::mock_signal_input::connect(inputs.closed_loop_active, _storage_closed_loop_active);
+        yeet::utils::mock_signal_input::connect(inputs.release_protections, _storage_release_protections);
+        yeet::utils::mock_signal_input::connect(inputs.excitation_is_on, _storage_excitation_is_on);
+        yeet::utils::mock_signal_input::connect(inputs.external_fault, _storage_external_fault);
+
         // Set safe initial inputs
         reset_inputs();
     }
@@ -184,6 +197,18 @@ protected:
     void run_cycle() { _runner->run(); }
 
     std::unique_ptr<sfc_machine_side_protections_runner> _runner;
+
+    // Storage for mocked signals (required by raw pointer API)
+    voltage_pu_t _storage_machine_voltage{0.5f};
+    frequency_t _storage_machine_frequency{50.0};
+    current_pu_t _storage_dc_link_current{0.5f};
+    speed_pu_t _storage_machine_speed{0.5f};
+    frequency_pu_t _storage_machine_frequency_pu{0.5f};
+    bool _storage_startup_active{false};
+    bool _storage_closed_loop_active{false};
+    bool _storage_release_protections{true};
+    bool _storage_excitation_is_on{true};
+    bool _storage_external_fault{false};
 };
 
 /**
@@ -452,9 +477,9 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
     // Inject multiple severe fault conditions
     auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
     yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{2.0f});  // Severe over-flux
-    yeet::utils::mock_signal_input::write(inputs.machine_frequency, frequency_t{10.0});              // Very low frequency
-    yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{2.0f});            // High current
-    yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.01f});                  // Near-stall speed
+    yeet::utils::mock_signal_input::write(inputs.machine_frequency, frequency_t{10.0});    // Very low frequency
+    yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{2.0f});  // High current
+    yeet::utils::mock_signal_input::write(inputs.machine_speed, speed_pu_t{0.01f});        // Near-stall speed
 
     // Run multiple cycles
     for (int i = 0; i < 10; ++i) {

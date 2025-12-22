@@ -14,6 +14,19 @@ protected:
     {
         dut.initialize();
 
+        // Connect storage to signals (required by raw pointer API)
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().dc_link_current_pu, _storage_dc_link_current);
+        yeet::utils::mock_signal_input::connect(
+            dut.get_inputs().machine_voltage_magnitude_pu, _storage_machine_voltage);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().machine_frequency, _storage_machine_frequency);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().machine_frequency_pu, _storage_machine_frequency_pu);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().machine_speed, _storage_machine_speed);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().startup_active, _storage_startup_active);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().closed_loop_active, _storage_closed_loop_active);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().release_protections, _storage_release_protections);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().excitation_is_on, _storage_excitation_is_on);
+        yeet::utils::mock_signal_input::connect(dut.get_inputs().external_fault, _storage_external_fault);
+
         // Ensure all inputs have backing storage and deterministic initial values.
         yeet::utils::mock_signal_input::write(dut.get_inputs().dc_link_current_pu, current_pu_t{0.0f});
         yeet::utils::mock_signal_input::write(dut.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{0.0f});
@@ -70,6 +83,18 @@ protected:
     }
 
     sfc_machine_side_protections_runner dut;
+
+    // Storage for mocked signals (required by raw pointer API)
+    current_pu_t _storage_dc_link_current{0.0f};
+    voltage_pu_t _storage_machine_voltage{0.0f};
+    frequency_t _storage_machine_frequency{0.0f};
+    frequency_pu_t _storage_machine_frequency_pu{0.0f};
+    speed_pu_t _storage_machine_speed{0.0f};
+    bool _storage_startup_active{false};
+    bool _storage_closed_loop_active{true};
+    bool _storage_release_protections{true};
+    bool _storage_excitation_is_on{true};
+    bool _storage_external_fault{false};
 };
 
 TEST_F(MachineSideProtectionsRunnerUnitTest, OverspeedTripCanBeClearedByAcknowledgeThenConfirm)
