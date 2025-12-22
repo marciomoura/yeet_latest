@@ -95,13 +95,16 @@ TEST(signal_wiring_test, wire_multiple_sources)
 TEST(signal_wiring_test, wire_mocked_values)
 {
     mock_component target;
+    static float storage_a = 42.0f;
+    static float storage_b = 99.0f;
+    static bool storage_c = true;
 
     yeet::wire(target)
-        .mocked(42.0f)
+        .mocked(storage_a)
         .to(&mock_inputs::input_a)
-        .mocked(99.0f)
+        .mocked(storage_b)
         .to(&mock_inputs::input_b)
-        .mocked(true)
+        .mocked(storage_c)
         .to(&mock_inputs::input_c);
 
     EXPECT_FLOAT_EQ(target.get_inputs().input_a.read(), 42.0f);
@@ -113,15 +116,17 @@ TEST(signal_wiring_test, wire_mixed_connections_and_mocks)
 {
     mock_component source;
     mock_component target;
+    static float storage_a = 77.0f;
+    static bool storage_b = false;
 
     source.get_outputs().output_x.write(10.0f);
 
     yeet::wire(target)
         .from(source.get_outputs().output_x)
         .to(&mock_inputs::input_a)
-        .mocked(77.0f)
+        .mocked(storage_a)
         .to(&mock_inputs::input_b)
-        .mocked(false)
+        .mocked(storage_b)
         .to(&mock_inputs::input_c);
 
     EXPECT_FLOAT_EQ(target.get_inputs().input_a.read(), 10.0f);

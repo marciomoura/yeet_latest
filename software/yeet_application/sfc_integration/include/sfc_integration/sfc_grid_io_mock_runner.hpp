@@ -31,13 +31,23 @@ class sfc_grid_io_mock_runner {
 public:
     struct inputs {
         // Commands from control system (external_ios digital outputs)
-        signal_input<bool> mv_breaker_close{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> mv_breaker_open{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> auxiliaries_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_1_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_2_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_3_on_command{mock_signal_input::create_mocked<bool>()};
-        signal_input<bool> acu_fan_4_on_command{mock_signal_input::create_mocked<bool>()};
+        signal_input<bool> mv_breaker_close;
+        signal_input<bool> mv_breaker_open;
+        signal_input<bool> auxiliaries_on_command;
+        signal_input<bool> acu_fan_1_on_command;
+        signal_input<bool> acu_fan_2_on_command;
+        signal_input<bool> acu_fan_3_on_command;
+        signal_input<bool> acu_fan_4_on_command;
+    };
+
+    struct input_storage {
+        bool mv_breaker_close{false};
+        bool mv_breaker_open{false};
+        bool auxiliaries_on_command{false};
+        bool acu_fan_1_on_command{false};
+        bool acu_fan_2_on_command{false};
+        bool acu_fan_3_on_command{false};
+        bool acu_fan_4_on_command{false};
     };
 
     struct outputs {
@@ -124,8 +134,11 @@ public:
     const outputs& get_outputs() const { return _outputs; }
     parameters& get_parameters() { return _parameters; }
     const parameters& get_parameters() const { return _parameters; }
+    input_storage& get_input_storage() { return _input_storage; }
+    const input_storage& get_input_storage() const { return _input_storage; }
 
 private:
+    input_storage _input_storage;
     inputs _inputs;
     outputs _outputs;
     parameters _parameters;

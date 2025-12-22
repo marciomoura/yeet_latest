@@ -33,6 +33,11 @@ public:
         signal_input<bool> excitation_off_command;
     };
 
+    struct input_storage {
+        bool excitation_on_command{false};
+        bool excitation_off_command{false};
+    };
+
     struct outputs {
         // Hardware status feedback (external_ios digital inputs)
         signal_output<bool> excitation_status;
@@ -74,8 +79,11 @@ public:
     const outputs& get_outputs() const { return _outputs; }
     parameters& get_parameters() { return _parameters; }
     const parameters& get_parameters() const { return _parameters; }
+    input_storage& get_input_storage() { return _input_storage; }
+    const input_storage& get_input_storage() const { return _input_storage; }
 
 private:
+    input_storage _input_storage;
     inputs _inputs;
     outputs _outputs;
     parameters _parameters;

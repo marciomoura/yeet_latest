@@ -7,6 +7,7 @@
 #include "sfc_integration/sfc_machine_side_control.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "yeet/signal.hpp"
+#include "yeet/signal_wiring.hpp"
 #include "yeet_control/units.hpp"
 #include "yeet_testing/parameter_collection.hpp"
 #include "yeet_testing/simulator.hpp"
@@ -182,28 +183,19 @@ public:
             grid_side_control.update_1ms();
 
             // ========== GRID-SIDE -> GRID IO MOCKS ==========
-            // We should write to the grid IO mocks.
-            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_1_on_command,
-                grid_side_control.get_external_ios().get_on_command_acu_fan_1());
-            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_2_on_command,
-                grid_side_control.get_external_ios().get_on_command_acu_fan_2());
-            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_3_on_command,
-                grid_side_control.get_external_ios().get_on_command_acu_fan_3());
-            mock_signal_input::write<bool>(grid_io_mock.get_inputs().acu_fan_4_on_command,
-                grid_side_control.get_external_ios().get_on_command_acu_fan_4());
-            mock_signal_input::write<bool>(grid_io_mock.get_inputs().auxiliaries_on_command,
-                grid_side_control.get_external_ios().get_auxiliaries_on_command());
-            mock_signal_input::write<bool>(grid_io_mock.get_inputs().mv_breaker_close,
-                grid_side_control.get_external_ios().get_mv_breaker_close());
-            mock_signal_input::write<bool>(
-                grid_io_mock.get_inputs().mv_breaker_open, grid_side_control.get_external_ios().get_mv_breaker_open());
+            // Update IO mock storage with current control commands
+            _grid_io_storage.acu_fan_1_on_command = grid_side_control.get_external_ios().get_on_command_acu_fan_1();
+            _grid_io_storage.acu_fan_2_on_command = grid_side_control.get_external_ios().get_on_command_acu_fan_2();
+            _grid_io_storage.acu_fan_3_on_command = grid_side_control.get_external_ios().get_on_command_acu_fan_3();
+            _grid_io_storage.acu_fan_4_on_command = grid_side_control.get_external_ios().get_on_command_acu_fan_4();
+            _grid_io_storage.auxiliaries_on_command = grid_side_control.get_external_ios().get_auxiliaries_on_command();
+            _grid_io_storage.mv_breaker_close = grid_side_control.get_external_ios().get_mv_breaker_close();
+            _grid_io_storage.mv_breaker_open = grid_side_control.get_external_ios().get_mv_breaker_open();
 
             // ========== MACHINE-SIDE -> MACHINE IO MOCKS ==========
-            // We should write to the machine IO mocks.
-            mock_signal_input::write<bool>(machine_io_mock.get_inputs().excitation_on_command,
-                machine_side_control.external_ios.get_excitation_on_command());
-            mock_signal_input::write<bool>(machine_io_mock.get_inputs().excitation_off_command,
-                machine_side_control.external_ios.get_excitation_off_command());
+            // Update IO mock storage with current control commands
+            _machine_io_storage.excitation_on_command = machine_side_control.external_ios.get_excitation_on_command();
+            _machine_io_storage.excitation_off_command = machine_side_control.external_ios.get_excitation_off_command();
 
             // ========== I/O MOCK UPDATE ==========
             // Bidirectional IO mocks model physical hardware:
@@ -328,6 +320,10 @@ public:
     sfc_plant_model_runner plant;
 
 private:
+    // Storage for IO mock inputs (required for raw pointer signal infrastructure)
+    sfc_grid_io_mock_runner::input_storage _grid_io_storage;
+    sfc_machine_io_mock_runner::input_storage _machine_io_storage;
+
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
     {
         // 3 MVA per-unit system for Typhoon HIL testing
@@ -413,6 +409,31 @@ private:
 
         // Note: Fan commands (acu_fan_1..4_on_command) are not connected since fan status
         // is not critical for state machine operation. They can be connected later if needed.
+
+        // ==================== IO Mocks ↔ Control System (via storage) ====================
+        // Connect control command outputs to IO mock inputs via storage
+        // The new raw pointer infrastructure requires explicit storage for signal inputs
+        yeet::wire(grid_io_mock.get_inputs())
+            .mocked(_grid_io_storage.mv_breaker_close)
+            .to(&sfc_grid_io_mock_runner::inputs::mv_breaker_close)
+            .mocked(_grid_io_storage.mv_breaker_open)
+            .to(&sfc_grid_io_mock_runner::inputs::mv_breaker_open)
+            .mocked(_grid_io_storage.auxiliaries_on_command)
+            .to(&sfc_grid_io_mock_runner::inputs::auxiliaries_on_command)
+            .mocked(_grid_io_storage.acu_fan_1_on_command)
+            .to(&sfc_grid_io_mock_runner::inputs::acu_fan_1_on_command)
+            .mocked(_grid_io_storage.acu_fan_2_on_command)
+            .to(&sfc_grid_io_mock_runner::inputs::acu_fan_2_on_command)
+            .mocked(_grid_io_storage.acu_fan_3_on_command)
+            .to(&sfc_grid_io_mock_runner::inputs::acu_fan_3_on_command)
+            .mocked(_grid_io_storage.acu_fan_4_on_command)
+            .to(&sfc_grid_io_mock_runner::inputs::acu_fan_4_on_command);
+
+        yeet::wire(machine_io_mock.get_inputs())
+            .mocked(_machine_io_storage.excitation_on_command)
+            .to(&sfc_machine_io_mock_runner::inputs::excitation_on_command)
+            .mocked(_machine_io_storage.excitation_off_command)
+            .to(&sfc_machine_io_mock_runner::inputs::excitation_off_command);
     }
 };
 

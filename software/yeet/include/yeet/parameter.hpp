@@ -4,7 +4,6 @@
 #include <cassert>
 #include <functional>
 #include <memory>
-#include <string_view>
 
 #include "utils/low_level_access.hpp"
 #include "utils/low_level_access_registry.hpp"
@@ -16,7 +15,7 @@ template <typename T>
 class parameter {
 public:
     parameter() = default;
-    parameter(T value) : _value(std::make_shared<T>(value)) {}
+    parameter(T value) : _data(value) {}
     ~parameter() = default;
 
     low_level_access get_low_level_access() { return low_level_access(_value); }
@@ -57,7 +56,8 @@ public:
 private:
     std::function<void(void)> _callback{};
 
-    storage_type<T> _value{std::make_shared<T>()};
+    T _data{};
+    storage_type<T> _value{&_data};
 };
 
 class parameter_registry {
@@ -66,19 +66,19 @@ public:
     ~parameter_registry() = default;
 
     template <typename T>
-    void insert(std::string_view name, parameter<T>& parameter)
+    void insert(const std::string& name, parameter<T>& parameter)
     {
         _registry.insert(name, parameter.get_low_level_access());
     }
 
     // Direct insertion of low_level_access with custom read/write functions
-    void insert(std::string_view name, low_level_access accessor) { _registry.insert(name, accessor); }
+    void insert(const std::string& name, low_level_access accessor) { _registry.insert(name, accessor); }
 
     bool empty() { return _registry.empty(); }
 
     void clear() { _registry.clear(); }
 
-    std::optional<low_level_access> get(std::string_view name) const { return _registry.get(name); }
+    std::optional<low_level_access> get(const std::string& name) const { return _registry.get(name); }
 
     auto begin() { return _registry.begin(); }
     auto end() { return _registry.end(); }

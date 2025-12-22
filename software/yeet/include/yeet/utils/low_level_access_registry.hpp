@@ -4,7 +4,7 @@
 #include <functional>
 #include <map>
 #include <optional>
-#include <string_view>
+#include <string>
 
 #include "low_level_access.hpp"
 
@@ -20,8 +20,7 @@ public:
 
     void clear() { _registry_map.clear(); }
 
-    void insert(std::string_view name, low_level_access llaccess)
-    {
+    void insert(const std::string& name, low_level_access llaccess) {
         if (_registry_map.find(name) != _registry_map.end()) {
             assert(false && "Entry already exists in registry");
             return;
@@ -30,8 +29,7 @@ public:
         _registry_map[name] = llaccess;
     }
 
-    std::optional<low_level_access> get(std::string_view name) const
-    {
+    std::optional<low_level_access> get(const std::string& name) const {
         auto it = _registry_map.find(name);
 
         if (it == _registry_map.end()) {
@@ -49,7 +47,7 @@ public:
     auto cend() const { return _registry_map.cend(); }
 
 private:
-    std::map<std::string_view, low_level_access> _registry_map{};
+    std::map<std::string, low_level_access> _registry_map{};
 };
 
 #endif  // YEET_UTILS_LOW_LEVEL_ACCESS_REGISTRY_HPP

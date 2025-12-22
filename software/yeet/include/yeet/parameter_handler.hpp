@@ -12,6 +12,8 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <string>
+#include <vector>
 
 #include "yeet/model_registry.hpp"
 #include "yeet/network_telemetry.hpp"
@@ -151,10 +153,10 @@ static_assert(
  * Stores cached information about a parameter from model_registry
  */
 struct parameter_cache_entry {
-    char component[32];
-    char name[32];
-    char display_name[64];      // Formatted from component.name
-    char unit[16];              // Extracted from type or default ""
+    std::string component;
+    std::string name;
+    std::string display_name;   // Formatted from component.name
+    std::string unit;           // Extracted from type or default ""
     parameter_value_type type;  // Currently only FLOAT32 supported
     float min_value;            // TODO: Extract from metadata when available
     float max_value;            // TODO: Extract from metadata when available
@@ -170,11 +172,6 @@ struct parameter_cache_entry {
  */
 class parameter_handler {
 public:
-    /**
-     * @brief Maximum number of parameters supported in the cache
-     */
-    static constexpr std::size_t MAX_PARAMETERS = 256;
-
     /**
      * @brief Construct parameter handler from model_registry
      * @param registry Reference to model_registry containing all parameters
@@ -216,7 +213,7 @@ public:
     /**
      * @brief Get total parameter count
      */
-    std::uint16_t get_parameter_count() const { return static_cast<std::uint16_t>(parameter_cache_size_); }
+    std::uint16_t get_parameter_count() const { return static_cast<std::uint16_t>(parameter_cache_.size()); }
 
     /**
      * @brief Rebuild parameter cache from registry
@@ -260,12 +257,7 @@ private:
      * @brief Indexed cache of parameter metadata for fast lookup
      * Built once during construction by iterating model_registry
      */
-    std::array<parameter_cache_entry, MAX_PARAMETERS> parameter_cache_;
-
-    /**
-     * @brief Current number of parameters in the cache
-     */
-    std::size_t parameter_cache_size_ = 0;
+    std::vector<parameter_cache_entry> parameter_cache_;
 
     /**
      * @brief Sequence counter for response packets

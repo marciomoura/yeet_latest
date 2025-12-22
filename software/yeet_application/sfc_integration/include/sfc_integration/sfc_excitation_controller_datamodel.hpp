@@ -147,7 +147,7 @@ public:
 
         auto& speed_axis_param = _model_parameters->voltage_reference_speed_axis_pu;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(speed_axis_names[i],
+            entry.parameters.insert(std::string(speed_axis_names[i]),
                 low_level_access([&speed_axis_param,
                                      i]() -> float { return static_cast<float>(speed_axis_param.read()[i].value()); },
                     [&speed_axis_param, i](float value) {
@@ -163,7 +163,7 @@ public:
 
         auto& voltage_ref_param = _model_parameters->voltage_reference_pu;
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(voltage_ref_names[i],
+            entry.parameters.insert(std::string(voltage_ref_names[i]),
                 low_level_access([&voltage_ref_param,
                                      i]() -> float { return static_cast<float>(voltage_ref_param.read()[i].value()); },
                     [&voltage_ref_param, i](float value) {

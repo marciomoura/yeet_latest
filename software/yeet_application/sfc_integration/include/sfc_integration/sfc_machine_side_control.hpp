@@ -322,6 +322,12 @@ private:
     // Fixed speed reference for startup sequencer coordination (temporary, until speed_generator reintegration)
     speed_pu_t _fixed_speed_reference{1.0};
 
+    // Storage for mocked signal inputs (required for raw pointer signal infrastructure)
+    struct {
+        bool enable_breakaway_boost{false};
+        bool is_saturated{false};
+    } _mock_storage;
+
     /**
      * @brief Connect internal signals between machine-side components
      */
