@@ -609,3 +609,90 @@ TEST_F(ClosedLoopShutdownTest, BreakerTrippingShutdownTest)
 
     EXPECT_TRUE(success) << "Breaker tripping shutdown test should complete without errors";
 }
+
+/**
+ * @test CommunicationLossShutdownTest
+ * @brief Validates emergency shutdown when fiber optic communication is lost
+ *
+ * This test verifies that the system performs an immediate shutdown when
+ * the fiber optic link fails for 10ms, which is longer than the configured
+ * watchdog timeout.
+ */
+TEST_F(ClosedLoopShutdownTest, CommunicationLossShutdownTest)
+{
+    // Enable protection module
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+    system.machine_side_control.machine_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Bring system to operation
+    bring_to_operation();
+
+    // Configure short communication timeout (5ms) to ensure 10ms failure trips
+    system.grid_side_control.grid_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+    system.machine_side_control.machine_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
+
+    // Simulate fiber optic failure for 10ms
+    system.fiber_optic_failure = true;
+    simulator.simulate_for(0.010);
+    system.fiber_optic_failure = false;
+
+    // Allow time for state machine to react
+    simulator.simulate_for(0.1);
+
+    // Verify both sides detected the fault
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side should detect communication loss trip";
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().communication_loss_tripped.read())
+        << "Machine-side should detect communication loss trip";
+
+    // Verify state machine moved to IDLE (emergency shutdown)
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE)
+        << "State machine should transition to IDLE on communication loss";
+}
+
+/**
+ * @test UnidirectionalCommunicationLossShutdownTest
+ * @brief Validates that a failure in only one fiber direction trips both sides
+ *
+ * This test verifies the "heartbeat" logic: if Grid->Machine fiber is broken,
+ * Machine side trips due to RX failure, and Grid side trips because Machine
+ * reports 'communication_ok = false'.
+ */
+TEST_F(ClosedLoopShutdownTest, UnidirectionalCommunicationLossShutdownTest)
+{
+    // Enable protection module
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+    system.machine_side_control.machine_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Bring system to operation
+    bring_to_operation();
+
+    // Configure short communication timeout (5ms)
+    system.grid_side_control.grid_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+    system.machine_side_control.machine_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+
+    // Simulate Grid -> Machine failure ONLY
+    // Grid RX is still fine, but Machine RX is broken
+    system.fiber_optic_grid_to_machine_failure = true;
+    simulator.simulate_for(0.020);  // 20ms is plenty for 5ms timeout
+
+    // Verify Machine-side tripped due to local RX failure
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().communication_loss_tripped.read())
+        << "Machine-side should detect local RX failure";
+
+    // Verify Grid-side ALSO tripped (via heartbeat/remote_ok bit)
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side should trip because Machine reported communication failure";
+
+    // Allow time for shutdown sequence to complete (extinguish current -> IDLE)
+    simulator.simulate_for(1.0);
+
+    // Verify state machine moved to IDLE
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "State machine should transition to IDLE";
+}

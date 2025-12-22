@@ -53,6 +53,9 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.machine_release_protections) {
         packed_flags |= (1U << grid_to_machine_message::machine_release_protections_bit_pos);
     }
+    if (msg.communication_ok) {
+        packed_flags |= (1U << grid_to_machine_message::communication_ok_bit_pos);
+    }
 
     // Encode state ID at the end (bits 25-31)
     packed_flags |= (static_cast<std::uint32_t>(msg.state_id) & grid_to_machine_message::state_id_mask)
@@ -95,6 +98,7 @@ namespace yeet::application::sfc::fiber_optic {
         (packed_flags & (1U << grid_to_machine_message::grid_release_protections_bit_pos)) != 0;
     msg.machine_release_protections =
         (packed_flags & (1U << grid_to_machine_message::machine_release_protections_bit_pos)) != 0;
+    msg.communication_ok = (packed_flags & (1U << grid_to_machine_message::communication_ok_bit_pos)) != 0;
 
     // Decode state ID from the end (bits 25-31)
     msg.state_id = static_cast<std::uint8_t>(
@@ -136,6 +140,9 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.protection_inhibit) {
         packed_flags |= (1U << machine_to_grid_message::protection_inhibit_bit_pos);
     }
+    if (msg.communication_ok) {
+        packed_flags |= (1U << machine_to_grid_message::communication_ok_bit_pos);
+    }
     payload[3] = packed_flags;
 
     return machine_to_grid_payload_length;
@@ -171,6 +178,7 @@ namespace yeet::application::sfc::fiber_optic {
     msg.machine_protection_tripped =
         (packed_flags & (1U << machine_to_grid_message::machine_protection_tripped_bit_pos)) != 0;
     msg.protection_inhibit = (packed_flags & (1U << machine_to_grid_message::protection_inhibit_bit_pos)) != 0;
+    msg.communication_ok = (packed_flags & (1U << machine_to_grid_message::communication_ok_bit_pos)) != 0;
 
     return msg;
 }

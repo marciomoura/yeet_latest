@@ -56,6 +56,7 @@ std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
     tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
     tx_msg.machine_protection_tripped = machine_protections.get_outputs().is_tripped.read();
     tx_msg.protection_inhibit = machine_protections.get_outputs().is_inhibited.read();
+    tx_msg.communication_ok = !machine_protections.get_outputs().communication_loss_tripped.read();
     _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
 }

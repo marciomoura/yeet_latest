@@ -341,7 +341,8 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
 
     // Feed communication validity into the protections watchdog (trips after configured timeout).
     // This is updated every cycle so loss of updates or link errors are detected.
-    control->grid_protections.update_communication_status(fiber_comm_valid);
+    bool remote_ok = control->get_external_ios().get_fiber_optics_inputs_from_machine().communication_ok.read();
+    control->grid_protections.update_communication_status(fiber_comm_valid, remote_ok);
 
     // ==================== EXECUTE CONTROL UPDATE ====================
     // Digital input overrides are automatically applied within the state machine lambdas

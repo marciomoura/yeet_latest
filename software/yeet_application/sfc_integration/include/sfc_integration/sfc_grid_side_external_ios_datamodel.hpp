@@ -230,6 +230,7 @@ public:
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current [pu] (grid-measured)
         signal_output<bool> freeze_integrator{false};                    ///< Speed controller integrator freeze
         signal_output<bool> is_requesting_main_pi_reset{false};          ///< Main PI reset request from modulator
+        signal_output<bool> communication_ok{false};  ///< Grid-side communication status (receiving machine)
         signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine state ID
     };
@@ -260,6 +261,7 @@ public:
         external_signal<bool> request_force_commutation{false};   ///< Force commutation request
         external_signal<bool> machine_protection_tripped{false};  ///< Machine-side protections tripped
         external_signal<bool> protection_inhibit{false};          ///< Protection system inhibited (awaiting ack)
+        external_signal<bool> communication_ok{false};  ///< Machine-side communication status (receiving grid)
     };
 
     // ==================== DIGITAL OUTPUTS (Main Circuit Breaker Control) ====================

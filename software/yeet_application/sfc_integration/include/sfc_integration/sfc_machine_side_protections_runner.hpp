@@ -47,14 +47,16 @@ public:
      * The watchdog will track consecutive communication failures and trip if threshold exceeded.
      *
      * @param communication_valid True if fiber-optic decode succeeded, false if failed
+     * @param remote_communication_ok True if remote side reports it is receiving us
      *
      * Example usage in machine_side_control:
      * @code
      * bool rx_ok = decode_fiber_optic_rx_from_grid(payload, length);
-     * machine_protections.update_communication_status(rx_ok);
+     * bool remote_ok = msg.communication_ok;
+     * machine_protections.update_communication_status(rx_ok, remote_ok);
      * @endcode
      */
-    void update_communication_status(bool communication_valid);
+    void update_communication_status(bool communication_valid, bool remote_communication_ok = true);
 
 private:
     // Common machine-side protections application
@@ -62,6 +64,7 @@ private:
 
     // Communication status tracking
     bool _last_communication_valid{true};  // Track decode success from previous cycle
+    bool _last_remote_communication_ok{true};
 
     /**
      * @brief Apply parameter changes to protection components

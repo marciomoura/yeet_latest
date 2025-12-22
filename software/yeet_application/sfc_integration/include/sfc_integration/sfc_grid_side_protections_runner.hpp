@@ -43,8 +43,11 @@ public:
      *
      * Call this method immediately after attempting to decode fiber-optic RX data.
      * The watchdog will track consecutive communication failures and trip if threshold exceeded.
+     *
+     * @param communication_valid True if local fiber-optic decode succeeded
+     * @param remote_communication_ok True if remote side reports it is receiving us
      */
-    void update_communication_status(bool communication_valid);
+    void update_communication_status(bool communication_valid, bool remote_communication_ok = true);
 
 private:
     // Common grid-side protections application
@@ -52,6 +55,7 @@ private:
 
     // Communication status tracking (set via update_communication_status)
     bool _last_communication_valid{true};
+    bool _last_remote_communication_ok{true};
 
     /**
      * @brief Apply parameter changes to protection components

@@ -203,6 +203,7 @@ public:
         signal_output<bool> machine_protection_tripped{false};                     ///< Machine-side protections tripped
         signal_output<bool> protection_inhibit{false};         ///< Protection inhibited (awaiting ack)
         signal_output<bool> machine_trip_acknowledged{false};  ///< Machine-side trip acknowledgment
+        signal_output<bool> communication_ok{false};           ///< Machine-side communication status (receiving grid)
     };
 
     // ==================== FIBER-OPTICS INPUTS FROM GRID-SIDE ====================
@@ -239,6 +240,7 @@ public:
             yeet::application::sfc::sfc_state_id::IDLE};        ///< Grid-side state ID
         external_signal<bool> grid_release_protections{false};  ///< Grid protection release (from grid state machine)
         external_signal<bool> machine_release_protections{false};  ///< Machine protection release (via fiber optics)
+        external_signal<bool> communication_ok{false};  ///< Grid-side communication status (receiving machine)
     };
 
     // ==================== DIGITAL OUTPUTS ====================

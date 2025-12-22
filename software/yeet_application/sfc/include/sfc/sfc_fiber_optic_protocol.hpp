@@ -64,17 +64,19 @@ struct grid_to_machine_message {
     bool release_pulses{false};                      /**< Thyristor pulses are enabled */
     bool grid_release_protections{false};            /**< Grid-side protection release (from state machine) */
     bool machine_release_protections{false};         /**< Machine-side protection release (via fiber optics) */
+    bool communication_ok{false};                    /**< Grid-side communication status (receiving machine) */
     std::uint8_t state_id{0};                        /**< Current grid-side state machine state */
 
     // Bit field layout for Word 2 encoding
-    // Boolean flags occupy bits 0-4, state_id occupies bits 25-31, unused bits 5-24
+    // Boolean flags occupy bits 0-5, state_id occupies bits 25-31, unused bits 6-24
     enum bit_positions : std::uint8_t {
         is_forced_commutation_bit_pos = 0,        // Bit 0
         force_comm_ack_bit_pos = 1,               // Bit 1
         release_pulses_bit_pos = 2,               // Bit 2
         grid_release_protections_bit_pos = 3,     // Bit 3
         machine_release_protections_bit_pos = 4,  // Bit 4
-        unused_bits_start = 5,                    // Bits 5-24 reserved
+        communication_ok_bit_pos = 5,             // Bit 5
+        unused_bits_start = 6,                    // Bits 6-24 reserved
         unused_bits_end = 24
     };
 
@@ -174,12 +176,14 @@ struct machine_to_grid_message {
     bool force_commutation_request{false};              /**< Force commutation requested by machine side */
     bool machine_protection_tripped{false};             /**< Machine-side protections have tripped */
     bool protection_inhibit{false}; /**< Protection system inhibited (awaiting user acknowledgment) */
+    bool communication_ok{false};   /**< Machine-side communication status (receiving grid) */
 
     // Bit field layout for Word 3 encoding
     enum bit_positions : std::uint8_t {
         force_comm_req_bit_pos = 0,              // Bit 0
         machine_protection_tripped_bit_pos = 2,  // Bit 2
-        protection_inhibit_bit_pos = 3           // Bit 3
+        protection_inhibit_bit_pos = 3,          // Bit 3
+        communication_ok_bit_pos = 5             // Bit 5
     };
 };
 

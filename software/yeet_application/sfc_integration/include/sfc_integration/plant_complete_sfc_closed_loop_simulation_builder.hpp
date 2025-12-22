@@ -234,8 +234,14 @@ public:
             bool machine_comm_valid = machine_side_control.decode_fiber_optic_rx_from_grid(
                 grid_side_control.get_fiber_optic_tx_payload(), grid_side_control.get_fiber_optic_tx_length());
 
+            if (fiber_optic_failure || fiber_optic_grid_to_machine_failure) {
+                machine_comm_valid = false;
+            }
+
             // Update protection system with communication status for watchdog monitoring
-            machine_side_control.machine_protections.update_communication_status(machine_comm_valid);
+            bool machine_remote_ok =
+                machine_side_control.external_ios.get_fiber_optics_inputs_from_grid().communication_ok.read();
+            machine_side_control.machine_protections.update_communication_status(machine_comm_valid, machine_remote_ok);
 
             // ========== MACHINE-SIDE CONTROL UPDATE ==========
             // Machine-side inner control loop:
@@ -258,8 +264,14 @@ public:
             bool grid_comm_valid = grid_side_control.decode_fiber_optic_rx_from_machine(
                 machine_side_control.get_fiber_optic_tx_payload(), machine_side_control.get_fiber_optic_tx_length());
 
+            if (fiber_optic_failure || fiber_optic_machine_to_grid_failure) {
+                grid_comm_valid = false;
+            }
+
             // Update grid-side protection system with communication status for watchdog monitoring
-            grid_side_control.grid_protections.update_communication_status(grid_comm_valid);
+            bool grid_remote_ok =
+                grid_side_control.get_external_ios().get_fiber_optics_inputs_from_machine().communication_ok.read();
+            grid_side_control.grid_protections.update_communication_status(grid_comm_valid, grid_remote_ok);
         });
 
         // 10ms sampling (100 Hz): State machine, speed controller
@@ -318,6 +330,15 @@ public:
 
     // Plant model
     sfc_plant_model_runner plant;
+
+    /// @brief Flag to simulate fiber optic communication failure
+    bool fiber_optic_failure = false;
+
+    /// @brief Flag to simulate unidirectional fiber optic failure (Grid -> Machine broken)
+    bool fiber_optic_grid_to_machine_failure = false;
+
+    /// @brief Flag to simulate unidirectional fiber optic failure (Machine -> Grid broken)
+    bool fiber_optic_machine_to_grid_failure = false;
 
 private:
     // Storage for IO mock inputs (required for raw pointer signal infrastructure)

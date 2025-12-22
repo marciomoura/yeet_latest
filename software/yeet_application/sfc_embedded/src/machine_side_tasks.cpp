@@ -271,7 +271,8 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
             inputs->fiber_optic_rx.payload, inputs->fiber_optic_rx.payload_length);
     }
     // Update protection system with communication status for watchdog monitoring
-    control->machine_protections.update_communication_status(communication_valid);
+    bool remote_ok = control->external_ios.get_fiber_optics_inputs_from_grid().communication_ok.read();
+    control->machine_protections.update_communication_status(communication_valid, remote_ok);
 
     // Execute 1 kHz control update (machine controller)
     control->update_1ms();

@@ -69,7 +69,7 @@ void sfc_machine_side_protections_runner::run()
     const bool release_signal = _inputs.release_protections;
 
     if (module_enabled) {
-        _protections.update_communication_watchdog(_last_communication_valid);
+        _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
         _protections.update_vhz_protection(_inputs.machine_voltage_magnitude_pu.read(),
             _inputs.machine_frequency_pu.read(), _inputs.closed_loop_active.read());
         _protections.update_stall_protection(
@@ -116,9 +116,11 @@ void sfc_machine_side_protections_runner::run()
 
 void sfc_machine_side_protections_runner::stop() { reset(); }
 
-void sfc_machine_side_protections_runner::update_communication_status(bool communication_valid)
+void sfc_machine_side_protections_runner::update_communication_status(
+    bool communication_valid, bool remote_communication_ok)
 {
     _last_communication_valid = communication_valid;
+    _last_remote_communication_ok = remote_communication_ok;
 }
 
 void sfc_machine_side_protections_runner::set_parameters()
