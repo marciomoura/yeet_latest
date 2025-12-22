@@ -1374,14 +1374,16 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
     
     def _on_parameter_response(self, response: dict):
         """Handle parameter response from controller."""
-        if not self.param_loading:
-            # Ignore responses when not loading (might be stale responses)
-            return
-        
         try:
             response_type = response.get('type')
+            logger.debug(f"Received parameter response: type={response_type}")
             
+            # Only filter out responses during loading for count_response type
+            # Other response types (set_response, get_by_index_response) should always be processed
             if response_type == 'count_response':
+                if not self.param_loading:
+                    logger.debug("Ignoring count_response - not in loading mode")
+                    return
                 # Received parameter count, now request each by index
                 total_count = response.get('total_parameters', 0)
                 if total_count <= 0:
@@ -1408,24 +1410,56 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 # Received parameter metadata
                 metadata: ParameterMetadata = response.get('metadata')
                 if metadata:
-                    # Track that we received this index
-                    self.received_parameter_indices.add(metadata.parameter_index)
+                    logger.debug(f"GET_BY_INDEX_RESPONSE: {metadata.component}.{metadata.name} = {metadata.current_value} (param_loading={self.param_loading})")
                     
-                    self.parameters.append(metadata)
-                    self._add_parameter_to_tree(metadata)
+                    # Clear pending readback if this matches
+                    if hasattr(self, '_pending_readback') and self._pending_readback is not None:
+                        if (self._pending_readback['component'] == metadata.component and 
+                            self._pending_readback['name'] == metadata.name):
+                            logger.debug(f"Clearing pending readback for {metadata.component}.{metadata.name}")
+                            self._pending_readback = None
                     
-                    # Update status
-                    retry_str = f" (retry {self.retry_attempt})" if self.retry_attempt > 0 else ""
-                    self.param_status_label.setText(f"Loaded {len(self.parameters)}/{metadata.total_parameters} parameters{retry_str}")
+                    # Check if we already have this parameter (to handle refresh/read-back)
+                    existing_found = False
+                    for p in self.parameters:
+                        if p.component == metadata.component and p.name == metadata.name:
+                            logger.info(f"Updating existing parameter: {p.component}.{p.name} from {p.current_value} to {metadata.current_value}")
+                            p.current_value = metadata.current_value
+                            self._update_parameter_in_tree(p.component, p.name, p.current_value)
+                            existing_found = True
+                            break
                     
-                    # Check if done (all expected parameters received)
-                    if len(self.received_parameter_indices) >= self.total_parameter_count:
-                        logger.info(f"All {self.total_parameter_count} parameters received!")
-                        # Cancel retry check timer if running
-                        self.retry_check_timer.stop()
-                        self._complete_parameter_load()
+                    if not existing_found and self.param_loading:
+                        # Only add new parameters if we're in loading mode
+                        logger.debug(f"Adding new parameter during load: {metadata.component}.{metadata.name}")
+                        # Track that we received this index
+                        self.received_parameter_indices.add(metadata.parameter_index)
+                        
+                        self.parameters.append(metadata)
+                        self._add_parameter_to_tree(metadata)
+                        
+                        # Update status
+                        retry_str = f" (retry {self.retry_attempt})" if self.retry_attempt > 0 else ""
+                        self.param_status_label.setText(f"Loaded {len(self.parameters)}/{metadata.total_parameters} parameters{retry_str}")
+                        
+                        # Check if done (all expected parameters received)
+                        if len(self.received_parameter_indices) >= self.total_parameter_count:
+                            logger.info(f"All {self.total_parameter_count} parameters received!")
+                            # Cancel retry check timer if running
+                            self.retry_check_timer.stop()
+                            self._complete_parameter_load()
+                    elif not existing_found and not self.param_loading:
+                        logger.warning(f"Received get_by_index_response for unknown parameter {metadata.component}.{metadata.name} when not loading - ignoring")
                 else:
                     logger.warning(f"Received get_by_index_response with no metadata")
+            
+            elif response_type == 'get_response':
+                # Received current parameter value
+                component = response.get('component')
+                name = response.get('name')
+                value = response.get('value')
+                logger.info(f"Parameter read: {component}.{name} = {value}")
+                self._update_parameter_in_tree(component, name, value)
             
             elif response_type == 'set_response':
                 # Parameter set response
@@ -1434,10 +1468,9 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 name = response.get('name')
                 new_value = response.get('new_value')
                 
-                if status and hasattr(status, 'name') and status.name == 'SUCCESS':
-                    logger.info(f"Parameter set: {component}.{name} = {new_value}")
-                    # Update tree
-                    self._update_parameter_in_tree(component, name, new_value)
+                if status is not None and hasattr(status, 'name') and status.name == 'SUCCESS':
+                    logger.info(f"Parameter set acknowledged: {component}.{name} = {new_value} (waiting for read confirmation)")
+                    # Don't update tree here - wait for GET_RESPONSE to confirm actual value
                 else:
                     error_msg = response.get('error_message', 'Unknown error')
                     QtWidgets.QMessageBox.warning(self, "Parameter Set Failed", f"{component}.{name}: {error_msg}")
@@ -1472,17 +1505,18 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # Find parameter in tree
         for i in range(self.param_tree.topLevelItemCount()):
             comp_item = self.param_tree.topLevelItem(i)
-            if comp_item.text(0) == component:
+            if comp_item.text(0).strip() == component.strip():
                 for j in range(comp_item.childCount()):
                     param_item = comp_item.child(j)
                     metadata: ParameterMetadata = param_item.data(0, QtCore.Qt.UserRole)
-                    if metadata and metadata.name == name:
+                    if metadata and metadata.name.strip() == name.strip():
                         # Update metadata
                         metadata.current_value = new_value
                         # Update display
                         param_item.setText(1, f"{new_value:.6f} {metadata.unit}")
                         logger.info(f"Updated tree: {component}.{name} = {new_value}")
                         return
+        logger.warning(f"Could not find parameter in tree to update: {component}.{name}")
     
     def _on_parameter_double_clicked(self, item: QtWidgets.QTreeWidgetItem, column: int):
         """Handle double-click on parameter item."""
@@ -1496,9 +1530,58 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
             new_value = dialog.get_new_value()
             logger.info(f"User wants to set {metadata.full_name} = {new_value}")
             
+            # Capture component and name for lambda (avoid capturing entire metadata object)
+            component = metadata.component
+            name = metadata.name
+            index = metadata.parameter_index
+            
+            logger.info(f"Sending SET request: {component}.{name} = {new_value}")
+            
             # Send set request
-            if not self.network_client.send_parameter_set_request(metadata.component, metadata.name, new_value):
+            if not self.network_client.send_parameter_set_request(component, name, new_value):
                 QtWidgets.QMessageBox.warning(self, "Error", "Failed to send parameter set request")
+            else:
+                logger.info(f"SET request sent successfully, scheduling GET_BY_INDEX({index}) in 150ms")
+                # Request read back to confirm value on controller with retry support
+                # This ensures the UI displays what is actually on the board
+                self._pending_readback = {'index': index, 'component': component, 'name': name, 'retries': 0, 'max_retries': 3}
+                QtCore.QTimer.singleShot(150, self._send_readback_request)
+    
+    def _send_readback_request(self):
+        """Send a read-back request for pending parameter."""
+        if not hasattr(self, '_pending_readback') or self._pending_readback is None:
+            return
+        
+        index = self._pending_readback['index']
+        retries = self._pending_readback['retries']
+        max_retries = self._pending_readback['max_retries']
+        
+        logger.info(f"Sending GET_BY_INDEX request for parameter index {index} (attempt {retries + 1}/{max_retries + 1})")
+        if not self.network_client.send_parameter_get_by_index_request(index):
+            logger.error(f"Failed to send GET_BY_INDEX request for index {index}")
+            self._pending_readback = None
+            return
+        
+        # Schedule a timeout check - if we don't get a response, retry
+        QtCore.QTimer.singleShot(500, self._check_readback_received)
+    
+    def _check_readback_received(self):
+        """Check if read-back was received, retry if not."""
+        if not hasattr(self, '_pending_readback') or self._pending_readback is None:
+            return  # Already received or cancelled
+        
+        retries = self._pending_readback['retries']
+        max_retries = self._pending_readback['max_retries']
+        component = self._pending_readback['component']
+        name = self._pending_readback['name']
+        
+        if retries < max_retries:
+            self._pending_readback['retries'] = retries + 1
+            logger.warning(f"Read-back timeout for {component}.{name}, retrying ({retries + 1}/{max_retries})")
+            self._send_readback_request()
+        else:
+            logger.error(f"Read-back failed after {max_retries + 1} attempts for {component}.{name}")
+            self._pending_readback = None
     
     def _on_save_parameters_to_file(self):
         """Save current parameter values to JSON file."""

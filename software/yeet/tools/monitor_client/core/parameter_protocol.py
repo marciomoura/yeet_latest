@@ -502,14 +502,14 @@ class ParameterProtocolDecoder:
             total_parameters=total_params
         )
     
-    def decode_get_response(self, data: bytes) -> Optional[ParameterValue]:
+    def decode_get_response(self, data: bytes) -> Optional[tuple[ParameterValue, int]]:
         """Decode PARAM_GET_RESPONSE packet.
         
         Args:
             data: Binary response data
         
         Returns:
-            ParameterValue object, or None if decode failed
+            Tuple of (ParameterValue, bytes_consumed), or None if decode failed
         """
         if len(data) < self.HEADER_SIZE:
             return None
@@ -520,6 +520,10 @@ class ParameterProtocolDecoder:
         )
         
         if packet_type != PacketType.PARAM_GET_RESPONSE:
+            return None
+            
+        expected_size = self.HEADER_SIZE + payload_len
+        if len(data) < expected_size:
             return None
         
         offset = self.HEADER_SIZE
@@ -533,11 +537,11 @@ class ParameterProtocolDecoder:
         
         value, = struct.unpack('<f', data[offset:offset+4])
         
-        return ParameterValue(
+        return (ParameterValue(
             component=component,
             name=name,
             value=value
-        )
+        ), expected_size)
     
     def decode_set_response(self, data: bytes) -> Optional[tuple[dict, int]]:
         """Decode PARAM_SET_RESPONSE packet.

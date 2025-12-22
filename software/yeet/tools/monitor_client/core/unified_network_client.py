@@ -352,6 +352,36 @@ class UnifiedNetworkClient(QtCore.QObject):
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
             return False
+
+    def send_parameter_get_request(self, component: str, name: str) -> bool:
+        """Request current parameter value from controller.
+        
+        Args:
+            component: Component name
+            name: Parameter name
+            
+        Returns:
+            True if request sent successfully, False otherwise
+        """
+        if not self.connected:
+            logger.error(f"Not connected - cannot send parameter request")
+            return False
+        
+        try:
+            # Encode GET request
+            request_bytes = self._param_encoder.encode_get_request(component, name)
+            
+            # Send request (server will respond while telemetry continues)
+            self._socket.sendall(request_bytes)
+            
+            logger.debug(f"Sent parameter GET request for {component}.{name}")
+            return True
+            
+        except Exception as e:
+            error_msg = f"Failed to send parameter GET request: {e}"
+            logger.error(error_msg)
+            self.error_occurred.emit(error_msg)
+            return False
     
     def send_parameter_set_request(self, component: str, name: str, value: float) -> bool:
         """Set parameter value on controller.
@@ -504,12 +534,17 @@ class UnifiedNetworkClient(QtCore.QObject):
                 # Peek at packet type
                 packet_type = self._recv_buffer[0]
                 
+                if self.verbose:
+                    logger.debug(f"Processing packet: type=0x{packet_type:02x}, buffer_len={len(self._recv_buffer)}")
+                
                 # Try to process one packet
                 consumed = False
                 
                 if packet_type in [0x01, 0x02]:  # Telemetry packets
                     consumed = self._process_telemetry_packet()
-                elif packet_type in [0x41, 0x47, 0x49]:  # Parameter response packets
+                elif packet_type in [0x41, 0x43, 0x47, 0x49]:  # Parameter response packets
+                    if self.verbose:
+                        logger.debug(f"Detected parameter packet type 0x{packet_type:02x}")
                     consumed = self._process_parameter_response(packet_type)
                 else:
                     # Unknown packet type - try recovery
@@ -567,7 +602,7 @@ class UnifiedNetworkClient(QtCore.QObject):
         # Scan up to 2KB for a valid header
         for i in range(1, min(2048, len(self._recv_buffer))):
             test_byte = self._recv_buffer[i]
-            if test_byte in [0x01, 0x02, 0x41, 0x47, 0x49]:
+            if test_byte in [0x01, 0x02, 0x41, 0x43, 0x47, 0x49]:
                 # Basic validation: check protocol version for telemetry
                 if test_byte in [0x01, 0x02]:
                     if i + 1 < len(self._recv_buffer) and self._recv_buffer[i+1] == PROTOCOL_VERSION:
@@ -761,7 +796,7 @@ class UnifiedNetworkClient(QtCore.QObject):
                         found_valid = True
                         break
                     # Check for valid parameter packet type
-                    elif self._recv_buffer[i] in [0x41, 0x47, 0x49] and i + 1 < len(self._recv_buffer) and self._recv_buffer[i+1] == PROTOCOL_VERSION:
+                    elif self._recv_buffer[i] in [0x41, 0x43, 0x47, 0x49] and i + 1 < len(self._recv_buffer) and self._recv_buffer[i+1] == PROTOCOL_VERSION:
                         del self._recv_buffer[:i]  # Discard up to parameter packet
                         found_valid = True
                         break
@@ -785,6 +820,8 @@ class UnifiedNetworkClient(QtCore.QObject):
                         'total_parameters': total_params
                     }
                     del self._recv_buffer[:bytes_consumed]
+                    if self.verbose:
+                        logger.debug(f"Decoded COUNT_RESPONSE: {total_params} parameters")
             
             elif packet_type == 0x49:  # GET_BY_INDEX_RESPONSE
                 result = self._param_decoder.decode_get_by_index_response(bytes(self._recv_buffer))
@@ -802,6 +839,22 @@ class UnifiedNetworkClient(QtCore.QObject):
                         'metadata': metadata
                     }
                     del self._recv_buffer[:bytes_consumed]
+                    if self.verbose:
+                        logger.debug(f"Decoded GET_BY_INDEX_RESPONSE: {metadata.component}.{metadata.name} = {metadata.current_value}")
+            
+            elif packet_type == 0x43:  # GET_RESPONSE
+                result = self._param_decoder.decode_get_response(bytes(self._recv_buffer))
+                if result:
+                    param_val, bytes_consumed = result
+                    response_data = {
+                        'type': 'get_response',
+                        'component': param_val.component,
+                        'name': param_val.name,
+                        'value': param_val.value
+                    }
+                    del self._recv_buffer[:bytes_consumed]
+                    if self.verbose:
+                        logger.debug(f"Decoded GET_RESPONSE: {param_val.component}.{param_val.name} = {param_val.value}")
             
             elif packet_type == 0x41:  # SET_RESPONSE
                 result = self._param_decoder.decode_set_response(bytes(self._recv_buffer))
@@ -817,6 +870,8 @@ class UnifiedNetworkClient(QtCore.QObject):
                         'error_message': response_dict['error_message']
                     }
                     del self._recv_buffer[:bytes_consumed]
+                    if self.verbose:
+                        logger.debug(f"Decoded SET_RESPONSE: {response_dict['component']}.{response_dict['name']} status={response_dict['status'].name}")
             
             if response_data:
                 # Emit signal to UI
