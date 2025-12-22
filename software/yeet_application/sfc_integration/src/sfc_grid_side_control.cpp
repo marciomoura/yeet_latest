@@ -79,6 +79,7 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Include protection signals from grid-side state machine
     tx_msg.grid_release_protections = state_machine.get_outputs().release_grid_protections.read();
     tx_msg.machine_release_protections = state_machine.get_outputs().release_machine_protections.read();
+    tx_msg.communication_ok = !grid_protections.get_outputs().communication_loss_tripped.read();
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;

@@ -543,4 +543,19 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ForceResetClearsAllStates
     EXPECT_FALSE(params.force_reset_all.read()) << "force_reset_all should auto-clear after use";
 }
 
+TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, CommunicationLossRemoteFailureTrips)
+{
+    auto& params = _runner->get_parameters();
+
+    // Configure fast timeout
+    params.comm_timeout.write(duration_t{200e-6});  // 1 cycle at 200us
+
+    // Local communication is fine, but remote reports failure
+    _runner->update_communication_status(true, false);
+    run_cycle();
+
+    EXPECT_TRUE(is_tripped()) << "Remote communication failure should trip protections";
+    EXPECT_TRUE(is_inhibited()) << "Remote communication failure trip should latch alarm";
+}
+
 }  // namespace yeet::application::sfc::integration

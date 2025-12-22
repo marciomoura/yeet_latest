@@ -61,7 +61,7 @@ void sfc_grid_side_protections_runner::run()
     const bool module_enabled = _parameters.protection_module_enabled;
 
     if (module_enabled) {
-        _protections.update_communication_watchdog(_last_communication_valid);
+        _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
         _protections.update_overcurrent_protection(_inputs.dc_link_current_pu);
         _protections.update_overvoltage_protection(_inputs.grid_voltage_magnitude_pu);
         _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu);
@@ -99,9 +99,11 @@ void sfc_grid_side_protections_runner::run()
 
 void sfc_grid_side_protections_runner::stop() { reset(); }
 
-void sfc_grid_side_protections_runner::update_communication_status(bool communication_valid)
+void sfc_grid_side_protections_runner::update_communication_status(
+    bool communication_valid, bool remote_communication_ok)
 {
     _last_communication_valid = communication_valid;
+    _last_remote_communication_ok = remote_communication_ok;
 }
 
 void sfc_grid_side_protections_runner::set_parameters()

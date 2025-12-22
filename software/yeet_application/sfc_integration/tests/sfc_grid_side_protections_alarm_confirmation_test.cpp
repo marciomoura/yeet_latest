@@ -492,4 +492,20 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterT
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after user confirmation";
 }
 
+TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossRemoteFailureTrips)
+{
+    auto& params = _runner->get_parameters();
+    auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+
+    // Configure fast timeout
+    params.comm_timeout.write(duration_t{200e-6});  // 1 cycle at 200us
+
+    // Local communication is fine, but remote reports failure
+    _runner->update_communication_status(true, false);
+    run_cycle();
+
+    EXPECT_TRUE(is_tripped()) << "Remote communication failure should trip protections";
+    EXPECT_TRUE(is_inhibited()) << "Remote communication failure trip should latch alarm";
+}
+
 }  // namespace yeet::application::sfc::integration

@@ -112,6 +112,7 @@ void sfc_machine_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_op
     _fiber_optics_inputs_from_grid.grid_voltage_magnitude.write(msg.grid_voltage_magnitude);
     _fiber_optics_inputs_from_grid.grid_release_protections.write(msg.grid_release_protections);
     _fiber_optics_inputs_from_grid.machine_release_protections.write(msg.machine_release_protections);
+    _fiber_optics_inputs_from_grid.communication_ok.write(msg.communication_ok);
 }
 
 fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::get_fiber_optics_tx() const
