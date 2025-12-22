@@ -10,6 +10,13 @@ protected:
     {
         _runner = std::make_unique<sfc_excitation_controller_runner>();
 
+        // Connect storage to signals (required by raw pointer API)
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::connect(inputs.machine_rotor_speed_pu, _storage_machine_rotor_speed_pu);
+        yeet::utils::mock_signal_input::connect(
+            inputs.machine_voltage_magnitude_pu, _storage_machine_voltage_magnitude_pu);
+        yeet::utils::mock_signal_input::connect(inputs.release_excitation, _storage_release_excitation);
+
         // Reset all input signals
         reset_all_inputs();
 
@@ -65,6 +72,11 @@ protected:
     }
 
     std::unique_ptr<sfc_excitation_controller_runner> _runner;
+
+    // Storage for mocked signals (required by raw pointer API)
+    speed_pu_t _storage_machine_rotor_speed_pu{0.0};
+    voltage_pu_t _storage_machine_voltage_magnitude_pu{0.0};
+    bool _storage_release_excitation{false};
 };
 
 // ============================================================================
