@@ -43,31 +43,32 @@ protected:
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
 
         // Safe grid voltage magnitude (1.0 pu)
-        mock_signal_input::write(inputs.grid_voltage_magnitude_pu, voltage_pu_t{1.0f});
+        yeet::utils::mock_signal_input::write(inputs.grid_voltage_magnitude_pu, voltage_pu_t{1.0f});
 
         // Safe DC link current (0.5 pu)
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
+        yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{0.5f});
 
         // Release protections
-        mock_signal_input::write(inputs.release_protections, true);
+        yeet::utils::mock_signal_input::write(inputs.release_protections, true);
 
         // Door closed by default
-        mock_signal_input::write(inputs.door_is_open, false);
+        yeet::utils::mock_signal_input::write(inputs.door_is_open, false);
 
         // External fault and emergency off inactive by default
-        mock_signal_input::write(inputs.external_fault, false);
-        mock_signal_input::write(inputs.emergency_off, false);
+        yeet::utils::mock_signal_input::write(inputs.external_fault, false);
+        yeet::utils::mock_signal_input::write(inputs.emergency_off, false);
     }
     void trigger_overcurrent()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{1.5f});  // Above 1.2 threshold
+        yeet::utils::mock_signal_input::write(inputs.dc_link_current_pu, current_pu_t{1.5f});  // Above 1.2 threshold
     }
 
     void trigger_overvoltage()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.grid_voltage_magnitude_pu, voltage_pu_t{1.3f});  // Above 1.15 threshold
+        yeet::utils::mock_signal_input::write(
+            inputs.grid_voltage_magnitude_pu, voltage_pu_t{1.3f});  // Above 1.15 threshold
     }
 
     void clear_fault_conditions()
@@ -79,9 +80,9 @@ protected:
     {
         // Toggle release signal to reset latched protections
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.release_protections, false);
+        yeet::utils::mock_signal_input::write(inputs.release_protections, false);
         run_cycle();
-        mock_signal_input::write(inputs.release_protections, true);
+        yeet::utils::mock_signal_input::write(inputs.release_protections, true);
         run_cycle();
     }
 
@@ -418,15 +419,15 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConf
     auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
 
     // Prove this works even when not releasing/modulating.
-    mock_signal_input::write(inputs.release_protections, false);
-    mock_signal_input::write(inputs.door_is_open, true);
+    yeet::utils::mock_signal_input::write(inputs.release_protections, false);
+    yeet::utils::mock_signal_input::write(inputs.door_is_open, true);
 
     run_cycle();
     EXPECT_TRUE(is_tripped()) << "Door open should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Door open trip should latch alarm";
 
     // Close door: fault clears
-    mock_signal_input::write(inputs.door_is_open, false);
+    yeet::utils::mock_signal_input::write(inputs.door_is_open, false);
     run_cycle();
     EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
@@ -453,7 +454,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterT
     params.comm_reset.write(duration_t{200e-6});
 
     // Prove comm watchdog runs even when not releasing/modulating.
-    mock_signal_input::write(inputs.release_protections, false);
+    yeet::utils::mock_signal_input::write(inputs.release_protections, false);
 
     _runner->update_communication_status(false);
     run_cycle();

@@ -39,15 +39,15 @@ public:
     void mock_inputs()
     {
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 
@@ -231,6 +231,10 @@ private:
         signals_connector::connect_output_to_input(
             current_reference, current_controller.get_inputs().current_reference);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
 };
 
 }  // namespace yeet::application::sfc::integration

@@ -28,8 +28,8 @@ namespace yeet::application::sfc::integration {
 
 // =====================================================================================
 //  Sensorless Speed Controller Mocked-Hardware Simulation Builder
-//  Plant → Hardware Mocks (CT/PT + transducers + ADC counts) → Measurement Runners →
-//  Observers → Speed Controller (outer) → Current Controller (inner) → Pulse Generators → Plant
+//  Plant Ã¢â€ â€™ Hardware Mocks (CT/PT + transducers + ADC counts) Ã¢â€ â€™ Measurement Runners Ã¢â€ â€™
+//  Observers Ã¢â€ â€™ Speed Controller (outer) Ã¢â€ â€™ Current Controller (inner) Ã¢â€ â€™ Pulse Generators Ã¢â€ â€™ Plant
 // =====================================================================================
 class plant_sensorless_speed_control_mocked_hardware_simulation_builder {
 public:
@@ -57,41 +57,41 @@ public:
     {
         // Freeze/integrator management defaults
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
         yeet::wire(speed_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_speed_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_speed_controller_datamodel::inputs::preset_request)
             // Mock applied torque reference for bumpless transfer (no torque controller in this builder)
-            .mocked(torque_pu_t{0.0})
+            .mocked(_mock_storage_torque_zero)
             .to(&sfc_speed_controller_datamodel::inputs::applied_torque_reference);
 
         // Mock machine-side observer signals (no startup sequencer in this builder)
         yeet::wire(machine_side_observer)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_observer_datamodel::inputs::release_observer)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_observer)
-            .mocked(angle_wrapped{0.0})
+            .mocked(_mock_storage_angle_zero)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_angle)
-            .mocked(frequency_pu_t{0.0})
+            .mocked(_mock_storage_freq_zero)
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_frequency);
 
         // Always release pulses for open-loop firing generation
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
 
         // Excitation command (no startup_sequencer in this builder)
         yeet::wire(excitation_controller)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
     }
     void initialize()
@@ -257,7 +257,7 @@ private:
         signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_voltage_abc,
             machine_side_observer.get_inputs().machine_voltage_pu);
 
-        // ==================== Measurements → Excitation Controller ====================
+        // ==================== Measurements Ã¢â€ â€™ Excitation Controller ====================
         // Provide speed and voltage magnitude feedback for excitation voltage regulation
 
         signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_speed,
@@ -325,6 +325,13 @@ private:
         signals_connector::connect_output_to_input(
             current_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
+    angle_wrapped _mock_storage_angle_zero{0.0};
+    frequency_pu_t _mock_storage_freq_zero{0.0};
+    torque_pu_t _mock_storage_torque_zero{0.0};
 };
 
 }  // namespace yeet::application::sfc::integration

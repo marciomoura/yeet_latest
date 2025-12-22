@@ -30,19 +30,19 @@ protected:
     void reset_all_inputs()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.auxiliaries_are_on, false);
-        mock_signal_input::write(inputs.mv_breaker_is_closed, false);
-        mock_signal_input::write(inputs.start_command, false);
-        mock_signal_input::write(inputs.stop_command, false);
-        mock_signal_input::write(inputs.is_current_extinguished, false);
-        mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
-        mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
-        mock_signal_input::write(inputs.mv_breaker_is_tripping, false);       // Breaker not tripping by default
-        mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
-        mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
-        mock_signal_input::write(inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
-        mock_signal_input::write(inputs.machine_side_protection_tripped, false);    // No machine-side trip
-        mock_signal_input::write(inputs.external_fault, false);                     // No external fault by default
+        yeet::utils::mock_signal_input::write(inputs.auxiliaries_are_on, false);
+        yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_closed, false);
+        yeet::utils::mock_signal_input::write(inputs.start_command, false);
+        yeet::utils::mock_signal_input::write(inputs.stop_command, false);
+        yeet::utils::mock_signal_input::write(inputs.is_current_extinguished, false);
+        yeet::utils::mock_signal_input::write(inputs.protection_inhibited, false);         // Protection not inhibited by default
+        yeet::utils::mock_signal_input::write(inputs.any_protection_fault_active, false);  // No protection faults by default
+        yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_tripping, false);       // Breaker not tripping by default
+        yeet::utils::mock_signal_input::write(inputs.emergency_off, false);                // Emergency off not active by default
+        yeet::utils::mock_signal_input::write(inputs.door_is_open, false);                 // Door closed by default
+        yeet::utils::mock_signal_input::write(inputs.machine_side_protection_inhibited, false);  // No machine-side inhibit
+        yeet::utils::mock_signal_input::write(inputs.machine_side_protection_tripped, false);    // No machine-side trip
+        yeet::utils::mock_signal_input::write(inputs.external_fault, false);                     // No external fault by default
     }
 
     void disable_all_overrides()
@@ -99,55 +99,55 @@ protected:
     void set_auxiliaries_on(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.auxiliaries_are_on, value);
+        yeet::utils::mock_signal_input::write(inputs.auxiliaries_are_on, value);
     }
 
     void set_breakers_on(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.mv_breaker_is_closed, value);
+        yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_closed, value);
     }
 
     void set_start_command(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.start_command, value);
+        yeet::utils::mock_signal_input::write(inputs.start_command, value);
     }
 
     void set_stop_command(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.stop_command, value);
+        yeet::utils::mock_signal_input::write(inputs.stop_command, value);
     }
 
     void set_current_extinguished(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.is_current_extinguished, value);
+        yeet::utils::mock_signal_input::write(inputs.is_current_extinguished, value);
     }
 
     void set_emergency_off(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.emergency_off, value);
+        yeet::utils::mock_signal_input::write(inputs.emergency_off, value);
     }
 
     void set_external_fault(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.external_fault, value);
+        yeet::utils::mock_signal_input::write(inputs.external_fault, value);
     }
 
     void set_protection_inhibited(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.protection_inhibited, value);
+        yeet::utils::mock_signal_input::write(inputs.protection_inhibited, value);
     }
 
     void set_machine_side_protection_inhibited(bool value)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_side_protection_inhibited, value);
+        yeet::utils::mock_signal_input::write(inputs.machine_side_protection_inhibited, value);
     }
 
     std::unique_ptr<sfc_state_machine_runner> _runner;

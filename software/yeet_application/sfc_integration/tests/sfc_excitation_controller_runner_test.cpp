@@ -27,9 +27,9 @@ protected:
     void reset_all_inputs()
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_rotor_speed_pu, speed_pu_t{0.0});
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.0});
-        mock_signal_input::write(inputs.release_excitation, false);
+        yeet::utils::mock_signal_input::write(inputs.machine_rotor_speed_pu, speed_pu_t{0.0});
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage_pu_t{0.0});
+        yeet::utils::mock_signal_input::write(inputs.release_excitation, false);
     }
 
     void run_cycle() { _runner->run(); }
@@ -37,19 +37,19 @@ protected:
     void set_machine_speed(speed_pu_t speed)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_rotor_speed_pu, speed);
+        yeet::utils::mock_signal_input::write(inputs.machine_rotor_speed_pu, speed);
     }
 
     void set_machine_voltage_magnitude(voltage_pu_t voltage)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
+        yeet::utils::mock_signal_input::write(inputs.machine_voltage_magnitude_pu, voltage);
     }
 
     void set_release_excitation(bool release)
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
-        mock_signal_input::write(inputs.release_excitation, release);
+        yeet::utils::mock_signal_input::write(inputs.release_excitation, release);
     }
 
     current_pu_t get_field_current_reference()

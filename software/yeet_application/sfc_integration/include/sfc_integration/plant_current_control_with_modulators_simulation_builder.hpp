@@ -49,36 +49,40 @@ public:
     void mock_inputs()
     {
         // Enable path: operation mode monitor always enabled
-        yeet::wire(operation_mode_monitor).mocked(true).to(&sfc_operation_mode_monitor_datamodel::inputs::enable);
+        yeet::wire(operation_mode_monitor)
+            .mocked(_mock_storage_true)
+            .to(&sfc_operation_mode_monitor_datamodel::inputs::enable);
 
         // Grid-side modulator inputs
         yeet::wire(grid_side_modulator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_modulator_datamodel::inputs::release_pulses)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip);
 
         // Machine-side modulator inputs (no startup sequencer in this builder)
         yeet::wire(machine_side_modulator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_modulator_datamodel::inputs::release_pulses)
-            .mocked(angle_wrapped{0.0})
+            .mocked(_mock_storage_angle_zero)
             .to(&sfc_machine_side_modulator_datamodel::inputs::virtual_rotor_angle)
-            .mocked(reference_frame_source_t::ESTIMATED)
+            .mocked(_mock_storage_ref_frame_estimated)
             .to(&sfc_machine_side_modulator_datamodel::inputs::reference_frame_source);
 
         // Pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
 
         // Current controller preset request (no integrator supervisor in this builder)
-        yeet::wire(current_controller).mocked(false).to(&sfc_current_controller_datamodel::inputs::preset_request);
+        yeet::wire(current_controller)
+            .mocked(_mock_storage_false)
+            .to(&sfc_current_controller_datamodel::inputs::preset_request);
     }
 
     void initialize()
@@ -98,8 +102,8 @@ public:
 
     void register_applications(yeet::simulator& sim)
     {
-        // Order preserved: plant → measurements → dc link → controllers → operation mode monitor → modulators → pulse
-        // generators
+        // Order preserved: plant → measurements → dc link → controllers → operation mode monitor → modulators
+        // → pulse generators
         sim.register_runner(plant);
         sim.register_runner(grid_measurements);
         sim.register_runner(machine_measurements);
@@ -257,7 +261,9 @@ private:
         // Note: In this simplified builder without state machine, extinguish is not used.
         // Mock it to false to satisfy the input requirement.
         using grid_modulator_inputs = sfc_grid_side_modulator_datamodel::inputs;
-        yeet::wire(grid_side_modulator).mocked(false).to(&grid_modulator_inputs::request_extinguish_dc_current);
+        yeet::wire(grid_side_modulator)
+            .mocked(_mock_storage_false)
+            .to(&grid_modulator_inputs::request_extinguish_dc_current);
 
         // ==================== Pulse Generators → Plant ====================
 
@@ -286,6 +292,12 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_modulator.get_outputs().freeze_integrator, current_controller.get_inputs().freeze_integrator);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
+    angle_wrapped _mock_storage_angle_zero{0.0};
+    reference_frame_source_t _mock_storage_ref_frame_estimated{reference_frame_source_t::ESTIMATED};
 };
 
 }  // namespace yeet::application::sfc::integration

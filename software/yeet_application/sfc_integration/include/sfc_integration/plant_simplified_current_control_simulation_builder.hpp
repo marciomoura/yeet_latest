@@ -53,17 +53,17 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
     }
 
@@ -253,6 +253,10 @@ private:
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
             current_controller.get_inputs().machine_voltage_magnitude);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
 };
 
 }  // namespace yeet::application::sfc::integration

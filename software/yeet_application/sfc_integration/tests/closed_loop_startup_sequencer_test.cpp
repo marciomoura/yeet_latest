@@ -91,7 +91,7 @@ public:
 
     void set_current_extinguished(bool extinguished)
     {
-        yeet::mock_signal_input::write(
+        yeet::utils::mock_signal_input::write(
             system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
     }
 

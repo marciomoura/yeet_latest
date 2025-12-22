@@ -82,7 +82,7 @@ public:
 
     void set_current_extinguished(bool extinguished)
     {
-        yeet::mock_signal_input::write(
+        yeet::utils::mock_signal_input::write(
             system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
     }
 
@@ -162,7 +162,7 @@ TEST_F(ClosedLoopSpeedControlTest, PurgeModeOperationTest)
     EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
         << "Startup should reach CLOSED_LOOP_OPERATION";
 
-    // Ramp time: 0.15 pu × 120 s/pu = 18 seconds + settling
+    // Ramp time: 0.15 pu Ã— 120 s/pu = 18 seconds + settling
     success &= simulator.simulate_for(20.0);
 
     auto purge_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -277,7 +277,7 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
     // Stage 1: Creep Speed (0.2 pu)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2});
 
-    // Ramp time: 0.2 pu × 40 s/pu = 8 seconds + settling
+    // Ramp time: 0.2 pu Ã— 40 s/pu = 8 seconds + settling
     success &= simulator.simulate_for(10.0);
 
     auto creep_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -291,7 +291,7 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
     // Stage 2: Purge Speed (0.5 pu)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.5});
 
-    // Ramp time: 0.3 pu × 40 s/pu = 12 seconds + settling
+    // Ramp time: 0.3 pu Ã— 40 s/pu = 12 seconds + settling
     success &= simulator.simulate_for(14.0);
 
     auto purge_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -305,7 +305,7 @@ TEST_F(ClosedLoopSpeedControlTest, TypicalSoftStarterProfileTest)
     // Stage 3: Full Speed (1.0 pu)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
 
-    // Ramp time: 0.5 pu × 40 s/pu = 20 seconds + settling
+    // Ramp time: 0.5 pu Ã— 40 s/pu = 20 seconds + settling
     success &= simulator.simulate_for(23.0);
 
     auto full_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
@@ -563,7 +563,7 @@ TEST_F(ClosedLoopSpeedControlTest, BrakingRequestFreezesIntegratorTest)
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.3});
 
     // Run for enough time that the speed controller would try to brake
-    // The speed reference will ramp down: 0.2 pu drop × 20 s/pu = 4 seconds ramp
+    // The speed reference will ramp down: 0.2 pu drop Ã— 20 s/pu = 4 seconds ramp
     success &= simulator.simulate_for(6.0);
 
     // During deceleration, speed > reference, so speed controller wants negative torque

@@ -25,7 +25,7 @@ namespace yeet::application::sfc::integration {
  *
  * This configuration provides:
  * - Plant model with augmented 6p-6p topology
- * - Cascaded control: speed controller → torque controller → current controller
+ * - Cascaded control: speed controller Ã¢â€ â€™ torque controller Ã¢â€ â€™ current controller
  * - Grid-side current controller with firing angle control
  * - Machine-side lookup table controller for firing angle calculation
  * - Complete measurement and filtering chain
@@ -33,7 +33,7 @@ namespace yeet::application::sfc::integration {
  * - Simplified configuration without observers, state machine, or modulators
  *
  * Signal Flow:
- * Plant → Raw Measurements → Speed Controller → Torque Controller → Current Controller → Pulse Generators → Plant
+ * Plant Ã¢â€ â€™ Raw Measurements Ã¢â€ â€™ Speed Controller Ã¢â€ â€™ Torque Controller Ã¢â€ â€™ Current Controller Ã¢â€ â€™ Pulse Generators Ã¢â€ â€™ Plant
  */
 class plant_speed_control_simulation_builder {
 public:
@@ -56,36 +56,36 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
         yeet::wire(speed_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_speed_controller_datamodel::inputs::freeze_integrator)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_speed_controller_datamodel::inputs::preset_request);
 
         // Torque controller mocks (no speed_generator or startup_sequencer in this builder)
         yeet::wire(torque_controller)
-            .mocked(false)
+            .mocked(_mock_storage_false)
             .to(&sfc_torque_controller_datamodel::inputs::enable_breakaway_boost)
-            .mocked(sfc::sfc_torque_controller::control_mode::SPEED_CONTROL)
+            .mocked(_mock_storage_control_mode_speed)
             .to(&sfc_torque_controller_datamodel::inputs::control_mode)
-            .mocked(torque_pu_t{0.0f})
+            .mocked(_mock_storage_torque_zero)
             .to(&sfc_torque_controller_datamodel::inputs::manual_torque_reference);
 
         // Mock pulse release signals for both pulse generators
         yeet::wire(grid_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
         yeet::wire(machine_side_pulse_generator)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
 
         // Excitation command (no startup_sequencer in this builder)
         yeet::wire(excitation_controller)
-            .mocked(true)
+            .mocked(_mock_storage_true)
             .to(&sfc_excitation_controller_datamodel::inputs::release_excitation);
     }
     void initialize()
@@ -193,7 +193,7 @@ private:
 
     void connect_all_components()
     {
-        // ==================== Plant Model → Measurements ====================
+        // ==================== Plant Model Ã¢â€ â€™ Measurements ====================
         // Connect raw plant outputs to measurement system inputs
 
         // Grid measurements: Raw grid voltages and currents from plant
@@ -224,14 +224,14 @@ private:
         signals_connector::connect_output_to_input(
             grid_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
 
-        // ==================== Speed Measurements → Speed Controller ====================
+        // ==================== Speed Measurements Ã¢â€ â€™ Speed Controller ====================
         // Connect speed measurements to speed controller feedback
 
         // Machine speed feedback (from machine measurements)
         signals_connector::connect_output_to_input(
             machine_measurements.get_outputs().machine_speed, speed_controller.get_inputs().measured_speed);
 
-        // ==================== Measurements → Excitation Controller ====================
+        // ==================== Measurements Ã¢â€ â€™ Excitation Controller ====================
         // Provide speed and voltage magnitude feedback for excitation voltage regulation
 
         signals_connector::connect_output_to_input(machine_measurements.get_outputs().machine_speed,
@@ -240,14 +240,14 @@ private:
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
             excitation_controller.get_inputs().machine_voltage_magnitude_pu);
 
-        // ==================== Speed Controller → Torque Controller → Current Controller ====================
-        // Cascade control: Speed Controller outputs torque reference → Torque Controller → Current Controller
+        // ==================== Speed Controller Ã¢â€ â€™ Torque Controller Ã¢â€ â€™ Current Controller ====================
+        // Cascade control: Speed Controller outputs torque reference Ã¢â€ â€™ Torque Controller Ã¢â€ â€™ Current Controller
 
-        // Speed controller torque reference → Torque controller input
+        // Speed controller torque reference Ã¢â€ â€™ Torque controller input
         signals_connector::connect_output_to_input(
             speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
 
-        // Speed reference (same reference sent to speed controller) → Torque controller input
+        // Speed reference (same reference sent to speed controller) Ã¢â€ â€™ Torque controller input
         signals_connector::connect_output_to_input(speed_reference, torque_controller.get_inputs().speed_reference);
 
         // Provide state/trip context to torque controller
@@ -255,7 +255,7 @@ private:
         signals_connector::connect_output_to_input(
             machine_protection_tripped, torque_controller.get_inputs().machine_protection_tripped);
 
-        // Torque controller current reference → Current controller input
+        // Torque controller current reference Ã¢â€ â€™ Current controller input
         signals_connector::connect_output_to_input(
             torque_controller.get_outputs().current_reference, current_controller.get_inputs().current_reference);
 
@@ -263,20 +263,20 @@ private:
         signals_connector::connect_output_to_input(
             torque_controller.get_outputs().torque_reference, speed_controller.get_inputs().applied_torque_reference);
 
-        // Anti-windup saturation cascade: current_controller → torque_controller → speed_controller
+        // Anti-windup saturation cascade: current_controller Ã¢â€ â€™ torque_controller Ã¢â€ â€™ speed_controller
         signals_connector::connect_output_to_input(
             current_controller.get_outputs().is_saturated, torque_controller.get_inputs().is_saturated);
         signals_connector::connect_output_to_input(
             torque_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
 
-        // ==================== DC Link Measurements → Current Controller ====================
+        // ==================== DC Link Measurements Ã¢â€ â€™ Current Controller ====================
         // Connect DC link current feedback to current controller
 
         // DC link current feedback (primary feedback signal for current loop)
         signals_connector::connect_output_to_input(
             dc_link_measurements.get_outputs().dc_current_pu, current_controller.get_inputs().current_measured);
 
-        // ==================== Torque Controller → Machine Side Controller ====================
+        // ==================== Torque Controller Ã¢â€ â€™ Machine Side Controller ====================
         // Connect torque controller current reference to machine side controller for lookup table
 
         // DC link current reference for lookup table input
@@ -287,21 +287,21 @@ private:
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_speed, machine_side_controller.get_inputs().machine_speed);
 
-        // ==================== Current Controller → Grid Pulse Generator ====================
+        // ==================== Current Controller Ã¢â€ â€™ Grid Pulse Generator ====================
         // Connect current controller output to grid-side firing angle control
 
         // Firing angle command from current controller to grid pulse generator
         signals_connector::connect_output_to_input(
             current_controller.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
 
-        // ==================== Machine Side Controller → Machine Pulse Generator ====================
+        // ==================== Machine Side Controller Ã¢â€ â€™ Machine Pulse Generator ====================
         // Connect machine side controller output to machine-side firing angle control
 
         // Firing angle command from machine side controller to machine pulse generator
         signals_connector::connect_output_to_input(
             machine_side_controller.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
 
-        // ==================== Pulse Generators → Plant Model ====================
+        // ==================== Pulse Generators Ã¢â€ â€™ Plant Model ====================
         // Connect firing pulses from both pulse generators to plant model inputs
 
         signals_connector::connect_output_to_input(
@@ -314,7 +314,7 @@ private:
         signals_connector::connect_output_to_input(
             excitation_controller.get_outputs().field_current_reference, plant.get_inputs().field_current_reference);
 
-        // ==================== Plant Model → Pulse Generators ====================
+        // ==================== Plant Model Ã¢â€ â€™ Pulse Generators ====================
         // Connect reference angles from plant model to pulse generators for synchronization
 
         signals_connector::connect_output_to_input(
@@ -338,6 +338,12 @@ private:
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
             current_controller.get_inputs().machine_voltage_magnitude);
     }
+
+private:
+    bool _mock_storage_true{true};
+    bool _mock_storage_false{false};
+    torque_pu_t _mock_storage_torque_zero{0.0};
+    sfc::sfc_torque_controller::control_mode _mock_storage_control_mode_speed{sfc::sfc_torque_controller::control_mode::SPEED_CONTROL};
 };
 
 }  // namespace yeet::application::sfc::integration
