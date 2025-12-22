@@ -356,3 +356,68 @@ TEST_F(ClosedLoopShutdownTest, SpeedReferenceZeroOverrideDuringShutdownTest)
 
     EXPECT_TRUE(success) << "Speed reference override test should complete without errors";
 }
+
+/**
+ * @test EmergencyOffShutdownTest
+ * @brief Validates emergency shutdown via emergency off button
+ *
+ * This test verifies that the system performs an immediate shutdown when
+ * the emergency off signal is asserted, transitions to IDLE, and requires
+ * user confirmation to clear the inhibit flag.
+ */
+TEST_F(ClosedLoopShutdownTest, EmergencyOffShutdownTest)
+{
+    // Enable protection module
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Bring system to operation (simulates for 25s, reaches 0.5 pu)
+    bring_to_operation();
+
+    // Set speed reference to 1.0 pu and wait for ramp (0.5 pu * 30s/pu = 15s)
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+    simulator.simulate_for(20.0);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
+
+    auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(operating_speed.value(), 1.0f, 0.05f) << "Machine should be running at nominal speed";
+
+    // Issue Emergency Off
+    system.grid_io_mock.get_parameters().emergency_off.write(true);
+
+    bool success = true;
+    // Allow time for state machine to react and current to extinguish
+    success &= simulator.simulate_for(1.0);
+
+    // Verify state machine moved to IDLE
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "State machine should transition to IDLE on emergency off";
+
+    // Verify operation is inhibited
+    auto is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_TRUE(is_inhibited) << "System should be inhibited after emergency off";
+
+    // Clear Emergency Off condition
+    system.grid_io_mock.get_parameters().emergency_off.write(false);
+    success &= simulator.simulate_for(0.5);
+
+    // Inhibit should still be active
+    is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_TRUE(is_inhibited) << "Inhibit should persist after clearing emergency off condition";
+
+    // User confirmation to clear inhibit
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify inhibit is cleared
+    is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_FALSE(is_inhibited) << "Inhibit should be cleared after user confirmation";
+
+    EXPECT_TRUE(success) << "Emergency off shutdown test should complete without errors";
+}
