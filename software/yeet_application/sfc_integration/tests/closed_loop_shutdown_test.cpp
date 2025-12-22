@@ -421,3 +421,191 @@ TEST_F(ClosedLoopShutdownTest, EmergencyOffShutdownTest)
 
     EXPECT_TRUE(success) << "Emergency off shutdown test should complete without errors";
 }
+
+/**
+ * @test ExternalFaultShutdownTest
+ * @brief Validates emergency shutdown via external fault input
+ *
+ * This test verifies that the system performs an immediate shutdown when
+ * the external fault signal is asserted, transitions to IDLE, and requires
+ * user confirmation to clear the inhibit flag.
+ */
+TEST_F(ClosedLoopShutdownTest, ExternalFaultShutdownTest)
+{
+    // Enable protection module
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Bring system to operation (simulates for 25s, reaches 0.5 pu)
+    bring_to_operation();
+
+    // Set speed reference to 1.0 pu and wait for ramp (0.5 pu * 30s/pu = 15s)
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+    simulator.simulate_for(20.0);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
+
+    auto operating_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_NEAR(operating_speed.value(), 1.0f, 0.05f) << "Machine should be running at nominal speed";
+
+    // Issue External Fault
+    system.grid_io_mock.get_parameters().external_fault.write(true);
+
+    bool success = true;
+    // Allow time for state machine to react and current to extinguish
+    success &= simulator.simulate_for(1.0);
+
+    // Verify state machine moved to IDLE
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "State machine should transition to IDLE on external fault";
+
+    // Verify operation is inhibited
+    auto is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_TRUE(is_inhibited) << "System should be inhibited after external fault";
+
+    // Clear External Fault condition
+    system.grid_io_mock.get_parameters().external_fault.write(false);
+    success &= simulator.simulate_for(0.5);
+
+    // Inhibit should still be active
+    is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_TRUE(is_inhibited) << "Inhibit should persist after clearing external fault condition";
+
+    // User confirmation to clear inhibit
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify inhibit is cleared
+    is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_FALSE(is_inhibited) << "Inhibit should be cleared after user confirmation";
+
+    EXPECT_TRUE(success) << "External fault shutdown test should complete without errors";
+}
+
+/**
+ * @test DoorOpenShutdownTest
+ * @brief Validates emergency shutdown when cabinet door is opened
+ *
+ * This test verifies that the system performs an immediate shutdown when
+ * the door is opened, transitions to IDLE, and requires user confirmation
+ * to clear the inhibit flag.
+ */
+TEST_F(ClosedLoopShutdownTest, DoorOpenShutdownTest)
+{
+    // Enable protection module
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Bring system to operation
+    bring_to_operation();
+
+    // Set speed reference to 1.0 pu and wait for ramp
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+    simulator.simulate_for(20.0);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
+
+    // Open cabinet door
+    system.grid_io_mock.get_parameters().door_is_open.write(true);
+
+    bool success = true;
+    // Allow time for state machine to react and current to extinguish
+    success &= simulator.simulate_for(1.0);
+
+    // Verify state machine moved to IDLE
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "State machine should transition to IDLE when door is opened";
+
+    // Verify operation is inhibited
+    auto is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_TRUE(is_inhibited) << "System should be inhibited after door is opened";
+
+    // Close cabinet door
+    system.grid_io_mock.get_parameters().door_is_open.write(false);
+    success &= simulator.simulate_for(0.5);
+
+    // Inhibit should still be active
+    is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_TRUE(is_inhibited) << "Inhibit should persist after closing the door";
+
+    // User confirmation to clear inhibit
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify inhibit is cleared
+    is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
+    EXPECT_FALSE(is_inhibited) << "Inhibit should be cleared after user confirmation";
+
+    EXPECT_TRUE(success) << "Door open shutdown test should complete without errors";
+}
+
+/**
+ * @test BreakerTrippingShutdownTest
+ * @brief Validates emergency shutdown when MV breaker reports tripping
+ *
+ * This test verifies that the system performs an immediate shutdown when
+ * the MV breaker tripping signal is asserted, transitions to IDLE, and
+ * requires turn_on_command toggle to restart.
+ */
+TEST_F(ClosedLoopShutdownTest, BreakerTrippingShutdownTest)
+{
+    // Bring system to operation
+    bring_to_operation();
+
+    // Set speed reference to 1.0 pu and wait for ramp
+    system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{1.0});
+    simulator.simulate_for(20.0);
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
+
+    // Simulate MV breaker tripping
+    system.grid_io_mock.get_parameters().mv_breaker_is_tripping.write(true);
+
+    bool success = true;
+    // Allow time for state machine to react and current to extinguish
+    success &= simulator.simulate_for(1.0);
+
+    // Verify state machine moved to IDLE
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "State machine should transition to IDLE on breaker tripping";
+
+    // Clear tripping signal
+    system.grid_io_mock.get_parameters().mv_breaker_is_tripping.write(false);
+    success &= simulator.simulate_for(0.5);
+
+    // Verify system cannot restart immediately (trip latch in IDLE)
+    set_turn_on_command(true);
+    simulator.simulate_for(0.5);
+    state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "System should stay in IDLE until turn_on is toggled";
+
+    // Clear start command to prevent automatic full restart
+    set_start_command(false);
+
+    // Toggle turn_on to clear latch
+    set_turn_on_command(false);
+    simulator.simulate_for(0.5);
+    set_turn_on_command(true);
+    simulator.simulate_for(0.5);
+
+    // Verify system starts moving toward AUXILIARIES_ON
+    state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_TRUE(state_machine_state == sfc_state_id::AUXILIARIES_ON ||
+                state_machine_state == sfc_state_id::BREAKERS_OFF || state_machine_state == sfc_state_id::BREAKERS_ON ||
+                state_machine_state == sfc_state_id::OPERATION_OFF)
+        << "System should restart and leave IDLE after turn_on toggle";
+
+    EXPECT_TRUE(success) << "Breaker tripping shutdown test should complete without errors";
+}
