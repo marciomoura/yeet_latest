@@ -49,6 +49,16 @@ public:
      */
     void update_communication_status(bool communication_valid, bool remote_communication_ok = true);
 
+    /**
+     * @brief Update machine-side protection status (received via fiber optics)
+     *
+     * Call this method when fiber optic data is decoded. When machine side reports
+     * a protection trip, the grid side should treat it according to its severity.
+     *
+     * @param machine_tripped True if machine-side reports protection tripped
+     */
+    void update_machine_protection_tripped(bool machine_tripped);
+
 private:
     // Common grid-side protections application
     sfc::sfc_grid_side_protections _protections;
@@ -56,6 +66,9 @@ private:
     // Communication status tracking (set via update_communication_status)
     bool _last_communication_valid{true};
     bool _last_remote_communication_ok{true};
+
+    // Machine-side protection status (set via update_machine_protection_tripped)
+    bool _last_machine_protection_tripped{false};
 
     /**
      * @brief Apply parameter changes to protection components

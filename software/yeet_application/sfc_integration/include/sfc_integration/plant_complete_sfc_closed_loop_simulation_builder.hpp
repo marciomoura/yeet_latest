@@ -236,6 +236,8 @@ public:
 
             if (fiber_optic_failure || fiber_optic_grid_to_machine_failure) {
                 machine_comm_valid = false;
+                // Override RX decode status so communication_ok reflects the simulated failure
+                machine_side_control.set_rx_decode_status(false);
             }
 
             // Update protection system with communication status for watchdog monitoring
@@ -266,12 +268,20 @@ public:
 
             if (fiber_optic_failure || fiber_optic_machine_to_grid_failure) {
                 grid_comm_valid = false;
+                // Override RX decode status so communication_ok reflects the simulated failure
+                grid_side_control.set_rx_decode_status(false);
             }
 
             // Update grid-side protection system with communication status for watchdog monitoring
             bool grid_remote_ok =
                 grid_side_control.get_external_ios().get_fiber_optics_inputs_from_machine().communication_ok.read();
             grid_side_control.grid_protections.update_communication_status(grid_comm_valid, grid_remote_ok);
+
+            // Forward machine-side protection trip status to grid-side protections
+            bool machine_tripped = grid_side_control.get_external_ios()
+                                       .get_fiber_optics_inputs_from_machine()
+                                       .machine_protection_tripped.read();
+            grid_side_control.grid_protections.update_machine_protection_tripped(machine_tripped);
         });
 
         // 10ms sampling (100 Hz): State machine, speed controller

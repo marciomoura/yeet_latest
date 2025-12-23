@@ -104,12 +104,27 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(36,
         protection_status_to_signal(protection_params.door_open_severity.read(),
             protections.get_outputs().door_open_tripped.read(), protections.get_outputs().door_open_alarmed.read()));
+    packet.add_signal(75, protection_status_to_signal(protection_params.external_fault_severity.read(),
+                              protections.get_outputs().external_fault_tripped.read(),
+                              protections.get_outputs().external_fault_alarmed.read()));
+    packet.add_signal(76, protection_status_to_signal(protection_params.emergency_off_severity.read(),
+                              protections.get_outputs().emergency_off_tripped.read(),
+                              protections.get_outputs().emergency_off_alarmed.read()));
+    packet.add_signal(77, protection_status_to_signal(protection_params.machine_protection_severity.read(),
+                              protections.get_outputs().machine_protection_tripped.read(),
+                              protections.get_outputs().machine_protection_alarmed.read()));
+    packet.add_signal(78, static_cast<float>(protections.get_outputs().any_alarm_active.read()));
 
-    // === Fiber Optic RX from Machine-Side Group (37-39) ===
+    // === Fiber Optic RX from Machine-Side Group (37-39 + 79-83) ===
     const auto& fiber_rx = _control.get_external_ios().get_fiber_optics_inputs_from_machine();
     packet.add_signal(37, static_cast<float>(fiber_rx.measured_speed.read()));
     packet.add_signal(38, static_cast<float>(fiber_rx.current_reference.read()));
     packet.add_signal(39, static_cast<float>(fiber_rx.machine_voltage_magnitude.read()));
+    // Boolean fiber optic signals
+    packet.add_signal(79, static_cast<float>(fiber_rx.request_force_commutation.read()));
+    packet.add_signal(80, static_cast<float>(fiber_rx.machine_protection_tripped.read()));
+    packet.add_signal(81, static_cast<float>(fiber_rx.protection_inhibit.read()));
+    packet.add_signal(82, static_cast<float>(fiber_rx.communication_ok.read()));
 
     // === Commutation Notch Duration Group (40-41) ===
     packet.add_signal(40, static_cast<float>(grid_meas.get_outputs().commutation_notch_duration_last.read()));

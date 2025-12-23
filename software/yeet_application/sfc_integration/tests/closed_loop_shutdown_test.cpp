@@ -638,16 +638,31 @@ TEST_F(ClosedLoopShutdownTest, CommunicationLossShutdownTest)
     // Simulate fiber optic failure for 10ms
     system.fiber_optic_failure = true;
     simulator.simulate_for(0.010);
-    system.fiber_optic_failure = false;
 
-    // Allow time for state machine to react
+    // Verify trip occurred BEFORE restoring fiber
+    // (communication_loss_tripped reflects CURRENT fault status, not latched)
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side should detect communication loss trip during failure";
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().communication_loss_tripped.read())
+        << "Machine-side should detect communication loss trip during failure";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side system trip should be latched";
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().is_tripped.read())
+        << "Machine-side system trip should be latched";
+
+    // Restore fiber and allow time for state machine to react
+    system.fiber_optic_failure = false;
     simulator.simulate_for(0.1);
 
-    // Verify both sides detected the fault
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
-        << "Grid-side should detect communication loss trip";
-    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().communication_loss_tripped.read())
-        << "Machine-side should detect communication loss trip";
+    // After fiber restoration, fault flag should clear but system trip remains latched
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side fault should clear after fiber restoration";
+    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().communication_loss_tripped.read())
+        << "Machine-side fault should clear after fiber restoration";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side system trip should remain latched until acknowledged";
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().is_tripped.read())
+        << "Machine-side system trip should remain latched until acknowledged";
 
     // Verify state machine moved to IDLE (emergency shutdown)
     auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();

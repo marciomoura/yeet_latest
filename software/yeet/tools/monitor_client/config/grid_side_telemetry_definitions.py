@@ -104,6 +104,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'any fault active', 'index': GridSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'any alarm active', 'index': GridSignalIndex.PROTECTION_ANY_ALARM_ACTIVE, 'type': 'bool', 'format': 'bool'},
                 {'name': 'overcurrent', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'overvoltage', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_STATUS, 'type': 'enum', 'format': 'enum',
@@ -114,6 +115,12 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'door open', 'index': GridSignalIndex.PROTECTION_DOOR_OPEN_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'external fault', 'index': GridSignalIndex.PROTECTION_EXTERNAL_FAULT_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'emergency off', 'index': GridSignalIndex.PROTECTION_EMERGENCY_OFF_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'machine protection', 'index': GridSignalIndex.PROTECTION_MACHINE_PROTECTION_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
             ]
         },
         'fiber_optic_rx': {
@@ -122,7 +129,10 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'measured speed', 'index': GridSignalIndex.FIBER_RX_MEASURED_SPEED, 'type': 'float', 'format': '.4f'},
                 {'name': 'current reference', 'index': GridSignalIndex.FIBER_RX_DC_LINK_CURRENT_REFERENCE, 'type': 'float', 'format': '.4f'},
                 {'name': 'machine voltage mag.', 'index': GridSignalIndex.FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
-                # NOTE: Fiber optic RX booleans are now packed in BOOL_PACK_2 (bits 4-7)
+                {'name': 'force commutation req.', 'index': GridSignalIndex.FIBER_RX_REQUEST_FORCE_COMMUTATION_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'machine protection tripped', 'index': GridSignalIndex.FIBER_RX_MACHINE_PROTECTION_TRIPPED_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'protection inhibit', 'index': GridSignalIndex.FIBER_RX_PROTECTION_INHIBIT_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'communication ok', 'index': GridSignalIndex.FIBER_RX_COMMUNICATION_OK, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'digital_io': {

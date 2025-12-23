@@ -133,6 +133,16 @@ public:
      */
     bool decode_fiber_optic_rx_from_machine(const std::uint32_t* payload, std::uint8_t payload_length);
 
+    /**
+     * @brief Set the RX decode status for communication_ok signal
+     *
+     * Call this after decode_fiber_optic_rx_from_machine() to override the decode success
+     * status. This is used by simulation to inject communication failures.
+     *
+     * @param success True if communication was successful
+     */
+    void set_rx_decode_status(bool success) { _last_rx_decode_success = success; }
+
     // ==================== External I/O Interface ====================
 
     /**
@@ -292,6 +302,9 @@ private:
     // Fiber-optic communication buffers (internal storage)
     std::array<std::uint32_t, fiber_optic::max_payload_words> _fiber_optic_tx_payload{};
     std::uint8_t _fiber_optic_tx_length{0};
+
+    // Tracks last RX decode success for communication_ok signal ("I am receiving your messages")
+    bool _last_rx_decode_success{false};
 
     /**
      * @brief Connect internal signals between grid-side components
