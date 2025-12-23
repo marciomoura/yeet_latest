@@ -47,47 +47,47 @@ struct parameter_metadata {
  */
 struct parameter_set_request_packet {
     telemetry::telemetry_packet_header header;
-    char component[64];
-    char name[64];
+    std::uint16_t parameter_id;
+    std::uint16_t padding;
     float value;
 };
-static_assert(sizeof(parameter_set_request_packet) == 16 + 64 + 64 + 4, "Must be packed");
+static_assert(sizeof(parameter_set_request_packet) == 16 + 4 + 4, "Must be packed");
 
 /**
  * @brief Parameter SET response packet
  */
 struct parameter_set_response_packet {
     telemetry::telemetry_packet_header header;
-    char component[64];
-    char name[64];
+    std::uint16_t parameter_id;
+    std::uint16_t padding;
     float old_value;
     float new_value;
     std::uint8_t status;  // 0=success, 1=not_found, 2=out_of_range, 3=read_only
-    std::uint8_t padding[3];
+    std::uint8_t padding2[3];
     char error_message[128];
 };
-static_assert(sizeof(parameter_set_response_packet) == 16 + 64 + 64 + 8 + 4 + 128, "Must be packed");
+static_assert(sizeof(parameter_set_response_packet) == 16 + 4 + 8 + 4 + 128, "Must be packed");
 
 /**
  * @brief Parameter GET request packet
  */
 struct parameter_get_request_packet {
     telemetry::telemetry_packet_header header;
-    char component[64];
-    char name[64];
+    std::uint16_t parameter_id;
+    std::uint16_t padding;
 };
-static_assert(sizeof(parameter_get_request_packet) == 16 + 64 + 64, "Must be packed");
+static_assert(sizeof(parameter_get_request_packet) == 16 + 4, "Must be packed");
 
 /**
  * @brief Parameter GET response packet
  */
 struct parameter_get_response_packet {
     telemetry::telemetry_packet_header header;
-    char component[64];
-    char name[64];
+    std::uint16_t parameter_id;
+    std::uint16_t padding;
     float value;
 };
-static_assert(sizeof(parameter_get_response_packet) == 16 + 64 + 64 + 4, "Must be packed");
+static_assert(sizeof(parameter_get_response_packet) == 16 + 4 + 4, "Must be packed");
 
 /**
  * @brief Parameter COUNT request packet (header only)
@@ -126,39 +126,38 @@ static_assert(sizeof(parameter_get_by_index_request_packet) == 16 + 4, "Must be 
  */
 struct parameter_get_by_index_response_packet {
     telemetry::telemetry_packet_header header;
+    std::uint16_t parameter_id;     // Unique ID for this parameter (use in GET/SET)
+    std::uint16_t parameter_index;  // Index in discovery sequence
+    std::uint16_t total_parameters;
+    std::uint8_t status;  // 0=success, 1=index_out_of_range
+    std::uint8_t padding;
     char component[64];
     char name[64];
     char display_name[64];
     char unit[16];
     std::uint8_t type;
-    std::uint8_t padding[3];
+    std::uint8_t padding2[3];
     float min_value;
     float max_value;
     float default_value;
     float current_value;
     char description[128];
-    std::uint16_t parameter_index;
-    std::uint16_t total_parameters;
-    std::uint8_t status;  // 0=success, 1=index_out_of_range
-    std::uint8_t padding2[3];
 };
 static_assert(
-    sizeof(parameter_get_by_index_response_packet) == 16 + 64 + 64 + 64 + 16 + 4 + 16 + 128 + 4 + 4, "Must be packed");
+    sizeof(parameter_get_by_index_response_packet) == 16 + 8 + 64 + 64 + 64 + 16 + 4 + 16 + 128, "Must be packed");
 
 /**
  * @brief Parameter metadata cache entry
  *
- * Stores cached information about a parameter from model_registry
+ * Stores minimal cached information about a parameter from model_registry.
+ * Display names, descriptions, units, and constraints are generated dynamically
+ * in response packets to minimize memory footprint.
  */
 struct parameter_cache_entry {
-    char component[32];
-    char name[32];
-    char display_name[64];      // Formatted from component.name
-    char unit[16];              // Extracted from type or default ""
+    std::uint16_t id;           // Unique parameter ID (same as array index)
+    char component[64];         // Component name (for metadata/display only)
+    char name[64];              // Parameter name (for metadata/display only)
     parameter_value_type type;  // Currently only FLOAT32 supported
-    float min_value;            // TODO: Extract from metadata when available
-    float max_value;            // TODO: Extract from metadata when available
-    float default_value;        // TODO: Extract from metadata when available
     low_level_access accessor;  // Direct access to parameter storage
 };
 
@@ -241,10 +240,10 @@ private:
     void build_parameter_cache();
 
     /**
-     * @brief Find parameter cache entry by component and name
-     * @return Pointer to cache entry, or nullptr if not found
+     * @brief Get parameter by ID (direct array indexing)
+     * @return Pointer to cache entry, or nullptr if ID out of range
      */
-    parameter_cache_entry* find_parameter(const char* component, const char* name);
+    parameter_cache_entry* get_parameter_by_id(std::uint16_t id);
 
     /**
      * @brief Validate parameter value against constraints (currently checks min/max if available)

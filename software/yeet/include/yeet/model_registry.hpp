@@ -60,8 +60,7 @@ public:
     }
 
     void iterate_entries(
-        std::function<void(const std::string& group, const std::string& name, const low_level_access& llaccess)> func)
-        const
+        std::function<void(std::string_view group, std::string_view name, const low_level_access& llaccess)> func) const
     {
         for (auto& [group, entry] : _registry_map) {
             for (auto it = entry.signals.cbegin(); it != entry.signals.cend(); ++it) {
