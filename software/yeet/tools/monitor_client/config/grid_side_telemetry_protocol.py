@@ -124,7 +124,19 @@ class GridSignalIndex(IntEnum):
     DO_SOFTWARE_TRIP_2 = 73
     DO_SOFTWARE_TRIP_3 = 74
 
-    # === Virtual Boolean Indices (75+) ===
+    # === Additional Protection Status Signals (75-78) ===
+    PROTECTION_EXTERNAL_FAULT_STATUS = 75
+    PROTECTION_EMERGENCY_OFF_STATUS = 76
+    PROTECTION_MACHINE_PROTECTION_STATUS = 77
+    PROTECTION_ANY_ALARM_ACTIVE = 78
+
+    # === Additional Fiber Optic RX Boolean Signals (79-82) ===
+    FIBER_RX_REQUEST_FORCE_COMMUTATION_BOOL = 79
+    FIBER_RX_MACHINE_PROTECTION_TRIPPED_BOOL = 80
+    FIBER_RX_PROTECTION_INHIBIT_BOOL = 81
+    FIBER_RX_COMMUNICATION_OK = 82
+
+    # === Virtual Boolean Indices (100+) ===
     # Unpacked from BOOL_PACK_1 (42)
     MODULATOR_RELEASE_PULSES_OUTPUT = 56
     FORCE_COMMUTATION_ACKNOWLEDGED = 57

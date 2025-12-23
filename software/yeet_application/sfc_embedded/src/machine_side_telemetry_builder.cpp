@@ -142,12 +142,23 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(45, protection_status_to_signal(protection_params.machine_overvoltage_severity.read(),
                               protections.get_outputs().machine_overvoltage_tripped.read(),
                               protections.get_outputs().machine_overvoltage_alarmed.read()));
+    packet.add_signal(65, protection_status_to_signal(protection_params.loss_of_excitation_severity.read(),
+                              protections.get_outputs().loss_of_excitation_tripped.read(),
+                              protections.get_outputs().loss_of_excitation_alarmed.read()));
+    packet.add_signal(66, static_cast<float>(protections.get_outputs().any_alarm_active.read()));
 
-    // === Fiber Optic RX from Grid-Side Group (46-48) ===
+    // === Fiber Optic RX from Grid-Side Group (46-48 + 67-71) ===
     const auto& fiber_rx = _control.external_ios.get_fiber_optics_inputs_from_grid();
     packet.add_signal(46, static_cast<float>(fiber_rx.dc_link_current.read()));
     packet.add_signal(47, static_cast<float>(fiber_rx.grid_voltage_magnitude.read()));
     packet.add_signal(48, static_cast<float>(static_cast<int>(fiber_rx.current_state_id.read())));
+    // Boolean fiber optic signals from grid
+    packet.add_signal(
+        67, static_cast<float>((fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation)));
+    packet.add_signal(68, static_cast<float>(fiber_rx.force_commutation_acknowledged.read()));
+    packet.add_signal(69, static_cast<float>(fiber_rx.release_pulses.read()));
+    packet.add_signal(70, static_cast<float>(fiber_rx.grid_release_protections.read()));
+    packet.add_signal(71, static_cast<float>(fiber_rx.communication_ok.read()));
 
     // === Commutation Notch Duration Group (49-50) ===
     packet.add_signal(49, static_cast<float>(measurements.get_outputs().commutation_notch_duration_last.read()));

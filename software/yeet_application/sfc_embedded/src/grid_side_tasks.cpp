@@ -344,6 +344,12 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     bool remote_ok = control->get_external_ios().get_fiber_optics_inputs_from_machine().communication_ok.read();
     control->grid_protections.update_communication_status(fiber_comm_valid, remote_ok);
 
+    // Pass machine-side protection status to grid-side protections
+    // When machine trips, grid-side should also trip (severity-configurable)
+    bool machine_tripped =
+        control->get_external_ios().get_fiber_optics_inputs_from_machine().machine_protection_tripped.read();
+    control->grid_protections.update_machine_protection_tripped(machine_tripped);
+
     // ==================== EXECUTE CONTROL UPDATE ====================
     // Digital input overrides are automatically applied within the state machine lambdas
     // No separate apply_digital_input_overrides() call needed - the lambdas check

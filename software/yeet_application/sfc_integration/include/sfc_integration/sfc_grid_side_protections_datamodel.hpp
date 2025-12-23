@@ -41,6 +41,9 @@ public:
 
         /// Emergency off signal from hardware [bool]
         signal_input<bool> emergency_off;
+
+        /// Machine-side protection tripped (received via fiber optics) [bool]
+        signal_input<bool> machine_protection_tripped;
     };
 
     /**
@@ -113,6 +116,12 @@ public:
 
         /// Emergency off protection alarm status (severity-dependent)
         signal_output<bool> emergency_off_alarmed;
+
+        /// Machine protection tripped status (received from machine-side via fiber optics)
+        signal_output<bool> machine_protection_tripped;
+
+        /// Machine protection alarm status (severity-dependent)
+        signal_output<bool> machine_protection_alarmed;
     };
 
     /**
@@ -140,6 +149,9 @@ public:
 
         /// Severity for emergency off detection (default: trip)
         parameter<protection_severity> emergency_off_severity{protection_severity::trip};
+
+        /// Severity for machine-side protection tripped (default: trip)
+        parameter<protection_severity> machine_protection_severity{protection_severity::trip};
 
         // ========== Overcurrent Protection Parameters ==========
         /// Overcurrent trip threshold [pu]
@@ -234,6 +246,8 @@ public:
             "external_fault_severity", yeet::utils::make_enum_accessor(_model_parameters->external_fault_severity));
         entry.parameters.insert(
             "emergency_off_severity", yeet::utils::make_enum_accessor(_model_parameters->emergency_off_severity));
+        entry.parameters.insert("machine_protection_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->machine_protection_severity));
 
         // Overcurrent parameters
         entry.parameters.insert("overcurrent_trip_threshold",

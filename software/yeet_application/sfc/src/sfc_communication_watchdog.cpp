@@ -19,19 +19,26 @@ sfc_communication_watchdog::sfc_communication_watchdog(
     const float reset_cycles_float = reset_duration.value() / sampling_period.value();
 
     _timeout_threshold = std::max(std::uint16_t{1}, static_cast<std::uint16_t>(timeout_cycles_float));
-    _reset_threshold = std::max(std::uint16_t{1}, static_cast<std::uint16_t>(reset_cycles_float));
+    _reset_threshold =
+        std::min(_timeout_threshold, std::max(std::uint16_t{1}, static_cast<std::uint16_t>(reset_cycles_float)));
 }
 
 void sfc_communication_watchdog::configure_timeout_cycles(std::uint16_t cycles) noexcept
 {
     // Enforce minimum threshold of 1 cycle
     _timeout_threshold = (cycles > 0) ? cycles : 1;
+
+    // Ensure reset threshold is not greater than timeout threshold
+    if (_reset_threshold > _timeout_threshold) {
+        _reset_threshold = _timeout_threshold;
+    }
 }
 
 void sfc_communication_watchdog::configure_reset_cycles(std::uint16_t cycles) noexcept
 {
-    // Enforce minimum threshold of 1 cycle
-    _reset_threshold = (cycles > 0) ? cycles : 1;
+    // Enforce minimum threshold of 1 cycle and cap at timeout threshold
+    const std::uint16_t requested_cycles = (cycles > 0) ? cycles : 1;
+    _reset_threshold = std::min(requested_cycles, _timeout_threshold);
 }
 
 void sfc_communication_watchdog::configure_timeout_duration(yeet::duration_t duration) noexcept
@@ -64,8 +71,8 @@ void sfc_communication_watchdog::update(bool data_valid) noexcept
         }
     }
     else {
-        // Invalid communication - increment invalid counter (saturate at max)
-        if (_invalid_count < 0xFFFF) {
+        // Invalid communication - increment invalid counter (saturate at timeout threshold)
+        if (_invalid_count < _timeout_threshold) {
             _invalid_count++;
         }
 

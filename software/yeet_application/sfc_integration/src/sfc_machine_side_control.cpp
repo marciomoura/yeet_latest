@@ -56,7 +56,7 @@ std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
     tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
     tx_msg.machine_protection_tripped = machine_protections.get_outputs().is_tripped.read();
     tx_msg.protection_inhibit = machine_protections.get_outputs().is_inhibited.read();
-    tx_msg.communication_ok = !machine_protections.get_outputs().communication_loss_tripped.read();
+    tx_msg.communication_ok = _last_rx_decode_success;
     _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
 }
@@ -65,10 +65,14 @@ bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
     const std::uint32_t* payload, std::uint8_t payload_length)
 {
     auto rx_msg = fiber_optic::decode_grid_to_machine(payload, payload_length);
-    if (!rx_msg) return false;
+    if (!rx_msg) {
+        _last_rx_decode_success = false;
+        return false;
+    }
 
     // Pass the decoded message directly to external_ios - no manual unpacking needed
     external_ios.set_fiber_optics_rx(*rx_msg);
+    _last_rx_decode_success = true;
     return true;
 }
 

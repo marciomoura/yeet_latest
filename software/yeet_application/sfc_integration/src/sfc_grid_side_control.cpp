@@ -79,7 +79,7 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Include protection signals from grid-side state machine
     tx_msg.grid_release_protections = state_machine.get_outputs().release_grid_protections.read();
     tx_msg.machine_release_protections = state_machine.get_outputs().release_machine_protections.read();
-    tx_msg.communication_ok = !grid_protections.get_outputs().communication_loss_tripped.read();
+    tx_msg.communication_ok = _last_rx_decode_success;
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
     return _fiber_optic_tx_length;
@@ -91,12 +91,14 @@ bool sfc_grid_side_control::decode_fiber_optic_rx_from_machine(
     // Decode machine-side fiber-optic message
     auto rx_msg = fiber_optic::decode_machine_to_grid(payload, payload_length);
     if (!rx_msg) {
+        _last_rx_decode_success = false;
         return false;
     }
 
     // Update external_ios with decoded message
     external_ios.set_fiber_optics_rx(*rx_msg);
 
+    _last_rx_decode_success = true;
     return true;
 }
 

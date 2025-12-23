@@ -114,6 +114,7 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'is tripped', 'index': MachineSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': MachineSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'any fault active', 'index': MachineSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'any alarm active', 'index': MachineSignalIndex.PROTECTION_ANY_ALARM_ACTIVE, 'type': 'bool', 'format': 'bool'},
                 {'name': 'over flux', 'index': MachineSignalIndex.PROTECTION_OVER_FLUX_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'under flux', 'index': MachineSignalIndex.PROTECTION_UNDER_FLUX_STATUS, 'type': 'enum', 'format': 'enum',
@@ -130,6 +131,8 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'machine overvoltage', 'index': MachineSignalIndex.PROTECTION_MACHINE_OVERVOLTAGE_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'loss of excitation', 'index': MachineSignalIndex.PROTECTION_LOSS_OF_EXCITATION_STATUS, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
             ]
         },
         'fiber_optic_rx': {
@@ -137,10 +140,11 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'dc link current', 'index': MachineSignalIndex.FIBER_RX_DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
                 {'name': 'grid voltage mag.', 'index': MachineSignalIndex.FIBER_RX_GRID_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
-                {'name': 'is forced commutation', 'index': MachineSignalIndex.FIBER_RX_IS_FORCED_COMMUTATION, 'type': 'bool', 'format': 'bool'},
-                {'name': 'force comm. ack', 'index': MachineSignalIndex.FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
-                {'name': 'release pulses', 'index': MachineSignalIndex.FIBER_RX_RELEASE_PULSES, 'type': 'bool', 'format': 'bool'},
-                {'name': 'grid release protections', 'index': MachineSignalIndex.FIBER_RX_GRID_RELEASE_PROTECTIONS, 'type': 'bool', 'format': 'bool'},
+                {'name': 'is forced commutation', 'index': MachineSignalIndex.FIBER_RX_IS_FORCED_COMMUTATION_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'force comm. ack', 'index': MachineSignalIndex.FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'release pulses', 'index': MachineSignalIndex.FIBER_RX_RELEASE_PULSES_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'grid release protections', 'index': MachineSignalIndex.FIBER_RX_GRID_RELEASE_PROTECTIONS_BOOL, 'type': 'bool', 'format': 'bool'},
+                {'name': 'communication ok', 'index': MachineSignalIndex.FIBER_RX_COMMUNICATION_OK, 'type': 'bool', 'format': 'bool'},
                 {'name': 'state machine ID', 'index': MachineSignalIndex.FIBER_RX_STATE_ID, 'type': 'int', 'format': '.0f'},
             ]
         },

@@ -42,6 +42,17 @@ public:
 
     void update_emergency_off(bool active) noexcept;
 
+    /**
+     * @brief Update remote machine-side protection trip status
+     * @param tripped True if machine-side reports a protection trip via fiber-optics
+     *
+     * This remote trip input participates in the grid-side trip logic:
+     * - Triggers software trip outputs
+     * - Requires user acknowledgment to clear (confirm_alarms)
+     * - Ensures both controllers are synchronized on trip status
+     */
+    void update_machine_protection_tripped(bool tripped) noexcept;
+
     // -------------------- Configuration (severity routing) --------------------
 
     void configure_overcurrent_is_trip(bool is_trip) noexcept;
@@ -51,6 +62,7 @@ public:
     void configure_door_open_is_trip(bool is_trip) noexcept;
     void configure_external_fault_is_trip(bool is_trip) noexcept;
     void configure_emergency_off_is_trip(bool is_trip) noexcept;
+    void configure_machine_protection_is_trip(bool is_trip) noexcept;
 
     // -------------------- Configuration (per-protection parameters) --------------------
 
@@ -109,6 +121,9 @@ public:
     bool get_emergency_off_alarmed() const noexcept;
     bool get_emergency_off_warning() const noexcept;
 
+    bool get_machine_protection_tripped() const noexcept;
+    bool get_machine_protection_alarmed() const noexcept;
+
 private:
     // Owned protection blocks
     sfc_current_protection _overcurrent_protection;
@@ -120,6 +135,7 @@ private:
 
     bool _external_fault_active{false};
     bool _emergency_off_active{false};
+    bool _machine_protection_tripped_active{false};
 
     // Severity routing configuration
     bool _overcurrent_is_trip{true};
@@ -129,6 +145,7 @@ private:
     bool _door_open_is_trip{true};
     bool _external_fault_is_trip{true};
     bool _emergency_off_is_trip{true};
+    bool _machine_protection_is_trip{true};
 
     // Outputs (latched/derived)
     bool _is_tripped{false};
@@ -159,6 +176,9 @@ private:
 
     bool _emergency_off_tripped{false};
     bool _emergency_off_alarmed{false};
+
+    bool _machine_protection_tripped{false};
+    bool _machine_protection_alarmed{false};
 };
 
 }  // namespace yeet::application::sfc

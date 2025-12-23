@@ -298,6 +298,8 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
         _loss_of_excitation_protection.update(real_t{1.0f});
         _loss_of_excitation_protection.reset();
 
+        _communication_watchdog.reset();
+
         // Clear severity-routed outputs immediately.
         _over_flux_tripped = false;
         _over_flux_alarmed = false;
