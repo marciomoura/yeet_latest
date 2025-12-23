@@ -272,19 +272,19 @@ TEST_F(ClosedLoopIOsTest, DoorOpenTripsAndForcesShutdown)
         << "Alarm should remain latched after door closes";
 
     // In BREAKERS_OFF state, trip_acknowledged is not asserted, so:
-    // - is_tripped remains true (trip is latched)
+    // - has_active_trip is false (fault cleared)
     // - is_inhibited remains true (alarm not confirmed)
     // This is expected behavior - trip acknowledgment only occurs in SHUTDOWN_REQUESTED
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().has_active_trip.read())
         << "Trip clears after door is closed";
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
         << "Inhibit should remain latched in BREAKERS_OFF";
 
     // User confirmation cannot clear inhibit while trip is still latched
     auto& protection_params = system.grid_side_control.grid_protections.get_parameters();
-    protection_params.confirm_alarms.write(false);
+    protection_params.confirm_trips.write(false);
     success &= simulator.simulate_for(ms(10.0f));
-    protection_params.confirm_alarms.write(true);
+    protection_params.confirm_trips.write(true);
     success &= simulator.simulate_for(ms(10.0f));
 
     // Inhibit should still be latched (trip hasn't been acknowledged)

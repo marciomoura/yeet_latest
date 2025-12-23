@@ -127,20 +127,20 @@ public:
             machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
     }
 
-    void register_datamodel(yeet::model_registry& registry)
+    void register_datamodel(yeet::telemetry::parameter_handler& handler)
     {
         // Register all datamodels
-        plant.register_datamodel(registry);
-        grid_measurements.register_datamodel(registry);
-        machine_measurements.register_datamodel(registry);
-        dc_link_measurements.register_datamodel(registry);
-        excitation_controller.register_datamodel(registry);
-        speed_controller.register_datamodel(registry);
-        torque_controller.register_datamodel(registry);
-        current_controller.register_datamodel(registry);
-        machine_side_controller.register_datamodel(registry);
-        grid_side_pulse_generator.register_datamodel(registry);
-        machine_side_pulse_generator.register_datamodel(registry);
+        plant.register_datamodel(handler);
+        grid_measurements.register_datamodel(handler);
+        machine_measurements.register_datamodel(handler);
+        dc_link_measurements.register_datamodel(handler);
+        excitation_controller.register_datamodel(handler);
+        speed_controller.register_datamodel(handler);
+        torque_controller.register_datamodel(handler);
+        current_controller.register_datamodel(handler);
+        machine_side_controller.register_datamodel(handler);
+        grid_side_pulse_generator.register_datamodel(handler);
+        machine_side_pulse_generator.register_datamodel(handler);
     }
 
     // Public members for direct access

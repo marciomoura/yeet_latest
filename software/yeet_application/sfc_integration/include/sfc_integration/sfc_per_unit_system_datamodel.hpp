@@ -17,7 +17,8 @@
 
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc/sfc_types.hpp"
-#include "yeet/model_registry.hpp"
+#include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -88,7 +89,8 @@ public:
      *
      * @param registry Reference to the model registry
      */
-    void register_datamodel(yeet::model_registry& registry, std::shared_ptr<sfc_per_unit_system> pu_system);
+    void register_datamodel(
+        yeet::telemetry::parameter_handler& handler, std::shared_ptr<sfc_per_unit_system> pu_system);
 
 private:
     sfc_per_unit_system get_sfc_per_unit_system();

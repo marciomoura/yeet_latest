@@ -3,8 +3,7 @@
  * @brief Parameter handler for SFC control system
  *
  * Provides protocol handlers for reading/writing parameters over network.
- * Reads parameter metadata from model_registry which is populated by all
- * SFC component datamodels during initialization.
+ * Parameters are registered directly without intermediate registry classes.
  */
 
 #pragma once
@@ -12,8 +11,8 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <string_view>
 
-#include "yeet/model_registry.hpp"
 #include "yeet/network_telemetry.hpp"
 #include "yeet/utils/low_level_access.hpp"
 
@@ -162,10 +161,10 @@ struct parameter_cache_entry {
 };
 
 /**
- * @brief Parameter handler using model_registry
+ * @brief Parameter handler with direct registration
  *
- * Reads parameters dynamically from model_registry instead of hardcoded test data.
- * Builds a cache of parameter metadata on initialization for fast lookup.
+ * Parameters are registered directly into a flat array cache during initialization.
+ * No intermediate registry classes - this IS the registry and runtime handler.
  */
 class parameter_handler {
 public:
@@ -175,10 +174,39 @@ public:
     static constexpr std::size_t MAX_PARAMETERS = 256;
 
     /**
-     * @brief Construct parameter handler from model_registry
-     * @param registry Reference to model_registry containing all parameters
+     * @brief Construct parameter handler
      */
-    explicit parameter_handler(const model_registry* registry);
+    parameter_handler() = default;
+
+    /**
+     * @brief Register a parameter directly into the cache
+     * @param component Component name (e.g., "motor_control")
+     * @param name Parameter name (e.g., "kp_gain")
+     * @param accessor Low-level access to parameter storage
+     * @return Parameter ID (array index), or -1 if cache is full
+     */
+    std::int16_t register_parameter(
+        std::string_view component, std::string_view name, low_level_access accessor) noexcept
+    {
+        if (parameter_cache_size_ >= MAX_PARAMETERS) {
+            return -1;
+        }
+
+        if (component.size() >= 64 || name.size() >= 64) {
+            return -1;
+        }
+
+        auto& entry = parameter_cache_[parameter_cache_size_];
+        entry.id = static_cast<std::uint16_t>(parameter_cache_size_);
+        std::memcpy(entry.component, component.data(), component.size());
+        entry.component[component.size()] = '\0';
+        std::memcpy(entry.name, name.data(), name.size());
+        entry.name[name.size()] = '\0';
+        entry.type = parameter_value_type::float32;
+        entry.accessor = accessor;
+
+        return static_cast<std::int16_t>(parameter_cache_size_++);
+    }
 
     /**
      * @brief Handle parameter SET request
@@ -218,27 +246,12 @@ public:
     std::uint16_t get_parameter_count() const { return static_cast<std::uint16_t>(parameter_cache_size_); }
 
     /**
-     * @brief Rebuild parameter cache from registry
-     *
-     * Call this after registering new datamodels to the registry.
-     * Clears existing cache and rebuilds from current registry state.
-     */
-    void rebuild_parameter_cache();
-
-    /**
      * @brief Set verbose logging
      * @param verbose True to enable verbose logging
      */
     void set_verbose(bool verbose) noexcept { verbose_ = verbose; }
 
 private:
-    /**
-     * @brief Build parameter cache from model_registry
-     *
-     * Iterates through all parameters in registry and builds indexed cache
-     */
-    void build_parameter_cache();
-
     /**
      * @brief Get parameter by ID (direct array indexing)
      * @return Pointer to cache entry, or nullptr if ID out of range
@@ -251,13 +264,8 @@ private:
     bool is_value_in_range(const parameter_cache_entry& param, float value) const;
 
     /**
-     * @brief Pointer to model_registry (not owned, must outlive this object)
-     */
-    const model_registry* registry_;
-
-    /**
      * @brief Indexed cache of parameter metadata for fast lookup
-     * Built once during construction by iterating model_registry
+     * Parameters are registered directly into this array during initialization
      */
     std::array<parameter_cache_entry, MAX_PARAMETERS> parameter_cache_;
 
@@ -269,7 +277,7 @@ private:
     /**
      * @brief Sequence counter for response packets
      */
-    std::uint32_t sequence_counter_;
+    std::uint32_t sequence_counter_ = 0;
 
     /**
      * @brief Verbose logging flag

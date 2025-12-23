@@ -87,11 +87,11 @@ TEST_F(CommunicationWatchdogTest, InvalidCountIncrementsSaturatesAtMax)
 {
     watchdog.configure_timeout_cycles(10);
 
-    // Run many invalid cycles (more than uint16_t max)
+    // Run many invalid cycles (more than timeout threshold)
     run_steps(70000, false);
 
     EXPECT_TRUE(watchdog.is_tripped());
-    EXPECT_EQ(watchdog.get_invalid_count(), 0xFFFF);  // Saturated at max
+    EXPECT_EQ(watchdog.get_invalid_count(), 10);  // Saturated at timeout threshold
 }
 
 // ==================== Reset and Recovery Tests ====================
@@ -148,7 +148,7 @@ TEST_F(CommunicationWatchdogTest, ManualResetClearsEverything)
     // Trip the watchdog
     run_steps(20, false);
     EXPECT_TRUE(watchdog.is_tripped());
-    EXPECT_EQ(watchdog.get_invalid_count(), 20);
+    EXPECT_EQ(watchdog.get_invalid_count(), 10);  // Counter saturates at timeout threshold
 
     // Manual reset
     watchdog.reset();

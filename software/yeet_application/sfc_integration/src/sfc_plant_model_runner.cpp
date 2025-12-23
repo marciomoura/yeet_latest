@@ -12,11 +12,11 @@ sfc_plant_model_runner::sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit
     assert(per_unit_system != nullptr);
 }
 
-void sfc_plant_model_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_plant_model_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_plant_model_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_plant_model_runner::initialize()

@@ -4,44 +4,33 @@ namespace yeet::application::sfc {
 
 void sfc_protections_trip_handshake::reset() noexcept
 {
-    _trip_latched = false;
-    _alarm_pending = false;
-    _trip_cleared_pulse = false;
+    _has_active_trip = false;
+    _is_inhibited = false;
 
     // No explicit reset on edge detector; a reset is equivalent to forgetting history.
-    _confirm_alarms_edge = yeet::control::edge_detector{};
+    _confirm_trips_edge = yeet::control::edge_detector{};
 }
 
-void sfc_protections_trip_handshake::update(
-    bool any_trip_request, bool any_fault_condition_active, bool confirm_alarms) noexcept
+void sfc_protections_trip_handshake::update(bool any_trip_active, bool confirm_trips) noexcept
 {
-    _trip_cleared_pulse = false;
+    // Track active trips - this is NOT latched, reflects real-time state
+    _has_active_trip = any_trip_active;
 
-    // Latch trip and alarm_pending when a trip is requested
-    if (any_trip_request) {
-        _trip_latched = true;
-        _alarm_pending = true;
+    // Latch inhibit when a trip occurs (system cannot restart until confirmed)
+    if (any_trip_active) {
+        _is_inhibited = true;
     }
 
-    const bool confirm_edge = _confirm_alarms_edge.update(confirm_alarms);
+    const bool confirm_edge = _confirm_trips_edge.update(confirm_trips);
 
-    // Trip latch clears only when acknowledged AND fault is gone
-    if (_trip_latched && confirm_edge && !any_fault_condition_active) {
-        _trip_latched = false;
-        _trip_cleared_pulse = true;
-    }
-
-    // Alarm confirmation (user acknowledgment): rising edge on confirm_alarms clears inhibit
-    // ONLY when no active fault conditions exist (trip must be cleared first)
-    if (confirm_edge && !_trip_latched && !any_fault_condition_active) {
-        _alarm_pending = false;
+    // Inhibit clears only on rising edge of confirm AND when no trips are active
+    if (confirm_edge && !any_trip_active) {
+        _is_inhibited = false;
     }
 }
 
-bool sfc_protections_trip_handshake::get_is_tripped() const noexcept { return _trip_latched; }
+bool sfc_protections_trip_handshake::get_has_active_trip() const noexcept { return _has_active_trip; }
 
-bool sfc_protections_trip_handshake::get_is_inhibited() const noexcept { return _alarm_pending; }
-
-bool sfc_protections_trip_handshake::get_trip_cleared_pulse() const noexcept { return _trip_cleared_pulse; }
+bool sfc_protections_trip_handshake::get_is_inhibited() const noexcept { return _is_inhibited; }
 
 }  // namespace yeet::application::sfc

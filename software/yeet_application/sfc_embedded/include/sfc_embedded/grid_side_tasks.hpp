@@ -14,14 +14,12 @@
 // Network Telemetry/Parameter Infrastructure
 // Instantiated per control instance to support both embedded (static) and host (dynamic) usage
 struct grid_side_network_infrastructure {
-    yeet::model_registry registry;
     yeet::application::sfc::telemetry::grid_side_telemetry_builder telemetry_builder;
     yeet::telemetry::telemetry_manager telemetry_manager;
     yeet::telemetry::parameter_handler parameter_handler;
     yeet::telemetry::network_handler network_handler;
 
-    // Two-phase initialization: first register datamodel, then construct handlers
-    // This ensures parameter_handler has access to populated registry
+    // Direct registration: datamodel registers parameters directly into parameter_handler
     grid_side_network_infrastructure(yeet::application::sfc::integration::sfc_grid_side_control& control);
 };
 

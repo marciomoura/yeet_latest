@@ -39,7 +39,7 @@ public:
     void stop() override;
 
     /// Register datamodel for network access
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
 };
 
 }  // namespace yeet::application::sfc::integration

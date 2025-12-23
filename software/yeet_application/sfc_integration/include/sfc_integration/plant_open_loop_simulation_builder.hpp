@@ -108,17 +108,17 @@ public:
         });
     }
 
-    void register_datamodel(yeet::model_registry& registry)
+    void register_datamodel(yeet::telemetry::parameter_handler& handler)
     {
         // Register all datamodels (order: plant, mocks, pulse generators)
-        plant.register_datamodel(registry);
-        grid_side_hardware_mock.register_datamodel(registry);
-        machine_side_hardware_mock.register_datamodel(registry);
-        grid_side_measurements.register_datamodel(registry);
-        machine_side_measurements.register_datamodel(registry);
-        dc_link_measurements.register_datamodel(registry);
-        grid_side_pulse_generator.register_datamodel(registry);
-        machine_side_pulse_generator.register_datamodel(registry);
+        plant.register_datamodel(handler);
+        grid_side_hardware_mock.register_datamodel(handler);
+        machine_side_hardware_mock.register_datamodel(handler);
+        grid_side_measurements.register_datamodel(handler);
+        machine_side_measurements.register_datamodel(handler);
+        dc_link_measurements.register_datamodel(handler);
+        grid_side_pulse_generator.register_datamodel(handler);
+        machine_side_pulse_generator.register_datamodel(handler);
     }
 
     // Public members for direct access

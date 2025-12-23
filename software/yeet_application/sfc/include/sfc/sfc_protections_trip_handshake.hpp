@@ -5,13 +5,17 @@
 namespace yeet::application::sfc {
 
 /**
- * @brief Shared trip + alarm confirmation handshake used by SFC protection runners.
+ * @brief Shared trip + inhibit confirmation handshake used by SFC protection runners.
  *
  * Responsibilities:
- * - Latch `is_tripped` when any protection reports a trip.
- * - Latch `is_inhibited` (alarm pending) whenever a trip has occurred.
- * - Clear `is_tripped` only on a rising edge of `confirm_alarms` AND only when the fault is gone.
- * - Clear `is_inhibited` only on a rising edge of `confirm_alarms` AND only when not tripped.
+ * - Track `has_active_trip` which reflects whether any trip is currently active (clears automatically when fault
+ * clears)
+ * - Latch `is_inhibited` whenever a trip has occurred (system cannot restart until confirmed)
+ * - Clear `is_inhibited` only on a rising edge of `confirm_trips` AND only when no active trips
+ *
+ * The key behavior change:
+ * - `has_active_trip` is NOT latched - it reflects the real-time trip state
+ * - `is_inhibited` IS latched - it requires user confirmation to clear
  *
  * This block is allocation-free and intended for hard real-time usage.
  */
@@ -25,33 +29,32 @@ public:
     /**
      * @brief Execute one cycle of the handshake.
      *
-     * @param any_trip_request True if any protection (severity-routed) requests a trip.
-     * @param any_fault_condition_active True if the underlying fault condition is still active.
-     * @param confirm_alarms Operator/supervisor confirmation input (rising edge clears inhibit).
+     * @param any_trip_active True if any protection (severity-routed) currently has an active trip.
+     * @param confirm_trips Operator/supervisor confirmation input (rising edge clears inhibit when no trips active).
      */
-    void update(bool any_trip_request, bool any_fault_condition_active, bool confirm_alarms) noexcept;
+    void update(bool any_trip_active, bool confirm_trips) noexcept;
 
     /**
-     * @brief Latched trip output.
+     * @brief Returns true if any trip is currently active.
+     *
+     * This is NOT latched - it reflects the real-time state of trip conditions.
+     * Clears automatically when the fault condition clears.
      */
-    bool get_is_tripped() const noexcept;
+    bool get_has_active_trip() const noexcept;
 
     /**
-     * @brief Latched inhibit output (alarm pending / confirmation required).
+     * @brief Latched inhibit output (confirmation required before restart).
+     *
+     * Set when a trip occurs, cleared only by rising edge of confirm_trips
+     * when no trips are active.
      */
     bool get_is_inhibited() const noexcept;
 
-    /**
-     * @brief True for exactly one cycle when the latched trip is cleared in update().
-     */
-    bool get_trip_cleared_pulse() const noexcept;
-
 private:
-    bool _trip_latched{false};
-    bool _alarm_pending{false};
-    bool _trip_cleared_pulse{false};
+    bool _has_active_trip{false};
+    bool _is_inhibited{false};
 
-    yeet::control::edge_detector _confirm_alarms_edge;
+    yeet::control::edge_detector _confirm_trips_edge;
 };
 
 }  // namespace yeet::application::sfc

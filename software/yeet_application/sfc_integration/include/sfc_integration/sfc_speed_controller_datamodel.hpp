@@ -1,7 +1,7 @@
 #pragma once
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/constants.hpp"
@@ -90,19 +90,17 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->kp));
-        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
-        entry.parameters.insert("torque_reference_magnitude_limit",
+        static constexpr std::string_view component_name = "speed_controller";
+        handler.register_parameter(component_name, "kp", yeet::utils::make_units_accessor(_model_parameters->kp));
+        handler.register_parameter(component_name, "ti", yeet::utils::make_units_accessor(_model_parameters->ti));
+        handler.register_parameter(component_name, "torque_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->torque_reference_magnitude_limit));
-        entry.parameters.insert("initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
-        entry.parameters.insert(
-            "feedforward_inertia", yeet::utils::make_units_accessor(_model_parameters->feedforward_inertia));
-
-        registry.insert("speed_controller", std::move(entry));
+        handler.register_parameter(
+            component_name, "initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
+        handler.register_parameter(component_name, "feedforward_inertia",
+            yeet::utils::make_units_accessor(_model_parameters->feedforward_inertia));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -3,6 +3,7 @@
 #include <array>
 
 #include "yeet/parameter.hpp"
+#include "yeet/signal.hpp"
 #include "yeet/utils/low_level_access.hpp"
 #include "yeet_control/angle_wrapped.hpp"  // For angle_wrapped and angle_t
 
@@ -63,6 +64,19 @@ static void write_bool(void* context, float value) noexcept
 {
     auto* param = static_cast<parameter<bool>*>(context);
     param->write(value > 0.0f);
+}
+
+// Signal boolean read/write function pointers
+static float read_signal_bool(void* context) noexcept
+{
+    auto* signal = static_cast<signal_output<bool>*>(context);
+    return signal->read() ? 1.0f : 0.0f;
+}
+
+static void write_signal_bool(void* context, float value) noexcept
+{
+    auto* signal = static_cast<signal_output<bool>*>(context);
+    signal->write(value > 0.0f);
 }
 
 // Enum read/write function pointers
@@ -186,6 +200,17 @@ inline low_level_access make_units_accessor(parameter<UnitT>& param) noexcept
 inline low_level_access make_bool_accessor(parameter<bool>& param) noexcept
 {
     return low_level_access(detail::read_bool, detail::write_bool, &param);
+}
+
+/**
+ * @brief Creates low_level_access for boolean signals
+ *
+ * @param signal Reference to the signal_output<bool> object
+ * @return low_level_access configured for boolean type
+ */
+inline low_level_access make_bool_accessor(signal_output<bool>& signal) noexcept
+{
+    return low_level_access(detail::read_signal_bool, detail::write_signal_bool, &signal);
 }
 
 /**

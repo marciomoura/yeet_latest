@@ -341,11 +341,10 @@ int main(int argc, char* argv[])
 
     // Register plant model parameters in machine-side registry (for host application only)
     if (cfg.verbose) {
-        std::cout << "[INIT] Registering plant model parameters in machine-side registry..." << std::endl;
+        std::cout << "[INIT] Registering plant model parameters in machine-side parameter handler..." << std::endl;
     }
     simulator_builder.machine_side_control.register_plant_datamodel(
-        machine_network_infra.registry, simulator_builder.plant);
-    machine_network_infra.parameter_handler.rebuild_parameter_cache();
+        machine_network_infra.parameter_handler, simulator_builder.plant);
 
     // ==================== TCP Server Initialization ====================
     if (cfg.verbose) {

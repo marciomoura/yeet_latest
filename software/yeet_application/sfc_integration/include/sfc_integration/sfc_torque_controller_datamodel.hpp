@@ -5,8 +5,8 @@
 
 #include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_torque_controller.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
@@ -151,34 +151,33 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert(
-            "torque_reference_override", yeet::utils::make_bool_accessor(_model_parameters->torque_reference_override));
-        entry.parameters.insert("torque_reference_override_value",
+        static constexpr std::string_view component_name = "torque_controller";
+        handler.register_parameter(component_name, "torque_reference_override",
+            yeet::utils::make_bool_accessor(_model_parameters->torque_reference_override));
+        handler.register_parameter(component_name, "torque_reference_override_value",
             yeet::utils::make_units_accessor(_model_parameters->torque_reference_override_value));
-        entry.parameters.insert(
-            "absolute_min_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_min_torque));
-        entry.parameters.insert(
-            "absolute_max_torque", yeet::utils::make_units_accessor(_model_parameters->absolute_max_torque));
-        entry.parameters.insert(
-            "torque_to_current_factor", yeet::utils::make_units_accessor(_model_parameters->torque_to_current_factor));
-        entry.parameters.insert(
-            "torque_rate_limit", yeet::utils::make_units_accessor(_model_parameters->torque_rate_limit));
-        entry.parameters.insert("enable_torque_rate_limiting",
+        handler.register_parameter(component_name, "absolute_min_torque",
+            yeet::utils::make_units_accessor(_model_parameters->absolute_min_torque));
+        handler.register_parameter(component_name, "absolute_max_torque",
+            yeet::utils::make_units_accessor(_model_parameters->absolute_max_torque));
+        handler.register_parameter(component_name, "torque_to_current_factor",
+            yeet::utils::make_units_accessor(_model_parameters->torque_to_current_factor));
+        handler.register_parameter(component_name, "torque_rate_limit",
+            yeet::utils::make_units_accessor(_model_parameters->torque_rate_limit));
+        handler.register_parameter(component_name, "enable_torque_rate_limiting",
             yeet::utils::make_bool_accessor(_model_parameters->enable_torque_rate_limiting));
-        entry.parameters.insert(
-            "breakaway_boost_torque", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_torque));
-        entry.parameters.insert(
-            "breakaway_boost_duration", yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_duration));
-        entry.parameters.insert(
-            "minimum_motoring_torque", yeet::utils::make_units_accessor(_model_parameters->minimum_motoring_torque));
-        entry.parameters.insert("enable_minimum_motoring_torque",
+        handler.register_parameter(component_name, "breakaway_boost_torque",
+            yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_torque));
+        handler.register_parameter(component_name, "breakaway_boost_duration",
+            yeet::utils::make_units_accessor(_model_parameters->breakaway_boost_duration));
+        handler.register_parameter(component_name, "minimum_motoring_torque",
+            yeet::utils::make_units_accessor(_model_parameters->minimum_motoring_torque));
+        handler.register_parameter(component_name, "enable_minimum_motoring_torque",
             yeet::utils::make_bool_accessor(_model_parameters->enable_minimum_motoring_torque));
 
-        entry.parameters.insert("enable_speed_based_torque_limits",
+        handler.register_parameter(component_name, "enable_speed_based_torque_limits",
             yeet::utils::make_bool_accessor(_model_parameters->enable_speed_based_torque_limits));
 
         // Per-element accessors for LUT arrays using generic array accessor
@@ -188,7 +187,7 @@ public:
             "speed_torque_limit_speed_axis_pu[5]", "speed_torque_limit_speed_axis_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            entry.parameters.insert(std::string(speed_axis_names[i]),
+            handler.register_parameter(component_name, speed_axis_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_speed_axis_pu, i));
         }
 
@@ -198,7 +197,7 @@ public:
             "speed_torque_limit_min_torque_pu[5]", "speed_torque_limit_min_torque_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            entry.parameters.insert(std::string(min_torque_names[i]),
+            handler.register_parameter(component_name, min_torque_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_min_torque_pu, i));
         }
 
@@ -208,11 +207,9 @@ public:
             "speed_torque_limit_max_torque_pu[5]", "speed_torque_limit_max_torque_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_SPEED_TORQUE_POINTS; ++i) {
-            entry.parameters.insert(std::string(max_torque_names[i]),
+            handler.register_parameter(component_name, max_torque_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->speed_torque_limit_max_torque_pu, i));
         }
-
-        registry.insert("torque_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

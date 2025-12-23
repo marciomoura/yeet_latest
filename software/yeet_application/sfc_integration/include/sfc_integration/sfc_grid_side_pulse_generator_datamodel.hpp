@@ -1,7 +1,7 @@
 #pragma once
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -103,37 +103,42 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "pulse_generator";
         // bool parameter - use make_bool_accessor
-        entry.parameters.insert("enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
+        handler.register_parameter(
+            component_name, "enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
 
         // angle_wrapped parameter - use make_degrees_angle_accessor for user-friendly degrees interface
-        entry.parameters.insert(
-            "pulse_width", yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->pulse_width));
+        handler.register_parameter(component_name, "pulse_width",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->pulse_width));
 
         // Enum parameter - use make_enum_accessor
-        entry.parameters.insert("reference_type", yeet::utils::make_enum_accessor(_model_parameters->reference_type));
+        handler.register_parameter(
+            component_name, "reference_type", yeet::utils::make_enum_accessor(_model_parameters->reference_type));
 
         // Virtual reference mode parameters
-        entry.parameters.insert(
-            "enable_virtual_reference", yeet::utils::make_bool_accessor(_model_parameters->enable_virtual_reference));
-        entry.parameters.insert("virtual_reference_frequency",
+        handler.register_parameter(component_name, "enable_virtual_reference",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_virtual_reference));
+        handler.register_parameter(component_name, "virtual_reference_frequency",
             yeet::utils::make_units_accessor(_model_parameters->virtual_reference_frequency));
 
         // Individual pulse override mode parameters
-        entry.parameters.insert("enable_individual_pulse_override",
+        handler.register_parameter(component_name, "enable_individual_pulse_override",
             yeet::utils::make_bool_accessor(_model_parameters->enable_individual_pulse_override));
-        entry.parameters.insert("override_p1", yeet::utils::make_bool_accessor(_model_parameters->override_p1));
-        entry.parameters.insert("override_p2", yeet::utils::make_bool_accessor(_model_parameters->override_p2));
-        entry.parameters.insert("override_p3", yeet::utils::make_bool_accessor(_model_parameters->override_p3));
-        entry.parameters.insert("override_p4", yeet::utils::make_bool_accessor(_model_parameters->override_p4));
-        entry.parameters.insert("override_p5", yeet::utils::make_bool_accessor(_model_parameters->override_p5));
-        entry.parameters.insert("override_p6", yeet::utils::make_bool_accessor(_model_parameters->override_p6));
-
-        registry.insert("pulse_generator", std::move(entry));
+        handler.register_parameter(
+            component_name, "override_p1", yeet::utils::make_bool_accessor(_model_parameters->override_p1));
+        handler.register_parameter(
+            component_name, "override_p2", yeet::utils::make_bool_accessor(_model_parameters->override_p2));
+        handler.register_parameter(
+            component_name, "override_p3", yeet::utils::make_bool_accessor(_model_parameters->override_p3));
+        handler.register_parameter(
+            component_name, "override_p4", yeet::utils::make_bool_accessor(_model_parameters->override_p4));
+        handler.register_parameter(
+            component_name, "override_p5", yeet::utils::make_bool_accessor(_model_parameters->override_p5));
+        handler.register_parameter(
+            component_name, "override_p6", yeet::utils::make_bool_accessor(_model_parameters->override_p6));
     }
 
     inputs* get_inputs() { return _model_inputs; }

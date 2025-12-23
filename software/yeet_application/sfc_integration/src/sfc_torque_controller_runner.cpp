@@ -8,11 +8,11 @@ static bool is_shutdown_state(const yeet::application::sfc::sfc_state_id state_i
     return (state_id == sfc_state_id::SHUTDOWN_REQUESTED) || (state_id == sfc_state_id::OPERATION_OFF);
 }
 
-void sfc_torque_controller_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_torque_controller_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_torque_controller_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_torque_controller_runner::initialize()

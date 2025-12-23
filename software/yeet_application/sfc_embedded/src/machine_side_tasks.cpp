@@ -103,17 +103,10 @@ machine_side_network_infrastructure::machine_side_network_infrastructure(
     yeet::application::sfc::integration::sfc_machine_side_control& control)
     : telemetry_builder(control),
       telemetry_manager(telemetry_builder, 10),
-      parameter_handler(&registry),
+      parameter_handler(),
       network_handler(telemetry_manager, parameter_handler)
 {
-    // Step 1: Register datamodel with registry
-    // This populates the registry with all control system parameters
-    control.register_datamodel(registry);
-
-    // Step 2: Rebuild parameter handler cache after datamodel registration
-    // The parameter_handler was constructed with empty registry, so we need to rebuild the cache
-    // now that the registry has been populated with actual parameters
-    parameter_handler.rebuild_parameter_cache();
+    control.register_datamodel(parameter_handler);
 }
 
 ARM_FUNCTION
@@ -204,9 +197,9 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     control->update_200us();
 
     // Update hardware status flags for LED indicators
-    outputs->status.trip = control->machine_protections.get_outputs().is_tripped ||
+    outputs->status.trip = control->machine_protections.get_outputs().has_active_trip ||
                            control->machine_protections.get_outputs().is_inhibited;
-    outputs->status.alarm = control->machine_protections.get_outputs().any_alarm_active;
+    outputs->status.alarm = control->machine_protections.get_outputs().has_active_alarm;
 
     // ==================== ANALOG OUTPUTS (DAC) → EXCITATION COMMANDS ====================
 

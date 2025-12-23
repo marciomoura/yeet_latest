@@ -5,6 +5,7 @@
 #include "sfc/sfc_excitation_controller.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
@@ -128,16 +129,16 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        static constexpr std::string_view component_name = "excitation_controller";
 
-        entry.parameters.insert(
-            "field_current_setpoint", yeet::utils::make_units_accessor(_model_parameters->field_current_setpoint));
-        entry.parameters.insert("low_voltage_field_current_setpoint_pu",
+        handler.register_parameter(component_name, "field_current_setpoint",
+            yeet::utils::make_units_accessor(_model_parameters->field_current_setpoint));
+        handler.register_parameter(component_name, "low_voltage_field_current_setpoint_pu",
             yeet::utils::make_units_accessor(_model_parameters->low_voltage_field_current_setpoint_pu));
-        entry.parameters.insert(
-            "voltage_threshold_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_threshold_pu));
+        handler.register_parameter(component_name, "voltage_threshold_pu",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_threshold_pu));
 
         // Register voltage reference lookup table entries individually
         static constexpr std::string_view speed_axis_names[] = {"voltage_reference_speed_axis_pu[0]",
@@ -146,7 +147,7 @@ public:
             "voltage_reference_speed_axis_pu[5]", "voltage_reference_speed_axis_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(std::string(speed_axis_names[i]),
+            handler.register_parameter(component_name, speed_axis_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->voltage_reference_speed_axis_pu, i));
         }
 
@@ -155,27 +156,27 @@ public:
             "voltage_reference_pu[6]"};
 
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(std::string(voltage_ref_names[i]),
+            handler.register_parameter(component_name, voltage_ref_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->voltage_reference_pu, i));
         }
 
-        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_kp));
-        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_ti));
-        entry.parameters.insert(
-            "pi_output_min_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_min_pu));
-        entry.parameters.insert(
-            "pi_output_max_pu", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_max_pu));
+        handler.register_parameter(
+            component_name, "kp", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_kp));
+        handler.register_parameter(
+            component_name, "ti", yeet::utils::make_units_accessor(_model_parameters->voltage_pi_ti));
+        handler.register_parameter(component_name, "pi_output_min_pu",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_min_pu));
+        handler.register_parameter(component_name, "pi_output_max_pu",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_max_pu));
 
-        entry.parameters.insert("constant_flux_speed_threshold",
+        handler.register_parameter(component_name, "constant_flux_speed_threshold",
             yeet::utils::make_units_accessor(_model_parameters->constant_flux_speed_threshold));
-        entry.parameters.insert(
-            "prefluxing_duration", yeet::utils::make_units_accessor(_model_parameters->prefluxing_duration));
-        entry.parameters.insert("field_current_reference_override",
+        handler.register_parameter(component_name, "prefluxing_duration",
+            yeet::utils::make_units_accessor(_model_parameters->prefluxing_duration));
+        handler.register_parameter(component_name, "field_current_reference_override",
             yeet::utils::make_bool_accessor(_model_parameters->field_current_reference_override));
-        entry.parameters.insert("field_current_reference_override_value",
+        handler.register_parameter(component_name, "field_current_reference_override_value",
             yeet::utils::make_units_accessor(_model_parameters->field_current_reference_override_value));
-
-        registry.insert("excitation_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

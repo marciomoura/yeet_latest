@@ -19,7 +19,7 @@ public:
 
     sfc_speed_controller_runner() : base_application(sampling_time), _sfc_speed_controller(sampling_time) {}
 
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;
     void run() override;
     void stop() override;

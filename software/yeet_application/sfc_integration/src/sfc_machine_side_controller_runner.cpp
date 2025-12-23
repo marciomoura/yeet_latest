@@ -2,11 +2,11 @@
 
 namespace yeet::application::sfc::integration {
 
-void sfc_machine_side_controller_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_machine_side_controller_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_machine_side_controller_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_machine_side_controller_runner::initialize()

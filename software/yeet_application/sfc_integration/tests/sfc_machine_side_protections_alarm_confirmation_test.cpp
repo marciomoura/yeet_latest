@@ -56,7 +56,7 @@ protected:
         params.under_flux_trip_delay.write(duration_t{0.0});
         params.stall_trip_delay.write(duration_t{0.0});
 
-        params.confirm_alarms.write(false);
+        params.confirm_trips.write(false);
 
         // Connect storage to signals (required by raw pointer API)
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
@@ -176,16 +176,16 @@ protected:
         yeet::utils::mock_signal_input::write(inputs.closed_loop_active, false);
     }
 
-    void set_confirm_alarms(bool value)
+    void set_confirm_trips(bool value)
     {
         auto& params = _runner->get_parameters();
-        params.confirm_alarms.write(value);
+        params.confirm_trips.write(value);
     }
 
-    bool is_tripped() const
+    bool has_active_trip() const
     {
         const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
-        return outputs.is_tripped.read();
+        return outputs.has_active_trip.read();
     }
 
     bool is_inhibited() const
@@ -218,29 +218,29 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverFluxTri
 {
     // Initial state: no faults
     run_cycle();
-    EXPECT_FALSE(is_tripped());
+    EXPECT_FALSE(has_active_trip());
     EXPECT_FALSE(is_inhibited());
 
     // Trigger over-flux fault
     trigger_over_flux();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Protection should trip on over-flux";
+    EXPECT_TRUE(has_active_trip()) << "Protection should trip on over-flux";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch when protection trips";
 
     // Clear fault condition
     clear_fault_conditions();
     run_cycle();
 
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault clears";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Confirm alarms
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear after confirmation";
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
@@ -252,7 +252,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnStallTrip)
     // Trigger stall fault
     trigger_stall();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Protection should trip on stall";
+    EXPECT_TRUE(has_active_trip()) << "Protection should trip on stall";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
@@ -261,16 +261,16 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnStallTrip)
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Confirm
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear after confirmation";
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
@@ -282,7 +282,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverspeedTr
     // Trigger overspeed fault (threshold 0.9 pu, speed 1.0 pu)
     trigger_overspeed();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Protection should trip on overspeed";
+    EXPECT_TRUE(has_active_trip()) << "Protection should trip on overspeed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
@@ -291,16 +291,16 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverspeedTr
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
     EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
 
     // Confirm
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear after confirmation";
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
@@ -312,7 +312,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnMachineOver
     // Trigger machine-side overvoltage fault (threshold 0.9 pu, voltage 1.0 pu)
     trigger_machine_overvoltage();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Protection should trip on machine-side overvoltage";
+    EXPECT_TRUE(has_active_trip()) << "Protection should trip on machine-side overvoltage";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
@@ -321,16 +321,16 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnMachineOver
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
     EXPECT_TRUE(is_inhibited()) << "Alarm still latched";
 
     // Confirm
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear after confirmation";
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
@@ -342,23 +342,23 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWh
     // Trigger under-flux fault
     trigger_under_flux();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_FALSE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Confirm alarm (rising edge)
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
 
     EXPECT_FALSE(is_inhibited()) << "Alarm should be cleared after confirmation";
-    EXPECT_FALSE(is_tripped()) << "Protection should not be tripped";
+    EXPECT_FALSE(has_active_trip()) << "Protection should not be tripped";
 }
 
 /**
@@ -369,28 +369,28 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped
     // Trigger fault
     trigger_over_flux();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Attempt to confirm while fault active (rising edge)
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
 
     EXPECT_TRUE(is_inhibited()) << "Cannot confirm alarm while protection is currently tripped (safety)";
-    EXPECT_TRUE(is_tripped()) << "Protection should remain tripped while fault active";
+    EXPECT_TRUE(has_active_trip()) << "Protection should remain tripped while fault active";
 
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped());
+    EXPECT_FALSE(has_active_trip());
     EXPECT_TRUE(is_inhibited());
 
     // Now confirmation should work
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after fault removed and confirmation given";
 }
@@ -403,12 +403,12 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllO
     // Trigger over-flux fault
     trigger_over_flux();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
     ASSERT_TRUE(outputs.over_flux_tripped.read()) << "Individual over-flux trip should be set";
-    ASSERT_TRUE(outputs.any_fault_active.read()) << "Fault active flag should be set";
+    ASSERT_TRUE(outputs.has_active_trip.read()) << "Fault active flag should be set";
 
     // Disable protection module
     auto& params = _runner->get_parameters();
@@ -416,9 +416,9 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllO
     run_cycle();
 
     // Verify ALL outputs are cleared
-    EXPECT_FALSE(outputs.is_tripped.read()) << "is_tripped should clear when module disabled";
+    EXPECT_FALSE(outputs.has_active_trip.read()) << "has_active_trip should clear when module disabled";
     EXPECT_FALSE(outputs.is_inhibited.read()) << "is_inhibited should clear when module disabled";
-    EXPECT_FALSE(outputs.any_fault_active.read()) << "any_fault_active should clear when module disabled";
+    EXPECT_FALSE(outputs.has_active_trip.read()) << "has_active_trip should clear when module disabled";
     EXPECT_FALSE(outputs.over_flux_tripped.read()) << "over_flux_tripped should clear";
     EXPECT_FALSE(outputs.under_flux_tripped.read()) << "under_flux_tripped should clear";
     EXPECT_FALSE(outputs.stall_tripped.read()) << "stall_tripped should clear";
@@ -433,7 +433,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllO
     run_cycle();
 
     // Protections should detect fault and trip again
-    EXPECT_TRUE(outputs.is_tripped.read()) << "Should trip again when re-enabled with fault present";
+    EXPECT_TRUE(outputs.has_active_trip.read()) << "Should trip again when re-enabled with fault present";
     EXPECT_TRUE(outputs.is_inhibited.read()) << "Should latch alarm again";
 }
 
@@ -445,7 +445,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImme
     // Trigger stall fault and create latched alarm
     trigger_stall();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Disable module to bypass acknowledgment workflow
@@ -453,7 +453,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImme
     params.protection_module_enabled.write(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip cleared by disabling module";
+    EXPECT_FALSE(has_active_trip()) << "Trip cleared by disabling module";
     EXPECT_FALSE(is_inhibited()) << "Inhibit cleared - no acknowledgment needed";
 
     // Clear fault condition and re-enable protections
@@ -462,7 +462,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImme
     run_cycle();
 
     // System should be ready to operate
-    EXPECT_FALSE(is_tripped()) << "No trip with fault cleared";
+    EXPECT_FALSE(has_active_trip()) << "No trip with fault cleared";
     EXPECT_FALSE(is_inhibited()) << "No inhibit - ready for restart";
 }
 
@@ -484,7 +484,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
     // Run multiple cycles
     for (int i = 0; i < 10; ++i) {
         run_cycle();
-        EXPECT_FALSE(is_tripped()) << "Should not trip while module disabled (cycle " << i << ")";
+        EXPECT_FALSE(has_active_trip()) << "Should not trip while module disabled (cycle " << i << ")";
         EXPECT_FALSE(is_inhibited()) << "Should not inhibit while module disabled (cycle " << i << ")";
     }
 }
@@ -497,29 +497,36 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, MultipleFaultTypesCycle)
     // First: Over-flux
     trigger_over_flux();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
+    ASSERT_TRUE(is_inhibited());
+
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
-    set_confirm_alarms(false);
+    ASSERT_FALSE(has_active_trip());
+    ASSERT_TRUE(is_inhibited());
+
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(false);
     run_cycle();
-    EXPECT_FALSE(is_inhibited()) << "First alarm cleared";
+    ASSERT_FALSE(is_inhibited());
 
     // Second: Stall
     trigger_stall();
     run_cycle();
-    EXPECT_TRUE(is_tripped());
-    EXPECT_TRUE(is_inhibited()) << "Second fault should re-latch alarm";
+    ASSERT_TRUE(has_active_trip());
+    ASSERT_TRUE(is_inhibited());
+
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
-    set_confirm_alarms(false);
+    ASSERT_FALSE(has_active_trip());
+    ASSERT_TRUE(is_inhibited());
+
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(false);
     run_cycle();
-    EXPECT_FALSE(is_inhibited()) << "Second alarm cleared";
+    ASSERT_FALSE(is_inhibited());
 }
 
 /**
@@ -530,7 +537,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ForceResetClearsAllStates
     // Trigger fault and latch alarm
     trigger_over_flux();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Use force_reset_all parameter
@@ -538,7 +545,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, ForceResetClearsAllStates
     params.force_reset_all.write(true);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "force_reset_all should clear trip";
+    EXPECT_FALSE(has_active_trip()) << "force_reset_all should clear trip";
     EXPECT_FALSE(is_inhibited()) << "force_reset_all should clear alarm";
     EXPECT_FALSE(params.force_reset_all.read()) << "force_reset_all should auto-clear after use";
 }
@@ -554,7 +561,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, CommunicationLossRemoteFa
     _runner->update_communication_status(true, false);
     run_cycle();
 
-    EXPECT_TRUE(is_tripped()) << "Remote communication failure should trip protections";
+    EXPECT_TRUE(has_active_trip()) << "Remote communication failure should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Remote communication failure trip should latch alarm";
 }
 

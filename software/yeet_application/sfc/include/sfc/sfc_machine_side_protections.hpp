@@ -26,7 +26,7 @@ public:
 
     void reset() noexcept;
 
-    void resolve_protections(bool module_enabled, bool confirm_alarms) noexcept;
+    void resolve_protections(bool module_enabled, bool confirm_trips) noexcept;
 
     // -------------------- Individual Protection Updates --------------------
 
@@ -95,10 +95,9 @@ public:
 
     // -------------------- Outputs --------------------
 
-    bool get_is_tripped() const noexcept;
+    bool get_has_active_trip() const noexcept;
+    bool get_has_active_alarm() const noexcept;
     bool get_is_inhibited() const noexcept;
-    bool get_any_fault_active() const noexcept;
-    bool get_any_alarm_active() const noexcept;
 
     bool get_over_flux_tripped() const noexcept;
     bool get_over_flux_alarmed() const noexcept;
@@ -166,10 +165,9 @@ private:
     voltage_pu_t _machine_overvoltage_trip_threshold{voltage_pu_t{1.10f}};
 
     // Outputs (latched/derived)
-    bool _is_tripped{false};
+    bool _has_active_trip{false};
+    bool _has_active_alarm{false};
     bool _is_inhibited{false};
-    bool _any_fault_active{false};
-    bool _any_alarm_active{false};
 
     bool _over_flux_tripped{false};
     bool _over_flux_alarmed{false};
@@ -198,6 +196,9 @@ private:
     bool _under_flux_warning{false};
     bool _stall_warning{false};
     bool _communication_loss_warning{false};
+
+    // Helper method to check and reset handshake when severity changes
+    void check_and_reset_handshake_if_no_trips() noexcept;
 };
 
 }  // namespace yeet::application::sfc

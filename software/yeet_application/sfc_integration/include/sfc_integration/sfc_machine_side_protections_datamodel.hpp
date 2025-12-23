@@ -1,8 +1,8 @@
 #pragma once
 
 #include "sfc_integration/protection_severity.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
@@ -62,18 +62,14 @@ public:
      * @brief Output signals from machine-side protections
      */
     struct outputs {
-        /// Combined trip status (any protection tripped)
-        signal_output<bool> is_tripped;
+        /// Any protection currently has an active trip (clears automatically when fault clears)
+        signal_output<bool> has_active_trip;
 
-        /// Protection system inhibited (trip occurred, awaiting alarm confirmation)
+        /// Any protection currently in alarm state (severity-dependent)
+        signal_output<bool> has_active_alarm;
+
+        /// Protection system inhibited (trip occurred, awaiting confirmation)
         signal_output<bool> is_inhibited;
-
-        /// Any individual protection currently detecting active fault condition (NOT latched)
-        /// Clears immediately when fault condition clears, unlike is_tripped which latches
-        signal_output<bool> any_fault_active;
-
-        /// Any individual protection currently in alarm state (severity-dependent)
-        signal_output<bool> any_alarm_active;
 
         /// V/Hz over-flux protection trip status
         signal_output<bool> over_flux_tripped;
@@ -238,8 +234,8 @@ public:
         /// Master enable/disable for entire protection module
         parameter<bool> protection_module_enabled{false};
 
-        /// Confirm/acknowledge protection alarms (rising edge clears is_inhibited)
-        parameter<bool> confirm_alarms{false};
+        /// Confirm/acknowledge protection trips (rising edge clears is_inhibited)
+        parameter<bool> confirm_trips{false};
 
         // ========== Manual Reset Override (for testing) ==========
         /// Force reset all protections (for testing)
@@ -260,82 +256,84 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "protections";
         // Per-protection severity parameters
-        entry.parameters.insert(
-            "over_flux_severity", yeet::utils::make_enum_accessor(_model_parameters->over_flux_severity));
-        entry.parameters.insert(
-            "under_flux_severity", yeet::utils::make_enum_accessor(_model_parameters->under_flux_severity));
-        entry.parameters.insert("stall_severity", yeet::utils::make_enum_accessor(_model_parameters->stall_severity));
-        entry.parameters.insert(
-            "overspeed_severity", yeet::utils::make_enum_accessor(_model_parameters->overspeed_severity));
-        entry.parameters.insert("machine_overvoltage_severity",
+        handler.register_parameter(component_name, "over_flux_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->over_flux_severity));
+        handler.register_parameter(component_name, "under_flux_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->under_flux_severity));
+        handler.register_parameter(
+            component_name, "stall_severity", yeet::utils::make_enum_accessor(_model_parameters->stall_severity));
+        handler.register_parameter(component_name, "overspeed_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->overspeed_severity));
+        handler.register_parameter(component_name, "machine_overvoltage_severity",
             yeet::utils::make_enum_accessor(_model_parameters->machine_overvoltage_severity));
-        entry.parameters.insert("communication_loss_severity",
+        handler.register_parameter(component_name, "communication_loss_severity",
             yeet::utils::make_enum_accessor(_model_parameters->communication_loss_severity));
-        entry.parameters.insert("loss_of_excitation_severity",
+        handler.register_parameter(component_name, "loss_of_excitation_severity",
             yeet::utils::make_enum_accessor(_model_parameters->loss_of_excitation_severity));
 
         // V/Hz protection parameters
-        entry.parameters.insert(
-            "over_flux_trip_threshold", yeet::utils::make_units_accessor(_model_parameters->over_flux_trip_threshold));
-        entry.parameters.insert("over_flux_warning_threshold",
+        handler.register_parameter(component_name, "over_flux_trip_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->over_flux_trip_threshold));
+        handler.register_parameter(component_name, "over_flux_warning_threshold",
             yeet::utils::make_units_accessor(_model_parameters->over_flux_warning_threshold));
-        entry.parameters.insert(
-            "over_flux_trip_delay", yeet::utils::make_units_accessor(_model_parameters->over_flux_trip_delay));
-        entry.parameters.insert(
-            "over_flux_warning_delay", yeet::utils::make_units_accessor(_model_parameters->over_flux_warning_delay));
-        entry.parameters.insert("under_flux_trip_threshold",
+        handler.register_parameter(component_name, "over_flux_trip_delay",
+            yeet::utils::make_units_accessor(_model_parameters->over_flux_trip_delay));
+        handler.register_parameter(component_name, "over_flux_warning_delay",
+            yeet::utils::make_units_accessor(_model_parameters->over_flux_warning_delay));
+        handler.register_parameter(component_name, "under_flux_trip_threshold",
             yeet::utils::make_units_accessor(_model_parameters->under_flux_trip_threshold));
-        entry.parameters.insert("under_flux_warning_threshold",
+        handler.register_parameter(component_name, "under_flux_warning_threshold",
             yeet::utils::make_units_accessor(_model_parameters->under_flux_warning_threshold));
-        entry.parameters.insert(
-            "under_flux_trip_delay", yeet::utils::make_units_accessor(_model_parameters->under_flux_trip_delay));
-        entry.parameters.insert(
-            "under_flux_warning_delay", yeet::utils::make_units_accessor(_model_parameters->under_flux_warning_delay));
+        handler.register_parameter(component_name, "under_flux_trip_delay",
+            yeet::utils::make_units_accessor(_model_parameters->under_flux_trip_delay));
+        handler.register_parameter(component_name, "under_flux_warning_delay",
+            yeet::utils::make_units_accessor(_model_parameters->under_flux_warning_delay));
 
         // Stall protection parameters
-        entry.parameters.insert(
-            "stall_current_threshold", yeet::utils::make_units_accessor(_model_parameters->stall_current_threshold));
-        entry.parameters.insert(
-            "stall_speed_threshold", yeet::utils::make_units_accessor(_model_parameters->stall_speed_threshold));
-        entry.parameters.insert(
-            "stall_trip_delay", yeet::utils::make_units_accessor(_model_parameters->stall_trip_delay));
-        entry.parameters.insert(
-            "stall_warning_delay", yeet::utils::make_units_accessor(_model_parameters->stall_warning_delay));
+        handler.register_parameter(component_name, "stall_current_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->stall_current_threshold));
+        handler.register_parameter(component_name, "stall_speed_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->stall_speed_threshold));
+        handler.register_parameter(
+            component_name, "stall_trip_delay", yeet::utils::make_units_accessor(_model_parameters->stall_trip_delay));
+        handler.register_parameter(component_name, "stall_warning_delay",
+            yeet::utils::make_units_accessor(_model_parameters->stall_warning_delay));
 
         // Overspeed protection parameters
-        entry.parameters.insert(
-            "overspeed_trip_threshold", yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_threshold));
-        entry.parameters.insert(
-            "overspeed_trip_delay", yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_delay));
+        handler.register_parameter(component_name, "overspeed_trip_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_threshold));
+        handler.register_parameter(component_name, "overspeed_trip_delay",
+            yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_delay));
 
         // Machine-side overvoltage protection parameters
-        entry.parameters.insert("machine_overvoltage_trip_threshold",
+        handler.register_parameter(component_name, "machine_overvoltage_trip_threshold",
             yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_trip_threshold));
-        entry.parameters.insert("machine_overvoltage_trip_delay",
+        handler.register_parameter(component_name, "machine_overvoltage_trip_delay",
             yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_trip_delay));
 
         // Communication watchdog parameters
-        entry.parameters.insert("comm_timeout", yeet::utils::make_units_accessor(_model_parameters->comm_timeout));
-        entry.parameters.insert("comm_reset", yeet::utils::make_units_accessor(_model_parameters->comm_reset));
+        handler.register_parameter(
+            component_name, "comm_timeout", yeet::utils::make_units_accessor(_model_parameters->comm_timeout));
+        handler.register_parameter(
+            component_name, "comm_reset", yeet::utils::make_units_accessor(_model_parameters->comm_reset));
 
         // Loss of excitation protection parameters
-        entry.parameters.insert("loss_of_excitation_trip_delay",
+        handler.register_parameter(component_name, "loss_of_excitation_trip_delay",
             yeet::utils::make_units_accessor(_model_parameters->loss_of_excitation_trip_delay));
 
         // Protection module control
-        entry.parameters.insert(
-            "protection_module_enabled", yeet::utils::make_bool_accessor(_model_parameters->protection_module_enabled));
-        entry.parameters.insert("confirm_alarms", yeet::utils::make_bool_accessor(_model_parameters->confirm_alarms));
+        handler.register_parameter(component_name, "protection_module_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->protection_module_enabled));
+        handler.register_parameter(
+            component_name, "confirm_trips", yeet::utils::make_bool_accessor(_model_parameters->confirm_trips));
 
         // Manual reset override
-        entry.parameters.insert("force_reset_all", yeet::utils::make_bool_accessor(_model_parameters->force_reset_all));
-
-        registry.insert("protections", std::move(entry));
+        handler.register_parameter(
+            component_name, "force_reset_all", yeet::utils::make_bool_accessor(_model_parameters->force_reset_all));
     }
 
     inputs* get_inputs() { return _model_inputs; }

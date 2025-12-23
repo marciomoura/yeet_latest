@@ -65,7 +65,7 @@ mock_dio_inputs read_mock_dio()
     inputs.start_command = false;
     inputs.stop_command = false;
     inputs.fault_reset_command = false;
-    inputs.confirm_alarms = false;
+    inputs.confirm_trips = false;
 
     // Status inputs - safe states
     inputs.thyristor_fault = false;        // No fault

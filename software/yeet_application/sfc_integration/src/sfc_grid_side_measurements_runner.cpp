@@ -5,11 +5,11 @@
 namespace yeet::application::sfc::integration {
 
 // ---------------- Ideal runner (existing) ----------------
-void sfc_grid_side_measurements_ideal_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_grid_side_measurements_ideal_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_grid_side_measurements_ideal_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_grid_side_measurements_ideal_runner::initialize()
@@ -81,11 +81,11 @@ void sfc_grid_side_measurements_ideal_runner::set_parameter_callback()
 }
 
 // --------------- ADC-based runner (new) ------------------
-void sfc_grid_side_measurements_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_grid_side_measurements_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_grid_side_measurements_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_grid_side_measurements_runner::initialize()

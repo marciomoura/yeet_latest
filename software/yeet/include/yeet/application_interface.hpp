@@ -2,7 +2,7 @@
 #define YEET_APPLICATION_INTERFACE_HPP
 
 #include "application_datamodel.hpp"
-#include "model_registry.hpp"
+#include "parameter_handler.hpp"
 
 namespace yeet {
 
@@ -34,7 +34,7 @@ class base_application : public application_interface {
 public:
     explicit base_application(double sampling_time) : application_interface(sampling_time) {}
 
-    virtual void register_datamodel(model_registry& registry) {};
+    virtual void register_datamodel(yeet::telemetry::parameter_handler& handler) {};
 
     signal_flow_datamodel<InputType, OutputType>& get_signal_flow_datamodel() { return _signal_flow_datamodel; }
 

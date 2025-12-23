@@ -1,8 +1,8 @@
 #pragma once
 
 #include "sfc/sfc_types.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
@@ -88,26 +88,23 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert(
-            "mode_handover_speed_pu", yeet::utils::make_units_accessor(_model_parameters->mode_handover_speed_pu));
-        entry.parameters.insert(
-            "mode_hysteresis_factor", yeet::utils::make_units_accessor(_model_parameters->mode_hysteresis_factor));
-        entry.parameters.insert(
-            "force_natural_commutation", yeet::utils::make_units_accessor(_model_parameters->force_natural_commutation));
-        entry.parameters.insert("zero_current_threshold_pu",
+        static constexpr std::string_view component_name = "operation_mode_monitor";
+        handler.register_parameter(component_name, "mode_handover_speed_pu",
+            yeet::utils::make_units_accessor(_model_parameters->mode_handover_speed_pu));
+        handler.register_parameter(component_name, "mode_hysteresis_factor",
+            yeet::utils::make_units_accessor(_model_parameters->mode_hysteresis_factor));
+        handler.register_parameter(component_name, "force_natural_commutation",
+            yeet::utils::make_units_accessor(_model_parameters->force_natural_commutation));
+        handler.register_parameter(component_name, "zero_current_threshold_pu",
             yeet::utils::make_units_accessor(_model_parameters->zero_current_threshold_pu));
-        entry.parameters.insert(
-            "is_zero_on_delay_s", yeet::utils::make_units_accessor(_model_parameters->is_zero_on_delay_s));
-        entry.parameters.insert(
-            "discontinuous_on_delay_s", yeet::utils::make_units_accessor(_model_parameters->discontinuous_on_delay_s));
-        entry.parameters.insert("discontinuous_off_delay_s",
+        handler.register_parameter(component_name, "is_zero_on_delay_s",
+            yeet::utils::make_units_accessor(_model_parameters->is_zero_on_delay_s));
+        handler.register_parameter(component_name, "discontinuous_on_delay_s",
+            yeet::utils::make_units_accessor(_model_parameters->discontinuous_on_delay_s));
+        handler.register_parameter(component_name, "discontinuous_off_delay_s",
             yeet::utils::make_units_accessor(_model_parameters->discontinuous_off_delay_s));
-
-        registry.insert("operation_mode_monitor", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

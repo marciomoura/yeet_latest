@@ -20,7 +20,7 @@ protected:
         bool release_protections,
         bool communication_valid,
         bool excitation_is_on,
-        bool confirm_alarms)
+        bool confirm_trips)
     {
         if (module_enabled) {
             protections.update_communication_watchdog(communication_valid);
@@ -30,7 +30,7 @@ protected:
             protections.update_machine_overvoltage_protection(machine_voltage_magnitude_pu);
             protections.update_loss_of_excitation_protection(excitation_is_on, startup_active, closed_loop_active);
         }
-        protections.resolve_protections(module_enabled, confirm_alarms);
+        protections.resolve_protections(module_enabled, confirm_trips);
     }
 
     void SetUp() override
@@ -81,9 +81,8 @@ TEST(SfcMachineSideProtectionsDefaultConfigTest, NominalInputsDoNotTripOrInhibit
     protections.update_loss_of_excitation_protection(true, false, true);
     protections.resolve_protections(true, false);
 
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
     EXPECT_FALSE(protections.get_is_inhibited());
-    EXPECT_FALSE(protections.get_any_fault_active());
 }
 
 TEST_F(SfcMachineSideProtectionsFixture, OverspeedTripLatchesAndClearsAutomatically)
@@ -93,13 +92,13 @@ TEST_F(SfcMachineSideProtectionsFixture, OverspeedTripLatchesAndClearsAutomatica
         true, true, false);
 
     EXPECT_TRUE(protections.get_overspeed_tripped());
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_has_active_trip());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Fault clears automatically with auto_clear policy
     update_all(current_pu_t{0.0f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.0f}, false, true, true, true,
         true, true, false);
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Ensure confirm is deasserted for at least one cycle, then apply a rising edge.
@@ -122,7 +121,7 @@ TEST_F(SfcMachineSideProtectionsFixture, AlarmSeverityDoesNotTripAggregate)
     update_all(current_pu_t{0.0f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.2f}, false, true, true, true,
         true, true, false);
 
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
     EXPECT_FALSE(protections.get_is_inhibited());
     EXPECT_FALSE(protections.get_overspeed_tripped());
     EXPECT_TRUE(protections.get_overspeed_alarmed());
@@ -135,20 +134,21 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationTripLatchesAndClearsAut
         true, true, false);
 
     EXPECT_FALSE(protections.get_loss_of_excitation_tripped());
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
 
     // Loss of excitation during startup (startup_active=true)
     update_all(current_pu_t{0.5f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{0.5f}, true, false, true, true,
         true, false, false);
 
     EXPECT_TRUE(protections.get_loss_of_excitation_tripped());
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_has_active_trip());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Excitation restored - trip clears automatically with auto_clear policy
     update_all(current_pu_t{0.5f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{0.5f}, true, false, true, true,
         true, true, false);
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
+    EXPECT_TRUE(protections.get_is_inhibited());
     EXPECT_TRUE(protections.get_is_inhibited());
 
     // Ensure confirm is deasserted, then apply rising edge
@@ -168,14 +168,14 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationOnlyActivesDuringStartu
         true, false, false);
 
     EXPECT_FALSE(protections.get_loss_of_excitation_tripped());
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
 
     // Loss of excitation during closed-loop operation SHOULD trip
     update_all(current_pu_t{1.0f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.0f}, false, true, true, true,
         true, false, false);
 
     EXPECT_TRUE(protections.get_loss_of_excitation_tripped());
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_has_active_trip());
 }
 
 TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationAlarmSeverity)
@@ -188,7 +188,7 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationAlarmSeverity)
     update_all(current_pu_t{0.5f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{0.5f}, true, false, true, true,
         true, false, false);
 
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
     EXPECT_FALSE(protections.get_is_inhibited());
     EXPECT_FALSE(protections.get_loss_of_excitation_tripped());
     EXPECT_TRUE(protections.get_loss_of_excitation_alarmed());
@@ -202,9 +202,8 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationTripDuringStartup)
         true, false, false);
 
     EXPECT_TRUE(protections.get_loss_of_excitation_tripped());
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_has_active_trip());
     EXPECT_TRUE(protections.get_is_inhibited());
-    EXPECT_TRUE(protections.get_any_fault_active());
 }
 
 TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationTripDuringClosedLoop)
@@ -215,9 +214,8 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationTripDuringClosedLoop)
         true, false, false);
 
     EXPECT_TRUE(protections.get_loss_of_excitation_tripped());
-    EXPECT_TRUE(protections.get_is_tripped());
+    EXPECT_TRUE(protections.get_has_active_trip());
     EXPECT_TRUE(protections.get_is_inhibited());
-    EXPECT_TRUE(protections.get_any_fault_active());
 }
 
 TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationNoTripWhenInactive)
@@ -228,7 +226,7 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationNoTripWhenInactive)
         true, false, false);
 
     EXPECT_FALSE(protections.get_loss_of_excitation_tripped());
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
     EXPECT_FALSE(protections.get_is_inhibited());
 }
 
@@ -242,10 +240,44 @@ TEST_F(SfcMachineSideProtectionsFixture, LossOfExcitationAlarmSeverityClosedLoop
     update_all(current_pu_t{0.8f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.0f}, false, true, true, true,
         true, false, false);
 
-    EXPECT_FALSE(protections.get_is_tripped());
+    EXPECT_FALSE(protections.get_has_active_trip());
     EXPECT_FALSE(protections.get_is_inhibited());
     EXPECT_FALSE(protections.get_loss_of_excitation_tripped());
     EXPECT_TRUE(protections.get_loss_of_excitation_alarmed());
+}
+
+TEST_F(SfcMachineSideProtectionsFixture, ChangingSeverityFromTripToAlarmClearsProtectionState)
+{
+    // Configure overspeed as a trip with zero delay for immediate response
+    protections.configure_overspeed_is_trip(true);
+    protections.configure_overspeed_trip_threshold(speed_pu_t{1.05f});
+    protections.configure_overspeed_trip_delay(duration_t{0.0});  // No delay
+    protections.reset();
+
+    // Trigger overspeed during closed-loop - should trip immediately
+    update_all(current_pu_t{0.8f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.10f},  // Overspeed!
+        false, true,  // startup_active=false, closed_loop_active=true
+        true, true, true, false, false);
+
+    EXPECT_TRUE(protections.get_overspeed_tripped()) << "Should trip immediately with zero delay";
+    EXPECT_FALSE(protections.get_overspeed_alarmed()) << "Configured as trip, not alarm";
+    EXPECT_TRUE(protections.get_has_active_trip());
+    EXPECT_TRUE(protections.get_is_inhibited()) << "Inhibit should latch when trip occurs";
+
+    // Now change severity from trip to alarm while fault is still present
+    // This should reset the underlying protection block
+    protections.configure_overspeed_is_trip(false);
+
+    // Run another cycle - fault condition still present, but now as alarm not trip
+    update_all(current_pu_t{0.8f}, voltage_pu_t{1.0f}, frequency_pu_t{1.0f}, speed_pu_t{1.10f},  // Still overspeed
+        false, true, true, true, true, false, false);
+
+    // After changing to alarm severity, should show as alarm not trip
+    EXPECT_FALSE(protections.get_overspeed_tripped()) << "Trip should clear after severity change";
+    EXPECT_TRUE(protections.get_overspeed_alarmed()) << "Should now be in alarm state";
+
+    // Note: has_active_trip may still be true if another protection is tripped,
+    // but the overspeed specifically should have transitioned from trip to alarm
 }
 
 }  // namespace yeet::application::sfc

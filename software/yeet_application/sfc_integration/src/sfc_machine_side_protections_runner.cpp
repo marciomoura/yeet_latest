@@ -7,11 +7,11 @@ sfc_machine_side_protections_runner::sfc_machine_side_protections_runner()
 {
 }
 
-void sfc_machine_side_protections_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_machine_side_protections_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_machine_side_protections_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_machine_side_protections_runner::initialize()
@@ -29,10 +29,9 @@ void sfc_machine_side_protections_runner::reset()
     _last_communication_valid = true;
 
     // Clear all output signals
-    _outputs.is_tripped = false;
+    _outputs.has_active_trip = false;
+    _outputs.has_active_alarm = false;
     _outputs.is_inhibited = false;
-    _outputs.any_fault_active = false;
-    _outputs.any_alarm_active = false;
     _outputs.over_flux_tripped = false;
     _outputs.over_flux_alarmed = false;
     _outputs.under_flux_tripped = false;
@@ -58,35 +57,35 @@ void sfc_machine_side_protections_runner::reset()
 void sfc_machine_side_protections_runner::run()
 {
     // Handle manual reset request (for testing/commissioning)
-    if (_parameters.force_reset_all) {
+    if (_parameters.force_reset_all || !_parameters.protection_module_enabled) {
         reset();
-        _parameters.force_reset_all = false;  // Clear flag after reset
-        return;                               // Skip normal protection logic this cycle to allow clean reset
+        _parameters.force_reset_all.write(false);  // Auto-clear after use
+        return;
     }
 
-    // Only update protections when both module is enabled AND release signal is active
-    const bool module_enabled = _parameters.protection_module_enabled;
-    const bool release_signal = _inputs.release_protections;
-
-    if (module_enabled) {
-        _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
+    if (_inputs.release_protections.read()) {
         _protections.update_vhz_protection(_inputs.machine_voltage_magnitude_pu.read(),
             _inputs.machine_frequency_pu.read(), _inputs.closed_loop_active.read());
         _protections.update_stall_protection(
             _inputs.dc_link_current_pu.read(), _inputs.machine_speed.read(), _inputs.startup_active.read());
-        _protections.update_overspeed_protection(_inputs.machine_speed.read(), _inputs.closed_loop_active.read());
-        _protections.update_machine_overvoltage_protection(_inputs.machine_voltage_magnitude_pu.read());
-        _protections.update_loss_of_excitation_protection(
-            _inputs.excitation_is_on.read(), _inputs.startup_active.read(), _inputs.closed_loop_active.read());
-        _protections.update_external_fault(_inputs.external_fault.read());
     }
 
-    _protections.resolve_protections(module_enabled, _parameters.confirm_alarms.read());
+    _protections.update_overspeed_protection(_inputs.machine_speed.read(), _inputs.closed_loop_active.read());
 
-    _outputs.is_tripped = _protections.get_is_tripped();
+    _protections.update_machine_overvoltage_protection(_inputs.machine_voltage_magnitude_pu.read());
+
+    _protections.update_loss_of_excitation_protection(
+        _inputs.excitation_is_on.read(), _inputs.startup_active.read(), _inputs.closed_loop_active.read());
+
+    _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
+
+    _protections.update_external_fault(_inputs.external_fault.read());
+
+    _protections.resolve_protections(true, _parameters.confirm_trips);
+
+    _outputs.has_active_trip = _protections.get_has_active_trip();
+    _outputs.has_active_alarm = _protections.get_has_active_alarm();
     _outputs.is_inhibited = _protections.get_is_inhibited();
-    _outputs.any_fault_active = _protections.get_any_fault_active();
-    _outputs.any_alarm_active = _protections.get_any_alarm_active();
 
     _outputs.over_flux_tripped = _protections.get_over_flux_tripped();
     _outputs.over_flux_alarmed = _protections.get_over_flux_alarmed();

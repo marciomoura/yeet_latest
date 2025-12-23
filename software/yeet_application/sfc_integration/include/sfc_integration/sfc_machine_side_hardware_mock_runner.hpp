@@ -26,7 +26,7 @@ public:
      */
     explicit sfc_machine_side_hardware_mock_runner(duration_t sampling_period);
 
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;
     void run() override;
     void stop() override;

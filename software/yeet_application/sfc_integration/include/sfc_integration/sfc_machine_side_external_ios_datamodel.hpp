@@ -37,7 +37,8 @@
 #include "sfc/sfc_state_machine.hpp"
 #include "sfc/sfc_types.hpp"
 #include "sfc_integration/sfc_io_types.hpp"
-#include "yeet/model_registry.hpp"
+#include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/adc_value.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
@@ -534,7 +535,7 @@ public:
      *
      * @param registry Model registry for parameter registration
      */
-    void register_datamodel(yeet::model_registry& registry);
+    void register_datamodel(yeet::telemetry::parameter_handler& handler);
 
     /**
      * @brief Register parameter change callbacks

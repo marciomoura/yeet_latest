@@ -184,96 +184,92 @@ control::six_pulse_generator::pulses sfc_machine_side_external_ios_datamodel::ge
 
 // ==================== PRIVATE HELPER METHODS ====================
 
-void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
+void sfc_machine_side_external_ios_datamodel::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
-    yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
+    static constexpr std::string_view override_component = "machine_io_override";
+    static constexpr std::string_view config_component = "machine_io_configurations";
 
     // Digital Input Overrides
-    entry.parameters.insert(
-        "di_excitation_status_override", yeet::utils::make_bool_accessor(_parameters.di_excitation_status_override));
-    entry.parameters.insert("di_excitation_status_override_value",
+    handler.register_parameter(override_component, "di_excitation_status_override",
+        yeet::utils::make_bool_accessor(_parameters.di_excitation_status_override));
+    handler.register_parameter(override_component, "di_excitation_status_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_excitation_status_override_value));
-    entry.parameters.insert(
-        "di_external_fault_override", yeet::utils::make_bool_accessor(_parameters.di_external_fault_override));
-    entry.parameters.insert("di_external_fault_override_value",
+    handler.register_parameter(override_component, "di_external_fault_override",
+        yeet::utils::make_bool_accessor(_parameters.di_external_fault_override));
+    handler.register_parameter(override_component, "di_external_fault_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_external_fault_override_value));
-    entry.parameters.insert(
-        "di_start_command_override", yeet::utils::make_bool_accessor(_parameters.di_start_command_override));
-    entry.parameters.insert("di_start_command_override_value",
+    handler.register_parameter(override_component, "di_start_command_override",
+        yeet::utils::make_bool_accessor(_parameters.di_start_command_override));
+    handler.register_parameter(override_component, "di_start_command_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_start_command_override_value));
 
     // Digital Output Overrides
-    entry.parameters.insert("do_excitation_on_command_override",
+    handler.register_parameter(override_component, "do_excitation_on_command_override",
         yeet::utils::make_bool_accessor(_parameters.do_excitation_on_command_override));
-    entry.parameters.insert("do_excitation_on_command_override_value",
+    handler.register_parameter(override_component, "do_excitation_on_command_override_value",
         yeet::utils::make_bool_accessor(_parameters.do_excitation_on_command_override_value));
-    entry.parameters.insert("do_excitation_off_command_override",
+    handler.register_parameter(override_component, "do_excitation_off_command_override",
         yeet::utils::make_bool_accessor(_parameters.do_excitation_off_command_override));
-    entry.parameters.insert("do_excitation_off_command_override_value",
+    handler.register_parameter(override_component, "do_excitation_off_command_override_value",
         yeet::utils::make_bool_accessor(_parameters.do_excitation_off_command_override_value));
 
     // Analog Input Overrides
-    entry.parameters.insert("ai_excitation_current_actual_override",
+    handler.register_parameter(override_component, "ai_excitation_current_actual_override",
         yeet::utils::make_bool_accessor(_parameters.ai_excitation_current_actual_override));
-    entry.parameters.insert("ai_excitation_current_actual_override_value",
+    handler.register_parameter(override_component, "ai_excitation_current_actual_override_value",
         yeet::utils::make_units_accessor(_parameters.ai_excitation_current_actual_override_value));
 
     // Analog Output Overrides
-    entry.parameters.insert("ao_excitation_current_reference_override",
+    handler.register_parameter(override_component, "ao_excitation_current_reference_override",
         yeet::utils::make_bool_accessor(_parameters.ao_excitation_current_reference_override));
-    entry.parameters.insert("ao_excitation_current_reference_override_value",
+    handler.register_parameter(override_component, "ao_excitation_current_reference_override_value",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_override_value));
 
     // Analog Output Scaling Parameters
-    entry.parameters.insert("ao_excitation_current_reference_gain",
+    handler.register_parameter(override_component, "ao_excitation_current_reference_gain",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_gain));
-    entry.parameters.insert("ao_excitation_current_reference_offset",
+    handler.register_parameter(override_component, "ao_excitation_current_reference_offset",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_offset));
-    entry.parameters.insert("ao_excitation_current_reference_minimum",
+    handler.register_parameter(override_component, "ao_excitation_current_reference_minimum",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_minimum));
-    entry.parameters.insert("ao_excitation_current_reference_maximum",
+    handler.register_parameter(override_component, "ao_excitation_current_reference_maximum",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_maximum));
-
-    registry.insert("machine_io_override", std::move(entry));
 
     // ==================== IO Index Mapping Parameters ====================
     // Keep IO index mapping parameters in a separate component so they don't mix
     // with excitation override parameters in UIs.
-    yeet::model_registry_entry io_entry{yeet::signal_registry{}, yeet::parameter_registry{}};
 
     // Digital input mapping indices
-    io_entry.parameters.insert(
-        "di_excitation_status_index", yeet::utils::make_units_accessor(_parameters.di_excitation_status_index));
-    io_entry.parameters.insert(
-        "di_external_fault_index", yeet::utils::make_units_accessor(_parameters.di_external_fault_index));
-    io_entry.parameters.insert(
-        "di_start_command_index", yeet::utils::make_units_accessor(_parameters.di_start_command_index));
+    handler.register_parameter(config_component, "di_excitation_status_index",
+        yeet::utils::make_units_accessor(_parameters.di_excitation_status_index));
+    handler.register_parameter(config_component, "di_external_fault_index",
+        yeet::utils::make_units_accessor(_parameters.di_external_fault_index));
+    handler.register_parameter(config_component, "di_start_command_index",
+        yeet::utils::make_units_accessor(_parameters.di_start_command_index));
 
     // Digital input polarity
-    io_entry.parameters.insert(
-        "di_excitation_status_polarity", yeet::utils::make_enum_accessor(_parameters.di_excitation_status_polarity));
-    io_entry.parameters.insert(
-        "di_external_fault_polarity", yeet::utils::make_enum_accessor(_parameters.di_external_fault_polarity));
-    io_entry.parameters.insert(
-        "di_start_command_polarity", yeet::utils::make_enum_accessor(_parameters.di_start_command_polarity));
+    handler.register_parameter(config_component, "di_excitation_status_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_excitation_status_polarity));
+    handler.register_parameter(config_component, "di_external_fault_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_external_fault_polarity));
+    handler.register_parameter(config_component, "di_start_command_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_start_command_polarity));
 
     // Digital output mapping indices
-    io_entry.parameters.insert(
-        "do_excitation_on_command_index", yeet::utils::make_units_accessor(_parameters.do_excitation_on_command_index));
-    io_entry.parameters.insert("do_excitation_off_command_index",
+    handler.register_parameter(config_component, "do_excitation_on_command_index",
+        yeet::utils::make_units_accessor(_parameters.do_excitation_on_command_index));
+    handler.register_parameter(config_component, "do_excitation_off_command_index",
         yeet::utils::make_units_accessor(_parameters.do_excitation_off_command_index));
 
     // Digital output polarity
-    io_entry.parameters.insert("do_excitation_on_command_polarity",
+    handler.register_parameter(config_component, "do_excitation_on_command_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_excitation_on_command_polarity));
-    io_entry.parameters.insert("do_excitation_off_command_polarity",
+    handler.register_parameter(config_component, "do_excitation_off_command_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_excitation_off_command_polarity));
 
     // Analog output mapping indices
-    io_entry.parameters.insert("ao_excitation_current_reference_index",
+    handler.register_parameter(config_component, "ao_excitation_current_reference_index",
         yeet::utils::make_units_accessor(_parameters.ao_excitation_current_reference_index));
-
-    registry.insert("machine_io_configurations", std::move(io_entry));
 }
 
 }  // namespace yeet::application::sfc::integration

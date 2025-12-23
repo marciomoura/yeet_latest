@@ -2,6 +2,7 @@
 
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/adc_value.hpp"
@@ -84,32 +85,31 @@ public:
     {
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
+        static constexpr std::string_view component_name = "grid_side_hardware_mock";
+        handler.register_parameter(
+            component_name, "voltage_adc_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_gain));
+        handler.register_parameter(component_name, "voltage_adc_cutoff_freq",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_adc_cutoff_freq));
+        handler.register_parameter(
+            component_name, "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        handler.register_parameter(component_name, "voltage_adc_full_scale",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
 
-        entry.parameters.insert(
-            "voltage_adc_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_gain));
-        entry.parameters.insert(
-            "voltage_adc_cutoff_freq", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_cutoff_freq));
-        entry.parameters.insert(
-            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
-        entry.parameters.insert(
-            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
+        handler.register_parameter(
+            component_name, "current_adc_gain", yeet::utils::make_units_accessor(_model_parameters->current_adc_gain));
+        handler.register_parameter(component_name, "current_adc_cutoff_freq",
+            yeet::utils::make_units_accessor(_model_parameters->current_adc_cutoff_freq));
+        handler.register_parameter(
+            component_name, "current_adc_bits", yeet::utils::make_units_accessor(_model_parameters->current_adc_bits));
+        handler.register_parameter(component_name, "current_adc_full_scale",
+            yeet::utils::make_units_accessor(_model_parameters->current_adc_full_scale));
 
-        entry.parameters.insert(
-            "current_adc_gain", yeet::utils::make_units_accessor(_model_parameters->current_adc_gain));
-        entry.parameters.insert(
-            "current_adc_cutoff_freq", yeet::utils::make_units_accessor(_model_parameters->current_adc_cutoff_freq));
-        entry.parameters.insert(
-            "current_adc_bits", yeet::utils::make_units_accessor(_model_parameters->current_adc_bits));
-        entry.parameters.insert(
-            "current_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->current_adc_full_scale));
-
-        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
-        entry.parameters.insert("ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
-
-        registry.insert("hardware_mock", std::move(entry));
+        handler.register_parameter(
+            component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
+        handler.register_parameter(
+            component_name, "ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
     }
 
     inputs* get_inputs() { return _model_inputs; }
