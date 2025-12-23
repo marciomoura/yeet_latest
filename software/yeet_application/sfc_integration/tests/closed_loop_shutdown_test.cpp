@@ -671,14 +671,15 @@ TEST_F(ClosedLoopShutdownTest, CommunicationLossShutdownTest)
 }
 
 /**
- * @test UnidirectionalCommunicationLossShutdownTest
- * @brief Validates that a failure in only one fiber direction trips both sides
+ * @test GridToMachineCommunicationLossShutdownTest
+ * @brief Validates that a failure in Grid->Machine direction trips both sides and requires user confirmation
  *
  * This test verifies the "heartbeat" logic: if Grid->Machine fiber is broken,
- * Machine side trips due to RX failure, and Grid side trips because Machine
- * reports 'communication_ok = false'.
+ * Machine side trips due to RX failure, Grid side trips because Machine
+ * reports 'communication_ok = false', and both sides require user confirmation
+ * to clear the inhibit flag after fiber restoration.
  */
-TEST_F(ClosedLoopShutdownTest, UnidirectionalCommunicationLossShutdownTest)
+TEST_F(ClosedLoopShutdownTest, GridToMachineCommunicationLossShutdownTest)
 {
     // Enable protection module
     system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
@@ -690,6 +691,10 @@ TEST_F(ClosedLoopShutdownTest, UnidirectionalCommunicationLossShutdownTest)
     // Configure short communication timeout (5ms)
     system.grid_side_control.grid_protections.get_parameters().comm_timeout.write(duration_t{0.005});
     system.machine_side_control.machine_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
 
     // Simulate Grid -> Machine failure ONLY
     // Grid RX is still fine, but Machine RX is broken
@@ -704,10 +709,158 @@ TEST_F(ClosedLoopShutdownTest, UnidirectionalCommunicationLossShutdownTest)
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
         << "Grid-side should trip because Machine reported communication failure";
 
+    // Verify both sides have system trip latched
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().is_tripped.read())
+        << "Machine-side system trip should be latched";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side system trip should be latched";
+
+    // Verify both sides are inhibited
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().is_inhibited.read())
+        << "Machine-side should be inhibited after communication loss";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Grid-side should be inhibited after communication loss";
+
     // Allow time for shutdown sequence to complete (extinguish current -> IDLE)
     simulator.simulate_for(1.0);
 
     // Verify state machine moved to IDLE
     auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
     EXPECT_EQ(state_machine_state, sfc_state_id::IDLE) << "State machine should transition to IDLE";
+
+    // Restore fiber communication
+    system.fiber_optic_grid_to_machine_failure = false;
+    simulator.simulate_for(0.1);
+
+    // After fiber restoration, fault flags should clear but system trip/inhibit remains latched
+    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().communication_loss_tripped.read())
+        << "Machine-side fault should clear after fiber restoration";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side fault should clear after fiber restoration";
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().is_tripped.read())
+        << "Machine-side system trip should remain latched until acknowledged";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side system trip should remain latched until acknowledged";
+    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().is_inhibited.read())
+        << "Machine-side inhibit should remain active until acknowledged";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Grid-side inhibit should remain active until acknowledged";
+
+    // Clear machine-side trip first
+    system.machine_side_control.machine_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.machine_side_control.machine_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.machine_side_control.machine_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify machine-side trip and inhibit are cleared
+    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().is_tripped.read())
+        << "Machine-side trip should be cleared after user confirmation";
+    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().is_inhibited.read())
+        << "Machine-side inhibit should be cleared after user confirmation";
+
+    // Now clear grid-side trip
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify grid-side trip and inhibit are both cleared after user confirmation
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side trip should be cleared after user confirmation";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Grid-side inhibit should be cleared after user confirmation";
+}
+
+/**
+ * @test MachineToGridCommunicationLossShutdownTest
+ * @brief Validates that a failure in Machine->Grid direction trips grid-side and requires user confirmation
+ *
+ * This test verifies the reverse direction: if Machine->Grid fiber is broken,
+ * Grid side trips due to RX failure, and the system requires user confirmation
+ * to clear the inhibit flag after fiber restoration.
+ */
+TEST_F(ClosedLoopShutdownTest, MachineToGridCommunicationLossShutdownTest)
+{
+    // Enable protection module
+    system.grid_side_control.grid_protections.get_parameters().protection_module_enabled.write(true);
+    system.machine_side_control.machine_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Bring system to operation
+    bring_to_operation();
+
+    // Configure short communication timeout (5ms)
+    system.grid_side_control.grid_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+    system.machine_side_control.machine_protections.get_parameters().comm_timeout.write(duration_t{0.005});
+
+    auto startup_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(startup_state, startup_sequencer_state_t::CLOSED_LOOP_OPERATION)
+        << "System should be in CLOSED_LOOP_OPERATION before shutdown";
+
+    // Simulate Machine -> Grid failure ONLY
+    // Machine TX is broken, Grid RX fails
+    system.fiber_optic_machine_to_grid_failure = true;
+    simulator.simulate_for(0.020);  // 20ms is plenty for 5ms timeout
+
+    // Verify Grid-side tripped due to local RX failure
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side should detect local RX failure";
+
+    // Verify grid-side system trip is latched
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side system trip should be latched";
+
+    // Verify grid-side is inhibited
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Grid-side should be inhibited after communication loss";
+
+    // Allow time for shutdown sequence to complete
+    simulator.simulate_for(1.0);
+
+    // Verify state machine moved to IDLE
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    EXPECT_EQ(state_machine_state, sfc_state_id::IDLE)
+        << "State machine should transition to IDLE on communication loss";
+
+    // Restore fiber communication
+    system.fiber_optic_machine_to_grid_failure = false;
+    simulator.simulate_for(0.1);
+
+    // After fiber restoration, fault flag should clear but system trip/inhibit remains latched
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().communication_loss_tripped.read())
+        << "Grid-side fault should clear after fiber restoration";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side system trip should remain latched until acknowledged";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Grid-side inhibit should remain active until acknowledged";
+
+    // Machine-side also needs confirmation since it received machine_protection_tripped from grid
+    // Clear machine-side trip first to prevent re-triggering grid-side
+    system.machine_side_control.machine_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.machine_side_control.machine_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.machine_side_control.machine_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify machine-side trip is cleared
+    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().is_tripped.read())
+        << "Machine-side trip should be cleared after user confirmation";
+
+    // Now clear grid-side trip (toggle confirm_alarms)
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(true);
+    simulator.simulate_for(0.1);
+    system.grid_side_control.grid_protections.get_parameters().confirm_alarms.write(false);
+    simulator.simulate_for(0.1);
+
+    // Verify grid-side trip and inhibit are both cleared after user confirmation
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_tripped.read())
+        << "Grid-side trip should be cleared after user confirmation";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "Grid-side inhibit should be cleared after user confirmation";
 }
