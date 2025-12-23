@@ -2,6 +2,7 @@
 
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/reference_frame.hpp"
@@ -96,20 +97,17 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(yeet::model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->kp));
-        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
-        entry.parameters.insert(
-            "nominal_frequency", yeet::utils::make_units_accessor(_model_parameters->nominal_frequency));
-        entry.parameters.insert(
-            "initial_frequency", yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
-        entry.parameters.insert(
-            "frequency_filter_cutoff", yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
-
-        registry.insert("observer", std::move(entry));
+        static constexpr std::string_view component_name = "observer";
+        handler.register_parameter(component_name, "kp", yeet::utils::make_units_accessor(_model_parameters->kp));
+        handler.register_parameter(component_name, "ti", yeet::utils::make_units_accessor(_model_parameters->ti));
+        handler.register_parameter(component_name, "nominal_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->nominal_frequency));
+        handler.register_parameter(component_name, "initial_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->initial_frequency));
+        handler.register_parameter(component_name, "frequency_filter_cutoff",
+            yeet::utils::make_units_accessor(_model_parameters->frequency_filter_cutoff));
     }
 
     inputs* get_inputs() { return _model_inputs; }

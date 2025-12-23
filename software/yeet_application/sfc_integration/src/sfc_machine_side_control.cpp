@@ -54,7 +54,7 @@ std::uint8_t sfc_machine_side_control::encode_fiber_optic_tx_to_grid()
     tx_msg.dc_link_current_reference = torque_controller.get_outputs().current_reference.read();
     tx_msg.machine_voltage_magnitude = machine_measurements.get_outputs().machine_voltage_magnitude.read();
     tx_msg.force_commutation_request = machine_side_modulator.get_outputs().request_force_commutation.read();
-    tx_msg.machine_protection_tripped = machine_protections.get_outputs().is_tripped.read();
+    tx_msg.machine_protection_tripped = machine_protections.get_outputs().has_active_trip.read();
     tx_msg.protection_inhibit = machine_protections.get_outputs().is_inhibited.read();
     tx_msg.communication_ok = _last_rx_decode_success;
     _fiber_optic_tx_length = fiber_optic::encode_machine_to_grid(tx_msg, _fiber_optic_tx_payload.data());
@@ -76,28 +76,28 @@ bool sfc_machine_side_control::decode_fiber_optic_rx_from_grid(
     return true;
 }
 
-void sfc_machine_side_control::register_datamodel(yeet::model_registry& registry)
+void sfc_machine_side_control::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
-    // Register all component parameters with the model_registry
+    // Register all component parameters with the parameter_handler
     // This makes them accessible via the parameter configuration protocol
 
     // Register per-unit system parameters first (fundamental base quantities)
-    pu_system_datamodel.register_datamodel(registry, per_unit_system);
+    pu_system_datamodel.register_datamodel(handler, per_unit_system);
     // Register external I/O overrides datamodel
-    external_ios.register_datamodel(registry);
+    external_ios.register_datamodel(handler);
 
-    machine_integrator_supervisor.register_datamodel(registry);
-    excitation_controller.register_datamodel(registry);
-    // speed_generator.register_datamodel(registry);
-    speed_controller.register_datamodel(registry);
-    torque_controller.register_datamodel(registry);
-    startup_sequencer.register_datamodel(registry);
-    machine_side_controller.register_datamodel(registry);
-    machine_side_observer.register_datamodel(registry);
-    machine_side_modulator.register_datamodel(registry);
-    machine_side_pulse_generator.register_datamodel(registry);
-    machine_measurements.register_datamodel(registry);
-    machine_protections.register_datamodel(registry);
+    machine_integrator_supervisor.register_datamodel(handler);
+    excitation_controller.register_datamodel(handler);
+    // speed_generator.register_datamodel(handler);
+    speed_controller.register_datamodel(handler);
+    torque_controller.register_datamodel(handler);
+    startup_sequencer.register_datamodel(handler);
+    machine_side_controller.register_datamodel(handler);
+    machine_side_observer.register_datamodel(handler);
+    machine_side_modulator.register_datamodel(handler);
+    machine_side_pulse_generator.register_datamodel(handler);
+    machine_measurements.register_datamodel(handler);
+    machine_protections.register_datamodel(handler);
 }
 
 void sfc_machine_side_control::connect_internal_signals()
@@ -153,7 +153,7 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&supervisor_inputs::torque_saturated)
         .from(torque_controller.get_outputs().is_braking_requested)
         .to(&supervisor_inputs::is_braking_requested)
-        .from(machine_protections.get_outputs().is_tripped)
+        .from(machine_protections.get_outputs().is_inhibited)
         .to(&supervisor_inputs::protection_shutdown_request);
 
     // ==================== Excitation Controller Inputs ====================
@@ -203,7 +203,7 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&torque_ctrl_inputs::speed_reference)
         .from(external_ios.get_fiber_optics_inputs_from_grid().current_state_id)
         .to(&torque_ctrl_inputs::current_state_id)
-        .from(machine_protections.get_outputs().is_tripped)
+        .from(machine_protections.get_outputs().is_inhibited)
         .to(&torque_ctrl_inputs::machine_protection_tripped)
         .from(startup_sequencer.get_outputs().torque_control_mode)
         .to(&torque_ctrl_inputs::control_mode)

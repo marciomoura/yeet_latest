@@ -76,8 +76,8 @@ protected:
 
         // Connect machine-side protections trip into the grid-side state machine input.
         // This is the integration contract: any machine-side trip must force grid-side control shutdown.
-        yeet::signals_connector::connect_output_to_input(
-            machine_protections.get_outputs().is_tripped, state_machine.get_inputs().machine_side_protection_tripped);
+        yeet::signals_connector::connect_output_to_input(machine_protections.get_outputs().has_active_trip,
+            state_machine.get_inputs().machine_side_protection_tripped);
 
         // Also wire inhibit into the state machine, mirroring production behavior.
         yeet::signals_connector::connect_output_to_input(machine_protections.get_outputs().is_inhibited,
@@ -120,7 +120,7 @@ protected:
         EXPECT_TRUE(sm_out.auxiliaries_on_command.read());
     }
 
-    void clear_trip_and_confirm_alarms()
+    void clear_trip_and_confirm_trips()
     {
         // The simulator sampling rate is 10ms in this fixture.
         // Use durations > 10ms to guarantee at least one simulation tick per step.
@@ -131,13 +131,13 @@ protected:
         // Note: Fault condition must already be cleared before calling this function.
         simulate_for(tick);
 
-        // Confirm alarms: rising edge on confirm_alarms clears inhibit when no faults active
+        // Confirm alarms: rising edge on confirm_trips clears inhibit when no faults active
         auto& params = machine_protections.get_parameters();
-        params.confirm_alarms.write(false);
+        params.confirm_trips.write(false);
         simulate_for(tick);
-        params.confirm_alarms.write(true);
+        params.confirm_trips.write(true);
         simulate_for(tick);
-        params.confirm_alarms.write(false);
+        params.confirm_trips.write(false);
         simulate_for(tick);
 
         // After a protection trip, the IDLE state has a trip latch that requires
@@ -253,7 +253,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, OverspeedTripsControl)
 
     simulate_for(0.2);
 
-    EXPECT_TRUE(machine_protections.get_outputs().is_tripped.read())
+    EXPECT_TRUE(machine_protections.get_outputs().is_inhibited.read())
         << "Machine-side protections should trip (overspeed)";
 
     simulate_for(0.2);
@@ -274,7 +274,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, MachineOvervoltageTripsControl)
 
     simulate_for(0.2);
 
-    EXPECT_TRUE(machine_protections.get_outputs().is_tripped.read())
+    EXPECT_TRUE(machine_protections.get_outputs().is_inhibited.read())
         << "Machine-side protections should trip (machine overvoltage)";
 
     simulate_for(0.2);
@@ -298,7 +298,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, VhzOverFluxTripsControl)
 
     simulate_for(0.2);
 
-    EXPECT_TRUE(machine_protections.get_outputs().is_tripped.read())
+    EXPECT_TRUE(machine_protections.get_outputs().is_inhibited.read())
         << "Machine-side protections should trip (V/Hz over-flux)";
 
     simulate_for(0.2);
@@ -322,7 +322,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, StallTripsControlWhenUnableToAccel
 
     simulate_for(0.2);
 
-    EXPECT_TRUE(machine_protections.get_outputs().is_tripped.read()) << "Machine-side protections should trip (stall)";
+    EXPECT_TRUE(machine_protections.get_outputs().is_inhibited.read())
+        << "Machine-side protections should trip (stall)";
 
     simulate_for(0.2);
     expect_trip_shutdown();
@@ -343,7 +344,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     }
 
     simulate_for(0.05);
-    ASSERT_TRUE(machine_protections.get_outputs().is_tripped.read());
+    ASSERT_TRUE(machine_protections.get_outputs().is_inhibited.read());
     expect_trip_shutdown();
 
     // Clear fault condition first
@@ -351,8 +352,8 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
         machine_protections.get_inputs().machine_voltage_magnitude_pu, voltage_pu_t{0.0f});
     simulate_for(0.01);
 
-    clear_trip_and_confirm_alarms();
-    EXPECT_FALSE(machine_protections.get_outputs().any_fault_active.read())
+    clear_trip_and_confirm_trips();
+    EXPECT_FALSE(machine_protections.get_outputs().has_active_trip.read())
         << "Fault condition should be cleared before re-start. "
         << "DEBUG: speed_pu=" << machine_protections.get_inputs().machine_speed.read().value() << ", "
         << "overspeed_trip_threshold=" << machine_protections.get_parameters().overspeed_trip_threshold.read().value()
@@ -366,7 +367,6 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
         << ", "
         << "over_flux_trip_threshold=" << machine_protections.get_parameters().over_flux_trip_threshold.read().value();
     expect_no_individual_protection_trips();
-    EXPECT_FALSE(machine_protections.get_outputs().is_tripped.read());
     EXPECT_FALSE(machine_protections.get_outputs().is_inhibited.read());
 
     // Prevent phase-1 settings from influencing subsequent phases.
@@ -383,7 +383,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     }
 
     simulate_for(0.05);
-    ASSERT_TRUE(machine_protections.get_outputs().is_tripped.read());
+    ASSERT_TRUE(machine_protections.get_outputs().is_inhibited.read());
     expect_trip_shutdown();
 
     // Clear fault condition
@@ -396,11 +396,10 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     EXPECT_FLOAT_EQ(machine_protections.get_parameters().under_flux_trip_threshold.read().value(), -10.0f);
     EXPECT_FLOAT_EQ(machine_protections.get_parameters().under_flux_trip_delay.read().value(), 0.0f);
 
-    clear_trip_and_confirm_alarms();
-    EXPECT_FALSE(machine_protections.get_outputs().any_fault_active.read())
+    clear_trip_and_confirm_trips();
+    EXPECT_FALSE(machine_protections.get_outputs().has_active_trip.read())
         << "Fault condition should be cleared before re-start";
     expect_no_individual_protection_trips();
-    EXPECT_FALSE(machine_protections.get_outputs().is_tripped.read());
     EXPECT_FALSE(machine_protections.get_outputs().is_inhibited.read());
 
     // Prevent phase-2 settings from influencing subsequent phases.
@@ -420,7 +419,7 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     }
 
     simulate_for(0.05);
-    ASSERT_TRUE(machine_protections.get_outputs().is_tripped.read());
+    ASSERT_TRUE(machine_protections.get_outputs().is_inhibited.read());
     expect_trip_shutdown();
 
     // Clear fault condition
@@ -431,11 +430,10 @@ TEST_F(MachineSideProtectionsIntegrationTest, SequentialTripsCanBeClearedAndRetr
     yeet::utils::mock_signal_input::write(machine_protections.get_inputs().machine_speed, speed_pu_t{1.0f});
     simulate_for(0.01);
 
-    clear_trip_and_confirm_alarms();
-    EXPECT_FALSE(machine_protections.get_outputs().any_fault_active.read())
+    clear_trip_and_confirm_trips();
+    EXPECT_FALSE(machine_protections.get_outputs().has_active_trip.read())
         << "Fault condition should be cleared before re-start";
     expect_no_individual_protection_trips();
-    EXPECT_FALSE(machine_protections.get_outputs().is_tripped.read());
     EXPECT_FALSE(machine_protections.get_outputs().is_inhibited.read());
 
     enter_operation_on();

@@ -104,31 +104,19 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(36,
         protection_status_to_signal(protection_params.door_open_severity.read(),
             protections.get_outputs().door_open_tripped.read(), protections.get_outputs().door_open_alarmed.read()));
-    packet.add_signal(75, protection_status_to_signal(protection_params.external_fault_severity.read(),
-                              protections.get_outputs().external_fault_tripped.read(),
-                              protections.get_outputs().external_fault_alarmed.read()));
-    packet.add_signal(76, protection_status_to_signal(protection_params.emergency_off_severity.read(),
-                              protections.get_outputs().emergency_off_tripped.read(),
-                              protections.get_outputs().emergency_off_alarmed.read()));
-    packet.add_signal(77, protection_status_to_signal(protection_params.machine_protection_severity.read(),
-                              protections.get_outputs().machine_protection_tripped.read(),
-                              protections.get_outputs().machine_protection_alarmed.read()));
-    packet.add_signal(78, static_cast<float>(protections.get_outputs().any_alarm_active.read()));
-
-    // === Fiber Optic RX from Machine-Side Group (37-39 + 79-83) ===
+    // === Fiber Optic RX from Machine-Side Group (37-39) ===
     const auto& fiber_rx = _control.get_external_ios().get_fiber_optics_inputs_from_machine();
     packet.add_signal(37, static_cast<float>(fiber_rx.measured_speed.read()));
     packet.add_signal(38, static_cast<float>(fiber_rx.current_reference.read()));
     packet.add_signal(39, static_cast<float>(fiber_rx.machine_voltage_magnitude.read()));
-    // Boolean fiber optic signals
-    packet.add_signal(79, static_cast<float>(fiber_rx.request_force_commutation.read()));
-    packet.add_signal(80, static_cast<float>(fiber_rx.machine_protection_tripped.read()));
-    packet.add_signal(81, static_cast<float>(fiber_rx.protection_inhibit.read()));
-    packet.add_signal(82, static_cast<float>(fiber_rx.communication_ok.read()));
 
     // === Commutation Notch Duration Group (40-41) ===
     packet.add_signal(40, static_cast<float>(grid_meas.get_outputs().commutation_notch_duration_last.read()));
     packet.add_signal(41, static_cast<float>(grid_meas.get_outputs().commutation_notch_duration_filtered.read()));
+
+    const bool is_inhibited = _control.grid_protections.get_outputs().is_inhibited.read();
+    const bool has_active_trip = _control.grid_protections.get_outputs().has_active_trip.read();
+    const bool has_active_alarm = _control.grid_protections.get_outputs().has_active_alarm.read();
 
     // === Grouped Boolean Packs (42-43) ===
     // Pack all grid-side booleans into 2 consecutive uint32 words for maximum compression
@@ -143,22 +131,21 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
             modulator.get_outputs().freeze_integrator.read(),
             // Bits 3-4: Current controller status
             current_controller.get_outputs().is_active.read(), current_controller.get_outputs().is_saturated.read(),
-            // Bits 5-11: State machine flags
+            // Bits 5-10: State machine flags (6)
             state_machine.get_outputs().release_pulses.read(), state_machine.get_outputs().auxiliaries_are_on.read(),
             state_machine.get_outputs().mv_breaker_is_closed.read(), state_machine.get_outputs().start_command.read(),
             state_machine.get_outputs().stop_command.read(), state_machine.get_outputs().is_current_extinguished.read(),
-            // Bits 12-14: Mode monitor
+            // Bits 11-13: Mode monitor
             mode_monitor.get_outputs().has_mode_changed.read(), mode_monitor.get_outputs().current_is_zero.read(),
             mode_monitor.get_outputs().is_discontinuous_mode.read(),
-            // Bits 15-18: Pulse generator
+            // Bits 14-17: Pulse generator
             pulse_generator.get_outputs().release_pulses.read(), pulse_generator.get_inputs().release_pulses.read(),
             pulse_generator.get_outputs().virtual_reference_active.read(),
             pulse_generator.get_outputs().individual_override_active.read(),
-            // Bits 19-24: Firing pulses (p1-p6)
+            // Bits 18-23: Firing pulses (p1-p6)
             firing_pulses.p1, firing_pulses.p2, firing_pulses.p3, firing_pulses.p4, firing_pulses.p5, firing_pulses.p6,
-            // Bits 25-31: Protections (first 7)
-            protections.get_outputs().is_tripped.read(), protections.get_outputs().is_inhibited.read(),
-            protections.get_outputs().any_fault_active.read(), protections.get_outputs().overcurrent_tripped.read(),
+            // Bits 24-30: Protections (first 7)
+            has_active_trip, is_inhibited, has_active_alarm, protections.get_outputs().overcurrent_tripped.read(),
             protections.get_outputs().overvoltage_tripped.read(), protections.get_outputs().undervoltage_tripped.read(),
             protections.get_outputs().overcurrent_warning.read()});
 
@@ -219,6 +206,24 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(72, static_cast<float>(grid_ios.get_software_trip_1()));
     packet.add_signal(73, static_cast<float>(grid_ios.get_software_trip_2()));
     packet.add_signal(74, static_cast<float>(grid_ios.get_software_trip_3()));
+
+    // === Additional Protection Status Signals (75-78) ===
+    packet.add_signal(75, protection_status_to_signal(protection_params.external_fault_severity.read(),
+                              protections.get_outputs().external_fault_tripped.read(),
+                              protections.get_outputs().external_fault_alarmed.read()));
+    packet.add_signal(76, protection_status_to_signal(protection_params.emergency_off_severity.read(),
+                              protections.get_outputs().emergency_off_tripped.read(),
+                              protections.get_outputs().emergency_off_alarmed.read()));
+    packet.add_signal(77, protection_status_to_signal(protection_params.machine_protection_severity.read(),
+                              protections.get_outputs().machine_protection_tripped.read(),
+                              protections.get_outputs().machine_protection_alarmed.read()));
+    packet.add_signal(78, static_cast<float>(protections.get_outputs().has_active_alarm.read()));
+
+    // === Fiber Optic RX Boolean Signals (79-82) ===
+    packet.add_signal(79, static_cast<float>(fiber_rx.request_force_commutation.read()));
+    packet.add_signal(80, static_cast<float>(fiber_rx.machine_protection_tripped.read()));
+    packet.add_signal(81, static_cast<float>(fiber_rx.protection_inhibit.read()));
+    packet.add_signal(82, static_cast<float>(fiber_rx.communication_ok.read()));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);

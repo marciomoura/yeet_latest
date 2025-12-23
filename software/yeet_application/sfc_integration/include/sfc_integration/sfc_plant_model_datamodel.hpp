@@ -1,7 +1,7 @@
 #pragma once
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -174,31 +174,31 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
-        entry.parameters.insert(
-            "voltage_control_mode", yeet::utils::make_enum_accessor(_model_parameters->voltage_control_mode));
-        entry.parameters.insert("operation_mode", yeet::utils::make_enum_accessor(_model_parameters->operation_mode));
-        entry.parameters.insert(
-            "motor_inertia_constant", yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
-        entry.parameters.insert(
-            "motor_damping_factor", yeet::utils::make_units_accessor(_model_parameters->motor_damping_factor));
-        entry.parameters.insert("motor_linear_load_coefficient",
+        static constexpr std::string_view component_name = "plant_model";
+        handler.register_parameter(
+            component_name, "initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
+        handler.register_parameter(component_name, "voltage_control_mode",
+            yeet::utils::make_enum_accessor(_model_parameters->voltage_control_mode));
+        handler.register_parameter(
+            component_name, "operation_mode", yeet::utils::make_enum_accessor(_model_parameters->operation_mode));
+        handler.register_parameter(component_name, "motor_inertia_constant",
+            yeet::utils::make_units_accessor(_model_parameters->motor_inertia_constant));
+        handler.register_parameter(component_name, "motor_damping_factor",
+            yeet::utils::make_units_accessor(_model_parameters->motor_damping_factor));
+        handler.register_parameter(component_name, "motor_linear_load_coefficient",
             yeet::utils::make_units_accessor(_model_parameters->motor_linear_load_coefficient));
-        entry.parameters.insert("motor_quadratic_load_coefficient",
+        handler.register_parameter(component_name, "motor_quadratic_load_coefficient",
             yeet::utils::make_units_accessor(_model_parameters->motor_quadratic_load_coefficient));
-        entry.parameters.insert(
-            "constant_torque", yeet::utils::make_units_accessor(_model_parameters->constant_torque));
-        entry.parameters.insert(
-            "grid_frequency_pu", yeet::utils::make_units_accessor(_model_parameters->grid_frequency_pu));
-        entry.parameters.insert(
-            "grid_voltage_pu", yeet::utils::make_units_accessor(_model_parameters->grid_voltage_pu));
-        entry.parameters.insert("plant_topology", yeet::utils::make_enum_accessor(_model_parameters->topology));
-
-        registry.insert("plant_model", std::move(entry));
+        handler.register_parameter(
+            component_name, "constant_torque", yeet::utils::make_units_accessor(_model_parameters->constant_torque));
+        handler.register_parameter(component_name, "grid_frequency_pu",
+            yeet::utils::make_units_accessor(_model_parameters->grid_frequency_pu));
+        handler.register_parameter(
+            component_name, "grid_voltage_pu", yeet::utils::make_units_accessor(_model_parameters->grid_voltage_pu));
+        handler.register_parameter(
+            component_name, "plant_topology", yeet::utils::make_enum_accessor(_model_parameters->topology));
     }
 
     inputs* get_inputs() { return _model_inputs; }

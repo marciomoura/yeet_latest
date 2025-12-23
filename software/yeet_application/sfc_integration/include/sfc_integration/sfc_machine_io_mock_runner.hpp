@@ -68,7 +68,7 @@ public:
 
     sfc_machine_io_mock_runner() = default;
 
-    void register_datamodel(yeet::model_registry& registry);
+    void register_datamodel(yeet::telemetry::parameter_handler& handler);
     void initialize();
     void run();
     void stop();

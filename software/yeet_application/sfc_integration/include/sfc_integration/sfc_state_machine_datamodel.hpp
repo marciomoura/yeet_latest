@@ -1,8 +1,8 @@
 #pragma once
 
 #include "sfc/sfc_state_machine.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
@@ -159,31 +159,31 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "state_machine";
         // Register digital input override parameters using boolean accessor
-        entry.parameters.insert("auxiliaries_are_on_override",
+        handler.register_parameter(component_name, "auxiliaries_are_on_override",
             yeet::utils::make_bool_accessor(_model_parameters->auxiliaries_are_on_override));
-        entry.parameters.insert("auxiliaries_are_on_override_value",
+        handler.register_parameter(component_name, "auxiliaries_are_on_override_value",
             yeet::utils::make_bool_accessor(_model_parameters->auxiliaries_are_on_override_value));
 
-        entry.parameters.insert("mv_breaker_is_closed_override",
+        handler.register_parameter(component_name, "mv_breaker_is_closed_override",
             yeet::utils::make_bool_accessor(_model_parameters->mv_breaker_is_closed_override));
-        entry.parameters.insert("mv_breaker_is_closed_override_value",
+        handler.register_parameter(component_name, "mv_breaker_is_closed_override_value",
             yeet::utils::make_bool_accessor(_model_parameters->mv_breaker_is_closed_override_value));
 
-        entry.parameters.insert("turn_on_command", yeet::utils::make_bool_accessor(_model_parameters->turn_on_command));
-        entry.parameters.insert("start_command", yeet::utils::make_bool_accessor(_model_parameters->start_command));
-        entry.parameters.insert("stop_command", yeet::utils::make_bool_accessor(_model_parameters->stop_command));
+        handler.register_parameter(
+            component_name, "turn_on_command", yeet::utils::make_bool_accessor(_model_parameters->turn_on_command));
+        handler.register_parameter(
+            component_name, "start_command", yeet::utils::make_bool_accessor(_model_parameters->start_command));
+        handler.register_parameter(
+            component_name, "stop_command", yeet::utils::make_bool_accessor(_model_parameters->stop_command));
 
-        entry.parameters.insert("is_current_extinguished_override",
+        handler.register_parameter(component_name, "is_current_extinguished_override",
             yeet::utils::make_bool_accessor(_model_parameters->is_current_extinguished_override));
-        entry.parameters.insert("is_current_extinguished_override_value",
+        handler.register_parameter(component_name, "is_current_extinguished_override_value",
             yeet::utils::make_bool_accessor(_model_parameters->is_current_extinguished_override_value));
-
-        registry.insert("state_machine", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

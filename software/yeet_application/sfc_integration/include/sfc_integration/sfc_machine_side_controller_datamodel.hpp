@@ -1,8 +1,8 @@
 #pragma once
 
 #include "sfc/sfc_machine_side_lookup_table.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -58,17 +58,16 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "stator_voltage_controller";
         // Register DC current lookup table entries individually
         static constexpr std::string_view dc_current_names[] = {"dc_current_pu_lookup_table[0]",
             "dc_current_pu_lookup_table[1]", "dc_current_pu_lookup_table[2]", "dc_current_pu_lookup_table[3]",
             "dc_current_pu_lookup_table[4]", "dc_current_pu_lookup_table[5]"};
 
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(std::string(dc_current_names[i]),
+            handler.register_parameter(component_name, dc_current_names[i],
                 yeet::utils::make_array_element_accessor(_model_parameters->dc_current_pu_lookup_table, i));
         }
 
@@ -87,22 +86,20 @@ public:
 
             contexts[i] = {&_model_parameters->firing_angle_lookup_table, i};
 
-            entry.parameters.insert(
-                std::string(firing_angle_names[i]), low_level_access(
-                                                        +[](void* ctx) -> float {
-                                                            auto* c = static_cast<context_storage_t*>(ctx);
-                                                            return static_cast<float>(c->param->read()[c->index]);
-                                                        },
-                                                        +[](void* ctx, float value) {
-                                                            auto* c = static_cast<context_storage_t*>(ctx);
-                                                            auto table = c->param->read();
-                                                            table[c->index] = real_t(value);
-                                                            c->param->write(table);
-                                                        },
-                                                        &contexts[i]));
+            handler.register_parameter(component_name, firing_angle_names[i],
+                low_level_access(
+                    +[](void* ctx) -> float {
+                        auto* c = static_cast<context_storage_t*>(ctx);
+                        return static_cast<float>(c->param->read()[c->index]);
+                    },
+                    +[](void* ctx, float value) {
+                        auto* c = static_cast<context_storage_t*>(ctx);
+                        auto table = c->param->read();
+                        table[c->index] = real_t(value);
+                        c->param->write(table);
+                    },
+                    &contexts[i]));
         }
-
-        registry.insert("stator_voltage_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

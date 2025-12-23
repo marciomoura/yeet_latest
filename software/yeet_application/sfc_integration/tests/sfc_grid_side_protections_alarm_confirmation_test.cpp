@@ -9,7 +9,7 @@ namespace yeet::application::sfc::integration {
  *
  * Tests the alarm confirmation workflow:
  * - Alarm latching when protection trips
- * - Rising edge detection on confirm_alarms parameter
+ * - Rising edge detection on confirm_trips parameter
  * - Safety rejection: cannot confirm while currently tripped
  * - Alarm clearing when confirmed and not tripped
  */
@@ -32,7 +32,7 @@ protected:
         params.overvoltage_trip_delay.write(duration_t{0.0});
         params.undervoltage_trip_delay.write(duration_t{0.0});
 
-        params.confirm_alarms.write(false);  // Start with no confirmation command
+        params.confirm_trips.write(false);  // Start with no confirmation command
 
         // Connect storage to signals (required by raw pointer API)
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
@@ -95,16 +95,16 @@ protected:
         run_cycle();
     }
 
-    void set_confirm_alarms(bool value)
+    void set_confirm_trips(bool value)
     {
         auto& params = _runner->get_parameters();
-        params.confirm_alarms.write(value);
+        params.confirm_trips.write(value);
     }
 
-    bool is_tripped() const
+    bool has_active_trip() const
     {
         const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
-        return outputs.is_tripped.read();
+        return outputs.has_active_trip.read();
     }
 
     bool is_inhibited() const
@@ -131,21 +131,21 @@ protected:
  *
  * Scenario:
  * 1. Normal operation → is_inhibited=false
- * 2. Overcurrent fault occurs → is_tripped=true, is_inhibited=true
+ * 2. Overcurrent fault occurs → is_inhibited=true, is_inhibited=true
  * 3. Protection requires explicit release to clear trip
- * 4. After release, is_tripped=false but is_inhibited=true (alarm latched)
+ * 4. After release, is_inhibited=false but is_inhibited=true (alarm latched)
  */
 TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, AlarmLatchesOnTrip)
 {
     // Initial state: no faults
     run_cycle();
-    EXPECT_FALSE(is_tripped());
+    EXPECT_FALSE(has_active_trip());
     EXPECT_FALSE(is_inhibited());
 
     // Trigger fault
     trigger_overcurrent();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Protection should trip on overcurrent";
+    EXPECT_TRUE(has_active_trip()) << "Protection should trip on overcurrent";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch when protection trips";
 
     // Clear fault condition
@@ -153,24 +153,24 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, AlarmLatchesOnTrip)
     run_cycle();
 
     // Protection is latching - trip stays active until confirmed
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault clears";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Confirm alarms
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip should clear after confirmation";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear after confirmation";
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after confirmation";
 }
 
 /**
- * @brief Test rising edge detection on confirm_alarms
+ * @brief Test rising edge detection on confirm_trips
  *
  * Only a rising edge (false→true) should trigger confirmation.
- * Holding confirm_alarms=true should not repeatedly clear the alarm.
+ * Holding confirm_trips=true should not repeatedly clear the alarm.
  */
 TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
 {
@@ -179,26 +179,26 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmRequiresRisingEdge)
     run_cycle();
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    ASSERT_FALSE(has_active_trip()) << "Trip should clear when fault clears";
     ASSERT_TRUE(is_inhibited()) << "Alarm should be latched";
 
-    // Set confirm_alarms=true WITHOUT going through false first (should already be false from setup, but let's
+    // Set confirm_trips=false WITHOUT going through false first (should already be false from setup, but let's
     // initialize the edge detector) By setting it to false explicitly and running a cycle, the edge detector knows the
     // starting state
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
 
-    // Try setting confirm_alarms=true (this IS a rising edge, but it should work)
-    set_confirm_alarms(true);
+    // Try setting confirm_trips=true (this IS a rising edge, but it should work)
+    set_confirm_trips(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Rising edge from false->true should clear alarm";
 
     // Holding true should not affect state (no new edge)
     run_cycle();
-    EXPECT_FALSE(is_inhibited()) << "Alarm should remain cleared with confirm_alarms held true";
+    EXPECT_FALSE(is_inhibited()) << "Alarm should remain cleared with confirm_trips held true";
 
-    // Reset confirm_alarms
-    set_confirm_alarms(false);
+    // Reset confirm_trips
+    set_confirm_trips(false);
     run_cycle();
 }
 
@@ -213,28 +213,28 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CannotConfirmWhileTripped)
     // Trigger fault
     trigger_overcurrent();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Attempt to confirm alarm while fault is active (rising edge)
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
 
     EXPECT_TRUE(is_inhibited()) << "Cannot confirm alarm while protection is currently tripped (safety)";
-    EXPECT_TRUE(is_tripped()) << "Protection should remain tripped while fault active";
+    EXPECT_TRUE(has_active_trip()) << "Protection should remain tripped while fault active";
 
     // Now clear the fault
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
 
     // Now confirmation should work
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after fault removed and confirmation given";
 }
@@ -249,23 +249,23 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ConfirmationClearsAlarmWhenS
     // Trigger overvoltage fault
     trigger_overvoltage();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Clear fault
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    ASSERT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
     ASSERT_TRUE(is_inhibited());
 
     // Confirm alarm (rising edge)
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
 
     EXPECT_FALSE(is_inhibited()) << "Alarm should be cleared after confirmation";
-    EXPECT_FALSE(is_tripped()) << "Protection should not be tripped";
+    EXPECT_FALSE(has_active_trip()) << "Protection should not be tripped";
 }
 
 /**
@@ -278,17 +278,17 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     // First trip cycle
     trigger_overcurrent();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should occur on fault";
+    ASSERT_TRUE(has_active_trip()) << "Trip should occur on fault";
     ASSERT_TRUE(is_inhibited());
     clear_fault_conditions();
     run_cycle();
-    ASSERT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    ASSERT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
     ASSERT_TRUE(is_inhibited());
 
     // First confirmation
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "First alarm should be cleared";
 
@@ -297,13 +297,13 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, MultipleTripConfirmCycles)
     run_cycle();
     clear_fault_conditions();
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Second trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Second trip should clear when fault removed";
     EXPECT_TRUE(is_inhibited()) << "Second trip should re-latch alarm";
 
     // Second confirmation (need new rising edge)
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Second alarm should be cleared";
 }
@@ -327,7 +327,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ResetClearsAlarm)
     // Alarm should be cleared
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Reset should clear latched alarm";
-    EXPECT_FALSE(is_tripped());
+    EXPECT_FALSE(has_active_trip());
 }
 
 /**
@@ -341,12 +341,12 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllOutp
     // Trigger overcurrent fault
     trigger_overcurrent();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
     ASSERT_TRUE(outputs.overcurrent_tripped.read()) << "Individual overcurrent trip should be set";
-    ASSERT_TRUE(outputs.any_fault_active.read()) << "Fault active flag should be set";
+    ASSERT_TRUE(outputs.has_active_trip.read()) << "Fault active flag should be set";
 
     // Disable protection module
     auto& params = _runner->get_parameters();
@@ -354,9 +354,8 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllOutp
     run_cycle();
 
     // Verify ALL outputs are cleared
-    EXPECT_FALSE(outputs.is_tripped.read()) << "is_tripped should clear when module disabled";
+    EXPECT_FALSE(outputs.has_active_trip.read()) << "has_active_trip should clear when module disabled";
     EXPECT_FALSE(outputs.is_inhibited.read()) << "is_inhibited should clear when module disabled";
-    EXPECT_FALSE(outputs.any_fault_active.read()) << "any_fault_active should clear when module disabled";
     EXPECT_FALSE(outputs.overcurrent_tripped.read()) << "overcurrent_tripped should clear";
     EXPECT_FALSE(outputs.overvoltage_tripped.read()) << "overvoltage_tripped should clear";
     EXPECT_FALSE(outputs.undervoltage_tripped.read()) << "undervoltage_tripped should clear";
@@ -371,7 +370,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleClearsAllOutp
     run_cycle();
 
     // Protections should detect fault and trip again
-    EXPECT_TRUE(outputs.is_tripped.read()) << "Should trip again when re-enabled with fault present";
+    EXPECT_TRUE(outputs.has_active_trip.read()) << "Should trip again when re-enabled with fault present";
     EXPECT_TRUE(outputs.is_inhibited.read()) << "Should latch alarm again";
 }
 
@@ -386,7 +385,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImmedia
     // Trigger fault and create latched alarm
     trigger_overvoltage();
     run_cycle();
-    ASSERT_TRUE(is_tripped());
+    ASSERT_TRUE(has_active_trip());
     ASSERT_TRUE(is_inhibited());
 
     // Normally, restart would be blocked by is_inhibited requiring alarm confirmation
@@ -395,7 +394,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImmedia
     params.protection_module_enabled.write(false);
     run_cycle();
 
-    EXPECT_FALSE(is_tripped()) << "Trip cleared by disabling module";
+    EXPECT_FALSE(has_active_trip()) << "Trip cleared by disabling module";
     EXPECT_FALSE(is_inhibited()) << "Inhibit cleared - no acknowledgment needed";
 
     // Clear fault condition and re-enable protections
@@ -404,7 +403,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DisablingModuleAllowsImmedia
     run_cycle();
 
     // System should be ready to operate (no trips, no alarms)
-    EXPECT_FALSE(is_tripped()) << "No trip with fault cleared";
+    EXPECT_FALSE(has_active_trip()) << "No trip with fault cleared";
     EXPECT_FALSE(is_inhibited()) << "No inhibit - ready for restart";
 }
 
@@ -423,7 +422,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, ModuleStaysDisabled)
     // Run multiple cycles
     for (int i = 0; i < 10; ++i) {
         run_cycle();
-        EXPECT_FALSE(is_tripped()) << "Should not trip while module disabled (cycle " << i << ")";
+        EXPECT_FALSE(has_active_trip()) << "Should not trip while module disabled (cycle " << i << ")";
         EXPECT_FALSE(is_inhibited()) << "Should not inhibit while module disabled (cycle " << i << ")";
     }
 }
@@ -440,19 +439,20 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, DoorOpenTripsAndRequiresConf
     yeet::utils::mock_signal_input::write(inputs.door_is_open, true);
 
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Door open should trip protections";
+    EXPECT_TRUE(has_active_trip()) << "Door open should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Door open trip should latch alarm";
 
     // Close door: fault clears
     yeet::utils::mock_signal_input::write(inputs.door_is_open, false);
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
-    EXPECT_TRUE(is_inhibited()) << "Alarm should remain latched";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
+    EXPECT_TRUE(is_inhibited()) << "Inhibit should stay active until confirmed";
 
-    // Confirm alarms
-    set_confirm_alarms(false);
+    // Confirm trips
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
 
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after user confirmation";
@@ -476,18 +476,19 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossTripsAfterT
     _runner->update_communication_status(false);
     run_cycle();
 
-    EXPECT_TRUE(is_tripped()) << "Communication loss should trip protections";
+    EXPECT_TRUE(has_active_trip()) << "Communication loss should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Communication loss trip should latch alarm";
 
     // Restore communication and allow watchdog to clear its internal trip condition
     _runner->update_communication_status(true);
     run_cycle();
-    EXPECT_TRUE(is_tripped()) << "Trip should stay active until confirmed";
+    EXPECT_FALSE(has_active_trip()) << "Trip should clear when fault removed";
+    EXPECT_TRUE(is_inhibited()) << "Inhibit should stay active until confirmed";
 
     // Alarm confirmation required
-    set_confirm_alarms(false);
+    set_confirm_trips(false);
     run_cycle();
-    set_confirm_alarms(true);
+    set_confirm_trips(true);
     run_cycle();
     EXPECT_FALSE(is_inhibited()) << "Alarm should clear after user confirmation";
 }
@@ -504,7 +505,7 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, CommunicationLossRemoteFailu
     _runner->update_communication_status(true, false);
     run_cycle();
 
-    EXPECT_TRUE(is_tripped()) << "Remote communication failure should trip protections";
+    EXPECT_TRUE(has_active_trip()) << "Remote communication failure should trip protections";
     EXPECT_TRUE(is_inhibited()) << "Remote communication failure trip should latch alarm";
 }
 

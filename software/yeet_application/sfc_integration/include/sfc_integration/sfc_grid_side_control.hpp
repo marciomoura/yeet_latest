@@ -68,15 +68,15 @@ public:
     void reset();
 
     /**
-     * @brief Register all component datamodels with the model registry
+     * @brief Register all component datamodels with the parameter handler
      *
      * This registers all parameters from grid-side components (current controller,
      * observer, modulator, pulse generator, measurements, state machine, operation mode monitor)
-     * with the provided registry, making them accessible via parameter configuration protocol.
+     * directly with the provided parameter handler, making them accessible via parameter configuration protocol.
      *
-     * @param registry The model registry to populate with component parameters
+     * @param handler The parameter handler to register component parameters with
      */
-    void register_datamodel(yeet::model_registry& registry);
+    void register_datamodel(yeet::telemetry::parameter_handler& handler);
 
     /**
      * @brief Update components running at 10ms sampling time (100 Hz)

@@ -42,7 +42,7 @@ public:
     {
     }
 
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;
     void run() override;
     void stop() override;

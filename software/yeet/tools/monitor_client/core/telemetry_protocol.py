@@ -190,11 +190,11 @@ class GridSideTelemetryPacket:
         Returns 32 booleans in order:
         - Bits 0-2: Modulator control (release_pulses, force_comm_ack, freeze_integrator)
         - Bits 3-4: Current controller status (is_active, is_saturated)
-        - Bits 5-11: State machine flags (7 flags)
-        - Bits 12-14: Mode monitor (has_mode_changed, current_is_zero, is_discontinuous_mode)
-        - Bits 15-18: Pulse generator (release_pulses_output, release_pulses_input, virtual_ref_active, individual_override)
-        - Bits 19-24: Firing pulses (p1-p6)
-        - Bits 25-31: Protections part 1 (is_tripped, is_inhibited, any_fault_active, overcurrent_tripped, overvoltage_tripped, undervoltage_tripped, overcurrent_warning)
+        - Bits 5-10: State machine flags (6 flags)
+        - Bits 11-13: Mode monitor (has_mode_changed, current_is_zero, is_discontinuous_mode)
+        - Bits 14-17: Pulse generator (release_pulses_output, release_pulses_input, virtual_ref_active, individual_override)
+        - Bits 18-23: Firing pulses (p1-p6)
+        - Bits 24-30: Protections part 1 (is_tripped, is_inhibited, any_fault_active, overcurrent_tripped, overvoltage_tripped, undervoltage_tripped, overcurrent_warning)
         """
         raw = self.get_raw_signal(GridSignalIndex.BOOL_PACK_1, 0)
         logger.debug(f"_get_bool_pack_1: raw_signal[42] = 0x{raw:08X} ({raw})")
@@ -203,11 +203,11 @@ class GridSideTelemetryPacket:
         return bools
     
     def _get_bool_pack_2(self) -> list[bool]:
-        """Unpack boolean pack #2 (index 43, bits 0-7).
+        """Unpack boolean pack #2 (index 43, bits 0-6).
         
         Returns 8 booleans in order:
         - Bits 0-3: Protections part 2 (overvoltage_warning, undervoltage_warning, comm_loss_tripped, comm_loss_warning)
-        - Bits 4-7: Fiber optic RX (request_force_comm, shutdown_request, machine_protection_tripped, protection_inhibit)
+        - Bits 4-6: Fiber optic RX (request_force_comm, machine_protection_tripped, protection_inhibit)
         """
         raw = self.get_raw_signal(GridSignalIndex.BOOL_PACK_2, 0)
         logger.debug(f"_get_bool_pack_2: raw_signal[43] = 0x{raw:08X} ({raw})")
@@ -282,7 +282,6 @@ class GridSideTelemetryPacket:
             start_command=bools1[8],  # Bit 8: State machine start_cmd
             stop_command=bools1[9],  # Bit 9: State machine stop_cmd
             is_current_extinguished=bools1[10],  # Bit 10: State machine current_extinguished
-            is_shutdown_requested=bools1[11],  # Bit 11: State machine shutdown_request
         )
     
     @property
@@ -291,9 +290,9 @@ class GridSideTelemetryPacket:
         bools1 = self._get_bool_pack_1()
         return OperationModeMonitorData(
             preset_request=self.get_bool_signal(GridSignalIndex.STATE_MACHINE_PRESET_REQUEST),
-            has_mode_changed=bools1[12],  # Bit 12: Mode monitor mode_changed
-            current_is_zero=bools1[13],  # Bit 13: Mode monitor current_zero
-            is_discontinuous_mode=bools1[14],  # Bit 14: Mode monitor discontinuous_mode
+            has_mode_changed=bools1[11],  # Bit 11: Mode monitor mode_changed
+            current_is_zero=bools1[12],  # Bit 12: Mode monitor current_zero
+            is_discontinuous_mode=bools1[13],  # Bit 13: Mode monitor discontinuous_mode
         )
     
     @property
@@ -301,18 +300,18 @@ class GridSideTelemetryPacket:
         """Extract pulse generator outputs from signal array."""
         bools1 = self._get_bool_pack_1()
         return PulseGeneratorData(
-            release_pulses=bools1[15],  # Bit 15: Pulse gen release_pulses (output)
+            release_pulses=bools1[14],  # Bit 14: Pulse gen release_pulses (output)
             actual_firing_angle_pu=self.get_signal(GridSignalIndex.PULSE_GENERATOR_ACTUAL_FIRING_ANGLE),
-            release_pulses_input=bools1[16],  # Bit 16: Pulse gen release_pulses (input)
-            virtual_reference_active=bools1[17],  # Bit 17: Pulse gen virtual_ref_active
+            release_pulses_input=bools1[15],  # Bit 15: Pulse gen release_pulses (input)
+            virtual_reference_active=bools1[16],  # Bit 16: Pulse gen virtual_ref_active
             virtual_reference_angle_pu=self.get_signal(GridSignalIndex.PULSE_GENERATOR_VIRTUAL_REFERENCE_ANGLE),
-            individual_override_active=bools1[18],  # Bit 18: Pulse gen individual_override
-            p1=bools1[19],  # Bit 19: Firing pulse p1
-            p2=bools1[20],  # Bit 20: Firing pulse p2
-            p3=bools1[21],  # Bit 21: Firing pulse p3
-            p4=bools1[22],  # Bit 22: Firing pulse p4
-            p5=bools1[23],  # Bit 23: Firing pulse p5
-            p6=bools1[24],  # Bit 24: Firing pulse p6
+            individual_override_active=bools1[17],  # Bit 17: Pulse gen individual_override
+            p1=bools1[18],  # Bit 18: Firing pulse p1
+            p2=bools1[19],  # Bit 19: Firing pulse p2
+            p3=bools1[20],  # Bit 20: Firing pulse p3
+            p4=bools1[21],  # Bit 21: Firing pulse p4
+            p5=bools1[22],  # Bit 22: Firing pulse p5
+            p6=bools1[23],  # Bit 23: Firing pulse p6
         )
     
     @property
@@ -321,13 +320,13 @@ class GridSideTelemetryPacket:
         bools1 = self._get_bool_pack_1()
         bools2 = self._get_bool_pack_2()
         return GridProtectionsData(
-            is_tripped=bools1[25],  # Bit 25
-            is_inhibited=bools1[26],  # Bit 26
-            any_fault_active=bools1[27],  # Bit 27
-            overcurrent_tripped=bools1[28],  # Bit 28
-            overvoltage_tripped=bools1[29],  # Bit 29
-            undervoltage_tripped=bools1[30],  # Bit 30
-            overcurrent_warning=bools1[31],  # Bit 31
+            is_tripped=bools1[24],  # Bit 24
+            is_inhibited=bools1[25],  # Bit 25
+            any_fault_active=bools1[26],  # Bit 26
+            overcurrent_tripped=bools1[27],  # Bit 27
+            overvoltage_tripped=bools1[28],  # Bit 28
+            undervoltage_tripped=bools1[29],  # Bit 29
+            overcurrent_warning=bools1[30],  # Bit 30
             overvoltage_warning=bools2[0],  # Pack 2, Bit 0
             undervoltage_warning=bools2[1],  # Pack 2, Bit 1
             communication_loss_tripped=bools2[2],  # Pack 2, Bit 2
@@ -343,10 +342,8 @@ class GridSideTelemetryPacket:
             dc_link_current_reference_pu=self.get_signal(GridSignalIndex.FIBER_RX_DC_LINK_CURRENT_REFERENCE),
             machine_voltage_magnitude_pu=self.get_signal(GridSignalIndex.FIBER_RX_MACHINE_VOLTAGE_MAGNITUDE),
             force_commutation_request=bools2[4],  # Pack 2, Bit 4
-            shutdown_request=bools2[5],  # Pack 2, Bit 5
-            machine_protection_tripped=bools2[6],  # Pack 2, Bit 6
-            protection_inhibit=bools2[7],  # Pack 2, Bit 7
-            machine_trip_acknowledged=False,  # Not in the C++ grouped packing
+            machine_protection_tripped=bools2[5],  # Pack 2, Bit 5
+            protection_inhibit=bools2[6],  # Pack 2, Bit 6
         )
 
 
@@ -584,9 +581,9 @@ class MachineSideTelemetryPacket:
         """Extract fiber optic RX data from signal array."""
         bools2 = self._get_bool_pack_2()
         return MachineFiberOpticRxData(
-            dc_link_current_pu=self.get_signal(MachineSignalIndex.FIBER_DC_LINK_CURRENT),
-            grid_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.FIBER_GRID_VOLTAGE_MAGNITUDE),
-            current_state_id=int(self.get_signal(MachineSignalIndex.FIBER_CURRENT_STATE_ID)),
+            dc_link_current_pu=self.get_signal(MachineSignalIndex.FIBER_RX_DC_LINK_CURRENT),
+            grid_voltage_magnitude_pu=self.get_signal(MachineSignalIndex.FIBER_RX_GRID_VOLTAGE_MAGNITUDE),
+            current_state_id=int(self.get_signal(MachineSignalIndex.FIBER_RX_STATE_ID)),
             is_forced_commutation=bools2[1],
             force_commutation_acknowledged=bools2[2],
             release_pulses=bools2[3],

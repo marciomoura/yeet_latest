@@ -1,7 +1,7 @@
 #pragma once
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/adc_value.hpp"
@@ -64,21 +64,19 @@ public:
     {
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert(
-            "voltage_adc_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_gain));
-        entry.parameters.insert(
-            "voltage_adc_cutoff_freq", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_cutoff_freq));
-        entry.parameters.insert(
-            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
-        entry.parameters.insert(
-            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
-        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
-
-        registry.insert("hardware_mock", std::move(entry));
+        static constexpr std::string_view component_name = "hardware_mock";
+        handler.register_parameter(
+            component_name, "voltage_adc_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_gain));
+        handler.register_parameter(component_name, "voltage_adc_cutoff_freq",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_adc_cutoff_freq));
+        handler.register_parameter(
+            component_name, "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        handler.register_parameter(component_name, "voltage_adc_full_scale",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
+        handler.register_parameter(
+            component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
     }
 
     inputs* get_inputs() { return _model_inputs; }

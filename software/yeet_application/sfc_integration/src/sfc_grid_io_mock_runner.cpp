@@ -4,47 +4,51 @@
 
 namespace yeet::application::sfc::integration {
 
-void sfc_grid_io_mock_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_grid_io_mock_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
-    yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
-
     // Timing parameters
-    entry.parameters.insert("breaker_close_delay", yeet::utils::make_units_accessor(_parameters.breaker_close_delay));
-    entry.parameters.insert("breaker_open_delay", yeet::utils::make_units_accessor(_parameters.breaker_open_delay));
-    entry.parameters.insert(
-        "auxiliary_energize_delay", yeet::utils::make_units_accessor(_parameters.auxiliary_energize_delay));
-    entry.parameters.insert("fan_spinup_delay", yeet::utils::make_units_accessor(_parameters.fan_spinup_delay));
+    handler.register_parameter(
+        "grid_io_mock", "breaker_close_delay", yeet::utils::make_units_accessor(_parameters.breaker_close_delay));
+    handler.register_parameter(
+        "grid_io_mock", "breaker_open_delay", yeet::utils::make_units_accessor(_parameters.breaker_open_delay));
+    handler.register_parameter("grid_io_mock", "auxiliary_energize_delay",
+        yeet::utils::make_units_accessor(_parameters.auxiliary_energize_delay));
+    handler.register_parameter(
+        "grid_io_mock", "fan_spinup_delay", yeet::utils::make_units_accessor(_parameters.fan_spinup_delay));
 
     // Availability flags
-    entry.parameters.insert(
-        "auxiliaries_power_available", yeet::utils::make_bool_accessor(_parameters.auxiliaries_power_available));
-    entry.parameters.insert(
-        "breaker_mechanism_healthy", yeet::utils::make_bool_accessor(_parameters.breaker_mechanism_healthy));
+    handler.register_parameter("grid_io_mock", "auxiliaries_power_available",
+        yeet::utils::make_bool_accessor(_parameters.auxiliaries_power_available));
+    handler.register_parameter("grid_io_mock", "breaker_mechanism_healthy",
+        yeet::utils::make_bool_accessor(_parameters.breaker_mechanism_healthy));
 
     // External supervisory inputs
-    entry.parameters.insert("start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
-    entry.parameters.insert("stop_command", yeet::utils::make_bool_accessor(_parameters.stop_command));
-    entry.parameters.insert("emergency_off", yeet::utils::make_bool_accessor(_parameters.emergency_off));
-    entry.parameters.insert("door_is_open", yeet::utils::make_bool_accessor(_parameters.door_is_open));
-    entry.parameters.insert("external_fault", yeet::utils::make_bool_accessor(_parameters.external_fault));
-    entry.parameters.insert(
-        "mv_breaker_is_tripping", yeet::utils::make_bool_accessor(_parameters.mv_breaker_is_tripping));
+    handler.register_parameter(
+        "grid_io_mock", "start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
+    handler.register_parameter(
+        "grid_io_mock", "stop_command", yeet::utils::make_bool_accessor(_parameters.stop_command));
+    handler.register_parameter(
+        "grid_io_mock", "emergency_off", yeet::utils::make_bool_accessor(_parameters.emergency_off));
+    handler.register_parameter(
+        "grid_io_mock", "door_is_open", yeet::utils::make_bool_accessor(_parameters.door_is_open));
+    handler.register_parameter(
+        "grid_io_mock", "external_fault", yeet::utils::make_bool_accessor(_parameters.external_fault));
+    handler.register_parameter(
+        "grid_io_mock", "mv_breaker_is_tripping", yeet::utils::make_bool_accessor(_parameters.mv_breaker_is_tripping));
 
     // Output overrides
-    entry.parameters.insert(
-        "override_mv_breaker_is_closed", yeet::utils::make_bool_accessor(_parameters.override_mv_breaker_is_closed));
-    entry.parameters.insert("override_mv_breaker_is_closed_value",
+    handler.register_parameter("grid_io_mock", "override_mv_breaker_is_closed",
+        yeet::utils::make_bool_accessor(_parameters.override_mv_breaker_is_closed));
+    handler.register_parameter("grid_io_mock", "override_mv_breaker_is_closed_value",
         yeet::utils::make_bool_accessor(_parameters.override_mv_breaker_is_closed_value));
-    entry.parameters.insert(
-        "override_auxiliaries_are_on", yeet::utils::make_bool_accessor(_parameters.override_auxiliaries_are_on));
-    entry.parameters.insert("override_auxiliaries_are_on_value",
+    handler.register_parameter("grid_io_mock", "override_auxiliaries_are_on",
+        yeet::utils::make_bool_accessor(_parameters.override_auxiliaries_are_on));
+    handler.register_parameter("grid_io_mock", "override_auxiliaries_are_on_value",
         yeet::utils::make_bool_accessor(_parameters.override_auxiliaries_are_on_value));
-    entry.parameters.insert(
-        "override_fans_are_running", yeet::utils::make_bool_accessor(_parameters.override_fans_are_running));
-    entry.parameters.insert("override_fans_are_running_value",
+    handler.register_parameter("grid_io_mock", "override_fans_are_running",
+        yeet::utils::make_bool_accessor(_parameters.override_fans_are_running));
+    handler.register_parameter("grid_io_mock", "override_fans_are_running_value",
         yeet::utils::make_bool_accessor(_parameters.override_fans_are_running_value));
-
-    registry.insert("grid_io_mock", std::move(entry));
 }
 
 void sfc_grid_io_mock_runner::initialize()

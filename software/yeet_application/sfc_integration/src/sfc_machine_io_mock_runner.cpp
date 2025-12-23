@@ -4,27 +4,25 @@
 
 namespace yeet::application::sfc::integration {
 
-void sfc_machine_io_mock_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_machine_io_mock_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
-    yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
-
     // Timing parameters
-    entry.parameters.insert(
-        "excitation_startup_delay", yeet::utils::make_units_accessor(_parameters.excitation_startup_delay));
-    entry.parameters.insert(
-        "excitation_shutdown_delay", yeet::utils::make_units_accessor(_parameters.excitation_shutdown_delay));
+    handler.register_parameter("machine_io_mock", "excitation_startup_delay",
+        yeet::utils::make_units_accessor(_parameters.excitation_startup_delay));
+    handler.register_parameter("machine_io_mock", "excitation_shutdown_delay",
+        yeet::utils::make_units_accessor(_parameters.excitation_shutdown_delay));
 
     // External supervisory inputs
-    entry.parameters.insert("external_fault", yeet::utils::make_bool_accessor(_parameters.external_fault));
-    entry.parameters.insert("start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
+    handler.register_parameter(
+        "machine_io_mock", "external_fault", yeet::utils::make_bool_accessor(_parameters.external_fault));
+    handler.register_parameter(
+        "machine_io_mock", "start_command", yeet::utils::make_bool_accessor(_parameters.start_command));
 
     // Output overrides
-    entry.parameters.insert(
-        "override_excitation_status", yeet::utils::make_bool_accessor(_parameters.override_excitation_status));
-    entry.parameters.insert("override_excitation_status_value",
+    handler.register_parameter("machine_io_mock", "override_excitation_status",
+        yeet::utils::make_bool_accessor(_parameters.override_excitation_status));
+    handler.register_parameter("machine_io_mock", "override_excitation_status_value",
         yeet::utils::make_bool_accessor(_parameters.override_excitation_status_value));
-
-    registry.insert("machine_io_mock", std::move(entry));
 }
 
 void sfc_machine_io_mock_runner::initialize()

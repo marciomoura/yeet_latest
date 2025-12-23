@@ -4,6 +4,7 @@
 
 #include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -117,24 +118,23 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("kp", yeet::utils::make_units_accessor(_model_parameters->kp));
-        entry.parameters.insert("ti", yeet::utils::make_units_accessor(_model_parameters->ti));
-        entry.parameters.insert(
-            "min_firing_angle", yeet::utils::make_units_accessor(_model_parameters->min_firing_angle));
-        entry.parameters.insert(
-            "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
-        entry.parameters.insert("current_reference_magnitude_limit",
+        static constexpr std::string_view component_name = "current_controller";
+        handler.register_parameter(component_name, "kp", yeet::utils::make_units_accessor(_model_parameters->kp));
+        handler.register_parameter(component_name, "ti", yeet::utils::make_units_accessor(_model_parameters->ti));
+        handler.register_parameter(
+            component_name, "min_firing_angle", yeet::utils::make_units_accessor(_model_parameters->min_firing_angle));
+        handler.register_parameter(
+            component_name, "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
+        handler.register_parameter(component_name, "current_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_magnitude_limit));
-        entry.parameters.insert("pi_output_min", yeet::utils::make_units_accessor(_model_parameters->pi_output_min));
-        entry.parameters.insert("pi_output_max", yeet::utils::make_units_accessor(_model_parameters->pi_output_max));
-        entry.parameters.insert("current_reference_rectifier_operation",
+        handler.register_parameter(
+            component_name, "pi_output_min", yeet::utils::make_units_accessor(_model_parameters->pi_output_min));
+        handler.register_parameter(
+            component_name, "pi_output_max", yeet::utils::make_units_accessor(_model_parameters->pi_output_max));
+        handler.register_parameter(component_name, "current_reference_rectifier_operation",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_rectifier_operation));
-
-        registry.insert("current_controller", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

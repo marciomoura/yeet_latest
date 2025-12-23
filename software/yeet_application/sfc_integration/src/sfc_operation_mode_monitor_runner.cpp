@@ -7,11 +7,11 @@ sfc_operation_mode_monitor_runner::sfc_operation_mode_monitor_runner()
 {
 }
 
-void sfc_operation_mode_monitor_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_operation_mode_monitor_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_operation_mode_monitor_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_operation_mode_monitor_runner::initialize()

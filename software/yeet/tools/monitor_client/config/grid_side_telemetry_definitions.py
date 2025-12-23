@@ -94,7 +94,6 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'start command', 'index': GridSignalIndex.STATE_MACHINE_START_CMD, 'type': 'bool', 'format': 'bool'},
                 {'name': 'stop command', 'index': GridSignalIndex.STATE_MACHINE_STOP_CMD, 'type': 'bool', 'format': 'bool'},
                 {'name': 'current extinguished', 'index': GridSignalIndex.STATE_MACHINE_CURRENT_EXTINGUISHED, 'type': 'bool', 'format': 'bool'},
-                {'name': 'shutdown request', 'index': GridSignalIndex.STATE_MACHINE_SHUTDOWN_REQUEST, 'type': 'bool', 'format': 'bool'},
                 {'name': 'operating mode', 'index': GridSignalIndex.MODE_MONITOR_OPERATING_MODE, 'type': 'enum', 'format': 'enum','enum_map': {0: 'NATURAL_COMMUTATION', 1: 'FORCED_COMMUTATION'}}
             ]
         },
@@ -103,8 +102,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
-                {'name': 'any fault active', 'index': GridSignalIndex.PROTECTION_ANY_FAULT_ACTIVE, 'type': 'bool', 'format': 'bool'},
-                {'name': 'any alarm active', 'index': GridSignalIndex.PROTECTION_ANY_ALARM_ACTIVE, 'type': 'bool', 'format': 'bool'},
+                {'name': 'has active alarm', 'index': GridSignalIndex.PROTECTION_ANY_ALARM_ACTIVE_UNPACKED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'overcurrent', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
                 {'name': 'overvoltage', 'index': GridSignalIndex.PROTECTION_OVERVOLTAGE_STATUS, 'type': 'enum', 'format': 'enum',

@@ -1,6 +1,6 @@
 /**
  * @file parameter_handler.cpp
- * @brief Implementation of parameter handler using model_registry
+ * @brief Implementation of parameter handler with direct registration
  */
 
 #include "yeet/parameter_handler.hpp"
@@ -95,75 +95,6 @@ inline void write_error_message(char* dst, std::size_t dst_size, const char* mes
 }  // namespace
 
 namespace yeet::telemetry {
-
-parameter_handler::parameter_handler(const model_registry* registry)
-    : registry_(registry), parameter_cache_{}, parameter_cache_size_(0), sequence_counter_(0)
-{
-    if (!registry_) {
-        YEET_PARAM_LOG("[PARAM] ERROR: model_registry pointer is null!");
-        return;
-    }
-
-    build_parameter_cache();
-
-    // Initialization complete (parameter count logged only in verbose mode)
-}
-
-void parameter_handler::build_parameter_cache()
-{
-    parameter_cache_size_ = 0;
-
-    // Iterate through all entries in model_registry
-    registry_->iterate_entries(
-        [this](std::string_view component, std::string_view name, const low_level_access& accessor) {
-            if (parameter_cache_size_ >= MAX_PARAMETERS) {
-                YEET_PARAM_LOG("[PARAM] ERROR: Parameter cache full! Cannot add " << component << "." << name);
-                return;
-            }
-
-            // Create cache entry
-            parameter_cache_entry& entry = parameter_cache_[parameter_cache_size_];
-
-            // Assign unique ID (same as array index for O(1) lookup)
-            entry.id = static_cast<std::uint16_t>(parameter_cache_size_);
-
-            // Assert that component and name fit within buffer limits
-            assert(component.size() < sizeof(entry.component) &&
-                   "Component name too long! Increase buffer size in parameter_cache_entry.");
-            assert(name.size() < sizeof(entry.name) &&
-                   "Parameter name too long! Increase buffer size in parameter_cache_entry.");
-
-            std::strncpy(entry.component, component.data(), sizeof(entry.component) - 1);
-            entry.component[sizeof(entry.component) - 1] = '\0';
-
-            std::strncpy(entry.name, name.data(), sizeof(entry.name) - 1);
-            entry.name[sizeof(entry.name) - 1] = '\0';
-
-            // Currently only support float32
-            entry.type = parameter_value_type::float32;
-
-            // Store accessor for direct read/write
-            entry.accessor = accessor;
-
-            parameter_cache_size_++;
-        });
-
-    // Only log parameter cache in verbose mode
-    // Note: Detailed parameter list logging is suppressed for cleaner output
-    // Use --verbose flag to see full parameter enumeration during initialization
-}
-
-void parameter_handler::rebuild_parameter_cache()
-{
-    if (!registry_) {
-        YEET_PARAM_LOG("[PARAM] ERROR: Cannot rebuild cache - model_registry pointer is null!");
-        return;
-    }
-
-    build_parameter_cache();
-
-    // Rebuild complete (parameter count logged only in verbose mode)
-}
 
 parameter_cache_entry* parameter_handler::get_parameter_by_id(std::uint16_t id)
 {

@@ -58,7 +58,7 @@ protected:
         p.stall_trip_delay.write(duration_t{0.0});
 
         // Ensure confirm is low.
-        p.confirm_alarms.write(false);
+        p.confirm_trips.write(false);
 
         // One cycle to apply initial config.
         step(5);
@@ -71,14 +71,14 @@ protected:
         }
     }
 
-    void pulse_confirm_alarms()
+    void pulse_confirm_trips()
     {
         auto& p = dut.get_parameters();
-        p.confirm_alarms.write(false);
+        p.confirm_trips.write(false);
         step(10);
-        p.confirm_alarms.write(true);
+        p.confirm_trips.write(true);
         step(10);
-        p.confirm_alarms.write(false);
+        p.confirm_trips.write(false);
         step(10);
     }
 
@@ -107,25 +107,24 @@ TEST_F(MachineSideProtectionsRunnerUnitTest, OverspeedTripCanBeClearedByAcknowle
     step(5);
 
     EXPECT_TRUE(dut.get_outputs().overspeed_tripped.read());
-    EXPECT_TRUE(dut.get_outputs().is_tripped.read());
+    EXPECT_TRUE(dut.get_outputs().has_active_trip.read());
     EXPECT_TRUE(dut.get_outputs().is_inhibited.read());
 
     // Clear the fault condition first.
     yeet::utils::mock_signal_input::write(dut.get_inputs().machine_speed, speed_pu_t{0.0f});
     step(20);
 
-    // Confirm alarms
-    p.confirm_alarms.write(false);
+    // Confirm trips
+    p.confirm_trips.write(false);
     step(5);
-    p.confirm_alarms.write(true);
+    p.confirm_trips.write(true);
     step(10);
-    p.confirm_alarms.write(false);
+    p.confirm_trips.write(false);
     step(10);
 
-    EXPECT_FALSE(dut.get_outputs().any_fault_active.read())
-        << "any_fault_active should be false after overspeed clears and is acknowledged";
+    EXPECT_FALSE(dut.get_outputs().has_active_trip.read())
+        << "has_active_trip should be false after overspeed clears and is acknowledged";
     EXPECT_FALSE(dut.get_outputs().overspeed_tripped.read()) << "overspeed_tripped should clear after reset";
-    EXPECT_FALSE(dut.get_outputs().is_tripped.read()) << "trip latch should clear after acknowledge";
     EXPECT_FALSE(dut.get_outputs().is_inhibited.read()) << "inhibit should clear after confirm";
 }
 

@@ -21,27 +21,27 @@ void sfc_grid_side_control::initialize()
     external_ios.register_callbacks();
 }
 
-void sfc_grid_side_control::register_datamodel(yeet::model_registry& registry)
+void sfc_grid_side_control::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
-    // Register all component parameters with the model_registry
+    // Register all component parameters with the parameter_handler
     // This makes them accessible via the parameter configuration protocol
 
     // Register per-unit system parameters first (fundamental base quantities)
-    pu_system_datamodel.register_datamodel(registry, per_unit_system);
+    pu_system_datamodel.register_datamodel(handler, per_unit_system);
 
     // Register external I/O datamodel (supervisory inputs, fiber-optics, ADC measurements)
-    external_ios.register_datamodel(registry);
+    external_ios.register_datamodel(handler);
 
-    grid_integrator_supervisor.register_datamodel(registry);
-    current_controller.register_datamodel(registry);
-    grid_side_observer.register_datamodel(registry);
-    grid_side_modulator.register_datamodel(registry);
-    grid_side_pulse_generator.register_datamodel(registry);
-    grid_measurements.register_datamodel(registry);
-    dc_link_measurements.register_datamodel(registry);
-    state_machine.register_datamodel(registry);
-    operation_mode_monitor.register_datamodel(registry);
-    grid_protections.register_datamodel(registry);
+    grid_integrator_supervisor.register_datamodel(handler);
+    current_controller.register_datamodel(handler);
+    grid_side_observer.register_datamodel(handler);
+    grid_side_modulator.register_datamodel(handler);
+    grid_side_pulse_generator.register_datamodel(handler);
+    grid_measurements.register_datamodel(handler);
+    dc_link_measurements.register_datamodel(handler);
+    state_machine.register_datamodel(handler);
+    operation_mode_monitor.register_datamodel(handler);
+    grid_protections.register_datamodel(handler);
 }
 
 void sfc_grid_side_control::reset() { grid_protections.reset(); }
@@ -138,7 +138,7 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&state_machine_inputs::door_is_open)
         .from(grid_protections.get_outputs().is_inhibited)
         .to(&state_machine_inputs::protection_inhibited)
-        .from(grid_protections.get_outputs().any_fault_active)
+        .from(grid_protections.get_outputs().has_active_trip)
         .to(&state_machine_inputs::any_protection_fault_active)
         .from(external_ios.get_fiber_optics_inputs_from_machine().protection_inhibit)
         .to(&state_machine_inputs::machine_side_protection_inhibited)
@@ -153,7 +153,7 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&supervisor_inputs::state_machine_release_pulses)
         .from(current_controller.get_outputs().preset_complete)
         .to(&supervisor_inputs::preset_complete)
-        .from(grid_protections.get_outputs().is_tripped)
+        .from(grid_protections.get_outputs().is_inhibited)
         .to(&supervisor_inputs::grid_protection_shutdown_request);
 
     // ==================== Grid Measurements Inputs ====================
@@ -228,7 +228,7 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&modulator_inputs::request_extinguish_dc_current)
         .from(grid_integrator_supervisor.get_outputs().shutdown_request)
         .to(&modulator_inputs::shutdown_request)
-        .from(grid_protections.get_outputs().is_tripped)
+        .from(grid_protections.get_outputs().is_inhibited)
         .to(&modulator_inputs::protection_trip)
         .from(operation_mode_monitor.get_outputs().operating_mode)
         .to(&modulator_inputs::operating_mode)
@@ -274,11 +274,11 @@ void sfc_grid_side_control::connect_internal_signals()
     // ==================== Software Trip Outputs ====================
     // All three software trip outputs are driven by protection trip status
     signals_connector::connect_output_to_input(
-        grid_protections.get_outputs().is_tripped, external_ios.get_digital_outputs().software_trip_1);
+        grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_1);
     signals_connector::connect_output_to_input(
-        grid_protections.get_outputs().is_tripped, external_ios.get_digital_outputs().software_trip_2);
+        grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_2);
     signals_connector::connect_output_to_input(
-        grid_protections.get_outputs().is_tripped, external_ios.get_digital_outputs().software_trip_3);
+        grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_3);
 }
 
 }  // namespace yeet::application::sfc::integration

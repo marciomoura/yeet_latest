@@ -1,9 +1,8 @@
 #ifndef YEET_MODEL_REGISTRY_HPP
 #define YEET_MODEL_REGISTRY_HPP
 
-#include <functional>
 #include <map>
-#include <string>
+#include <string_view>
 
 #include "parameter.hpp"
 #include "signal.hpp"
@@ -25,7 +24,7 @@ public:
     model_registry(model_registry&&) = default;
     model_registry& operator=(model_registry&&) = default;
 
-    void insert(const std::string& name, model_registry_entry&& entry)
+    void insert(std::string_view name, model_registry_entry&& entry)
     {
         if (_registry_map.find(name) != _registry_map.end()) {
             assert(false && "Entry already exists in registry");
@@ -35,24 +34,22 @@ public:
         _registry_map[name] = std::move(entry);
     }
 
-    std::optional<low_level_access> get_signal(const std::string& name) const
+    std::optional<low_level_access> get_signal(std::string_view name) const
     {
         auto it = _registry_map.find(name);
 
         if (it == _registry_map.end()) {
-            assert(false && "Entry not found");
             return {};
         }
 
         return it->second.signals.get(name);
     }
 
-    std::optional<low_level_access> get_parameter(const std::string& name) const
+    std::optional<low_level_access> get_parameter(std::string_view name) const
     {
         auto it = _registry_map.find(name);
 
         if (it == _registry_map.end()) {
-            assert(false && "Entry not found");
             return {};
         }
 
@@ -74,7 +71,7 @@ public:
     }
 
 private:
-    std::map<std::string, model_registry_entry> _registry_map{};
+    std::map<std::string_view, model_registry_entry> _registry_map{};
 };
 
 }  // namespace yeet

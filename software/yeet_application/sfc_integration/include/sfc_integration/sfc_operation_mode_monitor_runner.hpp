@@ -53,7 +53,7 @@ public:
     /**
      * @brief Registers the datamodel with the model registry
      */
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
 
 private:
     /**

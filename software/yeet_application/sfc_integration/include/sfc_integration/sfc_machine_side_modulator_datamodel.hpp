@@ -5,8 +5,8 @@
 #include "sfc/sfc_machine_side_modulator.hpp"
 #include "sfc/sfc_startup_sequencer.hpp"
 #include "sfc/sfc_types.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -93,14 +93,11 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("forced_commutation_firing_angle",
+        static constexpr std::string_view component_name = "modulator";
+        handler.register_parameter(component_name, "forced_commutation_firing_angle",
             yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->forced_commutation_firing_angle));
-
-        registry.insert("modulator", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

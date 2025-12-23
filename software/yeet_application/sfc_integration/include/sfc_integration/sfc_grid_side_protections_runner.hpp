@@ -32,7 +32,7 @@ public:
      */
     sfc_grid_side_protections_runner();
 
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;
     void reset();
     void run() override;

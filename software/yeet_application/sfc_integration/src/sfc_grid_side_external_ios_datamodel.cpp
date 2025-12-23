@@ -1,6 +1,6 @@
 #include "sfc_integration/sfc_grid_side_external_ios_datamodel.hpp"
 
-#include "yeet/model_registry.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -231,145 +231,140 @@ void sfc_grid_side_external_ios_datamodel::register_callbacks()
     });
 }
 
-void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::model_registry& registry)
+void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
-    yeet::model_registry_entry entry{yeet::signal_registry{}, yeet::parameter_registry{}};
+    static constexpr std::string_view override_component = "grid_io_override";
+    static constexpr std::string_view config_component = "grid_io_configurations";
 
     // Digital input polarity configuration (ACTIVE_HIGH=0, ACTIVE_LOW=1)
-    entry.parameters.insert(
-        "di_auxiliaries_are_on_polarity", yeet::utils::make_enum_accessor(_parameters.di_auxiliaries_are_on_polarity));
-    entry.parameters.insert("di_mv_breaker_is_closed_polarity",
+    handler.register_parameter(override_component, "di_auxiliaries_are_on_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_auxiliaries_are_on_polarity));
+    handler.register_parameter(override_component, "di_mv_breaker_is_closed_polarity",
         yeet::utils::make_enum_accessor(_parameters.di_mv_breaker_is_closed_polarity));
-    entry.parameters.insert(
-        "di_start_command_polarity", yeet::utils::make_enum_accessor(_parameters.di_start_command_polarity));
-    entry.parameters.insert(
-        "di_stop_command_polarity", yeet::utils::make_enum_accessor(_parameters.di_stop_command_polarity));
-    entry.parameters.insert("di_mv_breaker_is_tripping_polarity",
+    handler.register_parameter(override_component, "di_start_command_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_start_command_polarity));
+    handler.register_parameter(override_component, "di_stop_command_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_stop_command_polarity));
+    handler.register_parameter(override_component, "di_mv_breaker_is_tripping_polarity",
         yeet::utils::make_enum_accessor(_parameters.di_mv_breaker_is_tripping_polarity));
-    entry.parameters.insert(
-        "di_emergency_off_polarity", yeet::utils::make_enum_accessor(_parameters.di_emergency_off_polarity));
-    entry.parameters.insert(
-        "di_door_is_open_polarity", yeet::utils::make_enum_accessor(_parameters.di_door_is_open_polarity));
-    entry.parameters.insert(
-        "di_external_fault_polarity", yeet::utils::make_enum_accessor(_parameters.di_external_fault_polarity));
-    entry.parameters.insert(
-        "di_fans_are_running_polarity", yeet::utils::make_enum_accessor(_parameters.di_fans_are_running_polarity));
+    handler.register_parameter(override_component, "di_emergency_off_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_emergency_off_polarity));
+    handler.register_parameter(override_component, "di_door_is_open_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_door_is_open_polarity));
+    handler.register_parameter(override_component, "di_external_fault_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_external_fault_polarity));
+    handler.register_parameter(override_component, "di_fans_are_running_polarity",
+        yeet::utils::make_enum_accessor(_parameters.di_fans_are_running_polarity));
 
     // Digital input override parameters (override flag + override value pairs)
-    entry.parameters.insert(
-        "di_auxiliaries_are_on_override", yeet::utils::make_bool_accessor(_parameters.di_auxiliaries_are_on_override));
-    entry.parameters.insert("di_auxiliaries_are_on_override_value",
+    handler.register_parameter(override_component, "di_auxiliaries_are_on_override",
+        yeet::utils::make_bool_accessor(_parameters.di_auxiliaries_are_on_override));
+    handler.register_parameter(override_component, "di_auxiliaries_are_on_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_auxiliaries_are_on_override_value));
 
-    entry.parameters.insert("di_mv_breaker_is_closed_override",
+    handler.register_parameter(override_component, "di_mv_breaker_is_closed_override",
         yeet::utils::make_bool_accessor(_parameters.di_mv_breaker_is_closed_override));
-    entry.parameters.insert("di_mv_breaker_is_closed_override_value",
+    handler.register_parameter(override_component, "di_mv_breaker_is_closed_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_mv_breaker_is_closed_override_value));
 
-    entry.parameters.insert(
-        "di_start_command_override", yeet::utils::make_bool_accessor(_parameters.di_start_command_override));
-    entry.parameters.insert("di_start_command_override_value",
+    handler.register_parameter(override_component, "di_start_command_override",
+        yeet::utils::make_bool_accessor(_parameters.di_start_command_override));
+    handler.register_parameter(override_component, "di_start_command_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_start_command_override_value));
 
-    entry.parameters.insert(
-        "di_stop_command_override", yeet::utils::make_bool_accessor(_parameters.di_stop_command_override));
-    entry.parameters.insert(
-        "di_stop_command_override_value", yeet::utils::make_bool_accessor(_parameters.di_stop_command_override_value));
+    handler.register_parameter(override_component, "di_stop_command_override",
+        yeet::utils::make_bool_accessor(_parameters.di_stop_command_override));
+    handler.register_parameter(override_component, "di_stop_command_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_stop_command_override_value));
 
-    entry.parameters.insert("di_mv_breaker_is_tripping_override",
+    handler.register_parameter(override_component, "di_mv_breaker_is_tripping_override",
         yeet::utils::make_bool_accessor(_parameters.di_mv_breaker_is_tripping_override));
-    entry.parameters.insert("di_mv_breaker_is_tripping_override_value",
+    handler.register_parameter(override_component, "di_mv_breaker_is_tripping_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_mv_breaker_is_tripping_override_value));
 
-    entry.parameters.insert(
-        "di_emergency_off_override", yeet::utils::make_bool_accessor(_parameters.di_emergency_off_override));
-    entry.parameters.insert("di_emergency_off_override_value",
+    handler.register_parameter(override_component, "di_emergency_off_override",
+        yeet::utils::make_bool_accessor(_parameters.di_emergency_off_override));
+    handler.register_parameter(override_component, "di_emergency_off_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_emergency_off_override_value));
 
-    entry.parameters.insert(
-        "di_door_is_open_override", yeet::utils::make_bool_accessor(_parameters.di_door_is_open_override));
-    entry.parameters.insert(
-        "di_door_is_open_override_value", yeet::utils::make_bool_accessor(_parameters.di_door_is_open_override_value));
+    handler.register_parameter(override_component, "di_door_is_open_override",
+        yeet::utils::make_bool_accessor(_parameters.di_door_is_open_override));
+    handler.register_parameter(override_component, "di_door_is_open_override_value",
+        yeet::utils::make_bool_accessor(_parameters.di_door_is_open_override_value));
 
-    entry.parameters.insert(
-        "di_external_fault_override", yeet::utils::make_bool_accessor(_parameters.di_external_fault_override));
-    entry.parameters.insert("di_external_fault_override_value",
+    handler.register_parameter(override_component, "di_external_fault_override",
+        yeet::utils::make_bool_accessor(_parameters.di_external_fault_override));
+    handler.register_parameter(override_component, "di_external_fault_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_external_fault_override_value));
 
-    entry.parameters.insert(
-        "di_fans_are_running_override", yeet::utils::make_bool_accessor(_parameters.di_fans_are_running_override));
-    entry.parameters.insert("di_fans_are_running_override_value",
+    handler.register_parameter(override_component, "di_fans_are_running_override",
+        yeet::utils::make_bool_accessor(_parameters.di_fans_are_running_override));
+    handler.register_parameter(override_component, "di_fans_are_running_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_fans_are_running_override_value));
-
-    // Register the entry with the model registry
-    registry.insert("grid_io_override", std::move(entry));
 
     // ==================== IO Index Mapping Parameters ====================
     // Keep IO index mapping parameters in a separate component so they don't mix
     // with override parameters in UIs.
-    yeet::model_registry_entry io_entry{yeet::signal_registry{}, yeet::parameter_registry{}};
 
     // Digital input mapping indices
-    io_entry.parameters.insert(
-        "di_auxiliaries_are_on_index", yeet::utils::make_units_accessor(_parameters.di_auxiliaries_are_on_index));
-    io_entry.parameters.insert(
-        "di_mv_breaker_is_closed_index", yeet::utils::make_units_accessor(_parameters.di_mv_breaker_is_closed_index));
-    io_entry.parameters.insert(
-        "di_start_command_index", yeet::utils::make_units_accessor(_parameters.di_start_command_index));
-    io_entry.parameters.insert(
-        "di_stop_command_index", yeet::utils::make_units_accessor(_parameters.di_stop_command_index));
-    io_entry.parameters.insert("di_mv_breaker_is_tripping_index",
+    handler.register_parameter(config_component, "di_auxiliaries_are_on_index",
+        yeet::utils::make_units_accessor(_parameters.di_auxiliaries_are_on_index));
+    handler.register_parameter(config_component, "di_mv_breaker_is_closed_index",
+        yeet::utils::make_units_accessor(_parameters.di_mv_breaker_is_closed_index));
+    handler.register_parameter(config_component, "di_start_command_index",
+        yeet::utils::make_units_accessor(_parameters.di_start_command_index));
+    handler.register_parameter(
+        config_component, "di_stop_command_index", yeet::utils::make_units_accessor(_parameters.di_stop_command_index));
+    handler.register_parameter(config_component, "di_mv_breaker_is_tripping_index",
         yeet::utils::make_units_accessor(_parameters.di_mv_breaker_is_tripping_index));
-    io_entry.parameters.insert(
-        "di_emergency_off_index", yeet::utils::make_units_accessor(_parameters.di_emergency_off_index));
-    io_entry.parameters.insert(
-        "di_door_is_open_index", yeet::utils::make_units_accessor(_parameters.di_door_is_open_index));
-    io_entry.parameters.insert(
-        "di_external_fault_index", yeet::utils::make_units_accessor(_parameters.di_external_fault_index));
-    io_entry.parameters.insert(
-        "di_fans_are_running_index", yeet::utils::make_units_accessor(_parameters.di_fans_are_running_index));
+    handler.register_parameter(config_component, "di_emergency_off_index",
+        yeet::utils::make_units_accessor(_parameters.di_emergency_off_index));
+    handler.register_parameter(
+        config_component, "di_door_is_open_index", yeet::utils::make_units_accessor(_parameters.di_door_is_open_index));
+    handler.register_parameter(config_component, "di_external_fault_index",
+        yeet::utils::make_units_accessor(_parameters.di_external_fault_index));
+    handler.register_parameter(config_component, "di_fans_are_running_index",
+        yeet::utils::make_units_accessor(_parameters.di_fans_are_running_index));
 
     // Digital output mapping indices
-    io_entry.parameters.insert(
-        "do_mv_breaker_close_index", yeet::utils::make_units_accessor(_parameters.do_mv_breaker_close_index));
-    io_entry.parameters.insert(
-        "do_mv_breaker_open_index", yeet::utils::make_units_accessor(_parameters.do_mv_breaker_open_index));
-    io_entry.parameters.insert(
-        "do_on_command_acu_fan_1_index", yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_1_index));
-    io_entry.parameters.insert(
-        "do_on_command_acu_fan_2_index", yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_2_index));
-    io_entry.parameters.insert(
-        "do_on_command_acu_fan_3_index", yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_3_index));
-    io_entry.parameters.insert(
-        "do_on_command_acu_fan_4_index", yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_4_index));
-    io_entry.parameters.insert(
-        "do_software_trip_1_index", yeet::utils::make_units_accessor(_parameters.do_software_trip_1_index));
-    io_entry.parameters.insert(
-        "do_software_trip_2_index", yeet::utils::make_units_accessor(_parameters.do_software_trip_2_index));
-    io_entry.parameters.insert(
-        "do_software_trip_3_index", yeet::utils::make_units_accessor(_parameters.do_software_trip_3_index));
+    handler.register_parameter(config_component, "do_mv_breaker_close_index",
+        yeet::utils::make_units_accessor(_parameters.do_mv_breaker_close_index));
+    handler.register_parameter(config_component, "do_mv_breaker_open_index",
+        yeet::utils::make_units_accessor(_parameters.do_mv_breaker_open_index));
+    handler.register_parameter(config_component, "do_on_command_acu_fan_1_index",
+        yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_1_index));
+    handler.register_parameter(config_component, "do_on_command_acu_fan_2_index",
+        yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_2_index));
+    handler.register_parameter(config_component, "do_on_command_acu_fan_3_index",
+        yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_3_index));
+    handler.register_parameter(config_component, "do_on_command_acu_fan_4_index",
+        yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_4_index));
+    handler.register_parameter(config_component, "do_software_trip_1_index",
+        yeet::utils::make_units_accessor(_parameters.do_software_trip_1_index));
+    handler.register_parameter(config_component, "do_software_trip_2_index",
+        yeet::utils::make_units_accessor(_parameters.do_software_trip_2_index));
+    handler.register_parameter(config_component, "do_software_trip_3_index",
+        yeet::utils::make_units_accessor(_parameters.do_software_trip_3_index));
 
     // Digital output polarity configuration
-    io_entry.parameters.insert(
-        "do_mv_breaker_close_polarity", yeet::utils::make_enum_accessor(_parameters.do_mv_breaker_close_polarity));
-    io_entry.parameters.insert(
-        "do_mv_breaker_open_polarity", yeet::utils::make_enum_accessor(_parameters.do_mv_breaker_open_polarity));
-    io_entry.parameters.insert("do_on_command_acu_fan_1_polarity",
+    handler.register_parameter(config_component, "do_mv_breaker_close_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_mv_breaker_close_polarity));
+    handler.register_parameter(config_component, "do_mv_breaker_open_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_mv_breaker_open_polarity));
+    handler.register_parameter(config_component, "do_on_command_acu_fan_1_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_on_command_acu_fan_1_polarity));
-    io_entry.parameters.insert("do_on_command_acu_fan_2_polarity",
+    handler.register_parameter(config_component, "do_on_command_acu_fan_2_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_on_command_acu_fan_2_polarity));
-    io_entry.parameters.insert("do_on_command_acu_fan_3_polarity",
+    handler.register_parameter(config_component, "do_on_command_acu_fan_3_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_on_command_acu_fan_3_polarity));
-    io_entry.parameters.insert("do_on_command_acu_fan_4_polarity",
+    handler.register_parameter(config_component, "do_on_command_acu_fan_4_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_on_command_acu_fan_4_polarity));
-    io_entry.parameters.insert(
-        "do_software_trip_1_polarity", yeet::utils::make_enum_accessor(_parameters.do_software_trip_1_polarity));
-    io_entry.parameters.insert(
-        "do_software_trip_2_polarity", yeet::utils::make_enum_accessor(_parameters.do_software_trip_2_polarity));
-    io_entry.parameters.insert(
-        "do_software_trip_3_polarity", yeet::utils::make_enum_accessor(_parameters.do_software_trip_3_polarity));
-
-    registry.insert("grid_io_configurations", std::move(io_entry));
+    handler.register_parameter(config_component, "do_software_trip_1_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_software_trip_1_polarity));
+    handler.register_parameter(config_component, "do_software_trip_2_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_software_trip_2_polarity));
+    handler.register_parameter(config_component, "do_software_trip_3_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_software_trip_3_polarity));
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_mv_breaker_close() const

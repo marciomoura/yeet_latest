@@ -2,8 +2,8 @@
 
 #include <chrono>
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/units.hpp"
@@ -98,23 +98,21 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("freeze_override", yeet::utils::make_bool_accessor(_model_parameters->freeze_override));
-        entry.parameters.insert(
-            "freeze_override_value", yeet::utils::make_bool_accessor(_model_parameters->freeze_override_value));
-        entry.parameters.insert(
-            "release_pulses_override", yeet::utils::make_bool_accessor(_model_parameters->release_pulses_override));
-        entry.parameters.insert("release_pulses_override_value",
+        static constexpr std::string_view component_name = "integrator_supervisor";
+        handler.register_parameter(
+            component_name, "freeze_override", yeet::utils::make_bool_accessor(_model_parameters->freeze_override));
+        handler.register_parameter(component_name, "freeze_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->freeze_override_value));
+        handler.register_parameter(component_name, "release_pulses_override",
+            yeet::utils::make_bool_accessor(_model_parameters->release_pulses_override));
+        handler.register_parameter(component_name, "release_pulses_override_value",
             yeet::utils::make_bool_accessor(_model_parameters->release_pulses_override_value));
-        entry.parameters.insert(
-            "is_tripped_override", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_override));
-        entry.parameters.insert(
-            "is_tripped_override_value", yeet::utils::make_bool_accessor(_model_parameters->is_tripped_override_value));
-
-        registry.insert("integrator_supervisor", std::move(entry));
+        handler.register_parameter(component_name, "is_tripped_override",
+            yeet::utils::make_bool_accessor(_model_parameters->is_tripped_override));
+        handler.register_parameter(component_name, "is_tripped_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->is_tripped_override_value));
     }
 
     inputs* get_inputs() { return _model_inputs; }

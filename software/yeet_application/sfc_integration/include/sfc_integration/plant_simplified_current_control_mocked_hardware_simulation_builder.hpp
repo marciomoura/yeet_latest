@@ -79,18 +79,18 @@ public:
         sim.register_runner(machine_side_pulse_generator);
     }
 
-    void register_datamodel(yeet::model_registry& registry)
+    void register_datamodel(yeet::telemetry::parameter_handler& handler)
     {
-        plant.register_datamodel(registry);
-        grid_side_hardware_mock.register_datamodel(registry);
-        machine_side_hardware_mock.register_datamodel(registry);
-        grid_measurements.register_datamodel(registry);
-        machine_measurements.register_datamodel(registry);
-        dc_link_measurements.register_datamodel(registry);
-        current_controller.register_datamodel(registry);
-        machine_side_controller.register_datamodel(registry);
-        grid_side_pulse_generator.register_datamodel(registry);
-        machine_side_pulse_generator.register_datamodel(registry);
+        plant.register_datamodel(handler);
+        grid_side_hardware_mock.register_datamodel(handler);
+        machine_side_hardware_mock.register_datamodel(handler);
+        grid_measurements.register_datamodel(handler);
+        machine_measurements.register_datamodel(handler);
+        dc_link_measurements.register_datamodel(handler);
+        current_controller.register_datamodel(handler);
+        machine_side_controller.register_datamodel(handler);
+        grid_side_pulse_generator.register_datamodel(handler);
+        machine_side_pulse_generator.register_datamodel(handler);
     }
 
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;

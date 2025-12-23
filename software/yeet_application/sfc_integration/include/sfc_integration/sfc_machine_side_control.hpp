@@ -129,30 +129,30 @@ public:
     void set_rx_decode_status(bool success) { _last_rx_decode_success = success; }
 
     /**
-     * @brief Register all component datamodels with the model registry
+     * @brief Register all component datamodels with the parameter handler
      *
-     * This registers all parameters from grid-side components (current controller,
-     * observer, modulator, pulse generator, measurements, state machine, operation mode monitor)
-     * with the provided registry, making them accessible via parameter configuration protocol.
+     * This registers all parameters from machine-side components (excitation controller,
+     * observer, modulator, pulse generator, measurements, protections)
+     * directly with the provided parameter handler, making them accessible via parameter configuration protocol.
      *
-     * @param registry The model registry to populate with component parameters
+     * @param handler The parameter handler to register component parameters with
      */
-    void register_datamodel(yeet::model_registry& registry);
+    void register_datamodel(yeet::telemetry::parameter_handler& handler);
 
     /**
-     * @brief Register plant model datamodel with the model registry (for host application only)
+     * @brief Register plant model datamodel with the parameter handler (for host application only)
      *
      * This registers plant model parameters when running in host simulation mode.
-     * Should be called after register_datamodel() to add plant parameters to the registry.
+     * Should be called after register_datamodel() to add plant parameters to the handler.
      * Only available when building the host application (not for embedded targets).
      *
-     * @param registry The model registry to populate with plant parameters
+     * @param handler The parameter handler to register plant parameters with
      * @param plant_runner Reference to the plant model runner
      */
     template <typename PlantRunner>
-    void register_plant_datamodel(yeet::model_registry& registry, PlantRunner& plant_runner)
+    void register_plant_datamodel(yeet::telemetry::parameter_handler& handler, PlantRunner& plant_runner)
     {
-        plant_runner.register_datamodel(registry);
+        plant_runner.register_datamodel(handler);
     }
 
     // ==================== Component Access ====================

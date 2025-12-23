@@ -7,11 +7,11 @@ sfc_grid_side_protections_runner::sfc_grid_side_protections_runner()
 {
 }
 
-void sfc_grid_side_protections_runner::register_datamodel(yeet::model_registry& registry)
+void sfc_grid_side_protections_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
 {
     // Delegate to the datamodel's registration method
     sfc_grid_side_protections_datamodel datamodel(&_inputs, &_outputs, &_parameters);
-    datamodel.register_data_model(registry);
+    datamodel.register_data_model(handler);
 }
 
 void sfc_grid_side_protections_runner::initialize()
@@ -25,10 +25,9 @@ void sfc_grid_side_protections_runner::reset()
 {
     _protections.reset();
 
-    _outputs.is_tripped = _protections.get_is_tripped();
-    _outputs.is_inhibited = _protections.get_is_inhibited();
-    _outputs.any_fault_active = _protections.get_any_fault_active();
-    _outputs.any_alarm_active = _protections.get_any_alarm_active();
+    _outputs.has_active_trip = false;   // _protections.get_has_active_trip();
+    _outputs.has_active_alarm = false;  // _protections.get_has_active_alarm();
+    _outputs.is_inhibited = false;      // _protections.get_is_inhibited();
 
     _outputs.overcurrent_tripped = _protections.get_overcurrent_tripped();
     _outputs.overcurrent_alarmed = _protections.get_overcurrent_alarmed();
@@ -55,30 +54,25 @@ void sfc_grid_side_protections_runner::reset()
 void sfc_grid_side_protections_runner::run()
 {
     // Handle manual reset request (for testing/commissioning)
-    if (_parameters.force_reset_all) {
+    if (_parameters.force_reset_all || !_parameters.protection_module_enabled) {
         reset();
-        _parameters.force_reset_all = false;  // Clear flag after reset
+        _parameters.force_reset_all.write(false);  // Auto-clear after use
+        return;
     }
 
-    const bool module_enabled = _parameters.protection_module_enabled;
+    _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
+    _protections.update_overcurrent_protection(_inputs.dc_link_current_pu);
+    _protections.update_overvoltage_protection(_inputs.grid_voltage_magnitude_pu);
+    _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu);
+    _protections.update_external_fault(_inputs.external_fault);
+    _protections.update_emergency_off(_inputs.emergency_off);
+    _protections.update_machine_protection_tripped(_last_machine_protection_tripped);
 
-    if (module_enabled) {
-        _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
-        _protections.update_overcurrent_protection(_inputs.dc_link_current_pu);
-        _protections.update_overvoltage_protection(_inputs.grid_voltage_magnitude_pu);
-        _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu);
-        _protections.update_external_fault(_inputs.external_fault);
-        _protections.update_emergency_off(_inputs.emergency_off);
-        _protections.update_machine_protection_tripped(_last_machine_protection_tripped);
-    }
+    _protections.resolve_protections(_inputs.door_is_open, true, _parameters.confirm_trips);
 
-    _protections.resolve_protections(
-        _inputs.door_is_open, module_enabled, static_cast<bool>(_parameters.confirm_alarms));
-
-    _outputs.is_tripped = _protections.get_is_tripped();
+    _outputs.has_active_trip = _protections.get_has_active_trip();
+    _outputs.has_active_alarm = _protections.get_has_active_alarm();
     _outputs.is_inhibited = _protections.get_is_inhibited();
-    _outputs.any_fault_active = _protections.get_any_fault_active();
-    _outputs.any_alarm_active = _protections.get_any_alarm_active();
 
     _outputs.overcurrent_tripped = _protections.get_overcurrent_tripped();
     _outputs.overcurrent_alarmed = _protections.get_overcurrent_alarmed();

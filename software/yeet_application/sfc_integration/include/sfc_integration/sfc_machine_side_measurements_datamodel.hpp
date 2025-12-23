@@ -1,7 +1,7 @@
 #pragma once
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/adc_value.hpp"
@@ -134,36 +134,34 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "measurements_ideal";
         // frequency_t parameters - convert to/from Hz
-        entry.parameters.insert("voltage_lpf_cutoff_frequency",
+        handler.register_parameter(component_name, "voltage_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_lpf_cutoff_frequency));
-        entry.parameters.insert("current_lpf_cutoff_frequency",
+        handler.register_parameter(component_name, "current_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
-        entry.parameters.insert("voltage_magnitude_lpf_cutoff_frequency",
+        handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
 
         // voltage_pu_t parameters - convert to/from per-unit
-        entry.parameters.insert("commutation_start_threshold",
+        handler.register_parameter(component_name, "commutation_start_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
-        entry.parameters.insert("commutation_end_threshold",
+        handler.register_parameter(component_name, "commutation_end_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
-        entry.parameters.insert("commutation_notch_duration_filter_time_constant",
+        handler.register_parameter(component_name, "commutation_notch_duration_filter_time_constant",
             yeet::utils::make_units_accessor(_model_parameters->commutation_notch_duration_filter_time_constant));
 
         // int and real_t parameters - use make_units_accessor
-        entry.parameters.insert(
-            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
-        entry.parameters.insert(
-            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
-        entry.parameters.insert(
-            "voltage_transducer_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
-        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
-
-        registry.insert("measurements_ideal", std::move(entry));
+        handler.register_parameter(
+            component_name, "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        handler.register_parameter(component_name, "voltage_adc_full_scale",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
+        handler.register_parameter(component_name, "voltage_transducer_gain",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
+        handler.register_parameter(
+            component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
     }
 
     inputs* get_inputs() { return _model_inputs; }
@@ -238,36 +236,34 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "measurements";
         // frequency_t parameters - convert to/from Hz
-        entry.parameters.insert("voltage_lpf_cutoff_frequency",
+        handler.register_parameter(component_name, "voltage_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_lpf_cutoff_frequency));
-        entry.parameters.insert("current_lpf_cutoff_frequency",
+        handler.register_parameter(component_name, "current_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
-        entry.parameters.insert("voltage_magnitude_lpf_cutoff_frequency",
+        handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
 
         // voltage_pu_t parameters - convert to/from per-unit
-        entry.parameters.insert("commutation_start_threshold",
+        handler.register_parameter(component_name, "commutation_start_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
-        entry.parameters.insert("commutation_end_threshold",
+        handler.register_parameter(component_name, "commutation_end_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_end_threshold));
-        entry.parameters.insert("commutation_notch_duration_filter_time_constant",
+        handler.register_parameter(component_name, "commutation_notch_duration_filter_time_constant",
             yeet::utils::make_units_accessor(_model_parameters->commutation_notch_duration_filter_time_constant));
 
         // int and real_t parameters - use make_units_accessor
-        entry.parameters.insert(
-            "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
-        entry.parameters.insert(
-            "voltage_adc_full_scale", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
-        entry.parameters.insert(
-            "voltage_transducer_gain", yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
-        entry.parameters.insert("pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
-
-        registry.insert("measurements", std::move(entry));
+        handler.register_parameter(
+            component_name, "voltage_adc_bits", yeet::utils::make_units_accessor(_model_parameters->voltage_adc_bits));
+        handler.register_parameter(component_name, "voltage_adc_full_scale",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_adc_full_scale));
+        handler.register_parameter(component_name, "voltage_transducer_gain",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
+        handler.register_parameter(
+            component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
     }
 
     inputs* get_inputs() { return _model_inputs; }

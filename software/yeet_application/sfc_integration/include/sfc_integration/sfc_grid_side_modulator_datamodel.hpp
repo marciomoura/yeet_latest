@@ -2,8 +2,8 @@
 
 #include "sfc/sfc_grid_side_modulator.hpp"
 #include "sfc/sfc_types.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -97,16 +97,13 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert("force_commutation_angle",
+        static constexpr std::string_view component_name = "modulator";
+        handler.register_parameter(component_name, "force_commutation_angle",
             yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->force_commutation_angle));
-        entry.parameters.insert(
-            "commutation_timeout", yeet::utils::make_units_accessor(_model_parameters->commutation_timeout));
-
-        registry.insert("modulator", std::move(entry));
+        handler.register_parameter(component_name, "commutation_timeout",
+            yeet::utils::make_units_accessor(_model_parameters->commutation_timeout));
     }
 
     inputs* get_inputs() { return _model_inputs; }

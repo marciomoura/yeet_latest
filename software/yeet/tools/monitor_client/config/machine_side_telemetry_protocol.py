@@ -129,47 +129,55 @@ class MachineSignalIndex(IntEnum):
     FIBER_RX_GRID_RELEASE_PROTECTIONS_BOOL = 70
     FIBER_RX_COMMUNICATION_OK = 71
 
-    # === Virtual Boolean Indices (100+) ===
-    # Unpacked from BOOL_PACK_1 (51)
-    MODULATOR_RELEASE_PULSES_OUTPUT = 100
-    MODULATOR_REQUEST_FORCE_COMMUTATION = 101
-    MODULATOR_FORCE_COMMUTATION_ACKNOWLEDGED = 102
-    TORQUE_ENABLE_BREAKAWAY_BOOST = 103
-    TORQUE_IS_SATURATED_INPUT = 104
-    TORQUE_IS_SATURATED_OUTPUT = 105
-    TORQUE_IS_ACTIVE = 106
-    TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 107
-    SPEED_IS_SATURATED = 108
-    STARTUP_RELEASE_SPEED_CONTROLLER = 109
-    STARTUP_RELEASE_EXCITATION = 110
-    STARTUP_RELEASE_TORQUE_CONTROLLER = 111
-    STARTUP_RELEASE_MACHINE_SIDE_PULSES = 112
-    STARTUP_IS_STARTUP_COMPLETE = 113
-    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 114
-    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 115
-    PULSE_P1 = 116
-    PULSE_P2 = 117
-    PULSE_P3 = 118
-    PULSE_P4 = 119
-    PULSE_P5 = 120
-    PULSE_P6 = 121
-    PROTECTION_IS_TRIPPED = 122
-    PROTECTION_IS_INHIBITED = 123
-    PROTECTION_ANY_FAULT_ACTIVE = 124
-    PROTECTION_OVER_FLUX_TRIPPED = 125
-    PROTECTION_UNDER_FLUX_TRIPPED = 126
-    PROTECTION_STALL_TRIPPED = 127
-    PROTECTION_OVER_FLUX_WARNING = 128
-    PROTECTION_UNDER_FLUX_WARNING = 129
-    PROTECTION_STALL_WARNING = 130
-    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 131
+    # === Virtual Boolean Indices (72+) ===
+    # After 72 raw signals (0-71), bools are appended starting at index 72
+    # Unpacked from BOOL_PACK_1 (51) - 32 bools at indices 72-103
+    # Bits 0-2: Modulator (3)
+    MODULATOR_RELEASE_PULSES_OUTPUT = 72        # bools1[0]
+    MODULATOR_REQUEST_FORCE_COMMUTATION = 73    # bools1[1]
+    MODULATOR_FORCE_COMMUTATION_ACKNOWLEDGED = 74  # bools1[2]
+    # Bits 3-7: Torque controller (5)
+    TORQUE_ENABLE_BREAKAWAY_BOOST = 75          # bools1[3]
+    TORQUE_IS_SATURATED_INPUT = 76              # bools1[4]
+    TORQUE_IS_SATURATED_OUTPUT = 77             # bools1[5]
+    TORQUE_IS_ACTIVE = 78                       # bools1[6]
+    TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 79       # bools1[7]
+    # Bit 8: Speed controller (1)
+    SPEED_IS_SATURATED = 80                     # bools1[8]
+    # Bits 9-13: Startup sequencer (5)
+    STARTUP_RELEASE_SPEED_CONTROLLER = 81       # bools1[9]
+    STARTUP_RELEASE_EXCITATION = 82             # bools1[10]
+    STARTUP_RELEASE_TORQUE_CONTROLLER = 83      # bools1[11]
+    STARTUP_RELEASE_MACHINE_SIDE_PULSES = 84    # bools1[12]
+    STARTUP_IS_STARTUP_COMPLETE = 85            # bools1[13]
+    # Bits 14-15: Pulse generator (2)
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 86  # bools1[14]
+    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 87  # bools1[15]
+    # Bits 16-21: Firing pulses (6)
+    PULSE_P1 = 88                               # bools1[16]
+    PULSE_P2 = 89                               # bools1[17]
+    PULSE_P3 = 90                               # bools1[18]
+    PULSE_P4 = 91                               # bools1[19]
+    PULSE_P5 = 92                               # bools1[20]
+    PULSE_P6 = 93                               # bools1[21]
+    # Bits 22-31: Protections (10)
+    PROTECTION_IS_TRIPPED = 94                  # bools1[22]
+    PROTECTION_IS_INHIBITED = 95                # bools1[23]
+    PROTECTION_ANY_ALARM_ACTIVE_UNPACKED = 96   # bools1[24] - has_active_alarm from bool pack
+    PROTECTION_OVER_FLUX_TRIPPED = 97           # bools1[25]
+    PROTECTION_UNDER_FLUX_TRIPPED = 98          # bools1[26]
+    PROTECTION_STALL_TRIPPED = 99               # bools1[27]
+    PROTECTION_OVER_FLUX_WARNING = 100          # bools1[28]
+    PROTECTION_UNDER_FLUX_WARNING = 101         # bools1[29]
+    PROTECTION_STALL_WARNING = 102              # bools1[30]
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 103 # bools1[31]
 
-    # Unpacked from BOOL_PACK_2 (52)
-    PROTECTION_COMMUNICATION_LOSS_WARNING = 132
-    FIBER_RX_IS_FORCED_COMMUTATION = 133
-    FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED = 134
-    FIBER_RX_RELEASE_PULSES = 135
-    FIBER_RX_GRID_RELEASE_PROTECTIONS = 136
+    # Unpacked from BOOL_PACK_2 (52) - 5 bools at indices 104-108
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 104 # bools2[0]
+    FIBER_RX_IS_FORCED_COMMUTATION = 105        # bools2[1]
+    FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED = 106  # bools2[2]
+    FIBER_RX_RELEASE_PULSES = 107               # bools2[3]
+    FIBER_RX_GRID_RELEASE_PROTECTIONS = 108     # bools2[4]
 
 
 @dataclass

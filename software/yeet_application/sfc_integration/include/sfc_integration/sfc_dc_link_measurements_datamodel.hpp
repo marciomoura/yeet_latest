@@ -1,7 +1,7 @@
 #pragma once
 
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/reference_frame.hpp"
@@ -63,16 +63,13 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
-        entry.parameters.insert(
-            "filter_cutoff_frequency", yeet::utils::make_units_accessor(_model_parameters->filter_cutoff_frequency));
-        entry.parameters.insert("heavy_filter_cutoff_frequency",
+        static constexpr std::string_view component_name = "dc_link_measurements";
+        handler.register_parameter(component_name, "filter_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->filter_cutoff_frequency));
+        handler.register_parameter(component_name, "heavy_filter_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->heavy_filter_cutoff_frequency));
-
-        registry.insert("dc_link_measurements", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

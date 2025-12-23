@@ -1,8 +1,8 @@
 #pragma once
 
 #include "sfc/sfc_startup_sequencer.hpp"
-#include "yeet/model_registry.hpp"
 #include "yeet/parameter.hpp"
+#include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
@@ -174,45 +174,42 @@ public:
         assert(_model_parameters != nullptr);
     }
 
-    void register_data_model(model_registry& registry)
+    void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        model_registry_entry entry{signal_registry{}, parameter_registry{}};
-
+        static constexpr std::string_view component_name = "startup_sequencer";
         // Register parameters
-        entry.parameters.insert("virtual_frequency_initial",
+        handler.register_parameter(component_name, "virtual_frequency_initial",
             yeet::utils::make_units_accessor(_model_parameters->virtual_frequency_initial));
-        entry.parameters.insert(
-            "virtual_frequency_final", yeet::utils::make_units_accessor(_model_parameters->virtual_frequency_final));
-        entry.parameters.insert("virtual_frequency_duration",
+        handler.register_parameter(component_name, "virtual_frequency_final",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_frequency_final));
+        handler.register_parameter(component_name, "virtual_frequency_duration",
             yeet::utils::make_units_accessor(_model_parameters->virtual_frequency_duration));
-        entry.parameters.insert(
-            "virtual_torque_initial", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_initial));
-        entry.parameters.insert(
-            "virtual_torque_final", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_final));
-        entry.parameters.insert(
-            "virtual_torque_duration", yeet::utils::make_units_accessor(_model_parameters->virtual_torque_duration));
-        entry.parameters.insert("field_established_override",
+        handler.register_parameter(component_name, "virtual_torque_initial",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_initial));
+        handler.register_parameter(component_name, "virtual_torque_final",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_final));
+        handler.register_parameter(component_name, "virtual_torque_duration",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_duration));
+        handler.register_parameter(component_name, "field_established_override",
             yeet::utils::make_bool_accessor(_model_parameters->field_established_override));
-        entry.parameters.insert("field_established_override_value",
+        handler.register_parameter(component_name, "field_established_override_value",
             yeet::utils::make_bool_accessor(_model_parameters->field_established_override_value));
-        entry.parameters.insert(
-            "speed_reference", yeet::utils::make_units_accessor(_model_parameters->speed_reference));
-        entry.parameters.insert("speed_reference_rate_limit_seconds_per_pu",
+        handler.register_parameter(
+            component_name, "speed_reference", yeet::utils::make_units_accessor(_model_parameters->speed_reference));
+        handler.register_parameter(component_name, "speed_reference_rate_limit_seconds_per_pu",
             yeet::utils::make_units_accessor(_model_parameters->speed_reference_rate_limit_seconds_per_pu));
-        entry.parameters.insert("speed_reference_rate_limit_enabled",
+        handler.register_parameter(component_name, "speed_reference_rate_limit_enabled",
             yeet::utils::make_bool_accessor(_model_parameters->speed_reference_rate_limit_enabled));
-        entry.parameters.insert("flying_restart_speed_threshold",
+        handler.register_parameter(component_name, "flying_restart_speed_threshold",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_speed_threshold));
-        entry.parameters.insert("flying_restart_voltage_threshold",
+        handler.register_parameter(component_name, "flying_restart_voltage_threshold",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_voltage_threshold));
-        entry.parameters.insert("flying_restart_observer_settling_time",
+        handler.register_parameter(component_name, "flying_restart_observer_settling_time",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_observer_settling_time));
-        entry.parameters.insert(
-            "auto_start_stop_enabled", yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
-        entry.parameters.insert("force_virtual_mode_operation",
+        handler.register_parameter(component_name, "auto_start_stop_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
+        handler.register_parameter(component_name, "force_virtual_mode_operation",
             yeet::utils::make_bool_accessor(_model_parameters->force_virtual_mode_operation));
-
-        registry.insert("startup_sequencer", std::move(entry));
     }
 
     inputs* get_inputs() { return _model_inputs; }

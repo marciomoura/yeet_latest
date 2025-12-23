@@ -38,10 +38,9 @@ void sfc_machine_side_protections::reset() noexcept
 
     _external_fault_active = false;
 
-    _is_tripped = false;
+    _has_active_trip = false;
+    _has_active_alarm = false;
     _is_inhibited = false;
-    _any_fault_active = false;
-    _any_alarm_active = false;
 
     _over_flux_tripped = false;
     _over_flux_alarmed = false;
@@ -140,7 +139,7 @@ void sfc_machine_side_protections::update_communication_watchdog(bool communicat
 
 void sfc_machine_side_protections::update_external_fault(bool active) noexcept { _external_fault_active = active; }
 
-void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool confirm_alarms) noexcept
+void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool confirm_trips) noexcept
 {
     // If module is disabled, force-clear all internal states and outputs.
     if (!module_enabled) {
@@ -165,9 +164,9 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
         _communication_watchdog.reset();
         _trip_handshake.reset();
 
-        _is_tripped = false;
+        _has_active_trip = false;
+        _has_active_alarm = false;
         _is_inhibited = false;
-        _any_fault_active = false;
 
         _over_flux_tripped = false;
         _over_flux_alarmed = false;
@@ -223,12 +222,6 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool loss_of_excitation_trip_raw = _loss_of_excitation_protection.is_tripped();
     const bool external_fault_raw = _external_fault_active;
 
-    // Use raw detector latched outputs (not instantaneous condition checks) for handshake logic.
-    // This prevents glitches in condition evaluation from causing premature alarm confirmation.
-    const bool any_fault_condition_active = over_flux_trip_raw || under_flux_trip_raw || stall_trip_raw ||
-                                            comm_loss_trip_raw || overspeed_trip_raw || machine_overvoltage_trip_raw ||
-                                            loss_of_excitation_trip_raw || external_fault_raw;
-
     const bool over_flux_trip = _over_flux_is_trip && over_flux_trip_raw;
     const bool under_flux_trip = _under_flux_is_trip && under_flux_trip_raw;
     const bool stall_trip = _stall_is_trip && stall_trip_raw;
@@ -277,71 +270,105 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
                                   overspeed_alarm || machine_overvoltage_alarm || loss_of_excitation_alarm ||
                                   external_fault_alarm;
 
-    _any_fault_active = any_fault_condition_active;
-    _any_alarm_active = any_alarm_active;
+    // Update the handshake with current trip state
+    _trip_handshake.update(any_protection_tripped, confirm_trips);
 
-    _trip_handshake.update(any_protection_tripped, any_fault_condition_active, confirm_alarms);
-
-    if (_trip_handshake.get_trip_cleared_pulse()) {
-        _vhz_protection.update(voltage_pu_t{1.0f}, frequency_pu_t{1.0f});
-        _vhz_protection.reset();
-
-        _stall_protection.update(current_pu_t{0.0f}, speed_pu_t{1.0f}, false);
-        _stall_protection.reset();
-
-        _overspeed_protection.update(speed_pu_t{0.0f});
-        _overspeed_protection.reset();
-
-        _machine_overvoltage_protection.update(voltage_pu_t{0.0f});
-        _machine_overvoltage_protection.reset();
-
-        _loss_of_excitation_protection.update(real_t{1.0f});
-        _loss_of_excitation_protection.reset();
-
-        _communication_watchdog.reset();
-
-        // Clear severity-routed outputs immediately.
-        _over_flux_tripped = false;
-        _over_flux_alarmed = false;
-        _under_flux_tripped = false;
-        _under_flux_alarmed = false;
-        _stall_tripped = false;
-        _stall_alarmed = false;
-        _communication_loss_tripped = false;
-        _communication_loss_alarmed = false;
-        _overspeed_tripped = false;
-        _overspeed_alarmed = false;
-        _machine_overvoltage_tripped = false;
-        _machine_overvoltage_alarmed = false;
-        _loss_of_excitation_tripped = false;
-        _loss_of_excitation_alarmed = false;
-        _external_fault_tripped = false;
-        _external_fault_alarmed = false;
-        _any_fault_active = false;
-        _any_alarm_active = false;
-    }
-
-    _is_tripped = _trip_handshake.get_is_tripped();
+    // has_active_trip reflects real-time state (clears automatically when fault clears)
+    _has_active_trip = any_protection_tripped;
+    _has_active_alarm = any_alarm_active;
     _is_inhibited = _trip_handshake.get_is_inhibited();
 }
 
-void sfc_machine_side_protections::configure_over_flux_is_trip(bool is_trip) noexcept { _over_flux_is_trip = is_trip; }
+void sfc_machine_side_protections::check_and_reset_handshake_if_no_trips() noexcept
+{
+    // Check if ANY trip is currently active (after severity routing)
+    const bool over_flux_trip = _over_flux_is_trip && _vhz_protection.is_over_flux_tripped();
+    const bool under_flux_trip = _under_flux_is_trip && _vhz_protection.is_under_flux_tripped();
+    const bool stall_trip = _stall_is_trip && _stall_protection.is_tripped();
+    const bool comm_loss_trip = _comm_loss_is_trip && _communication_watchdog.is_tripped();
+    const bool overspeed_trip = _overspeed_is_trip && _overspeed_protection.is_tripped();
+    const bool machine_overvoltage_trip = _machine_overvoltage_is_trip && _machine_overvoltage_protection.is_tripped();
+    const bool loss_of_excitation_trip = _loss_of_excitation_is_trip && _loss_of_excitation_protection.is_tripped();
+    const bool external_fault_trip = _external_fault_is_trip && _external_fault_active;
+
+    const bool any_trip_active = over_flux_trip || under_flux_trip || stall_trip || comm_loss_trip || overspeed_trip ||
+                                 machine_overvoltage_trip || loss_of_excitation_trip || external_fault_trip;
+
+    // If no trips are active after severity change, reset the handshake to clear inhibit
+    if (!any_trip_active) {
+        _trip_handshake.reset();
+        _is_inhibited = false;
+    }
+}
+
+void sfc_machine_side_protections::configure_over_flux_is_trip(bool is_trip) noexcept
+{
+    if (_over_flux_is_trip != is_trip) {
+        _vhz_protection.reset();
+        _over_flux_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
+    _over_flux_is_trip = is_trip;
+}
 void sfc_machine_side_protections::configure_under_flux_is_trip(bool is_trip) noexcept
 {
+    if (_under_flux_is_trip != is_trip) {
+        _vhz_protection.reset();
+        _under_flux_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
     _under_flux_is_trip = is_trip;
 }
-void sfc_machine_side_protections::configure_stall_is_trip(bool is_trip) noexcept { _stall_is_trip = is_trip; }
-void sfc_machine_side_protections::configure_overspeed_is_trip(bool is_trip) noexcept { _overspeed_is_trip = is_trip; }
+void sfc_machine_side_protections::configure_stall_is_trip(bool is_trip) noexcept
+{
+    if (_stall_is_trip != is_trip) {
+        _stall_protection.reset();
+        _stall_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
+    _stall_is_trip = is_trip;
+}
+void sfc_machine_side_protections::configure_overspeed_is_trip(bool is_trip) noexcept
+{
+    if (_overspeed_is_trip != is_trip) {
+        _overspeed_protection.reset();
+        _overspeed_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
+    _overspeed_is_trip = is_trip;
+}
 void sfc_machine_side_protections::configure_machine_overvoltage_is_trip(bool is_trip) noexcept
 {
+    if (_machine_overvoltage_is_trip != is_trip) {
+        _machine_overvoltage_protection.reset();
+        _machine_overvoltage_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
     _machine_overvoltage_is_trip = is_trip;
 }
 void sfc_machine_side_protections::configure_communication_loss_is_trip(bool is_trip) noexcept
 {
+    if (_comm_loss_is_trip != is_trip) {
+        _communication_watchdog.reset();
+        _comm_loss_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
     _comm_loss_is_trip = is_trip;
 }
 void sfc_machine_side_protections::configure_loss_of_excitation_is_trip(bool is_trip) noexcept
 {
+    if (_loss_of_excitation_is_trip != is_trip) {
+        _loss_of_excitation_protection.reset();
+        _loss_of_excitation_is_trip = is_trip;
+        check_and_reset_handshake_if_no_trips();
+        return;
+    }
     _loss_of_excitation_is_trip = is_trip;
 }
 
@@ -437,11 +464,9 @@ void sfc_machine_side_protections::configure_loss_of_excitation_trip_delay(durat
     _loss_of_excitation_protection.configure_warning_delay(delay);
 }
 
-bool sfc_machine_side_protections::get_is_tripped() const noexcept { return _is_tripped; }
+bool sfc_machine_side_protections::get_has_active_trip() const noexcept { return _has_active_trip; }
+bool sfc_machine_side_protections::get_has_active_alarm() const noexcept { return _has_active_alarm; }
 bool sfc_machine_side_protections::get_is_inhibited() const noexcept { return _is_inhibited; }
-bool sfc_machine_side_protections::get_any_fault_active() const noexcept { return _any_fault_active; }
-
-bool sfc_machine_side_protections::get_any_alarm_active() const noexcept { return _any_alarm_active; }
 
 bool sfc_machine_side_protections::get_over_flux_tripped() const noexcept { return _over_flux_tripped; }
 bool sfc_machine_side_protections::get_over_flux_alarmed() const noexcept { return _over_flux_alarmed; }

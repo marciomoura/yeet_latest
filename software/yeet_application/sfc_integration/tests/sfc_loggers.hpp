@@ -287,15 +287,15 @@ static inline void register_minimal_grid_side_protections_logger(
 
     // Key parameters
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "param confirm_alarms", [&]() { return grid_protections.get_parameters().confirm_alarms.read(); }));
+        group + "param confirm_trips", [&]() { return grid_protections.get_parameters().confirm_trips.read(); }));
 
     // Key outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_tripped", [&]() { return grid_protections.get_outputs().is_tripped.read(); }));
+        group + "output has_active_trip", [&]() { return grid_protections.get_outputs().has_active_trip.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_inhibited", [&]() { return grid_protections.get_outputs().is_inhibited.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output any_fault_active", [&]() { return grid_protections.get_outputs().any_fault_active.read(); }));
+        group + "output has_active_alarm", [&]() { return grid_protections.get_outputs().has_active_alarm.read(); }));
 }
 
 static inline void register_complete_grid_side_protections_logger(
@@ -367,15 +367,15 @@ static inline void register_minimal_machine_side_protections_logger(
 
     // Key parameters
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "param confirm_alarms", [&]() { return machine_protections.get_parameters().confirm_alarms.read(); }));
+        group + "param confirm_trips", [&]() { return machine_protections.get_parameters().confirm_trips.read(); }));
 
     // Key outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
-        group + "output is_tripped", [&]() { return machine_protections.get_outputs().is_tripped.read(); }));
+        group + "output has_active_trip", [&]() { return machine_protections.get_outputs().has_active_trip.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_inhibited", [&]() { return machine_protections.get_outputs().is_inhibited.read(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output any_fault_active",
-        [&]() { return machine_protections.get_outputs().any_fault_active.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output has_active_alarm",
+        [&]() { return machine_protections.get_outputs().has_active_alarm.read(); }));
 }
 
 static inline void register_complete_machine_side_protections_logger(

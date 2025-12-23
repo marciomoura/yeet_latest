@@ -31,7 +31,7 @@ public:
      */
     explicit sfc_plant_model_runner(std::shared_ptr<sfc::sfc_per_unit_system> per_unit_system);
 
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;
     void run() override;
     void stop() override;

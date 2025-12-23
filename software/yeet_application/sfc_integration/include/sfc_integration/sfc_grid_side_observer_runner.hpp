@@ -16,7 +16,7 @@ public:
 
     sfc_grid_side_observer_runner() : base_application(sampling_time), _sfc_grid_side_observer(sampling_time) {}
 
-    void register_datamodel(yeet::model_registry& registry) override;
+    void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;
     void run() override;
     void stop() override;
