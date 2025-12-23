@@ -1412,6 +1412,9 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
                 if metadata:
                     logger.debug(f"GET_BY_INDEX_RESPONSE: {metadata.component}.{metadata.name} = {metadata.current_value} (param_loading={self.param_loading})")
                     
+                    # Register parameter ID in network client for future GET/SET requests
+                    self.network_client.register_parameter(metadata.component, metadata.name, metadata.parameter_id)
+                    
                     # Clear pending readback if this matches
                     if hasattr(self, '_pending_readback') and self._pending_readback is not None:
                         if (self._pending_readback['component'] == metadata.component and 

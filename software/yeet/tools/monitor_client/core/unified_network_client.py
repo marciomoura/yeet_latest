@@ -93,6 +93,12 @@ class UnifiedNetworkClient(QtCore.QObject):
         self._param_encoder = ParameterProtocolEncoder()
         self._param_decoder = ParameterProtocolDecoder()
         
+        # Parameter cache for ID lookups: {(component, name): parameter_id}
+        self._parameter_id_cache = {}
+        
+        # Parameter cache for ID lookups: {(component, name): parameter_id}
+        self._parameter_id_cache = {}
+        
         # Statistics
         self._packets_received = 0
         self._packets_lost = 0
@@ -151,6 +157,18 @@ class UnifiedNetworkClient(QtCore.QObject):
         Returns True if connected (client doesn't know server's telemetry state).
         """
         return self.connected
+    
+    def register_parameter(self, component: str, name: str, parameter_id: int) -> None:
+        """Register a parameter ID for ID-based GET/SET requests.
+        
+        Call this when parameters are discovered via GET_BY_INDEX.
+        
+        Args:
+            component: Component name
+            name: Parameter name
+            parameter_id: Unique parameter ID
+        """
+        self._parameter_id_cache[(component, name)] = parameter_id
     
     def connect(self) -> bool:
         """Connect to controller.
@@ -398,14 +416,24 @@ class UnifiedNetworkClient(QtCore.QObject):
             logger.error(f"Not connected - cannot send parameter request")
             return False
         
+        # Look up parameter ID
+        param_key = (component, name)
+        if param_key not in self._parameter_id_cache:
+            error_msg = f"Parameter {component}.{name} not found in cache. Load parameters first."
+            logger.error(error_msg)
+            self.error_occurred.emit(error_msg)
+            return False
+        
+        parameter_id = self._parameter_id_cache[param_key]
+        
         try:
-            # Encode SET request
-            request_bytes = self._param_encoder.encode_set_request(component, name, value)
+            # Encode SET request using parameter ID
+            request_bytes = self._param_encoder.encode_set_request(parameter_id, value)
             
             # Send request (server will respond while telemetry continues)
             self._socket.sendall(request_bytes)
             
-            logger.debug(f"Sent parameter SET request for {component}.{name} = {value}")
+            logger.debug(f"Sent parameter SET request for {component}.{name} (ID={parameter_id}) = {value}")
             return True
             
         except Exception as e:
@@ -860,10 +888,27 @@ class UnifiedNetworkClient(QtCore.QObject):
                 result = self._param_decoder.decode_set_response(bytes(self._recv_buffer))
                 if result:
                     response_dict, bytes_consumed = result
+                    parameter_id = response_dict['parameter_id']
+                    
+                    # Look up component and name from parameter ID cache (reverse lookup)
+                    component = None
+                    name = None
+                    for (comp, nm), pid in self._parameter_id_cache.items():
+                        if pid == parameter_id:
+                            component = comp
+                            name = nm
+                            break
+                    
+                    if component is None or name is None:
+                        logger.warning(f"Received SET_RESPONSE for unknown parameter ID={parameter_id}")
+                        component = f"unknown_component"
+                        name = f"unknown_param_id_{parameter_id}"
+                    
                     response_data = {
                         'type': 'set_response',
-                        'component': response_dict['component'],
-                        'name': response_dict['name'],
+                        'component': component,
+                        'name': name,
+                        'parameter_id': parameter_id,
                         'status': response_dict['status'],
                         'old_value': response_dict['old_value'],
                         'new_value': response_dict['new_value'],
@@ -871,7 +916,7 @@ class UnifiedNetworkClient(QtCore.QObject):
                     }
                     del self._recv_buffer[:bytes_consumed]
                     if self.verbose:
-                        logger.debug(f"Decoded SET_RESPONSE: {response_dict['component']}.{response_dict['name']} status={response_dict['status'].name}")
+                        logger.debug(f"Decoded SET_RESPONSE: {component}.{name} (ID={parameter_id}) status={response_dict['status'].name}")
             
             if response_data:
                 # Emit signal to UI

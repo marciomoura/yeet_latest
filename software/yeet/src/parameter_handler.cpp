@@ -5,6 +5,7 @@
 
 #include "yeet/parameter_handler.hpp"
 
+#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -114,7 +115,7 @@ void parameter_handler::build_parameter_cache()
 
     // Iterate through all entries in model_registry
     registry_->iterate_entries(
-        [this](const std::string& component, const std::string& name, const low_level_access& accessor) {
+        [this](std::string_view component, std::string_view name, const low_level_access& accessor) {
             if (parameter_cache_size_ >= MAX_PARAMETERS) {
                 YEET_PARAM_LOG("[PARAM] ERROR: Parameter cache full! Cannot add " << component << "." << name);
                 return;
@@ -123,31 +124,23 @@ void parameter_handler::build_parameter_cache()
             // Create cache entry
             parameter_cache_entry& entry = parameter_cache_[parameter_cache_size_];
 
-            std::strncpy(entry.component, component.c_str(), sizeof(entry.component) - 1);
+            // Assign unique ID (same as array index for O(1) lookup)
+            entry.id = static_cast<std::uint16_t>(parameter_cache_size_);
+
+            // Assert that component and name fit within buffer limits
+            assert(component.size() < sizeof(entry.component) &&
+                   "Component name too long! Increase buffer size in parameter_cache_entry.");
+            assert(name.size() < sizeof(entry.name) &&
+                   "Parameter name too long! Increase buffer size in parameter_cache_entry.");
+
+            std::strncpy(entry.component, component.data(), sizeof(entry.component) - 1);
             entry.component[sizeof(entry.component) - 1] = '\0';
 
-            std::strncpy(entry.name, name.c_str(), sizeof(entry.name) - 1);
+            std::strncpy(entry.name, name.data(), sizeof(entry.name) - 1);
             entry.name[sizeof(entry.name) - 1] = '\0';
-
-            // Generate display name from component.name
-            std::strncpy(entry.display_name, name.c_str(), sizeof(entry.display_name) - 1);
-            entry.display_name[sizeof(entry.display_name) - 1] = '\0';
-
-            // TODO: Extract unit from type metadata when available
-            entry.unit[0] = '\0';
 
             // Currently only support float32
             entry.type = parameter_value_type::float32;
-
-            // TODO: Extract constraints from metadata when available
-            // For now, use wide defaults, with special handling for IO index parameters.
-            entry.min_value = k_default_min;
-            entry.max_value = k_default_max;
-            entry.default_value = 0.0f;
-
-            // Apply per-parameter constraints for IO mapping indices.
-            // This enables parameter SET rejection for out-of-range mappings.
-            (void)get_index_parameter_range(name, entry.min_value, entry.max_value);
 
             // Store accessor for direct read/write
             entry.accessor = accessor;
@@ -172,20 +165,22 @@ void parameter_handler::rebuild_parameter_cache()
     // Rebuild complete (parameter count logged only in verbose mode)
 }
 
-parameter_cache_entry* parameter_handler::find_parameter(const char* component, const char* name)
+parameter_cache_entry* parameter_handler::get_parameter_by_id(std::uint16_t id)
 {
-    for (std::size_t i = 0; i < parameter_cache_size_; ++i) {
-        auto& param = parameter_cache_[i];
-        if (std::strcmp(param.component, component) == 0 && std::strcmp(param.name, name) == 0) {
-            return &param;
-        }
+    if (id < parameter_cache_size_) {
+        return &parameter_cache_[id];
     }
     return nullptr;
 }
 
 bool parameter_handler::is_value_in_range(const parameter_cache_entry& param, float value) const
 {
-    return (value >= param.min_value) && (value <= param.max_value);
+    // Generate constraint values dynamically (same logic as in handle_get_by_index_request)
+    float min_val = k_default_min;
+    float max_val = k_default_max;
+    (void)get_index_parameter_range(param.name, min_val, max_val);
+
+    return (value >= min_val) && (value <= max_val);
 }
 
 bool parameter_handler::handle_set_request(
@@ -200,14 +195,11 @@ bool parameter_handler::handle_set_request(
     response.header.flags = 0;
     response.header.timestamp_ms = 0;
 
-    // Copy component and name
-    std::strncpy(response.component, request.component, sizeof(response.component) - 1);
-    response.component[sizeof(response.component) - 1] = '\0';
-    std::strncpy(response.name, request.name, sizeof(response.name) - 1);
-    response.name[sizeof(response.name) - 1] = '\0';
+    // Copy parameter ID
+    response.parameter_id = request.parameter_id;
 
-    // Find parameter
-    parameter_cache_entry* param = find_parameter(request.component, request.name);
+    // Find parameter by ID (O(1) array indexing)
+    parameter_cache_entry* param = get_parameter_by_id(request.parameter_id);
 
     if (!param) {
         // Parameter not found
@@ -245,8 +237,8 @@ bool parameter_handler::handle_set_request(
     response.status = 0;  // SUCCESS
     write_error_message(response.error_message, sizeof(response.error_message), "OK");
 
-    YEET_PARAM_LOG("[PARAM] SET SUCCESS: " << param->component << "." << param->name << " = " << request.value
-                                           << " (was " << response.old_value << ")");
+    YEET_PARAM_LOG("[PARAM] SET SUCCESS: ID=" << request.parameter_id << " (" << param->component << "." << param->name
+                                              << ") = " << request.value << " (was " << response.old_value << ")");
 
     return true;
 }
@@ -263,24 +255,22 @@ bool parameter_handler::handle_get_request(
     response.header.flags = 0;
     response.header.timestamp_ms = 0;
 
-    // Copy component and name
-    std::strncpy(response.component, request.component, sizeof(response.component) - 1);
-    response.component[sizeof(response.component) - 1] = '\0';
-    std::strncpy(response.name, request.name, sizeof(response.name) - 1);
-    response.name[sizeof(response.name) - 1] = '\0';
+    // Copy parameter ID
+    response.parameter_id = request.parameter_id;
 
-    // Find parameter
-    parameter_cache_entry* param = find_parameter(request.component, request.name);
+    // Find parameter by ID (O(1) array indexing)
+    parameter_cache_entry* param = get_parameter_by_id(request.parameter_id);
 
     if (!param) {
-        YEET_PARAM_LOG("[PARAM] GET FAILED: Parameter " << request.component << "." << request.name << " not found");
+        YEET_PARAM_LOG("[PARAM] GET FAILED: Parameter ID " << request.parameter_id << " not found");
         return false;
     }
 
     // Return current value via low_level_access
     response.value = param->accessor.read<float>();
 
-    YEET_PARAM_LOG("[PARAM] GET: " << param->component << "." << param->name << " = " << response.value);
+    YEET_PARAM_LOG("[PARAM] GET: ID=" << request.parameter_id << " (" << param->component << "." << param->name
+                                      << ") = " << response.value);
 
     return true;
 }
@@ -331,37 +321,49 @@ bool parameter_handler::handle_get_by_index_request(
     // Get parameter at index
     const auto& param = parameter_cache_[request.parameter_index];
 
-    // Fill response
-    std::strncpy(response.component, param.component, sizeof(response.component) - 1);
-    response.component[sizeof(response.component) - 1] = '\0';
-    std::strncpy(response.name, param.name, sizeof(response.name) - 1);
-    response.name[sizeof(response.name) - 1] = '\0';
-    std::strncpy(response.display_name, param.display_name, sizeof(response.display_name) - 1);
-    response.display_name[sizeof(response.display_name) - 1] = '\0';
-    std::strncpy(response.unit, param.unit, sizeof(response.unit) - 1);
-    response.unit[sizeof(response.unit) - 1] = '\0';
-
-    // Generate description from display name (could be enhanced later)
-    char description[128];
-    std::snprintf(description, sizeof(description), "Parameter %s", param.display_name);
-    std::strncpy(response.description, description, sizeof(response.description) - 1);
-    response.description[sizeof(response.description) - 1] = '\0';
-
-    response.type = static_cast<std::uint8_t>(param.type);
-    response.min_value = param.min_value;
-    response.max_value = param.max_value;
-    response.default_value = param.default_value;
-
-    // Read current value via low_level_access
-    response.current_value = param.accessor.read<float>();
-
+    // Fill response with parameter ID (for use in GET/SET requests)
+    response.parameter_id = param.id;
     response.parameter_index = request.parameter_index;
     response.total_parameters = static_cast<std::uint16_t>(parameter_cache_size_);
     response.status = 0;  // SUCCESS
 
-    YEET_PARAM_LOG("[PARAM] GET_BY_INDEX: Returning parameter " << request.parameter_index << " (" << param.component
-                                                                << "." << param.name << " = " << response.current_value
-                                                                << ")");
+    // Component and name (for display/debugging)
+    std::strncpy(response.component, param.component, sizeof(response.component) - 1);
+    response.component[sizeof(response.component) - 1] = '\0';
+    std::strncpy(response.name, param.name, sizeof(response.name) - 1);
+    response.name[sizeof(response.name) - 1] = '\0';
+
+    // Generate display name from parameter name (dynamically)
+    std::strncpy(response.display_name, param.name, sizeof(response.display_name) - 1);
+    response.display_name[sizeof(response.display_name) - 1] = '\0';
+
+    // Unit not currently used - leave empty
+    response.unit[0] = '\0';
+
+    // Generate description from parameter name (dynamically)
+    char description[128];
+    std::snprintf(description, sizeof(description), "Parameter %s.%s", param.component, param.name);
+    std::strncpy(response.description, description, sizeof(response.description) - 1);
+    response.description[sizeof(response.description) - 1] = '\0';
+
+    response.type = static_cast<std::uint8_t>(param.type);
+
+    // Generate constraint values dynamically
+    // For IO index parameters, apply special range constraints
+    float min_val = k_default_min;
+    float max_val = k_default_max;
+    (void)get_index_parameter_range(param.name, min_val, max_val);
+
+    response.min_value = min_val;
+    response.max_value = max_val;
+    response.default_value = 0.0f;
+
+    // Read current value via low_level_access
+    response.current_value = param.accessor.read<float>();
+
+    YEET_PARAM_LOG("[PARAM] GET_BY_INDEX: Returning parameter " << request.parameter_index << " ID=" << param.id << " ("
+                                                                << param.component << "." << param.name << " = "
+                                                                << response.current_value << ")");
 
     return true;
 }

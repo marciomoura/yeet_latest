@@ -83,6 +83,7 @@ class ParameterMetadata:
     and current value.
     
     Attributes:
+        parameter_id: Unique parameter ID (use in GET/SET requests)
         component: Component name (e.g., "grid_observer")
         name: Parameter name within component (e.g., "kp")
         display_name: Human-readable name (e.g., "PLL Proportional Gain")
@@ -96,6 +97,7 @@ class ParameterMetadata:
         parameter_index: Index in full parameter list
         total_parameters: Total parameter count
     """
+    parameter_id: int
     component: str
     name: str
     display_name: str
@@ -239,27 +241,19 @@ class ParameterProtocolEncoder:
         self._sequence += 1
         return header
     
-    def encode_get_request(self, component: str, param_name: str) -> bytes:
+    def encode_get_request(self, parameter_id: int) -> bytes:
         """Create binary PARAM_GET_REQUEST packet.
         
-        Queries current value of a specific parameter.
+        Queries current value of a specific parameter by ID.
         
         Args:
-            component: Component name (e.g., "grid_observer")
-            param_name: Parameter name (e.g., "kp")
+            parameter_id: Unique parameter ID (from discovery via GET_BY_INDEX)
         
         Returns:
             Binary packet ready to send over TCP
         """
-        # Encode component and parameter name as null-terminated strings
-        component_bytes = component.encode('utf-8')[:63] + b'\x00'
-        param_bytes = param_name.encode('utf-8')[:63] + b'\x00'
-        
-        # Pad to 64 bytes each
-        component_bytes = component_bytes.ljust(64, b'\x00')
-        param_bytes = param_bytes.ljust(64, b'\x00')
-        
-        payload = component_bytes + param_bytes
+        # Payload: parameter_id (uint16) + padding (uint16)
+        payload = struct.pack('<HH', parameter_id, 0)
         
         header = struct.pack(
             self.HEADER_FORMAT,
@@ -274,31 +268,20 @@ class ParameterProtocolEncoder:
         
         return header + payload
     
-    def encode_set_request(self, component: str, param_name: str, value: float) -> bytes:
+    def encode_set_request(self, parameter_id: int, value: float) -> bytes:
         """Create binary PARAM_SET_REQUEST packet.
         
-        Sets new value for a specific parameter.
+        Sets new value for a specific parameter by ID.
         
         Args:
-            component: Component name (e.g., "grid_observer")
-            param_name: Parameter name (e.g., "kp")
+            parameter_id: Unique parameter ID (from discovery via GET_BY_INDEX)
             value: New value to set
         
         Returns:
             Binary packet ready to send over TCP
         """
-        # Encode strings
-        component_bytes = component.encode('utf-8')[:63] + b'\x00'
-        param_bytes = param_name.encode('utf-8')[:63] + b'\x00'
-        
-        # Pad to 64 bytes each
-        component_bytes = component_bytes.ljust(64, b'\x00')
-        param_bytes = param_bytes.ljust(64, b'\x00')
-        
-        # Pack value as float32
-        value_bytes = struct.pack('<f', value)
-        
-        payload = component_bytes + param_bytes + value_bytes
+        # Payload: parameter_id (uint16) + padding (uint16) + value (float32)
+        payload = struct.pack('<HHf', parameter_id, 0, value)
         
         header = struct.pack(
             self.HEADER_FORMAT,
@@ -359,7 +342,7 @@ class ParameterProtocolDecoder:
         Returns:
             Tuple of (ParameterMetadata, bytes_consumed), or None if decode failed
         """
-        # Calculate expected size: header + payload (64+64+64+16+4+16+128+4+4 = 364 bytes)
+        # Calculate expected size: header + payload (8+64+64+64+16+4+16+128 = 364 bytes)
         expected_size = self.HEADER_SIZE + 364
         if len(data) < expected_size:
             return None
@@ -374,7 +357,17 @@ class ParameterProtocolDecoder:
         
         offset = self.HEADER_SIZE
         
-        # Decode payload (same structure as LIST_RESPONSE but with status field)
+        # Decode payload (new format with parameter_id at start)
+        param_id, param_idx, total_params = struct.unpack('<HHH', data[offset:offset+6])
+        offset += 6
+        
+        status, padding = struct.unpack('<BB', data[offset:offset+2])
+        offset += 2
+        
+        # Check status
+        if status != 0:  # 0 = SUCCESS
+            return None  # Index out of range or other error
+        
         component = self._decode_string(data[offset:offset+64])
         offset += 64
         
@@ -396,16 +389,8 @@ class ParameterProtocolDecoder:
         description = self._decode_string(data[offset:offset+128])
         offset += 128
         
-        param_idx, total_params = struct.unpack('<HH', data[offset:offset+4])
-        offset += 4
-        
-        status, = struct.unpack('<B', data[offset:offset+1])
-        
-        # Check status
-        if status != 0:  # 0 = SUCCESS
-            return None  # Index out of range or other error
-        
         metadata = ParameterMetadata(
+            parameter_id=param_id,
             component=component,
             name=name,
             display_name=display_name,
@@ -528,18 +513,16 @@ class ParameterProtocolDecoder:
         
         offset = self.HEADER_SIZE
         
-        # Payload: component(64) + name(64) + value(4 float)
-        component = self._decode_string(data[offset:offset+64])
-        offset += 64
-        
-        name = self._decode_string(data[offset:offset+64])
-        offset += 64
+        # Payload: parameter_id (uint16) + padding (uint16) + value (float32)
+        param_id, padding = struct.unpack('<HH', data[offset:offset+4])
+        offset += 4
         
         value, = struct.unpack('<f', data[offset:offset+4])
         
+        # Note: component and name are not in response, must be looked up from cache
         return (ParameterValue(
-            component=component,
-            name=name,
+            component="",  # Must be filled by caller from cache
+            name="",       # Must be filled by caller from cache
             value=value
         ), expected_size)
     
@@ -551,10 +534,10 @@ class ParameterProtocolDecoder:
         
         Returns:
             Tuple of (response_dict, bytes_consumed) where response_dict contains
-            status, component, name, old_value, new_value, error_message
+            status, parameter_id, old_value, new_value, error_message
         """
-        # Calculate expected size: header + payload (64+64+8+4+128 = 268 bytes)
-        expected_size = self.HEADER_SIZE + 268
+        # Calculate expected size: header + payload (4+8+4+128 = 144 bytes)
+        expected_size = self.HEADER_SIZE + 144
         if len(data) < expected_size:
             return None
         
@@ -568,12 +551,9 @@ class ParameterProtocolDecoder:
         
         offset = self.HEADER_SIZE
         
-        # Payload: component(64) + name(64) + old_value(4) + new_value(4) + status(1) + padding(3) + error_msg(128)
-        component = self._decode_string(data[offset:offset+64])
-        offset += 64
-        
-        name = self._decode_string(data[offset:offset+64])
-        offset += 64
+        # Payload: parameter_id (uint16) + padding (uint16) + old_value (float32) + new_value (float32) + status (uint8) + padding (3) + error_msg (128)
+        param_id, padding = struct.unpack('<HH', data[offset:offset+4])
+        offset += 4
         
         old_val, new_val = struct.unpack('<ff', data[offset:offset+8])
         offset += 8
@@ -585,8 +565,7 @@ class ParameterProtocolDecoder:
         
         response_dict = {
             'status': ParameterSetStatus(status),
-            'component': component,
-            'name': name,
+            'parameter_id': param_id,
             'old_value': old_val,
             'new_value': new_val,
             'error_message': error_msg

@@ -90,8 +90,44 @@ class ParameterClient:
         self._previous_socket_timeout: Optional[float] = None
         
         # Parameter cache: {(component, name): ParameterMetadata}
+        # Also maintain reverse lookup: {id: ParameterMetadata}
         self._parameter_cache: Dict[Tuple[str, str], ParameterMetadata] = {}
+        self._parameter_cache_by_id: Dict[int, ParameterMetadata] = {}
         self._cache_lock = threading.Lock()
+    
+    def _recv_exact(self, sock: socket.socket, num_bytes: int) -> Optional[bytes]:
+        """Receive exactly num_bytes from socket.
+        
+        TCP recv() can return less than requested. This method loops until
+        all requested bytes are received or an error/timeout occurs.
+        
+        Args:
+            sock: Active socket
+            num_bytes: Exact number of bytes to receive
+        
+        Returns:
+            Bytes object of exactly num_bytes, or None on error/timeout
+        """
+        chunks = []
+        bytes_received = 0
+        
+        while bytes_received < num_bytes:
+            try:
+                chunk = sock.recv(num_bytes - bytes_received)
+                if not chunk:
+                    # Socket closed
+                    logger.warning(f"Socket closed while receiving (got {bytes_received}/{num_bytes} bytes)")
+                    return None
+                chunks.append(chunk)
+                bytes_received += len(chunk)
+            except socket.timeout:
+                logger.warning(f"Timeout while receiving (got {bytes_received}/{num_bytes} bytes)")
+                return None
+            except (socket.error, OSError) as e:
+                logger.error(f"Socket error while receiving (got {bytes_received}/{num_bytes} bytes): {e}")
+                return None
+        
+        return b''.join(chunks)
     
     def set_external_socket(self, sock: socket.socket) -> None:
         """Use an external socket connection instead of creating own.
@@ -256,11 +292,12 @@ class ParameterClient:
                 param = self._get_parameter_by_index_with_retry(active_socket, index, max_retries)
                 if param:
                     parameters.append(param)
-                    logger.debug(f"Received parameter {index}: {param.component}.{param.name}")
+                    logger.debug(f"Received parameter {index}: {param.component}.{param.name} (ID={param.parameter_id})")
                     
-                    # Store in cache
+                    # Store in cache (both name-based and ID-based)
                     with self._cache_lock:
                         self._parameter_cache[(param.component, param.name)] = param
+                        self._parameter_cache_by_id[param.parameter_id] = param
                 else:
                     logger.warning(f"Failed to get parameter at index {index} after {max_retries} retries")
                     failed_indices.append(index)
@@ -297,13 +334,15 @@ class ParameterClient:
                 if self.verbose:
                     logger.info(f"[COUNT] Waiting for response (timeout={self.timeout}s)...")
                 
-                # Receive response with timeout
-                response = sock.recv(1024)
+                # Receive response - COUNT_RESPONSE is fixed size: 16 (header) + 4 (count) = 20 bytes
+                response = self._recv_exact(sock, 20)
                 
                 if self.verbose:
-                    logger.info(f"[COUNT] Received {len(response)} bytes")
                     if response:
+                        logger.info(f"[COUNT] Received {len(response)} bytes")
                         logger.info(f"[COUNT] Response hex: {response.hex()}")
+                    else:
+                        logger.warning(f"[COUNT] Failed to receive full response")
                 
                 if not response:
                     logger.warning(f"Empty response on COUNT attempt {attempt + 1}/{max_retries}")
@@ -358,11 +397,10 @@ class ParameterClient:
                 request = self._encoder.encode_get_by_index_request(index)
                 sock.sendall(request)
                 
-                # Receive response with timeout
-                # Expected size: 16 (header) + 380 (payload) = 396 bytes
-                response = sock.recv(512)
+                # Receive response - GET_BY_INDEX_RESPONSE is fixed size: 16 (header) + 364 (payload) = 380 bytes
+                response = self._recv_exact(sock, 380)
                 if not response:
-                    logger.warning(f"Empty response for index {index} attempt {attempt + 1}/{max_retries}")
+                    logger.warning(f"Empty or incomplete response for index {index} attempt {attempt + 1}/{max_retries}")
                     time.sleep(0.05)
                     continue
                 
@@ -422,9 +460,10 @@ class ParameterClient:
             # Receive responses (one per parameter)
             while True:
                 try:
-                    response = active_socket.recv(2048)
+                    # LIST_RESPONSE is fixed size: 16 (header) + 360 (payload) = 376 bytes
+                    response = self._recv_exact(active_socket, 376)
                     if not response:
-                        logger.error("Socket closed during parameter list reception")
+                        logger.error("Socket closed or incomplete response during parameter list reception")
                         break
                     
                     param = self._decoder.decode_list_response(response)
@@ -469,33 +508,49 @@ class ParameterClient:
             ParameterValue with current value, or None if failed
             
         Raises:
-            RuntimeError: If not connected
+            RuntimeError: If not connected or parameter not found in cache
         """
-        logger.debug(f"Querying parameter {component}.{name}")
+        # Look up parameter ID from cache
+        with self._cache_lock:
+            if (component, name) not in self._parameter_cache:
+                logger.error(f"Parameter {component}.{name} not found in cache. Run get_all_parameters() first.")
+                return None
+            
+            meta = self._parameter_cache[(component, name)]
+            param_id = meta.parameter_id
+        
+        logger.debug(f"Querying parameter {component}.{name} (ID={param_id})")
 
         active_socket = self._prepare_socket_for_transaction()
         try:
-            # Send GET request
-            request = self._encoder.encode_get_request(component, name)
+            # Send GET request using parameter ID
+            request = self._encoder.encode_get_request(param_id)
             active_socket.sendall(request)
             
-            # Receive response
-            response = active_socket.recv(1024)
-            param_value = self._decoder.decode_get_response(response)
+            # Receive response - GET_RESPONSE is fixed size: 16 (header) + 8 (payload) = 24 bytes
+            response = self._recv_exact(active_socket, 24)
+            if not response:
+                logger.error(f"Failed to receive complete GET response for {component}.{name} (ID={param_id})")
+                return None
+            result = self._decoder.decode_get_response(response)
             
-            if param_value:
+            if result:
+                param_value, _ = result
+                # Fill in component and name from cache
+                param_value.component = component
+                param_value.name = name
+                
                 logger.debug(f"Got value: {param_value.value}")
                 
-                # Attach metadata from cache if available
+                # Attach metadata from cache
                 with self._cache_lock:
-                    if (component, name) in self._parameter_cache:
-                        param_value.metadata = self._parameter_cache[(component, name)]
+                    param_value.metadata = self._parameter_cache[(component, name)]
                 
                 return param_value
-            logger.error(f"Failed to decode GET response for {component}.{name}")
+            logger.error(f"Failed to decode GET response for {component}.{name} (ID={param_id})")
             return None
         except socket.timeout:
-            logger.error(f"Timeout waiting for GET response: {component}.{name}")
+            logger.error(f"Timeout waiting for GET response: {component}.{name} (ID={param_id})")
             return None
         except (socket.error, OSError) as e:
             logger.error(f"Socket error during GET: {e}")
@@ -515,29 +570,38 @@ class ParameterClient:
             True if set successful, False otherwise
             
         Raises:
-            RuntimeError: If not connected
+            RuntimeError: If not connected or parameter not found in cache
         """
-        # Validate against cached metadata if available
+        # Look up parameter ID from cache
         with self._cache_lock:
-            if (component, name) in self._parameter_cache:
-                meta = self._parameter_cache[(component, name)]
-                if not (meta.min_value <= value <= meta.max_value):
-                    logger.error(
-                        f"Value {value} out of range [{meta.min_value}, {meta.max_value}] "
-                        f"for {component}.{name}"
-                    )
-                    return False
+            if (component, name) not in self._parameter_cache:
+                logger.error(f"Parameter {component}.{name} not found in cache. Run get_all_parameters() first.")
+                return False
+            
+            meta = self._parameter_cache[(component, name)]
+            param_id = meta.parameter_id
+            
+            # Validate range
+            if not (meta.min_value <= value <= meta.max_value):
+                logger.error(
+                    f"Value {value} out of range [{meta.min_value}, {meta.max_value}] "
+                    f"for {component}.{name}"
+                )
+                return False
         
-        logger.info(f"Setting parameter {component}.{name} = {value}")
+        logger.info(f"Setting parameter {component}.{name} (ID={param_id}) = {value}")
 
         active_socket = self._prepare_socket_for_transaction()
         try:
-            # Send SET request
-            request = self._encoder.encode_set_request(component, name, value)
+            # Send SET request using parameter ID
+            request = self._encoder.encode_set_request(param_id, value)
             active_socket.sendall(request)
             
-            # Receive response
-            response = active_socket.recv(1024)
+            # Receive response - SET_RESPONSE is fixed size: 16 (header) + 144 (payload) = 160 bytes
+            response = self._recv_exact(active_socket, 160)
+            if not response:
+                logger.error(f"Failed to receive complete SET response for {component}.{name} (ID={param_id})")
+                return False
             decode_result = self._decoder.decode_set_response(response)
             
             if decode_result:
@@ -546,7 +610,7 @@ class ParameterClient:
                 
                 if status == ParameterSetStatus.SUCCESS:
                     logger.info(
-                        f"✓ Set {component}.{name} = {result['new_value']} "
+                        f"✓ Set {component}.{name} (ID={param_id}) = {result['new_value']} "
                         f"(was {result['old_value']})"
                     )
                     
@@ -554,17 +618,19 @@ class ParameterClient:
                     with self._cache_lock:
                         if (component, name) in self._parameter_cache:
                             self._parameter_cache[(component, name)].current_value = result['new_value']
+                        if param_id in self._parameter_cache_by_id:
+                            self._parameter_cache_by_id[param_id].current_value = result['new_value']
                     
                     return True
                 logger.error(
-                    f"✗ Failed to set {component}.{name}: "
+                    f"✗ Failed to set {component}.{name} (ID={param_id}): "
                     f"{status.name} - {result['error_message']}"
                 )
                 return False
-            logger.error(f"Failed to decode SET response for {component}.{name}")
+            logger.error(f"Failed to decode SET response for {component}.{name} (ID={param_id})")
             return False
         except socket.timeout:
-            logger.error(f"Timeout waiting for SET response: {component}.{name}")
+            logger.error(f"Timeout waiting for SET response: {component}.{name} (ID={param_id})")
             return False
         except (socket.error, OSError) as e:
             logger.error(f"Socket error during SET: {e}")
@@ -600,4 +666,5 @@ class ParameterClient:
         """Clear parameter cache (force refresh on next get_all_parameters)."""
         with self._cache_lock:
             self._parameter_cache.clear()
+            self._parameter_cache_by_id.clear()
         logger.info("Parameter cache cleared")
