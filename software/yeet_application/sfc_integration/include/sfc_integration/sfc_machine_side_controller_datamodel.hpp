@@ -77,16 +77,29 @@ public:
             "firing_angle_lookup_table_deg[1]", "firing_angle_lookup_table_deg[2]", "firing_angle_lookup_table_deg[3]",
             "firing_angle_lookup_table_deg[4]", "firing_angle_lookup_table_deg[5]"};
 
-        auto& firing_angle_table = _model_parameters->firing_angle_lookup_table;
+        // real_t is a float type, so we can use direct casting
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            entry.parameters.insert(std::string(firing_angle_names[i]),
-                low_level_access(
-                    [&firing_angle_table, i]() -> float { return static_cast<float>(firing_angle_table.read()[i]); },
-                    [&firing_angle_table, i](float value) {
-                        auto table = firing_angle_table.read();
-                        table[i] = real_t(value);
-                        firing_angle_table.write(table);
-                    }));
+            // Create static context storage for each index
+            static struct context_storage_t {
+                parameter<std::array<real_t, parameters::NUM_POINTS>>* param;
+                std::size_t index;
+            } contexts[parameters::NUM_POINTS];
+
+            contexts[i] = {&_model_parameters->firing_angle_lookup_table, i};
+
+            entry.parameters.insert(
+                std::string(firing_angle_names[i]), low_level_access(
+                                                        +[](void* ctx) -> float {
+                                                            auto* c = static_cast<context_storage_t*>(ctx);
+                                                            return static_cast<float>(c->param->read()[c->index]);
+                                                        },
+                                                        +[](void* ctx, float value) {
+                                                            auto* c = static_cast<context_storage_t*>(ctx);
+                                                            auto table = c->param->read();
+                                                            table[c->index] = real_t(value);
+                                                            c->param->write(table);
+                                                        },
+                                                        &contexts[i]));
         }
 
         registry.insert("stator_voltage_controller", std::move(entry));

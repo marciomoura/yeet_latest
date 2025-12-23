@@ -13,6 +13,7 @@ target_sources(
             signal_test.cpp
             signal_wiring_test.cpp
             datamodel_connector_test.cpp
+            parameter_handler_test.cpp
             utils/low_level_access_test.cpp)
 
 # Link dependencies
@@ -21,7 +22,8 @@ target_link_libraries(
     PRIVATE gtest::gtest_main
             gtest::gtest
             gtest::gmock
-            yeet::yeet)
+            yeet::yeet
+            yeet::yeet_control)
 
 # Discover tests
 include(GoogleTest)
