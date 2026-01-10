@@ -57,6 +57,7 @@ public:
         // register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
         register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
         // register_complete_logger(simulator, system.io_mock);
         register_minimal_plant_model_logger(simulator, system.plant);
     }
@@ -618,6 +619,68 @@ TEST_F(ClosedLoopProtectionsTest, OvercurrentRecoveryWithAlarmConfirmation)
     simulate_for(0.5f);
 
     EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON);
+}
+
+TEST_F(ClosedLoopProtectionsTest, OvercurrentFaultDuringForcedCommutation)
+{
+    EXPECT_EQ(get_current_state(), sfc_state_id::IDLE);
+
+    // Execute state machine startup to OPERATION_ON
+    execute_startup_sequence();
+    EXPECT_TRUE(is_in_operation()) << "State machine should be in OPERATION_ON";
+
+    // Allow time for pre-fluxing to complete and enter virtual ramp (pulsed mode)
+    // Pre-flux typically takes 1.0s, so 2.0s ensures we are in the pulsed zone.
+    simulate_for(2.0f);
+
+    // Verify system is in forced commutation (pulsed mode)
+    EXPECT_EQ(system.machine_side_control.machine_side_modulator.get_inputs().operating_mode.read(),
+        sfc_operating_mode_t::forced_commutation)
+        << "System should be in forced commutation mode at low speed";
+
+    // Allow time for a pulse to occur and trigger the trip.
+    simulate_for(2.0f);
+
+    // Configure the overcurrent protection to trip on the pulsed current.
+    // Pulsed mode typically uses around 0.3 pu torque/current reference.
+    auto& grid_protections = system.grid_side_control.grid_protections;
+    grid_protections.get_parameters().overcurrent_trip_threshold.write(current_pu_t{0.6f});
+    grid_protections.get_parameters().overcurrent_trip_delay.write(duration_t{0.0f});
+    grid_protections.get_parameters().protection_module_enabled.write(true);
+
+    // Allow time for a pulse to occur and trigger the trip.
+    simulate_for(1.0f);
+
+    // Verify that the protection inhibited the system and the state machine reacted.
+    EXPECT_TRUE(grid_protections.get_outputs().is_inhibited.read())
+        << "Overcurrent protection should have tripped on pulsed current in forced commutation";
+    EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON)
+        << "State machine should leave OPERATION_ON after overcurrent trip";
+
+    // Recovery phase: remove the cause by raising the threshold.
+    grid_protections.get_parameters().overcurrent_trip_threshold.write(current_pu_t{10.0f});
+
+    // Allow time for the IO mock to signal completion of the shutdown sequence
+    simulate_for(10.0f);
+    EXPECT_EQ(get_current_state(), sfc_state_id::IDLE) << "State machine should reach IDLE for recovery";
+
+    // Actively confirm/acknowledge the alarm to clear the inhibit.
+    grid_protections.get_parameters().confirm_trips.write(false);
+    simulate_for(0.2f);
+    grid_protections.get_parameters().confirm_trips.write(true);
+    simulate_for(0.5f);
+    grid_protections.get_parameters().confirm_trips.write(false);
+
+    EXPECT_FALSE(is_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
+
+    // Clear the startup latch by releasing the turn_on command.
+    set_turn_on_command(false);
+    simulate_for(0.5f);
+
+    // Restart the system and verify it reaches nominal speed.
+    startup_to_nominal_speed();
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON);
+    EXPECT_NEAR(system.plant.get_outputs().machine_speed.read().value(), 1.0f, 0.05f);
 }
 
 TEST_F(ClosedLoopProtectionsTest, MachineOvervoltageRecoveryWithAlarmConfirmation)
