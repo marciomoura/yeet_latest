@@ -3,11 +3,10 @@
 
 Provides options to:
 1. Keep data in memory indefinitely (for post-run analysis)
-2. Export data to CSV/HDF5 for offline visualization
+2. Export data to JSON for offline visualization
 3. Stream data to disk for very long recordings
 """
 
-import csv
 import json
 import logging
 from dataclasses import dataclass
@@ -104,116 +103,13 @@ class DataPersistence:
         self.total_samples_stored += 1
         self.end_time = datetime.now()
     
-    def export_csv(self, filepath: Optional[Path] = None, data_buffers: Optional[Dict] = None) -> bool:
-        """Export data to CSV file.
-        
-        Can export either persistent in-memory data or rolling window buffers.
-        
-        Args:
-            filepath: Path to export to (uses self.export_path if not specified)
-            data_buffers: Optional dict of deque buffers to export from
-                         {
-                             'voltage': deque(...),
-                             'current': deque(...),
-                             'observer_voltage': deque(...),
-                             'dc_link': deque(...),
-                         }
-        
-        Returns:
-            True if export successful, False otherwise
-        """
-        target_path = filepath or self.export_path
-        if not target_path:
-            logger.error("No export path specified")
-            return False
-        
-        try:
-            target_path = Path(target_path)
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(target_path, 'w', newline='') as f:
-                writer = csv.writer(f)
-                
-                # Write header - include all signal indices
-                header = [
-                    'sample_index',
-                    'timestamp_ms',
-                    'sequence_number',
-                    'signal_count',
-                ]
-                # Add columns for all possible signals (0-255)
-                for i in range(256):
-                    header.append(f'signal_{i:03d}')
-                writer.writerow(header)
-                
-                # Write data
-                if self.enable_persistence and self.all_samples:
-                    # Export persistent data with full signal array
-                    for idx, sample in enumerate(self.all_samples):
-                        row = [
-                            idx,
-                            sample.timestamp_ms,
-                            sample.sequence_number,
-                            sample.signal_count,
-                        ]
-                        # Add signal values, pad with empty strings for missing signals
-                        for sig_idx in range(256):
-                            if sig_idx < len(sample.signals):
-                                row.append(sample.signals[sig_idx])
-                            else:
-                                row.append('')
-                        writer.writerow(row)
-                    row_count = len(self.all_samples)
-                elif data_buffers:
-                    # Export rolling window data (fallback for non-persistent mode)
-                    # Reconstruct by zipping all buffers together
-                    num_samples = len(data_buffers.get('voltage', deque()))
-                    for idx in range(num_samples):
-                        try:
-                            row = [
-                                idx,
-                                data_buffers['timestamp'][idx] if 'timestamp' in data_buffers else 0,
-                                data_buffers['sequence'][idx] if 'sequence' in data_buffers else idx,
-                                len(data_buffers),  # signal count estimate
-                            ]
-                            # Add available buffer data
-                            for sig_idx in range(256):
-                                # Map buffer keys to signal indices (basic mapping)
-                                if sig_idx == 0 and 'voltage' in data_buffers:
-                                    row.append(data_buffers['voltage'][idx])
-                                elif sig_idx == 4 and 'current' in data_buffers:
-                                    row.append(data_buffers['current'][idx])
-                                elif sig_idx == 8 and 'dc_link' in data_buffers:
-                                    row.append(data_buffers['dc_link'][idx])
-                                elif sig_idx == 13 and 'observer_voltage' in data_buffers:
-                                    row.append(data_buffers['observer_voltage'][idx])
-                                elif sig_idx == 17 and 'observer_frequency' in data_buffers:
-                                    row.append(data_buffers['observer_frequency'][idx])
-                                elif sig_idx == 20 and 'firing_angle' in data_buffers:
-                                    row.append(data_buffers['firing_angle'][idx])
-                                else:
-                                    row.append('')
-                            writer.writerow(row)
-                        except IndexError:
-                            # Buffers may have different lengths, skip misaligned samples
-                            break
-                    row_count = idx + 1
-                else:
-                    logger.warning("No data to export")
-                    return False
-            
-            logger.info(f"Exported {row_count} samples to {target_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to export CSV: {e}")
-            return False
-    
-    def export_json(self, filepath: Optional[Path] = None) -> bool:
-        """Export metadata and statistics to JSON.
+    def export_json(self, filepath: Optional[Path] = None, data_buffers: Optional[Dict] = None, signal_names: Optional[List[str]] = None) -> bool:
+        """Export metadata and telemetry data to JSON.
         
         Args:
             filepath: Path to export to
+            data_buffers: Optional dict of deque buffers to export from
+            signal_names: Optional list of descriptive names for signals (when using persistence)
             
         Returns:
             True if export successful, False otherwise
@@ -227,7 +123,10 @@ class DataPersistence:
             target_path = Path(target_path)
             target_path.parent.mkdir(parents=True, exist_ok=True)
             
-            metadata = {
+            # Base metadata format compatible with plot_sampler_data.py
+            output_data = {
+                'test_suite': 'SFC Monitor Session',
+                'test_name': f'Telemetry Export {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
                 'persistence_enabled': self.enable_persistence,
                 'start_time': self.start_time.isoformat() if self.start_time else None,
                 'end_time': self.end_time.isoformat() if self.end_time else None,
@@ -237,16 +136,62 @@ class DataPersistence:
                     (self.end_time - self.start_time).total_seconds() 
                     if self.start_time and self.end_time else None
                 ),
+                'test_data': []
             }
             
-            with open(target_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
+            if self.enable_persistence and self.all_samples:
+                # Add time data
+                time_data = [s.timestamp_ms for s in self.all_samples]
+                output_data['test_data'].append({'name': 'time', 'data': time_data})
+                
+                # Add sequences for reference
+                seq_data = [s.sequence_number for s in self.all_samples]
+                output_data['test_data'].append({'name': 'sequence', 'data': seq_data})
+
+                # Add signals
+                if self.all_samples:
+                    num_signals = self.all_samples[0].signal_count
+                    for i in range(num_signals):
+                        signal_data = [s.signals[i] if i < len(s.signals) else 0.0 for s in self.all_samples]
+                        
+                        # Use provided name or default to raw signal index
+                        if signal_names and i < len(signal_names):
+                            name = signal_names[i]
+                        else:
+                            name = f'Raw: signal_{i:03d}'
+                            
+                        output_data['test_data'].append({
+                            'name': name,
+                            'data': signal_data,
+                            'dimension': 1
+                        })
+            elif data_buffers:
+                # Export from rolling window buffers
+                # Use 'timestamp_ms' for 'time' if available
+                if 'timestamp_ms' in data_buffers:
+                    output_data['test_data'].append({'name': 'time', 'data': list(data_buffers['timestamp_ms'])})
+                else:
+                    # Fallback to index
+                    first_buf = next(iter(data_buffers.values())) if data_buffers else []
+                    output_data['test_data'].append({'name': 'time', 'data': list(range(len(first_buf)))})
+
+                for name, buffer in data_buffers.items():
+                    if name == 'timestamp_ms':
+                        continue
+                    output_data['test_data'].append({
+                        'name': name,
+                        'data': list(buffer),
+                        'dimension': 1
+                    })
             
-            logger.info(f"Exported metadata to {target_path}")
+            with open(target_path, 'w') as f:
+                json.dump(output_data, f, indent=2)
+            
+            logger.info(f"Exported {len(output_data['test_data'])} signals to {target_path}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to export JSON metadata: {e}")
+            logger.error(f"Failed to export JSON: {e}")
             return False
     
     def get_statistics(self) -> Dict:

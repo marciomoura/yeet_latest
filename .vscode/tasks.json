@@ -601,6 +601,43 @@
                 "focus": false,
                 "panel": "shared"
             }
+        },
+        {
+            "label": "Yeet plot: Select and Plot Telemetry (Interactive)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "$file = Get-ChildItem -Path $HOME -Filter *telemetry_export_*.json | Select-Object Name, LastWriteTime, FullName | Out-GridView -Title 'Select Telemetry File to Plot' -OutputMode Single; if ($file) { python.exe ${workspaceFolder}/software/yeet/tools/plot_telemetry.py $file.FullName --open }"
+            ],
+            "problemMatcher": [],
+            "group": "test",
+            "detail": "Select an export file from your Home folder using a graphical picker and plot it"
+        },
+        {
+            "label": "Yeet plot: Current Open File",
+            "type": "shell",
+            "command": "python.exe",
+            "args": [
+                "${workspaceFolder}/software/yeet/tools/plot_telemetry.py",
+                "${file}",
+                "--open"
+            ],
+            "problemMatcher": [],
+            "group": "test",
+            "detail": "Plots the telemetry JSON file currently active in your editor"
+        },
+        {
+            "label": "Yeet plot: Plot Latest Export",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "$file = Get-ChildItem -Path $HOME -Filter *telemetry_export_*.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($file) { python.exe ${workspaceFolder}/software/yeet/tools/plot_telemetry.py $file.FullName --open } else { Write-Host 'No export files found in Home directory.' -ForegroundColor Yellow }"
+            ],
+            "problemMatcher": [],
+            "group": "test",
+            "detail": "Automatically finds the newest export in your Home folder and plots it"
         }
     ]
 }

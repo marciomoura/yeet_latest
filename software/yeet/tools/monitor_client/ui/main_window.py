@@ -31,6 +31,7 @@ from monitor_client.core.data_persistence import DataPersistence, TelemetrySampl
 from monitor_client.ui.oscilloscope_widget import OscilloscopeWidget
 from monitor_client.ui.telemetry_panel import GridSideTelemetryPanel, MachineSideTelemetryPanel
 from monitor_client.config import get_machine_side_plots, get_grid_side_plots, get_default_visible_groups
+from monitor_client.config import get_grid_side_telemetry, get_machine_side_telemetry
 from monitor_client.utils.telemetry_buffer_mapper import TelemetryBufferMapper
 
 logger = logging.getLogger(__name__)
@@ -270,10 +271,10 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.persist_checkbox.stateChanged.connect(self._on_toggle_persistence)
         telem_layout.addWidget(self.persist_checkbox)
         
-        self.export_btn = QtWidgets.QPushButton("Export CSV")
-        self.export_btn.setToolTip("Save data to CSV file for offline analysis")
-        self.export_btn.clicked.connect(self._on_export_data)
-        telem_layout.addWidget(self.export_btn)
+        self.export_json_btn = QtWidgets.QPushButton("Export JSON")
+        self.export_json_btn.setToolTip("Save currently displayed data to JSON for offline evaluation")
+        self.export_json_btn.clicked.connect(self._on_export_json_data)
+        telem_layout.addWidget(self.export_json_btn)
         
         # Panel toggle buttons
         telem_layout.addWidget(QtWidgets.QLabel("  |  Panels:"))
@@ -673,61 +674,127 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         else:
             logger.info("Data persistence disabled - using rolling 10k-sample window")
     
-    def _on_export_data(self):
-        """Handle export data button - open file dialog and export."""
+    def _on_export_json_data(self):
+        """Handle export data button - open file dialog and export to JSON."""
         from pathlib import Path
-        from PyQt5.QtWidgets import QFileDialog
+        from PyQt5.QtWidgets import QFileDialog, QMessageBox, QInputDialog
         from datetime import datetime
         
-        # Create default filename with timestamp
+        # Ask for test name
+        test_name, ok = QInputDialog.getText(self, "Export Telemetry", "Enter Test Name (optional):")
+        if not ok:
+            return  # User cancelled
+
+        # Create default filename with target, test name, and timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = f"telemetry_export_{timestamp}"
+        name_parts = [self.target_side]
+        if test_name.strip():
+            # Sanitize test name for filename
+            safe_test_name = "".join(c for c in test_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+            name_parts.append(safe_test_name)
+        name_parts.append("telemetry_export")
+        name_parts.append(timestamp)
         
-        # Open file dialog for CSV export
+        default_name = "_".join(name_parts)
+        
+        # Open file dialog for JSON export
         file_dialog = QFileDialog(self)
-        file_dialog.setDefaultSuffix("csv")
+        file_dialog.setDefaultSuffix("json")
         file_dialog.setAcceptMode(QFileDialog.AcceptSave)
         filepath, _ = file_dialog.getSaveFileName(
             self,
-            "Export Telemetry Data",
-            str(Path.home() / f"{default_name}.csv"),
-            "CSV Files (*.csv);;All Files (*)"
+            "Export Telemetry Data (JSON)",
+            str(Path.home() / f"{default_name}.json"),
+            "JSON Files (*.json);;All Files (*)"
         )
         
         if filepath:
             try:
-                # Prepare data buffers dict
-                data_buffers = {
-                    'timestamp_ms': list(self.observer_buffer['timestamp_ms']) if 'timestamp_ms' in self.observer_buffer else [],
-                    'voltage_magnitude': list(self.voltage_buffer) if self.voltage_buffer else [],
-                    'current_magnitude': list(self.current_buffer) if self.current_buffer else [],
-                    'dc_link_current': list(self.dclink_buffer) if self.dclink_buffer else [],
-                    'observer_voltage': list(self.observer_buffer) if isinstance(self.observer_buffer, deque) else list(self.observer_buffer.values())[0] if self.observer_buffer else [],
-                    'observer_frequency': list(self.observer_buffer) if isinstance(self.observer_buffer, deque) else [],
-                    'firing_angle': list(self.firing_angle_buffer) if self.firing_angle_buffer else [],
-                }
+                # If persistence is enabled, use full signal array
+                if self.enable_persistence and self.data_persistence.all_samples:
+                    # Build index-to-name map from plot definitions for best grouping (Group - Plot)
+                    index_to_name = {}
+                    plot_defs = get_machine_side_plots() if self.target_side == 'machine' else get_grid_side_plots()
+                    
+                    for g_name, g_plots in plot_defs.items():
+                        for p_name, p_config in g_plots.items():
+                            group_label = g_name.capitalize()
+                            plot_title = p_config.get('title', p_name)
+                            category = f"{group_label} - {plot_title}"
+                            for sig in p_config.get('signals', []):
+                                idx = sig.get('index')
+                                if isinstance(idx, int):
+                                    index_to_name[idx] = f"{category}: {sig.get('name', 'unknown')}"
+
+                    # Fallback to telemetry definitions for signals NOT in any plot
+                    telem_defs = get_machine_side_telemetry() if self.target_side == 'machine' else get_grid_side_telemetry()
+                    for section_key, section in telem_defs.items():
+                        category_label = section.get('title', section_key).capitalize()
+                        for field in section.get('fields', []):
+                            idx = field.get('index')
+                            if isinstance(idx, int) and idx not in index_to_name:
+                                index_to_name[idx] = f"{category_label}: {field.get('name')}"
+                    
+                    signal_names = [f"Raw: signal_{i:03d}" for i in range(256)]
+                    for idx, full_name in index_to_name.items():
+                        if idx < 256:
+                            signal_names[idx] = full_name
+                    
+                    success = self.data_persistence.export_json(filepath, signal_names=signal_names)
+                else:
+                    # Flatten oscilloscope buffers into signal lists
+                    data_buffers = {}
+                    plot_defs = get_machine_side_plots() if self.target_side == 'machine' else get_grid_side_plots()
+                    
+                    for buffer_name, deque_buffer in self.oscilloscope.buffers.items():
+                        if not deque_buffer:
+                            continue
+                        
+                        # Find the plot title and group name for nice categories
+                        found_title = buffer_name.replace('_', ' ').capitalize()
+                        found_group = "General"
+                        signals_config = []
+                        
+                        for g_name, g_plots in plot_defs.items():
+                            for p_name, p_config in g_plots.items():
+                                if f"{g_name}_{p_name}" == buffer_name:
+                                    found_title = p_config.get('title', p_name)
+                                    found_group = g_name
+                                    signals_config = p_config.get('signals', [])
+                                    break
+                            if found_group != "General": break
+                        
+                        category_name = f"{found_group.capitalize()} - {found_title}"
+                        
+                        num_elements = len(deque_buffer[0])
+                        for i in range(num_elements):
+                            if i == 0:
+                                # Use first buffer's index as 'time' for plot compatibility
+                                if 'time' not in data_buffers:
+                                    name = 'time'
+                                else:
+                                    continue
+                            else:
+                                # Map back to signal name if possible
+                                sig_name = f"v{i}"
+                                if i-1 < len(signals_config):
+                                    sig_name = signals_config[i-1].get('name', sig_name)
+                                
+                                # Use Group - Plot: Signal format for subplots
+                                name = f"{category_name}: {sig_name}"
+                            
+                            data_buffers[name] = [float(sample[i]) for sample in deque_buffer]
+                    
+                    success = self.data_persistence.export_json(filepath, data_buffers)
                 
-                # Export using data persistence module
-                self.data_persistence.export_csv(filepath, data_buffers)
-                logger.info(f"Data exported to: {filepath}")
-                
-                # Also export metadata
-                metadata_path = str(Path(filepath).with_suffix('.json'))
-                self.data_persistence.export_json(metadata_path)
-                logger.info(f"Metadata exported to: {metadata_path}")
-                
-                # Show confirmation dialog
-                from PyQt5.QtWidgets import QMessageBox
-                QMessageBox.information(
-                    self,
-                    "Export Successful",
-                    f"Data exported to:\n{filepath}\n\nMetadata saved to:\n{metadata_path}"
-                )
+                if success:
+                    QMessageBox.information(self, "Export Successful", f"Data exported to:\n{filepath}")
+                else:
+                    QMessageBox.warning(self, "Export Failed", "Persistence layer returned failure.")
+                    
             except Exception as e:
-                logger.error(f"Failed to export data: {e}")
-                from PyQt5.QtWidgets import QMessageBox
+                logger.error(f"Failed to export JSON: {e}")
                 QMessageBox.critical(self, "Export Failed", f"Error: {e}")
-    
     
     def _on_window_size_changed(self, value: int):
         """Handle window size change at runtime."""
