@@ -603,19 +603,25 @@
             }
         },
         {
-            "label": "Yeet plot: Select and Plot Telemetry (Interactive)",
+            "label": "Yeet plot: Browse File and Plot Telemetry File",
             "type": "shell",
             "command": "powershell",
             "args": [
-                "-Command",
-                "$file = Get-ChildItem -Path $HOME -Filter *telemetry_export_*.json | Select-Object Name, LastWriteTime, FullName | Out-GridView -Title 'Select Telemetry File to Plot' -OutputMode Single; if ($file) { python.exe ${workspaceFolder}/software/yeet/tools/plot_telemetry.py $file.FullName --open }"
+                "-NoProfile",
+                "-STA",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/.vscode/select_telemetry_file.ps1",
+                "-WorkspaceFolder",
+                "${workspaceFolder}"
             ],
             "problemMatcher": [],
             "group": "test",
-            "detail": "Select an export file from your Home folder using a graphical picker and plot it"
+            "detail": "Browse to any directory and select a specific telemetry file to plot"
         },
         {
-            "label": "Yeet plot: Current Open File",
+            "label": "Yeet plot: Current Open Telemetry File (In VSCode) ",
             "type": "shell",
             "command": "python.exe",
             "args": [
@@ -626,18 +632,6 @@
             "problemMatcher": [],
             "group": "test",
             "detail": "Plots the telemetry JSON file currently active in your editor"
-        },
-        {
-            "label": "Yeet plot: Plot Latest Export",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-Command",
-                "$file = Get-ChildItem -Path $HOME -Filter *telemetry_export_*.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($file) { python.exe ${workspaceFolder}/software/yeet/tools/plot_telemetry.py $file.FullName --open } else { Write-Host 'No export files found in Home directory.' -ForegroundColor Yellow }"
-            ],
-            "problemMatcher": [],
-            "group": "test",
-            "detail": "Automatically finds the newest export in your Home folder and plots it"
         }
     ]
 }
