@@ -89,7 +89,7 @@ public:
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
         /// Maximum firing angle limit [rad]
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped(1.5708);
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped::from_degrees(90.0);
 
         /// Current reference magnitude limit [pu]
         parameter<current_pu_t> current_reference_magnitude_limit = current_pu_t(2.0);

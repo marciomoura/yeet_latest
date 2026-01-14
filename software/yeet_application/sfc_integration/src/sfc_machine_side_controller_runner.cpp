@@ -23,9 +23,13 @@ void sfc_machine_side_controller_runner::initialize()
 
 void sfc_machine_side_controller_runner::run()
 {
-    _lookup_table.update(_inputs.dc_link_current.read());
-
-    _outputs.firing_angle = _lookup_table.get_firing_angle_rad();
+    if (_parameters.force_firing_angle.read()) {
+        _outputs.firing_angle = _parameters.forced_firing_angle.read();
+    }
+    else {
+        _lookup_table.update(_inputs.dc_link_current.read());
+        _outputs.firing_angle = _lookup_table.get_firing_angle_rad();
+    }
 }
 
 void sfc_machine_side_controller_runner::stop()

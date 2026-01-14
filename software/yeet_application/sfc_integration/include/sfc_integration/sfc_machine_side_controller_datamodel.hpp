@@ -42,6 +42,12 @@ public:
 
         parameter<std::array<real_t, NUM_POINTS>> firing_angle_lookup_table =
             sfc_machine_side_firing_angle_lookup_table::kDefaultFiringAngleDeg;
+
+        /// Enable forcing the machine firing angle to a specific value
+        parameter<bool> force_firing_angle = false;
+
+        /// The forced machine firing angle
+        parameter<angle_wrapped> forced_firing_angle = angle_wrapped::from_degrees(150.0);
     };
 
 private:
@@ -100,6 +106,12 @@ public:
                     },
                     &contexts[i]));
         }
+
+        handler.register_parameter(component_name, "force_firing_angle",
+            yeet::utils::make_bool_accessor(_model_parameters->force_firing_angle));
+
+        handler.register_parameter(component_name, "forced_firing_angle_deg",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->forced_firing_angle));
     }
 
     inputs* get_inputs() { return _model_inputs; }
