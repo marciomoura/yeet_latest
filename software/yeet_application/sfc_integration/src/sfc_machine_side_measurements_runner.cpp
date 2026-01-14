@@ -15,6 +15,7 @@ void sfc_machine_side_measurements_ideal_runner::initialize()
 {
     set_commutation_parameters();
     set_filter_parameters();
+    set_hardware_filter_parameters();
     set_parameter_callback();
 }
 
@@ -23,13 +24,16 @@ void sfc_machine_side_measurements_ideal_runner::run()
     _measurements.update(
         _per_unit_system->get_machine_bases(), _inputs.machine_voltage_abc, _inputs.machine_current_abc);
 
+    abc<voltage_pu_t> const compensated_voltage_pu =
+        _voltage_compensator.update(_measurements.get_voltage_pu(), _inputs.machine_frequency);
+
     // Execute commutation monitor and mask
-    _commutation_monitor.update(_measurements.get_voltage_pu(), _inputs.machine_pulses);
+    _commutation_monitor.update(compensated_voltage_pu, _inputs.machine_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
     _outputs.commutation_notch_duration_last = _commutation_monitor.get_notch_duration_last();
     _outputs.commutation_notch_duration_filtered = _commutation_monitor.get_notch_duration_filtered();
-    abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(_measurements.get_voltage_pu(),
-        _inputs.machine_reference_angle, _inputs.machine_frequency, _outputs.is_commuting);
+    abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(
+        compensated_voltage_pu, _inputs.machine_reference_angle, _inputs.machine_frequency, _outputs.is_commuting);
 
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
 
@@ -38,14 +42,15 @@ void sfc_machine_side_measurements_ideal_runner::run()
     _outputs.machine_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_abc = masked_voltage_abc;
-    _outputs.machine_voltage_abc_unmasked = _measurements.get_voltage_pu();
+    _outputs.machine_voltage_abc_unmasked = compensated_voltage_pu;
     _outputs.machine_voltage_abc_filtered = _measurement_filters.get_filtered_voltages_pu();
     _outputs.machine_current_abc = _measurements.get_current_pu();
     _outputs.machine_voltage_magnitude = masked_voltage_abc.to_alphabeta().magnitude();
     _outputs.machine_voltage_magnitude_filtered = _measurement_filters.get_filtered_voltage_magnitude_pu();
 
     // Populate SI outputs for telemetry
-    _outputs.machine_voltage_line = _measurements.get_voltage_line();
+    _outputs.machine_voltage_line = line_voltage<voltage_t>(
+        _voltage_compensator.update(_measurements.get_voltage_line().to_phase_balanced(), _inputs.machine_frequency));
 }
 
 void sfc_machine_side_measurements_ideal_runner::stop() {}
@@ -79,6 +84,14 @@ void sfc_machine_side_measurements_ideal_runner::set_parameter_callback()
         _commutation_monitor.configure_notch_duration_filter_time_constant(
             _parameters.commutation_notch_duration_filter_time_constant.read());
     });
+    _parameters.voltage_hardware_filter_cutoff_frequency.register_callback([&]() { set_hardware_filter_parameters(); });
+}
+
+void sfc_machine_side_measurements_ideal_runner::set_hardware_filter_parameters()
+{
+    // Use 2.0 * base frequency as max for machine side LUT calculation to allow for overspeed
+    const frequency_t max_f = frequency_t{_per_unit_system->get_machine_bases().base_frequency.value() * 2.0f};
+    _voltage_compensator.configure_as_first_order_lpf(_parameters.voltage_hardware_filter_cutoff_frequency, max_f);
 }
 
 // ---------------- ADC-based runner implementation ----------------
@@ -87,6 +100,7 @@ void sfc_machine_side_measurements_runner::initialize()
     set_commutation_parameters();
     set_filter_parameters();
     set_measurement_conversion_parameters();
+    set_hardware_filter_parameters();
     _measurements.configure_pt_ratio(_parameters.pt_ratio.read());
     _measurements.configure_voltage_transducer_gain(_parameters.voltage_transducer_gain.read());
     set_parameter_callback();
@@ -96,13 +110,16 @@ void sfc_machine_side_measurements_runner::run()
 {
     _measurements.update(_per_unit_system->get_machine_bases(), _inputs.v_ab_counts, _inputs.v_bc_counts);
 
-    _commutation_monitor.update(_measurements.get_voltage_pu(), _inputs.machine_pulses);
+    abc<voltage_pu_t> const compensated_voltage_pu =
+        _voltage_compensator.update(_measurements.get_voltage_pu(), _inputs.machine_frequency);
+
+    _commutation_monitor.update(compensated_voltage_pu, _inputs.machine_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
     _outputs.commutation_notch_duration_last = _commutation_monitor.get_notch_duration_last();
     _outputs.commutation_notch_duration_filtered = _commutation_monitor.get_notch_duration_filtered();
 
-    abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(_measurements.get_voltage_pu(),
-        _inputs.machine_reference_angle, _inputs.machine_frequency, _outputs.is_commuting);
+    abc<voltage_pu_t> const masked_voltage_abc = _commutation_mask.update(
+        compensated_voltage_pu, _inputs.machine_reference_angle, _inputs.machine_frequency, _outputs.is_commuting);
 
     // No current measurements on machine side -> pass zero currents (already zero in measurements object)
     _measurement_filters.update(masked_voltage_abc, _measurements.get_current_pu());
@@ -112,13 +129,14 @@ void sfc_machine_side_measurements_runner::run()
     _outputs.machine_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.machine_voltage_abc = masked_voltage_abc;
-    _outputs.machine_voltage_abc_unmasked = _measurements.get_voltage_pu();
+    _outputs.machine_voltage_abc_unmasked = compensated_voltage_pu;
     _outputs.machine_voltage_abc_filtered = _measurement_filters.get_filtered_voltages_pu();
     _outputs.machine_voltage_magnitude = masked_voltage_abc.to_alphabeta().magnitude();
     _outputs.machine_voltage_magnitude_filtered = _measurement_filters.get_filtered_voltage_magnitude_pu();
 
     // Populate SI outputs for telemetry
-    _outputs.machine_voltage_line = _measurements.get_voltage_line();
+    _outputs.machine_voltage_line = line_voltage<voltage_t>(
+        _voltage_compensator.update(_measurements.get_voltage_line().to_phase_balanced(), _inputs.machine_frequency));
 }
 
 void sfc_machine_side_measurements_runner::stop() {}
@@ -157,6 +175,7 @@ void sfc_machine_side_measurements_runner::set_parameter_callback()
     _parameters.pt_ratio.register_callback([&]() { _measurements.configure_pt_ratio(_parameters.pt_ratio.read()); });
     _parameters.voltage_transducer_gain.register_callback(
         [&]() { _measurements.configure_voltage_transducer_gain(_parameters.voltage_transducer_gain.read()); });
+    _parameters.voltage_hardware_filter_cutoff_frequency.register_callback([&]() { set_hardware_filter_parameters(); });
 }
 
 void sfc_machine_side_measurements_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
@@ -170,6 +189,13 @@ void sfc_machine_side_measurements_runner::set_measurement_conversion_parameters
 {
     _measurements.configure_voltage_conversion(
         _parameters.voltage_adc_bits.read(), _parameters.voltage_adc_full_scale.read());
+}
+
+void sfc_machine_side_measurements_runner::set_hardware_filter_parameters()
+{
+    // Use 2.0 * base frequency as max for machine side LUT calculation to allow for overspeed
+    const frequency_t max_f = frequency_t{_per_unit_system->get_machine_bases().base_frequency.value() * 2.0f};
+    _voltage_compensator.configure_as_first_order_lpf(_parameters.voltage_hardware_filter_cutoff_frequency, max_f);
 }
 
 }  // namespace yeet::application::sfc::integration
