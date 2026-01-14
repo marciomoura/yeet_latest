@@ -92,6 +92,12 @@ public:
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
         parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
 
+        /// Enable phase-shift compensation for the hardware filter
+        parameter<bool> enable_voltage_compensation{false};
+
+        /// Enable commutation notch masking
+        parameter<bool> enable_commutation_masking{true};
+
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
 
@@ -136,8 +142,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
-        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
-            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "enable_voltage_compensation",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
+        handler.register_parameter(component_name, "enable_commutation_masking",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_commutation_masking));
         handler.register_parameter(component_name, "commutation_start_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
         handler.register_parameter(component_name, "commutation_end_threshold",
@@ -288,6 +296,12 @@ public:
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
         parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
 
+        /// Enable phase-shift compensation for the hardware filter
+        parameter<bool> enable_voltage_compensation{false};
+
+        /// Enable commutation notch masking
+        parameter<bool> enable_commutation_masking{true};
+
         /// Current transformer ratio [Primary/Secondary]
         parameter<real_t> ct_ratio{real_t{1.0}};
     };
@@ -318,6 +332,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "enable_voltage_compensation",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
+        handler.register_parameter(component_name, "enable_commutation_masking",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_commutation_masking));
 
         // voltage_pu_t parameters - convert to/from per-unit
         handler.register_parameter(component_name, "commutation_start_threshold",
