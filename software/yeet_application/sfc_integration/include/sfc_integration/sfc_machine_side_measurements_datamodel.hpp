@@ -100,6 +100,12 @@ public:
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
         parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
 
+        /// Enable phase-shift compensation for the hardware filter
+        parameter<bool> enable_voltage_compensation{false};
+
+        /// Enable commutation notch masking
+        parameter<bool> enable_commutation_masking{true};
+
         /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
 
@@ -149,6 +155,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "enable_voltage_compensation",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
+        handler.register_parameter(component_name, "enable_commutation_masking",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_commutation_masking));
 
         // voltage_pu_t parameters - convert to/from per-unit
         handler.register_parameter(component_name, "commutation_start_threshold",
@@ -222,12 +232,25 @@ public:
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
         parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
 
+        /// Enable phase-shift compensation for the hardware filter
+        parameter<bool> enable_voltage_compensation{false};
+
+        /// Enable commutation notch masking
+        parameter<bool> enable_commutation_masking{true};
+
+        /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
+        /// Commutation detection threshold (end) [pu]
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
+        /// Time constant for smoothing commutation notch duration [s]
         parameter<duration_t> commutation_notch_duration_filter_time_constant{duration_t{10e-3F}};
+        /// ADC resolution [bits]
         parameter<int> voltage_adc_bits{16};
+        /// ADC full-scale voltage [V]
         parameter<real_t> voltage_adc_full_scale{real_t{10.0}};
+        /// Voltage transducer gain [V_out/V_primary]
         parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};
+        /// Potential transformer ratio [Primary/Secondary]
         parameter<real_t> pt_ratio{real_t{1.0}};
     };
 
@@ -257,6 +280,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "enable_voltage_compensation",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
+        handler.register_parameter(component_name, "enable_commutation_masking",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_commutation_masking));
 
         // voltage_pu_t parameters - convert to/from per-unit
         handler.register_parameter(component_name, "commutation_start_threshold",

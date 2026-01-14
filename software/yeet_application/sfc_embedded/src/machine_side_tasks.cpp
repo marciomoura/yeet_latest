@@ -117,7 +117,13 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // #if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
     //  Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware
     //  staging)
-    control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 300.0f});
+    control->machine_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
+    control->machine_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
+        yeet::frequency_t{106.3f});
+    control->machine_measurements.get_parameters().enable_voltage_compensation.write(false);
+    control->machine_measurements.get_parameters().enable_commutation_masking.write(true);
+    control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{3.7f / 100.0f});
+
     control->machine_side_pulse_generator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
     control->machine_side_pulse_generator.get_parameters().pulse_width.write(

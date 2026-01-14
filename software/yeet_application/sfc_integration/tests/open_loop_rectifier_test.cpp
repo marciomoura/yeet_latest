@@ -37,7 +37,7 @@ public:
         system.initialize();
 
         // ==================== Logger Registration ====================
-        register_minimal_logger(simulator, system.plant);
+        register_complete_logger(simulator, system.plant);
         register_minimal_logger(simulator, system.grid_side_pulse_generator);
         register_complete_logger(simulator, system.grid_side_hardware_mock);
         register_minimal_logger(simulator, system.grid_side_measurements);
@@ -154,4 +154,73 @@ TEST_F(SfcOpenLoopRectifier, FiringAngleSweep)
             << "Current should decrease from " << angle_current_pairs[i - 1].first << " deg to "
             << angle_current_pairs[i].first << " deg";
     }
+}
+
+TEST_F(SfcOpenLoopRectifier, GridSideMaskingAndCompensationSequence)
+{
+    // Register complete loggers for both sides as requested
+    register_complete_logger(simulator, system.grid_side_measurements);
+    register_complete_logger(simulator, system.machine_side_measurements);
+    register_complete_logger(simulator, system.grid_side_hardware_mock);
+    register_complete_logger(simulator, system.machine_side_hardware_mock);
+
+    // Set firing angle to establish DC link current (~1.0 pu)
+    system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(82.0);
+
+    // Configure hardware filter and compensation to 110 Hz
+    system.grid_side_hardware_mock.get_parameters().voltage_adc_cutoff_freq.write(frequency_t{110.0});
+    system.grid_side_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(frequency_t{110.0});
+
+    // Stage 1: Masking enabled, Compensation disabled
+    system.grid_side_measurements.get_parameters().enable_commutation_masking.write(true);
+    system.grid_side_measurements.get_parameters().enable_voltage_compensation.write(false);
+    simulate_for(1.0);
+
+    // Stage 2: Masking disabled, Compensation enabled
+    system.grid_side_measurements.get_parameters().enable_commutation_masking.write(false);
+    system.grid_side_measurements.get_parameters().enable_voltage_compensation.write(true);
+    simulate_for(1.0);
+
+    // Stage 3: Both Masking and Compensation enabled
+    system.grid_side_measurements.get_parameters().enable_commutation_masking.write(true);
+    system.grid_side_measurements.get_parameters().enable_voltage_compensation.write(true);
+    simulate_for(1.0);
+}
+
+TEST_F(SfcOpenLoopRectifier, MachineSideMaskingAndCompensationSequence)
+{
+    // Use internal topology to have machine side converter active for better validation
+    system.plant.get_parameters().topology.write(sfc_plant_model_datamodel::topology_type::internal);
+    system.initialize();
+
+    // Register complete loggers for both sides as requested
+    register_complete_logger(simulator, system.grid_side_measurements);
+    register_complete_logger(simulator, system.machine_side_measurements);
+    register_complete_logger(simulator, system.grid_side_hardware_mock);
+    register_complete_logger(simulator, system.machine_side_hardware_mock);
+
+    // Set firing angles to establish DC link current (Rectifier: 20 deg, Inverter: 150 deg)
+    system.grid_side_firing_angle = yeet::angle_wrapped::from_degrees(20.0);
+    // Note: 'firing_angle' in plant_open_loop_simulation_builder refers to the machine side
+    system.firing_angle = yeet::angle_wrapped::from_degrees(150.0);
+
+    // Configure hardware filter and compensation to 110 Hz
+    system.machine_side_hardware_mock.get_parameters().voltage_adc_cutoff_freq.write(frequency_t{110.0});
+    system.machine_side_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
+        frequency_t{110.0});
+
+    // Stage 1: Masking enabled, Compensation disabled
+    system.machine_side_measurements.get_parameters().enable_commutation_masking.write(true);
+    system.machine_side_measurements.get_parameters().enable_voltage_compensation.write(false);
+    simulate_for(1.0);
+
+    // Stage 2: Masking disabled, Compensation enabled
+    system.machine_side_measurements.get_parameters().enable_commutation_masking.write(false);
+    system.machine_side_measurements.get_parameters().enable_voltage_compensation.write(true);
+    simulate_for(1.0);
+
+    // Stage 3: Both Masking and Compensation enabled
+    system.machine_side_measurements.get_parameters().enable_commutation_masking.write(true);
+    system.machine_side_measurements.get_parameters().enable_voltage_compensation.write(true);
+    simulate_for(1.0);
 }
