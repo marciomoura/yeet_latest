@@ -88,6 +88,10 @@ public:
         parameter<frequency_t> voltage_lpf_cutoff_frequency{frequency_t{100.0}};
         parameter<frequency_t> current_lpf_cutoff_frequency{frequency_t{100.0}};
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
+
+        /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
+        parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
+
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
 
@@ -130,6 +134,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
         handler.register_parameter(component_name, "commutation_start_threshold",
             yeet::utils::make_units_accessor(_model_parameters->commutation_start_threshold));
         handler.register_parameter(component_name, "commutation_end_threshold",
@@ -277,6 +285,9 @@ public:
         /// Potential transformer ratio [Primary/Secondary]
         parameter<real_t> pt_ratio{real_t{1.0}};
 
+        /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
+        parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
+
         /// Current transformer ratio [Primary/Secondary]
         parameter<real_t> ct_ratio{real_t{1.0}};
     };
@@ -305,6 +316,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
 
         // voltage_pu_t parameters - convert to/from per-unit
         handler.register_parameter(component_name, "commutation_start_threshold",

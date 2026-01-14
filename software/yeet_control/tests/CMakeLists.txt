@@ -18,6 +18,7 @@ target_sources(
             elapsed_timer_test.cpp
             field_current_regulator_test.cpp
             first_order_low_pass_filter_test.cpp
+            hardware_filter_compensator_test.cpp
             hysteresis_limiter_test.cpp
             integrator_test.cpp
             interval_timer_test.cpp

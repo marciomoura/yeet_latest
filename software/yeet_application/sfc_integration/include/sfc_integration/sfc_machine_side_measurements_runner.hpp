@@ -9,6 +9,7 @@
 #include "sfc/sfc_per_unit_system.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_datamodel.hpp"
 #include "yeet/application_interface.hpp"
+#include "yeet_control/hardware_filter_compensator.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -35,11 +36,14 @@ private:
     void set_filter_parameters();
     void set_parameter_callback();
     void set_commutation_parameters();
+    void set_hardware_filter_parameters();
     // (Ideal runner does not use ADC conversion)
 
     sfc_machine_side_measurements_ideal _measurements{};
 
     sfc_machine_side_filtering _measurement_filters{duration_t{sampling_time}};
+
+    yeet::control::hardware_filter_compensator _voltage_compensator;
 
     sfc_commutation_monitor _commutation_monitor{sfc_commutation_monitor::Config{
         .commutation_start_threshold = voltage_pu_t{0.1f},  // These values have to be tested...
@@ -85,10 +89,13 @@ private:
     void set_parameter_callback();
     void set_commutation_parameters();
     void set_measurement_conversion_parameters();
+    void set_hardware_filter_parameters();
 
-    sfc_machine_side_measurements _measurements{};  // ADC-based
+    sfc_machine_side_measurements _measurements;  // ADC-based machine-side measurement processing
 
     sfc_machine_side_filtering _measurement_filters{duration_t{sampling_time}};
+
+    yeet::control::hardware_filter_compensator _voltage_compensator;
 
     sfc_commutation_monitor _commutation_monitor{sfc_commutation_monitor::Config{
         .commutation_start_threshold = voltage_pu_t{0.1f},

@@ -16,6 +16,7 @@ target_sources(
            include/yeet_control/elapsed_timer.hpp
            include/yeet_control/field_current_regulator.hpp
            include/yeet_control/first_order_low_pass_filter.hpp
+           include/yeet_control/hardware_filter_compensator.hpp
            include/yeet_control/integrator.hpp
            include/yeet_control/interval_timer.hpp
            include/yeet_control/limit.hpp
@@ -59,6 +60,7 @@ target_sources(
             src/edge_detector.cpp
             src/elapsed_timer.cpp
             src/field_current_regulator.cpp
+            src/hardware_filter_compensator.cpp
             src/mechanical_load.cpp
             src/interval_timer.cpp
             src/off_delay.cpp
