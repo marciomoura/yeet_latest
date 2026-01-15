@@ -106,6 +106,9 @@ public:
         /// Enable commutation notch masking
         parameter<bool> enable_commutation_masking{true};
 
+        /// Rotation angle for voltage measurements [deg]
+        parameter<angle_wrapped> voltage_measurement_rotation{angle_wrapped{0.0f}};
+
         /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
 
@@ -159,6 +162,8 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
         handler.register_parameter(component_name, "enable_commutation_masking",
             yeet::utils::make_bool_accessor(_model_parameters->enable_commutation_masking));
+        handler.register_parameter(component_name, "voltage_measurement_rotation",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->voltage_measurement_rotation));
 
         // voltage_pu_t parameters - convert to/from per-unit
         handler.register_parameter(component_name, "commutation_start_threshold",
@@ -238,6 +243,9 @@ public:
         /// Enable commutation notch masking
         parameter<bool> enable_commutation_masking{true};
 
+        /// Rotation angle for voltage measurements [deg]
+        parameter<angle_wrapped> voltage_measurement_rotation{angle_wrapped{0.0f}};
+
         /// Commutation detection threshold (start) [pu]
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
         /// Commutation detection threshold (end) [pu]
@@ -284,6 +292,8 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
         handler.register_parameter(component_name, "enable_commutation_masking",
             yeet::utils::make_bool_accessor(_model_parameters->enable_commutation_masking));
+        handler.register_parameter(component_name, "voltage_measurement_rotation",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->voltage_measurement_rotation));
 
         // voltage_pu_t parameters - convert to/from per-unit
         handler.register_parameter(component_name, "commutation_start_threshold",

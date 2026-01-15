@@ -24,7 +24,8 @@ void sfc_machine_side_measurements_ideal_runner::run()
     _measurements.update(
         _per_unit_system->get_machine_bases(), _inputs.machine_voltage_abc, _inputs.machine_current_abc);
 
-    abc<voltage_pu_t> const measurement_voltage = _measurements.get_voltage_pu();
+    abc<voltage_pu_t> const measurement_voltage =
+        _measurements.get_voltage_pu().rotate(_parameters.voltage_measurement_rotation.read());
 
     // Execute commutation monitor and mask
     _commutation_monitor.update(measurement_voltage, _inputs.machine_pulses);
@@ -100,6 +101,7 @@ void sfc_machine_side_measurements_ideal_runner::set_parameter_callback()
     _parameters.voltage_hardware_filter_cutoff_frequency.register_callback([&]() { set_hardware_filter_parameters(); });
     _parameters.enable_voltage_compensation.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.enable_commutation_masking.register_callback([&]() { /* Nothing needed, read in run() */ });
+    _parameters.voltage_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
 }
 
 void sfc_machine_side_measurements_ideal_runner::set_hardware_filter_parameters()
@@ -125,7 +127,8 @@ void sfc_machine_side_measurements_runner::run()
 {
     _measurements.update(_per_unit_system->get_machine_bases(), _inputs.v_ab_counts, _inputs.v_bc_counts);
 
-    abc<voltage_pu_t> const measurement_voltage = _measurements.get_voltage_pu();
+    abc<voltage_pu_t> const measurement_voltage =
+        _measurements.get_voltage_pu().rotate(_parameters.voltage_measurement_rotation.read());
 
     _commutation_monitor.update(measurement_voltage, _inputs.machine_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
@@ -204,6 +207,7 @@ void sfc_machine_side_measurements_runner::set_parameter_callback()
     _parameters.voltage_hardware_filter_cutoff_frequency.register_callback([&]() { set_hardware_filter_parameters(); });
     _parameters.enable_voltage_compensation.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.enable_commutation_masking.register_callback([&]() { /* Nothing needed, read in run() */ });
+    _parameters.voltage_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
 }
 
 void sfc_machine_side_measurements_runner::register_datamodel(yeet::telemetry::parameter_handler& handler)
