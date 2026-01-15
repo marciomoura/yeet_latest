@@ -307,6 +307,8 @@ public:
         return rotate_counter_clockwise(angle_wrapped(-theta.get_radians()));
     }
 
+    constexpr alphabeta<T> rotate(const angle_wrapped& theta) const { return rotate_counter_clockwise(theta); }
+
     // Addition operator
     constexpr alphabeta<T> operator+(const alphabeta<T>& other) const
     {
@@ -495,6 +497,8 @@ public:
     {
         return rotate_counter_clockwise(angle_wrapped(-theta.get_radians()));
     }
+
+    constexpr dq<T> rotate(const angle_wrapped& theta) const { return rotate_counter_clockwise(theta); }
 
     // Addition operator
     constexpr dq<T> operator+(const dq<T>& other) const

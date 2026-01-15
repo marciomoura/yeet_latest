@@ -157,6 +157,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
     control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
     control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1.0f});
+    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{30.0f});
     control->grid_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
         yeet::frequency_t{106.3f});
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
