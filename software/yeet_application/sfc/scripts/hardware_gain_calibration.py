@@ -69,10 +69,6 @@ def run_calibration(cal, name, meas_rms, counts_peak, ratio, is_primary, unit):
     print("-" * 35)
     print(f"Average Transducer Gain: {avg_gain:8.6f} V/{'V' if unit == 'V' else 'A'}")
     
-    # Suggest C++ code
-    method = "configure_voltage_transducer_gain" if unit == 'V' else "configure_current_transducer_gain"
-    print(f"Suggested C++: measurements.{method}({avg_gain:.6f}f);")
-    
     # Check resolution
     phys_lsb = (avg_gain * ratio) * (cal.counts_to_volts / np.sqrt(2))
     print(f"Resolution   : {phys_lsb:8.4f} {unit}/LSB")
@@ -86,7 +82,7 @@ def main():
     print("="*50)
     print(f"ADC Resolution : {ADC_BITS}-bit")
     print(f"ADC FS Range   : \u00B1{ADC_RANGE/2} V")
-    print(f"LSB (Vnoise_Const): {lsb*1000:8.4f} mV")
+    print(f"LSB            : {lsb*1000:8f} mV")
     
     if ENABLE_VOLTAGE:
         run_calibration(cal, "VOLTAGE", V_MEASURED_RMS, V_COUNTS_PEAK, PT_RATIO, V_IS_PRIMARY, "V")
@@ -98,7 +94,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-if __name__ == "__main__":
-    main()
-
