@@ -135,6 +135,10 @@ void sfc_grid_side_measurements_runner::run()
     _measurements.update(_per_unit_system->get_grid_bases(), _inputs.v_ab_counts, _inputs.v_bc_counts,
         _inputs.i_a_counts, _inputs.i_c_counts);
 
+    if (_parameters.clear_adc_peak_values) {
+        _measurements.clear_peaks();
+    }
+
     abc<voltage_pu_t> const measurement_voltage =
         _measurements.get_voltage_pu().rotate(_parameters.voltage_measurement_rotation.read());
 
@@ -176,6 +180,18 @@ void sfc_grid_side_measurements_runner::run()
                   _measurements.get_voltage_line().to_phase_balanced(), _inputs.grid_frequency))
             : _measurements.get_voltage_line();
     _outputs.grid_current = _measurements.get_current();
+
+    // Populate intermediate measurement signals for debugging
+    _outputs.voltage_ab_card = _measurements.get_voltage_ab_card();
+    _outputs.current_a_card_voltage = _measurements.get_current_a_card_voltage();
+    _outputs.voltage_ab_secondary = _measurements.get_voltage_ab_secondary();
+    _outputs.current_a_secondary = _measurements.get_current_a_secondary();
+
+    // Populate peak ADC counts
+    _outputs.v_ab_counts_peak = static_cast<real_t>(_measurements.get_v_ab_counts_peak());
+    _outputs.v_bc_counts_peak = static_cast<real_t>(_measurements.get_v_bc_counts_peak());
+    _outputs.i_a_counts_peak = static_cast<real_t>(_measurements.get_i_a_counts_peak());
+    _outputs.i_c_counts_peak = static_cast<real_t>(_measurements.get_i_c_counts_peak());
 }
 
 void sfc_grid_side_measurements_runner::stop() {}
@@ -199,6 +215,12 @@ void sfc_grid_side_measurements_runner::set_commutation_parameters()
 
 void sfc_grid_side_measurements_runner::set_parameter_callback()
 {
+    _parameters.clear_adc_peak_values.register_callback([&]() {
+        if (_parameters.clear_adc_peak_values) {
+            _measurements.clear_peaks();
+        }
+    });
+
     _parameters.voltage_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
     _parameters.current_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
     _parameters.voltage_magnitude_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });

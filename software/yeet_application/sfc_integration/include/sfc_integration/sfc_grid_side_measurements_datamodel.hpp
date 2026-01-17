@@ -79,6 +79,18 @@ public:
 
         /// Phase currents [A]
         signal_output<abc<current_t>> grid_current;
+
+        /// Grid voltage AB at ADC card input [V]
+        signal_output<voltage_t> voltage_ab_card;
+
+        /// Grid current A at ADC card input [V]
+        signal_output<voltage_t> current_a_card_voltage;
+
+        /// Grid voltage AB at PT secondary [V]
+        signal_output<voltage_t> voltage_ab_secondary;
+
+        /// Grid current A at CT secondary [A]
+        signal_output<current_t> current_a_secondary;
     };
 
     /**
@@ -253,6 +265,30 @@ public:
 
         /// Phase currents [A]
         signal_output<abc<current_t>> grid_current;
+
+        /// Grid voltage AB at ADC card input [V]
+        signal_output<voltage_t> voltage_ab_card;
+
+        /// Grid current A at ADC card input [V]
+        signal_output<voltage_t> current_a_card_voltage;
+
+        /// Grid voltage AB at PT secondary [V]
+        signal_output<voltage_t> voltage_ab_secondary;
+
+        /// Grid current A at CT secondary [A]
+        signal_output<current_t> current_a_secondary;
+
+        /// Peak ADC counts for Vab chan [counts]
+        signal_output<real_t> v_ab_counts_peak;
+
+        /// Peak ADC counts for Vbc chan [counts]
+        signal_output<real_t> v_bc_counts_peak;
+
+        /// Peak ADC counts for Ia chan [counts]
+        signal_output<real_t> i_a_counts_peak;
+
+        /// Peak ADC counts for Ic chan [counts]
+        signal_output<real_t> i_c_counts_peak;
     };
 
     /**
@@ -312,6 +348,8 @@ public:
 
         /// Current transformer ratio [Primary/Secondary]
         parameter<real_t> ct_ratio{real_t{1.0}};
+
+        parameter<bool> clear_adc_peak_values{false};
     };
 
 private:
@@ -372,6 +410,8 @@ public:
             component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
         handler.register_parameter(
             component_name, "ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
+        handler.register_parameter(component_name, "clear_adc_peak_values",
+            yeet::utils::make_bool_accessor(_model_parameters->clear_adc_peak_values));
     }
 
     inputs* get_inputs() { return _model_inputs; }

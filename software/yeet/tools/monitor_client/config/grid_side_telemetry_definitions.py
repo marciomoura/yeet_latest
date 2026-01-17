@@ -28,7 +28,8 @@ def _get_section_order() -> List[str]:
         'modulator',
         'measurements',
         'controller',
-        'pulse_generator'
+        'pulse_generator',
+        'hardware_debugging'
     ]
 
 
@@ -47,9 +48,13 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'dc link current (pu)', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
                 {'name': 'voltage magnitude est.', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
                 {'name': 'frequency est.', 'index': GridSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
-                {'name': 'reference angle (pu)', 'index': GridSignalIndex.ESTIMATED_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'}
+                {'name': 'reference angle (pu)', 'index': GridSignalIndex.ESTIMATED_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage ab counts peak', 'index': GridSignalIndex.VOLTAGE_AB_COUNTS_PEAK, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage bc counts peak', 'index': GridSignalIndex.VOLTAGE_BC_COUNTS_PEAK, 'type': 'float', 'format': '.4f'},
+                {'name': 'current a counts peak', 'index': GridSignalIndex.CURRENT_A_COUNTS_PEAK, 'type': 'float', 'format': '.4f'},
+                {'name': 'current c counts peak', 'index': GridSignalIndex.CURRENT_C_COUNTS_PEAK, 'type': 'float', 'format': '.4f'}
             ]
-        },
+        },        
         'controller': {
             'title': 'Current Controller',
             'fields': [

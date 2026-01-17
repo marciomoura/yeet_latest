@@ -62,6 +62,7 @@ from ..config.grid_side_telemetry_protocol import (
     PulseGeneratorData,
     GridProtectionsData,
     FiberOpticRxFromMachineData,
+    GridHardwareDebugData,
 )
 from ..config.machine_side_telemetry_protocol import (
     MachineSignalIndex,
@@ -344,6 +345,16 @@ class GridSideTelemetryPacket:
             force_commutation_request=bools2[4],  # Pack 2, Bit 4
             machine_protection_tripped=bools2[5],  # Pack 2, Bit 5
             protection_inhibit=bools2[6],  # Pack 2, Bit 6
+        )
+
+    @property
+    def hardware_debug(self) -> GridHardwareDebugData:
+        """Extract hardware debug signals from signal array."""
+        return GridHardwareDebugData(
+            voltage_ab_counts_peak=self.get_signal(GridSignalIndex.VOLTAGE_AB_COUNTS_PEAK),
+            voltage_bc_counts_peak=self.get_signal(GridSignalIndex.VOLTAGE_BC_COUNTS_PEAK),
+            current_a_counts_peak=self.get_signal(GridSignalIndex.CURRENT_A_COUNTS_PEAK),
+            current_c_counts_peak=self.get_signal(GridSignalIndex.CURRENT_C_COUNTS_PEAK),
         )
 
 

@@ -114,15 +114,38 @@ public:
         yeet::control::adc_counts i_c_counts);
 
     /**
-     * @brief Resets all internal states.
+     * @brief Resets all internal states, including peak counts.
      */
     void reset();
+
+    /**
+     * @brief Resets only the peak count detectors.
+     */
+    void clear_peaks() noexcept;
 
     const abc<voltage_pu_t>& get_voltage_pu() const { return _voltage_pu; }
     const abc<current_pu_t>& get_current_pu() const { return _current_pu; }
 
     const line_voltage<voltage_t>& get_voltage_line() const { return _voltage_line; }
     const abc<current_t>& get_current() const { return _current; }
+
+    // Intermediate measurement signals
+    voltage_t get_voltage_ab_card() const { return voltage_t(_voltage_converter.to_real(_v_ab_counts)); }
+    voltage_t get_current_a_card_voltage() const { return voltage_t(_current_converter.to_real(_i_a_counts)); }
+    voltage_t get_voltage_ab_secondary() const
+    {
+        return voltage_t(get_voltage_ab_card().value() / _voltage_transducer_gain.value());
+    }
+    current_t get_current_a_secondary() const
+    {
+        return current_t(get_current_a_card_voltage().value() / _current_transducer_gain.value());
+    }
+
+    // Peak counts detection results
+    int32_t get_v_ab_counts_peak() const noexcept { return _v_ab_counts_peak; }
+    int32_t get_v_bc_counts_peak() const noexcept { return _v_bc_counts_peak; }
+    int32_t get_i_a_counts_peak() const noexcept { return _i_a_counts_peak; }
+    int32_t get_i_c_counts_peak() const noexcept { return _i_c_counts_peak; }
 
     // Individual raw measurements after ADC conversion
     real_t get_raw_v_ab() const { return _voltage_converter.to_real(_v_ab_counts); }
@@ -148,6 +171,12 @@ private:
     yeet::control::adc_counts _v_bc_counts{};
     yeet::control::adc_counts _i_a_counts{};
     yeet::control::adc_counts _i_c_counts{};
+
+    // Peak counts detected since last reset (magnitude)
+    int32_t _v_ab_counts_peak{0};
+    int32_t _v_bc_counts_peak{0};
+    int32_t _i_a_counts_peak{0};
+    int32_t _i_c_counts_peak{0};
 
     yeet::control::adc_converter _voltage_converter{};
     yeet::control::adc_converter _current_converter{};

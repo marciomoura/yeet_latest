@@ -164,6 +164,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
 
     // Configure the PT
     // The ASI interface converts 2500 V LL to 100 V secondary voltage
+    control->grid_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
     control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
     // The ASI interface defines the loop-gain of 1.0/25.0
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 25.0f});
@@ -177,9 +178,9 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
 
     // Configuration of the CT
     // Adaptation of the adc full-scale, ct ratio and transducer gain
-    control->grid_measurements.get_parameters().current_adc_full_scale.write(yeet::real_t{1.0f});
+    control->grid_measurements.get_parameters().current_adc_full_scale.write(yeet::real_t{10.0f});
     control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1000.0f});
-    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 4.0f});  // 0.25
+    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{4.0f});  // 1 A -> 4 V
 
     control->grid_side_pulse_generator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);

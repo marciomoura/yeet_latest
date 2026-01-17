@@ -225,6 +225,13 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(81, static_cast<float>(fiber_rx.protection_inhibit.read()));
     packet.add_signal(82, static_cast<float>(fiber_rx.communication_ok.read()));
 
+    // === Intermediate Hardware Scale Signals (83-86) ===
+    const auto& grid_outputs = grid_meas.get_outputs();
+    packet.add_signal(83, static_cast<float>(grid_outputs.v_ab_counts_peak.read()));
+    packet.add_signal(84, static_cast<float>(grid_outputs.v_bc_counts_peak.read()));
+    packet.add_signal(85, static_cast<float>(grid_outputs.i_a_counts_peak.read()));
+    packet.add_signal(86, static_cast<float>(grid_outputs.i_c_counts_peak.read()));
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
 
