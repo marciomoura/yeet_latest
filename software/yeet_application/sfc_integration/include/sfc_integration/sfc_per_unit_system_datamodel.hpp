@@ -69,6 +69,7 @@ public:
      * @return Const reference to parameters
      */
     const parameters& get_parameters() const { return _parameters; }
+    parameters& get_parameters() { return _parameters; }
 
     /**
      * @brief Register datamodel with model registry

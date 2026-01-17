@@ -153,7 +153,17 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
     control->initialize();
 
+    // Configure the per-unit system:
+    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{642.0f});
+    control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
+    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
+    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{50.0f});
+    control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
+    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2000e3});
+    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1980.0f});
+
     // Configure the PT
+    // The ASI interface converts 2500 V LL to 100 V secondary voltage
     control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
     // The ASI interface defines the loop-gain of 1.0/25.0
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 25.0f});
@@ -163,7 +173,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::frequency_t{106.3f});
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->grid_measurements.get_parameters().enable_commutation_masking.write(true);
-    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{30.0f});
+    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{0.0f});  // 30.0f
 
     // Configuration of the CT
     // Adaptation of the adc full-scale, ct ratio and transducer gain
