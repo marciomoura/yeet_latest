@@ -153,17 +153,23 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
     control->initialize();
 
-    // #if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
-    // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
+    // Configure the PT
     control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
-    control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1.0f});
-    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{30.0f});
+    // The ASI interface defines the loop-gain of 1.0/25.0
+    control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{1.0f / 25.0f});
+
+    // Configuration of the voltage PT and hardware filter compensation
     control->grid_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
         yeet::frequency_t{106.3f});
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->grid_measurements.get_parameters().enable_commutation_masking.write(true);
-    control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{3.7f / 100.0f});
-    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 120.0f});
+    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{30.0f});
+
+    // Configuration of the CT
+    // Adaptation of the adc full-scale, ct ratio and transducer gain
+    control->grid_measurements.get_parameters().current_adc_full_scale.write(yeet::real_t{1.0f});
+    control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1000.0f});
+    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 4.0f});  // 0.25
 
     control->grid_side_pulse_generator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
@@ -252,10 +258,10 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   AI7 (X1-7): Grid current Ic
 
     // Write ADC values directly to external_ios interface analog inputs
-    control->get_external_ios().get_analog_inputs().v_ab_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
-    control->get_external_ios().get_analog_inputs().v_bc_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});
+    control->get_external_ios().get_analog_inputs().v_ab_counts.write(yeet::control::adc_counts{
+        static_cast<int16_t>(inputs->analog_inputs.channels[1] - inputs->analog_inputs.channels[2])});
+    control->get_external_ios().get_analog_inputs().v_bc_counts.write(yeet::control::adc_counts{
+        static_cast<int16_t>(inputs->analog_inputs.channels[2] - inputs->analog_inputs.channels[3])});
     control->get_external_ios().get_analog_inputs().i_a_counts.write(
         yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
     control->get_external_ios().get_analog_inputs().i_c_counts.write(
@@ -277,6 +283,10 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     // Channel B: Test signal 2
     // Channel C: Test signal 3
     // Channel D: Test signal 4
+    auto& analog_outputs = outputs->analog_outputs.channels;
+    analog_outputs[0] = control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu();
+    analog_outputs[1] = control->get_grid_measurements().get_outputs().grid_voltage_abc_unmasked.read().a();
+    analog_outputs[2] = control->get_grid_measurements().get_outputs().grid_voltage_alphabeta.read().alpha();
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
