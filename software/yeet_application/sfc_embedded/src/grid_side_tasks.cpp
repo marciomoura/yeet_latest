@@ -202,7 +202,8 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // // Force natural commutation
     // control->operation_mode_monitor.get_parameters().force_natural_commutation.write(true);
     // control->current_controller.get_parameters().current_reference_magnitude_limit.write(yeet::current_pu_t{0.1f});
-    // control->current_controller.get_parameters().forced_current_reference.write(yeet::current_pu_t{0.1f});
+    // control->current_controller.get_parameters().override_current_reference.write(true);
+    // control->current_controller.get_parameters().override_current_reference_value.write(yeet::current_pu_t{0.1f});
 
     //
     //
