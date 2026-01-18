@@ -104,6 +104,59 @@ public:
         /// Override value for fans_are_running (when override enabled)
         yeet::parameter<bool> di_fans_are_running_override_value{false};
 
+        // ==================== Digital Output Overrides ====================
+        // When override is true, the override_value is used instead of control logic
+
+        /// Enable override for mv_breaker_close output
+        yeet::parameter<bool> do_mv_breaker_close_override{false};
+        /// Override value for mv_breaker_close (when override enabled)
+        yeet::parameter<bool> do_mv_breaker_close_override_value{false};
+
+        /// Enable override for mv_breaker_open output
+        yeet::parameter<bool> do_mv_breaker_open_override{false};
+        /// Override value for mv_breaker_open (when override enabled)
+        yeet::parameter<bool> do_mv_breaker_open_override_value{false};
+
+        /// Enable override for auxiliaries_on_command output
+        yeet::parameter<bool> do_auxiliaries_on_command_override{false};
+        /// Override value for auxiliaries_on_command (when override enabled)
+        yeet::parameter<bool> do_auxiliaries_on_command_override_value{false};
+
+        /// Enable override for on_command_acu_fan_1 output
+        yeet::parameter<bool> do_on_command_acu_fan_1_override{false};
+        /// Override value for on_command_acu_fan_1 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_1_override_value{false};
+
+        /// Enable override for on_command_acu_fan_2 output
+        yeet::parameter<bool> do_on_command_acu_fan_2_override{false};
+        /// Override value for on_command_acu_fan_2 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_2_override_value{false};
+
+        /// Enable override for on_command_acu_fan_3 output
+        yeet::parameter<bool> do_on_command_acu_fan_3_override{false};
+        /// Override value for on_command_acu_fan_3 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_3_override_value{false};
+
+        /// Enable override for on_command_acu_fan_4 output
+        yeet::parameter<bool> do_on_command_acu_fan_4_override{false};
+        /// Override value for on_command_acu_fan_4 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_4_override_value{false};
+
+        /// Enable override for software_trip_1 output
+        yeet::parameter<bool> do_software_trip_1_override{false};
+        /// Override value for software_trip_1 (when override enabled)
+        yeet::parameter<bool> do_software_trip_1_override_value{false};
+
+        /// Enable override for software_trip_2 output
+        yeet::parameter<bool> do_software_trip_2_override{false};
+        /// Override value for software_trip_2 (when override enabled)
+        yeet::parameter<bool> do_software_trip_2_override_value{false};
+
+        /// Enable override for software_trip_3 output
+        yeet::parameter<bool> do_software_trip_3_override{false};
+        /// Override value for software_trip_3 (when override enabled)
+        yeet::parameter<bool> do_software_trip_3_override_value{false};
+
         // ==================== IO Index Mapping (IO Channel Selection) ====================
         // Select which physical IO channel (0..N-1) maps to each logical signal.
         // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
@@ -121,6 +174,7 @@ public:
         // Digital output indices
         yeet::parameter<int> do_mv_breaker_close_index{0};
         yeet::parameter<int> do_mv_breaker_open_index{1};
+        yeet::parameter<int> do_auxiliaries_on_command_index{15};  // Default to some unused index
         yeet::parameter<int> do_on_command_acu_fan_1_index{2};
         yeet::parameter<int> do_on_command_acu_fan_2_index{3};
         yeet::parameter<int> do_on_command_acu_fan_3_index{4};
@@ -142,6 +196,7 @@ public:
         yeet::parameter<io_polarity_t> di_fans_are_running_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_mv_breaker_close_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_mv_breaker_open_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_auxiliaries_on_command_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_on_command_acu_fan_1_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_on_command_acu_fan_2_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_on_command_acu_fan_3_polarity{io_polarity_t::ACTIVE_HIGH};

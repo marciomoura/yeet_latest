@@ -17,14 +17,14 @@ ADC_RANGE = 20.0  # Full scale range (e.g. 20 for +/- 10V)
 ENABLE_VOLTAGE = True
 PT_RATIO = 25.0
 V_MEASURED_RMS = [100.0, 100.0]  # Primary Side RMS (Multimeter)
-V_COUNTS_PEAK = [18500, 18500]       # Software Peak Counts
+V_COUNTS_PEAK = [18673, 18443]       # Software Peak Counts
 V_IS_PRIMARY = False
 
 # --- CURRENT CALIBRATION ---
 ENABLE_CURRENT = True
 CT_RATIO = 1000.0
 I_MEASURED_RMS = [1.0, 1.0]    # Primary Side RMS (Multimeter)
-I_COUNTS_PEAK = [15000, 15000]       # Software Peak Counts
+I_COUNTS_PEAK = [11750, 11775]       # Software Peak Counts
 I_IS_PRIMARY = False
 # ==============================================================================
 

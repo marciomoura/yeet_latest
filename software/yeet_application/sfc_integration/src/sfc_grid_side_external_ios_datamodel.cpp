@@ -302,6 +302,57 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
     handler.register_parameter(override_component, "di_fans_are_running_override_value",
         yeet::utils::make_bool_accessor(_parameters.di_fans_are_running_override_value));
 
+    // Digital output override parameters (override flag + override value pairs)
+    handler.register_parameter(override_component, "do_mv_breaker_close_override",
+        yeet::utils::make_bool_accessor(_parameters.do_mv_breaker_close_override));
+    handler.register_parameter(override_component, "do_mv_breaker_close_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_mv_breaker_close_override_value));
+
+    handler.register_parameter(override_component, "do_mv_breaker_open_override",
+        yeet::utils::make_bool_accessor(_parameters.do_mv_breaker_open_override));
+    handler.register_parameter(override_component, "do_mv_breaker_open_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_mv_breaker_open_override_value));
+
+    handler.register_parameter(override_component, "do_auxiliaries_on_command_override",
+        yeet::utils::make_bool_accessor(_parameters.do_auxiliaries_on_command_override));
+    handler.register_parameter(override_component, "do_auxiliaries_on_command_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_auxiliaries_on_command_override_value));
+
+    handler.register_parameter(override_component, "do_on_command_acu_fan_1_override",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_1_override));
+    handler.register_parameter(override_component, "do_on_command_acu_fan_1_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_1_override_value));
+
+    handler.register_parameter(override_component, "do_on_command_acu_fan_2_override",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_2_override));
+    handler.register_parameter(override_component, "do_on_command_acu_fan_2_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_2_override_value));
+
+    handler.register_parameter(override_component, "do_on_command_acu_fan_3_override",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_3_override));
+    handler.register_parameter(override_component, "do_on_command_acu_fan_3_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_3_override_value));
+
+    handler.register_parameter(override_component, "do_on_command_acu_fan_4_override",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_4_override));
+    handler.register_parameter(override_component, "do_on_command_acu_fan_4_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_on_command_acu_fan_4_override_value));
+
+    handler.register_parameter(override_component, "do_software_trip_1_override",
+        yeet::utils::make_bool_accessor(_parameters.do_software_trip_1_override));
+    handler.register_parameter(override_component, "do_software_trip_1_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_software_trip_1_override_value));
+
+    handler.register_parameter(override_component, "do_software_trip_2_override",
+        yeet::utils::make_bool_accessor(_parameters.do_software_trip_2_override));
+    handler.register_parameter(override_component, "do_software_trip_2_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_software_trip_2_override_value));
+
+    handler.register_parameter(override_component, "do_software_trip_3_override",
+        yeet::utils::make_bool_accessor(_parameters.do_software_trip_3_override));
+    handler.register_parameter(override_component, "do_software_trip_3_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_software_trip_3_override_value));
+
     // ==================== IO Index Mapping Parameters ====================
     // Keep IO index mapping parameters in a separate component so they don't mix
     // with override parameters in UIs.
@@ -331,6 +382,8 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
         yeet::utils::make_units_accessor(_parameters.do_mv_breaker_close_index));
     handler.register_parameter(config_component, "do_mv_breaker_open_index",
         yeet::utils::make_units_accessor(_parameters.do_mv_breaker_open_index));
+    handler.register_parameter(config_component, "do_auxiliaries_on_command_index",
+        yeet::utils::make_units_accessor(_parameters.do_auxiliaries_on_command_index));
     handler.register_parameter(config_component, "do_on_command_acu_fan_1_index",
         yeet::utils::make_units_accessor(_parameters.do_on_command_acu_fan_1_index));
     handler.register_parameter(config_component, "do_on_command_acu_fan_2_index",
@@ -351,6 +404,8 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
         yeet::utils::make_enum_accessor(_parameters.do_mv_breaker_close_polarity));
     handler.register_parameter(config_component, "do_mv_breaker_open_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_mv_breaker_open_polarity));
+    handler.register_parameter(config_component, "do_auxiliaries_on_command_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_auxiliaries_on_command_polarity));
     handler.register_parameter(config_component, "do_on_command_acu_fan_1_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_on_command_acu_fan_1_polarity));
     handler.register_parameter(config_component, "do_on_command_acu_fan_2_polarity",
@@ -369,64 +424,82 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
 
 bool sfc_grid_side_external_ios_datamodel::get_mv_breaker_close() const
 {
-    bool signal = _digital_outputs.mv_breaker_close.read();
+    bool signal = _parameters.do_mv_breaker_close_override.read()
+                      ? _parameters.do_mv_breaker_close_override_value.read()
+                      : _digital_outputs.mv_breaker_close.read();
     // Apply polarity inversion for output
     return (_parameters.do_mv_breaker_close_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_mv_breaker_open() const
 {
-    bool signal = _digital_outputs.mv_breaker_open.read();
+    bool signal = _parameters.do_mv_breaker_open_override.read() ? _parameters.do_mv_breaker_open_override_value.read()
+                                                                 : _digital_outputs.mv_breaker_open.read();
     // Apply polarity inversion for output
     return (_parameters.do_mv_breaker_open_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_auxiliaries_on_command() const
 {
-    return _digital_outputs.auxiliaries_on_command.read();
+    bool signal = _parameters.do_auxiliaries_on_command_override.read()
+                      ? _parameters.do_auxiliaries_on_command_override_value.read()
+                      : _digital_outputs.auxiliaries_on_command.read();
+    // Apply polarity inversion for output
+    return (_parameters.do_auxiliaries_on_command_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 // ACU fan ON command getters (all apply polarity inversion)
 bool sfc_grid_side_external_ios_datamodel::get_on_command_acu_fan_1() const
 {
-    bool signal = _digital_outputs.on_command_acu_fan_1.read();
+    bool signal = _parameters.do_on_command_acu_fan_1_override.read()
+                      ? _parameters.do_on_command_acu_fan_1_override_value.read()
+                      : _digital_outputs.on_command_acu_fan_1.read();
     return (_parameters.do_on_command_acu_fan_1_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_on_command_acu_fan_2() const
 {
-    bool signal = _digital_outputs.on_command_acu_fan_2.read();
+    bool signal = _parameters.do_on_command_acu_fan_2_override.read()
+                      ? _parameters.do_on_command_acu_fan_2_override_value.read()
+                      : _digital_outputs.on_command_acu_fan_2.read();
     return (_parameters.do_on_command_acu_fan_2_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_on_command_acu_fan_3() const
 {
-    bool signal = _digital_outputs.on_command_acu_fan_3.read();
+    bool signal = _parameters.do_on_command_acu_fan_3_override.read()
+                      ? _parameters.do_on_command_acu_fan_3_override_value.read()
+                      : _digital_outputs.on_command_acu_fan_3.read();
     return (_parameters.do_on_command_acu_fan_3_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_on_command_acu_fan_4() const
 {
-    bool signal = _digital_outputs.on_command_acu_fan_4.read();
+    bool signal = _parameters.do_on_command_acu_fan_4_override.read()
+                      ? _parameters.do_on_command_acu_fan_4_override_value.read()
+                      : _digital_outputs.on_command_acu_fan_4.read();
     return (_parameters.do_on_command_acu_fan_4_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 // Software trip signal getters (all apply polarity inversion)
 bool sfc_grid_side_external_ios_datamodel::get_software_trip_1() const
 {
-    bool signal = _digital_outputs.software_trip_1.read();
+    bool signal = _parameters.do_software_trip_1_override.read() ? _parameters.do_software_trip_1_override_value.read()
+                                                                 : _digital_outputs.software_trip_1.read();
     return (_parameters.do_software_trip_1_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_software_trip_2() const
 {
-    bool signal = _digital_outputs.software_trip_2.read();
+    bool signal = _parameters.do_software_trip_2_override.read() ? _parameters.do_software_trip_2_override_value.read()
+                                                                 : _digital_outputs.software_trip_2.read();
     return (_parameters.do_software_trip_2_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_software_trip_3() const
 {
-    bool signal = _digital_outputs.software_trip_3.read();
+    bool signal = _parameters.do_software_trip_3_override.read() ? _parameters.do_software_trip_3_override_value.read()
+                                                                 : _digital_outputs.software_trip_3.read();
     return (_parameters.do_software_trip_3_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
