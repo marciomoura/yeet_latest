@@ -100,8 +100,11 @@ public:
         /// Maximum PI controller output limit [pu voltage]
         parameter<real_t> pi_output_max = real_t(1.0);
 
-        /// Current reference for rectifier operation [pu]
-        parameter<current_pu_t> current_reference_rectifier_operation = current_pu_t(0.0);
+        /// Enable current reference override (force current reference to parameter) [bool]
+        parameter<bool> override_current_reference{false};
+
+        /// Forced DC link current reference when override is enabled [pu]
+        parameter<current_pu_t> override_current_reference_value{current_pu_t(0.0)};
     };
 
 private:
@@ -133,8 +136,10 @@ public:
             component_name, "pi_output_min", yeet::utils::make_units_accessor(_model_parameters->pi_output_min));
         handler.register_parameter(
             component_name, "pi_output_max", yeet::utils::make_units_accessor(_model_parameters->pi_output_max));
-        handler.register_parameter(component_name, "current_reference_rectifier_operation",
-            yeet::utils::make_units_accessor(_model_parameters->current_reference_rectifier_operation));
+        handler.register_parameter(component_name, "override_current_reference",
+            yeet::utils::make_bool_accessor(_model_parameters->override_current_reference));
+        handler.register_parameter(component_name, "override_current_reference_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_current_reference_value));
     }
 
     inputs* get_inputs() { return _model_inputs; }

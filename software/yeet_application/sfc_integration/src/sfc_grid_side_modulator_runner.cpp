@@ -36,11 +36,21 @@ void sfc_grid_side_modulator_runner::run()
         firing_angle_from_main_pi, request_extinguish_current);
 
     // Write outputs to the datamodel
-    _outputs.firing_angle = _sfc_grid_side_modulator.get_firing_angle_rad();
-    _outputs.force_commutation_acknowledged = _sfc_grid_side_modulator.get_force_commutation_acknowledged();
-    _outputs.freeze_integrator = _sfc_grid_side_modulator.get_is_requesting_main_pi_reset();
-    _outputs.modulator_state = _sfc_grid_side_modulator.get_current_state();
-    _outputs.release_pulses = _sfc_grid_side_modulator.get_pulse_release();
+    if (!request_extinguish_current && _parameters.force_open_loop_firing_angle.read()) {
+        // Force open-loop firing angle for testing/commissioning
+        _outputs.firing_angle = _parameters.open_loop_firing_angle_value.read();
+        _outputs.force_commutation_acknowledged = false;
+        _outputs.freeze_integrator = false;
+        _outputs.modulator_state = grid_side_modulator_state_t::running;
+        _outputs.release_pulses = true;
+    }
+    else {
+        _outputs.firing_angle = _sfc_grid_side_modulator.get_firing_angle_rad();
+        _outputs.force_commutation_acknowledged = _sfc_grid_side_modulator.get_force_commutation_acknowledged();
+        _outputs.freeze_integrator = _sfc_grid_side_modulator.get_is_requesting_main_pi_reset();
+        _outputs.modulator_state = _sfc_grid_side_modulator.get_current_state();
+        _outputs.release_pulses = _sfc_grid_side_modulator.get_pulse_release();
+    }
 }
 
 void sfc_grid_side_modulator_runner::stop() { _sfc_grid_side_modulator.reset(); }

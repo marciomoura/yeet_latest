@@ -81,6 +81,12 @@ public:
 
         /// Timeout duration for forced commutation [s]
         parameter<duration_t> commutation_timeout = duration_t(0.1);
+
+        /// Enable open-loop firing angle override [bool]
+        parameter<bool> force_open_loop_firing_angle = false;
+
+        /// Value for open-loop firing angle override [rad]
+        parameter<angle_wrapped> open_loop_firing_angle_value = angle_wrapped::from_degrees(90.0f);
     };
 
 private:
@@ -104,6 +110,10 @@ public:
             yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->force_commutation_angle));
         handler.register_parameter(component_name, "commutation_timeout",
             yeet::utils::make_units_accessor(_model_parameters->commutation_timeout));
+        handler.register_parameter(component_name, "force_open_loop_firing_angle",
+            yeet::utils::make_bool_accessor(_model_parameters->force_open_loop_firing_angle));
+        handler.register_parameter(component_name, "open_loop_firing_angle_value",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->open_loop_firing_angle_value));
     }
 
     inputs* get_inputs() { return _model_inputs; }
