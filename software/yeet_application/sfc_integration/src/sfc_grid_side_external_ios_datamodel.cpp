@@ -353,6 +353,11 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
     handler.register_parameter(override_component, "do_software_trip_3_override_value",
         yeet::utils::make_bool_accessor(_parameters.do_software_trip_3_override_value));
 
+    handler.register_parameter(override_component, "do_emergency_off_reset_override",
+        yeet::utils::make_bool_accessor(_parameters.do_emergency_off_reset_override));
+    handler.register_parameter(override_component, "do_emergency_off_reset_override_value",
+        yeet::utils::make_bool_accessor(_parameters.do_emergency_off_reset_override_value));
+
     // ==================== IO Index Mapping Parameters ====================
     // Keep IO index mapping parameters in a separate component so they don't mix
     // with override parameters in UIs.
@@ -398,6 +403,8 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
         yeet::utils::make_units_accessor(_parameters.do_software_trip_2_index));
     handler.register_parameter(config_component, "do_software_trip_3_index",
         yeet::utils::make_units_accessor(_parameters.do_software_trip_3_index));
+    handler.register_parameter(config_component, "do_emergency_off_reset_index",
+        yeet::utils::make_units_accessor(_parameters.do_emergency_off_reset_index));
 
     // Digital output polarity configuration
     handler.register_parameter(config_component, "do_mv_breaker_close_polarity",
@@ -420,6 +427,8 @@ void sfc_grid_side_external_ios_datamodel::register_datamodel(yeet::telemetry::p
         yeet::utils::make_enum_accessor(_parameters.do_software_trip_2_polarity));
     handler.register_parameter(config_component, "do_software_trip_3_polarity",
         yeet::utils::make_enum_accessor(_parameters.do_software_trip_3_polarity));
+    handler.register_parameter(config_component, "do_emergency_off_reset_polarity",
+        yeet::utils::make_enum_accessor(_parameters.do_emergency_off_reset_polarity));
 }
 
 bool sfc_grid_side_external_ios_datamodel::get_mv_breaker_close() const
@@ -501,6 +510,14 @@ bool sfc_grid_side_external_ios_datamodel::get_software_trip_3() const
     bool signal = _parameters.do_software_trip_3_override.read() ? _parameters.do_software_trip_3_override_value.read()
                                                                  : _digital_outputs.software_trip_3.read();
     return (_parameters.do_software_trip_3_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
+}
+
+bool sfc_grid_side_external_ios_datamodel::get_emergency_off_reset() const
+{
+    bool signal = _parameters.do_emergency_off_reset_override.read()
+                      ? _parameters.do_emergency_off_reset_override_value.read()
+                      : _digital_outputs.emergency_off_reset.read();
+    return (_parameters.do_emergency_off_reset_polarity.read() == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -118,6 +118,9 @@ public:
 
         /// Machine protection alarm status (severity-dependent)
         signal_output<bool> machine_protection_alarmed;
+
+        /// Emergency off reset pulse (1s pulse after trip confirmation)
+        signal_output<bool> emergency_off_reset;
     };
 
     /**
@@ -196,6 +199,9 @@ public:
         /// Communication reset threshold [s]
         /// Default: 5ms
         parameter<duration_t> comm_reset{duration_t{ms(5.0f)}};
+
+        /// Pulse duration for emergency-off reset circuit [s]
+        parameter<duration_t> emergency_off_reset_duration{duration_t{1.0}};
 
         // ========== Protection Module Control ==========
         /// Master enable/disable for entire protection module
@@ -279,6 +285,8 @@ public:
             component_name, "comm_timeout", yeet::utils::make_units_accessor(_model_parameters->comm_timeout));
         handler.register_parameter(
             component_name, "comm_reset", yeet::utils::make_units_accessor(_model_parameters->comm_reset));
+        handler.register_parameter(component_name, "emergency_off_reset_duration",
+            yeet::utils::make_units_accessor(_model_parameters->emergency_off_reset_duration));
 
         // Protection module control
         handler.register_parameter(component_name, "protection_module_enabled",

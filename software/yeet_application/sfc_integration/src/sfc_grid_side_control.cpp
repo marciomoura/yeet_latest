@@ -279,6 +279,10 @@ void sfc_grid_side_control::connect_internal_signals()
         grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_2);
     signals_connector::connect_output_to_input(
         grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_3);
+
+    // ==================== Emergency Off Reset Output ====================
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().emergency_off_reset, external_ios.get_digital_outputs().emergency_off_reset);
 }
 
 }  // namespace yeet::application::sfc::integration

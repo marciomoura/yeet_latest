@@ -60,8 +60,13 @@ constexpr io_polarity_t DI_DOOR_IS_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;  
 constexpr int DI_EXTERNAL_FAULT_INDEX = 16 + 15 - 1;                              // Device A12
 constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;  // to be checked
 
-constexpr int DI_FANS_ARE_RUNNING_INDEX = 16 + 16 - 1;  // Device A12
-constexpr io_polarity_t DI_FANS_ARE_RUNNING_POLARITY = io_polarity_t::ACTIVE_LOW;
+// To be tested...
+constexpr int DI_IS_RUNNING_ACU_FAN_1_INDEX = 16 + 16 - 1;  // Device A12
+constexpr io_polarity_t DI_IS_RUNNING_ACU_FAN_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_IS_RUNNING_ACU_FAN_2_INDEX = 16 + 16 - 1;  // Device A12
+constexpr io_polarity_t DI_IS_RUNNING_ACU_FAN_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_IS_RUNNING_ACU_FAN_3_INDEX = 16 + 16 - 1;  // Device A12
+constexpr io_polarity_t DI_IS_RUNNING_ACU_FAN_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 // Digital Outputs
 constexpr int DO_MV_BREAKER_CLOSE_INDEX = 32 + 5 - 1;
@@ -82,14 +87,18 @@ constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_3_POLARITY = io_polarity_t::ACTIVE
 constexpr int DO_ON_COMMAND_ACU_FAN_4_INDEX = 32 + 4 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_4_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_SOFTWARE_TRIP_1_INDEX = 26 - 1;
+constexpr int DO_SOFTWARE_TRIP_1_INDEX = 10 - 1;
 constexpr io_polarity_t DO_SOFTWARE_TRIP_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_SOFTWARE_TRIP_2_INDEX = 27 - 1;
+constexpr int DO_SOFTWARE_TRIP_2_INDEX = 11 - 1;
 constexpr io_polarity_t DO_SOFTWARE_TRIP_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_SOFTWARE_TRIP_3_INDEX = 31 - 1;
+constexpr int DO_SOFTWARE_TRIP_3_INDEX = 15 - 1;
 constexpr io_polarity_t DO_SOFTWARE_TRIP_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_EMERGENCY_OFF_RESET_INDEX = 16 - 1;
+constexpr io_polarity_t DO_EMERGENCY_OFF_RESET_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
 // DO32 - EMERGENCY OFF RESET is missing
 
 // 33 DO1	ON CMD ACU REACT FAN
@@ -249,7 +258,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_emergency_off_index.write(DI_EMERGENCY_OFF_INDEX);
     io_params.di_door_is_open_index.write(DI_DOOR_IS_OPEN_INDEX);
     io_params.di_external_fault_index.write(DI_EXTERNAL_FAULT_INDEX);
-    io_params.di_fans_are_running_index.write(DI_FANS_ARE_RUNNING_INDEX);
 
     // Digital Input Polarity
     io_params.di_auxiliaries_are_on_polarity.write(DI_AUXILIARIES_ARE_ON_POLARITY);
@@ -260,8 +268,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_emergency_off_polarity.write(DI_EMERGENCY_OFF_POLARITY);
     io_params.di_door_is_open_polarity.write(DI_DOOR_IS_OPEN_POLARITY);
     io_params.di_external_fault_polarity.write(DI_EXTERNAL_FAULT_POLARITY);
-    io_params.di_fans_are_running_polarity.write(DI_FANS_ARE_RUNNING_POLARITY);
-
     // Digital Output Indices
     io_params.do_mv_breaker_close_index.write(DO_MV_BREAKER_CLOSE_INDEX);
     io_params.do_mv_breaker_open_index.write(DO_MV_BREAKER_OPEN_INDEX);
@@ -272,6 +278,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.do_software_trip_1_index.write(DO_SOFTWARE_TRIP_1_INDEX);
     io_params.do_software_trip_2_index.write(DO_SOFTWARE_TRIP_2_INDEX);
     io_params.do_software_trip_3_index.write(DO_SOFTWARE_TRIP_3_INDEX);
+    io_params.do_emergency_off_reset_index.write(DO_EMERGENCY_OFF_RESET_INDEX);
 
     // Digital Output Polarity
     io_params.do_mv_breaker_close_polarity.write(DO_MV_BREAKER_CLOSE_POLARITY);
@@ -283,6 +290,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.do_software_trip_1_polarity.write(DO_SOFTWARE_TRIP_1_POLARITY);
     io_params.do_software_trip_2_polarity.write(DO_SOFTWARE_TRIP_2_POLARITY);
     io_params.do_software_trip_3_polarity.write(DO_SOFTWARE_TRIP_3_POLARITY);
+    io_params.do_emergency_off_reset_polarity.write(DO_EMERGENCY_OFF_RESET_POLARITY);
     control->grid_protections.get_parameters().protection_module_enabled.write(false);
 
     // Configure protections to be enabled by default for embedded target
@@ -417,6 +425,12 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     //   DI7-DI16: System status and interlocks
     const auto& io_params = control->get_external_ios().get_parameters();
     if (inputs != nullptr && inputs->digital_inputs.valid) {
+        // OR-ing of 3 ACU fan running signals
+        const bool di_fans_are_running =
+            read_di(inputs, DI_IS_RUNNING_ACU_FAN_1_INDEX, DI_IS_RUNNING_ACU_FAN_1_POLARITY) &&
+            read_di(inputs, DI_IS_RUNNING_ACU_FAN_2_INDEX, DI_IS_RUNNING_ACU_FAN_2_POLARITY) &&
+            read_di(inputs, DI_IS_RUNNING_ACU_FAN_3_INDEX, DI_IS_RUNNING_ACU_FAN_3_POLARITY);
+
         // Update supervisory digital inputs from hardware I/O with configurable channel mapping.
         control->external_ios.set_digital_inputs(read_di(inputs, io_params.di_auxiliaries_are_on_index.read()),
             read_di(inputs, io_params.di_mv_breaker_is_closed_index.read()),
@@ -425,8 +439,7 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
             read_di(inputs, io_params.di_mv_breaker_is_tripping_index.read()),
             read_di(inputs, io_params.di_emergency_off_index.read()),
             read_di(inputs, io_params.di_door_is_open_index.read()),
-            read_di(inputs, io_params.di_external_fault_index.read()),
-            read_di(inputs, io_params.di_fans_are_running_index.read()));
+            read_di(inputs, io_params.di_external_fault_index.read()), di_fans_are_running);
     }
 
     // Process fiber-optic RX data from machine-side controller
@@ -483,6 +496,9 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     write_do(outputs, io_params.do_software_trip_1_index.read(), control->external_ios.get_software_trip_1());
     write_do(outputs, io_params.do_software_trip_2_index.read(), control->external_ios.get_software_trip_2());
     write_do(outputs, io_params.do_software_trip_3_index.read(), control->external_ios.get_software_trip_3());
+
+    // Emergency off reset pulse
+    write_do(outputs, io_params.do_emergency_off_reset_index.read(), control->external_ios.get_emergency_off_reset());
 }
 
 ARM_FUNCTION

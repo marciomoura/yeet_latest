@@ -157,6 +157,11 @@ public:
         /// Override value for software_trip_3 (when override enabled)
         yeet::parameter<bool> do_software_trip_3_override_value{false};
 
+        /// Enable override for emergency_off_reset output
+        yeet::parameter<bool> do_emergency_off_reset_override{false};
+        /// Override value for emergency_off_reset (when override enabled)
+        yeet::parameter<bool> do_emergency_off_reset_override_value{false};
+
         // ==================== IO Index Mapping (IO Channel Selection) ====================
         // Select which physical IO channel (0..N-1) maps to each logical signal.
         // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
@@ -182,6 +187,7 @@ public:
         yeet::parameter<int> do_software_trip_1_index{6};
         yeet::parameter<int> do_software_trip_2_index{7};
         yeet::parameter<int> do_software_trip_3_index{8};
+        yeet::parameter<int> do_emergency_off_reset_index{9};
 
         // ==================== IO Polarity Configuration ====================
         // Configure signal polarity (active high or active low)
@@ -204,6 +210,7 @@ public:
         yeet::parameter<io_polarity_t> do_software_trip_1_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_software_trip_2_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_software_trip_3_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_emergency_off_reset_polarity{io_polarity_t::ACTIVE_HIGH};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
@@ -341,6 +348,7 @@ public:
         signal_input<bool> software_trip_1;         ///< Software trip signal 1 (common trip)
         signal_input<bool> software_trip_2;         ///< Software trip signal 2 (trip/emergency stop)
         signal_input<bool> software_trip_3;         ///< Software trip signal 3 (software trip)
+        signal_input<bool> emergency_off_reset;     ///< Pulse to reset external emergency off circuit
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -553,6 +561,14 @@ public:
     bool get_software_trip_1() const;
     bool get_software_trip_2() const;
     bool get_software_trip_3() const;
+
+    /**
+     * @brief Get emergency off reset pulse signal
+     * This method applies polarity inversion based on do_emergency_off_reset_polarity
+     *
+     * @return true if pulse is active (with polarity applied)
+     */
+    bool get_emergency_off_reset() const;
 
     /**
      * @brief Register datamodel with model registry for network/telemetry access

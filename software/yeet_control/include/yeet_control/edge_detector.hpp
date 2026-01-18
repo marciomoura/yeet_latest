@@ -25,13 +25,25 @@ public:
     bool is_rising_edge() const { return _rising_edge; }
 
     /**
+     * @brief Checks if a falling edge was detected in the last update.
+     * @return true if a falling edge was detected, false otherwise.
+     */
+    bool is_falling_edge() const { return _falling_edge; }
+
+    /**
      * @brief Conversion operator to bool.
      * @return true if a rising edge was detected, false otherwise.
      */
     operator bool() const { return _rising_edge; }
 
+    /**
+     * @brief Resets the edge detector state.
+     */
+    void reset();
+
 private:
     bool _rising_edge{false};     ///< Indicates if a rising edge was detected.
+    bool _falling_edge{false};    ///< Indicates if a falling edge was detected.
     bool _previous_input{false};  ///< Stores the previous input value to detect edges.
 };
 

@@ -47,6 +47,7 @@ void sfc_grid_side_protections_runner::reset()
     _outputs.external_fault_alarmed = _protections.get_external_fault_alarmed();
     _outputs.emergency_off_tripped = _protections.get_emergency_off_tripped();
     _outputs.emergency_off_alarmed = _protections.get_emergency_off_alarmed();
+    _outputs.emergency_off_reset = false;
     _outputs.machine_protection_tripped = _protections.get_machine_protection_tripped();
     _outputs.machine_protection_alarmed = _protections.get_machine_protection_alarmed();
 }
@@ -92,6 +93,7 @@ void sfc_grid_side_protections_runner::run()
     _outputs.external_fault_alarmed = _protections.get_external_fault_alarmed();
     _outputs.emergency_off_tripped = _protections.get_emergency_off_tripped();
     _outputs.emergency_off_alarmed = _protections.get_emergency_off_alarmed();
+    _outputs.emergency_off_reset = _protections.get_emergency_off_reset();
     _outputs.machine_protection_tripped = _protections.get_machine_protection_tripped();
     _outputs.machine_protection_alarmed = _protections.get_machine_protection_alarmed();
 }
@@ -140,6 +142,7 @@ void sfc_grid_side_protections_runner::set_parameters()
 
     _protections.configure_comm_timeout_duration(_parameters.comm_timeout);
     _protections.configure_comm_reset_duration(_parameters.comm_reset);
+    _protections.configure_emergency_off_reset_duration(_parameters.emergency_off_reset_duration);
 }
 
 void sfc_grid_side_protections_runner::set_parameter_callback()
@@ -204,6 +207,9 @@ void sfc_grid_side_protections_runner::set_parameter_callback()
         [&]() { _protections.configure_comm_timeout_duration(_parameters.comm_timeout); });
     _parameters.comm_reset.register_callback(
         [&]() { _protections.configure_comm_reset_duration(_parameters.comm_reset); });
+
+    _parameters.emergency_off_reset_duration.register_callback(
+        [&]() { _protections.configure_emergency_off_reset_duration(_parameters.emergency_off_reset_duration); });
 }
 
 }  // namespace yeet::application::sfc::integration
