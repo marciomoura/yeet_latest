@@ -1,4 +1,4 @@
-# Fiber-Optic Communication Protocol
+# Fiber-Optic Communication Protocol (v2.0)
 
 ## Overview
 
@@ -6,195 +6,122 @@ This document describes the optimized bit-packed communication protocol used for
 
 ## Design Goals
 
-- **Minimal Bandwidth**: Use bit-packing to reduce payload size and maximize transmission efficiency
-- **Deterministic**: Fixed payload structure for predictable real-time performance
-- **Extensible**: Reserved bits allow future expansion without protocol breaking changes
-- **Type-Safe**: Explicit encoding/decoding with clear bit assignments
+- **Minimal Bandwidth**: Use bit-packing to reduce payload size and maximize transmission efficiency.
+- **Deterministic**: Fixed payload structure for predictable real-time performance.
+- **Resilient**: Incorporates communication health handshake and hysteresis-based watchdog logic (at application level).
+- **Type-Safe**: Explicit encoding/decoding with clear bit assignments using `sfc::fiber_optic::` C++ namespace.
 
 ## Protocol Specifications
 
-### Grid → Machine Link
+### Grid → Machine Link (Control Command)
 
 **Transmission Rate**: 1 kHz (every 1 ms)  
-**Payload Size**: 1 uint32_t word (reduced from 4 words - **75% bandwidth savings!**)
+**Payload Size**: 3 uint32_t words
 
-#### Word 0: Packed Status and Control Flags
+| Word | Description                       | Type           | Units |
+| ---- | --------------------------------- | -------------- | ----- |
+| 0    | DC link current measurement       | IEEE 754 float | pu    |
+| 1    | Grid voltage magnitude            | IEEE 754 float | pu    |
+| 2    | Packed Control Flags and State ID | Bit-field      | -     |
 
-| Bits  | Description                    | Type                          | Values          |
-| ----- | ------------------------------ | ----------------------------- | --------------- |
-| 0-7   | Operating Mode                 | `sfc_operating_mode_t` (enum) | 0-255           |
-| 8     | Is Current Zero                | boolean                       | 0=false, 1=true |
-| 9     | Force Commutation Acknowledged | boolean                       | 0=false, 1=true |
-| 10    | Pulse Releases                 | boolean                       | 0=false, 1=true |
-| 11-31 | Reserved                       | -                             | (future use)    |
+#### Word 2: Packed Control Flags and State ID
 
-**Encoding Example (Grid-Side TX):**
-```cpp
-uint32_t packed_flags = 0;
-packed_flags |= (static_cast<uint32_t>(operating_mode) & 0xFF);  // Bits 0-7
-packed_flags |= (is_current_zero ? 1U : 0U) << 8;                // Bit 8
-packed_flags |= (force_comm_ack ? 1U : 0U) << 9;                 // Bit 9
-packed_flags |= (pulse_releases ? 1U : 0U) << 10;                // Bit 10
-```
-
-**Decoding Example (Machine-Side RX):**
-```cpp
-const uint32_t packed_flags = payload[0];
-auto operating_mode = static_cast<sfc_operating_mode_t>(packed_flags & 0xFF);  // Bits 0-7
-bool is_current_zero = ((packed_flags >> 8) & 0x01) != 0;                      // Bit 8
-bool force_comm_ack = ((packed_flags >> 9) & 0x01) != 0;                       // Bit 9
-bool pulse_releases = ((packed_flags >> 10) & 0x01) != 0;                      // Bit 10
-```
-
-#### Future Expansion (Words 1-3)
-
-Reserved for additional signals such as:
-- DC link current measurement (float)
-- Grid voltage magnitude (float)
-- Additional status flags
-- State machine ID
+| Bits  | Description                    | Values                       |
+| ----- | ------------------------------ | ---------------------------- |
+| 0     | Is forced commutation mode     | 0=false, 1=true              |
+| 1     | Force commutation acknowledged | 0=false, 1=true              |
+| 2     | Release pulses                 | 0=false, 1=true              |
+| 3     | Grid release protections       | 0=false, 1=true              |
+| 4     | Machine release protections    | 0=false, 1=true              |
+| 5     | Communication ok               | 0=false, 1=true (Handshake)  |
+| 6-24  | Reserved                       | -                            |
+| 25-31 | State Machine ID               | 0-127 (Current system state) |
 
 ---
 
-### Machine → Grid Link
+### Machine → Grid Link (Feedback Status)
 
 **Transmission Rate**: 1 kHz (every 1 ms)  
 **Payload Size**: 4 uint32_t words
 
-#### Word 0: Measured Speed [pu]
-- **Type**: IEEE 754 single-precision float (as uint32_t bits)
-- **Range**: -2.0 to +2.0 pu typical
-- **Encoding**: `std::memcpy(&payload[0], &speed_value, sizeof(float))`
+| Word | Description               | Type           | Units |
+| ---- | ------------------------- | -------------- | ----- |
+| 0    | Measured machine speed    | IEEE 754 float | pu    |
+| 1    | DC link current reference | IEEE 754 float | pu    |
+| 2    | Machine voltage magnitude | IEEE 754 float | pu    |
+| 3    | Packed Status Flags       | Bit-field      | -     |
 
-#### Word 1: DC Link Current Reference [pu]
-- **Type**: IEEE 754 single-precision float (as uint32_t bits)
-- **Range**: 0.0 to +2.0 pu typical
-- **Encoding**: `std::memcpy(&payload[1], &current_value, sizeof(float))`
+#### Word 3: Packed Status Flags
 
-#### Word 2: Machine Voltage Magnitude [pu]
-- **Type**: IEEE 754 single-precision float (as uint32_t bits)
-- **Range**: 0.0 to +1.5 pu typical
-- **Encoding**: `std::memcpy(&payload[2], &voltage_value, sizeof(float))`
-
-#### Word 3: Packed Control Flags
-
-| Bits | Description               | Type    | Values          |
-| ---- | ------------------------- | ------- | --------------- |
-| 0    | Force Commutation Request | boolean | 0=false, 1=true |
-| 1-31 | Reserved                  | -       | (future use)    |
-
-**Encoding Example (Machine-Side TX):**
-```cpp
-// Float values
-std::memcpy(&payload[0], &speed_value, sizeof(float));
-std::memcpy(&payload[1], &current_value, sizeof(float));
-std::memcpy(&payload[2], &voltage_value, sizeof(float));
-
-// Packed flags
-uint32_t packed_flags = 0;
-packed_flags |= (force_comm_req ? 1U : 0U);  // Bit 0
-payload[3] = packed_flags;
-```
-
-**Decoding Example (Grid-Side RX):**
-```cpp
-// Float values
-float speed_pu_value, current_ref_value, voltage_mag_value;
-std::memcpy(&speed_pu_value, &payload[0], sizeof(float));
-std::memcpy(&current_ref_value, &payload[1], sizeof(float));
-std::memcpy(&voltage_mag_value, &payload[2], sizeof(float));
-
-// Packed flags
-const uint32_t packed_flags = payload[3];
-bool force_comm_request = (packed_flags & 0x01) != 0;  // Bit 0
-```
+| Bits | Description                | Values                                 |
+| ---- | -------------------------- | -------------------------------------- |
+| 0    | Force commutation request  | 0=false, 1=true                        |
+| 1    | Reserved                   | -                                      |
+| 2    | Machine protection tripped | 0=false, 1=true                        |
+| 3    | Protection inhibit         | 0=false (ready), 1=true (awaiting ack) |
+| 4    | Machine trip acknowledged  | 0=false, 1=true                        |
+| 5    | Communication ok           | 0=false, 1=true (Handshake)            |
+| 6-31 | Reserved                   | -                                      |
 
 ---
 
-## Performance Benefits
+## Communication Health and Handshake
 
-### Bandwidth Optimization
+### The `communication_ok` Bit (Bit 5)
 
-| Direction      | Old Protocol       | New Protocol       | Savings |
-| -------------- | ------------------ | ------------------ | ------- |
-| Grid → Machine | 4 words (16 bytes) | 1 word (4 bytes)   | **75%** |
-| Machine → Grid | 4 words (16 bytes) | 4 words (16 bytes) | 0%      |
+Both sides include a `communication_ok` bit in their packed words. This bit is used to perform a mutual handshake:
+1. **Local Logic**: Each board monitors `fiber_optic_rx.data_ready`.
+2. **Watchdog**: If data is valid and frequent, the `sfc_communication_watchdog` (application level) transitions to "OK" state.
+3. **Feedback**: When a board's local watchdog is "OK", it sets its outgoing `communication_ok` bit to `1`.
+4. **Mutual Confirmation**: Real "System Comm OK" requires both local validation AND the remote side reporting `communication_ok = 1`.
 
-**Total bidirectional bandwidth reduced by 37.5%** (from 32 bytes to 20 bytes per cycle)
+### Hysteresis / Resilience
 
-### Future Expansion Capacity
+The application layer `sfc_communication_watchdog` allows for resilience against occasional packet drops (1-2 consecutive packets):
+- **Increment on Fail**: If a packet is missing in a 1ms cycle, a counter increments.
+- **Decrement on Success**: If a packet arrives, the counter decrements (down to zero).
+- **Hard Timeout**: If the counter exceeds a threshold (e.g., 5-10ms), the communication is declared "BAD".
+- **Self-Healing**: Once communication resumes and stays stable for a threshold of consecutive valid packets, the watchdog clears the fault.
 
-With the current protocol:
-- **Grid → Machine**: 3 additional uint32_t words available (12 bytes)
-- **Machine → Grid**: 31 additional boolean flags in word 3
+## Implementation Details
 
-This allows adding:
-- Additional analog measurements (DC current, voltages)
-- More status flags (faults, warnings, diagnostics)
-- State machine information
-- Timing/synchronization data
+### Type Punning (Floats)
 
----
-
-## Implementation Notes
-
-### Type Punning for Float Transmission
-
-IEEE 754 floats are transmitted by copying their bit representation into `uint32_t` words using `std::memcpy()`. This is the **only standards-compliant way** to perform type punning in C++:
+In `yeet_application`, `std::memcpy` is used to map 32-bit float patterns to `uint32_t` words. This ensures standards compliance for C++17.
 
 ```cpp
-// CORRECT: Standards-compliant type punning
-float value = 1.234f;
-uint32_t bits;
-std::memcpy(&bits, &value, sizeof(float));
-
-// WRONG: Undefined behavior (violates strict aliasing)
-uint32_t bits = *reinterpret_cast<uint32_t*>(&value);  // DON'T DO THIS
-```
-
-### Bit Field Access
-
-Bit fields are accessed using bitwise operations:
-- **Extract**: `(word >> bit_position) & mask`
-- **Set**: `word |= (value << bit_position)`
-- **Clear**: `word &= ~(mask << bit_position)`
-
-### Enum Encoding
-
-Enumerations are cast to `uint32_t` and masked to fit their bit field:
-```cpp
-// Encoding (8-bit enum field)
-uint32_t encoded = static_cast<uint32_t>(enum_value) & 0xFF;
+// Encoding
+float val = 1.0f;
+std::memcpy(&payload[word_idx], &val, sizeof(float));
 
 // Decoding
-auto decoded = static_cast<EnumType>(word & 0xFF);
+float out;
+std::memcpy(&out, &payload[word_idx], sizeof(float));
 ```
 
----
+### STM32 Integration Loop
 
-## Error Handling
+To ensure deterministic behavior and prevent stale data processing, the STM32 main task loop initializes `data_ready` to `false` at the start of every cycle:
 
-### Checksum (Future Enhancement)
+```c
+void task_1ms(void) {
+    // 1. Reset input state
+    task_inputs.fiber_optic_rx.data_ready = false;
 
-Currently, no checksum or CRC is implemented. The fiber-optic physical layer provides bit error detection. For additional safety, a CRC-8 or CRC-16 could be added to reserved bits.
+    // 2. Poll hardware for new packet
+    if (FiberProto_ReceivePacket(...) == FIBER_PROTO_OK) {
+        task_inputs.fiber_optic_rx.data_ready = true;
+    }
 
-### Payload Length Validation
-
-Both sides validate `payload_length` before decoding:
-```cpp
-if (inputs->fiber_optic_rx.payload_length >= expected_length) {
-    // Safe to decode
+    // 3. Execute Control Task
+    yeet_task_1000us(&task_inputs, &task_outputs);
 }
 ```
 
-### Link Status
-
-The `fiber_optic_rx.link_ok` flag indicates physical layer health. If false, received data should be ignored and safe defaults used.
-
----
-
 ## Revision History
 
-| Version | Date       | Changes                                    | Author         |
-| ------- | ---------- | ------------------------------------------ | -------------- |
-| 1.0     | 2025-10-20 | Initial bit-packed protocol implementation | Copilot + User |
+| Version | Date       | Changes                                                                |
+| ------- | ---------- | ---------------------------------------------------------------------- |
+| 1.0     | 2025-10-20 | Initial version (archived)                                             |
+| 2.0     | 2026-01-20 | Updated to 3/4 word payloads, added bit 5 handshake, clarified bit IDs |
+

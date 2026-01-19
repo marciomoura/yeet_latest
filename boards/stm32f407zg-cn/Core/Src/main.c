@@ -208,12 +208,19 @@ static inline void Clear_Network_IO(network_inputs_t* inputs, network_outputs_t*
 
 /**
  * @brief Shared real-time task I/O structures
- * Single instance passed to all tasks (200us, 1ms, 10ms)
- * Application layer manages state - board support layer only populates inputs
- * and reads outputs without clearing/overriding between tasks
+ * Single instances for each task frequency to prevent preemption clobbering.
+ * - 200us (Fast): Highest priority, owns ADC and Gate Pulses.
+ * - 1ms   (Med):  Medium priority, owns Fiber-Optic and Analog Outputs.
+ * - 10ms  (Slow): Lowest priority, owns Digital I/O and State Machine.
  */
-static task_inputs_t task_inputs = {0};
-static task_outputs_t task_outputs = {0};
+static task_inputs_t inputs_200us = {0};
+static task_outputs_t outputs_200us = {0};
+
+static task_inputs_t inputs_1ms = {0};
+static task_outputs_t outputs_1ms = {0};
+
+static task_inputs_t inputs_10ms = {0};
+static task_outputs_t outputs_10ms = {0};
 
 /* Task Implementations ----------------------------------------------------- */
 
@@ -307,31 +314,31 @@ void task_200us(void)
     // ===== Populate Generic Task Inputs =====
     // Map AD7606 ADC channels to generic analog inputs
     for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
-        task_inputs.analog_inputs.channels[i] = adc_reading.raw[i];
+        inputs_200us.analog_inputs.channels[i] = adc_reading.raw[i];
     }
-    task_inputs.analog_inputs.valid = true;
+    inputs_200us.analog_inputs.valid = true;
 
     // Digital inputs (not available in 200us task - too fast for FSMC)
-    task_inputs.digital_inputs.valid = false;
+    inputs_200us.digital_inputs.valid = false;
 
     // Fiber-optic data (updated in 1ms task, not read here)
-    task_inputs.fiber_optic_rx.data_ready = false;
-    task_inputs.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+    inputs_200us.fiber_optic_rx.data_ready = false;
+    inputs_200us.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
 
     // ===== Call Application Layer Control Task =====
-    yeet_task_200us(&task_inputs, &task_outputs);
+    yeet_task_200us(&inputs_200us, &outputs_200us);
 
     // ===== Apply Task Outputs to Hardware =====
     // Apply thyristor gate pulses
-    set_thyristor_pulses(task_outputs.thyristor_pulses.a_plus, task_outputs.thyristor_pulses.c_minus,
-        task_outputs.thyristor_pulses.b_plus, task_outputs.thyristor_pulses.a_minus,
-        task_outputs.thyristor_pulses.c_plus, task_outputs.thyristor_pulses.b_minus);
+    set_thyristor_pulses(outputs_200us.thyristor_pulses.a_plus, outputs_200us.thyristor_pulses.c_minus,
+        outputs_200us.thyristor_pulses.b_plus, outputs_200us.thyristor_pulses.a_minus,
+        outputs_200us.thyristor_pulses.c_plus, outputs_200us.thyristor_pulses.b_minus);
 
     // ===== DAC Output (moved to 200us task for atomic operation with ADC) =====
-    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
+    if (system_status.dac_ok && outputs_200us.analog_outputs.valid) {
         // Extract DAC values from control outputs and apply to hardware
         for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
-            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
+            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, outputs_200us.analog_outputs.channels[ch]);
         }
     }
 
@@ -406,7 +413,10 @@ void task_1ms(void)
     // ===== Populate Generic Task Inputs =====
 
     // Analog inputs (from ADC, but typically not used in 1ms task)
-    task_inputs.analog_inputs.valid = false;  // ADC is read in 200us task
+    inputs_1ms.analog_inputs.valid = false;  // ADC is read in 200us task
+
+    // Fiber-optic data: Initialize to 'no new data' for this cycle
+    inputs_1ms.fiber_optic_rx.data_ready = false;
 
     // ===== Fiber-Optic RX: Receive data FIRST (before control algorithm) =====
     if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
@@ -441,11 +451,11 @@ void task_1ms(void)
 
             // Populate generic task inputs with fiber-optic RX data
             for (int i = 0; i < rx_length && i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
-                task_inputs.fiber_optic_rx.payload[i] = rx_payload_words[i];
+                inputs_1ms.fiber_optic_rx.payload[i] = rx_payload_words[i];
             }
-            task_inputs.fiber_optic_rx.payload_length = rx_length;
-            task_inputs.fiber_optic_rx.data_ready = true;
-            task_inputs.fiber_optic_rx.link_ok = true;
+            inputs_1ms.fiber_optic_rx.payload_length = rx_length;
+            inputs_1ms.fiber_optic_rx.data_ready = true;
+            inputs_1ms.fiber_optic_rx.link_ok = true;
 
             // TODO: Process command word if needed
             // uint8_t rx_trip_status = CMD_GET_TRIP_STATUS(rx_command);
@@ -475,8 +485,8 @@ void task_1ms(void)
             // Error (not timeout) - reset stability tracking
             fiber_status.communication_stable = false;
             first_valid_rx_time_ms = 0;
-            task_inputs.fiber_optic_rx.data_ready = false;
-            task_inputs.fiber_optic_rx.link_ok = false;
+            inputs_1ms.fiber_optic_rx.data_ready = false;
+            inputs_1ms.fiber_optic_rx.link_ok = false;
         }
 
         // ===== Timeout Detection (10ms) =====
@@ -489,14 +499,14 @@ void task_1ms(void)
             // Reset stability tracking
             fiber_status.communication_stable = false;
             first_valid_rx_time_ms = 0;
-            task_inputs.fiber_optic_rx.data_ready = false;
-            task_inputs.fiber_optic_rx.link_ok = false;
+            inputs_1ms.fiber_optic_rx.data_ready = false;
+            inputs_1ms.fiber_optic_rx.link_ok = false;
         }
     }
     else {
         // Fiber-optic not available
-        task_inputs.fiber_optic_rx.data_ready = false;
-        task_inputs.fiber_optic_rx.link_ok = false;
+        inputs_1ms.fiber_optic_rx.data_ready = false;
+        inputs_1ms.fiber_optic_rx.link_ok = false;
     }
 
     // ===== Digital I/O Input: Read hardware inputs (fuses, breakers, commands) =====
@@ -509,17 +519,17 @@ void task_1ms(void)
         // NOTE: Only DI1-DI32 are physically connected on this board
         //       DI33-DI48 have pull-ups in hardware and will read as '1' when unconnected
         for (int i = 0; i < TASK_IO_NUM_DIGITAL_INPUTS; i++) {
-            task_inputs.digital_inputs.signals[i] = FSMC_GPIO_GetDebouncedInput(&fsmc_gpio_instance, i + 1);
+            inputs_1ms.digital_inputs.signals[i] = FSMC_GPIO_GetDebouncedInput(&fsmc_gpio_instance, i + 1);
         }
 
-        task_inputs.digital_inputs.valid = true;
+        inputs_1ms.digital_inputs.valid = true;
     }
     else {
-        task_inputs.digital_inputs.valid = false;
+        inputs_1ms.digital_inputs.valid = false;
     }
 
     // ===== Call Application Layer Control Task =====
-    yeet_task_1000us(&task_inputs, &task_outputs);
+    yeet_task_1000us(&inputs_1ms, &outputs_1ms);
 
     // ===== Apply Task Outputs to Hardware =====
 
@@ -528,7 +538,7 @@ void task_1ms(void)
         // Map generic digital outputs (from application) to hardware outputs (DO1-DO17)
         // Application layer defines semantic meaning of each output
         for (int i = 0; i < TASK_IO_NUM_DIGITAL_OUTPUTS; i++) {
-            FSMC_GPIO_SetOutput(&fsmc_gpio_instance, i + 1, task_outputs.digital_outputs.signals[i]);
+            FSMC_GPIO_SetOutput(&fsmc_gpio_instance, i + 1, outputs_1ms.digital_outputs.signals[i]);
         }
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
@@ -551,13 +561,13 @@ void task_1ms(void)
 
         // Copy TX payload from application outputs
         for (int i = 0; i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
-            fiber_tx_payload[i] = task_outputs.fiber_optic_tx.payload[i];
+            fiber_tx_payload[i] = outputs_1ms.fiber_optic_tx.payload[i];
         }
 
         // Transmit frame (~347µs @ 691,200 baud for 24-byte frame)
         FiberProto_SendPacket(&fiber_proto_instance, tx_command, fiber_tx_payload,
-            task_outputs.fiber_optic_tx.payload_length > 0 ? task_outputs.fiber_optic_tx.payload_length
-                                                           : FIBER_PROTO_MAX_PAYLOAD_WORDS);
+            outputs_1ms.fiber_optic_tx.payload_length > 0 ? outputs_1ms.fiber_optic_tx.payload_length
+                                                          : FIBER_PROTO_MAX_PAYLOAD_WORDS);
     }
 }
 
@@ -584,14 +594,14 @@ static void Update_System_LEDs()
     bool fiber_optic_fault = fiber_status.communication_timeout || !fiber_status.communication_stable;
 
     // Combined fault condition: hardware failures OR fiber optic communication issues OR application trip
-    bool fault_condition = hardware_fault || fiber_optic_fault || task_outputs.status.trip;
+    bool fault_condition = hardware_fault || fiber_optic_fault || outputs_200us.status.trip;
 
     // Apply the calculated fault condition to the FAULT LED
     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, fault_condition ? 1 : 0);
 
     // ALARM LED - indicates warning conditions (can be controlled by application)
     // Combined conditions: fiber optic communication issues OR application alarm
-    bool alarm_condition = fiber_optic_fault || task_outputs.status.alarm;
+    bool alarm_condition = fiber_optic_fault || outputs_200us.status.alarm;
     FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, alarm_condition ? 1 : 0);
 
     // Write LED states to hardware
@@ -614,13 +624,13 @@ void task_10ms(void)
 
     // ===== Populate Generic Task Inputs =====
     // Analog and digital inputs not typically read at this slow rate
-    task_inputs.analog_inputs.valid = false;
-    task_inputs.digital_inputs.valid = false;
-    task_inputs.fiber_optic_rx.data_ready = false;
-    task_inputs.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+    inputs_10ms.analog_inputs.valid = false;
+    inputs_10ms.digital_inputs.valid = false;
+    inputs_10ms.fiber_optic_rx.data_ready = false;
+    inputs_10ms.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
 
     // ===== Call Application Layer Task =====
-    yeet_task_10000us(&task_inputs, &task_outputs);
+    yeet_task_10000us(&inputs_10ms, &outputs_10ms);
 
     // ===== Apply Task Outputs (if any) =====
     // Typically 10ms task doesn't update outputs, but structure allows it

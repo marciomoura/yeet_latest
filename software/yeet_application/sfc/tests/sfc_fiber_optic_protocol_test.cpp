@@ -278,6 +278,36 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageMixedFields)
     EXPECT_EQ(decoded->state_id, 100);
 }
 
+TEST_F(GridToMachineProtocolTest, RoundTripCommunicationOK)
+{
+    grid_to_machine_message original{};
+    original.communication_ok = true;
+
+    [[maybe_unused]] auto length = encode_grid_to_machine(original, payload.data());
+    auto decoded = decode_grid_to_machine(payload.data(), grid_to_machine_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->communication_ok);
+    // Verify other flags remain false
+    EXPECT_FALSE(decoded->grid_release_protections);
+    EXPECT_FALSE(decoded->machine_release_protections);
+}
+
+TEST_F(GridToMachineProtocolTest, RoundTripReleaseProtections)
+{
+    grid_to_machine_message original{};
+    original.grid_release_protections = true;
+    original.machine_release_protections = true;
+
+    [[maybe_unused]] auto length = encode_grid_to_machine(original, payload.data());
+    auto decoded = decode_grid_to_machine(payload.data(), grid_to_machine_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->grid_release_protections);
+    EXPECT_TRUE(decoded->machine_release_protections);
+    EXPECT_FALSE(decoded->communication_ok);
+}
+
 /* ============================================================================
  * Machine → Grid Protocol Tests
  * ============================================================================ */
@@ -513,6 +543,32 @@ TEST_F(MachineToGridProtocolTest, RoundTripCompleteMessageMixedFields)
     EXPECT_FALSE(decoded->force_commutation_request);
 
     EXPECT_FALSE(decoded->machine_protection_tripped);
+}
+
+TEST_F(MachineToGridProtocolTest, RoundTripCommunicationOK)
+{
+    machine_to_grid_message original{};
+    original.communication_ok = true;
+
+    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
+    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->communication_ok);
+    EXPECT_FALSE(decoded->protection_inhibit);
+}
+
+TEST_F(MachineToGridProtocolTest, RoundTripProtectionInhibit)
+{
+    machine_to_grid_message original{};
+    original.protection_inhibit = true;
+
+    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
+    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->protection_inhibit);
+    EXPECT_FALSE(decoded->communication_ok);
 }
 
 /* ============================================================================

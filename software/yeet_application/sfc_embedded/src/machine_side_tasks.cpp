@@ -219,9 +219,8 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     // Based on sfc_io_definitions.md:
     //   AI1 (X1-1): Machine voltage Vab
     //   AI2 (X1-2): Machine voltage Vbc
-
     // Write ADC values directly to I/O interface analog inputs
-    if (inputs != nullptr && inputs->analog_inputs.valid) {
+    if (inputs->analog_inputs.valid) {
         int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
                           static_cast<int32_t>(inputs->analog_inputs.channels[2]);
         int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
@@ -238,12 +237,11 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     outputs->status.alarm = control->machine_protections.get_outputs().has_active_alarm;
 
     // ==================== ANALOG OUTPUTS (DAC) → EXCITATION COMMANDS ====================
-
     const auto& io_params = control->external_ios.get_parameters();
-    const float excitation_current_reference =
-        static_cast<float>(control->external_ios.get_excitation_current_reference());
-    write_ao(outputs, io_params.ao_excitation_current_reference_index.read(), excitation_current_reference,
+    write_ao(outputs, io_params.ao_excitation_current_reference_index.read(),
+        control->external_ios.get_excitation_current_reference().value(),
         io_params.ao_excitation_current_reference_gain.read(), io_params.ao_excitation_current_reference_offset.read());
+
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:
@@ -292,7 +290,7 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // Process fiber-optic RX data from grid-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
     bool communication_valid = false;
-    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
+    if (inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Use control class method to decode all signals (ensures consistency with host simulator)
         // This updates external_ios with: mode, state_id, force_commutation_acknowledged, current_is_zero,
         // is_saturated, pulse_releases, dc_link_current, preset_request
@@ -329,14 +327,9 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         outputs, io_params.do_excitation_on_command_index.read(), control->external_ios.get_excitation_on_command());
     write_do(
         outputs, io_params.do_excitation_off_command_index.read(), control->external_ios.get_excitation_off_command());
-
     // Excitation current reference output (analog output - would typically use analog_outputs)
-    // For now, we'll map it to a digital output as a placeholder
-    // In real hardware, this would go to a DAC or PWM output
-    // TODO: Add analog output support and map excitation_current_reference to AO1
-
-    // Machine-side control status outputs
-    // DO3-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
+    write_ao(outputs, AO_EXCITATION_CURRENT_REFERENCE_INDEX,
+        control->external_ios.get_excitation_current_reference().value(), 1.0f, 0.0f);
 }
 
 ARM_FUNCTION

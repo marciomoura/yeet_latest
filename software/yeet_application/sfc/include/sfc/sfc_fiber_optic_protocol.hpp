@@ -13,11 +13,11 @@
  * - Modern C++17 implementation with type safety
  *
  * Protocol Specifications:
- * - Grid → Machine: 1 uint32_t word (4 bytes) - 75% bandwidth reduction!
+ * - Grid → Machine: 3 uint32_t words (12 bytes)
  * - Machine → Grid: 4 uint32_t words (16 bytes)
- * - Total bidirectional: 20 bytes per cycle (37.5% reduction from original 32 bytes)
+ * - Total bidirectional payload: 28 bytes per cycle
  *
- * @see fiber_optic_protocol.md for complete protocol documentation
+ * @see software/yeet_application/sfc_embedded/docs/fiber_optic_protocol.md
  */
 
 #pragma once
@@ -38,7 +38,7 @@ namespace yeet::application::sfc::fiber_optic {
  * ============================================================================ */
 
 /** @brief Maximum payload size for fiber-optic packets (uint32_t words) */
-static constexpr std::size_t max_payload_words = 5;
+static constexpr std::size_t max_payload_words = 4;
 
 /** @brief Grid → Machine payload length (uint32_t words) */
 static constexpr std::size_t grid_to_machine_payload_length = 3;
@@ -92,7 +92,7 @@ struct grid_to_machine_message {
 /**
  * @brief Encode Grid → Machine message into packed uint32_t payload
  *
- * Packs all grid-side status, measurements, and control synchronization signals
+ * packs all grid-side status, measurements, and control synchronization signals
  * into 3 uint32_t words for transmission over fiber-optic link:
  * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
  * - Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
@@ -101,15 +101,16 @@ struct grid_to_machine_message {
  *   - Bit 1:      Force commutation acknowledged
  *   - Bit 2:      Release pulses
  *   - Bit 3:      Grid release protections
- *   - Bit 4:      Grid trip acknowledged
- *   - Bits 5-24:  Reserved for future use
+ *   - Bit 4:      Machine release protections
+ *   - Bit 5:      Communication ok (grid is receiving machine)
+ *   - Bits 6-24:  Reserved for future use
  *   - Bits 25-31: State machine state ID (0-127)
  *
  * @param[in]  msg      Message structure to encode
  * @param[out] payload  Array to receive encoded data (min 3 words)
  * @return Number of uint32_t words written to payload (always 3)
  *
- * @note Float values are transmitted as IEEE 754 bit patterns using bit_cast
+ * @note Float values are transmitted as IEEE 754 bit patterns using std::memcpy
  *
  * Example:
  * @code
@@ -122,7 +123,7 @@ struct grid_to_machine_message {
  *     .state_id = 5
  * };
  * std::array<std::uint32_t, max_payload_words> payload;
- * encode_grid_to_machine(msg, payload);
+ * encode_grid_to_machine(msg, payload.data());
  * @endcode
  */
 [[nodiscard]] std::uint8_t encode_grid_to_machine(const grid_to_machine_message& msg, std::uint32_t* payload) noexcept;
@@ -139,15 +140,16 @@ struct grid_to_machine_message {
  *   - Bit 1:      Force commutation acknowledged
  *   - Bit 2:      Release pulses
  *   - Bit 3:      Grid release protections
- *   - Bit 4:      Grid trip acknowledged
- *   - Bits 5-24:  Reserved (unused)
+ *   - Bit 4:      Machine release protections
+ *   - Bit 5:      Communication ok (grid is receiving machine)
+ *   - Bits 6-24:  Reserved (unused)
  *   - Bits 25-31: State machine state ID (0-127)
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
  * @return Decoded message if successful, std::nullopt if payload_length insufficient
  *
- * @note Float values are reconstructed from IEEE 754 bit patterns using bit_cast
+ * @note Float values are reconstructed from IEEE 754 bit patterns using std::memcpy
  *
  * Example:
  * @code
@@ -201,13 +203,14 @@ struct machine_to_grid_message {
  *   - Bit 2: Machine protection tripped
  *   - Bit 3: Protection inhibit (awaiting acknowledgment)
  *   - Bit 4: Machine trip acknowledged
- *   - Bits 5-31: Reserved for future use
+ *   - Bit 5: Communication ok (machine is receiving grid)
+ *   - Bits 6-31: Reserved for future use
  *
  * @param[in]  msg      Message structure to encode
  * @param[out] payload  Array to receive encoded data (min 4 words)
  * @return Number of uint32_t words written to payload (always 4)
  *
- * @note Float values are transmitted as IEEE 754 bit patterns using bit_cast
+ * @note Float values are transmitted as IEEE 754 bit patterns using std::memcpy
  *
  * Example:
  * @code
@@ -218,7 +221,7 @@ struct machine_to_grid_message {
  *     .force_commutation_request = false
  * };
  * std::array<std::uint32_t, max_payload_words> payload;
- * encode_machine_to_grid(msg, payload);
+ * encode_machine_to_grid(msg, payload.data());
  * @endcode
  */
 [[nodiscard]] std::uint8_t encode_machine_to_grid(const machine_to_grid_message& msg, std::uint32_t* payload) noexcept;
@@ -237,13 +240,14 @@ struct machine_to_grid_message {
  *   - Bit 2: Machine protection tripped
  *   - Bit 3: Protection inhibit (awaiting acknowledgment)
  *   - Bit 4: Machine trip acknowledged
- *   - Bits 5-31: Reserved for future use
+ *   - Bit 5: Communication ok (machine is receiving grid)
+ *   - Bits 6-31: Reserved for future use
  *
  * @param[in]  payload        Array containing received data
  * @param[in]  payload_length Number of uint32_t words in payload
  * @return Decoded message if successful, std::nullopt if payload_length insufficient
  *
- * @note Float values are reconstructed from IEEE 754 bit patterns using bit_cast
+ * @note Float values are reconstructed from IEEE 754 bit patterns using std::memcpy
  *
  * Example:
  * @code

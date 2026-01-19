@@ -359,20 +359,21 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   AI2 (X1-2): Grid voltage Vbc
     //   AI5 (X1-5): Grid current Ia (1A → 5V or 5A → 5V, ±7.5A range)
     //   AI7 (X1-7): Grid current Ic
-
-    // Write ADC values directly to external_ios interface analog inputs
-    // Perform subtraction in 32-bit to prevent intermediate overflow, then shift to fit 16-bit
-    int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
-                      static_cast<int32_t>(inputs->analog_inputs.channels[2]);
-    control->get_external_ios().get_analog_inputs().v_ab_counts.write(
-        yeet::control::adc_counts{diff_ab});  // Lose 1 bit of resolution, but safe from overflow
-    int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
-                      static_cast<int32_t>(inputs->analog_inputs.channels[3]);
-    control->get_external_ios().get_analog_inputs().v_bc_counts.write(yeet::control::adc_counts{diff_bc});
-    control->get_external_ios().get_analog_inputs().i_a_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
-    control->get_external_ios().get_analog_inputs().i_c_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
+    if (inputs->analog_inputs.valid) {
+        // Write ADC values directly to external_ios interface analog inputs
+        // Perform subtraction in 32-bit to prevent intermediate overflow, then shift to fit 16-bit
+        int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
+                          static_cast<int32_t>(inputs->analog_inputs.channels[2]);
+        control->get_external_ios().get_analog_inputs().v_ab_counts.write(
+            yeet::control::adc_counts{diff_ab});  // Lose 1 bit of resolution, but safe from overflow
+        int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
+                          static_cast<int32_t>(inputs->analog_inputs.channels[3]);
+        control->get_external_ios().get_analog_inputs().v_bc_counts.write(yeet::control::adc_counts{diff_bc});
+        control->get_external_ios().get_analog_inputs().i_a_counts.write(
+            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
+        control->get_external_ios().get_analog_inputs().i_c_counts.write(
+            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
+    }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     control->update_200us();
@@ -390,41 +391,7 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     // Channel B: Test signal 2
     // Channel C: Test signal 3
     // Channel D: Test signal 4
-    auto& analog_outputs = outputs->analog_outputs.channels;
-    // analog_outputs[0] = control->get_grid_side_observer()
-    //                         .get_outputs()
-    //                         .estimated_reference_angle.read()
-    //                         .get_pu();  //
-    //                         control->get_grid_measurements().get_outputs().grid_voltage_line.read().ab();
-    analog_outputs[0] = control->get_dc_link_measurements().get_outputs().dc_current_pu.read();
-    analog_outputs[1] = control->get_dc_link_measurements().get_outputs().dc_current_pu.read();
-    analog_outputs[2] = control->get_dc_link_measurements().get_outputs().dc_current_pu.read();
-    analog_outputs[3] = control->get_dc_link_measurements().get_outputs().dc_current_pu.read();
-    outputs->analog_outputs.valid = true;
-
-    // yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_unmasked.read().a()).ab();
-    // analog_outputs[1] = control->get_grid_measurements().get_outputs().grid_current_abc.read().a();
-    // control->get_grid_measurements().get_outputs().grid_voltage_abc_unmasked.read().a();
-    // control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu();
-    // analog_outputs[2] = control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu();
-    // analog_outputs[3] = control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu();
-    // analog_outputs[0] = control->get_grid_measurements().get_outputs().grid_voltage_abc_unmasked.read().a();
-    // // control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu();
-    // analog_outputs[1] =
-    //     control->get_grid_measurements()
-    //         .get_outputs()
-    //         .grid_voltage_abc_unmasked.read()
-    //         .a();  //  5.0f;  // control->get_grid_measurements().get_outputs().grid_voltage_abc_unmasked.read().a();
-    // analog_outputs[2] =
-    //     control->get_grid_measurements()
-    //         .get_outputs()
-    //         .grid_voltage_abc_unmasked.read()
-    //         .a();  // 5.0f;  // control->get_grid_measurements().get_outputs().grid_voltage_alphabeta.read().alpha();
-    // analog_outputs[3] =
-    //     control->get_grid_measurements()
-    //         .get_outputs()
-    //         .grid_voltage_abc_unmasked.read()
-    //         .a();  // 5.0f;  // control->get_grid_measurements().get_outputs().grid_voltage_alphabeta.read().alpha();
+    write_ao(outputs, 0, outputs->analog_outputs.channels[0], 1.0, 0.0f);
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
