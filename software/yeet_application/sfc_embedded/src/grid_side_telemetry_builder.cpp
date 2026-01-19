@@ -156,7 +156,20 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
             protections.get_outputs().communication_loss_warning.read(),
             // Bits 4-6: Fiber optic RX
             fiber_rx.request_force_commutation.read(), fiber_rx.machine_protection_tripped.read(),
-            fiber_rx.protection_inhibit.read()});
+            fiber_rx.protection_inhibit.read(),
+            // Bits 7-10: More trip bits
+            protections.get_outputs().door_open_tripped.read(), protections.get_outputs().external_fault_tripped.read(),
+            protections.get_outputs().emergency_off_tripped.read(),
+            protections.get_outputs().machine_protection_tripped.read(),
+            // Bits 11-18: Alarm bits
+            protections.get_outputs().overcurrent_alarmed.read(), protections.get_outputs().overvoltage_alarmed.read(),
+            protections.get_outputs().undervoltage_alarmed.read(),
+            protections.get_outputs().communication_loss_alarmed.read(),
+            protections.get_outputs().door_open_alarmed.read(), protections.get_outputs().external_fault_alarmed.read(),
+            protections.get_outputs().emergency_off_alarmed.read(),
+            protections.get_outputs().machine_protection_alarmed.read(),
+            // Bit 19: Reset pulse
+            protections.get_outputs().emergency_off_reset.read()});
 
     // === Line Voltages (Unmasked) Group (44-46) ===
     const auto& grid_voltage_line = grid_meas.get_outputs().grid_voltage_line.read();

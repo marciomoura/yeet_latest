@@ -128,10 +128,14 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'comm loss warning', 'index': MachineSignalIndex.PROTECTION_COMMUNICATION_LOSS_WARNING, 'type': 'bool', 'format': 'bool'},
                 {'name': 'overspeed', 'index': MachineSignalIndex.PROTECTION_OVERSPEED_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'overspeed trip', 'index': MachineSignalIndex.PROTECTION_OVERSPEED_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'machine overvoltage', 'index': MachineSignalIndex.PROTECTION_MACHINE_OVERVOLTAGE_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'machine ov trip', 'index': MachineSignalIndex.PROTECTION_MACHINE_OVERVOLTAGE_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'loss of excitation', 'index': MachineSignalIndex.PROTECTION_LOSS_OF_EXCITATION_STATUS, 'type': 'enum', 'format': 'enum',
-                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}}
+                 'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},
+                {'name': 'loss of excitation trip', 'index': MachineSignalIndex.PROTECTION_LOSS_OF_EXCITATION_TRIPPED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'external fault trip', 'index': MachineSignalIndex.PROTECTION_EXTERNAL_FAULT_TRIPPED, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'fiber_optic_rx': {

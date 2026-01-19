@@ -172,12 +172,26 @@ class MachineSignalIndex(IntEnum):
     PROTECTION_STALL_WARNING = 102              # bools1[30]
     PROTECTION_COMMUNICATION_LOSS_TRIPPED = 103 # bools1[31]
 
-    # Unpacked from BOOL_PACK_2 (52) - 5 bools at indices 104-108
+    # Unpacked from BOOL_PACK_2 (52) - 15 bools at indices 104-118
     PROTECTION_COMMUNICATION_LOSS_WARNING = 104 # bools2[0]
     FIBER_RX_IS_FORCED_COMMUTATION = 105        # bools2[1]
     FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED = 106  # bools2[2]
     FIBER_RX_RELEASE_PULSES = 107               # bools2[3]
     FIBER_RX_GRID_RELEASE_PROTECTIONS = 108     # bools2[4]
+    PROTECTION_OVERSPEED_TRIPPED = 109          # bools2[5]
+    PROTECTION_OVERSPEED_ALARMED = 110          # bools2[6]
+    PROTECTION_MACHINE_OVERVOLTAGE_TRIPPED = 111 # bools2[7]
+    PROTECTION_MACHINE_OVERVOLTAGE_ALARMED = 112 # bools2[8]
+    PROTECTION_LOSS_OF_EXCITATION_TRIPPED = 113 # bools2[9]
+    PROTECTION_LOSS_OF_EXCITATION_ALARMED = 114 # bools2[10]
+    PROTECTION_EXTERNAL_FAULT_TRIPPED = 115     # bools2[11]
+    PROTECTION_EXTERNAL_FAULT_ALARMED = 116     # bools2[12]
+    PROTECTION_MACHINE_OVERVOLTAGE_WARNING_PACK2 = 117 # bools2[13]
+    PROTECTION_SPARE_118 = 118                  # bools2[14]
+    PROTECTION_OVER_FLUX_ALARMED = 119          # bools2[15]
+    PROTECTION_UNDER_FLUX_ALARMED = 120         # bools2[16]
+    PROTECTION_STALL_ALARMED = 121              # bools2[17]
+    PROTECTION_COMM_LOSS_ALARMED = 122          # bools2[18]
 
 
 @dataclass
@@ -305,6 +319,16 @@ class MachineProtectionsData:
     stall_warning: bool = False
     communication_loss_tripped: bool = False
     communication_loss_warning: bool = False
+    overspeed_tripped: bool = False
+    overspeed_alarmed: bool = False
+    machine_overvoltage_tripped: bool = False
+    machine_overvoltage_alarmed: bool = False
+    loss_of_excitation_tripped: bool = False
+    loss_of_excitation_alarmed: bool = False
+    external_fault_tripped: bool = False
+    external_fault_alarmed: bool = False
+    emergency_off_tripped: bool = False
+    emergency_off_alarmed: bool = False
 
 
 @dataclass

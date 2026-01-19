@@ -188,12 +188,27 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
             protections.get_outputs().stall_warning.read(),
             protections.get_outputs().communication_loss_tripped.read()});
 
-    packet.add_bool_pack(52, {// Bit 0: Protection (last 1)
-                                 protections.get_outputs().communication_loss_warning.read(),
-                                 // Bits 1-4: Fiber optic RX
-                                 (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation),
-                                 fiber_rx.force_commutation_acknowledged.read(), fiber_rx.release_pulses.read(),
-                                 fiber_rx.grid_release_protections.read()});
+    packet.add_bool_pack(52,
+        {// Bit 0: Protection (last 1)
+            protections.get_outputs().communication_loss_warning.read(),
+            // Bits 1-4: Fiber optic RX
+            (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation),
+            fiber_rx.force_commutation_acknowledged.read(), fiber_rx.release_pulses.read(),
+            fiber_rx.grid_release_protections.read(),
+            // Bits 5-14: Remaining Protections
+            protections.get_outputs().overspeed_tripped.read(), protections.get_outputs().overspeed_alarmed.read(),
+            protections.get_outputs().machine_overvoltage_tripped.read(),
+            protections.get_outputs().machine_overvoltage_alarmed.read(),
+            protections.get_outputs().loss_of_excitation_tripped.read(),
+            protections.get_outputs().loss_of_excitation_alarmed.read(),
+            protections.get_outputs().external_fault_tripped.read(),
+            protections.get_outputs().external_fault_alarmed.read(),
+            // Bit 14: Reserved/Machine Overvoltage Warning
+            protections.get_outputs().machine_overvoltage_warning.read(),
+            // Bits 15-18: Missing alarm bits
+            protections.get_outputs().over_flux_alarmed.read(), protections.get_outputs().under_flux_alarmed.read(),
+            protections.get_outputs().stall_alarmed.read(),
+            protections.get_outputs().communication_loss_alarmed.read()});
 
     // === Line Voltages (Unmasked) Group (53-55) ===
     const auto& machine_voltage_line = measurements.get_outputs().machine_voltage_line.read();

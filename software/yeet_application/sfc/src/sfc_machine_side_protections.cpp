@@ -8,7 +8,8 @@ sfc_machine_side_protections::sfc_machine_side_protections(duration_t sampling_t
       _communication_watchdog(sampling_time),
       _overspeed_protection(sampling_time),
       _machine_overvoltage_protection(sampling_time),
-      _loss_of_excitation_protection(sampling_time)
+      _loss_of_excitation_protection(sampling_time),
+      _external_fault_delay(0.0, sampling_time.value())
 {
     // Configure threshold-based protections with safe defaults.
     // Without configuration, threshold_protection defaults to zero thresholds which
@@ -34,6 +35,7 @@ void sfc_machine_side_protections::reset() noexcept
     _overspeed_protection.reset();
     _machine_overvoltage_protection.reset();
     _loss_of_excitation_protection.reset();
+    _external_fault_delay.reset();
     _trip_handshake.reset();
 
     _external_fault_active = false;
@@ -68,7 +70,10 @@ void sfc_machine_side_protections::reset() noexcept
     _over_flux_warning = false;
     _under_flux_warning = false;
     _stall_warning = false;
+    _overspeed_warning = false;
+    _machine_overvoltage_warning = false;
     _communication_loss_warning = false;
+    _loss_of_excitation_warning = false;
 }
 
 void sfc_machine_side_protections::update_vhz_protection(
@@ -188,6 +193,18 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
 
         _loss_of_excitation_tripped = false;
         _loss_of_excitation_alarmed = false;
+        _loss_of_excitation_warning = false;
+
+        _overspeed_tripped = false;
+        _overspeed_alarmed = false;
+        _overspeed_warning = false;
+
+        _machine_overvoltage_tripped = false;
+        _machine_overvoltage_alarmed = false;
+        _machine_overvoltage_warning = false;
+
+        _external_fault_tripped = false;
+        _external_fault_alarmed = false;
 
         _over_flux_warning = false;
         _under_flux_warning = false;
@@ -220,7 +237,9 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool overspeed_trip_raw = _overspeed_protection.is_tripped();
     const bool machine_overvoltage_trip_raw = _machine_overvoltage_protection.is_tripped();
     const bool loss_of_excitation_trip_raw = _loss_of_excitation_protection.is_tripped();
-    const bool external_fault_raw = _external_fault_active;
+
+    _external_fault_delay.update(_external_fault_active);
+    const bool external_fault_raw = _external_fault_delay.get_output();
 
     const bool over_flux_trip = _over_flux_is_trip && over_flux_trip_raw;
     const bool under_flux_trip = _under_flux_is_trip && under_flux_trip_raw;
@@ -261,6 +280,9 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     _under_flux_warning = _vhz_protection.is_under_flux_warning();
     _stall_warning = _stall_protection.is_warning();
     _communication_loss_warning = _communication_watchdog.is_warning();
+    _overspeed_warning = _overspeed_protection.is_warning();
+    _machine_overvoltage_warning = _machine_overvoltage_protection.is_warning();
+    _loss_of_excitation_warning = _loss_of_excitation_protection.is_warning();
 
     const bool any_protection_tripped = over_flux_trip || under_flux_trip || stall_trip || comm_loss_trip ||
                                         overspeed_trip || machine_overvoltage_trip || loss_of_excitation_trip ||
@@ -438,11 +460,17 @@ void sfc_machine_side_protections::configure_overspeed_trip_threshold(speed_pu_t
 {
     _overspeed_trip_threshold = threshold;
     _overspeed_protection.configure_trip_threshold(threshold);
+}
+void sfc_machine_side_protections::configure_overspeed_warning_threshold(speed_pu_t threshold) noexcept
+{
     _overspeed_protection.configure_warning_threshold(threshold);
 }
 void sfc_machine_side_protections::configure_overspeed_trip_delay(duration_t delay) noexcept
 {
     _overspeed_protection.configure_trip_delay(delay);
+}
+void sfc_machine_side_protections::configure_overspeed_warning_delay(duration_t delay) noexcept
+{
     _overspeed_protection.configure_warning_delay(delay);
 }
 
@@ -450,18 +478,40 @@ void sfc_machine_side_protections::configure_machine_overvoltage_trip_threshold(
 {
     _machine_overvoltage_trip_threshold = threshold;
     _machine_overvoltage_protection.configure_trip_threshold(threshold);
+}
+void sfc_machine_side_protections::configure_machine_overvoltage_warning_threshold(voltage_pu_t threshold) noexcept
+{
     _machine_overvoltage_protection.configure_warning_threshold(threshold);
 }
 void sfc_machine_side_protections::configure_machine_overvoltage_trip_delay(duration_t delay) noexcept
 {
     _machine_overvoltage_protection.configure_trip_delay(delay);
+}
+void sfc_machine_side_protections::configure_machine_overvoltage_warning_delay(duration_t delay) noexcept
+{
     _machine_overvoltage_protection.configure_warning_delay(delay);
 }
 
+void sfc_machine_side_protections::configure_loss_of_excitation_trip_threshold(real_t threshold) noexcept
+{
+    _loss_of_excitation_protection.configure_trip_threshold(threshold);
+}
+void sfc_machine_side_protections::configure_loss_of_excitation_warning_threshold(real_t threshold) noexcept
+{
+    _loss_of_excitation_protection.configure_warning_threshold(threshold);
+}
 void sfc_machine_side_protections::configure_loss_of_excitation_trip_delay(duration_t delay) noexcept
 {
     _loss_of_excitation_protection.configure_trip_delay(delay);
+}
+void sfc_machine_side_protections::configure_loss_of_excitation_warning_delay(duration_t delay) noexcept
+{
     _loss_of_excitation_protection.configure_warning_delay(delay);
+}
+
+void sfc_machine_side_protections::configure_external_fault_trip_delay(duration_t delay) noexcept
+{
+    _external_fault_delay.configure(delay.value());
 }
 
 bool sfc_machine_side_protections::get_has_active_trip() const noexcept { return _has_active_trip; }
@@ -478,6 +528,7 @@ bool sfc_machine_side_protections::get_stall_alarmed() const noexcept { return _
 
 bool sfc_machine_side_protections::get_overspeed_tripped() const noexcept { return _overspeed_tripped; }
 bool sfc_machine_side_protections::get_overspeed_alarmed() const noexcept { return _overspeed_alarmed; }
+bool sfc_machine_side_protections::get_overspeed_warning() const noexcept { return _overspeed_warning; }
 
 bool sfc_machine_side_protections::get_machine_overvoltage_tripped() const noexcept
 {
@@ -486,6 +537,10 @@ bool sfc_machine_side_protections::get_machine_overvoltage_tripped() const noexc
 bool sfc_machine_side_protections::get_machine_overvoltage_alarmed() const noexcept
 {
     return _machine_overvoltage_alarmed;
+}
+bool sfc_machine_side_protections::get_machine_overvoltage_warning() const noexcept
+{
+    return _machine_overvoltage_warning;
 }
 
 bool sfc_machine_side_protections::get_communication_loss_tripped() const noexcept
@@ -504,6 +559,10 @@ bool sfc_machine_side_protections::get_loss_of_excitation_tripped() const noexce
 bool sfc_machine_side_protections::get_loss_of_excitation_alarmed() const noexcept
 {
     return _loss_of_excitation_alarmed;
+}
+bool sfc_machine_side_protections::get_loss_of_excitation_warning() const noexcept
+{
+    return _loss_of_excitation_warning;
 }
 
 bool sfc_machine_side_protections::get_external_fault_tripped() const noexcept { return _external_fault_tripped; }
