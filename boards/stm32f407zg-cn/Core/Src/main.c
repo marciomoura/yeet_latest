@@ -1,4 +1,4 @@
-#include "adc.h"                    // AD7606 ADC driver
+#include "ADC.h"                    // AD7606 ADC driver
 #include "dac.h"                    // AD5724 DAC driver
 #include "driver_init.h"            // Driver initialization functions
 #include "fiber_optic.h"            // Fiber-optic communication driver
@@ -127,14 +127,14 @@ static bool fiber_rx_data_ready = false;                                ///< New
  * Network Configuration (based on DIP switch node ID):
  *
  * SPI2 Network:
- *   - IP Address: 192.168.2.(100 + uchNodeNum)
+ *   - IP Address: 192.168.2.(100 + dip_switch_channel_number)
  *   - Gateway:    192.168.2.1
  *   - Subnet:     255.255.255.0
  *   - Port:       7000 (TCP Server)
  *   - DMA:        8KB TX/RX buffers (enabled)
  *
  * SPI3 Network:
- *   - IP Address: 192.168.10.(31 + uchNodeNum)
+ *   - IP Address: 192.168.10.(31 + dip_switch_channel_number)
  *   - Gateway:    192.168.10.1
  *   - Subnet:     255.255.255.0
  *   - Port:       7000 (TCP Server)
@@ -674,7 +674,7 @@ static bool TCP_Server_SPI2_Init(void)
  */
 static bool TCP_Server_SPI3_Init(void)
 {
-    uint8_t node_id = uchNodeNum;
+    uint8_t node_id = dip_switch_channel_number;
 
     // Initialize W5200 hardware driver with 8KB DMA
     if (!W5200_Init(&w5200_spi3, SPI3, spi3_tx_buffer, spi3_rx_buffer, W5200_DMA_SIZE_8K)) {

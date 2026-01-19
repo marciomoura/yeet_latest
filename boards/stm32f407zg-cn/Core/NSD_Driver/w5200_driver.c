@@ -285,6 +285,12 @@ void W5200_WriteByte(w5200_instance_t* w5200, uint16_t addr, uint8_t data)
         timeout_occurred = true;  // Breakpoint here: data byte TX timeout
     }
 
+    // Wait for the last byte to be fully transmitted before de-asserting CS
+    timeout = 0;
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_BSY) == SET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
 
@@ -378,6 +384,12 @@ uint8_t W5200_ReadByte(w5200_instance_t* w5200, uint16_t addr)
     }
     result = SPI_I2S_ReceiveData(w5200->spi);
 
+    // Wait for the last byte to be fully transmitted before de-asserting CS
+    timeout = 0;
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_BSY) == SET) && timeout < W5200_SPI_TIMEOUT) {
+        timeout++;
+    }
+
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
 
@@ -437,6 +449,10 @@ void W5200_Write(w5200_instance_t* w5200, uint16_t addr, const uint8_t* data, ui
         while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_TXE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
     }
 
+    // Wait for the last byte to be fully transmitted before de-asserting CS
+    timeout = 0;
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_BSY) == SET) && timeout++ < W5200_SPI_TIMEOUT);
+
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
 
@@ -494,6 +510,10 @@ void W5200_Read(w5200_instance_t* w5200, uint16_t addr, uint8_t* data, uint16_t 
         while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_RXNE) == RESET) && timeout++ < W5200_SPI_TIMEOUT);
         data[i] = SPI_I2S_ReceiveData(w5200->spi);
     }
+
+    // Wait for the last byte to be fully transmitted before de-asserting CS
+    timeout = 0;
+    while ((SPI_I2S_GetFlagStatus(w5200->spi, SPI_I2S_FLAG_BSY) == SET) && timeout++ < W5200_SPI_TIMEOUT);
 
     // De-assert CS (pull high to deselect chip)
     W5200_SetCS(w5200, true);
