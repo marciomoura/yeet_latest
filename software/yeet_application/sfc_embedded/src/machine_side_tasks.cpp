@@ -109,6 +109,10 @@ machine_side_network_infrastructure::machine_side_network_infrastructure(
 ARM_FUNCTION
 void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side_control* control)
 {
+    // Set all callbacks before modifying default parameters.
+    // Callbacks are registered during network handler initialization.
+    control->initialize();
+
     control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{500.0f});
     control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
     control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{36.0f});
@@ -197,8 +201,6 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{0.0f});
     control->startup_sequencer.get_parameters().virtual_torque_initial.write(yeet::torque_pu_t{0.1f});  // 10% torque
     control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.1f});    // 10% torque
-    // Initialize machine-side control subsystem
-    control->initialize();
 }
 
 ARM_FUNCTION
@@ -224,9 +226,7 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
                           static_cast<int32_t>(inputs->analog_inputs.channels[2]);
         int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
                           static_cast<int32_t>(inputs->analog_inputs.channels[3]);
-
-        control->external_ios.set_analog_inputs(yeet::control::adc_counts{static_cast<int16_t>(diff_ab)},
-            yeet::control::adc_counts{static_cast<int16_t>(diff_bc)});
+        control->external_ios.set_analog_inputs(yeet::control::adc_counts{diff_ab}, yeet::control::adc_counts{diff_bc});
     }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)

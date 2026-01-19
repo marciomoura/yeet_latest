@@ -377,12 +377,12 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         # Plot update timer (100ms)
         self.plot_timer = QtCore.QTimer(self)
         self.plot_timer.timeout.connect(self._update_plot)
-        self.plot_timer.start(100)
+        self.plot_timer.start(50)
         
         # Dashboard update timer (200ms - slower to reduce overhead)
         self.dashboard_timer = QtCore.QTimer(self)
         self.dashboard_timer.timeout.connect(self._update_dashboard)
-        self.dashboard_timer.start(200)
+        self.dashboard_timer.start(100)
     
     def eventFilter(self, obj, event):
         """Handle keyboard events for parameter search."""

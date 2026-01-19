@@ -167,6 +167,10 @@ grid_side_network_infrastructure::grid_side_network_infrastructure(
 ARM_FUNCTION
 void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_control* control)
 {
+    // Set all callbacks before modifying default parameters.
+    // Callbacks are registered during network handler initialization.
+    control->initialize();
+
     // Bypass all IOs (for testing)
     // control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
     // control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
@@ -208,7 +212,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
     // Digital inputs are already default-initialized to safe values (false) by the datamodel
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
-    control->initialize();
 
     // Configure the per-unit system:
     // control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{642.0f});
@@ -226,19 +229,13 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
     control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{100.0f});
     control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{36.0f});
-    control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{1.0f});
 
-    // Configure the PT
+    // Configure the pt-ratio to 1.0 for now
+    control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{1.0f});
     // The ASI interface converts 2500 V LL to 100 V secondary voltage
     control->grid_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
-    // control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
-    // control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{1.0f});
-    // The ASI interface defines the loop-gain of 1.0/25.0
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
 
-    // Configuration of the voltage PT and hardware filter compensation
-    // control->grid_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
-    //     yeet::frequency_t{160.0f});
     control->grid_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
         yeet::frequency_t{1000.0f});
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
@@ -301,9 +298,9 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.do_software_trip_2_polarity.write(DO_SOFTWARE_TRIP_2_POLARITY);
     io_params.do_software_trip_3_polarity.write(DO_SOFTWARE_TRIP_3_POLARITY);
     io_params.do_emergency_off_reset_polarity.write(DO_EMERGENCY_OFF_RESET_POLARITY);
-    // control->grid_protections.get_parameters().protection_module_enabled.write(false);
 
     // Configure protections to be enabled by default for embedded target
+    // control->grid_protections.get_parameters().protection_module_enabled.write(false);
     control->grid_protections.get_parameters().protection_module_enabled.write(true);
 
     control->grid_protections.get_parameters().overcurrent_severity.write(
@@ -342,8 +339,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_protections.get_parameters().undervoltage_warning_threshold.write(yeet::voltage_pu_t{0.950f});
     control->grid_protections.get_parameters().undervoltage_trip_delay.write(yeet::duration_t{0.1f});
     control->grid_protections.get_parameters().undervoltage_warning_delay.write(yeet::duration_t{0.05f});
-
-    // #endif
 }
 
 ARM_FUNCTION
@@ -370,11 +365,10 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
                       static_cast<int32_t>(inputs->analog_inputs.channels[2]);
     control->get_external_ios().get_analog_inputs().v_ab_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(diff_ab)});  // Lose 1 bit of resolution, but safe from overflow
+        yeet::control::adc_counts{diff_ab});  // Lose 1 bit of resolution, but safe from overflow
     int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
                       static_cast<int32_t>(inputs->analog_inputs.channels[3]);
-    control->get_external_ios().get_analog_inputs().v_bc_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(diff_bc)});
+    control->get_external_ios().get_analog_inputs().v_bc_counts.write(yeet::control::adc_counts{diff_bc});
     control->get_external_ios().get_analog_inputs().i_a_counts.write(
         yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
     control->get_external_ios().get_analog_inputs().i_c_counts.write(
