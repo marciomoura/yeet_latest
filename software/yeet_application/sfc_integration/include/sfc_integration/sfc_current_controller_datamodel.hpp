@@ -126,10 +126,10 @@ public:
         static constexpr std::string_view component_name = "current_controller";
         handler.register_parameter(component_name, "kp", yeet::utils::make_units_accessor(_model_parameters->kp));
         handler.register_parameter(component_name, "ti", yeet::utils::make_units_accessor(_model_parameters->ti));
-        handler.register_parameter(
-            component_name, "min_firing_angle", yeet::utils::make_units_accessor(_model_parameters->min_firing_angle));
-        handler.register_parameter(
-            component_name, "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
+        handler.register_parameter(component_name, "min_firing_angle",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->min_firing_angle));
+        handler.register_parameter(component_name, "max_firing_angle",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->max_firing_angle));
         handler.register_parameter(component_name, "current_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_magnitude_limit));
         handler.register_parameter(

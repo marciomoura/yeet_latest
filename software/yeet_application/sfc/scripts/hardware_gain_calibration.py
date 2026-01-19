@@ -17,14 +17,14 @@ ADC_RANGE = 20.0  # Full scale range (e.g. 20 for +/- 10V)
 ENABLE_VOLTAGE = True
 PT_RATIO = 25.0
 V_MEASURED_RMS = [100.0, 100.0]  # Primary Side RMS (Multimeter)
-V_COUNTS_PEAK = [18673, 18443]       # Software Peak Counts
+V_COUNTS_PEAK = [18673, 18443]   # Software Peak Counts
 V_IS_PRIMARY = False
 
 # --- CURRENT CALIBRATION ---
 ENABLE_CURRENT = True
 CT_RATIO = 1000.0
 I_MEASURED_RMS = [1.0, 1.0]    # Primary Side RMS (Multimeter)
-I_COUNTS_PEAK = [11750, 11775]       # Software Peak Counts
+I_COUNTS_PEAK = [11750, 11775] # Software Peak Counts
 I_IS_PRIMARY = False
 # ==============================================================================
 
@@ -54,24 +54,46 @@ def run_calibration(cal, name, meas_rms, counts_peak, ratio, is_primary, unit):
         return
 
     gains = []
+    secondary_vals = []
+    card_vals_rms = []
+
     for m, c in zip(meas_rms, counts_peak):
         g = cal.calculate_transducer_gain(m, c, ratio, is_primary)
         gains.append(g)
         
+        target_secondary_rms = m / ratio if is_primary else m
+        secondary_vals.append(target_secondary_rms)
+        card_vals_rms.append(c * cal.counts_to_volts / np.sqrt(2))
+        
     avg_gain = np.mean(gains)
+    
+    # Perform linear regression to find gain and offset
+    if len(gains) > 1:
+        # y = m*x + b -> Card_RMS = Gain * Secondary_RMS + Offset
+        slope, intercept = np.polyfit(secondary_vals, card_vals_rms, 1)
+        r_squared = np.corrcoef(secondary_vals, card_vals_rms)[0, 1]**2
+    else:
+        slope, intercept, r_squared = avg_gain, 0.0, 1.0
+
     ref_side = "Primary" if is_primary else "Secondary"
     
     print(f"\n[{name}] Results (Reference: {ref_side}):")
-    print("-" * 35)
+    print("-" * 65)
+    print(f"{'Point':<8} | {'Meas ('+unit+')':<10} | {'Counts':<8} | {'Gain (V/'+unit+')':<12} | {'Error %':<8}")
+    print("-" * 65)
     for i, (m, c, g) in enumerate(zip(meas_rms, counts_peak, gains)):
-        print(f" Phase {chr(65+i)} | Meas: {m:7.2f} | Counts: {int(c):6} | Gain: {g:8.6f}")
+        error = (g - avg_gain) / avg_gain * 100
+        print(f" {i+1:<7} | {m:10.2f} | {int(c):8} | {g:12.6f} | {error:+8.2f}%")
     
-    print("-" * 35)
-    print(f"Average Transducer Gain: {avg_gain:8.6f} V/{'V' if unit == 'V' else 'A'}")
+    print("-" * 65)
+    print(f"Arithmetic Average Gain : {avg_gain:12.6f} V/{'V' if unit == 'V' else 'A'}")
+    print(f"Regression Gain (Slope) : {slope:12.6f} V/{'V' if unit == 'V' else 'A'}")
+    print(f"Regression Offset       : {intercept:12.6f} V (Referred to Card)")
+    print(f"R-Squared (Linearity)   : {r_squared:12.6f}")
     
     # Check resolution
     phys_lsb = (avg_gain * ratio) * (cal.counts_to_volts / np.sqrt(2))
-    print(f"Resolution   : {phys_lsb:8.4f} {unit}/LSB")
+    print(f"Effective Resolution    : {phys_lsb:12.4f} {unit}/LSB")
 
 def main():
     cal = HardwareCalibrator(ADC_BITS, ADC_RANGE)
