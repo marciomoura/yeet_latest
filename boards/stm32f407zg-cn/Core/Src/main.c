@@ -116,10 +116,10 @@ fiber_proto_instance_t fiber_proto_instance = {0};
  * @brief Fiber-optic communication payload buffers
  * These buffers store the latest TX/RX payload data for integration with control logic
  */
-static float fiber_tx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< TX payload (from control logic)
-static float fiber_rx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< RX payload (to control logic)
-static uint8_t fiber_rx_length = 0;                                  ///< Number of floats received
-static bool fiber_rx_data_ready = false;                             ///< New data available flag
+static uint32_t fiber_tx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< TX payload (from control logic)
+static uint32_t fiber_rx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< RX payload (to control logic)
+static uint8_t fiber_rx_length = 0;                                     ///< Number of words received
+static bool fiber_rx_data_ready = false;                                ///< New data available flag
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -350,17 +350,17 @@ void task_200us(void)
 /**
  * @brief  Get TX payload pointer for control logic to populate
  * @note   Call this before task_1ms to prepare outgoing data
- * @retval Pointer to TX payload buffer (FIBER_PROTO_MAX_PAYLOAD_WORDS floats)
+ * @retval Pointer to TX payload buffer (FIBER_PROTO_MAX_PAYLOAD_WORDS words)
  */
-float* FiberComm_GetTxPayloadBuffer(void) { return fiber_tx_payload; }
+uint32_t* FiberComm_GetTxPayloadBuffer(void) { return fiber_tx_payload; }
 
 /**
  * @brief  Get RX payload data received from remote board
- * @param  payload_out: Buffer to copy received data (min FIBER_PROTO_MAX_PAYLOAD_WORDS floats)
- * @param  length_out: Pointer to store number of floats received
+ * @param  payload_out: Buffer to copy received data (min FIBER_PROTO_MAX_PAYLOAD_WORDS words)
+ * @param  length_out: Pointer to store number of words received
  * @retval true if new data available, false if no new data since last call
  */
-bool FiberComm_GetRxPayload(float* payload_out, uint8_t* length_out)
+bool FiberComm_GetRxPayload(uint32_t* payload_out, uint8_t* length_out)
 {
     if (!fiber_rx_data_ready) {
         return false;
@@ -432,14 +432,16 @@ void task_1ms(void)
             FiberProto_ReceivePacket(&fiber_proto_instance, &rx_command, rx_payload_words, &rx_length);
 
         if (rx_status == FIBER_PROTO_OK) {
-            // Valid frame received - parse payload into fiber_rx_payload[]
-            FiberProto_ParseFloats(rx_payload_words, rx_length, fiber_rx_payload, rx_length);
+            // Valid frame received - copy payload into fiber_rx_payload[]
+            for (int i = 0; i < rx_length; i++) {
+                fiber_rx_payload[i] = rx_payload_words[i];
+            }
             fiber_rx_length = rx_length;
             fiber_rx_data_ready = true;
 
             // Populate generic task inputs with fiber-optic RX data
             for (int i = 0; i < rx_length && i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
-                task_inputs.fiber_optic_rx.payload[i] = fiber_rx_payload[i];
+                task_inputs.fiber_optic_rx.payload[i] = rx_payload_words[i];
             }
             task_inputs.fiber_optic_rx.payload_length = rx_length;
             task_inputs.fiber_optic_rx.data_ready = true;
@@ -553,7 +555,7 @@ void task_1ms(void)
         }
 
         // Transmit frame (~347µs @ 691,200 baud for 24-byte frame)
-        FiberProto_SendFloats(&fiber_proto_instance, tx_command, fiber_tx_payload,
+        FiberProto_SendPacket(&fiber_proto_instance, tx_command, fiber_tx_payload,
             task_outputs.fiber_optic_tx.payload_length > 0 ? task_outputs.fiber_optic_tx.payload_length
                                                            : FIBER_PROTO_MAX_PAYLOAD_WORDS);
     }
