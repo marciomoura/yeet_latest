@@ -48,13 +48,15 @@ fiber_optic::grid_to_machine_message sfc_grid_side_external_ios_datamodel::get_f
 {
     fiber_optic::grid_to_machine_message msg;
     msg.dc_link_current = _fiber_optics_outputs_to_machine.dc_link_current.read();
-    msg.grid_voltage_magnitude = voltage_pu_t{0.0};  // TODO: Add grid voltage magnitude to outputs struct
+    msg.grid_voltage_magnitude = _fiber_optics_outputs_to_machine.grid_voltage_magnitude.read();
     msg.is_forced_commutation =
         (_fiber_optics_outputs_to_machine.operating_mode.read() == sfc_operating_mode_t::forced_commutation);
     msg.force_commutation_acknowledged = _fiber_optics_outputs_to_machine.force_commutation_acknowledged.read();
     msg.release_pulses = _fiber_optics_outputs_to_machine.pulse_releases.read();
     msg.state_id = static_cast<std::uint8_t>(_fiber_optics_outputs_to_machine.current_state_id.read());
-    msg.grid_release_protections = false;  // TODO: Add to outputs struct if needed
+    msg.grid_release_protections = _fiber_optics_outputs_to_machine.grid_release_protections.read();
+    msg.machine_release_protections = _fiber_optics_outputs_to_machine.machine_release_protections.read();
+    msg.communication_ok = _fiber_optics_outputs_to_machine.communication_ok.read();
     return msg;
 }
 

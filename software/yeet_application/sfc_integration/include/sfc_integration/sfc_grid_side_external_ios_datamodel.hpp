@@ -291,9 +291,12 @@ public:
         signal_output<bool> is_saturated{false};                         ///< Current controller at output limits
         signal_output<bool> pulse_releases{false};                       ///< Pulses enabled/system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current [pu] (grid-measured)
-        signal_output<bool> freeze_integrator{false};                    ///< Speed controller integrator freeze
-        signal_output<bool> is_requesting_main_pi_reset{false};          ///< Main PI reset request from modulator
-        signal_output<bool> communication_ok{false};  ///< Grid-side communication status (receiving machine)
+        signal_output<voltage_pu_t> grid_voltage_magnitude{voltage_pu_t{0.0}};  ///< Grid voltage magnitude [pu]
+        signal_output<bool> freeze_integrator{false};                           ///< Speed controller integrator freeze
+        signal_output<bool> is_requesting_main_pi_reset{false};  ///< Main PI reset request from modulator
+        signal_output<bool> grid_release_protections{false};     ///< Release grid protections (from FSM)
+        signal_output<bool> machine_release_protections{false};  ///< Release machine protections (via fiber)
+        signal_output<bool> communication_ok{false};             ///< Grid-side communication status (receiving machine)
         signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine state ID
     };

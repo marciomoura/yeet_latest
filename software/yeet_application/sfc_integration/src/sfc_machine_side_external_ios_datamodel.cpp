@@ -124,6 +124,7 @@ fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::ge
     msg.force_commutation_request = _fiber_optics_outputs_to_grid.force_commutation_request.read();
     msg.machine_protection_tripped = _fiber_optics_outputs_to_grid.machine_protection_tripped.read();
     msg.protection_inhibit = _fiber_optics_outputs_to_grid.protection_inhibit.read();
+    msg.communication_ok = _fiber_optics_outputs_to_grid.communication_ok.read();
     return msg;
 }
 

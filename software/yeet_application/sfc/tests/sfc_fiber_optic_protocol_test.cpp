@@ -571,6 +571,30 @@ TEST_F(MachineToGridProtocolTest, RoundTripProtectionInhibit)
     EXPECT_FALSE(decoded->communication_ok);
 }
 
+TEST_F(MachineToGridProtocolTest, RoundTripAllFlagsAndFloats)
+{
+    machine_to_grid_message original{};
+    original.measured_speed = yeet::speed_pu_t{0.123f};
+    original.dc_link_current_reference = yeet::current_pu_t{0.456f};
+    original.machine_voltage_magnitude = yeet::voltage_pu_t{0.789f};
+    original.force_commutation_request = true;
+    original.machine_protection_tripped = true;
+    original.protection_inhibit = true;
+    original.communication_ok = true;
+
+    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
+    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_FLOAT_EQ(decoded->measured_speed.value(), 0.123f);
+    EXPECT_FLOAT_EQ(decoded->dc_link_current_reference.value(), 0.456f);
+    EXPECT_FLOAT_EQ(decoded->machine_voltage_magnitude.value(), 0.789f);
+    EXPECT_TRUE(decoded->force_commutation_request);
+    EXPECT_TRUE(decoded->machine_protection_tripped);
+    EXPECT_TRUE(decoded->protection_inhibit);
+    EXPECT_TRUE(decoded->communication_ok);
+}
+
 /* ============================================================================
  * Edge Case and Robustness Tests
  * ============================================================================ */
