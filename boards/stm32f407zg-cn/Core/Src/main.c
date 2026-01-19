@@ -66,6 +66,7 @@ typedef struct {
     bool dac_ok;          ///< AD5724 DAC initialized
     bool fiber_optic_ok;  ///< Fiber-optic communication initialized
     bool network_ok;      ///< W5200 network initialized
+    bool application_ok;  ///< Application layer initialized
 } system_status_t;
 
 /**
@@ -285,9 +286,9 @@ static uint8_t Read_DIP_Switch(void)
  */
 void task_200us(void)
 {
-    // Only execute ADC operations if ADC initialized successfully
-    if (!system_status.adc_ok) {
-        return;  // Skip task if ADC not available
+    // Only execute ADC operations if ADC and application both initialized successfully
+    if (!system_status.adc_ok || !system_status.application_ok) {
+        return;  // Skip task if hardware or application not ready
     }
 
     static bool first_run = true;
@@ -397,6 +398,11 @@ bool FiberComm_GetRxPayload(float* payload_out, uint8_t* length_out)
  */
 void task_1ms(void)
 {
+    // Skip task if application not initialized
+    if (!system_status.application_ok) {
+        return;
+    }
+
     // ===== Populate Generic Task Inputs =====
 
     // Analog inputs (from ADC, but typically not used in 1ms task)
@@ -598,6 +604,12 @@ static void Update_System_LEDs()
  */
 void task_10ms(void)
 {
+    // Skip task if application not initialized
+    if (!system_status.application_ok) {
+        Update_System_LEDs();  // Still update LEDs to show initialization status
+        return;
+    }
+
     // ===== Populate Generic Task Inputs =====
     // Analog and digital inputs not typically read at this slow rate
     task_inputs.analog_inputs.valid = false;
@@ -972,6 +984,7 @@ int main(void)
 
     // 10. Initialize application layer (yeet control algorithms)
     yeet_embedded_init();
+    system_status.application_ok = true;
 
     /* ========================================================================
      * ERROR HANDLING - Set fault outputs if critical subsystems failed
