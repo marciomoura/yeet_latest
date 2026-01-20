@@ -48,7 +48,7 @@ public:
             _pulses_with_delay = _six_pulse_gen.get_pulses();
 
             // Store current sector information for plotting
-            _current_sector = _six_pulse_gen.get_sector();
+            _current_sector = _six_pulse_gen.get_current_sector();
 
             // Store current reference angle and three-phase voltages for plotting
             _current_reference_angle = reference_angle;
@@ -154,7 +154,7 @@ public:
 
             // Store virtual reference angle for plotting
             _current_virtual_angle = _six_pulse_gen.get_virtual_reference_angle();
-            _current_sector = _six_pulse_gen.get_sector();
+            _current_sector = _six_pulse_gen.get_current_sector();
         });
     }
 
@@ -222,7 +222,7 @@ public:
         _six_pulse_gen.configure_virtual_reference(frequency_t{virtual_frequency}, us(sampling_time * 1e6));
         _six_pulse_gen.enable_virtual_reference(true);
         _six_pulse_gen.reset_virtual_reference();
-        _six_pulse_gen.set_pulse_width(angle_wrapped(deg_to_rad(60.0f)));
+        _six_pulse_gen.configure_pulse_width(angle_wrapped(deg_to_rad(60.0f)));
 
         set_logger();
 
@@ -247,7 +247,7 @@ public:
             _six_pulse_gen.update(angle_wrapped(deg_to_rad(0.0)), true);
 
             _current_virtual_angle = _six_pulse_gen.get_virtual_reference_angle();
-            _current_sector = _six_pulse_gen.get_sector();
+            _current_sector = _six_pulse_gen.get_current_sector();
         });
     }
 
@@ -457,7 +457,7 @@ public:
         _six_pulse_gen.configure_virtual_reference(frequency_t{virtual_frequency}, duration_t{sampling_time});
         _six_pulse_gen.enable_virtual_reference(true);
         _six_pulse_gen.reset_virtual_reference();
-        _six_pulse_gen.set_pulse_width(angle_wrapped(deg_to_rad(pulse_width_deg)));
+        _six_pulse_gen.configure_pulse_width(angle_wrapped(deg_to_rad(pulse_width_deg)));
 
         set_logger();
 

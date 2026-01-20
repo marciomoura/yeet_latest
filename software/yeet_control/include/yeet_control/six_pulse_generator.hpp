@@ -218,14 +218,14 @@ public:
      *
      * @param ref_type The new reference type (line or phase).
      */
-    void set_reference_type(reference_type ref_type);
+    void configure_reference_type(reference_type ref_type);
 
     /**
      * @brief Sets the pulse width for all six pulse generators.
      *
      * @param pulse_width The new pulse width.
      */
-    void set_pulse_width(angle_t pulse_width);
+    void configure_pulse_width(angle_t pulse_width);
 
     /**
      * @brief Gets the current pulse width.
@@ -249,7 +249,7 @@ public:
      *
      * @return The current sector.
      */
-    pulse_sector_t get_sector() const noexcept;
+    pulse_sector_t get_current_sector() const noexcept;
 
     /**
      * @brief Returns true if any thyristor has started firing in the current cycle.
@@ -327,7 +327,7 @@ private:
     bool _any_thyristor_fired{false};
 
     // Virtual reference generator state
-    angle_t _virtual_reference_angle{0.0};
+    angle_wrapped _virtual_reference_angle{0.0};
     frequency_t _virtual_reference_frequency{50.0};
     duration_t _virtual_reference_sampling_time{us(100.0)};
     bool _virtual_reference_enabled{false};

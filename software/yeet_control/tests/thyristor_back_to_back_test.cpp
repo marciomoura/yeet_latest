@@ -108,8 +108,8 @@ public:
             // Store current reference angles and sectors
             _current_grid_reference_angle = grid_reference_angle;
             _current_machine_reference_angle = machine_reference_angle;
-            _current_grid_sector = _six_pulse_gen_rect.get_sector();
-            _current_machine_sector = _six_pulse_gen_inv.get_sector();
+            _current_grid_sector = _six_pulse_gen_rect.get_current_sector();
+            _current_machine_sector = _six_pulse_gen_inv.get_current_sector();
 
             // Accumulate DC link voltage for averaging
             _v_dc_sum += (_v_rect_dc - _v_inv_dc);
@@ -873,8 +873,8 @@ public:
             // Store current reference angles and sectors
             _current_grid_reference_angle = grid_reference_angle;
             _current_machine_reference_angle = machine_reference_angle;
-            _current_grid_sector = _six_pulse_gen_rect.get_sector();
-            _current_machine_sector = _six_pulse_gen_inv.get_sector();
+            _current_grid_sector = _six_pulse_gen_rect.get_current_sector();
+            _current_machine_sector = _six_pulse_gen_inv.get_current_sector();
 
             // Accumulate DC link voltage for averaging
             _v_dc_sum += (_v_rect_dc - _v_inv_dc);

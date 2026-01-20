@@ -71,7 +71,7 @@ public:
 
             // Store current reference angle and sector
             _current_reference_angle = reference_angle;
-            _current_sector = _six_pulse_gen.get_sector();
+            _current_sector = _six_pulse_gen.get_current_sector();
 
             // Accumulate voltage for averaging
             _v_dc_sum += _v_dc_output.value();
