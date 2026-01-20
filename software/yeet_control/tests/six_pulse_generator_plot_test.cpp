@@ -41,9 +41,11 @@ public:
             angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
             // Update six-pulse generator with different firing angles
-            _pulses_no_delay = _six_pulse_gen.update(reference_angle, angle_wrapped(0.0), true);
-            _pulses_with_delay =
-                _six_pulse_gen.update(reference_angle, angle_wrapped(deg_to_rad(firing_delay_deg)), true);
+            _six_pulse_gen.update(reference_angle, angle_wrapped(0.0), true);
+            _pulses_no_delay = _six_pulse_gen.get_pulses();
+
+            _six_pulse_gen.update(reference_angle, angle_wrapped(deg_to_rad(firing_delay_deg)), true);
+            _pulses_with_delay = _six_pulse_gen.get_pulses();
 
             // Store current sector information for plotting
             _current_sector = _six_pulse_gen.get_sector();
@@ -147,7 +149,8 @@ public:
 
         _simulator.register_lambda_runner(sampling_time, [&]() {
             // Update using virtual reference mode (single argument overload)
-            _pulses = _six_pulse_gen.update(angle_wrapped(deg_to_rad(firing_angle_deg)), true);
+            _six_pulse_gen.update(angle_wrapped(deg_to_rad(firing_angle_deg)), true);
+            _pulses = _six_pulse_gen.get_pulses();
 
             // Store virtual reference angle for plotting
             _current_virtual_angle = _six_pulse_gen.get_virtual_reference_angle();
@@ -228,10 +231,17 @@ public:
             angle_wrapped current_angle = _six_pulse_gen.get_virtual_reference_angle();
 
             // Generate pulses with different firing angles for comparison
-            _pulses_alpha_0 = _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(0.0)), true);
-            _pulses_alpha_30 = _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(30.0)), true);
-            _pulses_alpha_60 = _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(60.0)), true);
-            _pulses_alpha_90 = _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(90.0)), true);
+            _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(0.0)), true);
+            _pulses_alpha_0 = _six_pulse_gen.get_pulses();
+
+            _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(30.0)), true);
+            _pulses_alpha_30 = _six_pulse_gen.get_pulses();
+
+            _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(60.0)), true);
+            _pulses_alpha_60 = _six_pulse_gen.get_pulses();
+
+            _six_pulse_gen.update(current_angle, angle_wrapped(deg_to_rad(90.0)), true);
+            _pulses_alpha_90 = _six_pulse_gen.get_pulses();
 
             // Update virtual reference for next cycle (only call update once per cycle)
             _six_pulse_gen.update(angle_wrapped(deg_to_rad(0.0)), true);
@@ -336,7 +346,8 @@ public:
 
         _simulator.register_lambda_runner(sampling_time, [&]() {
             // Update using virtual reference mode with mask active
-            _pulses = _six_pulse_gen.update(angle_wrapped(deg_to_rad(firing_angle_deg)), true);
+            _six_pulse_gen.update(angle_wrapped(deg_to_rad(firing_angle_deg)), true);
+            _pulses = _six_pulse_gen.get_pulses();
 
             // Track if any enabled pulse has fired (for validation)
             if (_mask.p1 && _pulses.p1) _p1_fired = true;
@@ -428,6 +439,72 @@ TEST_P(SixPulseGeneratorPulseTrainMaskingTest, MaskedPulseGeneration)
     EXPECT_TRUE(enabled_p4_fired()) << "Enabled P4 never fired during simulation";
     EXPECT_TRUE(enabled_p5_fired()) << "Enabled P5 never fired during simulation";
     EXPECT_TRUE(enabled_p6_fired()) << "Enabled P6 never fired during simulation";
+}
+
+//==============================================================================
+// Scenario 6: Double Pulse Mode - Shows 120-degree conduction with overlaps
+//==============================================================================
+
+class SixPulseGeneratorDoublePulsePlotTest : public ::testing::Test {
+public:
+    static constexpr double sampling_time = 50e-6;
+    static constexpr double virtual_frequency = 50.0;
+    static constexpr double pulse_width_deg = 120.0;
+    static constexpr double firing_angle_deg = 0.0;
+
+    void SetUp() override
+    {
+        _six_pulse_gen.configure_virtual_reference(frequency_t{virtual_frequency}, duration_t{sampling_time});
+        _six_pulse_gen.enable_virtual_reference(true);
+        _six_pulse_gen.reset_virtual_reference();
+        _six_pulse_gen.set_pulse_width(angle_wrapped(deg_to_rad(pulse_width_deg)));
+
+        set_logger();
+
+        _simulator.configure_sampler_sampling_rate(sampling_time);
+
+        _simulator.register_lambda_runner(sampling_time, [&]() {
+            _six_pulse_gen.update(angle_wrapped::from_degrees(firing_angle_deg), true);
+            _pulses = _six_pulse_gen.get_pulses();
+            _current_angle = _six_pulse_gen.get_virtual_reference_angle();
+        });
+    }
+
+    void simulate_for(double time) { _simulator.simulate_for(time); }
+
+private:
+    void set_logger()
+    {
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "virtual_angle_deg", [&]() -> double { return _current_angle.get_pu(); }));
+
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("p1", [&]() -> double { return _pulses.p1 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("p2", [&]() -> double { return _pulses.p2 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("p3", [&]() -> double { return _pulses.p3 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("p4", [&]() -> double { return _pulses.p4 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("p5", [&]() -> double { return _pulses.p5 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(
+            yeet::make_lambda_sampler<double>("p6", [&]() -> double { return _pulses.p6 ? 1.0 : 0.0; }));
+        _simulator.register_sampler_entry(yeet::make_lambda_sampler<double>(
+            "any_thyristor_fired", [&]() -> double { return _six_pulse_gen.get_any_thyristor_fired(); }));
+    }
+
+    yeet::simulator _simulator = yeet::make_gtest_simulator();
+    six_pulse_generator _six_pulse_gen{six_pulse_generator::reference_type::line};
+    angle_wrapped _current_angle{0.0};
+    six_pulse_generator::pulses _pulses{};
+};
+
+TEST_F(SixPulseGeneratorDoublePulsePlotTest, DoublePulseConduction)
+{
+    // Simulate for 2 cycles to see the 120-degree blocks clearly
+    simulate_for(2.0 / virtual_frequency);
+    EXPECT_TRUE(true);
 }
 
 INSTANTIATE_TEST_SUITE_P(PulseMaskCases,

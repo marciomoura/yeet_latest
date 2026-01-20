@@ -134,9 +134,8 @@ public:
      * @param reference_angle The reference angle of the AC system.
      * @param firing_angle The desired firing angle (alpha).
      * @param enable Gating enable signal. If false, all pulses are off.
-     * @return The generated pulses for the six thyristors.
      */
-    pulses update(angle_t reference_angle, angle_t firing_angle, bool enable);
+    void update(angle_t reference_angle, angle_t firing_angle, bool enable);
 
     /**
      * @brief Updates the pulse generator using internal virtual reference angle.
@@ -149,9 +148,8 @@ public:
      *
      * @param firing_angle The desired firing angle (alpha).
      * @param enable Gating enable signal. If false, all pulses are off.
-     * @return The generated pulses for the six thyristors.
      */
-    pulses update(angle_t firing_angle, bool enable);
+    void update(angle_t firing_angle, bool enable);
 
     /**
      * @brief Configures the virtual reference generator parameters.
@@ -174,6 +172,13 @@ public:
      * @param enable True to enable virtual reference mode, false to disable.
      */
     void enable_virtual_reference(bool enable);
+
+    /**
+     * @brief Resets the pulse generator state.
+     *
+     * Resets internal pulsers, sectors, and virtual reference angle.
+     */
+    void reset();
 
     /**
      * @brief Resets the virtual reference angle to zero.
@@ -207,17 +212,6 @@ public:
      * @param enable True to enable pulse masking, false to disable.
      */
     void enable_pulse_mask(bool enable);
-
-    /**
-     * @brief Enables or disables double-pulsing mode.
-     *
-     * In double-pulsing mode, each thyristor is fired twice: once at its primary
-     * firing angle, and again 60 degrees later when the next thyristor in the
-     * sequence is fired. This ensures a pair of thyristors is always gated.
-     *
-     * @param enable True to enable double-pulsing, false for single pulses.
-     */
-    void enable_double_pulsing(bool enable);
 
     /**
      * @brief Sets the reference type for the pulse generator.
@@ -256,6 +250,17 @@ public:
      * @return The current sector.
      */
     pulse_sector_t get_sector() const noexcept;
+
+    /**
+     * @brief Returns true if any thyristor has started firing in the current cycle.
+     *
+     * This flag detects the rising edge of any thyristor gating signal. It is
+     * useful for coordinating grid-side converter pulses with machine-side
+     * switching events.
+     *
+     * @return true if a new thyristor firing has been detected.
+     */
+    bool get_any_thyristor_fired() const noexcept;
 
     /**
      * @brief Returns true for one cycle if the operational sector has changed.
@@ -305,21 +310,21 @@ public:
 
 private:
     // Core pulse generation
-    pulses generate_pulses(angle_t reference_angle, angle_t firing_angle, bool enable);
     void update_sector(angle_t reference_angle);
     void update_virtual_reference();
+    void generate_pulses(angle_t reference_angle, angle_t firing_angle, bool enable);
 
     // The type of reference angle provided to the update method.
     reference_type _ref_type;
 
     // Array of six individual pulse generators, one for each thyristor
     std::array<pulse_generator, 6> _pulse_generators;
-    std::array<pulse_generator, 6> _lower_pulse_generators;
 
     pulses _pulses;
-    pulses _lower_pulses;
+    pulses _previous_pulses;
     pulse_sector_t _current_sector{pulse_sector_t::none};
     bool _sector_has_changed{false};
+    bool _any_thyristor_fired{false};
 
     // Virtual reference generator state
     angle_t _virtual_reference_angle{0.0};
@@ -331,9 +336,6 @@ private:
     pulse_mask _pulse_mask{pulse_mask::all_enabled()};
     bool _pulse_mask_enabled{false};
 
-    // Double pulsing state
-    bool _double_pulsing_enabled{false};
-
     // Default firing offsets for the 6-pulse bridge topology
     // These are spaced 60 degrees apart following the standard firing sequence
     static constexpr std::array<double, 6> firing_offsets_deg = {
@@ -343,15 +345,6 @@ private:
         180.0,  // P4: 180°
         240.0,  // P5: 240°
         300.0   // P6: 300°
-    };
-
-    static constexpr std::array<double, 6> lower_firing_offsets_deg = {
-        60.0 + 0.0,    // P1: 0°
-        60.0 + 60.0,   // P2: 60°
-        60.0 + 120.0,  // P3: 120°
-        60.0 + 180.0,  // P4: 180°
-        60.0 + 240.0,  // P5: 240°
-        60.0 + 300.0   // P6: 300°
     };
 };
 

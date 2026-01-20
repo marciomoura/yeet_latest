@@ -70,10 +70,12 @@ public:
             angle_wrapped machine_reference_angle = _machine_waveform_generator.get_fundamental_signal_angle().a();
 
             // Generate rectifier gate pulses
-            _pulses_rect = _six_pulse_gen_rect.update(grid_reference_angle, _current_firing_angle_rect, true);
+            _six_pulse_gen_rect.update(grid_reference_angle, _current_firing_angle_rect, true);
+            _pulses_rect = _six_pulse_gen_rect.get_pulses();
 
             // Generate inverter gate pulses
-            _pulses_inv = _six_pulse_gen_inv.update(machine_reference_angle, _current_firing_angle_inv, true);
+            _six_pulse_gen_inv.update(machine_reference_angle, _current_firing_angle_inv, true);
+            _pulses_inv = _six_pulse_gen_inv.get_pulses();
 
             // Convert pulses
             thyristor_pulses p_rect_conv;

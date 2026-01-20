@@ -52,7 +52,8 @@ public:
             angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
             // Generate gate pulses with current firing angle
-            auto gen_pulses = _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            auto gen_pulses = _six_pulse_gen.get_pulses();
             _pulses.t1 = gen_pulses.p1;
             _pulses.t2 = gen_pulses.p2;
             _pulses.t3 = gen_pulses.p3;
