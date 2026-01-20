@@ -124,6 +124,9 @@ public:
         /// Virtual torque ramp duration [s], 0 = immediate jump to final
         parameter<duration_t> virtual_torque_duration = duration_t{0.0};
 
+        /// Skip flux build-up phase (useful for tests without excitation)
+        parameter<bool> skip_flux_buildup = false;
+
         /// Enable override for field established flag testing
         parameter<bool> field_established_override = false;
 
@@ -210,6 +213,8 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
         handler.register_parameter(component_name, "force_virtual_mode_operation",
             yeet::utils::make_bool_accessor(_model_parameters->force_virtual_mode_operation));
+        handler.register_parameter(
+            component_name, "skip_flux_buildup", yeet::utils::make_bool_accessor(_model_parameters->skip_flux_buildup));
     }
 
     inputs* get_inputs() { return _model_inputs; }

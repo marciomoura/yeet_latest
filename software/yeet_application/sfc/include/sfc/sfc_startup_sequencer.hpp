@@ -201,6 +201,17 @@ public:
     void configure_force_virtual_mode(bool force_virtual);
 
     /**
+     * @brief Configures whether to skip the flux build-up phase (for testing)
+     *
+     * When enabled, the sequencer will transition directly from IDLE (after settling)
+     * to STARTING_PROCEDURE without waiting for the field established signal.
+     * This is useful for tests without an actual excitation system.
+     *
+     * @param skip_flux_buildup If true, skip the flux buildup phase
+     */
+    void configure_skip_flux_buildup(bool skip_flux_buildup);
+
+    /**
      * @brief Starts the startup sequence
      *
      * Called when the main state machine enters OPERATION_ON or by manual command.
@@ -316,6 +327,7 @@ private:
     speed_reference_rate_limit_config _speed_reference_rate_limit_config;
     flying_restart_config _flying_restart_config;
     bool _force_virtual_mode_operation{false};
+    bool _skip_flux_buildup{false};
 
     // State
     startup_sequencer_state_t _current_state{startup_sequencer_state_t::IDLE};

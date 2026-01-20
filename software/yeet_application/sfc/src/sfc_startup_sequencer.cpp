@@ -60,11 +60,16 @@ void sfc_startup_sequencer::configure_force_virtual_mode(bool force_virtual)
     _force_virtual_mode_operation = force_virtual;
 }
 
+void sfc_startup_sequencer::configure_skip_flux_buildup(bool skip_flux_buildup)
+{
+    _skip_flux_buildup = skip_flux_buildup;
+}
+
 bool sfc_startup_sequencer::start_sequence()
 {
-    // Can only start from IDLE state
+    // If not in IDLE, reset to IDLE first to ensure a clean start
     if (_current_state != startup_sequencer_state_t::IDLE) {
-        return false;
+        transition_to_idle();
     }
 
     // Mark start as requested and begin observer settling
@@ -118,7 +123,27 @@ void sfc_startup_sequencer::update(bool is_field_established,
             break;
 
         case startup_sequencer_state_t::CLOSED_LOOP_OPERATION:
-            update_closed_loop_operation(effective_speed_reference);
+            if (_force_virtual_mode_operation) {
+                // Parameter changed at runtime - force back to starting procedure
+                _previous_state = _current_state;
+                _current_state = startup_sequencer_state_t::STARTING_PROCEDURE;
+
+                // Initialize virtual reference frame
+                _virtual_frequency = _virtual_frequency_config.initial;
+                _virtual_rotor_angle = angle_t{0.0};
+                _virtual_angle_integrator.reset();
+                _virtual_torque = _virtual_torque_config.initial;
+
+                // Reset ramps
+                _virtual_frequency_ramp.reset();
+                _virtual_torque_ramp.reset();
+
+                // Reset state elapsed timer
+                _state_elapsed_timer.reset();
+            }
+            else {
+                update_closed_loop_operation(effective_speed_reference);
+            }
             break;
     }
 
@@ -193,7 +218,9 @@ void sfc_startup_sequencer::transition_to_flux_buildup()
 
 void sfc_startup_sequencer::transition_to_starting_procedure()
 {
-    if (_current_state != startup_sequencer_state_t::FLUX_BUILDUP) {
+    // Allow transition from FLUX_BUILDUP (normal path) or IDLE (if skip_flux_buildup is enabled)
+    if (_current_state != startup_sequencer_state_t::FLUX_BUILDUP &&
+        _current_state != startup_sequencer_state_t::IDLE) {
         return;
     }
 
@@ -285,9 +312,15 @@ void sfc_startup_sequencer::update_idle(
 
         // Check if settling period has elapsed
         if (_observer_settling_timer.get_elapsed_time() >= _flying_restart_config.observer_settling_time) {
-            // Settling complete - begin flux buildup.
-            // Flying start evaluation is intentionally deferred until flux is established.
-            transition_to_flux_buildup();
+            // Settling complete.
+            // If skipping flux buildup, go directly to starting procedure.
+            // Otherwise transition to flux buildup phase.
+            if (_skip_flux_buildup) {
+                transition_to_starting_procedure();
+            }
+            else {
+                transition_to_flux_buildup();
+            }
 
             _start_requested = false;
         }
@@ -306,8 +339,9 @@ void sfc_startup_sequencer::update_flux_buildup(
     // Field is established. If machine is already generating sufficient voltage,
     // treat this as a flying start and jump directly to closed-loop with the
     // speed reference initialized to the current measured speed.
+    // However, if virtual mode is forced, proceed with normal startup.
     const bool voltage_detected = measured_voltage_magnitude >= _flying_restart_config.voltage_threshold;
-    if (voltage_detected) {
+    if (voltage_detected && !_force_virtual_mode_operation) {
         transition_to_closed_loop_operation(measured_speed);
         return;
     }
@@ -414,7 +448,8 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             // During observer settling (start requested), enable excitation in parallel so the
             // excitation controller's preflux timer can elapse without being delayed by the
             // additional observer settling time spent in IDLE.
-            _outputs.controller_commands.release_excitation = _start_requested;
+            // If skip_flux_buildup is true, suppress excitation release.
+            _outputs.controller_commands.release_excitation = _start_requested && !_skip_flux_buildup;
             _outputs.controller_commands.release_machine_observer =
                 _start_requested;  // Enable observer when start requested for settling
             _outputs.controller_commands.release_speed_controller = false;
@@ -424,9 +459,9 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
         case startup_sequencer_state_t::FLUX_BUILDUP:
             _outputs.controller_commands.reference_frame_source = reference_frame_source_t::VIRTUAL;
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::MANUAL_TORQUE;
-            _outputs.controller_commands.release_machine_side_pulses = false;  // No pulses during flux buildup
-            _outputs.controller_commands.release_excitation = true;            // Enable excitation controller
-            _outputs.controller_commands.release_machine_observer = true;      // Enable observer when excitation is on
+            _outputs.controller_commands.release_machine_side_pulses = false;       // No pulses during flux buildup
+            _outputs.controller_commands.release_excitation = !_skip_flux_buildup;  // Enable excitation controller
+            _outputs.controller_commands.release_machine_observer = true;  // Enable observer when excitation is on
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = false;
             break;
@@ -435,7 +470,7 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.reference_frame_source = reference_frame_source_t::VIRTUAL;
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::MANUAL_TORQUE;
             _outputs.controller_commands.release_machine_side_pulses = true;  // Release pulses for starting
-            _outputs.controller_commands.release_excitation = true;
+            _outputs.controller_commands.release_excitation = !_skip_flux_buildup;
             _outputs.controller_commands.release_machine_observer = true;  // Enable observer
             _outputs.controller_commands.release_speed_controller = false;
             _outputs.controller_commands.release_torque_controller = true;  // Enable torque controller
@@ -445,7 +480,7 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.reference_frame_source = reference_frame_source_t::ESTIMATED;
             _outputs.controller_commands.torque_control_mode = sfc_torque_controller::control_mode::SPEED_CONTROL;
             _outputs.controller_commands.release_machine_side_pulses = true;
-            _outputs.controller_commands.release_excitation = true;
+            _outputs.controller_commands.release_excitation = !_skip_flux_buildup;
             _outputs.controller_commands.release_machine_observer = true;
             _outputs.controller_commands.release_speed_controller = true;  // Enable speed controller
             _outputs.controller_commands.release_torque_controller = true;
@@ -475,9 +510,13 @@ void sfc_startup_sequencer::update_state_machine_coordination(
         _shutdown_speed_override_active = false;
     }
 
-    // When in OPERATION_OFF state, ensure sequencer is in IDLE
-    // This allows grid-side to extinguish current safely before machine-side stops
-    if (current_state_id == sfc_state_id::OPERATION_OFF && _current_state != startup_sequencer_state_t::IDLE) {
+    // When in any state other than OPERATION_ON or SHUTDOWN_REQUESTED, ensure sequencer is in IDLE.
+    // This allows controlled deceleration in SHUTDOWN_REQUESTED, but ensures a clean
+    // reset if we transition back to standby or aux control states.
+    const bool is_active_state =
+        (current_state_id == sfc_state_id::OPERATION_ON || current_state_id == sfc_state_id::SHUTDOWN_REQUESTED);
+
+    if (!is_active_state && _current_state != startup_sequencer_state_t::IDLE) {
         stop_sequence();
     }
 

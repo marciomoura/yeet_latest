@@ -120,6 +120,9 @@ void sfc_startup_sequencer_runner::set_parameters()
 
     // Configure force virtual mode operation
     _sequencer.configure_force_virtual_mode(_parameters.force_virtual_mode_operation.read());
+
+    // Configure skip flux buildup phase
+    _sequencer.configure_skip_flux_buildup(_parameters.skip_flux_buildup.read());
 }
 
 void sfc_startup_sequencer_runner::set_parameter_callback()
@@ -222,6 +225,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
     // Register callback for force virtual mode operation
     _parameters.force_virtual_mode_operation.register_callback(
         [&]() { _sequencer.configure_force_virtual_mode(_parameters.force_virtual_mode_operation.read()); });
+
+    // Register callback for skip flux buildup phase
+    _parameters.skip_flux_buildup.register_callback(
+        [&]() { _sequencer.configure_skip_flux_buildup(_parameters.skip_flux_buildup.read()); });
 }
 
 void sfc_startup_sequencer_runner::clamp_speed_reference_to_virtual_frequency_final()
