@@ -203,7 +203,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->state_machine.get_parameters().stop_command.write(false);
 
     // Force natural commutation
-    // control->operation_mode_monitor.get_parameters().force_natural_commutation.write(true);
+    // control->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(true);
     // control->current_controller.get_parameters().current_reference_magnitude_limit.write(yeet::current_pu_t{0.1f});
     // control->current_controller.get_parameters().override_current_reference.write(true);
     // control->current_controller.get_parameters().override_current_reference_value.write(yeet::current_pu_t{0.1f});
@@ -391,7 +391,7 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     // Channel B: Test signal 2
     // Channel C: Test signal 3
     // Channel D: Test signal 4
-    write_ao(outputs, 0, outputs->analog_outputs.channels[0], 1.0, 0.0f);
+    write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 1.0, 0.0f);
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
