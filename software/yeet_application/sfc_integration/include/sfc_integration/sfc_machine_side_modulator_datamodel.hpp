@@ -61,6 +61,9 @@ public:
         /// Firing angle output to pulse generator [rad]
         signal_output<angle_wrapped> firing_angle;
 
+        /// Selected firing angle reference source [rad]
+        signal_output<angle_wrapped> selected_firing_angle_reference;
+
         /// Request signal to grid-side modulator for forced commutation [bool]
         signal_output<bool> request_force_commutation;
 

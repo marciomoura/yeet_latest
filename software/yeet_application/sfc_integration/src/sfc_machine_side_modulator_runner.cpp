@@ -39,6 +39,7 @@ void sfc_machine_side_modulator_runner::run()
 
     // Write outputs to the datamodel
     _outputs.firing_angle = _sfc_machine_side_modulator.get_firing_angle_rad();
+    _outputs.selected_firing_angle_reference = angle_wrapped(selected_rotor_angle);
     _outputs.release_pulses = _sfc_machine_side_modulator.get_release_pulses();
     _outputs.request_force_commutation = _sfc_machine_side_modulator.get_request_force_commutation();
     _outputs.commutation_state = _sfc_machine_side_modulator.get_commutation_state();
