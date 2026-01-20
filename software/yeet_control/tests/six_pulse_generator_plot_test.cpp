@@ -219,6 +219,7 @@ public:
         _six_pulse_gen.configure_virtual_reference(frequency_t{virtual_frequency}, us(sampling_time * 1e6));
         _six_pulse_gen.enable_virtual_reference(true);
         _six_pulse_gen.reset_virtual_reference();
+        _six_pulse_gen.set_pulse_width(angle_wrapped(deg_to_rad(60.0f)));
 
         set_logger();
 

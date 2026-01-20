@@ -209,6 +209,24 @@ public:
     void enable_pulse_mask(bool enable);
 
     /**
+     * @brief Enables or disables double-pulsing mode.
+     *
+     * In double-pulsing mode, each thyristor is fired twice: once at its primary
+     * firing angle, and again 60 degrees later when the next thyristor in the
+     * sequence is fired. This ensures a pair of thyristors is always gated.
+     *
+     * @param enable True to enable double-pulsing, false for single pulses.
+     */
+    void enable_double_pulsing(bool enable);
+
+    /**
+     * @brief Sets the reference type for the pulse generator.
+     *
+     * @param ref_type The new reference type (line or phase).
+     */
+    void set_reference_type(reference_type ref_type);
+
+    /**
      * @brief Sets the pulse width for all six pulse generators.
      *
      * @param pulse_width The new pulse width.
@@ -296,8 +314,10 @@ private:
 
     // Array of six individual pulse generators, one for each thyristor
     std::array<pulse_generator, 6> _pulse_generators;
+    std::array<pulse_generator, 6> _lower_pulse_generators;
 
     pulses _pulses;
+    pulses _lower_pulses;
     pulse_sector_t _current_sector{pulse_sector_t::none};
     bool _sector_has_changed{false};
 
@@ -311,6 +331,9 @@ private:
     pulse_mask _pulse_mask{pulse_mask::all_enabled()};
     bool _pulse_mask_enabled{false};
 
+    // Double pulsing state
+    bool _double_pulsing_enabled{false};
+
     // Default firing offsets for the 6-pulse bridge topology
     // These are spaced 60 degrees apart following the standard firing sequence
     static constexpr std::array<double, 6> firing_offsets_deg = {
@@ -320,6 +343,15 @@ private:
         180.0,  // P4: 180°
         240.0,  // P5: 240°
         300.0   // P6: 300°
+    };
+
+    static constexpr std::array<double, 6> lower_firing_offsets_deg = {
+        60.0 + 0.0,    // P1: 0°
+        60.0 + 60.0,   // P2: 60°
+        60.0 + 120.0,  // P3: 120°
+        60.0 + 180.0,  // P4: 180°
+        60.0 + 240.0,  // P5: 240°
+        60.0 + 300.0   // P6: 300°
     };
 };
 

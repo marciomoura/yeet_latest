@@ -12,6 +12,12 @@ six_pulse_generator::six_pulse_generator(reference_type ref_type, angle_t pulse_
         angle_t offset = angle_t(yeet::deg_to_rad(firing_offsets_deg[i]));
         _pulse_generators[i] = pulse_generator(offset, pulse_width);
     }
+
+    // Initialize all six pulse generators with their respective firing offsets
+    for (size_t i = 0; i < 6; ++i) {
+        angle_wrapped offset = angle_wrapped::from_degrees(lower_firing_offsets_deg[i]);
+        _lower_pulse_generators[i] = pulse_generator(offset.get_radians(), pulse_width);
+    }
 }
 
 six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle, angle_t firing_angle, bool enable)
@@ -39,7 +45,8 @@ six_pulse_generator::pulses six_pulse_generator::update(angle_t firing_angle, bo
 six_pulse_generator::pulses six_pulse_generator::generate_pulses(
     angle_t reference_angle, angle_t firing_angle, bool enable)
 {
-    angle_t final_firing_angle = firing_angle;
+    angle_wrapped final_firing_angle = firing_angle;
+    angle_wrapped ref_angle = reference_angle;
 
     // If the reference angle is from a phase voltage, a 30-degree phase shift
     // is required to align the firing angle with the line-to-line commutation point.
@@ -49,12 +56,32 @@ six_pulse_generator::pulses six_pulse_generator::generate_pulses(
     }
 
     // Update each pulse generator and collect the results
-    _pulses.p1 = _pulse_generators[0].update(reference_angle, final_firing_angle, enable);
-    _pulses.p2 = _pulse_generators[1].update(reference_angle, final_firing_angle, enable);
-    _pulses.p3 = _pulse_generators[2].update(reference_angle, final_firing_angle, enable);
-    _pulses.p4 = _pulse_generators[3].update(reference_angle, final_firing_angle, enable);
-    _pulses.p5 = _pulse_generators[4].update(reference_angle, final_firing_angle, enable);
-    _pulses.p6 = _pulse_generators[5].update(reference_angle, final_firing_angle, enable);
+    _pulses.p1 = _pulse_generators[0].update(ref_angle, final_firing_angle, enable);
+    _pulses.p2 = _pulse_generators[1].update(ref_angle, final_firing_angle, enable);
+    _pulses.p3 = _pulse_generators[2].update(ref_angle, final_firing_angle, enable);
+    _pulses.p4 = _pulse_generators[3].update(ref_angle, final_firing_angle, enable);
+    _pulses.p5 = _pulse_generators[4].update(ref_angle, final_firing_angle, enable);
+    _pulses.p6 = _pulse_generators[5].update(ref_angle, final_firing_angle, enable);
+
+    // Apply double pulsing if enabled
+    if (_double_pulsing_enabled) {
+        angle_wrapped c = angle_wrapped::from_degrees(30.0f);
+        _lower_pulses.p1 = _lower_pulse_generators[0].update(reference_angle + c, final_firing_angle, enable);
+        _lower_pulses.p2 = _lower_pulse_generators[1].update(reference_angle + c, final_firing_angle, enable);
+        _lower_pulses.p3 = _lower_pulse_generators[2].update(reference_angle + c, final_firing_angle, enable);
+        _lower_pulses.p4 = _lower_pulse_generators[3].update(reference_angle + c, final_firing_angle, enable);
+        _lower_pulses.p5 = _lower_pulse_generators[4].update(reference_angle + c, final_firing_angle, enable);
+        _lower_pulses.p6 = _lower_pulse_generators[5].update(reference_angle + c, final_firing_angle, enable);
+
+        // In double-pulsing mode, we fire both the current thyristor and its predecessor,
+        // which ensure a path for the DC link current.
+        _pulses.p1 = _pulses.p1 || _lower_pulses.p2;  // p1_orig || p2_orig;
+        _pulses.p2 = _pulses.p2 || _lower_pulses.p3;  // p2_orig || p3_orig;
+        _pulses.p3 = _pulses.p3 || _lower_pulses.p4;  // p3_orig || p4_orig;
+        _pulses.p4 = _pulses.p4 || _lower_pulses.p5;  // p4_orig || p5_orig;
+        _pulses.p5 = _pulses.p5 || _lower_pulses.p6;  // p5_orig || p6_orig;
+        _pulses.p6 = _pulses.p6 || _lower_pulses.p1;  // p6_orig || p1_orig;
+    }
 
     // Apply pulse mask if enabled
     if (_pulse_mask_enabled) {
@@ -98,6 +125,8 @@ void six_pulse_generator::configure_virtual_reference(frequency_t frequency, dur
 
 void six_pulse_generator::enable_virtual_reference(bool enable) { _virtual_reference_enabled = enable; }
 
+void six_pulse_generator::set_reference_type(reference_type ref_type) { _ref_type = ref_type; }
+
 void six_pulse_generator::reset_virtual_reference() { _virtual_reference_angle = angle_t{0.0}; }
 
 void six_pulse_generator::reset_virtual_reference(angle_t initial_angle) { _virtual_reference_angle = initial_angle; }
@@ -105,6 +134,8 @@ void six_pulse_generator::reset_virtual_reference(angle_t initial_angle) { _virt
 void six_pulse_generator::configure_pulse_mask(const pulse_mask& mask) { _pulse_mask = mask; }
 
 void six_pulse_generator::enable_pulse_mask(bool enable) { _pulse_mask_enabled = enable; }
+
+void six_pulse_generator::enable_double_pulsing(bool enable) { _double_pulsing_enabled = enable; }
 
 void six_pulse_generator::set_pulse_width(angle_t pulse_width)
 {
