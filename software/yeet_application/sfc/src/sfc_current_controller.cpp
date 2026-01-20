@@ -86,7 +86,8 @@ void sfc_current_controller::update(current_pu_t dc_link_current_reference_pu,
     _pi_output = _pi_controller.update(_current_error_pu.value());
 
     // Step 5: Add feedforward compensation (V_ctrl_total = V_ctrl_PI + V_di_est)
-    const voltage_pu_t compensated_control_voltage = voltage_pu_t{_pi_output} + machine_voltage_magnitude;
+    const voltage_pu_t compensated_control_voltage =
+        voltage_pu_t{_pi_output} + (_feedforward_enabled ? machine_voltage_magnitude : voltage_pu_t{0.0});
 
     // Step 6: Linearize by normalizing with V_do to get cos(alpha) command
     // Avoid division by zero or small numbers for stability.

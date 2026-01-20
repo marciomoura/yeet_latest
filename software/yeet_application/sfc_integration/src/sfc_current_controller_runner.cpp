@@ -106,6 +106,8 @@ void sfc_current_controller_runner::set_parameter_callback()
     _parameters.pi_output_max.register_callback([&]() {
         _sfc_current_controller.configure_pi_output_limits(_parameters.pi_output_min, _parameters.pi_output_max);
     });
+    _parameters.enable_feedforward.register_callback(
+        [&]() { _sfc_current_controller.enable_feedforward(_parameters.enable_feedforward.read()); });
 }
 
 }  // namespace yeet::application::sfc::integration

@@ -56,6 +56,12 @@ public:
     void freeze_integrator(bool status);
 
     /**
+     * @brief Enables or disables feedforward compensation from the inverter back-EMF.
+     * @param enable True to enable feedforward, false to disable.
+     */
+    void enable_feedforward(bool enable) { _feedforward_enabled = enable; }
+
+    /**
      * @brief Resets all internal states of the controller.
      */
     void reset();
@@ -173,6 +179,7 @@ private:
     bool _is_reference_current_limited{false};
     bool _is_current_measured_above_magnitude_limit{false};
     bool _is_integrator_frozen_for_zero_reference{false};
+    bool _feedforward_enabled{true};
 };
 
 }  // namespace yeet::application::sfc

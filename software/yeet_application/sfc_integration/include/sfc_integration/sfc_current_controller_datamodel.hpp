@@ -89,7 +89,7 @@ public:
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
         /// Maximum firing angle limit [rad]
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped::from_degrees(90.0);
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped::from_degrees(120.0);
 
         /// Current reference magnitude limit [pu]
         parameter<current_pu_t> current_reference_magnitude_limit = current_pu_t(2.0);
@@ -99,6 +99,9 @@ public:
 
         /// Maximum PI controller output limit [pu voltage]
         parameter<real_t> pi_output_max = real_t(1.0);
+
+        /// Disable machine feed-forward compensation [bool]
+        parameter<bool> enable_feedforward{true};
 
         /// Enable current reference override (force current reference to parameter) [bool]
         parameter<bool> override_current_reference{false};
@@ -140,6 +143,8 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->override_current_reference));
         handler.register_parameter(component_name, "override_current_reference_value",
             yeet::utils::make_units_accessor(_model_parameters->override_current_reference_value));
+        handler.register_parameter(component_name, "enable_feedforward",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_feedforward));
     }
 
     inputs* get_inputs() { return _model_inputs; }
