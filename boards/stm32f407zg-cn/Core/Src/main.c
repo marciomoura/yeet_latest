@@ -294,14 +294,14 @@ static uint8_t Read_DIP_Switch(void)
 void task_200us(void)
 {
     // Only execute ADC operations if ADC and application both initialized successfully
-    if (!system_status.adc_ok || !system_status.application_ok) {
+    if (!system_status.adc_ok) {
         return;  // Skip task if hardware or application not ready
     }
 
     static bool first_run = true;
 
     // Pipeline operation: Read previous conversion, then start next
-    if (first_run) {
+    if (first_run || !system_status.application_ok) {
         first_run = false;  // Skip read on first run (no prior conversion)
         // Start conversion for next cycle (takes ~5µs)
         AD7606_StartConversion(&ad7606_instance);
@@ -309,14 +309,17 @@ void task_200us(void)
     }
 
     // Read the conversion that was started in the previous cycle
-    AD7606_Read(&ad7606_instance, &adc_reading);
+    inputs_200us.analog_inputs.valid = AD7606_Read(&ad7606_instance, &adc_reading);
 
     // ===== Populate Generic Task Inputs =====
     // Map AD7606 ADC channels to generic analog inputs
-    for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
-        inputs_200us.analog_inputs.channels[i] = adc_reading.raw[i];
+    if (inputs_200us.analog_inputs.valid) {
+        for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
+            inputs_200us.analog_inputs.channels[i] = adc_reading.raw[i];
+        }
     }
-    inputs_200us.analog_inputs.valid = true;
+
+    AD7606_StartConversion(&ad7606_instance);
 
     // Digital inputs (not available in 200us task - too fast for FSMC)
     inputs_200us.digital_inputs.valid = false;
@@ -343,9 +346,8 @@ void task_200us(void)
     }
 
     // Digital outputs not updated here (too fast for FSMC)
-
     // Start conversion for next cycle (takes ~5µs)
-    AD7606_StartConversion(&ad7606_instance);
+    // AD7606_StartConversion(&ad7606_instance);
 }
 
 /**
@@ -648,29 +650,48 @@ static bool TCP_Server_SPI2_Init(void)
 {
     uint8_t node_id = dip_switch_channel_number;
 
+    // Settle system before SPI init
+
     // Initialize W5200 hardware driver with 8KB DMA
     if (!W5200_Init(&w5200_spi2, SPI2, spi2_tx_buffer, spi2_rx_buffer, W5200_DMA_SIZE_8K)) {
-        return false;  // SPI2 init failed
+        // return false;  // SPI2 init failed
     }
+
+    // Give the chip time to stabilize after hardware reset and common config
+    delay_ms(100);  // 100ms
 
     // Configure network: 192.168.2.(100 + node_id), port 7000
     if (!NetCfg_ConfigureSPI2(&w5200_spi2, node_id)) {
-        return false;
+        // return false;
+    }
+
+    delay_ms(100);  // 100ms
+
+    // Verify IP address was actually written to registers
+    uint8_t ip_check[4];
+    W5200_Read(&w5200_spi2, W5200_SIPR0, ip_check, 4);
+    if (ip_check[0] == 0 && ip_check[3] == 0) {
+        // return false;  // IP address not set or read failed
     }
 
     // Configure socket 0 as TCP server on port 7000
     if (!NetCfg_ConfigureTCPServer(&w5200_spi2, 0, 7000)) {
-        return false;
+        // return false;
     }
+
+    // Settle time for socket memory allocation/mapping
+    delay_ms(100);  // 100ms
 
     // Open socket
     if (!W5200_SocketOpen(&w5200_spi2, 0)) {
-        return false;
+        // return false;
     }
+
+    delay_ms(100);  // 10ms
 
     // Start listening
     if (!W5200_SocketListen(&w5200_spi2, 0)) {
-        return false;
+        // return false;
     }
 
     return true;
@@ -686,14 +707,29 @@ static bool TCP_Server_SPI3_Init(void)
 {
     uint8_t node_id = dip_switch_channel_number;
 
+    // Settle system before SPI init
+    delay_ms(100);  // 100ms
+
     // Initialize W5200 hardware driver with 8KB DMA
     if (!W5200_Init(&w5200_spi3, SPI3, spi3_tx_buffer, spi3_rx_buffer, W5200_DMA_SIZE_8K)) {
         return false;  // SPI3 init failed
     }
 
+    // Give the chip time to stabilize after hardware reset and common config
+    delay_ms(100);  // 100ms
+
     // Configure network: 192.168.10.(31 + node_id), port 7000
     if (!NetCfg_ConfigureSPI3(&w5200_spi3, node_id)) {
         return false;
+    }
+
+    delay_ms(100);  // 100ms
+
+    // Verify IP address was actually written to registers
+    uint8_t ip_check_spi3[4];
+    W5200_Read(&w5200_spi3, W5200_SIPR0, ip_check_spi3, 4);
+    if (ip_check_spi3[0] == 0 && ip_check_spi3[3] == 0) {
+        return false;  // IP address not set or read failed
     }
 
     // Configure socket 0 as TCP server on port 7000
@@ -701,10 +737,15 @@ static bool TCP_Server_SPI3_Init(void)
         return false;
     }
 
+    // Settle time for socket memory allocation/mapping
+    delay_ms(100);  // 100ms
+
     // Open socket
     if (!W5200_SocketOpen(&w5200_spi3, 0)) {
         return false;
     }
+
+    delay_ms(10);  // 10ms
 
     // Start listening
     if (!W5200_SocketListen(&w5200_spi3, 0)) {
@@ -1031,9 +1072,9 @@ int main(void)
         // Handles TCP server operations only if network initialized successfully
         // Note: yeet_network() is now called directly inside TCP_Server_SPI2_Task()
         //       when data is received, so it's not called here separately
-        if (system_status.network_ok) {
-            TCP_Server_Task();
-        }
+        // if (system_status.network_ok) {
+        TCP_Server_Task();
+        // }
     }
     /* USER CODE END 3 */
 }
