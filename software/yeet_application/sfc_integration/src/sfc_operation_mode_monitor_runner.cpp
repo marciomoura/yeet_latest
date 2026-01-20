@@ -50,7 +50,8 @@ void sfc_operation_mode_monitor_runner::set_parameters()
     // Configure mode detector
     _mode_detector.configure_mode_handover_speed_pu(_parameters.mode_handover_speed_pu.read());
     _mode_detector.configure_hysteresis_factor(_parameters.mode_hysteresis_factor.read());
-    _mode_detector.configure_force_natural_commutation(_parameters.force_natural_commutation.read());
+    _mode_detector.configure_force_natural_commutation(_parameters.force_to_natural_commutation.read());
+    _mode_detector.configure_force_forced_commutation(_parameters.force_to_forced_commutation.read());
 
     // Configure discontinuous conduction detector
     _discontinuous_conduction_detector.configure(_parameters.zero_current_threshold_pu.read(),
@@ -65,8 +66,10 @@ void sfc_operation_mode_monitor_runner::set_parameter_callback()
         [&]() { _mode_detector.configure_mode_handover_speed_pu(_parameters.mode_handover_speed_pu.read()); });
     _parameters.mode_hysteresis_factor.register_callback(
         [&]() { _mode_detector.configure_hysteresis_factor(_parameters.mode_hysteresis_factor.read()); });
-    _parameters.force_natural_commutation.register_callback(
-        [&]() { _mode_detector.configure_force_natural_commutation(_parameters.force_natural_commutation.read()); });
+    _parameters.force_to_natural_commutation.register_callback(
+        [&]() { _mode_detector.configure_force_natural_commutation(_parameters.force_to_natural_commutation.read()); });
+    _parameters.force_to_forced_commutation.register_callback(
+        [&]() { _mode_detector.configure_force_forced_commutation(_parameters.force_to_forced_commutation.read()); });
 
     // Register callbacks for discontinuous conduction detector parameters
     auto configure_dcm = [&]() {

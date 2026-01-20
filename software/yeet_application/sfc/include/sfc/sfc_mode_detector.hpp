@@ -50,6 +50,13 @@ public:
     void configure_force_natural_commutation(bool force_natural_commutation);
 
     /**
+     * @brief Configures whether to force forced commutation mode.
+     *
+     * @param force_forced_commutation When true, always use forced commutation.
+     */
+    void configure_force_forced_commutation(bool force_forced_commutation);
+
+    /**
      * @brief Updates the mode detector with the current machine speed.
      *
      * @param enable System enable signal. When false, defaults to forced_commutation.
@@ -79,6 +86,7 @@ private:
     speed_pu_t _handover_speed_pu{0.1f};
     real_t _hysteresis_factor{0.05f};
     bool _force_natural_commutation{false};
+    bool _force_forced_commutation{false};
 
     // Internal state
     sfc_operating_mode_t _current_mode{sfc_operating_mode_t::forced_commutation};

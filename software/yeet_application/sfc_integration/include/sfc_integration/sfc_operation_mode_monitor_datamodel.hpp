@@ -61,7 +61,10 @@ public:
         parameter<real_t> mode_hysteresis_factor{0.15f};
 
         /// Force natural commutation mode regardless of speed [bool]
-        parameter<bool> force_natural_commutation{false};
+        parameter<bool> force_to_natural_commutation{false};
+
+        /// Force forced commutation mode regardless of speed [bool]
+        parameter<bool> force_to_forced_commutation{false};
 
         /// Current threshold for zero current detection [pu]
         parameter<current_pu_t> zero_current_threshold_pu{current_pu_t{0.02f}};
@@ -95,8 +98,10 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->mode_handover_speed_pu));
         handler.register_parameter(component_name, "mode_hysteresis_factor",
             yeet::utils::make_units_accessor(_model_parameters->mode_hysteresis_factor));
-        handler.register_parameter(component_name, "force_natural_commutation",
-            yeet::utils::make_units_accessor(_model_parameters->force_natural_commutation));
+        handler.register_parameter(component_name, "force_to_natural_commutation",
+            yeet::utils::make_bool_accessor(_model_parameters->force_to_natural_commutation));
+        handler.register_parameter(component_name, "force_to_forced_commutation",
+            yeet::utils::make_bool_accessor(_model_parameters->force_to_forced_commutation));
         handler.register_parameter(component_name, "zero_current_threshold_pu",
             yeet::utils::make_units_accessor(_model_parameters->zero_current_threshold_pu));
         handler.register_parameter(component_name, "is_zero_on_delay_s",
