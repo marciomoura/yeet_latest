@@ -48,7 +48,6 @@ fiber_optic::grid_to_machine_message sfc_grid_side_external_ios_datamodel::get_f
 {
     fiber_optic::grid_to_machine_message msg;
     msg.dc_link_current = _fiber_optics_outputs_to_machine.dc_link_current.read();
-    msg.grid_voltage_magnitude = _fiber_optics_outputs_to_machine.grid_voltage_magnitude.read();
     msg.is_forced_commutation =
         (_fiber_optics_outputs_to_machine.operating_mode.read() == sfc_operating_mode_t::forced_commutation);
     msg.force_commutation_acknowledged = _fiber_optics_outputs_to_machine.force_commutation_acknowledged.read();

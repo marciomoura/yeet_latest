@@ -30,10 +30,6 @@ namespace yeet::application::sfc::fiber_optic {
     const float current_value = msg.dc_link_current.value();
     std::memcpy(&payload[0], &current_value, sizeof(float));
 
-    // Encode grid voltage magnitude float value (extract from typed unit)
-    const float voltage_value = msg.grid_voltage_magnitude.value();
-    std::memcpy(&payload[1], &voltage_value, sizeof(float));
-
     // Pack control flags into word 2
     std::uint32_t packed_flags = 0;
 
@@ -81,12 +77,7 @@ namespace yeet::application::sfc::fiber_optic {
     float current_value;
     std::memcpy(&current_value, &payload[0], sizeof(float));
     msg.dc_link_current = yeet::current_pu_t{current_value};
-
-    // Decode grid voltage magnitude float value and construct typed unit
-    float voltage_value;
-    std::memcpy(&voltage_value, &payload[1], sizeof(float));
-    msg.grid_voltage_magnitude = yeet::voltage_pu_t{voltage_value};
-
+    
     // Extract packed word 2
     const std::uint32_t packed_flags = payload[2];
 

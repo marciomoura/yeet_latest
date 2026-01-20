@@ -239,7 +239,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageAllFieldsSet)
     grid_to_machine_message original{};
     original.is_forced_commutation = true;
     original.dc_link_current = yeet::current_pu_t{0.85f};
-    original.grid_voltage_magnitude = yeet::voltage_pu_t{0.95f};
     original.force_commutation_acknowledged = true;
     original.release_pulses = false;
     original.state_id = 15;
@@ -250,7 +249,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageAllFieldsSet)
     ASSERT_TRUE(decoded.has_value());
     EXPECT_TRUE(decoded->is_forced_commutation);
     EXPECT_FLOAT_EQ(decoded->dc_link_current.value(), 0.85f);
-    EXPECT_FLOAT_EQ(decoded->grid_voltage_magnitude.value(), 0.95f);
     EXPECT_TRUE(decoded->force_commutation_acknowledged);
     EXPECT_FALSE(decoded->release_pulses);
     EXPECT_EQ(decoded->state_id, 15);
@@ -261,7 +259,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageMixedFields)
     grid_to_machine_message original{};
     original.is_forced_commutation = false;
     original.dc_link_current = yeet::current_pu_t{-0.25f};
-    original.grid_voltage_magnitude = yeet::voltage_pu_t{1.05f};
     original.force_commutation_acknowledged = false;
     original.release_pulses = true;
     original.state_id = 100;
@@ -272,7 +269,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageMixedFields)
     ASSERT_TRUE(decoded.has_value());
     EXPECT_FALSE(decoded->is_forced_commutation);
     EXPECT_FLOAT_EQ(decoded->dc_link_current.value(), -0.25f);
-    EXPECT_FLOAT_EQ(decoded->grid_voltage_magnitude.value(), 1.05f);
     EXPECT_FALSE(decoded->force_commutation_acknowledged);
     EXPECT_TRUE(decoded->release_pulses);
     EXPECT_EQ(decoded->state_id, 100);

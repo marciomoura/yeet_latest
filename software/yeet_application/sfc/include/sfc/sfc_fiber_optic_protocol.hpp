@@ -41,7 +41,7 @@ namespace yeet::application::sfc::fiber_optic {
 static constexpr std::size_t max_payload_words = 4;
 
 /** @brief Grid → Machine payload length (uint32_t words) */
-static constexpr std::size_t grid_to_machine_payload_length = 3;
+static constexpr std::size_t grid_to_machine_payload_length = 2;
 
 /** @brief Machine → Grid payload length (uint32_t words) */
 static constexpr std::size_t machine_to_grid_payload_length = 4;
@@ -57,15 +57,14 @@ static constexpr std::size_t machine_to_grid_payload_length = 4;
  * Includes both status/measurements and control synchronization signals.
  */
 struct grid_to_machine_message {
-    yeet::current_pu_t dc_link_current{0.0f};        /**< DC link current measurement [pu] */
-    yeet::voltage_pu_t grid_voltage_magnitude{0.0f}; /**< Grid voltage magnitude [pu] */
-    bool is_forced_commutation{false};               /**< System operating in forced commutation mode */
-    bool force_commutation_acknowledged{false};      /**< Force commutation request acknowledged */
-    bool release_pulses{false};                      /**< Thyristor pulses are enabled */
-    bool grid_release_protections{false};            /**< Grid-side protection release (from state machine) */
-    bool machine_release_protections{false};         /**< Machine-side protection release (via fiber optics) */
-    bool communication_ok{false};                    /**< Grid-side communication status (receiving machine) */
-    std::uint8_t state_id{0};                        /**< Current grid-side state machine state */
+    yeet::current_pu_t dc_link_current{0.0f};   /**< DC link current measurement [pu] */
+    bool is_forced_commutation{false};          /**< System operating in forced commutation mode */
+    bool force_commutation_acknowledged{false}; /**< Force commutation request acknowledged */
+    bool release_pulses{false};                 /**< Thyristor pulses are enabled */
+    bool grid_release_protections{false};       /**< Grid-side protection release (from state machine) */
+    bool machine_release_protections{false};    /**< Machine-side protection release (via fiber optics) */
+    bool communication_ok{false};               /**< Grid-side communication status (receiving machine) */
+    std::uint8_t state_id{0};                   /**< Current grid-side state machine state */
 
     // Bit field layout for Word 2 encoding
     // Boolean flags occupy bits 0-5, state_id occupies bits 25-31, unused bits 6-24

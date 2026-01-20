@@ -109,7 +109,6 @@ void sfc_machine_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_op
     _fiber_optics_inputs_from_grid.force_commutation_acknowledged.write(msg.force_commutation_acknowledged);
     _fiber_optics_inputs_from_grid.release_pulses.write(msg.release_pulses);
     _fiber_optics_inputs_from_grid.dc_link_current.write(msg.dc_link_current);
-    _fiber_optics_inputs_from_grid.grid_voltage_magnitude.write(msg.grid_voltage_magnitude);
     _fiber_optics_inputs_from_grid.grid_release_protections.write(msg.grid_release_protections);
     _fiber_optics_inputs_from_grid.machine_release_protections.write(msg.machine_release_protections);
     _fiber_optics_inputs_from_grid.communication_ok.write(msg.communication_ok);
