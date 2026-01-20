@@ -4,11 +4,9 @@
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "yeet/model_registry.hpp"
@@ -71,14 +69,6 @@ public:
             .mocked(_mock_storage_ref_frame_estimated)
             .to(&sfc_machine_side_modulator_datamodel::inputs::reference_frame_source);
 
-        // Pulse generators
-        yeet::wire(grid_side_pulse_generator)
-            .mocked(_mock_storage_true)
-            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
-        yeet::wire(machine_side_pulse_generator)
-            .mocked(_mock_storage_true)
-            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
-
         // Current controller preset request (no integrator supervisor in this builder)
         yeet::wire(current_controller)
             .mocked(_mock_storage_false)
@@ -96,8 +86,6 @@ public:
         grid_side_modulator.initialize();
         machine_side_modulator.initialize();
         operation_mode_monitor.initialize();
-        grid_side_pulse_generator.initialize();
-        machine_side_pulse_generator.initialize();
     }
 
     void register_applications(yeet::simulator& sim)
@@ -113,8 +101,6 @@ public:
         sim.register_runner(operation_mode_monitor);
         sim.register_runner(grid_side_modulator);
         sim.register_runner(machine_side_modulator);
-        sim.register_runner(grid_side_pulse_generator);
-        sim.register_runner(machine_side_pulse_generator);
     }
 
     void register_datamodel(yeet::telemetry::parameter_handler& handler)
@@ -128,8 +114,6 @@ public:
         grid_side_modulator.register_datamodel(handler);
         machine_side_modulator.register_datamodel(handler);
         operation_mode_monitor.register_datamodel(handler);
-        grid_side_pulse_generator.register_datamodel(handler);
-        machine_side_pulse_generator.register_datamodel(handler);
     }
 
     // Public members
@@ -141,9 +125,6 @@ public:
     sfc_grid_side_modulator_runner grid_side_modulator;
     sfc_machine_side_modulator_runner machine_side_modulator;
     sfc_operation_mode_monitor_runner operation_mode_monitor;
-
-    sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
-    sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
 
     sfc_grid_side_measurements_ideal_runner grid_measurements;
     sfc_machine_side_measurements_ideal_runner machine_measurements;
@@ -192,9 +173,9 @@ private:
 
         // Pulse feedback to measurements (for masking / commuting detection)
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
 
         // DC link current aggregation uses grid phase currents
         signals_connector::connect_output_to_input(
@@ -225,14 +206,9 @@ private:
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
             machine_side_modulator.get_inputs().machine_reference_angle);
 
-        // Provide grid voltage source angle to grid-side pulse generator already below; ensure modulator has angle if
-        // later needed (Current grid-side modulator implementation does not require angle directly.)
-
-        // ==================== Modulators → Pulse Generators ====================
+        // Provide grid voltage source angle to grid-side modulator
         signals_connector::connect_output_to_input(
-            grid_side_modulator.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
-        signals_connector::connect_output_to_input(
-            machine_side_modulator.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_side_modulator.get_inputs().grid_reference_angle);
 
         // Pulse release signals currently fixed via mock_inputs(); if future sequencing added, connect here.
 
@@ -265,22 +241,16 @@ private:
             .mocked(_mock_storage_false)
             .to(&grid_modulator_inputs::request_extinguish_dc_current);
 
-        // ==================== Pulse Generators → Plant ====================
+        // ==================== Modulators → Plant ====================
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // Field current reference for variable-speed voltage control
         signals_connector::connect_output_to_input(
             field_current_reference_pu, plant.get_inputs().field_current_reference);
-
-        // ==================== Plant Angles → Pulse Generators ====================
-        signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_side_pulse_generator.get_inputs().reference_angle);
-        signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
-            machine_side_pulse_generator.get_inputs().reference_angle);
 
         // ==================== External Setpoints ====================
         signals_connector::connect_output_to_input(

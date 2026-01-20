@@ -19,7 +19,7 @@ class SfcCombinedModulatorsTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
-        grid_modulator = std::make_unique<sfc_grid_side_modulator>();
+        grid_modulator = std::make_unique<sfc_grid_side_modulator>(sampling_time);
         machine_modulator = std::make_unique<sfc_machine_side_modulator>(sampling_time);
     }
 
@@ -53,7 +53,8 @@ protected:
         machine_modulator->update(enable, operating_mode, force_ack, rotor_position_rad, test_pi_angle);
 
         // Update grid-side modulator
-        grid_modulator->update(enable, operating_mode, force_request, is_current_zero, test_pi_angle, false);
+        grid_modulator->update(
+            enable, operating_mode, angle_t{0.0}, force_request, is_current_zero, test_pi_angle, false);
     }
 };
 

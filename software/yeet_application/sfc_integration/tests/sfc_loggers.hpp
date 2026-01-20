@@ -13,7 +13,6 @@
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_grid_side_protections_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_io_mock_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_hardware_mock_runner.hpp"
@@ -22,7 +21,6 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_protections_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
@@ -939,6 +937,9 @@ static inline void register_minimal_grid_side_modulator_logger(
         [&]() { return grid_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output release_pulses", [&]() { return grid_side_modulator.get_outputs().release_pulses.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
+            [&]() { return grid_side_modulator.get_outputs().firing_pulses.read().to_array(); }));
 }
 
 static inline void register_complete_grid_side_modulator_logger(
@@ -960,9 +961,16 @@ static inline void register_minimal_machine_side_modulator_logger(
     const std::string group{"machine_side_modulator:"};
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
         [&]() { return machine_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output selected_firing_angle_reference",
+        [&]() { return machine_side_modulator.get_outputs().selected_firing_angle_reference.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output current_rotor_sector", [&]() {
         return static_cast<real_t>(machine_side_modulator.get_outputs().current_rotor_sector.read()) / 6.0f;
     }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
+            [&]() { return machine_side_modulator.get_outputs().firing_pulses.read().to_array(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output any_thyristor_fired",
+        [&]() { return machine_side_modulator.get_outputs().any_thyristor_fired.read(); }));
 }
 
 static inline void register_complete_machine_side_modulator_logger(
@@ -1006,60 +1014,6 @@ static inline void register_complete_machine_side_observer_logger(
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output estimated_voltage_alphabeta_filtered",
             [&]() { return machine_side_observer.get_outputs().estimated_voltage_alphabeta_filtered.read(); }));
-}
-
-static inline void register_minimal_grid_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& grid_side_pulse_generator)
-{
-    const std::string group{"grid_side_pulse_generator:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input reference_angle",
-        [&]() { return grid_side_pulse_generator.get_inputs().reference_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input firing_angle",
-        [&]() { return grid_side_pulse_generator.get_inputs().firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_pulses",
-        [&]() { return grid_side_pulse_generator.get_inputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
-            [&]() { return grid_side_pulse_generator.get_outputs().firing_pulses.read().to_array(); }));
-}
-
-static inline void register_complete_grid_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& grid_side_pulse_generator)
-{
-    const std::string group{"grid_side_pulse_generator:"};
-
-    register_minimal_grid_side_pulse_generator_logger(simulator, grid_side_pulse_generator);
-
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output actual_firing_angle",
-        [&]() { return grid_side_pulse_generator.get_outputs().actual_firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_pulses",
-        [&]() { return grid_side_pulse_generator.get_outputs().release_pulses.read(); }));
-}
-
-static inline void register_minimal_machine_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& machine_side_pulse_generator)
-{
-    const std::string group{"machine_side_pulse_generator:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input reference_angle",
-        [&]() { return machine_side_pulse_generator.get_inputs().reference_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input firing_angle",
-        [&]() { return machine_side_pulse_generator.get_inputs().firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_pulses",
-        [&]() { return machine_side_pulse_generator.get_inputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
-            [&]() { return machine_side_pulse_generator.get_outputs().firing_pulses.read().to_array(); }));
-}
-
-static inline void register_complete_machine_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& machine_side_pulse_generator)
-{
-    const std::string group{"machine_side_pulse_generator:"};
-
-    register_minimal_machine_side_pulse_generator_logger(simulator, machine_side_pulse_generator);
-
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output actual_firing_angle",
-        [&]() { return machine_side_pulse_generator.get_outputs().actual_firing_angle.read().get_pu(); }));
 }
 
 static inline void register_minimal_plant_model_logger(yeet::simulator& simulator, sfc_plant_model_runner& plant_model)
@@ -1475,26 +1429,6 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machi
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_machine_io_mock_runner& runner)
 {
     register_complete_machine_io_mock_logger(simulator, runner);
-}
-
-static inline void register_minimal_logger(yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& runner)
-{
-    register_minimal_grid_side_pulse_generator_logger(simulator, runner);
-}
-
-static inline void register_complete_logger(yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& runner)
-{
-    register_complete_grid_side_pulse_generator_logger(simulator, runner);
-}
-
-static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& runner)
-{
-    register_minimal_machine_side_pulse_generator_logger(simulator, runner);
-}
-
-static inline void register_complete_logger(yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& runner)
-{
-    register_complete_machine_side_pulse_generator_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_plant_model_runner& runner)

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "yeet_control/six_pulse_generator.hpp"
+#include "yeet_control/units.hpp"
+
 namespace yeet::application::sfc {
 
 /**
@@ -28,5 +31,10 @@ enum class sfc_operating_mode_t {
      */
     forced_commutation
 };
+
+/**
+ * @brief Structure to hold thyristor pulses for a 6-pulse bridge.
+ */
+using sfc_thyristor_pulses_t = control::six_pulse_generator::pulses;
 
 }  // namespace yeet::application::sfc

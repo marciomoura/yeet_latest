@@ -108,8 +108,9 @@ public:
 
     void set_current_extinguished(bool extinguished)
     {
-        yeet::utils::mock_signal_input::write(
-            system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
+        system.grid_side_control.state_machine.get_parameters().is_current_extinguished_override.write(true);
+        system.grid_side_control.state_machine.get_parameters().is_current_extinguished_override_value.write(
+            extinguished);
     }
 
     void set_breaker_is_tripping(bool tripping)

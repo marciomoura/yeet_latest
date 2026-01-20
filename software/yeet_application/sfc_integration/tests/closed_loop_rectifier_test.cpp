@@ -36,7 +36,7 @@ public:
 
         // ==================== Force Natural Commutation Mode ====================
         // Bypass speed-based mode detection since there's no machine speed
-        system.grid_side_control.operation_mode_monitor.get_parameters().force_natural_commutation.write(true);
+        system.grid_side_control.operation_mode_monitor.get_parameters().force_to_natural_commutation.write(true);
 
         // ==================== Disable Machine-Side Protections ====================
         // V/Hz and stall protections don't apply without a machine
@@ -56,7 +56,7 @@ public:
 
         // ==================== Logger Registration ====================
         register_complete_logger(simulator, system.plant);
-        register_complete_logger(simulator, system.grid_side_control.grid_side_pulse_generator);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_hardware_mock);
         register_complete_logger(simulator, system.grid_side_control.grid_measurements);
         register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);

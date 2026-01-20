@@ -12,7 +12,6 @@ void sfc_grid_side_control::initialize()
     current_controller.initialize();
     grid_side_observer.initialize();
     grid_side_modulator.initialize();
-    grid_side_pulse_generator.initialize();
     grid_measurements.initialize();
     dc_link_measurements.initialize();
     grid_protections.initialize();
@@ -36,7 +35,6 @@ void sfc_grid_side_control::register_datamodel(yeet::telemetry::parameter_handle
     current_controller.register_datamodel(handler);
     grid_side_observer.register_datamodel(handler);
     grid_side_modulator.register_datamodel(handler);
-    grid_side_pulse_generator.register_datamodel(handler);
     grid_measurements.register_datamodel(handler);
     dc_link_measurements.register_datamodel(handler);
     state_machine.register_datamodel(handler);
@@ -62,7 +60,6 @@ void sfc_grid_side_control::update_200us()
     grid_protections.run();
     grid_side_observer.run();
     grid_side_modulator.run();
-    grid_side_pulse_generator.run();
 }
 
 std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
@@ -114,7 +111,6 @@ void sfc_grid_side_control::connect_internal_signals()
     using current_ctrl_inputs = sfc_current_controller_datamodel::inputs;
     using observer_inputs = sfc_grid_side_observer_datamodel::inputs;
     using modulator_inputs = sfc_grid_side_modulator_datamodel::inputs;
-    using pulse_gen_inputs = sfc_grid_side_pulse_generator_datamodel::inputs;
 
     // ==================== State Machine Inputs ====================
     wire(state_machine)
@@ -166,7 +162,7 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&measurements_inputs::i_a_counts)
         .from(external_ios.get_analog_inputs().i_c_counts)
         .to(&measurements_inputs::i_c_counts)
-        .from(grid_side_pulse_generator.get_outputs().firing_pulses)
+        .from(grid_side_modulator.get_outputs().firing_pulses)
         .to(&measurements_inputs::grid_pulses)
         .from(grid_side_observer.get_outputs().estimated_reference_angle)
         .to(&measurements_inputs::grid_angle)
@@ -236,19 +232,12 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&modulator_inputs::current_is_zero)
         .from(current_controller.get_outputs().firing_angle)
         .to(&modulator_inputs::firing_angle)
+        .from(grid_side_observer.get_outputs().estimated_reference_angle)
+        .to(&modulator_inputs::grid_reference_angle)
         .from(external_ios.get_fiber_optics_inputs_from_machine().request_force_commutation)
         .to(&modulator_inputs::request_force_commutation)
         .from(grid_integrator_supervisor.get_outputs().release_pulses)
         .to(&modulator_inputs::release_pulses);
-
-    // ==================== Grid Side Pulse Generator Inputs ====================
-    wire(grid_side_pulse_generator)
-        .from(grid_integrator_supervisor.get_outputs().release_pulses)
-        .to(&pulse_gen_inputs::release_pulses)
-        .from(grid_side_observer.get_outputs().estimated_reference_angle)
-        .to(&pulse_gen_inputs::reference_angle)
-        .from(grid_side_modulator.get_outputs().firing_angle)
-        .to(&pulse_gen_inputs::firing_angle);
 
     // ==================== Main Circuit Breaker Outputs ====================
     signals_connector::connect_output_to_input(

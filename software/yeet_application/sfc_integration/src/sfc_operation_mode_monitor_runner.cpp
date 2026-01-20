@@ -16,11 +16,11 @@ void sfc_operation_mode_monitor_runner::register_datamodel(yeet::telemetry::para
 
 void sfc_operation_mode_monitor_runner::initialize()
 {
-    set_parameters();
-    set_parameter_callback();
-
     _mode_detector.reset();
     _discontinuous_conduction_detector.reset();
+
+    set_parameters();
+    set_parameter_callback();
 }
 
 void sfc_operation_mode_monitor_runner::run()

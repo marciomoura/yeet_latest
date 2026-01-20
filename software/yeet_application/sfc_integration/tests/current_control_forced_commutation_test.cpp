@@ -50,12 +50,11 @@ public:
         register_complete_logger(simulator, system.machine_side_modulator);
         register_complete_logger(simulator, system.machine_measurements);
 
-        system.grid_side_pulse_generator.get_parameters().enable.write(false);
-        system.machine_side_pulse_generator.get_parameters().enable.write(false);
+        system.grid_side_modulator.get_parameters().enable.write(false);
+        system.machine_side_modulator.get_parameters().enable.write(false);
         simulator.simulate_for(0.2);
-        system.grid_side_pulse_generator.get_parameters().enable.write(true);
-        system.machine_side_pulse_generator.get_parameters().enable.write(true);
-
+        system.grid_side_modulator.get_parameters().enable.write(true);
+        system.machine_side_modulator.get_parameters().enable.write(true);
         system.plant.get_plant_model().set_machine_frequency_pu(frequency_pu_t{p.freq_pu});
         system.plant.get_plant_model().set_machine_voltage_pu(voltage_pu_t{p.voltage_pu});
     }

@@ -248,9 +248,9 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1000.0f});
     control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{2.538252f});  // 1 A -> 4 V
 
-    control->grid_side_pulse_generator.get_parameters().reference_type.write(
+    control->grid_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
-    control->grid_side_pulse_generator.get_parameters().pulse_width.write(
+    control->grid_side_modulator.get_parameters().pulse_width.write(
         yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 
     // ==================== IO CONFIGURATION ====================

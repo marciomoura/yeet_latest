@@ -38,7 +38,7 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     const auto& speed_controller = _control.get_speed_controller();
     const auto& excitation_controller = _control.get_excitation_controller();
     const auto& startup_sequencer = _control.get_startup_sequencer();
-    const auto& pulse_generator = _control.get_machine_side_pulse_generator();
+    const auto& pulse_generator = _control.get_machine_side_modulator();
 
     // === Machine Measurements Group (0-6) ===
     // Voltage measurements

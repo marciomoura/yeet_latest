@@ -3,6 +3,7 @@
 #include "sfc/sfc_grid_side_modulator.hpp"
 #include "sfc_integration/sfc_grid_side_modulator_datamodel.hpp"
 #include "yeet/application_interface.hpp"
+#include "yeet_control/six_pulse_generator.hpp"
 
 namespace yeet::application::sfc::integration {
 
@@ -14,7 +15,7 @@ public:
 
     static constexpr duration_t sampling_time = us(200);
 
-    sfc_grid_side_modulator_runner() : base_application(sampling_time), _sfc_grid_side_modulator() {}
+    sfc_grid_side_modulator_runner() : base_application(sampling_time), _sfc_grid_side_modulator(sampling_time) {}
 
     void register_datamodel(yeet::telemetry::parameter_handler& handler) override;
     void initialize() override;

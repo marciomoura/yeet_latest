@@ -15,7 +15,6 @@ void sfc_machine_side_control::initialize()
     machine_side_controller.initialize();
     machine_side_observer.initialize();
     machine_side_modulator.initialize();
-    machine_side_pulse_generator.initialize();
     machine_measurements.initialize();
     machine_protections.initialize();
 }
@@ -43,7 +42,6 @@ void sfc_machine_side_control::update_200us()
     machine_measurements.run();
     machine_side_observer.run();
     machine_side_modulator.run();
-    machine_side_pulse_generator.run();
     machine_protections.run();
 }
 
@@ -95,7 +93,6 @@ void sfc_machine_side_control::register_datamodel(yeet::telemetry::parameter_han
     machine_side_controller.register_datamodel(handler);
     machine_side_observer.register_datamodel(handler);
     machine_side_modulator.register_datamodel(handler);
-    machine_side_pulse_generator.register_datamodel(handler);
     machine_measurements.register_datamodel(handler);
     machine_protections.register_datamodel(handler);
 }
@@ -114,7 +111,6 @@ void sfc_machine_side_control::connect_internal_signals()
     using torque_ctrl_inputs = sfc_torque_controller_datamodel::inputs;
     using controller_inputs = sfc_machine_side_controller_datamodel::inputs;
     using modulator_inputs = sfc_machine_side_modulator_datamodel::inputs;
-    using pulse_gen_inputs = sfc_machine_side_pulse_generator_datamodel::inputs;
     using protections_inputs = sfc_machine_side_protections_datamodel::inputs;
 
     // ==================== Machine Measurements Inputs ====================
@@ -123,7 +119,7 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&measurements_inputs::v_ab_counts)
         .from(external_ios.get_analog_inputs().v_bc_counts)
         .to(&measurements_inputs::v_bc_counts)
-        .from(machine_side_pulse_generator.get_outputs().firing_pulses)
+        .from(machine_side_modulator.get_outputs().firing_pulses)
         .to(&measurements_inputs::machine_pulses)
         .from(machine_side_observer.get_outputs().estimated_reference_angle)
         .to(&measurements_inputs::machine_reference_angle)
@@ -234,15 +230,6 @@ void sfc_machine_side_control::connect_internal_signals()
         .from(startup_sequencer.get_outputs().release_machine_side_pulses)
         .to(&modulator_inputs::release_pulses);
 
-    // ==================== Machine-Side Pulse Generator Inputs ====================
-    wire(machine_side_pulse_generator)
-        .from(machine_side_modulator.get_outputs().firing_angle)
-        .to(&pulse_gen_inputs::firing_angle)
-        .from(machine_side_modulator.get_outputs().release_pulses)
-        .to(&pulse_gen_inputs::release_pulses)
-        .from(machine_side_modulator.get_outputs().selected_firing_angle_reference)
-        .to(&pulse_gen_inputs::reference_angle);
-
     // ==================== Machine-Side Protections Inputs ====================
     wire(machine_protections)
         .from(external_ios.get_fiber_optics_inputs_from_grid().dc_link_current)
@@ -267,8 +254,8 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&protections_inputs::external_fault);
 
     // ==================== External IO Output Connections ====================
-    signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
-        external_ios.get_thyristor_control_output().firing_pulses);
+    signals_connector::connect_output_to_input(
+        machine_side_modulator.get_outputs().firing_pulses, external_ios.get_thyristor_control_output().firing_pulses);
 
     // Excitation command outputs from excitation controller to external IOs
     // Digital outputs: ON command, OFF command

@@ -11,7 +11,6 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_protections_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
@@ -50,7 +49,6 @@ public:
           machine_side_controller(),
           machine_side_observer(),
           machine_side_modulator(),
-          machine_side_pulse_generator(),
           machine_measurements(per_unit_system)
     {
         connect_internal_signals();
@@ -181,12 +179,6 @@ public:
     sfc_machine_side_modulator_runner& get_machine_side_modulator() { return machine_side_modulator; }
     const sfc_machine_side_modulator_runner& get_machine_side_modulator() const { return machine_side_modulator; }
 
-    sfc_machine_side_pulse_generator_runner& get_machine_side_pulse_generator() { return machine_side_pulse_generator; }
-    const sfc_machine_side_pulse_generator_runner& get_machine_side_pulse_generator() const
-    {
-        return machine_side_pulse_generator;
-    }
-
     sfc_machine_side_measurements_runner& get_machine_measurements() { return machine_measurements; }
     const sfc_machine_side_measurements_runner& get_machine_measurements() const { return machine_measurements; }
 
@@ -213,7 +205,7 @@ public:
      * @brief Get field current reference from excitation controller
      * Prefer: get_io().grid_side_outputs (for cross-coupling to grid side)
      */
-    const signal_output<current_pu_t>& get_field_current_reference() const
+    signal_output<current_pu_t>& get_field_current_reference()
     {
         return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
             .get_outputs()
@@ -223,7 +215,7 @@ public:
     /**
      * @brief Get prefluxing elapsed time from excitation controller
      */
-    const signal_output<duration_t>& get_prefluxing_elapsed_time() const
+    signal_output<duration_t>& get_prefluxing_elapsed_time()
     {
         return const_cast<sfc_excitation_controller_runner&>(excitation_controller)
             .get_outputs()
@@ -234,18 +226,16 @@ public:
      * @brief Get machine-side firing pulses for plant model
      * Prefer: get_io().pulse_outputs.firing_pulses
      */
-    const signal_output<control::six_pulse_generator::pulses>& get_firing_pulses() const
+    signal_output<sfc_thyristor_pulses_t>& get_firing_pulses()
     {
-        return const_cast<sfc_machine_side_pulse_generator_runner&>(machine_side_pulse_generator)
-            .get_outputs()
-            .firing_pulses;
+        return const_cast<sfc_machine_side_modulator_runner&>(machine_side_modulator).get_outputs().firing_pulses;
     }
 
     /**
      * @brief Get estimated machine speed from observer
      * Prefer: get_io().grid_side_outputs.measured_speed
      */
-    const signal_output<speed_pu_t>& get_estimated_speed() const
+    signal_output<speed_pu_t>& get_estimated_speed()
     {
         return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer).get_outputs().estimated_speed;
     }
@@ -253,7 +243,7 @@ public:
     /**
      * @brief Get estimated machine position from observer
      */
-    const signal_output<angle_wrapped>& get_estimated_position() const
+    signal_output<angle_wrapped>& get_estimated_position()
     {
         return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer)
             .get_outputs()
@@ -264,7 +254,7 @@ public:
      * @brief Get force commutation request for grid side
      * Prefer: get_io().grid_side_outputs.request_force_commutation
      */
-    const signal_output<bool>& get_request_force_commutation() const
+    signal_output<bool>& get_request_force_commutation()
     {
         return const_cast<sfc_machine_side_modulator_runner&>(machine_side_modulator)
             .get_outputs()
@@ -275,7 +265,7 @@ public:
      * @brief Get current reference from torque controller
      * Prefer: get_io().grid_side_outputs.current_reference
      */
-    const signal_output<current_pu_t>& get_current_reference() const
+    signal_output<current_pu_t>& get_current_reference()
     {
         return const_cast<sfc_torque_controller_runner&>(torque_controller).get_outputs().current_reference;
     }
@@ -284,7 +274,7 @@ public:
      * @brief Get estimated voltage magnitude from observer
      * Prefer: get_io().grid_side_outputs.machine_voltage_magnitude
      */
-    const signal_output<voltage_pu_t>& get_estimated_voltage_magnitude() const
+    signal_output<voltage_pu_t>& get_estimated_voltage_magnitude()
     {
         return const_cast<sfc_machine_side_observer_runner&>(machine_side_observer)
             .get_outputs()
@@ -317,7 +307,6 @@ public:
     sfc_machine_side_controller_runner machine_side_controller;
     sfc_machine_side_observer_runner machine_side_observer;
     sfc_machine_side_modulator_runner machine_side_modulator;
-    sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
     sfc_machine_side_measurements_runner machine_measurements;
     sfc_machine_side_protections_runner machine_protections;
 

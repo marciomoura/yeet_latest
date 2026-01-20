@@ -1,13 +1,14 @@
 
 #pragma once
 
+#include "sfc/sfc_startup_sequencer.hpp"
 #include "sfc_integration/sfc_current_controller_runner.hpp"
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "yeet/model_registry.hpp"
 #include "yeet/signal_wiring.hpp"
@@ -58,13 +59,30 @@ public:
             .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
-        // Mock pulse release signals for both pulse generators
-        yeet::wire(grid_side_pulse_generator)
+        // Mock pulse release signals for both modulators
+        yeet::wire(grid_side_modulator)
             .mocked(_mock_storage_true)
-            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
-        yeet::wire(machine_side_pulse_generator)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::release_pulses)
+            .mocked(_mock_operating_mode_natural)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::operating_mode)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::request_extinguish_dc_current)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::current_is_zero)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip);
+
+        yeet::wire(machine_side_modulator)
             .mocked(_mock_storage_true)
-            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
+            .to(&sfc_machine_side_modulator_datamodel::inputs::release_pulses)
+            .mocked(_mock_operating_mode_natural)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::operating_mode)
+            .mocked(_mock_reference_frame_estimated)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::reference_frame_source)
+            .mocked(_mock_rotor_angle)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::virtual_rotor_angle);
     }
 
     void initialize()
@@ -76,8 +94,8 @@ public:
         dc_link_measurements.initialize();
         current_controller.initialize();
         machine_side_controller.initialize();
-        grid_side_pulse_generator.initialize();
-        machine_side_pulse_generator.initialize();
+        grid_side_modulator.initialize();
+        machine_side_modulator.initialize();
     }
 
     void register_applications(yeet::simulator& sim)
@@ -90,10 +108,8 @@ public:
         sim.register_lambda_runner(current_controller.get_sampling_time(), [&]() { current_controller.run(); });
         sim.register_lambda_runner(
             machine_side_controller.get_sampling_time(), [&]() { machine_side_controller.run(); });
-        sim.register_lambda_runner(
-            grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
-        sim.register_lambda_runner(
-            machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
+        sim.register_lambda_runner(grid_side_modulator.get_sampling_time(), [&]() { grid_side_modulator.run(); });
+        sim.register_lambda_runner(machine_side_modulator.get_sampling_time(), [&]() { machine_side_modulator.run(); });
     }
 
     void register_datamodel(yeet::telemetry::parameter_handler& handler)
@@ -105,8 +121,8 @@ public:
         dc_link_measurements.register_datamodel(handler);
         current_controller.register_datamodel(handler);
         machine_side_controller.register_datamodel(handler);
-        grid_side_pulse_generator.register_datamodel(handler);
-        machine_side_pulse_generator.register_datamodel(handler);
+        grid_side_modulator.register_datamodel(handler);
+        machine_side_modulator.register_datamodel(handler);
     }
 
     // Public members for direct access
@@ -116,9 +132,9 @@ public:
     sfc_current_controller_runner current_controller;
     sfc_machine_side_controller_runner machine_side_controller;
 
-    // Pulse generators
-    sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
-    sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
+    // Modulator components
+    sfc_grid_side_modulator_runner grid_side_modulator;
+    sfc_machine_side_modulator_runner machine_side_modulator;
 
     // Measurements and filtering
     sfc_grid_side_measurements_ideal_runner grid_measurements;
@@ -161,7 +177,7 @@ private:
             plant.get_outputs().grid_current_abc, grid_measurements.get_inputs().grid_current_abc);
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
 
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
@@ -175,7 +191,7 @@ private:
             plant.get_outputs().machine_current, machine_measurements.get_inputs().machine_current_abc);
 
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
 
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
             machine_measurements.get_inputs().machine_reference_angle);
@@ -204,40 +220,44 @@ private:
         signals_connector::connect_output_to_input(
             plant.get_outputs().machine_speed, machine_side_controller.get_inputs().machine_speed);
 
-        // ==================== Current Controller → Grid Pulse Generator ====================
-        // Connect current controller output to grid-side firing angle control
+        // ==================== Controller outputs → Modulators ====================
+        // Connect controller outputs to modulator firing angle signals
 
-        // Firing angle command from current controller to grid pulse generator
+        // Firing angle command from current controller to grid modulator
         signals_connector::connect_output_to_input(
-            current_controller.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
+            current_controller.get_outputs().firing_angle, grid_side_modulator.get_inputs().firing_angle);
 
-        // ==================== Machine Side Controller → Machine Pulse Generator ====================
-        // Connect machine side controller output to machine-side firing angle control
-
-        // Firing angle command from machine side controller to machine pulse generator
+        // Firing angle command from machine side controller to machine modulator
         signals_connector::connect_output_to_input(
-            machine_side_controller.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
+            machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
 
-        // ==================== Pulse Generators → Plant Model ====================
-        // Connect firing pulses from both pulse generators to plant model inputs
+        // ==================== Handshake Modulators ====================
+        signals_connector::connect_output_to_input(machine_side_modulator.get_outputs().request_force_commutation,
+            grid_side_modulator.get_inputs().request_force_commutation);
+
+        signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().force_commutation_acknowledged,
+            machine_side_modulator.get_inputs().force_commutation_acknowledged);
+
+        // ==================== Modulators → Plant Model ====================
+        // Connect firing pulses from both modulators to plant model inputs
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
 
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // Field current reference for variable-speed voltage control
         signals_connector::connect_output_to_input(
             field_current_reference_pu, plant.get_inputs().field_current_reference);
 
-        // ==================== Plant Model → Pulse Generators ====================
-        // Connect reference angles from plant model to pulse generators for synchronization
+        // ==================== Plant Model → Modulators ====================
+        // Connect reference angles from plant model to modulators for synchronization
 
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_side_pulse_generator.get_inputs().reference_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_side_modulator.get_inputs().grid_reference_angle);
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
-            machine_side_pulse_generator.get_inputs().reference_angle);
+            machine_side_modulator.get_inputs().machine_reference_angle);
 
         // ==================== External Control Signals ====================
         // Connect external control signals to current controller inputs
@@ -257,6 +277,9 @@ private:
 private:
     bool _mock_storage_true{true};
     bool _mock_storage_false{false};
+    angle_wrapped _mock_rotor_angle{0.0f};
+    sfc_operating_mode_t _mock_operating_mode_natural{sfc_operating_mode_t::natural_commutation};
+    reference_frame_source_t _mock_reference_frame_estimated{reference_frame_source_t::ESTIMATED};
 };
 
 }  // namespace yeet::application::sfc::integration

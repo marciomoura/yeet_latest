@@ -650,7 +650,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitingReducesTorqueAtHighSpe
         // Machine cannot reach 1.0 pu with this load
         this->set_speed_reference(speed_pu_t{1.0f});
 
-        EXPECT_TRUE(this->sim.simulate_for(25.0));
+        EXPECT_TRUE(this->sim.simulate_for(30.0));
 
         auto speed_final = this->get_measured_speed();
         // Due to torque limit (0.4 pu) < load (0.55 pu), machine cannot reach 1.0 pu

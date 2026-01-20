@@ -38,7 +38,7 @@ public:
 
         // ==================== Logger Registration ====================
         register_complete_logger(simulator, system.plant);
-        register_minimal_logger(simulator, system.grid_side_pulse_generator);
+        register_minimal_logger(simulator, system.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_hardware_mock);
         register_minimal_logger(simulator, system.grid_side_measurements);
         register_complete_logger(simulator, system.dc_link_measurements);

@@ -8,10 +8,14 @@
 
 namespace yeet::application::sfc {
 
-sfc_machine_side_modulator::sfc_machine_side_modulator(duration_t sampling_time)
+sfc_machine_side_modulator::sfc_machine_side_modulator(duration_t sampling_time) : _sampling_time(sampling_time)
 {
     // Validate sampling time (should be positive)
     assert(sampling_time.value() > 0.0 && "Sampling time must be positive");
+
+    // Initialize pulse generator with single-pulse configuration (120 degrees)
+    _pulse_generator.configure_pulse_mask(
+        yeet::control::six_pulse_generator::pulse_mask{true, true, true, true, true, true});
 
     // Initialize to safe default state
     reset();
@@ -23,48 +27,58 @@ void sfc_machine_side_modulator::update(bool enable,
     angle_t rotor_position_rad,
     angle_t firing_angle_rad) noexcept
 {
-    // Update rotor sector tracking - this must happen regardless of enable state
-    // to maintain continuity when system is re-enabled
-    const int current_sector = calculate_rotor_sector(rotor_position_rad);
-
-    // If system is disabled, output safe defaults regardless of mode
+    // 1. Logic for firing angle and state handling
     if (!enable) {
         _current_firing_angle_rad = get_safe_default_angle();
         _commutation_state = machine_side_commutation_state_t::running;
         _release_pulses = false;
         _request_force_commutation = false;
-        // Update previous sector for next iteration
-        _previous_rotor_sector = current_sector;
-        return;
     }
-
-    // Select firing angle based on operating mode
-    switch (operating_mode) {
-        case sfc_operating_mode_t::natural_commutation:
-            // Natural commutation mode: pass through the machine firing angle
+    else {
+        if (operating_mode == sfc_operating_mode_t::natural_commutation) {
             _current_firing_angle_rad = firing_angle_rad;
-            _release_pulses = true;              // Always release pulses in natural commutation
-            _request_force_commutation = false;  // Never request commutation
+            _release_pulses = true;
+            _request_force_commutation = false;
             _commutation_state = machine_side_commutation_state_t::running;
-            break;
-
-        case sfc_operating_mode_t::forced_commutation:
-            // Forced commutation mode: calculate position-based firing angle and manage handshake
+        }
+        else {
+            // Pulse mode (forced commutation)
             _current_firing_angle_rad = _forced_commutation_firing_angle_rad;
 
-            // Compute the forced commutation outputs
-            const forced_commutation_outputs outputs =
-                compute_forced_commutation_outputs(force_commutation_acknowledged, rotor_position_rad);
-
-            // Apply the computed outputs to the internal state
-            _release_pulses = outputs.release_pulses;
-            _request_force_commutation = outputs.request_force_commutation;
-            _commutation_state = outputs.next_state;
-            break;
+            if (_commutation_state == machine_side_commutation_state_t::waiting_for_ack) {
+                if (force_commutation_acknowledged) {
+                    _request_force_commutation = false;
+                    _release_pulses = true;
+                    _commutation_state = machine_side_commutation_state_t::running;
+                }
+                else {
+                    _request_force_commutation = true;
+                    _release_pulses = false;
+                }
+            }
+            else {
+                // Default state is running, will check for new firing event later
+                _release_pulses = true;
+                _request_force_commutation = false;
+            }
+        }
     }
 
-    // Update previous sector for next iteration
-    _previous_rotor_sector = current_sector;
+    // 2. Single update of the pulse generator
+    // We update with 'enable' to respect global enable, but masking for handshake
+    // happens at the getter level.
+    _pulse_generator.update(rotor_position_rad, _current_firing_angle_rad, enable);
+    _any_thyristor_fired = _pulse_generator.get_any_thyristor_fired();
+
+    // 3. Post-update logic to detect new firing events in pulse mode
+    if (enable && operating_mode == sfc_operating_mode_t::forced_commutation &&
+        _commutation_state == machine_side_commutation_state_t::running) {
+        if (_any_thyristor_fired) {
+            _request_force_commutation = true;
+            _release_pulses = false;
+            _commutation_state = machine_side_commutation_state_t::waiting_for_ack;
+        }
+    }
 }
 
 void sfc_machine_side_modulator::reset()
@@ -76,9 +90,10 @@ void sfc_machine_side_modulator::reset()
     _commutation_state = machine_side_commutation_state_t::running;
     _release_pulses = true;
     _request_force_commutation = false;
+    _any_thyristor_fired = false;
 
-    // Reset sector tracking - remove _rotor_sector_changed initialization
-    _previous_rotor_sector = -1;
+    // Reset pulse generator
+    _pulse_generator.reset();
 }
 
 angle_t sfc_machine_side_modulator::get_firing_angle_rad() const noexcept { return _current_firing_angle_rad; }
@@ -92,35 +107,61 @@ machine_side_commutation_state_t sfc_machine_side_modulator::get_commutation_sta
     return _commutation_state;
 }
 
-int sfc_machine_side_modulator::get_current_rotor_sector() const noexcept { return _previous_rotor_sector; }
-
-bool sfc_machine_side_modulator::has_rotor_sector_changed(angle_t rotor_position_rad) const noexcept
+sfc_thyristor_pulses_t sfc_machine_side_modulator::get_firing_pulses() const noexcept
 {
-    // Calculate current sector
-    const int current_sector = calculate_rotor_sector(rotor_position_rad);
-
-    // Detect sector changes by comparing with previous sector
-    // If previous sector is -1 (initial state), no change is detected
-    if (_previous_rotor_sector != -1 && current_sector != _previous_rotor_sector) {
-        return true;  // Sector change detected
+    if (!_release_pulses) {
+        return {false, false, false, false, false, false};
     }
 
-    return false;  // No sector change
+    return _pulse_generator.get_pulses();
 }
 
-int sfc_machine_side_modulator::calculate_rotor_sector(angle_t rotor_position_rad) const noexcept
+bool sfc_machine_side_modulator::get_any_thyristor_fired() const noexcept { return _any_thyristor_fired; }
+
+void sfc_machine_side_modulator::configure_forced_commutation_firing_angle(angle_t angle) noexcept
 {
-    // Normalize rotor position to [0, 2π] range
-    angle_wrapped normalized_position = angle_wrapped(rotor_position_rad.value());
+    _forced_commutation_firing_angle_rad = angle;
+}
 
-    // Divide the electrical rotation into 6 sectors (60° each)
-    constexpr real_t sector_width_rad = yeet::two_pi / 6.0;
+void sfc_machine_side_modulator::configure_pulse_width(angle_t width) noexcept
+{
+    _pulse_generator.configure_pulse_width(width);
+}
 
-    // Determine which sector the rotor is in (0-5)
-    const int sector = static_cast<int>(std::floor(normalized_position.get_radians() / sector_width_rad));
+void sfc_machine_side_modulator::configure_reference_type(control::six_pulse_generator::reference_type type) noexcept
+{
+    _pulse_generator.configure_reference_type(type);
+}
 
-    // Ensure sector is in valid range [0, 5] due to floating point precision
-    return std::min(5, std::max(0, sector));
+void sfc_machine_side_modulator::configure_virtual_reference(frequency_t frequency) noexcept
+{
+    _pulse_generator.configure_virtual_reference(frequency, _sampling_time);
+}
+
+void sfc_machine_side_modulator::configure_pulse_mask(bool p1, bool p2, bool p3, bool p4, bool p5, bool p6) noexcept
+{
+    _pulse_generator.configure_pulse_mask({p1, p2, p3, p4, p5, p6});
+    _pulse_generator.enable_pulse_mask(true);
+}
+
+int sfc_machine_side_modulator::get_current_rotor_sector() const noexcept
+{
+    return static_cast<int>(_pulse_generator.get_current_sector()) - 1;
+}
+
+angle_t sfc_machine_side_modulator::get_virtual_reference_angle() const noexcept
+{
+    return _pulse_generator.get_virtual_reference_angle();
+}
+
+bool sfc_machine_side_modulator::is_virtual_reference_active() const noexcept
+{
+    return _pulse_generator.is_virtual_reference_enabled();
+}
+
+bool sfc_machine_side_modulator::is_individual_pulse_override_active() const noexcept
+{
+    return _pulse_generator.is_pulse_mask_enabled();
 }
 
 angle_t sfc_machine_side_modulator::get_safe_default_angle() const noexcept
@@ -128,46 +169,6 @@ angle_t sfc_machine_side_modulator::get_safe_default_angle() const noexcept
     // Return a safe default firing angle when system is disabled
     // Zero degrees is typically safe as it corresponds to natural commutation point
     return angle_t(0.0);
-}
-
-forced_commutation_outputs sfc_machine_side_modulator::compute_forced_commutation_outputs(
-    bool force_commutation_acknowledged, angle_t rotor_position_rad) const noexcept
-{
-    forced_commutation_outputs outputs{};
-
-    switch (_commutation_state) {
-        case machine_side_commutation_state_t::running:
-            // Normal operation: releasing pulses for current sector
-            outputs.release_pulses = true;
-            outputs.request_force_commutation = false;
-            outputs.next_state = machine_side_commutation_state_t::running;
-
-            // Check for sector change to initiate commutation
-            if (has_rotor_sector_changed(rotor_position_rad)) {
-                // Rotor moved to next sector - initiate forced commutation
-                outputs.request_force_commutation = true;  // Assert request to grid-side
-                outputs.release_pulses = false;            // Block own pulses immediately
-                outputs.next_state = machine_side_commutation_state_t::waiting_for_ack;
-            }
-            break;
-
-        case machine_side_commutation_state_t::waiting_for_ack:
-            // Waiting for grid-side to acknowledge commutation request
-            outputs.release_pulses = false;            // Keep pulses blocked
-            outputs.request_force_commutation = true;  // Keep force-commutation true until acknowledged
-            outputs.next_state = machine_side_commutation_state_t::waiting_for_ack;
-
-            // Check for acknowledgment from grid-side
-            if (force_commutation_acknowledged) {
-                // Grid-side has acknowledged - complete the handshake
-                outputs.release_pulses = true;              // Release pulses for new sector
-                outputs.request_force_commutation = false;  // Clear request signal
-                outputs.next_state = machine_side_commutation_state_t::running;
-            }
-            break;
-    }
-
-    return outputs;
 }
 
 }  // namespace yeet::application::sfc

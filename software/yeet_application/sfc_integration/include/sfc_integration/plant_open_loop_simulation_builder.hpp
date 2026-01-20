@@ -2,9 +2,9 @@
 
 #include "sfc_integration/sfc_dc_link_measurements_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
+#include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 
 // Hardware mocks (ADC front-end simulation)
@@ -68,13 +68,34 @@ public:
 
     void mock_inputs()
     {
-        // Mock pulse release signals for both pulse generators
-        yeet::wire(grid_side_pulse_generator)
+        // Mock pulse release signals for both modulators
+        yeet::wire(grid_side_modulator)
             .mocked(_mock_storage_true)
-            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
-        yeet::wire(machine_side_pulse_generator)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::release_pulses)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::request_extinguish_dc_current)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::request_force_commutation)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::current_is_zero)
+            .mocked(_mock_storage_mode_natural)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::operating_mode);
+
+        yeet::wire(machine_side_modulator)
             .mocked(_mock_storage_true)
-            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
+            .to(&sfc_machine_side_modulator_datamodel::inputs::release_pulses)
+            .mocked(_mock_storage_false)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::force_commutation_acknowledged)
+            .mocked(_mock_storage_mode_natural)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::operating_mode)
+            .mocked(_mock_storage_ref_estimated)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::reference_frame_source)
+            .mocked(_mock_storage_angle_zero)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::virtual_rotor_angle);
     }
 
     void initialize()
@@ -86,17 +107,15 @@ public:
         grid_side_measurements.initialize();
         machine_side_measurements.initialize();
         dc_link_measurements.initialize();
-        grid_side_pulse_generator.initialize();
-        machine_side_pulse_generator.initialize();
+        grid_side_modulator.initialize();
+        machine_side_modulator.initialize();
     }
 
     void register_applications(yeet::simulator& simulator)
     {
-        // Register pulse generators at their sampling times
-        simulator.register_lambda_runner(
-            grid_side_pulse_generator.get_sampling_time(), [&]() { grid_side_pulse_generator.run(); });
-        simulator.register_lambda_runner(
-            machine_side_pulse_generator.get_sampling_time(), [&]() { machine_side_pulse_generator.run(); });
+        // Register modulators at their sampling times
+        simulator.register_runner(grid_side_modulator);
+        simulator.register_runner(machine_side_modulator);
         // Plant + hardware mocks: run plant then convert analog → ADC counts
         simulator.register_lambda_runner(plant.get_sampling_time(), [&]() {
             plant.run();
@@ -110,20 +129,20 @@ public:
 
     void register_datamodel(yeet::telemetry::parameter_handler& handler)
     {
-        // Register all datamodels (order: plant, mocks, pulse generators)
+        // Register all datamodels (order: plant, mocks, modulators)
         plant.register_datamodel(handler);
         grid_side_hardware_mock.register_datamodel(handler);
         machine_side_hardware_mock.register_datamodel(handler);
         grid_side_measurements.register_datamodel(handler);
         machine_side_measurements.register_datamodel(handler);
         dc_link_measurements.register_datamodel(handler);
-        grid_side_pulse_generator.register_datamodel(handler);
-        machine_side_pulse_generator.register_datamodel(handler);
+        grid_side_modulator.register_datamodel(handler);
+        machine_side_modulator.register_datamodel(handler);
     }
 
     // Public members for direct access
-    sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
-    sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;
+    sfc_grid_side_modulator_runner grid_side_modulator;
+    sfc_machine_side_modulator_runner machine_side_modulator;
     sfc_plant_model_runner plant;
     sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;        // ADC mock for grid-side voltages & currents
     sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;  // ADC mock for machine-side voltages
@@ -156,9 +175,9 @@ private:
         // ==================== Pulse Generators → Plant Model ====================
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // Field current reference for variable-speed voltage control
         signals_connector::connect_output_to_input(
@@ -166,9 +185,9 @@ private:
 
         // ==================== Plant Model → Pulse Generators ====================
         signals_connector::connect_output_to_input(
-            plant.get_outputs().grid_voltage_source_angle, grid_side_pulse_generator.get_inputs().reference_angle);
+            plant.get_outputs().grid_voltage_source_angle, grid_side_modulator.get_inputs().grid_reference_angle);
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
-            machine_side_pulse_generator.get_inputs().reference_angle);
+            machine_side_modulator.get_inputs().machine_reference_angle);
 
         // ==================== Plant Outputs → Hardware Mocks (analog → ADC counts) ====================
         signals_connector::connect_output_to_input(
@@ -191,7 +210,7 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_hardware_mock.get_outputs().i_c_counts, grid_side_measurements.get_inputs().i_c_counts);
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, grid_side_measurements.get_inputs().grid_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, grid_side_measurements.get_inputs().grid_pulses);
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage_source_angle, grid_side_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
@@ -202,8 +221,8 @@ private:
             machine_side_hardware_mock.get_outputs().v_ab_counts, machine_side_measurements.get_inputs().v_ab_counts);
         signals_connector::connect_output_to_input(
             machine_side_hardware_mock.get_outputs().v_bc_counts, machine_side_measurements.get_inputs().v_bc_counts);
-        signals_connector::connect_output_to_input(machine_side_pulse_generator.get_outputs().firing_pulses,
-            machine_side_measurements.get_inputs().machine_pulses);
+        signals_connector::connect_output_to_input(
+            machine_side_modulator.get_outputs().firing_pulses, machine_side_measurements.get_inputs().machine_pulses);
         signals_connector::connect_output_to_input(plant.get_outputs().machine_voltage_source_angle,
             machine_side_measurements.get_inputs().machine_reference_angle);
         signals_connector::connect_output_to_input(
@@ -211,19 +230,27 @@ private:
 
         // ==================== External Control Signals ====================
         signals_connector::connect_output_to_input(
-            grid_side_firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
-        signals_connector::connect_output_to_input(
-            firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
+            grid_side_firing_angle, grid_side_modulator.get_inputs().firing_angle);
+        signals_connector::connect_output_to_input(firing_angle, machine_side_modulator.get_inputs().firing_angle);
 
         // ==================== Measurements → DC Link Measurements ====================
         // Use reconstructed grid phase currents (abc) from grid-side measurements as input
         signals_connector::connect_output_to_input(
             grid_side_measurements.get_outputs().grid_current_abc, dc_link_measurements.get_inputs().grid_current_abc);
+
+        // ==================== Handshake ====================
+        signals_connector::connect_output_to_input(machine_side_modulator.get_outputs().request_force_commutation,
+            grid_side_modulator.get_inputs().request_force_commutation);
+        signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().force_commutation_acknowledged,
+            machine_side_modulator.get_inputs().force_commutation_acknowledged);
     }
 
 private:
     bool _mock_storage_true{true};
     bool _mock_storage_false{false};
+    sfc_operating_mode_t _mock_storage_mode_natural{sfc_operating_mode_t::natural_commutation};
+    reference_frame_source_t _mock_storage_ref_estimated{reference_frame_source_t::ESTIMATED};
+    angle_wrapped _mock_storage_angle_zero{0.0f};
 };
 
 }  // namespace yeet::application::sfc::integration

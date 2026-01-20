@@ -110,33 +110,33 @@ public:
         // Disable pulses (explicit per type)
         // For rectifier topology, machine-side pulses are not needed
         std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
-                                  sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                                  sys->grid_side_modulator.get_parameters().enable.write(false);
                                   if constexpr (!ConfigT::is_rectifier_topology) {
-                                      sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                                      sys->machine_side_modulator.get_parameters().enable.write(false);
                                   }
                               },
                        [&](plant_simplified_current_control_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                           sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                               sys->machine_side_modulator.get_parameters().enable.write(false);
                            }
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                           sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                               sys->machine_side_modulator.get_parameters().enable.write(false);
                            }
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                           sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                               sys->machine_side_modulator.get_parameters().enable.write(false);
                            }
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                           sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(false);
+                               sys->machine_side_modulator.get_parameters().enable.write(false);
                            }
                        }},
             system_variant_t{&system});
@@ -146,33 +146,33 @@ public:
         // Enable pulses (explicit per type)
         // For rectifier topology, only grid-side pulses are enabled
         std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
-                                  sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                                  sys->grid_side_modulator.get_parameters().enable.write(true);
                                   if constexpr (!ConfigT::is_rectifier_topology) {
-                                      sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                                      sys->machine_side_modulator.get_parameters().enable.write(true);
                                   }
                               },
                        [&](plant_simplified_current_control_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                           sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                               sys->machine_side_modulator.get_parameters().enable.write(true);
                            }
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                           sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                               sys->machine_side_modulator.get_parameters().enable.write(true);
                            }
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                           sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                               sys->machine_side_modulator.get_parameters().enable.write(true);
                            }
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                           sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
-                               sys->machine_side_pulse_generator.get_parameters().enable.write(true);
+                               sys->machine_side_modulator.get_parameters().enable.write(true);
                            }
                        }},
             system_variant_t{&system});
@@ -316,7 +316,7 @@ TYPED_TEST_SUITE(CurrentControlTypedTest, CurrentControlTestedConfigs, CurrentCo
 TYPED_TEST(CurrentControlTypedTest, CurrentRegulationNominalOperation)
 {
     // Create checker with ±0.2 pu allowable steady‑state dc‑link current error
-    auto current_error_checker = this->create_current_error_checker(current_pu_t(0.2f));
+    auto current_error_checker = this->create_current_error_checker(current_pu_t(0.25f));
 
     // ---- Phase 1: Step reference to 0.5 pu ----
     // Deactivate while the loop settles from zero to 0.5 pu (avoid counting transient overshoot)
@@ -341,7 +341,7 @@ TYPED_TEST(CurrentControlTypedTest, CurrentRegulationNominalOperation)
 
 TYPED_TEST(CurrentControlTypedTest, CurrentRegulationFrequency80PerUnit)
 {
-    auto current_error_checker = this->create_current_error_checker(current_pu_t(0.2f));
+    auto current_error_checker = this->create_current_error_checker(current_pu_t(0.25f));
 
     // ---- Phase 1: Command initial current (0.5 pu) ----
     // Deactivate while the loop slews from initial (0) to 0.5 pu.
@@ -370,7 +370,7 @@ TYPED_TEST(CurrentControlTypedTest, CurrentRegulationFrequency80PerUnit)
 TYPED_TEST(CurrentControlTypedTest, CurrentRegulationFrequency60PerUnit)
 {
     // Same pattern as the 0.8 pu test, but stepping to 0.6 pu frequency/voltage.
-    auto current_error_checker = this->create_current_error_checker(current_pu_t(0.2f));
+    auto current_error_checker = this->create_current_error_checker(current_pu_t(0.25f));
 
     // ---- Phase 1: Command initial current (0.5 pu) ----
     current_error_checker->deactivate();

@@ -103,7 +103,7 @@ config parse_args(int argc, char* argv[])
             cfg.frequency_hz = std::atof(argv[++i]);
         }
         else if (std::strcmp(argv[i], "--verbose") == 0) {
-            cfg.verbose = true;
+            cfg.verbose = false;
         }
         else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
             std::cout << "Usage: sfc_host_simulator_with_plant [OPTIONS]\n"

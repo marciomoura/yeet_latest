@@ -101,13 +101,13 @@ public:
     {
         // Disable grid-side pulses initially
         std::visit(overloaded{[&](plant_simplified_current_control_simulation_builder* sys) {
-                                  sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                                  sys->grid_side_modulator.get_parameters().enable.write(false);
                               },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                           sys->grid_side_modulator.get_parameters().enable.write(false);
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(false);
+                           sys->grid_side_modulator.get_parameters().enable.write(false);
                        }},
             rectifier_system_variant_t{&system});
 
@@ -115,13 +115,13 @@ public:
 
         // Enable grid-side pulses only (no machine-side pulses needed for rectifier)
         std::visit(overloaded{[&](plant_simplified_current_control_simulation_builder* sys) {
-                                  sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                                  sys->grid_side_modulator.get_parameters().enable.write(true);
                               },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                           sys->grid_side_modulator.get_parameters().enable.write(true);
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
-                           sys->grid_side_pulse_generator.get_parameters().enable.write(true);
+                           sys->grid_side_modulator.get_parameters().enable.write(true);
                        }},
             rectifier_system_variant_t{&system});
     }

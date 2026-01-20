@@ -412,8 +412,7 @@ private:
         // Machine-side firing pulses: Controls the machine-side 6-pulse thyristor converter
         // Determines when machine-side thyristors are gated on/off
         signals_connector::connect_output_to_input(
-            machine_side_control.machine_side_pulse_generator.get_outputs().firing_pulses,
-            plant.get_inputs().machine_firing_pulses);
+            machine_side_control.get_firing_pulses(), plant.get_inputs().machine_firing_pulses);
 
         // Excitation control: Connect field current reference from excitation controller to plant model
         // The plant model contains an integrated field current regulator that converts the reference

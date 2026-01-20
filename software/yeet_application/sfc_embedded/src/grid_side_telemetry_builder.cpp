@@ -37,7 +37,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     const auto& current_controller = _control.get_current_controller();
     const auto& mode_monitor = _control.get_operation_mode_monitor();
     const auto& state_machine = _control.get_state_machine();
-    const auto& pulse_generator = _control.get_grid_side_pulse_generator();
+    const auto& pulse_generator = _control.get_grid_side_modulator();
 
     // === Grid Measurements Group (0-8) ===
     // ABC frame measurements
@@ -83,7 +83,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(29, static_cast<float>(state_machine.get_outputs().preset_request.read()));
 
     // === Pulse Generator Group (30-31) ===
-    packet.add_signal(30, static_cast<float>(pulse_generator.get_outputs().actual_firing_angle.read().get_pu()));
+    packet.add_signal(30, static_cast<float>(pulse_generator.get_outputs().firing_angle.read().get_pu()));
     packet.add_signal(31, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));
 
     // === Grid-Side Protections Severity/Status Group (32-36) ===

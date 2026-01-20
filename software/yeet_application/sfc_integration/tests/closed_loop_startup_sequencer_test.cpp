@@ -45,10 +45,12 @@ public:
         initialize();
 
         // Register loggers for debugging
-        register_minimal_logger(simulator, system.plant);
-        register_complete_logger(simulator, system.machine_side_control.speed_controller);
+        // register_minimal_logger(simulator, system.plant);
+        // register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
-        register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
     }
 
     void initialize()
@@ -111,6 +113,27 @@ public:
     // Test simulator
     yeet::simulator simulator = yeet::make_gtest_simulator();
 };
+
+TEST_F(ClosedLoopStartupSequencerTest, PulseMode)
+{
+    // Configure Startup Sequencer
+    // system.machine_side_control.machine_side_modulator.get_parameters().enable_double_pulsing.write(true);
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.02};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.02};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{20.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.1};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{0.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().force_virtual_mode_operation = true;
+    system.machine_side_control.startup_sequencer.get_parameters().skip_flux_buildup = true;
+
+    // Execute State Machine Startup
+    execute_startup_sequence();
+    // Wait for Flux Buildup and Virtual Startup
+    simulator.simulate_for(5.0);
+}
 
 /**
  * @test StartupSequencerIntegrationTest
