@@ -240,7 +240,7 @@ void sfc_machine_side_control::connect_internal_signals()
         .to(&pulse_gen_inputs::firing_angle)
         .from(machine_side_modulator.get_outputs().release_pulses)
         .to(&pulse_gen_inputs::release_pulses)
-        .from(machine_side_observer.get_outputs().estimated_reference_angle)
+        .from(machine_side_modulator.get_outputs().selected_firing_angle_reference)
         .to(&pulse_gen_inputs::reference_angle);
 
     // ==================== Machine-Side Protections Inputs ====================
