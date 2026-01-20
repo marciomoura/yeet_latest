@@ -70,7 +70,7 @@ extern "C" {
  * (HIGH) between transactions.
  */
 #ifndef W5200_LEGACY_CS_IDLE_LOW
-#define W5200_LEGACY_CS_IDLE_LOW 0
+#define W5200_LEGACY_CS_IDLE_LOW 1
 #endif
 
 /* ============================================================================
