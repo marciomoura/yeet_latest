@@ -13,9 +13,9 @@
  * - Modern C++17 implementation with type safety
  *
  * Protocol Specifications:
- * - Grid → Machine: 3 uint32_t words (12 bytes)
+ * - Grid → Machine: 2 uint32_t words (8 bytes)
  * - Machine → Grid: 4 uint32_t words (16 bytes)
- * - Total bidirectional payload: 28 bytes per cycle
+ * - Total bidirectional payload: 24 bytes per cycle
  *
  * @see software/yeet_application/sfc_embedded/docs/fiber_optic_protocol.md
  */
@@ -92,10 +92,9 @@ struct grid_to_machine_message {
  * @brief Encode Grid → Machine message into packed uint32_t payload
  *
  * packs all grid-side status, measurements, and control synchronization signals
- * into 3 uint32_t words for transmission over fiber-optic link:
+ * into 2 uint32_t words for transmission over fiber-optic link:
  * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
- * - Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
- * - Word 2: Packed control flags and state
+ * - Word 1: Packed control flags and state
  *   - Bit 0:      Is forced commutation mode
  *   - Bit 1:      Force commutation acknowledged
  *   - Bit 2:      Release pulses
@@ -106,8 +105,8 @@ struct grid_to_machine_message {
  *   - Bits 25-31: State machine state ID (0-127)
  *
  * @param[in]  msg      Message structure to encode
- * @param[out] payload  Array to receive encoded data (min 3 words)
- * @return Number of uint32_t words written to payload (always 3)
+ * @param[out] payload  Array to receive encoded data (min 2 words)
+ * @return Number of uint32_t words written to payload (always 2)
  *
  * @note Float values are transmitted as IEEE 754 bit patterns using std::memcpy
  *
@@ -115,7 +114,6 @@ struct grid_to_machine_message {
  * @code
  * grid_to_machine_message msg{
  *     .dc_link_current = yeet::current_pu_t{0.75f},
- *     .grid_voltage_magnitude = yeet::voltage_pu_t{1.0f},
  *     .is_forced_commutation = false,
  *     .force_commutation_acknowledged = true,
  *     .release_pulses = true,
@@ -131,10 +129,9 @@ struct grid_to_machine_message {
  * @brief Decode Grid → Machine message from packed uint32_t payload
  *
  * Unpacks grid-side status, measurements, and control synchronization signals
- * from 3 uint32_t words received over fiber-optic link:
+ * from 2 uint32_t words received over fiber-optic link:
  * - Word 0: DC link current measurement [pu] (IEEE 754 float bits)
- * - Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
- * - Word 2: Packed control flags and state
+ * - Word 1: Packed control flags and state
  *   - Bit 0:      Is forced commutation mode
  *   - Bit 1:      Force commutation acknowledged
  *   - Bit 2:      Release pulses

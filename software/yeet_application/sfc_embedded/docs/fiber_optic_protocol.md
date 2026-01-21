@@ -16,15 +16,14 @@ This document describes the optimized bit-packed communication protocol used for
 ### Grid → Machine Link (Control Command)
 
 **Transmission Rate**: 1 kHz (every 1 ms)  
-**Payload Size**: 3 uint32_t words
+**Payload Size**: 2 uint32_t words
 
 | Word | Description                       | Type           | Units |
 | ---- | --------------------------------- | -------------- | ----- |
 | 0    | DC link current measurement       | IEEE 754 float | pu    |
-| 1    | Grid voltage magnitude            | IEEE 754 float | pu    |
-| 2    | Packed Control Flags and State ID | Bit-field      | -     |
+| 1    | Packed Control Flags and State ID | Bit-field      | -     |
 
-#### Word 2: Packed Control Flags and State ID
+#### Word 1: Packed Control Flags and State ID
 
 | Bits  | Description                    | Values                       |
 | ----- | ------------------------------ | ---------------------------- |

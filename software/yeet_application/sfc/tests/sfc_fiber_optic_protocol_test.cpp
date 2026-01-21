@@ -41,7 +41,7 @@ TEST_F(GridToMachineProtocolTest, EncodeReturnsCorrectPayloadLength)
     grid_to_machine_message msg{};
     std::uint8_t length = encode_grid_to_machine(msg, payload.data());
     EXPECT_EQ(length, grid_to_machine_payload_length);
-    EXPECT_EQ(length, 3);
+    EXPECT_EQ(length, 2);
 }
 
 TEST_F(GridToMachineProtocolTest, DecodeRejectsInsufficientPayloadLength)

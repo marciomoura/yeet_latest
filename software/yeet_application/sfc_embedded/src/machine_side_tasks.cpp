@@ -147,8 +147,6 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
 
     control->machine_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
-    control->machine_side_modulator.get_parameters().pulse_width.write(
-        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 
     // ==================== IO CONFIGURATION ====================
     auto& io_params = control->external_ios.get_parameters();

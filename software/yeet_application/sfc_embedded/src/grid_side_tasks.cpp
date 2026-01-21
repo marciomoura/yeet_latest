@@ -250,8 +250,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
 
     control->grid_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
-    control->grid_side_modulator.get_parameters().pulse_width.write(
-        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 
     // ==================== IO CONFIGURATION ====================
     auto& io_params = control->get_external_ios().get_parameters();
@@ -266,7 +264,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_door_is_open_index.write(DI_DOOR_IS_OPEN_INDEX);
     io_params.di_external_fault_index.write(DI_EXTERNAL_FAULT_INDEX);
 
-    // Digital Input Polarity
+    // Digital Input PolarityC
     io_params.di_auxiliaries_are_on_polarity.write(DI_AUXILIARIES_ARE_ON_POLARITY);
     io_params.di_mv_breaker_is_closed_polarity.write(DI_MV_BREAKER_IS_CLOSED_POLARITY);
     io_params.di_start_command_polarity.write(DI_START_COMMAND_POLARITY);
