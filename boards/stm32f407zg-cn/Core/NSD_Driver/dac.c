@@ -201,15 +201,14 @@ bool AD5724_SetRange(ad5724_instance_t* dac, ad5724_channel_t channel, ad5724_ra
 {
     // Legacy baseline only supports ±5 V right now. Accept but ignore others.
     if (!dac || channel >= AD5724_NUM_CHANNELS) return false;
-    dac->range[channel] = AD5724_RANGE_N5_5V;  // force
+    dac->range[channel] = range;
     return true;
 }
 
 void AD5724_SetRangeAll(ad5724_instance_t* dac, ad5724_range_t range)
 {
-    (void)range;
     if (!dac) return;
-    for (int ch = 0; ch < AD5724_NUM_CHANNELS; ++ch) dac->range[ch] = AD5724_RANGE_N5_5V;
+    for (int ch = 0; ch < AD5724_NUM_CHANNELS; ++ch) dac->range[ch] = range;
 }
 
 static inline uint32_t legacy_channel_bits(ad5724_channel_t ch)
