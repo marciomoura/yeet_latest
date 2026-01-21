@@ -1,39 +1,36 @@
 #pragma once
 
-#include "lookup_table_1d.hpp"
+#include "precomputed_divisor.hpp"
 #include "reference_frame.hpp"
 #include "units.hpp"
 
 namespace yeet::control {
 
 /**
- * @brief Compensates for a first-order hardware low-pass filter using lookup tables.
+ * @brief Compensates for up to two series-connected first-order hardware low-pass filters.
  *
- * This component uses two separate lookup tables: one for gain and one for phase-shift.
- * It provides a method to configure these tables based on a theoretical first-order LPF
- * response, and then applies the compensation to a three-phase input signal in the
- * stationary alpha-beta reference frame.
+ * This component calculates the inverse transfer function of a first-order LPF
+ * at runtime to compensate for phase lag and gain attenuation.
  *
- * The compensation formula is:
+ * The compensation formula for a single filter is:
  *   V_comp = G * R(phi) * V
- * where G is the gain to be corrected, phi is the phase-shift to be corrected,
- * and R(phi) is a rotation matrix.
+ * where phi = lead angle = arctan(f/fc)
+ * and G = gain = sqrt(1 + (f/fc)^2) -> Saturated to 1.0 to avoid noise amplification.
  */
 class hardware_filter_compensator {
 public:
-    static constexpr size_t num_points = 21;
-
     hardware_filter_compensator() = default;
 
     /**
-     * @brief Configures the lookup tables based on a first-order LPF characteristic.
-     * @param cutoff_frequency The theoretical cutoff frequency (fc) of the hardware filter.
-     * @param max_frequency The maximum frequency to populate the LUT for.
+     * @brief Configures the hardware filter cut-off frequencies.
+     * @param cutoff_f1 The cut-off frequency of the first filter stage.
+     * @param cutoff_f2 The cut-off frequency of the second filter stage (optional).
+     * @param num_filters The number of active filter stages to compensate (0, 1, or 2).
      */
-    void configure_as_first_order_lpf(frequency_t cutoff_frequency, frequency_t max_frequency);
+    void configure(frequency_t cutoff_f1, frequency_t cutoff_f2 = frequency_t{0.0f}, int num_filters = 1);
 
     /**
-     * @brief Resets the compensation outputs.
+     * @brief Resets the compensation state.
      */
     void reset();
 
@@ -46,32 +43,40 @@ public:
     template <typename T>
     abc<T> update(const abc<T>& input, frequency_t frequency)
     {
-        if (_gain_lut.get_value(0.0f) == 0.0f) {
-            return input;  // Not configured
+        if (_num_filters <= 0 || frequency.value() <= 0.0f) {
+            return input;
         }
 
-        const real_t f = frequency.value();
-        const real_t gain = _gain_lut.get_value(f);
-        const real_t phase = _phase_lut.get_value(f);
+        angle_wrapped total_phase = 0.0f;
+        real_t total_gain = 1.0f;
+
+        // Stage 1: Always run if at least one filter is requested and configured
+        if (_num_filters >= 1 && _cutoff_f1_divisor.value().value() > 0.0f) {
+            const real_t ratio = frequency / _cutoff_f1_divisor;
+            total_phase += angle_wrapped::from_radians(angle_t{std::atan(ratio)});
+            total_gain *= std::sqrt(1.0f + ratio * ratio);
+        }
+
+        // Stage 2: Only run if two filters are requested and configured
+        if (_num_filters >= 2 && _cutoff_f2_divisor.value().value() > 0.0f) {
+            const real_t ratio = frequency / _cutoff_f2_divisor;
+            total_phase += angle_wrapped::from_radians(angle_t{std::atan(ratio)});
+            total_gain *= std::sqrt(1.0f + ratio * ratio);
+        }
+
+        // Saturate gain to 1.0 as requested to avoid noise amplification
+        const real_t gain_comp = std::min(total_gain, 1.0f);
 
         // Convert to alpha-beta for rotation
-        alphabeta<T> ab = input.to_alphabeta();
+        const alphabeta<T> ab = gain_comp * input.to_alphabeta();
 
-        // Apply gain and rotation
-        // V_alpha_comp = G * (V_alpha * cos(phi) - V_beta * sin(phi))
-        // V_beta_comp  = G * (V_alpha * sin(phi) + V_beta * cos(phi))
-        const real_t cos_phi = std::cos(phase);
-        const real_t sin_phi = std::sin(phase);
-
-        alphabeta<T> ab_comp{
-            gain * (ab.alpha() * cos_phi - ab.beta() * sin_phi), gain * (ab.alpha() * sin_phi + ab.beta() * cos_phi)};
-
-        return ab_comp.to_abc();
+        return ab.rotate_counter_clockwise(angle_wrapped{total_phase}).to_abc();
     }
 
 private:
-    lookup_table_1d<real_t, num_points> _gain_lut;
-    lookup_table_1d<real_t, num_points> _phase_lut;
+    int _num_filters{0};
+    precomputed_divisor<frequency_t> _cutoff_f1_divisor;
+    precomputed_divisor<frequency_t> _cutoff_f2_divisor;
 };
 
 }  // namespace yeet::control

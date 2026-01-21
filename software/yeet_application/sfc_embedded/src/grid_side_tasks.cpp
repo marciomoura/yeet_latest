@@ -235,9 +235,11 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // The ASI interface converts 2500 V LL to 100 V secondary voltage
     control->grid_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
-
-    control->grid_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
-        yeet::frequency_t{1000.0f});
+    control->grid_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
+        yeet::frequency_t{796.0f});
+    control->grid_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_2.write(
+        yeet::frequency_t{159.0f});
+    control->grid_measurements.get_parameters().voltage_compensation_num_filters.write(2);
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->grid_measurements.get_parameters().enable_commutation_masking.write(true);
     control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{0.0f});  // 30.0f
@@ -389,7 +391,15 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     // Channel B: Test signal 2
     // Channel C: Test signal 3
     // Channel D: Test signal 4
-    write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 1.0, 0.0f);
+    write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
+    write_ao(outputs, 1,
+        yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read()).ab().value(),
+        5.0f, 0.0f);
+    write_ao(outputs, 2,
+        yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc.read()).ab().value(),
+        5.0f, 0.0f);
+    write_ao(outputs, 3,
+        control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu().value(), 5.0f, 0.0f);
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.

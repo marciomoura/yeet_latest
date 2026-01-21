@@ -136,11 +136,13 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
     // The ASI interface defines the loop-gain of 1.0/25.0
     control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
-
     // Configuration of the voltage PT and hardware filter compensation
-    control->machine_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
-        yeet::frequency_t{160.0f});
-    control->machine_measurements.get_parameters().enable_voltage_compensation.write(false);
+    control->machine_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
+        yeet::frequency_t{796.0f});
+    control->machine_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_2.write(
+        yeet::frequency_t{159.0f});
+    control->machine_measurements.get_parameters().voltage_compensation_num_filters.write(2);
+    control->machine_measurements.get_parameters().enable_voltage_compensation.write(true);
     control->machine_measurements.get_parameters().enable_commutation_masking.write(true);
     control->machine_measurements.get_parameters().voltage_measurement_rotation.write(
         yeet::angle_wrapped{0.0f});  // 30.0f

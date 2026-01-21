@@ -4,55 +4,36 @@
 
 namespace yeet::control {
 
-void hardware_filter_compensator::configure_as_first_order_lpf(frequency_t cutoff_frequency, frequency_t max_frequency)
+void hardware_filter_compensator::configure(frequency_t cutoff_f1, frequency_t cutoff_f2, int num_filters)
 {
-    if (cutoff_frequency.value() <= 0.0f) {
-        // Effective bypass if cutoff is zero or negative
-        reset();
+    // Reset to safe defaults
+    _num_filters = 0;
+    _cutoff_f1_divisor = precomputed_divisor<frequency_t>(frequency_t{0.0f});
+    _cutoff_f2_divisor = precomputed_divisor<frequency_t>(frequency_t{0.0f});
+
+    if (num_filters <= 0) {
         return;
     }
 
-    std::array<real_t, num_points> frequencies;
-    std::array<real_t, num_points> gains;
-    std::array<real_t, num_points> phases;
-
-    const real_t fc = cutoff_frequency.value();
-    const real_t f_max = max_frequency.value();
-    const real_t f_step = f_max / static_cast<real_t>(num_points - 1);
-
-    for (size_t i = 0; i < num_points; ++i) {
-        const real_t f = static_cast<real_t>(i) * f_step;
-        const real_t ratio = f / fc;
-
-        frequencies[i] = f;
-        // Inverse of 1/(1+js/wc) is (1+js/wc)
-        // Gain: sqrt(1 + (f/fc)^2)
-        // Phase: atan(f/fc)
-        gains[i] = std::sqrt(1.0f + ratio * ratio);
-        phases[i] = std::atan(ratio);
+    // Configure Stage 1 if frequency is valid and at least one filter is requested
+    if (cutoff_f1.value() > 0.0f) {
+        _cutoff_f1_divisor = precomputed_divisor<frequency_t>(cutoff_f1);
+        _num_filters = 1;
     }
 
-    _gain_lut.configure(frequencies, gains);
-    _phase_lut.configure(frequencies, phases);
+    // Configure Stage 2 if frequency is valid and two filters are requested
+    if (num_filters >= 2 && cutoff_f2.value() > 0.0f) {
+        _cutoff_f2_divisor = precomputed_divisor<frequency_t>(cutoff_f2);
+        // We set _num_filters to 2. If Stage 1 was invalid, update() will skip it but run Stage 2.
+        _num_filters = 2;
+    }
 }
 
 void hardware_filter_compensator::reset()
 {
-    std::array<real_t, num_points> frequencies;
-    std::array<real_t, num_points> ones;
-    std::array<real_t, num_points> zeros;
-
-    frequencies.fill(0.0f);
-    ones.fill(1.0f);
-    zeros.fill(0.0f);
-
-    // Ensure axis is sorted even for reset
-    for (size_t i = 0; i < num_points; ++i) {
-        frequencies[i] = static_cast<real_t>(i);
-    }
-
-    _gain_lut.configure(frequencies, ones);
-    _phase_lut.configure(frequencies, zeros);
+    _cutoff_f1_divisor = precomputed_divisor<frequency_t>(frequency_t{0.0f});
+    _cutoff_f2_divisor = precomputed_divisor<frequency_t>(frequency_t{0.0f});
+    _num_filters = 0;
 }
 
 }  // namespace yeet::control

@@ -57,7 +57,7 @@ public:
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;
 
         /// Machine voltage in abc frame, unmasked [pu]
-        signal_output<abc<voltage_pu_t>> machine_voltage_abc_unmasked;
+        signal_output<abc<voltage_pu_t>> machine_voltage_abc_raw;
 
         /// Machine voltage in abc frame, filtered [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_filtered;
@@ -98,7 +98,13 @@ public:
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
 
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
-        parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_1{frequency_t{0.0}};
+
+        /// Cutoff frequency of the second hardware low-pass filter stage [Hz]
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_2{frequency_t{0.0}};
+
+        /// Number of series-connected hardware low-pass filters to compensate
+        parameter<int> voltage_compensation_num_filters{0};
 
         /// Enable phase-shift compensation for the hardware filter
         parameter<bool> enable_voltage_compensation{false};
@@ -156,8 +162,12 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
-        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
-            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_1",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_1));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_2",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_2));
+        handler.register_parameter(component_name, "voltage_compensation_num_filters",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_num_filters));
         handler.register_parameter(component_name, "enable_voltage_compensation",
             yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
         handler.register_parameter(component_name, "enable_commutation_masking",
@@ -210,7 +220,7 @@ public:
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;
-        signal_output<abc<voltage_pu_t>> machine_voltage_abc_unmasked;
+        signal_output<abc<voltage_pu_t>> machine_voltage_abc_raw;
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_filtered;
         signal_output<voltage_pu_t> machine_voltage_magnitude;
         signal_output<voltage_pu_t> machine_voltage_magnitude_filtered;
@@ -235,7 +245,13 @@ public:
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
 
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
-        parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_1{frequency_t{0.0}};
+
+        /// Cutoff frequency of the second hardware low-pass filter stage [Hz]
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_2{frequency_t{0.0}};
+
+        /// Number of series-connected hardware low-pass filters to compensate
+        parameter<int> voltage_compensation_num_filters{1};
 
         /// Enable phase-shift compensation for the hardware filter
         parameter<bool> enable_voltage_compensation{false};
@@ -286,8 +302,12 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
-        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
-            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_1",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_1));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_2",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_2));
+        handler.register_parameter(component_name, "voltage_compensation_num_filters",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_num_filters));
         handler.register_parameter(component_name, "enable_voltage_compensation",
             yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
         handler.register_parameter(component_name, "enable_commutation_masking",
