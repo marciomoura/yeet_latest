@@ -184,7 +184,7 @@ bool AD5724_Init(ad5724_instance_t* dac)
 
     // Record state
     for (int ch = 0; ch < AD5724_NUM_CHANNELS; ++ch) {
-        dac->range[ch] = AD5724_RANGE_0_10V;  // map to legacy ±5 V
+        dac->range[ch] = AD5724_RANGE_N10_10V;
         dac->last_voltage[ch] = 0.0f;
     }
     dac->initialized = true;
