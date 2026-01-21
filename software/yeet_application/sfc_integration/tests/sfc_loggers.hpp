@@ -439,6 +439,8 @@ static inline void register_minimal_grid_side_measurements_logger(
         [&]() { return grid_side_measurements.get_outputs().grid_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return grid_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return grid_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 static inline void register_complete_grid_side_measurements_logger(
@@ -485,6 +487,8 @@ static inline void register_minimal_grid_side_measurements_logger(
         [&]() { return grid_side_measurements.get_outputs().grid_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return grid_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return grid_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 static inline void register_complete_grid_side_measurements_logger(
@@ -558,6 +562,8 @@ static inline void register_complete_machine_side_measurements_logger(
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_magnitude_filtered.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return machine_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return machine_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 // --- ADC-based machine side measurements runner loggers ---
@@ -600,6 +606,8 @@ static inline void register_complete_machine_side_measurements_logger(
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_magnitude_filtered.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return machine_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return machine_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 static inline void register_minimal_grid_side_observer_logger(

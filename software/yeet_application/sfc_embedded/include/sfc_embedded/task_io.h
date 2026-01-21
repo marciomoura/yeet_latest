@@ -174,12 +174,12 @@ typedef struct {
      * @note Application is responsible for commutation logic and safety
      */
     struct {
-        bool a_plus;  /**< Phase A positive arm gate pulse */
-        bool c_minus; /**< Phase C negative arm gate pulse */
-        bool b_plus;  /**< Phase B positive arm gate pulse */
-        bool a_minus; /**< Phase A negative arm gate pulse */
-        bool c_plus;  /**< Phase C positive arm gate pulse */
-        bool b_minus; /**< Phase B negative arm gate pulse */
+        bool p1; /**< Phase A positive arm gate pulse (T1) */
+        bool p2; /**< Phase C negative arm gate pulse (T2) */
+        bool p3; /**< Phase B positive arm gate pulse (T3) */
+        bool p4; /**< Phase A negative arm gate pulse (T4) */
+        bool p5; /**< Phase C positive arm gate pulse (T5) */
+        bool p6; /**< Phase B negative arm gate pulse (T6) */
     } thyristor_pulses;
 
     /**

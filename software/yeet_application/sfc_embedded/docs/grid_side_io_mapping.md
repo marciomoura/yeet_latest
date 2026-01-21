@@ -96,14 +96,14 @@ Thyristor firing pulses control the 6-pulse rectifier bridge on the grid side.
 
 ### 3.1 PWM Output Mapping
 
-| Hardware PWM | Task I/O Signal            | Thyristor | Bridge Arm | Phase   | Update Rate |
-| ------------ | -------------------------- | --------- | ---------- | ------- | ----------- |
-| PWM1 (PC6)   | `thyristor_pulses.a_plus`  | T1        | Positive   | Phase A | 5 kHz       |
-| PWM2 (PC7)   | `thyristor_pulses.c_minus` | T6        | Negative   | Phase C | 5 kHz       |
-| PWM3 (PC8)   | `thyristor_pulses.b_plus`  | T3        | Positive   | Phase B | 5 kHz       |
-| PWM4 (PC9)   | `thyristor_pulses.a_minus` | T4        | Negative   | Phase A | 5 kHz       |
-| PWM5 (PB0)   | `thyristor_pulses.c_plus`  | T5        | Positive   | Phase C | 5 kHz       |
-| PWM6 (PB1)   | `thyristor_pulses.b_minus` | T2        | Negative   | Phase B | 5 kHz       |
+| Hardware PWM | Task I/O Signal       | Thyristor | Bridge Arm | Phase   | Update Rate |
+| ------------ | --------------------- | --------- | ---------- | ------- | ----------- |
+| PWM1 (PC6)   | `thyristor_pulses.p1` | T1        | Positive   | Phase A | 5 kHz       |
+| PWM2 (PC7)   | `thyristor_pulses.p2` | T6        | Negative   | Phase C | 5 kHz       |
+| PWM3 (PC8)   | `thyristor_pulses.p3` | T3        | Positive   | Phase B | 5 kHz       |
+| PWM4 (PC9)   | `thyristor_pulses.p4` | T4        | Negative   | Phase A | 5 kHz       |
+| PWM5 (PB0)   | `thyristor_pulses.p5` | T5        | Positive   | Phase C | 5 kHz       |
+| PWM6 (PB1)   | `thyristor_pulses.p6` | T2        | Negative   | Phase B | 5 kHz       |
 
 ### 3.2 Pulse Generation Control Flow
 

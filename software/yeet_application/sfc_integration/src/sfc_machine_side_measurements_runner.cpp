@@ -30,6 +30,7 @@ void sfc_machine_side_measurements_ideal_runner::run()
     // Execute commutation monitor and mask
     _commutation_monitor.update(measurement_voltage, _inputs.machine_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
+    _outputs.is_masking = _commutation_mask.is_masking();
     _outputs.commutation_notch_duration_last = _commutation_monitor.get_notch_duration_last();
     _outputs.commutation_notch_duration_filtered = _commutation_monitor.get_notch_duration_filtered();
 
@@ -136,6 +137,7 @@ void sfc_machine_side_measurements_runner::run()
 
     _commutation_monitor.update(measurement_voltage, _inputs.machine_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
+    _outputs.is_masking = _commutation_mask.is_masking();
     _outputs.commutation_notch_duration_last = _commutation_monitor.get_notch_duration_last();
     _outputs.commutation_notch_duration_filtered = _commutation_monitor.get_notch_duration_filtered();
 

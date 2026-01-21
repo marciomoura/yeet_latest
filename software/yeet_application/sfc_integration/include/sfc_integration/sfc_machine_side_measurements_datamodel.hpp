@@ -74,6 +74,9 @@ public:
         /// Commutation activity indicator [bool]
         signal_output<bool> is_commuting;
 
+        /// Commutation masking activity indicator
+        signal_output<bool> is_masking;
+
         /// Last measured commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_last;
 
@@ -216,15 +219,35 @@ public:
      * @brief Output signals from the machine-side measurements component
      */
     struct outputs {
+        /// Machine speed [pu]
         signal_output<speed_pu_t> machine_speed;
+
+        /// Machine voltage in alpha-beta frame [pu]
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta;
+
+        /// Machine voltage in alpha-beta frame, filtered [pu]
         signal_output<alphabeta<voltage_pu_t>> machine_voltage_alphabeta_filtered;
+
+        /// Machine voltage in abc frame [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc;
+
+        /// Machine voltage in abc frame, unmasked [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_raw;
+
+        /// Machine voltage in abc frame, filtered [pu]
         signal_output<abc<voltage_pu_t>> machine_voltage_abc_filtered;
+
+        /// Machine voltage magnitude [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude;
+
+        /// Machine voltage magnitude, filtered [pu]
         signal_output<voltage_pu_t> machine_voltage_magnitude_filtered;
+
+        /// Machine current in abc frame [pu]
         signal_output<bool> is_commuting;
+
+        /// Commutation masking activity indicator
+        signal_output<bool> is_masking;
 
         /// Last measured commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_last;

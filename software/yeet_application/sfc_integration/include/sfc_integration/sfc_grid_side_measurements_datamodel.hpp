@@ -68,6 +68,9 @@ public:
         /// Commutation status signal.
         signal_output<bool> is_commuting;
 
+        /// Commutation masking activity indicator
+        signal_output<bool> is_masking;
+
         /// Last measured commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_last;
 
@@ -268,6 +271,9 @@ public:
 
         /// Commutation activity indicator
         signal_output<bool> is_commuting;
+
+        /// Commutation masking activity indicator
+        signal_output<bool> is_masking;
 
         /// Last measured commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_last;
