@@ -1031,10 +1031,6 @@ int main(void)
         FiberProto_Init(&fiber_proto_instance, &fiber_optic_instance, FIBER_CH1);
     }
 
-    // 9. Network initialization (W5200 on SPI2 and SPI3)
-    //     IP addresses configured based on DIP switch node ID
-    system_status.network_ok = TCP_Server_Init();
-
     // 10. Initialize application layer (yeet control algorithms)
     yeet_embedded_init();
     system_status.application_ok = true;
@@ -1056,6 +1052,10 @@ int main(void)
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
 
+    // 9. Network initialization (W5200 on SPI2 and SPI3)
+    //     IP addresses configured based on DIP switch node ID
+    system_status.network_ok = TCP_Server_Init();
+
     while (1) {
 // ===== DMA State Update (Required for DMA transfers) =====
 // Poll DMA completion and handle timeouts
@@ -1072,9 +1072,7 @@ int main(void)
         // Handles TCP server operations only if network initialized successfully
         // Note: yeet_network() is now called directly inside TCP_Server_SPI2_Task()
         //       when data is received, so it's not called here separately
-        // if (system_status.network_ok) {
         TCP_Server_Task();
-        // }
     }
     /* USER CODE END 3 */
 }
