@@ -359,7 +359,6 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   AI2 (X1-2): Grid voltage Vbc
     //   AI5 (X1-5): Grid current Ia (1A → 5V or 5A → 5V, ±7.5A range)
     //   AI7 (X1-7): Grid current Ic
-#if 0
     if (inputs->analog_inputs.valid) {
         // Write ADC values directly to external_ios interface analog inputs
         // Perform subtraction in 32-bit to prevent intermediate overflow, then shift to fit 16-bit
@@ -375,99 +374,6 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
         control->get_external_ios().get_analog_inputs().i_c_counts.write(
             yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
     }
-#else
-    // ==================== ANALOG INPUTS → MEASUREMENTS WITH GLITCH REJECTION ====================
-    // Identify and reconstruct signals using system redundancy (sum-to-zero logic).
-    // Based on grid_side_io_mapping.md:
-    //   AI1(Ch0): Vab, AI2(Ch1): Vbc, AI3(Ch2): Vca (Line Voltages)
-    //   AI5(Ch4): Ia,  AI6(Ch5): Ib,  AI7(Ch6): Ic  (Phase Currents)
-    constexpr int32_t PHYSICAL_SUM_GLITCH_THRESHOLD = 5000;  // approx 15% of FS
-
-    // 1. Voltage Processing (Line-to-Line: Vab + Vbc + Vca = 0)
-    int32_t v_ab_raw = inputs->analog_inputs.channels[0];
-    int32_t v_bc_raw = inputs->analog_inputs.channels[1];
-    int32_t v_ca_raw = inputs->analog_inputs.channels[2];
-
-    static int32_t v_ab_prev = 0;
-    static int32_t v_bc_prev = 0;
-    static int32_t v_ca_prev = 0;
-
-    int32_t v_sum = v_ab_raw + v_bc_raw + v_ca_raw;
-
-    if (std::abs(v_sum) > PHYSICAL_SUM_GLITCH_THRESHOLD) {
-        // GLITCH DETECTED: Identify the culprit by checking the rate-of-change (spike)
-        int32_t d_ab = std::abs(v_ab_raw - v_ab_prev);
-        int32_t d_bc = std::abs(v_bc_raw - v_bc_prev);
-        int32_t d_ca = std::abs(v_ca_raw - v_ca_prev);
-
-        if (d_ab >= d_bc && d_ab >= d_ca) {
-            v_ab_raw = -(v_bc_raw + v_ca_raw);  // Reconstruct Vab
-        }
-        else if (d_bc >= d_ab && d_bc >= d_ca) {
-            v_bc_raw = -(v_ab_raw + v_ca_raw);  // Reconstruct Vbc
-        }
-        else {
-            v_ca_raw = -(v_ab_raw + v_bc_raw);  // Reconstruct Vca
-        }
-    }
-    else {
-        // Normal Operation: Distribute measurement noise/offset (Common-mode rejection)
-        int32_t v_err = v_sum / 3;
-        v_ab_raw -= v_err;
-        v_bc_raw -= v_err;
-        v_ca_raw -= v_err;
-    }
-    v_ab_prev = v_ab_raw;
-    v_bc_prev = v_bc_raw;
-    v_ca_prev = v_ca_raw;
-
-    // 2. Current Processing (Star Point: Ia + Ib + Ic = 0)
-    int32_t i_a_raw = inputs->analog_inputs.channels[4];
-    int32_t i_b_raw = inputs->analog_inputs.channels[5];
-    int32_t i_c_raw = inputs->analog_inputs.channels[6];
-
-    static int32_t i_a_prev = 0;
-    static int32_t i_b_prev = 0;
-    static int32_t i_c_prev = 0;
-
-    int32_t i_sum = i_a_raw + i_b_raw + i_c_raw;
-
-    if (std::abs(i_sum) > PHYSICAL_SUM_GLITCH_THRESHOLD) {
-        int32_t d_a = std::abs(i_a_raw - i_a_prev);
-        int32_t d_b = std::abs(i_b_raw - i_b_prev);
-        int32_t d_c = std::abs(i_c_raw - i_c_prev);
-
-        if (d_a >= d_b && d_a >= d_c) {
-            i_a_raw = -(i_b_raw + i_c_raw);  // Reconstruct Ia
-        }
-        else if (d_b >= d_a && d_b >= d_c) {
-            i_b_raw = -(i_a_raw + i_c_raw);  // Reconstruct Ib (internal)
-        }
-        else {
-            i_c_raw = -(i_a_raw + i_b_raw);  // Reconstruct Ic
-        }
-    }
-    else {
-        // Remove common mode
-        int32_t i_err = i_sum / 3;
-        i_a_raw -= i_err;
-        i_b_raw -= i_err;
-        i_c_raw -= i_err;
-    }
-    i_a_prev = i_a_raw;
-    i_b_prev = i_b_raw;
-    i_c_prev = i_c_raw;
-#endif
-
-    // 3. Write processed line voltages and line currents to the datamodel
-    control->get_external_ios().get_analog_inputs().v_ab_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(v_ab_raw)});
-    control->get_external_ios().get_analog_inputs().v_bc_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(v_bc_raw)});
-    control->get_external_ios().get_analog_inputs().i_a_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(i_a_raw)});
-    control->get_external_ios().get_analog_inputs().i_c_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(i_c_raw)});
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     control->update_200us();

@@ -94,10 +94,8 @@ ad7606_instance_t ad7606_instance = {0};
 
 /**
  * @brief Latest ADC reading (updated every 200µs)
- * Store the averaged result of the start and end of task conversions
  */
-static ad7606_reading_t adc_reading_start = {0};
-static ad7606_reading_t adc_reading_end = {0};
+ad7606_reading_t adc_reading = {0};
 
 /**
  * @brief AD5724 4-channel DAC instance
@@ -282,48 +280,75 @@ static uint8_t Read_DIP_Switch(void)
 }
 
 /* Task Implementations ----------------------------------------------------- */
+
+/**
+ * @brief  200us periodic task - ADC sampling and control
+ * @note   Called from TIM3 ISR at 5 kHz rate (every 200 microseconds)
+ *         This is your highest priority task - keep it fast!
+ *
+ * ADC Pipeline Operation:
+ *   1. Read previous conversion results (from last cycle)
+ *   2. Process data and update control outputs
+ *   3. Start next conversion
+ */
 void task_200us(void)
 {
+    // Only execute ADC operations if ADC and application both initialized successfully
     if (!system_status.adc_ok) {
+        return;  // Skip task if hardware or application not ready
+    }
+
+    static bool first_run = true;
+
+    // Pipeline operation: Read previous conversion, then start next
+    if (first_run || !system_status.application_ok) {
+        first_run = false;  // Skip read on first run (no prior conversion)
+        // Start conversion for next cycle (takes ~5µs)
+        AD7606_StartConversion(&ad7606_instance);
         return;
     }
 
-    // --- 1. Data Collection ---
-    // Read the conversion that was pre-triggered at the very end of the LAST cycle
-    AD7606_Read(&ad7606_instance, &adc_reading_start);
+    // Read the conversion that was started in the previous cycle
+    inputs_200us.analog_inputs.valid = AD7606_Read(&ad7606_instance, &adc_reading);
 
-    // Trigger a new conversion NOW (it will convert while we do some preliminary work)
-    AD7606_StartConversion(&ad7606_instance);
-
-    // [Optional: You could do some non-ADC math here to let the busy-wait time pass]
-
-    // Wait and Read the conversion we just triggered
-    AD7606_Read(&ad7606_instance, &adc_reading_end);
-
-    // --- 2. Process & Average ---
-    for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
-        // Average the start-of-task and mid-task samples
-        inputs_200us.analog_inputs.channels[i] =
-            ((int32_t)(int16_t)adc_reading_start.raw[i] + (int32_t)(int16_t)adc_reading_end.raw[i]) / 2;
+    // ===== Populate Generic Task Inputs =====
+    // Map AD7606 ADC channels to generic analog inputs
+    if (inputs_200us.analog_inputs.valid) {
+        for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
+            inputs_200us.analog_inputs.channels[i] = adc_reading.raw[i];
+        }
     }
-    inputs_200us.analog_inputs.valid = adc_reading_start.valid && adc_reading_end.valid;
 
-    // --- 3. Execute Control Logic ---
+    // AD7606_StartConversion(&ad7606_instance);
+
+    // Digital inputs (not available in 200us task - too fast for FSMC)
+    inputs_200us.digital_inputs.valid = false;
+
+    // Fiber-optic data (updated in 1ms task, not read here)
+    inputs_200us.fiber_optic_rx.data_ready = false;
+    inputs_200us.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+
+    // ===== Call Application Layer Control Task =====
     yeet_task_200us(&inputs_200us, &outputs_200us);
 
-    // --- 4. Apply Outputs to Hardware ---
-    set_thyristor_pulses(outputs_200us.thyristor_pulses.p1, outputs_200us.thyristor_pulses.p2,
-        outputs_200us.thyristor_pulses.p3, outputs_200us.thyristor_pulses.p4, outputs_200us.thyristor_pulses.p5,
+    // ===== Apply Task Outputs to Hardware =====
+    // Apply thyristor gate pulses
+    set_thyristor_pulses(outputs_200us.thyristor_pulses.p1,  //
+        outputs_200us.thyristor_pulses.p2,                   //
+        outputs_200us.thyristor_pulses.p3,                   //
+        outputs_200us.thyristor_pulses.p4,                   //
+        outputs_200us.thyristor_pulses.p5,                   //
         outputs_200us.thyristor_pulses.p6);
 
+    // ===== DAC Output (moved to 200us task for atomic operation with ADC) =====
     if (system_status.dac_ok && outputs_200us.analog_outputs.valid) {
+        // Extract DAC values from control outputs and apply to hardware
         for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
             AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, outputs_200us.analog_outputs.channels[ch]);
         }
     }
 
-    // --- 5. Pre-load for Next Cycle ---
-    // Trigger the conversion that we will read at the START of the next 200us interrupt
+    // Start conversion for next cycle (takes ~5µs)
     AD7606_StartConversion(&ad7606_instance);
 }
 
@@ -977,8 +1002,6 @@ int main(void)
 
     // 5. Initialize external ADC (AD7606 8-channel via FSMC Bank 2)
     if (AD7606_Init(&ad7606_instance)) {
-        AD7606_SetRange(&ad7606_instance, AD7606_RANGE_10V);
-        AD7606_StartConversion(&ad7606_instance);  // Trigger first conversion for task_200us
         system_status.adc_ok = true;
     }
     else {

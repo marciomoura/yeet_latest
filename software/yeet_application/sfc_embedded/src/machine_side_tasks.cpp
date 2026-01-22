@@ -215,66 +215,12 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     // Priority: Highest (measurements, observer, modulator, pulse generator)
 
     // ==================== ANALOG INPUTS → MEASUREMENTS ====================
-#if 0
-    // Previous simple differential mapping (kept for reference during lab test)
     if (inputs->analog_inputs.valid) {
         int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
                           static_cast<int32_t>(inputs->analog_inputs.channels[2]);
         int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
                           static_cast<int32_t>(inputs->analog_inputs.channels[3]);
         control->external_ios.set_analog_inputs(yeet::control::adc_counts{diff_ab}, yeet::control::adc_counts{diff_bc});
-    }
-#endif
-
-    // ==================== ANALOG INPUTS → MEASUREMENTS WITH GLITCH REJECTION ====================
-    // Identify and reconstruct signals using system redundancy (sum-to-zero logic).
-    // Based on sfc_io_definitions.md:
-    //   AI1(Ch0): Machine voltage Vab
-    //   AI2(Ch1): Machine voltage Vbc
-    //   AI3(Ch2): Machine voltage Vca (for parity reconstruction)
-    constexpr int32_t PHYSICAL_SUM_GLITCH_THRESHOLD = 5000;
-
-    if (inputs->analog_inputs.valid) {
-        int32_t v_ab_raw = inputs->analog_inputs.channels[1];
-        int32_t v_bc_raw = inputs->analog_inputs.channels[2];
-        int32_t v_ca_raw = inputs->analog_inputs.channels[3];
-
-        static int32_t v_ab_prev = 0;
-        static int32_t v_bc_prev = 0;
-        static int32_t v_ca_prev = 0;
-
-        int32_t v_sum = v_ab_raw + v_bc_raw + v_ca_raw;
-
-        if (std::abs(v_sum) > PHYSICAL_SUM_GLITCH_THRESHOLD) {
-            // GLITCH DETECTED: Identify the culprit by checking the rate-of-change (spike)
-            int32_t d_ab = std::abs(v_ab_raw - v_ab_prev);
-            int32_t d_bc = std::abs(v_bc_raw - v_bc_prev);
-            int32_t d_ca = std::abs(v_ca_raw - v_ca_prev);
-
-            if (d_ab >= d_bc && d_ab >= d_ca) {
-                v_ab_raw = -(v_bc_raw + v_ca_raw);  // Reconstruct Vab
-            }
-            else if (d_bc >= d_ab && d_bc >= d_ca) {
-                v_bc_raw = -(v_ab_raw + v_ca_raw);  // Reconstruct Vbc
-            }
-            else {
-                v_ca_raw = -(v_ab_raw + v_bc_raw);  // Reconstruct Vca
-            }
-        }
-        else {
-            // Normal Operation: Distribute measurement noise/offset (Common-mode rejection)
-            int32_t v_err = v_sum / 3;
-            v_ab_raw -= v_err;
-            v_bc_raw -= v_err;
-            v_ca_raw -= v_err;
-        }
-        v_ab_prev = v_ab_raw;
-        v_bc_prev = v_bc_raw;
-        v_ca_prev = v_ca_raw;
-
-        // Write processed measurements to datamodel
-        control->external_ios.set_analog_inputs(yeet::control::adc_counts{static_cast<int16_t>(v_ab_raw)},
-            yeet::control::adc_counts{static_cast<int16_t>(v_bc_raw)});
     }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
