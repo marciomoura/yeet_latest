@@ -57,7 +57,9 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'voltage mag. (pu)', 'index': MachineSignalIndex.MACHINE_VOLTAGE_MAGNITUDE_FILTERED, 'type': 'float', 'format': '.4f'},
                 {'name': 'frequency est. (pu)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
-                {'name': 'frequency est. (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_HZ, 'type': 'float', 'format': '.2f'}
+                {'name': 'frequency est. (Hz)', 'index': MachineSignalIndex.ESTIMATED_FREQUENCY_HZ, 'type': 'float', 'format': '.2f'},
+                {'name': 'voltage ab counts peak', 'index': MachineSignalIndex.MACHINE_V_AB_COUNTS_PEAK, 'type': 'float', 'format': '.0f'},
+                {'name': 'voltage bc counts peak', 'index': MachineSignalIndex.MACHINE_V_BC_COUNTS_PEAK, 'type': 'float', 'format': '.0f'}
             ]
         },
         'modulator': {

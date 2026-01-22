@@ -138,7 +138,7 @@ private:
     sfc_communication_watchdog _communication_watchdog;
 
     sfc_protections_trip_handshake _trip_handshake;
-    yeet::control::edge_detector _inhibit_falling_edge;
+    yeet::control::edge_detector _is_confirm_trip_rising_edge_detector;
     yeet::control::off_delay _emergency_off_reset_timer;
 
     bool _external_fault_active{false};

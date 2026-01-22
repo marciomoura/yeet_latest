@@ -254,6 +254,10 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(70, static_cast<float>(fiber_rx.grid_release_protections.read()));
     packet.add_signal(71, static_cast<float>(fiber_rx.communication_ok.read()));
 
+    // === Intermediate Hardware Scale Signals (72-73) ===
+    packet.add_signal(72, static_cast<float>(measurements.get_outputs().v_ab_counts_peak.read()));
+    packet.add_signal(73, static_cast<float>(measurements.get_outputs().v_bc_counts_peak.read()));
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);
 

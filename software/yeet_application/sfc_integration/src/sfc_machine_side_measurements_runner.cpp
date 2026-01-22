@@ -132,6 +132,10 @@ void sfc_machine_side_measurements_runner::run()
 {
     _measurements.update(_per_unit_system->get_machine_bases(), _inputs.v_ab_counts, _inputs.v_bc_counts);
 
+    if (_parameters.clear_adc_peak_values) {
+        _measurements.clear_peaks();
+    }
+
     abc<voltage_pu_t> const measurement_voltage =
         _measurements.get_voltage_pu().rotate(_parameters.voltage_measurement_rotation.read());
 
@@ -172,6 +176,10 @@ void sfc_machine_side_measurements_runner::run()
             ? line_voltage<voltage_t>(_voltage_compensator.update(
                   _measurements.get_voltage_line().to_phase_balanced(), _inputs.machine_frequency))
             : _measurements.get_voltage_line();
+
+    // Populate peak ADC counts
+    _outputs.v_ab_counts_peak = static_cast<real_t>(_measurements.get_v_ab_counts_peak());
+    _outputs.v_bc_counts_peak = static_cast<real_t>(_measurements.get_v_bc_counts_peak());
 }
 
 void sfc_machine_side_measurements_runner::stop() {}
@@ -196,6 +204,12 @@ void sfc_machine_side_measurements_runner::set_commutation_parameters()
 
 void sfc_machine_side_measurements_runner::set_parameter_callback()
 {
+    _parameters.clear_adc_peak_values.register_callback([&]() {
+        if (_parameters.clear_adc_peak_values) {
+            _measurements.clear_peaks();
+        }
+    });
+
     _parameters.voltage_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
     _parameters.current_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
     _parameters.voltage_magnitude_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });

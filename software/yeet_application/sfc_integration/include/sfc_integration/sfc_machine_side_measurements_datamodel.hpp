@@ -257,6 +257,12 @@ public:
 
         /// Line voltages (unmasked) [V]
         signal_output<line_voltage<voltage_t>> machine_voltage_line;
+
+        /// Peak ADC counts for Vab chan [counts]
+        signal_output<real_t> v_ab_counts_peak;
+
+        /// Peak ADC counts for Vbc chan [counts]
+        signal_output<real_t> v_bc_counts_peak;
     };
 
     /**
@@ -299,6 +305,9 @@ public:
         parameter<real_t> voltage_transducer_gain{real_t{3.5 / 100.0}};
         /// Potential transformer ratio [Primary/Secondary]
         parameter<real_t> pt_ratio{real_t{1.0}};
+
+        /// Clear ADC peak values [bool]
+        parameter<bool> clear_adc_peak_values{false};
     };
 
 private:
@@ -355,6 +364,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->voltage_transducer_gain));
         handler.register_parameter(
             component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
+        handler.register_parameter(component_name, "clear_adc_peak_values",
+            yeet::utils::make_bool_accessor(_model_parameters->clear_adc_peak_values));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -130,6 +130,8 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2000e3});
     // control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1980.0f});
 
+    control->machine_protections.get_parameters().protection_module_enabled.write(false);
+
     // Configure the PT
     // The ASI interface converts 2500 V LL to 100 V secondary voltage
     control->machine_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
@@ -175,7 +177,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     io_params.ao_excitation_current_reference_index.write(AO_EXCITATION_CURRENT_REFERENCE_INDEX);
 
     // Configure protections to be enabled by default for embedded target
-    control->machine_protections.get_parameters().protection_module_enabled.write(true);
+    // control->machine_protections.get_parameters().protection_module_enabled.write(true);
     control->machine_protections.get_parameters().over_flux_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().under_flux_severity.write(
@@ -187,20 +189,21 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_protections.get_parameters().machine_overvoltage_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().communication_loss_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
+        yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().loss_of_excitation_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     // #endif
 
+    control->startup_sequencer.get_parameters().skip_flux_buildup.write(true);
     control->startup_sequencer.get_parameters().force_virtual_mode_operation.write(true);
     control->startup_sequencer.get_parameters().virtual_frequency_duration.write(yeet::duration_t{50000.0f});
     control->startup_sequencer.get_parameters().virtual_frequency_initial.write(
-        yeet::frequency_pu_t{0.02f});  // 50 * 0.02 = 1 Hz
+        yeet::frequency_pu_t{0.001f});  // 50 * 0.02 = 1 Hz
     control->startup_sequencer.get_parameters().virtual_frequency_final.write(
-        yeet::frequency_pu_t{0.02f});  // 50 * 0.02 = 1 Hz
-    control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{0.0f});
-    control->startup_sequencer.get_parameters().virtual_torque_initial.write(yeet::torque_pu_t{0.1f});  // 10% torque
-    control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.1f});    // 10% torque
+        yeet::frequency_pu_t{0.001f});  // 50 * 0.02 = 1 Hz
+    control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{30.0f});
+    control->startup_sequencer.get_parameters().virtual_torque_initial.write(yeet::torque_pu_t{0.0f});  // 10% torque
+    control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.5f});    // 10% torque
 }
 
 ARM_FUNCTION

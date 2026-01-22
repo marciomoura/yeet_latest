@@ -7,7 +7,7 @@ sfc_grid_side_protections::sfc_grid_side_protections(duration_t sampling_time) n
       _overvoltage_protection(sampling_time),
       _undervoltage_protection(sampling_time),
       _communication_watchdog(sampling_time),
-      _inhibit_falling_edge(),
+      _is_confirm_trip_rising_edge_detector(),
       _emergency_off_reset_timer(1.0, (double)sampling_time.value())
 {
 }
@@ -20,7 +20,7 @@ void sfc_grid_side_protections::reset() noexcept
     _communication_watchdog.reset();
 
     _trip_handshake.reset();
-    _inhibit_falling_edge.reset();
+    _is_confirm_trip_rising_edge_detector.reset();
     _emergency_off_reset_timer.reset();
 
     _external_fault_active = false;
@@ -169,9 +169,9 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
 
     _is_inhibited = _trip_handshake.get_is_inhibited();
 
-    // The reset pulse is triggered when the inhibit signal goes false (trip cleared and confirmed).
-    _inhibit_falling_edge.update(_is_inhibited);
-    const bool reset_trigger = _inhibit_falling_edge.is_falling_edge();
+    // The reset pulse is triggered when the confirm_trips signal goes true (trip cleared and confirmed).
+    _is_confirm_trip_rising_edge_detector.update(confirm_trips);
+    const bool reset_trigger = _is_confirm_trip_rising_edge_detector.is_rising_edge();
 
     _emergency_off_reset_timer.update(reset_trigger);
     _emergency_off_reset = _emergency_off_reset_timer.get_output();

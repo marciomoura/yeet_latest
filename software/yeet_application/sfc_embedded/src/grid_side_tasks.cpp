@@ -61,20 +61,10 @@ constexpr int DI_EXTERNAL_FAULT_INDEX = 16 + 15 - 1;                            
 constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;  // to be checked
 
 // To be tested...
-constexpr int DI_IS_RUNNING_ACU_FAN_1_INDEX = 16 + 16 - 1;  // Device A12
-constexpr io_polarity_t DI_IS_RUNNING_ACU_FAN_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
-constexpr int DI_IS_RUNNING_ACU_FAN_2_INDEX = 16 + 16 - 1;  // Device A12
-constexpr io_polarity_t DI_IS_RUNNING_ACU_FAN_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
-constexpr int DI_IS_RUNNING_ACU_FAN_3_INDEX = 16 + 16 - 1;  // Device A12
-constexpr io_polarity_t DI_IS_RUNNING_ACU_FAN_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_FANS_ARE_RUNNING_INDEX = 16 + 16 - 1;  // Device A12
+constexpr io_polarity_t DI_FANS_ARE_RUNNING_POLARITY = io_polarity_t::ACTIVE_LOW;
 
 // Digital Outputs
-constexpr int DO_MV_BREAKER_CLOSE_INDEX = 32 + 5 - 1;
-constexpr io_polarity_t DO_MV_BREAKER_CLOSE_POLARITY = io_polarity_t::ACTIVE_HIGH;
-
-constexpr int DO_MV_BREAKER_OPEN_INDEX = 32 + 6 - 1;
-constexpr io_polarity_t DO_MV_BREAKER_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
-
 constexpr int DO_ON_COMMAND_ACU_FAN_1_INDEX = 32 + 1 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
@@ -87,14 +77,20 @@ constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_3_POLARITY = io_polarity_t::ACTIVE
 constexpr int DO_ON_COMMAND_ACU_FAN_4_INDEX = 32 + 4 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_4_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
+constexpr int DO_MV_BREAKER_CLOSE_INDEX = 32 + 5 - 1;
+constexpr io_polarity_t DO_MV_BREAKER_CLOSE_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+constexpr int DO_MV_BREAKER_OPEN_INDEX = 32 + 6 - 1;
+constexpr io_polarity_t DO_MV_BREAKER_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
 constexpr int DO_SOFTWARE_TRIP_1_INDEX = 10 - 1;
-constexpr io_polarity_t DO_SOFTWARE_TRIP_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_1_POLARITY = io_polarity_t::ACTIVE_LOW;
 
 constexpr int DO_SOFTWARE_TRIP_2_INDEX = 11 - 1;
-constexpr io_polarity_t DO_SOFTWARE_TRIP_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_2_POLARITY = io_polarity_t::ACTIVE_LOW;
 
 constexpr int DO_SOFTWARE_TRIP_3_INDEX = 15 - 1;
-constexpr io_polarity_t DO_SOFTWARE_TRIP_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_3_POLARITY = io_polarity_t::ACTIVE_LOW;
 
 constexpr int DO_EMERGENCY_OFF_RESET_INDEX = 16 - 1;
 constexpr io_polarity_t DO_EMERGENCY_OFF_RESET_POLARITY = io_polarity_t::ACTIVE_HIGH;
@@ -174,36 +170,43 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // Bypass all IOs (for testing)
     // control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
     // control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
-    // control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
-    // control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
     // control->external_ios.get_parameters().di_mv_breaker_is_closed_override.write(true);
     // control->external_ios.get_parameters().di_mv_breaker_is_closed_override_value.write(true);
+    // control->external_ios.get_parameters().di_external_fault_override.write(true);
+    // control->external_ios.get_parameters().di_external_fault_override_value.write(false);
+    // control->external_ios.get_parameters().di_door_is_open_override.write(true);
+    // control->external_ios.get_parameters().di_door_is_open_override_value.write(false);
+
     // control->external_ios.get_parameters().di_start_command_override.write(true);
     // control->external_ios.get_parameters().di_start_command_override_value.write(false);  // Start command not active
     // control->external_ios.get_parameters().di_stop_command_override.write(true);
     // control->external_ios.get_parameters().di_stop_command_override_value.write(false);  // Stop command not active
     // control->external_ios.get_parameters().di_mv_breaker_is_tripping_override.write(true);
     // control->external_ios.get_parameters().di_mv_breaker_is_tripping_override_value.write(false);
-    // control->external_ios.get_parameters().di_external_fault_override.write(true);
-    // control->external_ios.get_parameters().di_external_fault_override_value.write(false);
-    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
-    // control->external_ios.get_parameters().di_emergency_off_override_value.write(false);
-    // control->external_ios.get_parameters().di_door_is_open_override.write(true);
-    // control->external_ios.get_parameters().di_door_is_open_override_value.write(false);
-    // control->external_ios.get_parameters().di_fans_are_running_override.write(true);
-    // control->external_ios.get_parameters().di_fans_are_running_override_value.write(true);
+
     // control->state_machine.get_parameters().auxiliaries_are_on_override.write(true);
     // control->state_machine.get_parameters().auxiliaries_are_on_override_value.write(true);
     // control->state_machine.get_parameters().mv_breaker_is_closed_override.write(true);
     // control->state_machine.get_parameters().mv_breaker_is_closed_override_value.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override_value.write(false);
+    // control->external_ios.get_parameters().di_fans_are_running_override.write(true);
+    // control->external_ios.get_parameters().di_fans_are_running_override_value.write(true);
     // control->state_machine.get_parameters().is_current_extinguished_override.write(true);
     // control->state_machine.get_parameters().is_current_extinguished_override_value.write(true);
+
+    //
+    //
     control->state_machine.get_parameters().turn_on_command.write(false);
     control->state_machine.get_parameters().start_command.write(false);
     control->state_machine.get_parameters().stop_command.write(false);
 
+    using yeet::application::sfc::integration::protection_severity;
+
     // Force natural commutation
-    // control->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(true);
+    control->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(false);
+    control->operation_mode_monitor.get_parameters().force_to_forced_commutation.write(true);
     // control->current_controller.get_parameters().current_reference_magnitude_limit.write(yeet::current_pu_t{0.1f});
     // control->current_controller.get_parameters().override_current_reference.write(true);
     // control->current_controller.get_parameters().override_current_reference_value.write(yeet::current_pu_t{0.1f});
@@ -265,7 +268,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_emergency_off_index.write(DI_EMERGENCY_OFF_INDEX);
     io_params.di_door_is_open_index.write(DI_DOOR_IS_OPEN_INDEX);
     io_params.di_external_fault_index.write(DI_EXTERNAL_FAULT_INDEX);
-
+    io_params.di_fans_are_running_index.write(DI_FANS_ARE_RUNNING_INDEX);
     // Digital Input PolarityC
     io_params.di_auxiliaries_are_on_polarity.write(DI_AUXILIARIES_ARE_ON_POLARITY);
     io_params.di_mv_breaker_is_closed_polarity.write(DI_MV_BREAKER_IS_CLOSED_POLARITY);
@@ -275,6 +278,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_emergency_off_polarity.write(DI_EMERGENCY_OFF_POLARITY);
     io_params.di_door_is_open_polarity.write(DI_DOOR_IS_OPEN_POLARITY);
     io_params.di_external_fault_polarity.write(DI_EXTERNAL_FAULT_POLARITY);
+    io_params.di_fans_are_running_polarity.write(DI_FANS_ARE_RUNNING_POLARITY);
     // Digital Output Indices
     io_params.do_mv_breaker_close_index.write(DO_MV_BREAKER_CLOSE_INDEX);
     io_params.do_mv_breaker_open_index.write(DO_MV_BREAKER_OPEN_INDEX);
@@ -319,15 +323,18 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::application::sfc::integration::protection_severity::trip);
     control->grid_protections.get_parameters().machine_protection_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().undervoltage_severity.write(protection_severity::alarm_only);
+    control->grid_protections.get_parameters().external_fault_severity.write(protection_severity::alarm_only);
+    control->grid_protections.get_parameters().door_open_severity.write(protection_severity::alarm_only);
+    control->grid_protections.get_parameters().communication_loss_severity.write(protection_severity::alarm_only);
 
     // control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.5f});
     // control->grid_protections.get_parameters().overcurrent_warning_threshold.write(yeet::current_pu_t{1.0f});
     // control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{0.05f});
     // control->grid_protections.get_parameters().overcurrent_warning_delay.write(yeet::duration_t{0.05f});
-
-    control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{0.1f});
+    control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.8f});
+    control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{yeet::ms(100.0f)});
     control->grid_protections.get_parameters().overcurrent_warning_threshold.write(yeet::current_pu_t{0.05f});
-    control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{0.01f});
     control->grid_protections.get_parameters().overcurrent_warning_delay.write(yeet::duration_t{0.05f});
 
     control->grid_protections.get_parameters().overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.15f});
@@ -440,12 +447,6 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     //   DI7-DI16: System status and interlocks
     const auto& io_params = control->get_external_ios().get_parameters();
     if (inputs != nullptr && inputs->digital_inputs.valid) {
-        // OR-ing of 3 ACU fan running signals
-        const bool di_fans_are_running =
-            read_di(inputs, DI_IS_RUNNING_ACU_FAN_1_INDEX, DI_IS_RUNNING_ACU_FAN_1_POLARITY) &&
-            read_di(inputs, DI_IS_RUNNING_ACU_FAN_2_INDEX, DI_IS_RUNNING_ACU_FAN_2_POLARITY) &&
-            read_di(inputs, DI_IS_RUNNING_ACU_FAN_3_INDEX, DI_IS_RUNNING_ACU_FAN_3_POLARITY);
-
         // Update supervisory digital inputs from hardware I/O with configurable channel mapping.
         control->external_ios.set_digital_inputs(read_di(inputs, io_params.di_auxiliaries_are_on_index.read()),
             read_di(inputs, io_params.di_mv_breaker_is_closed_index.read()),
@@ -454,7 +455,8 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
             read_di(inputs, io_params.di_mv_breaker_is_tripping_index.read()),
             read_di(inputs, io_params.di_emergency_off_index.read()),
             read_di(inputs, io_params.di_door_is_open_index.read()),
-            read_di(inputs, io_params.di_external_fault_index.read()), di_fans_are_running);
+            read_di(inputs, io_params.di_external_fault_index.read()),
+            read_di(inputs, io_params.di_fans_are_running_index.read()));
     }
 
     // Process fiber-optic RX data from machine-side controller

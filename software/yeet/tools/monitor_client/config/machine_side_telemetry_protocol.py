@@ -129,74 +129,78 @@ class MachineSignalIndex(IntEnum):
     FIBER_RX_GRID_RELEASE_PROTECTIONS_BOOL = 70
     FIBER_RX_COMMUNICATION_OK = 71
 
-    # === Virtual Boolean Indices (72+) ===
-    # After 72 raw signals (0-71), bools are appended starting at index 72
-    # Unpacked from BOOL_PACK_1 (51) - 32 bools at indices 72-103
-    # Bits 0-2: Modulator (3)
-    MODULATOR_RELEASE_PULSES_OUTPUT = 72        # bools1[0]
-    MODULATOR_REQUEST_FORCE_COMMUTATION = 73    # bools1[1]
-    MODULATOR_FORCE_COMMUTATION_ACKNOWLEDGED = 74  # bools1[2]
-    # Bits 3-7: Torque controller (5)
-    TORQUE_ENABLE_BREAKAWAY_BOOST = 75          # bools1[3]
-    TORQUE_IS_SATURATED_INPUT = 76              # bools1[4]
-    TORQUE_IS_SATURATED_OUTPUT = 77             # bools1[5]
-    TORQUE_IS_ACTIVE = 78                       # bools1[6]
-    TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 79       # bools1[7]
-    # Bit 8: Speed controller (1)
-    SPEED_IS_SATURATED = 80                     # bools1[8]
-    # Bits 9-13: Startup sequencer (5)
-    STARTUP_RELEASE_SPEED_CONTROLLER = 81       # bools1[9]
-    STARTUP_RELEASE_EXCITATION = 82             # bools1[10]
-    STARTUP_RELEASE_TORQUE_CONTROLLER = 83      # bools1[11]
-    STARTUP_RELEASE_MACHINE_SIDE_PULSES = 84    # bools1[12]
-    STARTUP_IS_STARTUP_COMPLETE = 85            # bools1[13]
-    # Bits 14-15: Pulse generator (2)
-    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 86  # bools1[14]
-    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 87  # bools1[15]
-    # Bits 16-21: Firing pulses (6)
-    PULSE_P1 = 88                               # bools1[16]
-    PULSE_P2 = 89                               # bools1[17]
-    PULSE_P3 = 90                               # bools1[18]
-    PULSE_P4 = 91                               # bools1[19]
-    PULSE_P5 = 92                               # bools1[20]
-    PULSE_P6 = 93                               # bools1[21]
-    # Bits 22-31: Protections (10)
-    PROTECTION_IS_TRIPPED = 94                  # bools1[22]
-    PROTECTION_IS_INHIBITED = 95                # bools1[23]
-    PROTECTION_ANY_ALARM_ACTIVE_UNPACKED = 96   # bools1[24] - has_active_alarm from bool pack
-    PROTECTION_OVER_FLUX_TRIPPED = 97           # bools1[25]
-    PROTECTION_UNDER_FLUX_TRIPPED = 98          # bools1[26]
-    PROTECTION_STALL_TRIPPED = 99               # bools1[27]
-    PROTECTION_OVER_FLUX_WARNING = 100          # bools1[28]
-    PROTECTION_UNDER_FLUX_WARNING = 101         # bools1[29]
-    PROTECTION_STALL_WARNING = 102              # bools1[30]
-    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 103 # bools1[31]
+    # === Intermediate Hardware Scale Signals (72-73) ===
+    MACHINE_V_AB_COUNTS_PEAK = 72
+    MACHINE_V_BC_COUNTS_PEAK = 73
 
-    # Unpacked from BOOL_PACK_2 (52) - 15 bools at indices 104-118
-    PROTECTION_COMMUNICATION_LOSS_WARNING = 104 # bools2[0]
-    FIBER_RX_IS_FORCED_COMMUTATION = 105        # bools2[1]
-    FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED = 106  # bools2[2]
-    FIBER_RX_RELEASE_PULSES = 107               # bools2[3]
-    FIBER_RX_GRID_RELEASE_PROTECTIONS = 108     # bools2[4]
-    PROTECTION_OVERSPEED_TRIPPED = 109          # bools2[5]
-    PROTECTION_OVERSPEED_ALARMED = 110          # bools2[6]
-    PROTECTION_MACHINE_OVERVOLTAGE_TRIPPED = 111 # bools2[7]
-    PROTECTION_MACHINE_OVERVOLTAGE_ALARMED = 112 # bools2[8]
-    PROTECTION_LOSS_OF_EXCITATION_TRIPPED = 113 # bools2[9]
-    PROTECTION_LOSS_OF_EXCITATION_ALARMED = 114 # bools2[10]
-    PROTECTION_EXTERNAL_FAULT_TRIPPED = 115     # bools2[11]
-    PROTECTION_EXTERNAL_FAULT_ALARMED = 116     # bools2[12]
-    PROTECTION_MACHINE_OVERVOLTAGE_WARNING_PACK2 = 117 # bools2[13]
-    PROTECTION_SPARE_118 = 118                  # bools2[14]
-    PROTECTION_OVER_FLUX_ALARMED = 119          # bools2[15]
-    PROTECTION_UNDER_FLUX_ALARMED = 120         # bools2[16]
-    PROTECTION_STALL_ALARMED = 121              # bools2[17]
-    PROTECTION_COMM_LOSS_ALARMED = 122          # bools2[18]
+    # === Virtual Boolean Indices (74+) ===
+    # After 74 raw signals (0-73), bools are appended starting at index 74
+    # Unpacked from BOOL_PACK_1 (51) - 32 bools at indices 74-105
+    # Bits 0-2: Modulator (3)
+    MODULATOR_RELEASE_PULSES_OUTPUT = 74        # bools1[0]
+    MODULATOR_REQUEST_FORCE_COMMUTATION = 75    # bools1[1]
+    MODULATOR_FORCE_COMMUTATION_ACKNOWLEDGED = 76  # bools1[2]
+    # Bits 3-7: Torque controller (5)
+    TORQUE_ENABLE_BREAKAWAY_BOOST = 77          # bools1[3]
+    TORQUE_IS_SATURATED_INPUT = 78              # bools1[4]
+    TORQUE_IS_SATURATED_OUTPUT = 79             # bools1[5]
+    TORQUE_IS_ACTIVE = 80                       # bools1[6]
+    TORQUE_IS_BREAKAWAY_BOOST_ACTIVE = 81       # bools1[7]
+    # Bit 8: Speed controller (1)
+    SPEED_IS_SATURATED = 82                     # bools1[8]
+    # Bits 9-13: Startup sequencer (5)
+    STARTUP_RELEASE_SPEED_CONTROLLER = 83       # bools1[9]
+    STARTUP_RELEASE_EXCITATION = 84             # bools1[10]
+    STARTUP_RELEASE_TORQUE_CONTROLLER = 85      # bools1[11]
+    STARTUP_RELEASE_MACHINE_SIDE_PULSES = 86    # bools1[12]
+    STARTUP_IS_STARTUP_COMPLETE = 87            # bools1[13]
+    # Bits 14-15: Pulse generator (2)
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 88  # bools1[14]
+    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 89  # bools1[15]
+    # Bits 16-21: Firing pulses (6)
+    PULSE_P1 = 90                               # bools1[16]
+    PULSE_P2 = 91                               # bools1[17]
+    PULSE_P3 = 92                               # bools1[18]
+    PULSE_P4 = 93                               # bools1[19]
+    PULSE_P5 = 94                               # bools1[20]
+    PULSE_P6 = 95                               # bools1[21]
+    # Bits 22-31: Protections (10)
+    PROTECTION_IS_TRIPPED = 96                  # bools1[22]
+    PROTECTION_IS_INHIBITED = 97                # bools1[23]
+    PROTECTION_ANY_ALARM_ACTIVE_UNPACKED = 98   # bools1[24] - has_active_alarm from bool pack
+    PROTECTION_OVER_FLUX_TRIPPED = 99           # bools1[25]
+    PROTECTION_UNDER_FLUX_TRIPPED = 100          # bools1[26]
+    PROTECTION_STALL_TRIPPED = 101               # bools1[27]
+    PROTECTION_OVER_FLUX_WARNING = 102          # bools1[28]
+    PROTECTION_UNDER_FLUX_WARNING = 103         # bools1[29]
+    PROTECTION_STALL_WARNING = 104              # bools1[30]
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 105 # bools1[31]
+
+    # Unpacked from BOOL_PACK_2 (52) - 15 bools at indices 106-124
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 106 # bools2[0]
+    FIBER_RX_IS_FORCED_COMMUTATION = 107        # bools2[1]
+    FIBER_RX_FORCE_COMMUTATION_ACKNOWLEDGED = 108  # bools2[2]
+    FIBER_RX_RELEASE_PULSES = 109               # bools2[3]
+    FIBER_RX_GRID_RELEASE_PROTECTIONS = 110     # bools2[4]
+    PROTECTION_OVERSPEED_TRIPPED = 111          # bools2[5]
+    PROTECTION_OVERSPEED_ALARMED = 112          # bools2[6]
+    PROTECTION_MACHINE_OVERVOLTAGE_TRIPPED = 113 # bools2[7]
+    PROTECTION_MACHINE_OVERVOLTAGE_ALARMED = 114 # bools2[8]
+    PROTECTION_LOSS_OF_EXCITATION_TRIPPED = 115 # bools2[9]
+    PROTECTION_LOSS_OF_EXCITATION_ALARMED = 116 # bools2[10]
+    PROTECTION_EXTERNAL_FAULT_TRIPPED = 117     # bools2[11]
+    PROTECTION_EXTERNAL_FAULT_ALARMED = 118     # bools2[12]
+    PROTECTION_MACHINE_OVERVOLTAGE_WARNING_PACK2 = 119 # bools2[13]
+    PROTECTION_SPARE_118 = 120                  # bools2[14]
+    PROTECTION_OVER_FLUX_ALARMED = 121          # bools2[15]
+    PROTECTION_UNDER_FLUX_ALARMED = 122         # bools2[16]
+    PROTECTION_STALL_ALARMED = 123              # bools2[17]
+    PROTECTION_COMM_LOSS_ALARMED = 124          # bools2[18]
 
 
 @dataclass
 class MachineMeasurements:
-    """Machine-side voltage and observer data (0-8)."""
+    """Machine-side voltage and observer data (0-8, 72-73)."""
     machine_voltage_abc_a_pu: float = 0.0
     machine_voltage_abc_b_pu: float = 0.0
     machine_voltage_abc_c_pu: float = 0.0
@@ -206,6 +210,8 @@ class MachineMeasurements:
     estimated_frequency_pu: float = 0.0
     estimated_reference_angle_pu: float = 0.0
     estimated_frequency_hz: float = 0.0
+    v_ab_counts_peak: float = 0.0
+    v_bc_counts_peak: float = 0.0
 
 
 @dataclass

@@ -448,6 +448,8 @@ class MachineSideTelemetryPacket:
             estimated_frequency_pu=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU),
             estimated_reference_angle_pu=self.get_signal(MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE),
             estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ),
+            v_ab_counts_peak=self.get_signal(MachineSignalIndex.MACHINE_V_AB_COUNTS_PEAK),
+            v_bc_counts_peak=self.get_signal(MachineSignalIndex.MACHINE_V_BC_COUNTS_PEAK),
         )
     
     @property
