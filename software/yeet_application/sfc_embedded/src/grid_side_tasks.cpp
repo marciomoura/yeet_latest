@@ -392,21 +392,15 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
 
     // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
     // Map control system signals to DAC outputs for monitoring and testing
-    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
-    // Example DAC output mappings (customize based on your application):
-    // Channel A: Test signal 1
-    // Channel B: Test signal 2
-    // Channel C: Test signal 3
-    // Channel D: Test signal 4
-    write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 2.0f, 0.0f);
+    write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
     write_ao(outputs, 1,
         yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read()).ab().value(),
-        2.0f, 0.0f);
+        5.0f, 0.0f);
     write_ao(outputs, 2,
         yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc.read()).ab().value(),
-        2.0f, 0.0f);
+        5.0f, 0.0f);
     write_ao(outputs, 3,
-        control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu().value(), 2.0f, 0.0f);
+        control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu().value(), 5.0f, 0.0f);
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.

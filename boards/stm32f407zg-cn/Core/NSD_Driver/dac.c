@@ -41,8 +41,11 @@
 #define LEGACY_REG_POWER_CONTROL 0x100000UL
 #define LEGACY_REG_CONTROL       0x180000UL
 
-/* Output Range Codes (legacy names -> here we only use ±5 V) */
-#define LEGACY_RANGE_N5_P5V 0x000003UL /* -5 .. +5 V */
+/* Output Range Codes (per AD5724 datasheet / dac.h enum) */
+#define LEGACY_RANGE_0_P5V    0x000000UL /* 0 .. +5 V */
+#define LEGACY_RANGE_0_P10V   0x000001UL /* 0 .. +10 V */
+#define LEGACY_RANGE_N5_P5V   0x000003UL /* -5 .. +5 V */
+#define LEGACY_RANGE_N10_P10V 0x000004UL /* -10 .. +10 V */
 
 /* Power Control */
 #define LEGACY_POWER_UP_ALL 0x00000FUL  // Only channels, NOT reference (legacy may use external ref)
@@ -182,9 +185,10 @@ bool AD5724_Init(ad5724_instance_t* dac)
     // Configure device (repeat a few times like legacy robustness approach)
     for (int i = 0; i < 3; i++) legacy_Config();
 
-    // Record state
+    // Record state (match legacy_Config baseline of ±5V and powered up channels)
+    dac->power_bitmap = 0x0F;
     for (int ch = 0; ch < AD5724_NUM_CHANNELS; ++ch) {
-        dac->range[ch] = AD5724_RANGE_N10_10V;
+        dac->range[ch] = AD5724_RANGE_N5_5V;
         dac->last_voltage[ch] = 0.0f;
     }
     dac->initialized = true;
@@ -195,20 +199,6 @@ void AD5724_Reset(ad5724_instance_t* dac)
 {
     (void)dac;
     legacy_Config();
-}
-
-bool AD5724_SetRange(ad5724_instance_t* dac, ad5724_channel_t channel, ad5724_range_t range)
-{
-    // Legacy baseline only supports ±5 V right now. Accept but ignore others.
-    if (!dac || channel >= AD5724_NUM_CHANNELS) return false;
-    dac->range[channel] = range;
-    return true;
-}
-
-void AD5724_SetRangeAll(ad5724_instance_t* dac, ad5724_range_t range)
-{
-    if (!dac) return;
-    for (int ch = 0; ch < AD5724_NUM_CHANNELS; ++ch) dac->range[ch] = range;
 }
 
 static inline uint32_t legacy_channel_bits(ad5724_channel_t ch)
@@ -227,21 +217,66 @@ static inline uint32_t legacy_channel_bits(ad5724_channel_t ch)
     }
 }
 
-// Legacy voltage conversion for ±5 V: code = (V + 5)/10 * 65535
-static uint16_t legacy_voltage_to_code(float v)
+bool AD5724_SetRange(ad5724_instance_t* dac, ad5724_channel_t channel, ad5724_range_t range)
 {
-    if (v < -5.0f) v = -5.0f;
-    if (v > 5.0f) v = 5.0f;
-    float norm = (v + 5.0f) * (1.0f / 10.0f);  // 0..1
-    uint32_t code = (uint32_t)(norm * 65535.0f + 0.5f);
-    if (code > 65535U) code = 65535U;
-    return (uint16_t)code;
+    if (!dac || channel >= AD5724_NUM_CHANNELS) return false;
+    dac->range[channel] = range;
+    // Map Range Select Register + Channel + Range bits
+    legacy_Write24(LEGACY_REG_OUTPUT_RANGE | legacy_channel_bits(channel) | (uint32_t)range);
+    return true;
+}
+
+void AD5724_SetRangeAll(ad5724_instance_t* dac, ad5724_range_t range)
+{
+    if (!dac) return;
+    for (int ch = 0; ch < AD5724_NUM_CHANNELS; ++ch) dac->range[ch] = range;
+    legacy_Write24(LEGACY_REG_OUTPUT_RANGE | LEGACY_DAC_CH_ALL | (uint32_t)range);
+}
+
+// Internal voltage conversion based on AD5724 range specifications
+static uint16_t voltage_to_code_internal(float v, ad5724_range_t range)
+{
+    /** @brief Pre-calculated coefficients to avoid division and switch-heavy logic in the hot path. */
+    typedef struct {
+        float gain;   /**< 65535.0f / Span */
+        float offset; /**< -Min * Gain */
+        float min;    /**< Hardware range minimum */
+        float max;    /**< Hardware range maximum */
+    } range_coeffs_t;
+
+    static const range_coeffs_t coeffs[] = {
+        {65535.0f / 5.0f, 0.0f, 0.0f, 5.0f},          // 0_5V (65535/5)
+        {65535.0f / 10.0f, 0.0f, 0.0f, 10.0f},        // 0_10V (65535/10)
+        {65535.0f / 10.8f, 0.0f, 0.0f, 10.8f},        // 0_11V (65535/10.8)
+        {65535.0f / 10.0f, 32767.5f, -5.0f, 5.0f},    // N5_5V (65535/10, offset=32767.5)
+        {65535.0f / 20.0f, 32767.5f, -10.0f, 10.0f},  // N10_10V (65535/20, offset=32767.5)
+        {65535.0f / 21.6f, 32767.5f, -10.8f, 10.8f}   // N11_11V
+    };
+
+    // Ensure range is within bounds to avoid array overflow
+    if ((uint32_t)range >= (sizeof(coeffs) / sizeof(coeffs[0]))) {
+        range = AD5724_RANGE_N5_5V;
+    }
+
+    const range_coeffs_t* c = &coeffs[(uint8_t)range];
+
+    // Clamp input to hardware range limits
+    if (v < c->min) {
+        v = c->min;
+    }
+    else if (v > c->max) {
+        v = c->max;
+    }
+
+    // Compute code: (v * gain) + offset
+    // Addition of 0.5f ensures proper rounding to the nearest integer
+    return (uint16_t)(v * c->gain + c->offset + 0.5f);
 }
 
 bool AD5724_SetVoltage(ad5724_instance_t* dac, ad5724_channel_t channel, float voltage_v)
 {
     if (!dac || channel >= AD5724_NUM_CHANNELS) return false;
-    uint16_t code = legacy_voltage_to_code(voltage_v);
+    uint16_t code = voltage_to_code_internal(voltage_v, dac->range[channel]);
     dac->last_voltage[channel] = voltage_v;
     legacy_Write24(LEGACY_REG_DAC | legacy_channel_bits(channel) | code);
     return true;
@@ -256,30 +291,67 @@ bool AD5724_SetCode(ad5724_instance_t* dac, ad5724_channel_t channel, uint16_t c
 
 void AD5724_PowerUpChannel(ad5724_instance_t* dac, ad5724_channel_t channel)
 {
-    (void)dac;
-    (void)channel;
+    // Legacy mapping (bits 0..3 for channels, bit 4 for REF)
+    if (!dac) return;
+    uint8_t bit = (1 << (uint8_t)channel);
+    dac->power_bitmap |= bit;
+    legacy_Write24(LEGACY_REG_POWER_CONTROL | (dac->power_bitmap & 0x1F));
 }
+
 void AD5724_PowerDownChannel(ad5724_instance_t* dac, ad5724_channel_t channel)
 {
-    (void)dac;
-    (void)channel;
+    if (!dac) return;
+    uint8_t bit = (1 << (uint8_t)channel);
+    dac->power_bitmap &= ~bit;
+    legacy_Write24(LEGACY_REG_POWER_CONTROL | (dac->power_bitmap & 0x1F));
 }
+
 void AD5724_PowerUpAll(ad5724_instance_t* dac)
 {
-    (void)dac;
-    legacy_Write24(LEGACY_REG_POWER_CONTROL | LEGACY_POWER_UP_ALL);
+    if (!dac) return;
+    dac->power_bitmap = 0x1F;  // All channels + REF
+    legacy_Write24(LEGACY_REG_POWER_CONTROL | 0x1F);
 }
 
 uint16_t AD5724_VoltageToCode(float voltage_v, ad5724_range_t range)
 {
-    (void)range;
-    return legacy_voltage_to_code(voltage_v);
+    return voltage_to_code_internal(voltage_v, range);
 }
 
 bool AD5724_IsVoltageInRange(float voltage_v, ad5724_range_t range)
 {
-    (void)range;
-    return (voltage_v >= -5.0f && voltage_v <= 5.0f);
+    float min_v = 0.0f, max_v = 5.0f;
+    switch (range) {
+        case AD5724_RANGE_0_5V:
+            min_v = 0.0f;
+            max_v = 5.0f;
+            break;
+        case AD5724_RANGE_0_10V:
+            min_v = 0.0f;
+            max_v = 10.0f;
+            break;
+        case AD5724_RANGE_0_11V:
+            min_v = 0.0f;
+            max_v = 10.8f;
+            break;
+        case AD5724_RANGE_N5_5V:
+            min_v = -5.0f;
+            max_v = 5.0f;
+            break;
+        case AD5724_RANGE_N10_10V:
+            min_v = -10.0f;
+            max_v = 10.0f;
+            break;
+        case AD5724_RANGE_N11_11V:
+            min_v = -10.8f;
+            max_v = 10.8f;
+            break;
+        default:
+            min_v = -5.0f;
+            max_v = 5.0f;
+            break;
+    }
+    return (voltage_v >= min_v && voltage_v <= max_v);
 }
 
 /* ========================= End legacy restored implementation ============ */

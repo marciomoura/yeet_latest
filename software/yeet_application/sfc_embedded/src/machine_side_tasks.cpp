@@ -173,8 +173,9 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     io_params.do_excitation_on_command_polarity.write(DO_EXCITATION_ON_COMMAND_POLARITY);
     io_params.do_excitation_off_command_polarity.write(DO_EXCITATION_OFF_COMMAND_POLARITY);
 
-    // Analog Output Indices
-    io_params.ao_excitation_current_reference_index.write(AO_EXCITATION_CURRENT_REFERENCE_INDEX);
+    // Analog Output Scaling
+    io_params.ao_excitation_current_reference_gain.write(5.0f);
+    io_params.ao_excitation_current_reference_offset.write(0.0f);
 
     // Configure protections to be enabled by default for embedded target
     // control->machine_protections.get_parameters().protection_module_enabled.write(true);
@@ -325,9 +326,10 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
         outputs, io_params.do_excitation_on_command_index.read(), control->external_ios.get_excitation_on_command());
     write_do(
         outputs, io_params.do_excitation_off_command_index.read(), control->external_ios.get_excitation_off_command());
-    // Excitation current reference output (analog output - would typically use analog_outputs)
+
+    // Excitation current reference output (analog output)
     write_ao(outputs, AO_EXCITATION_CURRENT_REFERENCE_INDEX,
-        control->external_ios.get_excitation_current_reference().value(), 1.0f, 0.0f);
+        control->external_ios.get_excitation_current_reference().value(), 10.0f, 0.0f);
 }
 
 ARM_FUNCTION

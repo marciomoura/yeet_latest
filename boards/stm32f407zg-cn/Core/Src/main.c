@@ -1011,6 +1011,7 @@ int main(void)
 
     // 6. Initialize external DAC (AD5724 4-channel via SPI1)
     if (AD5724_Init(&ad5724_instance)) {
+        AD5724_SetRangeAll(&ad5724_instance, AD5724_RANGE_N10_10V);
         system_status.dac_ok = true;
     }
     else {
