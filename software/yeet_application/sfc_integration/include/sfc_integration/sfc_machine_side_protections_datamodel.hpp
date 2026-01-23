@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc_integration/protection_severity.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/parameter_handler.hpp"
@@ -70,6 +71,9 @@ public:
 
         /// Protection system inhibited (trip occurred, awaiting confirmation)
         signal_output<bool> is_inhibited;
+
+        /// Latch of the first trip source encountered
+        signal_output<machine_trip_source> first_trip_source;
 
         /// V/Hz over-flux protection trip status
         signal_output<bool> over_flux_tripped;

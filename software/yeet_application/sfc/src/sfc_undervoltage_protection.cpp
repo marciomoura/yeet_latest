@@ -31,9 +31,16 @@ void sfc_undervoltage_protection::configure_warning_delay(duration_t warning_del
     _protection.configure_warning_delay(warning_delay);
 }
 
-void sfc_undervoltage_protection::update(voltage_pu_t grid_voltage_magnitude_pu)
+void sfc_undervoltage_protection::update(voltage_pu_t grid_voltage_magnitude_pu, bool enabled)
 {
-    _protection.update(grid_voltage_magnitude_pu);
+    if (enabled) {
+        _protection.update(grid_voltage_magnitude_pu);
+    }
+    else {
+        // When disabled, we feed a healthy 1.0 pu voltage to clear warnings
+        // and prevent trip integrations.
+        _protection.update(voltage_pu_t{1.0f});
+    }
 }
 
 void sfc_undervoltage_protection::reset() { _protection.reset(); }

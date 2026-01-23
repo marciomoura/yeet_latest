@@ -21,7 +21,7 @@ TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsAutomatically)
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.0f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f}, true);
     protections.resolve_protections(true, true, false);
 
     EXPECT_TRUE(protections.get_door_open_tripped());
@@ -32,7 +32,7 @@ TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsAutomatically)
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.0f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f}, true);
     protections.resolve_protections(false, true, false);
 
     EXPECT_FALSE(protections.get_has_active_trip());
@@ -42,7 +42,7 @@ TEST(SfcGridSideProtectionsTest, DoorOpenTripClearsAutomatically)
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.0f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f}, true);
     protections.resolve_protections(false, true, true);
 
     EXPECT_FALSE(protections.get_is_inhibited());
@@ -63,7 +63,7 @@ TEST(SfcGridSideProtectionsTest, CommunicationWatchdogRunsWhenModuleEnabled)
     protections.update_communication_watchdog(false);
     protections.update_overcurrent_protection(current_pu_t{0.0f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f}, true);
     protections.resolve_protections(false, true, false);
 
     EXPECT_TRUE(protections.get_communication_loss_tripped());
@@ -82,7 +82,7 @@ TEST(SfcGridSideProtectionsTest, AlarmSeverityDoesNotTripAggregate)
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.0f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{1.0f});
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f}, true);
     protections.resolve_protections(true, true, false);
 
     EXPECT_FALSE(protections.get_has_active_trip());
@@ -107,7 +107,7 @@ TEST(SfcGridSideProtectionsTest, ChangingSeverityFromTripToAlarmClearsProtection
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.5f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{0.8f});  // Below threshold
+    protections.update_undervoltage_protection(voltage_pu_t{0.8f}, true);  // Below threshold
     protections.resolve_protections(false, true, false);
 
     EXPECT_TRUE(protections.get_undervoltage_tripped()) << "Should trip immediately with zero delay";
@@ -122,7 +122,7 @@ TEST(SfcGridSideProtectionsTest, ChangingSeverityFromTripToAlarmClearsProtection
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.5f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{0.8f});  // Still below threshold
+    protections.update_undervoltage_protection(voltage_pu_t{0.8f}, true);  // Still below threshold
     protections.resolve_protections(false, true, false);
 
     // After changing to alarm severity, the trip should clear
@@ -134,7 +134,7 @@ TEST(SfcGridSideProtectionsTest, ChangingSeverityFromTripToAlarmClearsProtection
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.5f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{0.8f});
+    protections.update_undervoltage_protection(voltage_pu_t{0.8f}, true);
     protections.resolve_protections(false, true, true);  // Rising edge of confirm
 
     EXPECT_FALSE(protections.get_is_inhibited()) << "Inhibit should clear since no trips are active";
@@ -160,7 +160,7 @@ TEST(SfcGridSideProtectionsTest, EmergencyOffResetPulseVerification)
     protections.update_communication_watchdog(true);
     protections.update_overcurrent_protection(current_pu_t{0.5f});
     protections.update_overvoltage_protection(voltage_pu_t{1.0f});
-    protections.update_undervoltage_protection(voltage_pu_t{0.8f});  // Below threshold
+    protections.update_undervoltage_protection(voltage_pu_t{0.8f}, true);  // Below threshold
     protections.resolve_protections(false, true, false);
 
     EXPECT_TRUE(protections.get_has_active_trip());
@@ -168,7 +168,7 @@ TEST(SfcGridSideProtectionsTest, EmergencyOffResetPulseVerification)
     EXPECT_FALSE(protections.get_emergency_off_reset());
 
     // 3. Clear fault condition (but inhibit remains)
-    protections.update_undervoltage_protection(voltage_pu_t{1.0f});  // Above threshold
+    protections.update_undervoltage_protection(voltage_pu_t{1.0f}, true);  // Above threshold
     protections.resolve_protections(false, true, false);
 
     EXPECT_FALSE(protections.get_has_active_trip());

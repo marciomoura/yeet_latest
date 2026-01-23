@@ -28,6 +28,7 @@ void sfc_grid_side_protections_runner::reset()
     _outputs.has_active_trip = false;   // _protections.get_has_active_trip();
     _outputs.has_active_alarm = false;  // _protections.get_has_active_alarm();
     _outputs.is_inhibited = false;      // _protections.get_is_inhibited();
+    _outputs.first_trip_source = grid_trip_source::none;
 
     _outputs.overcurrent_tripped = _protections.get_overcurrent_tripped();
     _outputs.overcurrent_alarmed = _protections.get_overcurrent_alarmed();
@@ -64,7 +65,10 @@ void sfc_grid_side_protections_runner::run()
     _protections.update_communication_watchdog(_last_communication_valid && _last_remote_communication_ok);
     _protections.update_overcurrent_protection(_inputs.dc_link_current_pu);
     _protections.update_overvoltage_protection(_inputs.grid_voltage_magnitude_pu);
-    _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu);
+
+    // Gated undervoltage protection (only active when MV breaker is closed)
+    _protections.update_undervoltage_protection(_inputs.grid_voltage_magnitude_pu, _inputs.mv_breaker_is_closed);
+
     _protections.update_external_fault(_inputs.external_fault);
     _protections.update_emergency_off(_inputs.emergency_off);
     _protections.update_machine_protection_tripped(_last_machine_protection_tripped);
@@ -74,6 +78,7 @@ void sfc_grid_side_protections_runner::run()
     _outputs.has_active_trip = _protections.get_has_active_trip();
     _outputs.has_active_alarm = _protections.get_has_active_alarm();
     _outputs.is_inhibited = _protections.get_is_inhibited();
+    _outputs.first_trip_source = _protections.get_first_trip_source();
 
     _outputs.overcurrent_tripped = _protections.get_overcurrent_tripped();
     _outputs.overcurrent_alarmed = _protections.get_overcurrent_alarmed();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc_integration/protection_severity.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/parameter_handler.hpp"
@@ -44,6 +45,9 @@ public:
 
         /// Machine-side protection tripped (received via fiber optics) [bool]
         signal_input<bool> machine_protection_tripped;
+
+        /// MV breaker is closed feedback [bool]
+        signal_input<bool> mv_breaker_is_closed;
     };
 
     /**
@@ -58,6 +62,9 @@ public:
 
         /// Protection system inhibited (trip occurred, awaiting confirmation)
         signal_output<bool> is_inhibited;
+
+        /// Latch of the first trip source encountered
+        signal_output<grid_trip_source> first_trip_source;
 
         /// Overcurrent protection trip status
         signal_output<bool> overcurrent_tripped;

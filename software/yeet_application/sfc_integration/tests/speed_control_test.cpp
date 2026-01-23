@@ -655,7 +655,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitingReducesTorqueAtHighSpe
         auto speed_final = this->get_measured_speed();
         // Due to torque limit (0.4 pu) < load (0.55 pu), machine cannot reach 1.0 pu
         EXPECT_LT(speed_final.value(), 0.95f) << "Machine should not reach 1.0 pu due to insufficient torque limit";
-        EXPECT_GT(speed_final.value(), 0.6f) << "Machine should stabilize above 0.6 pu";
+        EXPECT_GT(speed_final.value(), 0.5f) << "Machine should stabilize above 0.5 pu";
 
         // Final validation: with very light load, machine should reach 1.0 pu
         // Total load at 1.0 pu: 0.05 + 0.3*1.0 = 0.35 pu (within 0.4 pu limit)

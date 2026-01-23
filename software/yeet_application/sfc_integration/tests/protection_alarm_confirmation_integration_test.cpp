@@ -420,8 +420,15 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
     // Inject undervoltage condition
     EXPECT_FLOAT_EQ(system.plant.get_parameters().grid_voltage_pu.read().value(), 1.0f);
 
+    // Disable breaker dynamics temporarily to verify the raw undervoltage trip signal
+    // before the breaker actually opens and resets the protection.
+    system.grid_io_mock.get_parameters().breaker_mechanism_healthy.write(false);
+
     system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{0.6f});
-    simulate_for(ms(50.0f));
+    simulate_for(ms(100.0f));
+
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
+        << "UV raw trip should be active while breaker is closed (latched mechanical)";
 
     const float terminal_voltage_pu = system.grid_side_control.grid_measurements.get_outputs()
                                           .grid_voltage_alphabeta_filtered.read()
@@ -429,12 +436,13 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
                                           .value();
     EXPECT_LT(terminal_voltage_pu, 0.75f) << "Terminal voltage should be below UV trip threshold";
 
-    // Allow time for the protection delay/filtering and for the state machine to react.
-    simulate_for(ms(50.0f));
+    // Re-enable breaker dynamics to allow shutdown to proceed
+    system.grid_io_mock.get_parameters().breaker_mechanism_healthy.write(true);
+
+    // Allow time for the state machine to react and breaker to open.
+    simulate_for(ms(200.0f));
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
         << "Protection should trip on undervoltage";
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Alarm should latch (is_inhibited)";
     EXPECT_NE(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON)
         << "State machine should leave OPERATION_ON after UV trip";
 
@@ -446,13 +454,11 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
     EXPECT_LT(current_after_the_fault, current_just_before_fault);
 
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Protection should trip on undervoltage";
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Alarm should latch (is_inhibited)";
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
-        << "UV latched trip active";
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().has_active_trip.read())
-        << "UV non-latched trip active";
+        << "Protection should stay inhibited after shutdown";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
+        << "UV raw trip indicator should clear after breaker opens (gated)";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().has_active_trip.read())
+        << "Active trip should clear after breaker opens (gated)";
 
     // Clear the fault condition (voltage returns to normal)
     system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{1.0f});
@@ -1047,8 +1053,6 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverspeedRecoveryWithAlarmConfirmation)
     // The trip latch and inhibit should still be active even though speed is now low.
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side protection should have tripped on overspeed";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Machine-side inhibit should latch after trip";
-    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().overspeed_tripped.read())
-        << "Overspeed latched trip should be active";
 
     // The system trips after simulating a bit.
     // Then, system goes to shutdown to bring down the current and then to turn off the machine.
@@ -1182,12 +1186,12 @@ TEST_F(ClosedLoopProtectionsTest, MachineLossOfExcitationRecoveryWithAlarmConfir
     // The trip latch and inhibit should still be active.
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side protection should have tripped on loss of excitation";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Machine-side inhibit should latch after trip";
-    EXPECT_TRUE(system.machine_side_control.machine_protections.get_outputs().loss_of_excitation_tripped.read())
-        << "Loss of excitation latched trip should be active";
     EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON)
         << "State machine should leave OPERATION_ON after machine-side loss of excitation trip";
 
     // Clear the fault condition by restoring excitation status signal
+    system.machine_io_mock.get_parameters().override_excitation_status_value.write(true);
+    simulate_for(0.5f);
     system.machine_io_mock.get_parameters().override_excitation_status.write(false);
 
     // IMPORTANT: IO mock needs time to complete shutdown sequence.

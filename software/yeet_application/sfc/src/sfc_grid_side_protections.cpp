@@ -30,6 +30,7 @@ void sfc_grid_side_protections::reset() noexcept
     _has_active_trip = false;
     _has_active_alarm = false;
     _is_inhibited = false;
+    _first_trip_source = grid_trip_source::none;
 
     _overcurrent_tripped = false;
     _overcurrent_alarmed = false;
@@ -66,9 +67,10 @@ void sfc_grid_side_protections::update_overvoltage_protection(voltage_pu_t grid_
     _overvoltage_protection.update(grid_voltage_magnitude_pu);
 }
 
-void sfc_grid_side_protections::update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept
+void sfc_grid_side_protections::update_undervoltage_protection(
+    voltage_pu_t grid_voltage_magnitude_pu, bool enabled) noexcept
 {
-    _undervoltage_protection.update(grid_voltage_magnitude_pu);
+    _undervoltage_protection.update(grid_voltage_magnitude_pu, enabled);
 }
 
 void sfc_grid_side_protections::update_communication_watchdog(bool communication_valid) noexcept
@@ -155,6 +157,34 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
     const bool any_protection_tripped = overcurrent_trip || overvoltage_trip || undervoltage_trip || comm_loss_trip ||
                                         door_open_trip || external_fault_trip || emergency_off_trip ||
                                         machine_protection_trip;
+
+    // Latch first trip source
+    if (_first_trip_source == grid_trip_source::none && any_protection_tripped) {
+        if (overcurrent_trip) {
+            _first_trip_source = grid_trip_source::overcurrent;
+        }
+        else if (overvoltage_trip) {
+            _first_trip_source = grid_trip_source::overvoltage;
+        }
+        else if (undervoltage_trip) {
+            _first_trip_source = grid_trip_source::undervoltage;
+        }
+        else if (comm_loss_trip) {
+            _first_trip_source = grid_trip_source::communication_loss;
+        }
+        else if (door_open_trip) {
+            _first_trip_source = grid_trip_source::door_open;
+        }
+        else if (external_fault_trip) {
+            _first_trip_source = grid_trip_source::external_fault;
+        }
+        else if (emergency_off_trip) {
+            _first_trip_source = grid_trip_source::emergency_off;
+        }
+        else if (machine_protection_trip) {
+            _first_trip_source = grid_trip_source::machine_protection_feedback;
+        }
+    }
 
     const bool any_alarm_active = overcurrent_alarm || overvoltage_alarm || undervoltage_alarm || comm_loss_alarm ||
                                   door_open_alarm || external_fault_alarm || emergency_off_alarm ||

@@ -343,8 +343,8 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_protections.get_parameters().overvoltage_warning_delay.write(yeet::duration_t{0.05f});
 
     control->grid_protections.get_parameters().undervoltage_trip_threshold.write(yeet::voltage_pu_t{0.9f});
+    control->grid_protections.get_parameters().undervoltage_trip_delay.write(yeet::duration_t{0.25f});
     control->grid_protections.get_parameters().undervoltage_warning_threshold.write(yeet::voltage_pu_t{0.950f});
-    control->grid_protections.get_parameters().undervoltage_trip_delay.write(yeet::duration_t{0.1f});
     control->grid_protections.get_parameters().undervoltage_warning_delay.write(yeet::duration_t{0.05f});
 }
 

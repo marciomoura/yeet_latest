@@ -4,6 +4,7 @@
 #include "sfc/sfc_current_protection.hpp"
 #include "sfc/sfc_overvoltage_protection.hpp"
 #include "sfc/sfc_protections_trip_handshake.hpp"
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc/sfc_undervoltage_protection.hpp"
 #include "yeet_control/edge_detector.hpp"
 #include "yeet_control/off_delay.hpp"
@@ -36,7 +37,9 @@ public:
 
     void update_overvoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept;
 
-    void update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept;
+    void update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu, bool enabled = true) noexcept;
+
+    grid_trip_source get_first_trip_source() const noexcept { return _first_trip_source; }
 
     void update_communication_watchdog(bool communication_valid) noexcept;
 
@@ -162,6 +165,7 @@ private:
     bool _has_active_trip{false};
     bool _has_active_alarm{false};
     bool _is_inhibited{false};
+    grid_trip_source _first_trip_source{grid_trip_source::none};
 
     bool _overcurrent_tripped{false};
     bool _overcurrent_alarmed{false};

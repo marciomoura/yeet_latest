@@ -32,6 +32,7 @@ void sfc_machine_side_protections_runner::reset()
     _outputs.has_active_trip = false;
     _outputs.has_active_alarm = false;
     _outputs.is_inhibited = false;
+    _outputs.first_trip_source = machine_trip_source::none;
     _outputs.over_flux_tripped = false;
     _outputs.over_flux_alarmed = false;
     _outputs.under_flux_tripped = false;
@@ -63,12 +64,10 @@ void sfc_machine_side_protections_runner::run()
         return;
     }
 
-    if (_inputs.release_protections.read()) {
-        _protections.update_vhz_protection(_inputs.machine_voltage_magnitude_pu.read(),
-            _inputs.machine_frequency_pu.read(), _inputs.closed_loop_active.read());
-        _protections.update_stall_protection(
-            _inputs.dc_link_current_pu.read(), _inputs.machine_speed.read(), _inputs.startup_active.read());
-    }
+    _protections.update_vhz_protection(_inputs.machine_voltage_magnitude_pu.read(), _inputs.machine_frequency_pu.read(),
+        _inputs.closed_loop_active.read());
+    _protections.update_stall_protection(
+        _inputs.dc_link_current_pu.read(), _inputs.machine_speed.read(), _inputs.startup_active.read());
 
     _protections.update_overspeed_protection(_inputs.machine_speed.read(), _inputs.closed_loop_active.read());
 
@@ -86,6 +85,7 @@ void sfc_machine_side_protections_runner::run()
     _outputs.has_active_trip = _protections.get_has_active_trip();
     _outputs.has_active_alarm = _protections.get_has_active_alarm();
     _outputs.is_inhibited = _protections.get_is_inhibited();
+    _outputs.first_trip_source = _protections.get_first_trip_source();
 
     _outputs.over_flux_tripped = _protections.get_over_flux_tripped();
     _outputs.over_flux_alarmed = _protections.get_over_flux_alarmed();

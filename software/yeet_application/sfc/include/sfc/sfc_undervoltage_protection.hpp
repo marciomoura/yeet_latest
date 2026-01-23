@@ -73,8 +73,9 @@ public:
      * Evaluates the voltage against thresholds and manages trip/warning states.
      *
      * @param grid_voltage_magnitude_pu Grid voltage magnitude in per-unit [pu]
+     * @param enabled If false, the protection sees a healthy 1.0 pu voltage and stops integrating trips.
      */
-    void update(voltage_pu_t grid_voltage_magnitude_pu);
+    void update(voltage_pu_t grid_voltage_magnitude_pu, bool enabled = true);
 
     /**
      * @brief Resets the trip latch if fault condition has cleared.

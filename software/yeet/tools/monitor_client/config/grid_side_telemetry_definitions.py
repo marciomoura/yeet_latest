@@ -107,6 +107,8 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'trip source', 'index': GridSignalIndex.FIRST_TRIP_SOURCE, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'NONE', 1: 'OVERCURRENT', 2: 'OVERVOLTAGE', 3: 'UNDERVOLTAGE', 4: 'COMMUNICATION_LOSS', 5: 'DOOR_OPEN', 6: 'EXTERNAL_FAULT', 7: 'EMERGENCY_OFF', 8: 'MACHINE_PROTECTION_FEEDBACK'}},
                 {'name': 'has active alarm', 'index': GridSignalIndex.PROTECTION_ANY_ALARM_ACTIVE_UNPACKED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'overcurrent', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},

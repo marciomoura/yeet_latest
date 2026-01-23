@@ -3,6 +3,7 @@
 #include "sfc/sfc_communication_watchdog.hpp"
 #include "sfc/sfc_protections_trip_handshake.hpp"
 #include "sfc/sfc_stall_protection.hpp"
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc/sfc_vhz_protection.hpp"
 #include "yeet_control/on_delay.hpp"
 #include "yeet_control/threshold_protection.hpp"
@@ -109,6 +110,7 @@ public:
     bool get_has_active_trip() const noexcept;
     bool get_has_active_alarm() const noexcept;
     bool get_is_inhibited() const noexcept;
+    machine_trip_source get_first_trip_source() const noexcept { return _first_trip_source; }
 
     bool get_over_flux_tripped() const noexcept;
     bool get_over_flux_alarmed() const noexcept;
@@ -180,6 +182,7 @@ private:
     bool _has_active_trip{false};
     bool _has_active_alarm{false};
     bool _is_inhibited{false};
+    machine_trip_source _first_trip_source{machine_trip_source::none};
 
     bool _over_flux_tripped{false};
     bool _over_flux_alarmed{false};

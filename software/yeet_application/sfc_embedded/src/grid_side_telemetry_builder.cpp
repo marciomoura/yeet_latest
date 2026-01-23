@@ -245,6 +245,10 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(85, static_cast<float>(grid_outputs.i_a_counts_peak.read()));
     packet.add_signal(86, static_cast<float>(grid_outputs.i_c_counts_peak.read()));
 
+    // === First Trip Source (87) ===
+    packet.add_signal(
+        87, static_cast<float>(static_cast<uint32_t>(protections.get_outputs().first_trip_source.read())));
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);
 

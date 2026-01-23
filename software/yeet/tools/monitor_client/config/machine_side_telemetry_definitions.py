@@ -113,6 +113,18 @@ def get_machine_side_telemetry() -> Dict[str, Dict[str, Any]]:
         'protections': {
             'title': 'Machine-Side Protections',
             'fields': [
+                {'name': 'trip source', 'index': MachineSignalIndex.FIRST_TRIP_SOURCE, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {
+                     0: 'NONE',
+                     1: 'OVER FLUX',
+                     2: 'UNDER FLUX',
+                     3: 'STALL',
+                     4: 'COMM LOSS',
+                     5: 'OVERSPEED',
+                     6: 'OVERVOLTAGE',
+                     7: 'LOSS OF EXCITATION',
+                     8: 'EXTERNAL FAULT'
+                 }},
                 {'name': 'is tripped', 'index': MachineSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': MachineSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'has active alarm', 'index': MachineSignalIndex.PROTECTION_ANY_ALARM_ACTIVE_UNPACKED, 'type': 'bool', 'format': 'bool'},

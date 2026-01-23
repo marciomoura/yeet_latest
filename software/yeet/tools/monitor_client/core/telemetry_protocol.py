@@ -327,6 +327,7 @@ class GridSideTelemetryPacket:
             is_tripped=bools1[24],  # Bit 24
             is_inhibited=bools1[25],  # Bit 25
             any_fault_active=bools1[26],  # Bit 26
+            first_trip_source=int(self.get_signal(GridSignalIndex.FIRST_TRIP_SOURCE)),
             overcurrent_tripped=bools1[27],  # Bit 27
             overvoltage_tripped=bools1[28],  # Bit 28
             undervoltage_tripped=bools1[29],  # Bit 29
@@ -335,6 +336,11 @@ class GridSideTelemetryPacket:
             undervoltage_warning=bools2[1],  # Pack 2, Bit 1
             communication_loss_tripped=bools2[2],  # Pack 2, Bit 2
             communication_loss_warning=bools2[3],  # Pack 2, Bit 3
+            door_open_tripped=bools2[7],     # Pack 2, Bit 7
+            external_fault_tripped=bools2[8], # Pack 2, Bit 8
+            emergency_off_tripped=bools2[9],  # Pack 2, Bit 9
+            machine_side_protection_tripped=bools2[10], # Pack 2, Bit 10
+            emergency_off_reset=bools2[19]    # Pack 2, Bit 19
         )
     
     @property
@@ -568,6 +574,7 @@ class MachineSideTelemetryPacket:
             is_tripped=bools1[22],
             is_inhibited=bools1[23],
             any_fault_active=bools1[24],
+            first_trip_source=int(self.get_signal(MachineSignalIndex.FIRST_TRIP_SOURCE)),
             over_flux_tripped=bools1[25],
             under_flux_tripped=bools1[26],
             stall_tripped=bools1[27],

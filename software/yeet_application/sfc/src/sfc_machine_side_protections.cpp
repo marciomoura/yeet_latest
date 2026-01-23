@@ -43,6 +43,7 @@ void sfc_machine_side_protections::reset() noexcept
     _has_active_trip = false;
     _has_active_alarm = false;
     _is_inhibited = false;
+    _first_trip_source = machine_trip_source::none;
 
     _over_flux_tripped = false;
     _over_flux_alarmed = false;
@@ -83,41 +84,43 @@ void sfc_machine_side_protections::update_vhz_protection(
     if (closed_loop_active) {
         _vhz_protection.update(machine_voltage_magnitude_pu, machine_frequency_pu);
     }
-    else if (!_vhz_protection.is_over_flux_tripped() && !_vhz_protection.is_under_flux_tripped()) {
-        // Only update with safe values and reset if not already tripped.
-        // When tripped, preserve both the trip latch AND the _current_value so can_reset() stays false.
+    else {
+        // When not active (e.g. IDLE), drive healthy values (1.0 pu V/Hz).
+        // This ensures can_reset() becomes true even if we tripped before shutdown.
         _vhz_protection.update(voltage_pu_t{1.0f}, frequency_pu_t{1.0f});
-        _vhz_protection.reset();
     }
-    // else: Tripped and closed_loop_active is false - do nothing, preserve trip latch
 }
 
 void sfc_machine_side_protections::update_stall_protection(
     current_pu_t dc_link_current_pu, speed_pu_t machine_speed_pu, bool startup_active) noexcept
 {
-    // Stall protection: Active as soon as flux build-up begins
-    _stall_protection.update(dc_link_current_pu, machine_speed_pu, startup_active);
+    // Stall protection: Only active during startup (sequential starting)
+    if (startup_active) {
+        _stall_protection.update(dc_link_current_pu, machine_speed_pu, true);
+    }
+    else {
+        // When not starting, drive healthy values (0 current, 1.0 speed) to allow reset.
+        _stall_protection.update(current_pu_t{0.0f}, speed_pu_t{1.0f}, false);
+    }
 }
 
 void sfc_machine_side_protections::update_overspeed_protection(
     speed_pu_t machine_speed_pu, bool closed_loop_active) noexcept
 {
-    // Overspeed protection: Only active during closed-loop operation (observer estimates valid)
+    // Overspeed protection: Only active during closed-loop operation
     if (closed_loop_active) {
         _overspeed_protection.update(machine_speed_pu);
     }
-    else if (!_overspeed_protection.is_tripped()) {
-        // Only update with safe value and reset if not already tripped.
-        // When tripped, preserve both the trip latch AND the _current_value so can_reset() stays false.
+    else {
+        // Drive 0.0 pu speed in Standby to allow reset.
         _overspeed_protection.update(speed_pu_t{0.0f});
-        _overspeed_protection.reset();
     }
-    // else: Tripped and closed_loop_active is false - do nothing, preserve trip latch
 }
 
 void sfc_machine_side_protections::update_machine_overvoltage_protection(
     voltage_pu_t machine_voltage_magnitude_pu) noexcept
 {
+    // Machine overvoltage: Always run (rectifier/back-EMF always present)
     _machine_overvoltage_protection.update(machine_voltage_magnitude_pu);
 }
 
@@ -125,16 +128,13 @@ void sfc_machine_side_protections::update_loss_of_excitation_protection(
     bool excitation_is_on, bool startup_active, bool closed_loop_active) noexcept
 {
     // Loss of excitation protection: Active during startup and closed-loop operation
-    // Convert boolean to real_t for threshold_protection (1.0 = on, 0.0 = off)
     if (startup_active || closed_loop_active) {
         _loss_of_excitation_protection.update(excitation_is_on ? real_t{1.0f} : real_t{0.0f});
     }
-    else if (!_loss_of_excitation_protection.is_tripped()) {
-        // Only update with safe value and reset if not already tripped.
+    else {
+        // Drive healthy "ON" value in Standby to allow reset.
         _loss_of_excitation_protection.update(real_t{1.0f});
-        _loss_of_excitation_protection.reset();
     }
-    // else: Tripped and not active - do nothing, preserve trip latch
 }
 
 void sfc_machine_side_protections::update_communication_watchdog(bool communication_valid) noexcept
@@ -287,6 +287,34 @@ void sfc_machine_side_protections::resolve_protections(bool module_enabled, bool
     const bool any_protection_tripped = over_flux_trip || under_flux_trip || stall_trip || comm_loss_trip ||
                                         overspeed_trip || machine_overvoltage_trip || loss_of_excitation_trip ||
                                         external_fault_trip;
+
+    // Latch first trip source
+    if (_first_trip_source == machine_trip_source::none && any_protection_tripped) {
+        if (over_flux_trip) {
+            _first_trip_source = machine_trip_source::over_flux;
+        }
+        else if (under_flux_trip) {
+            _first_trip_source = machine_trip_source::under_flux;
+        }
+        else if (stall_trip) {
+            _first_trip_source = machine_trip_source::stall;
+        }
+        else if (comm_loss_trip) {
+            _first_trip_source = machine_trip_source::communication_loss;
+        }
+        else if (overspeed_trip) {
+            _first_trip_source = machine_trip_source::overspeed;
+        }
+        else if (machine_overvoltage_trip) {
+            _first_trip_source = machine_trip_source::machine_overvoltage;
+        }
+        else if (loss_of_excitation_trip) {
+            _first_trip_source = machine_trip_source::loss_of_excitation;
+        }
+        else if (external_fault_trip) {
+            _first_trip_source = machine_trip_source::external_fault;
+        }
+    }
 
     const bool any_alarm_active = over_flux_alarm || under_flux_alarm || stall_alarm || comm_loss_alarm ||
                                   overspeed_alarm || machine_overvoltage_alarm || loss_of_excitation_alarm ||

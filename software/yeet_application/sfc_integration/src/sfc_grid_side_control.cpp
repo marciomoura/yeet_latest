@@ -195,7 +195,9 @@ void sfc_grid_side_control::connect_internal_signals()
         .from(external_ios.get_digital_inputs().external_fault)
         .to(&protections_inputs::external_fault)
         .from(external_ios.get_digital_inputs().emergency_off)
-        .to(&protections_inputs::emergency_off);
+        .to(&protections_inputs::emergency_off)
+        .from(external_ios.get_digital_inputs().mv_breaker_is_closed)
+        .to(&protections_inputs::mv_breaker_is_closed);
 
     // ==================== Current Controller Inputs ====================
     wire(current_controller)

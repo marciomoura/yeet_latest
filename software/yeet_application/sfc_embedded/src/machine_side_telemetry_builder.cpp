@@ -258,6 +258,10 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(72, static_cast<float>(measurements.get_outputs().v_ab_counts_peak.read()));
     packet.add_signal(73, static_cast<float>(measurements.get_outputs().v_bc_counts_peak.read()));
 
+    // === First Trip Source (74) ===
+    packet.add_signal(
+        74, static_cast<float>(static_cast<uint32_t>(protections.get_outputs().first_trip_source.read())));
+
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);
 
