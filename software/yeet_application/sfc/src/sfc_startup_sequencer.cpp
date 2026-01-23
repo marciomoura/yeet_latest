@@ -352,8 +352,8 @@ void sfc_startup_sequencer::update_flux_buildup(
 
 void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency)
 {
-    bool has_elapsed = update_virtual_reference_frame(base_frequency);
-    has_elapsed &= update_virtual_torque_reference();
+    const bool freq_ramp_finished = update_virtual_reference_frame(base_frequency);
+    (void)update_virtual_torque_reference();
 
     // Keep speed reference tracking virtual frequency during starting procedure
     // Since both are in per-unit, freq_pu directly maps to speed_pu
@@ -365,7 +365,7 @@ void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency
     _preset_requested = false;
 
     // Check if duration has elapsed
-    if (has_elapsed && !_force_virtual_mode_operation) {
+    if (freq_ramp_finished && !_force_virtual_mode_operation) {
         // Virtual flux phase complete - transition to closed-loop
         transition_to_closed_loop_operation(speed_pu_t{_virtual_frequency.value()});
     }

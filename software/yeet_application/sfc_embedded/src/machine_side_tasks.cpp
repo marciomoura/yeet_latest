@@ -197,7 +197,12 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
 
     control->startup_sequencer.get_parameters().skip_flux_buildup.write(true);
     control->startup_sequencer.get_parameters().force_virtual_mode_operation.write(true);
-    control->startup_sequencer.get_parameters().virtual_frequency_duration.write(yeet::duration_t{50000.0f});
+    control->startup_sequencer.get_parameters().auto_start_stop_enabled.write(false);
+    control->startup_sequencer.get_parameters().flying_restart_speed_threshold.write(
+        yeet::speed_pu_t{1.0f});  // disable flying-restart for now
+    control->startup_sequencer.get_parameters().flying_restart_voltage_threshold.write(
+        yeet::voltage_pu_t{1.0f});  // disable flying-restart for now
+    control->startup_sequencer.get_parameters().virtual_frequency_duration.write(yeet::duration_t{10.0f});
     control->startup_sequencer.get_parameters().virtual_frequency_initial.write(
         yeet::frequency_pu_t{0.001f});  // 50 * 0.02 = 1 Hz
     control->startup_sequencer.get_parameters().virtual_frequency_final.write(
@@ -205,6 +210,16 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{30.0f});
     control->startup_sequencer.get_parameters().virtual_torque_initial.write(yeet::torque_pu_t{0.0f});  // 10% torque
     control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.5f});    // 10% torque
+
+    // virtual_frequency_initial
+    // virtual_frequency_final
+    // virtual_frequency_duration
+    // virtual_torque_initial
+    // virtual_torque_final
+    // virtual_torque_duration
+    // speed_reference
+    // speed_reference_rate_limit_seconds_per_pu
+    // speed_reference_rate_limit_enabled
 }
 
 ARM_FUNCTION
