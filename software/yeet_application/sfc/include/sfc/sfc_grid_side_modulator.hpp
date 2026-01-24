@@ -2,6 +2,7 @@
 
 #include "sfc_types.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/monotonic_angle_filter.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 
@@ -52,10 +53,10 @@ public:
      */
     void update(bool enable,
         sfc_operating_mode_t operating_mode,
-        angle_t reference_angle,
+        angle_wrapped reference_angle,
         bool request_force_commutation,
         bool is_current_zero,
-        angle_t firing_angle_from_main_pi,
+        angle_wrapped firing_angle_from_main_pi,
         bool request_extinguish_current) noexcept;
 
     /**
@@ -186,6 +187,12 @@ public:
     angle_t get_virtual_reference_angle() const noexcept;
 
     /**
+     * @brief Gets the monotonic reference angle.
+     * @return angle_t
+     */
+    angle_t get_monotonic_reference_angle() const noexcept;
+
+    /**
      * @brief Checks if virtual reference mode is active.
      */
     bool is_virtual_reference_active() const noexcept;
@@ -201,28 +208,29 @@ private:
      */
     struct forced_commutation_state_update {
         grid_side_modulator_state_t new_state;
-        angle_t new_firing_angle;
+        angle_wrapped new_firing_angle;
         bool new_force_commutation_acknowledged;
         bool new_main_pi_reset_requested;
     };
 
     forced_commutation_state_update compute_forced_commutation_state_update(
-        bool request_force_commutation, bool is_current_zero, angle_t firing_angle) const noexcept;
+        bool request_force_commutation, bool is_current_zero, angle_wrapped firing_angle) const noexcept;
 
     // Configuration parameters
-    angle_t _force_commutation_angle_rad{deg_to_rad(150.0)};  ///< 150° for forced commutation
-    duration_t _commutation_timeout{0.1f};                    ///< Default 100ms timeout
+    angle_wrapped _force_commutation_angle_rad{angle_wrapped::from_degrees(150.0)};  ///< 150° for forced commutation
+    duration_t _commutation_timeout{0.1f};                                           ///< Default 100ms timeout
 
     // Internal state
     grid_side_modulator_state_t _current_state{grid_side_modulator_state_t::running};
-    angle_t _current_firing_angle_rad{0.0f};      ///< Current output firing angle
-    bool _force_commutation_acknowledged{false};  ///< Acknowledgment signal for one cycle
-    bool _main_pi_reset_requested{false};         ///< Flag for PI reset request
-    bool _release_pulses{true};                   ///< Pulse release control
+    angle_wrapped _current_firing_angle_rad{0.0f};  ///< Current output firing angle
+    bool _force_commutation_acknowledged{false};    ///< Acknowledgment signal for one cycle
+    bool _main_pi_reset_requested{false};           ///< Flag for PI reset request
+    bool _release_pulses{true};                     ///< Pulse release control
 
-    control::six_pulse_generator _pulse_generator;  ///< Thyristor pulse generator
-    bool _any_thyristor_fired{false};               ///< Signal to detect gating transitions
-    duration_t _sampling_time;                      ///< Control loop sampling time
+    control::six_pulse_generator _pulse_generator;            ///< Thyristor pulse generator
+    bool _any_thyristor_fired{false};                         ///< Signal to detect gating transitions
+    control::monotonic_angle_filter _reference_angle_filter;  ///< Filters grid angle for monotonicity
+    duration_t _sampling_time;                                ///< Control loop sampling time
 
     /**
      * @brief Gets the safe default firing angle when system is disabled.

@@ -374,7 +374,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.network_client.telemetry_packet_received.connect(self._on_packet)
         self.network_client.parameter_response_received.connect(self._on_parameter_response)
         
-        # Plot update timer (100ms)
+        # Plot update timer (0ms - as fast as possible)
         self.plot_timer = QtCore.QTimer(self)
         self.plot_timer.timeout.connect(self._update_plot)
         self.plot_timer.start(0)

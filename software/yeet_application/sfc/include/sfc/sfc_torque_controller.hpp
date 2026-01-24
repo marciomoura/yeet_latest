@@ -203,12 +203,13 @@ public:
      * @param torque_reference Torque command from outer loop [pu]
      * @param dynamic_max_torque_limit Upper limit from soft-starter or other sources [pu]
      * @param dynamic_min_torque_limit Lower limit from soft-starter or other sources [pu]
+     * @param measured_speed_pu The actual measured speed of the machine [pu]
      * @param enable_breakaway_boost True to activate breakaway boost, false to disable
      */
     void update(torque_pu_t torque_reference,
         torque_pu_t dynamic_max_torque_limit,
         torque_pu_t dynamic_min_torque_limit,
-        speed_pu_t speed_reference_pu,
+        speed_pu_t measured_speed_pu,
         bool enable_breakaway_boost);
 
     /**

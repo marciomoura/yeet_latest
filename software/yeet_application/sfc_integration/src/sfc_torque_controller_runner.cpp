@@ -125,7 +125,7 @@ void sfc_torque_controller_runner::run()
 
     // Read input signals
     const torque_pu_t torque_reference = _inputs.torque_reference.read();
-    const speed_pu_t speed_reference = _inputs.speed_reference.read();
+    const speed_pu_t measured_speed = _inputs.measured_speed.read();
     const torque_pu_t max_torque_limit = _parameters.absolute_max_torque.read();
     const torque_pu_t min_torque_limit = _parameters.absolute_min_torque.read();
     const bool enable_boost = _inputs.enable_breakaway_boost.read();
@@ -141,7 +141,7 @@ void sfc_torque_controller_runner::run()
     _sfc_torque_controller.set_downstream_saturation(downstream_saturated);
 
     // Execute torque controller
-    _sfc_torque_controller.update(torque_reference, max_torque_limit, min_torque_limit, speed_reference, enable_boost);
+    _sfc_torque_controller.update(torque_reference, max_torque_limit, min_torque_limit, measured_speed, enable_boost);
 
     // Write output signals (composite saturation becomes unified is_saturated)
     _outputs.current_reference.write(_sfc_torque_controller.get_current_reference());

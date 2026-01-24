@@ -265,8 +265,9 @@ private:
         signals_connector::connect_output_to_input(
             speed_controller.get_outputs().torque_reference, torque_controller.get_inputs().torque_reference);
 
-        // Speed reference (same reference sent to speed controller) Ã¢â€ â€™ Torque controller input
-        signals_connector::connect_output_to_input(speed_reference, torque_controller.get_inputs().speed_reference);
+        // Machine speed feedback —> Torque controller input (for dynamic limits)
+        signals_connector::connect_output_to_input(
+            machine_measurements.get_outputs().machine_speed, torque_controller.get_inputs().measured_speed);
 
         // Provide state/trip context to torque controller
         signals_connector::connect_output_to_input(current_state_id, torque_controller.get_inputs().current_state_id);

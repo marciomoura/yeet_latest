@@ -151,6 +151,34 @@ TEST_F(SfcGridSideModulatorTest, CompleteHandshakeSequence)
     EXPECT_EQ(modulator->get_firing_angle_rad().value(), test_pi_angle.value());
 }
 
+TEST_F(SfcGridSideModulatorTest, MonotonicityRatchetAndReset)
+{
+    modulator->reset();
+
+    // 1. Initial position at 30 deg
+    modulator->update(true, sfc_operating_mode_t::natural_commutation, angle_t(deg_to_rad(30.0).value()), false, false,
+        test_pi_angle, false);
+    EXPECT_NEAR(modulator->get_monotonic_reference_angle().value(), deg_to_rad(30.0).value(), 1e-4);
+
+    // 2. Backward jitter to 25 deg
+    modulator->update(true, sfc_operating_mode_t::natural_commutation, angle_t(deg_to_rad(25.0).value()), false, false,
+        test_pi_angle, false);
+    // Should hold at 30 deg
+    EXPECT_NEAR(modulator->get_monotonic_reference_angle().value(), deg_to_rad(30.0).value(), 1e-4);
+
+    // 3. Large backward jump (default unstick threshold is 60 deg)
+    // 30 -> 320 (-70 deg) -> exceeds 60 deg threshold.
+    modulator->update(true, sfc_operating_mode_t::natural_commutation, angle_t(deg_to_rad(320.0).value()), false, false,
+        test_pi_angle, false);
+    EXPECT_NEAR(modulator->get_monotonic_reference_angle().value(), deg_to_rad(320.0).value(), 1e-4);
+
+    // 4. Reset clears the baseline
+    modulator->reset();
+    modulator->update(true, sfc_operating_mode_t::natural_commutation, angle_t(deg_to_rad(10.0).value()), false, false,
+        test_pi_angle, false);
+    EXPECT_NEAR(modulator->get_monotonic_reference_angle().value(), deg_to_rad(10.0).value(), 1e-4);
+}
+
 // ========================================
 // Edge Cases and Error Conditions
 // ========================================

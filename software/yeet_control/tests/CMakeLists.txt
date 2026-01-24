@@ -28,6 +28,7 @@ target_sources(
             lookup_table_1d_test.cpp
             lookup_table_2d_test.cpp
             mechanical_load_test.cpp
+            monotonic_angle_filter_test.cpp
             off_delay_test.cpp
             on_delay_test.cpp
             on_off_delay_test.cpp

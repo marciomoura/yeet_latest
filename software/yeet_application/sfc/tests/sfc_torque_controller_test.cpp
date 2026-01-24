@@ -17,9 +17,9 @@ protected:
         torque_pu_t dynamic_max_torque_limit,
         torque_pu_t dynamic_min_torque_limit,
         bool enable_breakaway_boost,
-        speed_pu_t speed_reference_pu = speed_pu_t{0.0})
+        speed_pu_t measured_speed_pu = speed_pu_t{0.0})
     {
-        controller->update(torque_reference, dynamic_max_torque_limit, dynamic_min_torque_limit, speed_reference_pu,
+        controller->update(torque_reference, dynamic_max_torque_limit, dynamic_min_torque_limit, measured_speed_pu,
             enable_breakaway_boost);
     }
 

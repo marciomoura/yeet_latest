@@ -16,12 +16,16 @@ sfc_grid_side_modulator::sfc_grid_side_modulator(duration_t sampling_time) : _sa
 
 void sfc_grid_side_modulator::update(bool enable,
     sfc_operating_mode_t operating_mode,
-    angle_t reference_angle,
+    angle_wrapped reference_angle,
     bool request_force_commutation,
     bool is_current_zero,
-    angle_t firing_angle,
+    angle_wrapped firing_angle,
     bool request_extinguish_current) noexcept
 {
+    // 0. Monotonicity Guard: prevent "backward" jumps from the PLL/Grid reference
+    _reference_angle_filter.update(reference_angle);
+    angle_wrapped monotonic_reference_angle = _reference_angle_filter.get_output();
+
     // PRIORITY 1: Handle extinguish current request (highest priority - shutdown/trip)
     if (request_extinguish_current) {
         _current_state = grid_side_modulator_state_t::extinguishing_current;
@@ -31,7 +35,7 @@ void sfc_grid_side_modulator::update(bool enable,
         _release_pulses = true;           // Keep pulses active for controlled shutdown
 
         // Update pulse generator with reference and angle
-        _pulse_generator.update(reference_angle, _current_firing_angle_rad, _release_pulses && enable);
+        _pulse_generator.update(monotonic_reference_angle, _current_firing_angle_rad, _release_pulses && enable);
         _any_thyristor_fired = _pulse_generator.get_any_thyristor_fired();
         return;
     }
@@ -52,7 +56,7 @@ void sfc_grid_side_modulator::update(bool enable,
         _release_pulses = false;
 
         // Keep pulse generator updated but disabled
-        _pulse_generator.update(reference_angle, _current_firing_angle_rad, false);
+        _pulse_generator.update(monotonic_reference_angle, _current_firing_angle_rad, false);
         _any_thyristor_fired = _pulse_generator.get_any_thyristor_fired();
         return;
     }
@@ -84,12 +88,12 @@ void sfc_grid_side_modulator::update(bool enable,
     }
 
     // Update pulse generator with the selected firing angle
-    _pulse_generator.update(reference_angle, _current_firing_angle_rad, _release_pulses && enable);
+    _pulse_generator.update(monotonic_reference_angle, _current_firing_angle_rad, _release_pulses && enable);
     _any_thyristor_fired = _pulse_generator.get_any_thyristor_fired();
 }
 sfc_grid_side_modulator::forced_commutation_state_update
 sfc_grid_side_modulator::compute_forced_commutation_state_update(
-    bool request_force_commutation, bool is_current_zero, angle_t firing_angle) const noexcept
+    bool request_force_commutation, bool is_current_zero, angle_wrapped firing_angle) const noexcept
 {
     sfc_grid_side_modulator::forced_commutation_state_update state_update{};
 
@@ -164,6 +168,7 @@ void sfc_grid_side_modulator::reset()
     _main_pi_reset_requested = false;
     _release_pulses = true;
     _any_thyristor_fired = false;
+    _reference_angle_filter.reset();
 
     // Reset pulse generator
     _pulse_generator.reset();
@@ -241,6 +246,11 @@ bool sfc_grid_side_modulator::get_is_extinguishing_current() const noexcept
 angle_t sfc_grid_side_modulator::get_virtual_reference_angle() const noexcept
 {
     return _pulse_generator.get_virtual_reference_angle();
+}
+
+angle_t sfc_grid_side_modulator::get_monotonic_reference_angle() const noexcept
+{
+    return _reference_angle_filter.get_output();
 }
 
 bool sfc_grid_side_modulator::is_virtual_reference_active() const noexcept

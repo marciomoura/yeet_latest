@@ -115,13 +115,14 @@ void sfc_torque_controller::reset()
 void sfc_torque_controller::update(torque_pu_t torque_reference,
     torque_pu_t dynamic_max_torque_limit,
     torque_pu_t dynamic_min_torque_limit,
-    speed_pu_t speed_reference_pu,
+    speed_pu_t measured_speed_pu,
     bool enable_breakaway_boost)
 {
     // Step 1: Update dynamic limits
     // Evaluate speed-based schedule (always computed for observability)
-    _speed_based_min_torque_limit = torque_pu_t{_speed_torque_min_limit_lookup.get_value(speed_reference_pu.value())};
-    _speed_based_max_torque_limit = torque_pu_t{_speed_torque_max_limit_lookup.get_value(speed_reference_pu.value())};
+    // We use measured speed for physical capability limits as it represents the machine's actual state.
+    _speed_based_min_torque_limit = torque_pu_t{_speed_torque_min_limit_lookup.get_value(measured_speed_pu.value())};
+    _speed_based_max_torque_limit = torque_pu_t{_speed_torque_max_limit_lookup.get_value(measured_speed_pu.value())};
 
     // Combine external dynamic limits with speed-based limits (if enabled)
     if (_enable_speed_based_torque_limits) {

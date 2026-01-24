@@ -31,8 +31,8 @@ public:
         /// Torque reference from speed controller [pu]
         signal_input<torque_pu_t> torque_reference;
 
-        /// Speed reference used for speed-based torque limiting [pu]
-        signal_input<speed_pu_t> speed_reference;
+        /// Measured speed used for speed-based torque limiting (replaces reference for dynamic limits) [pu]
+        signal_input<speed_pu_t> measured_speed;
 
         /// Grid-side state machine current state ID (received via fiber)
         signal_input<yeet::application::sfc::sfc_state_id> current_state_id;

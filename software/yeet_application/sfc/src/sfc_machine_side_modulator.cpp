@@ -24,9 +24,13 @@ sfc_machine_side_modulator::sfc_machine_side_modulator(duration_t sampling_time)
 void sfc_machine_side_modulator::update(bool enable,
     sfc_operating_mode_t operating_mode,
     bool force_commutation_acknowledged,
-    angle_t rotor_position_rad,
-    angle_t firing_angle_rad) noexcept
+    angle_wrapped rotor_position_rad,
+    angle_wrapped firing_angle_rad) noexcept
 {
+    // 0. Monotonicity Guard: prevent "backward" observer jumps from affecting pulses
+    _rotor_position_filter.update(rotor_position_rad);
+    angle_wrapped monotonic_rotor_position = _rotor_position_filter.get_output();
+
     // 1. Logic for firing angle and state handling
     if (!enable) {
         _current_firing_angle_rad = get_safe_default_angle();
@@ -67,7 +71,7 @@ void sfc_machine_side_modulator::update(bool enable,
     // 2. Single update of the pulse generator
     // We update with 'enable' to respect global enable, but masking for handshake
     // happens at the getter level.
-    _pulse_generator.update(rotor_position_rad, _current_firing_angle_rad, enable);
+    _pulse_generator.update(monotonic_rotor_position, _current_firing_angle_rad, enable);
     _any_thyristor_fired = _pulse_generator.get_any_thyristor_fired();
 
     // 3. Post-update logic to detect new firing events in pulse mode
@@ -85,6 +89,7 @@ void sfc_machine_side_modulator::reset()
 {
     // Reset to safe initial state
     _current_firing_angle_rad = get_safe_default_angle();
+    _rotor_position_filter.reset();
 
     // Reset forced commutation handshake state
     _commutation_state = machine_side_commutation_state_t::running;
@@ -147,6 +152,11 @@ void sfc_machine_side_modulator::configure_pulse_mask(bool p1, bool p2, bool p3,
 int sfc_machine_side_modulator::get_current_rotor_sector() const noexcept
 {
     return static_cast<int>(_pulse_generator.get_current_sector()) - 1;
+}
+
+angle_t sfc_machine_side_modulator::get_monotonic_rotor_position() const noexcept
+{
+    return _rotor_position_filter.get_output();
 }
 
 angle_t sfc_machine_side_modulator::get_virtual_reference_angle() const noexcept

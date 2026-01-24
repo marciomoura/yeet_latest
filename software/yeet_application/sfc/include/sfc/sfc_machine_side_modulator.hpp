@@ -2,6 +2,7 @@
 
 #include "sfc/sfc_types.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/monotonic_angle_filter.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 
@@ -48,8 +49,8 @@ public:
     void update(bool enable,
         sfc_operating_mode_t operating_mode,
         bool force_commutation_acknowledged,
-        angle_t absolute_rotor_position_rad,
-        angle_t firing_angle_rad) noexcept;
+        angle_wrapped absolute_rotor_position_rad,
+        angle_wrapped firing_angle_rad) noexcept;
 
     /**
      * @brief Resets the modulator to initial state.
@@ -151,6 +152,12 @@ public:
     int get_current_rotor_sector() const noexcept;
 
     /**
+     * @brief Gets the filtered, monotonic rotor position used for pulsing.
+     * @return The monotonic rotor position in radians.
+     */
+    angle_t get_monotonic_rotor_position() const noexcept;
+
+    /**
      * @brief Gets the current virtual reference angle.
      * @return The internally integrated virtual reference angle.
      */
@@ -168,14 +175,15 @@ public:
 
 private:
     // Configuration parameters
-    angle_t _forced_commutation_firing_angle_rad{
-        angle_t(deg_to_rad(180.0))};  ///< Fixed angle for Pulse Mode (180° for max torque)
+    angle_wrapped _forced_commutation_firing_angle_rad{
+        angle_wrapped::from_degrees(180.0)};  ///< Fixed angle for Pulse Mode (180° for max torque)
 
     // Internal state
-    angle_t _current_firing_angle_rad{0.0f};        ///< Current output firing angle
-    control::six_pulse_generator _pulse_generator;  ///< Thyristor pulse generator
-    bool _any_thyristor_fired{false};               ///< Signal to trigger forced commutation handshake
-    duration_t _sampling_time;                      ///< Control loop sampling time
+    angle_wrapped _current_firing_angle_rad{0.0f};           ///< Current output firing angle
+    control::monotonic_angle_filter _rotor_position_filter;  ///< Filters rotor position for monotonicity
+    control::six_pulse_generator _pulse_generator;           ///< Thyristor pulse generator
+    bool _any_thyristor_fired{false};                        ///< Signal to trigger forced commutation handshake
+    duration_t _sampling_time;                               ///< Control loop sampling time
 
     // Forced commutation handshake state
     machine_side_commutation_state_t _commutation_state{machine_side_commutation_state_t::running};
