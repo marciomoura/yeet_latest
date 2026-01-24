@@ -113,29 +113,19 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // Callbacks are registered during network handler initialization.
     control->initialize();
 
-    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{500.0f});
+    // ==================== PER-UNIT SYSTEM CONFIGURATION ====================
+    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{866.0f});
     control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
-    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{36.0f});
-    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{50.0f});
+    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
+    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{10.0f});
     control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
-    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{100.0f});
-    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{36.0f});
-
-    // ==================== INITIALIZE DIGITAL INPUTS ====================
-    // control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{642.0f});
-    // control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
-    // control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
-    // control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{50.0f});
-    // control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
-    // control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2000e3});
-    // control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1980.0f});
-
-    control->machine_protections.get_parameters().protection_module_enabled.write(false);
+    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2e6});  // 2 MW
+    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1880.0f});
 
     // Configure the PT
     // The ASI interface converts 2500 V LL to 100 V secondary voltage
-    control->machine_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
     control->machine_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
+    control->machine_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
     // The ASI interface defines the loop-gain of 1.0/25.0
     control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
     // Configuration of the voltage PT and hardware filter compensation
@@ -144,7 +134,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_2.write(
         yeet::frequency_t{159.0f});
     control->machine_measurements.get_parameters().voltage_compensation_num_filters.write(2);
-    control->machine_measurements.get_parameters().enable_voltage_compensation.write(true);
+    control->machine_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->machine_measurements.get_parameters().enable_commutation_masking.write(true);
     control->machine_measurements.get_parameters().voltage_measurement_rotation.write(
         yeet::angle_wrapped{0.0f});  // 30.0f
@@ -178,7 +168,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     io_params.ao_excitation_current_reference_offset.write(0.0f);
 
     // Configure protections to be enabled by default for embedded target
-    // control->machine_protections.get_parameters().protection_module_enabled.write(true);
+    control->machine_protections.get_parameters().protection_module_enabled.write(true);
     control->machine_protections.get_parameters().over_flux_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().under_flux_severity.write(
@@ -187,39 +177,92 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().overspeed_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
-    control->machine_protections.get_parameters().machine_overvoltage_severity.write(
-        yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().communication_loss_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().loss_of_excitation_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
-    // #endif
+    // Overvoltage
+    control->machine_protections.get_parameters().machine_overvoltage_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->machine_protections.get_parameters().machine_overvoltage_trip_delay.write(yeet::duration_t{0.1f});
+    control->machine_protections.get_parameters().machine_overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.2f});
 
-    control->startup_sequencer.get_parameters().skip_flux_buildup.write(true);
-    control->startup_sequencer.get_parameters().force_virtual_mode_operation.write(true);
+    // Disable flying start
     control->startup_sequencer.get_parameters().auto_start_stop_enabled.write(false);
-    control->startup_sequencer.get_parameters().flying_restart_speed_threshold.write(
-        yeet::speed_pu_t{1.0f});  // disable flying-restart for now
-    control->startup_sequencer.get_parameters().flying_restart_voltage_threshold.write(
-        yeet::voltage_pu_t{1.0f});  // disable flying-restart for now
-    control->startup_sequencer.get_parameters().virtual_frequency_duration.write(yeet::duration_t{10.0f});
-    control->startup_sequencer.get_parameters().virtual_frequency_initial.write(
-        yeet::frequency_pu_t{0.001f});  // 50 * 0.02 = 1 Hz
-    control->startup_sequencer.get_parameters().virtual_frequency_final.write(
-        yeet::frequency_pu_t{0.001f});  // 50 * 0.02 = 1 Hz
-    control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{30.0f});
+    control->startup_sequencer.get_parameters().flying_restart_speed_threshold.write(yeet::speed_pu_t{1.0f});
+    control->startup_sequencer.get_parameters().flying_restart_voltage_threshold.write(yeet::voltage_pu_t{1.0f});
+    //
+    control->startup_sequencer.get_parameters().skip_flux_buildup.write(false);
+    control->startup_sequencer.get_parameters().force_virtual_mode_operation.write(false);
+    // 60 seconds the "startup" to 1 per-unit of speed (10Hz)
+    control->startup_sequencer.get_parameters().virtual_frequency_duration.write(yeet::duration_t{6.0f});
+    control->startup_sequencer.get_parameters().virtual_frequency_initial.write(yeet::frequency_pu_t{0.0f});
+    control->startup_sequencer.get_parameters().virtual_frequency_final.write(yeet::frequency_pu_t{0.1f});
+    control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{1.0f});
     control->startup_sequencer.get_parameters().virtual_torque_initial.write(yeet::torque_pu_t{0.0f});  // 10% torque
-    control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.5f});    // 10% torque
+    control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.2f});    // 10% torque
+    control->startup_sequencer.get_parameters().speed_reference.write(yeet::speed_pu_t{1.0f});
+    control->startup_sequencer.get_parameters().speed_reference_rate_limit_enabled.write(true);
+    control->startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu.write(yeet::real_t{60.0f});
 
-    // virtual_frequency_initial
-    // virtual_frequency_final
-    // virtual_frequency_duration
-    // virtual_torque_initial
-    // virtual_torque_final
-    // virtual_torque_duration
-    // speed_reference
-    // speed_reference_rate_limit_seconds_per_pu
-    // speed_reference_rate_limit_enabled
+    // Configuration of the stator-voltage control
+    // control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu
+    control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(
+        std::array<yeet::speed_pu_t, 7>{
+            yeet::speed_pu_t{0.0f / 3000.0f},
+            yeet::speed_pu_t{150.0f / 3000.0f},
+            yeet::speed_pu_t{300.0f / 3000.0f},
+            yeet::speed_pu_t{600.0f / 3000.0f},
+            yeet::speed_pu_t{3150.0f / 3000.0f},
+            yeet::speed_pu_t{3150.0f / 3000.0f},
+            yeet::speed_pu_t{3150.0f / 3000.0f},
+        });
+    control->excitation_controller.get_parameters().voltage_reference_pu.write(std::array<yeet::voltage_pu_t, 7>{
+        yeet::voltage_pu_t{0.0f},
+        yeet::voltage_pu_t{470.0f / 1880.0f},
+        yeet::voltage_pu_t{940.0f / 1880.0f},
+        yeet::voltage_pu_t{1880.0f / 1880.0f},
+        yeet::voltage_pu_t{1880.0f / 1880.0f},
+        yeet::voltage_pu_t{1880.0f / 1880.0f},
+        yeet::voltage_pu_t{1880.0f / 1880.0f},
+    });
+
+    // Forced Mode Configuration (Low-Speed / Low-Voltage startup region)
+    // -----------------------------------------------------------------
+    // We use a constant forced field current until enough voltage or speed is built up.
+    // Transition points (Release thresholds) are set here.
+
+    // 1. Definition of the forced field current value (e.g., 40%)
+    control->excitation_controller.get_parameters().forced_field_current_pu.write(yeet::current_pu_t{0.4f});
+
+    // 2. Release to automatic control at 20% voltage OR 20% speed
+    control->excitation_controller.get_parameters().release_voltage_threshold_pu.write(yeet::voltage_pu_t{0.2f});
+    control->excitation_controller.get_parameters().release_speed_threshold_pu.write(yeet::speed_pu_t{0.2f});
+
+    // 3. Time required for field establishment (Pre-fluxing)
+    control->excitation_controller.get_parameters().prefluxing_duration.write(yeet::duration_t{1.5f});
+
+    // Configuration of the machine-side lookup-table for the machine-firing
+    auto dc_link_base = control->pu_system_datamodel.get_parameters().dc_link_current_base.read();
+
+    control->machine_side_controller.get_parameters().dc_current_pu_lookup_table.write(
+        std::array<yeet::current_pu_t, 6>{yeet::current_pu_t{0.0 / dc_link_base},  //
+            yeet::current_pu_t{500.0f / dc_link_base},                             //
+            yeet::current_pu_t{866.0f / dc_link_base},                             //
+            yeet::current_pu_t{2625.0f / dc_link_base},                            //
+            yeet::current_pu_t{3000.0f / dc_link_base},                            //
+            yeet::current_pu_t{3000.0f / dc_link_base}});
+
+    control->machine_side_controller.get_parameters().firing_angle_lookup_table.write(
+        std::array<yeet::real_t, 6>{yeet::real_t{158.0f}, yeet::real_t{158.0f}, yeet::real_t{153.5f},
+            yeet::real_t{132.1}, yeet::real_t{125.0f}, yeet::real_t{125.0f}});
+
+    // Add the lookup table
+    // Second lookup-table with delta_m2 vs speed as "rpm"
+    // 0 rpm, 0 deg
+    // 600 rpm, 0 deg
+    // 3150 rpm, -7.1 deg
+    // Result is sum of both
 }
 
 ARM_FUNCTION

@@ -216,26 +216,17 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // Digital inputs are already default-initialized to safe values (false) by the datamodel
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
 
-    // Configure the per-unit system:
-    // control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{642.0f});
-    // control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
-    // control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
-    // control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{50.0f});
-    // control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
-    // control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2000e3});
-    // control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1980.0f});
-
-    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{500.0f});
+    // ==================== PER-UNIT SYSTEM CONFIGURATION ====================
+    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{866.0f});
     control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
-    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{36.0f});
-    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{50.0f});
+    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
+    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{10.0f});
     control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
-    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{100.0f});
-    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{36.0f});
+    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2e6});  // 2 MW
+    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1880.0f});
 
-    // Configure the pt-ratio to 1.0 for now
-    control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{1.0f});
     // The ASI interface converts 2500 V LL to 100 V secondary voltage
+    control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
     control->grid_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
     control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
     control->grid_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
@@ -304,9 +295,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.do_emergency_off_reset_polarity.write(DO_EMERGENCY_OFF_RESET_POLARITY);
 
     // Configure protections to be enabled by default for embedded target
-    // control->grid_protections.get_parameters().protection_module_enabled.write(false);
     control->grid_protections.get_parameters().protection_module_enabled.write(true);
-
     control->grid_protections.get_parameters().overcurrent_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
     control->grid_protections.get_parameters().overvoltage_severity.write(
@@ -328,24 +317,21 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_protections.get_parameters().door_open_severity.write(protection_severity::alarm_only);
     control->grid_protections.get_parameters().communication_loss_severity.write(protection_severity::alarm_only);
 
-    // control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.5f});
-    // control->grid_protections.get_parameters().overcurrent_warning_threshold.write(yeet::current_pu_t{1.0f});
-    // control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{0.05f});
-    // control->grid_protections.get_parameters().overcurrent_warning_delay.write(yeet::duration_t{0.05f});
-    control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.8f});
-    control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{yeet::ms(100.0f)});
-    control->grid_protections.get_parameters().overcurrent_warning_threshold.write(yeet::current_pu_t{0.05f});
-    control->grid_protections.get_parameters().overcurrent_warning_delay.write(yeet::duration_t{0.05f});
+    control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.54f});
+    control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{yeet::ms(10.0f)});
+    control->grid_protections.get_parameters().overcurrent_warning_threshold.write(yeet::current_pu_t{1.0f});
+    control->grid_protections.get_parameters().overcurrent_warning_delay.write(yeet::duration_t{1.0f});
 
-    control->grid_protections.get_parameters().overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.15f});
+    control->grid_protections.get_parameters().overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.2f});
     control->grid_protections.get_parameters().overvoltage_warning_threshold.write(yeet::voltage_pu_t{1.10f});
     control->grid_protections.get_parameters().overvoltage_trip_delay.write(yeet::duration_t{0.1f});
     control->grid_protections.get_parameters().overvoltage_warning_delay.write(yeet::duration_t{0.05f});
 
+    // Undervoltage 0.9 pu (do the alarm and then trip after some time, pulse blocking)
     control->grid_protections.get_parameters().undervoltage_trip_threshold.write(yeet::voltage_pu_t{0.9f});
     control->grid_protections.get_parameters().undervoltage_trip_delay.write(yeet::duration_t{0.25f});
     control->grid_protections.get_parameters().undervoltage_warning_threshold.write(yeet::voltage_pu_t{0.950f});
-    control->grid_protections.get_parameters().undervoltage_warning_delay.write(yeet::duration_t{0.05f});
+    control->grid_protections.get_parameters().undervoltage_warning_delay.write(yeet::duration_t{0.5f});
 }
 
 ARM_FUNCTION

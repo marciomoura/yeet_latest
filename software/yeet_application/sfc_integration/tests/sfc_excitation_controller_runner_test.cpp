@@ -165,10 +165,11 @@ TEST_F(SfcExcitationControllerRunnerTest, EnteringVoltagePIRegionIsBumpless)
     parameters.voltage_pi_output_min_pu.write(current_pu_t{0.0});
     parameters.voltage_pi_output_max_pu.write(current_pu_t{2.0});
 
-    // LUT default is 1.0 pu; ensure threshold at 0.4 pu
-    parameters.voltage_threshold_pu.write(voltage_pu_t{0.4});
+    // Ensure thresholds for forced mode
+    parameters.release_voltage_threshold_pu.write(voltage_pu_t{0.4});
+    parameters.release_speed_threshold_pu.write(speed_pu_t{10.0});  // Disable speed release
 
-    // Start in low-voltage region
+    // Start in forced mode (low-voltage)
     set_machine_voltage_magnitude(voltage_pu_t{0.0});
     set_release_excitation(true);
     run_cycle();
@@ -187,7 +188,7 @@ TEST_F(SfcExcitationControllerRunnerTest, EnteringVoltagePIRegionIsBumpless)
     // Next cycle should start integrating the error and increase output (bounded by limits)
     run_cycle();
     const auto second_pi_current = get_field_current_reference();
-    EXPECT_GE(second_pi_current.value(), first_pi_current.value());
+    EXPECT_GT(second_pi_current.value(), first_pi_current.value());
 }
 
 // ============================================================================

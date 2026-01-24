@@ -47,13 +47,14 @@ public:
         initialize();
 
         // Register loggers for debugging
+        register_complete_logger(simulator, system.grid_side_control.operation_mode_monitor);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        register_complete_logger(simulator, system.grid_side_control.current_controller);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        register_complete_logger(simulator, system.machine_side_control.torque_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
-        register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
-        register_complete_logger(simulator, system.machine_side_control.torque_controller);
-        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
-        register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
-        register_complete_logger(simulator, system.grid_side_control.current_controller);
     }
 
     void initialize()

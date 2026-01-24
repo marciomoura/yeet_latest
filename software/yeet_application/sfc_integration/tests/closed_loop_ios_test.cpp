@@ -617,8 +617,8 @@ TEST_F(ClosedLoopIOsTest, ExcitationCurrentReferenceFromExcitationController)
 {
     configure_quick_startup();
 
-    // Set a specific field current setpoint
-    system.machine_side_control.excitation_controller.get_parameters().field_current_setpoint = current_pu_t{0.8};
+    // Set a specific forced field current
+    system.machine_side_control.excitation_controller.get_parameters().forced_field_current_pu = current_pu_t{0.8};
 
     bool success = true;
 

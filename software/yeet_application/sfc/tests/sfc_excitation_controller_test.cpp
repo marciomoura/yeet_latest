@@ -49,14 +49,14 @@ TEST_F(SfcExcitationControllerTest, ResetClearsAllStates)
 }
 
 // ============================================================================
-// Configuration Tests - Simplified Version
+// Configuration Tests
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, ConfigureFieldCurrentSetpointAcceptsPositiveValues)
+TEST_F(SfcExcitationControllerTest, ConfigureForcedFieldCurrentAcceptsPositiveValues)
 {
-    EXPECT_NO_FATAL_FAILURE(controller.configure_field_current_setpoint(current_pu_t{0.5}));
-    EXPECT_NO_FATAL_FAILURE(controller.configure_field_current_setpoint(current_pu_t{0.8}));
-    EXPECT_NO_FATAL_FAILURE(controller.configure_field_current_setpoint(current_pu_t{1.0}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_forced_field_current(current_pu_t{0.5}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_forced_field_current(current_pu_t{0.8}));
+    EXPECT_NO_FATAL_FAILURE(controller.configure_forced_field_current(current_pu_t{1.0}));
 }
 
 TEST_F(SfcExcitationControllerTest, ConfigureFluxBuildupDurationAcceptsPositiveValues)
@@ -76,19 +76,19 @@ TEST_F(SfcExcitationControllerTest, ConfigureFluxBuildupDurationAcceptsPositiveV
 
 TEST_F(SfcExcitationControllerTest, StartExcitationEnablesAndSetsConstantCurrent)
 {
-    controller.configure_field_current_setpoint(current_pu_t{0.75});
+    controller.configure_forced_field_current(current_pu_t{0.75});
     controller.start_excitation();
 
     EXPECT_TRUE(controller.get_is_running());
     EXPECT_TRUE(controller.get_enable_excitation());
 
-    // Should set field current to configured setpoint immediately
+    // Should set field current to forced value immediately
     EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.75, 0.01);
 }
 
 TEST_F(SfcExcitationControllerTest, UpdateAutoStartsWhenExciterReadyAndNotRunning)
 {
-    controller.configure_field_current_setpoint(current_pu_t{0.8});
+    controller.configure_forced_field_current(current_pu_t{0.8});
 
     // Controller not started yet
     ASSERT_FALSE(controller.get_is_running());
@@ -105,7 +105,7 @@ TEST_F(SfcExcitationControllerTest, ExciterNotReadyStopsExcitation)
 {
     // Current implementation: stop_excitation() is not implemented
     // Stopping is achieved by setting exciter_ready = false in update()
-    controller.configure_field_current_setpoint(current_pu_t{0.8});
+    controller.configure_forced_field_current(current_pu_t{0.8});
     controller.start_excitation();
     controller.update(speed_pu_t{0.0}, voltage_pu_t{0.0}, true);
 
@@ -129,7 +129,7 @@ TEST_F(SfcExcitationControllerTest, ExciterNotReadyStopsExcitation)
 
 TEST_F(SfcExcitationControllerTest, FluxBuildupPhaseMaintainsConstantCurrentForConfiguredDuration)
 {
-    controller.configure_field_current_setpoint(current_pu_t{0.8});
+    controller.configure_forced_field_current(current_pu_t{0.8});
     controller.configure_flux_buildup_duration(duration_t{2.0});  // 2 seconds
     controller.start_excitation();
 
@@ -144,7 +144,7 @@ TEST_F(SfcExcitationControllerTest, FluxBuildupPhaseMaintainsConstantCurrentForC
     // Field should not be established yet
     EXPECT_FALSE(controller.get_is_field_established());
 
-    // Current should remain at constant setpoint
+    // Current should remain at constant forced value
     EXPECT_NEAR(controller.get_field_current_reference_pu().value(), expected_current, 0.01);
 }
 
@@ -185,25 +185,49 @@ TEST_F(SfcExcitationControllerTest, FieldEstablishedAfterFluxBuildupDurationElap
 // Normal Operation Tests (Simplified - Constant Flux)
 // ============================================================================
 
-TEST_F(SfcExcitationControllerTest, FieldCurrentRemainsConstantAfterFieldEstablished)
+TEST_F(SfcExcitationControllerTest, FieldCurrentRemainsConstantBelowReleaseThresholds)
 {
-    controller.configure_field_current_setpoint(current_pu_t{0.9});
-    controller.configure_flux_buildup_duration(duration_t{0.1});  // Short for test
+    controller.configure_forced_field_current(current_pu_t{0.9});
+    controller.configure_release_voltage_threshold(voltage_pu_t{0.4});
+    controller.configure_release_speed_threshold(speed_pu_t{0.4});
+    controller.configure_flux_buildup_duration(duration_t{0.1});
     controller.start_excitation();
 
-    // Complete flux build-up
-    const int buildup_cycles = static_cast<int>(0.15 / kSamplingTime.value());
-    for (int i = 0; i < buildup_cycles; ++i) {
-        controller.update(speed_pu_t{0.0}, voltage_pu_t{0.0}, true);
-    }
-
-    ASSERT_TRUE(controller.get_is_field_established());
-
-    // Run for a while - field current should remain constant (no speed dependency)
-    for (int i = 0; i < 1000; ++i) {
-        controller.update(speed_pu_t{0.0}, voltage_pu_t{0.0}, true);
+    // Run while below thresholds
+    for (int i = 0; i < 100; ++i) {
+        controller.update(speed_pu_t{0.1}, voltage_pu_t{0.1}, true);
         EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.9, 0.01);
     }
+}
+
+TEST_F(SfcExcitationControllerTest, ReleaseToVoltageControlOnVoltageThreshold)
+{
+    controller.configure_forced_field_current(current_pu_t{0.5});
+    controller.configure_release_voltage_threshold(voltage_pu_t{0.4});
+    controller.configure_release_speed_threshold(speed_pu_t{1.0});  // Disable speed release
+    controller.start_excitation();
+
+    // Trigger voltage release
+    controller.update(speed_pu_t{0.0}, voltage_pu_t{0.45}, true);
+
+    // Should no longer be at forced constant current (PI starts controlling)
+    // Note: with Vref=kDefault at speed=0 being 0.2, and Vmeas=0.45, error is negative.
+    // PI should adjust current down from 0.5.
+    EXPECT_LT(controller.get_field_current_reference_pu().value(), 0.5);
+}
+
+TEST_F(SfcExcitationControllerTest, ReleaseToVoltageControlOnSpeedThreshold)
+{
+    controller.configure_forced_field_current(current_pu_t{0.5});
+    controller.configure_release_voltage_threshold(voltage_pu_t{1.0});  // Disable voltage release
+    controller.configure_release_speed_threshold(speed_pu_t{0.4});
+    controller.start_excitation();
+
+    // Trigger speed release
+    controller.update(speed_pu_t{0.45}, voltage_pu_t{0.1}, true);
+
+    // PI should take over
+    EXPECT_NE(controller.get_field_current_reference_pu().value(), 0.5);
 }
 
 // Commented out - removed in simplified version (no speed-dependent control)
@@ -255,7 +279,7 @@ TEST_F(SfcExcitationControllerTest, UpdateWhenNotRunningAndExciterNotReadyMainta
 
 TEST_F(SfcExcitationControllerTest, CompleteStartupToShutdownSequence)
 {
-    controller.configure_field_current_setpoint(current_pu_t{0.85});
+    controller.configure_forced_field_current(current_pu_t{0.85});
     controller.configure_flux_buildup_duration(duration_t{1.0});
 
     // 1. Initial state
@@ -273,14 +297,14 @@ TEST_F(SfcExcitationControllerTest, CompleteStartupToShutdownSequence)
     }
     EXPECT_TRUE(controller.get_is_field_established());
 
-    // 4. Normal operation - current remains constant
+    // 4. Normal operation - remains at forced current while below 20% thresholds (defaults)
     for (int i = 0; i < 1000; ++i) {
-        controller.update(speed_pu_t{0.0}, voltage_pu_t{0.0}, true);
+        controller.update(speed_pu_t{0.1}, voltage_pu_t{0.1}, true);
         EXPECT_NEAR(controller.get_field_current_reference_pu().value(), 0.85, 0.01);
     }
 
-    // 5. Shutdown - set exciter_ready = false
-    controller.update(speed_pu_t{0.0}, voltage_pu_t{0.0}, false);
+    // 5. Shutdown - set enable_excitation_command = false
+    controller.update(speed_pu_t{0.1}, voltage_pu_t{0.1}, false);
 
     // Should be fully stopped immediately
     EXPECT_FALSE(controller.get_is_running());
@@ -288,15 +312,11 @@ TEST_F(SfcExcitationControllerTest, CompleteStartupToShutdownSequence)
     EXPECT_EQ(controller.get_field_current_reference_pu().value(), 0.0);
 }
 
-// Commented out - edge cases removed in simplified version (no speed input)
-// TEST_F(SfcExcitationControllerTest, NegativeSpeedInputHandledGracefully)
-// TEST_F(SfcExcitationControllerTest, OverSpeedInputHandledGracefully)
-
 TEST_F(SfcExcitationControllerTest, RapidStartStopCyclesHandledCorrectly)
 {
     for (int cycle = 0; cycle < 5; ++cycle) {
         controller.reset();
-        controller.configure_field_current_setpoint(current_pu_t{0.7});
+        controller.configure_forced_field_current(current_pu_t{0.7});
 
         // Start via update(true) - auto-start when not running
         controller.update(speed_pu_t{0.0}, voltage_pu_t{0.0}, true);
