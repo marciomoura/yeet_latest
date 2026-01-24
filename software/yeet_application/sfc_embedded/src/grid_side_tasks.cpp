@@ -312,10 +312,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
         yeet::application::sfc::integration::protection_severity::trip);
     control->grid_protections.get_parameters().machine_protection_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
-    control->grid_protections.get_parameters().undervoltage_severity.write(protection_severity::alarm_only);
-    control->grid_protections.get_parameters().external_fault_severity.write(protection_severity::alarm_only);
-    control->grid_protections.get_parameters().door_open_severity.write(protection_severity::alarm_only);
-    control->grid_protections.get_parameters().communication_loss_severity.write(protection_severity::alarm_only);
 
     control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.54f});
     control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{yeet::ms(10.0f)});

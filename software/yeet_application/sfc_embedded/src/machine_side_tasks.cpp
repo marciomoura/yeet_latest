@@ -13,6 +13,7 @@
 #include "yeet/network_telemetry_manager.hpp"
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 
 using namespace yeet::embedded::io;
 
@@ -254,15 +255,19 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
             yeet::current_pu_t{3000.0f / dc_link_base}});
 
     control->machine_side_controller.get_parameters().firing_angle_lookup_table.write(
-        std::array<yeet::real_t, 6>{yeet::real_t{158.0f}, yeet::real_t{158.0f}, yeet::real_t{153.5f},
-            yeet::real_t{132.1}, yeet::real_t{125.0f}, yeet::real_t{125.0f}});
+        std::array<yeet::angle_wrapped, 6>{yeet::angle_wrapped::from_degrees(158.0f),
+            yeet::angle_wrapped::from_degrees(158.0f), yeet::angle_wrapped::from_degrees(153.5f),
+            yeet::angle_wrapped::from_degrees(132.1), yeet::angle_wrapped::from_degrees(125.0f),
+            yeet::angle_wrapped::from_degrees(125.0f)});
 
-    // Add the lookup table
-    // Second lookup-table with delta_m2 vs speed as "rpm"
-    // 0 rpm, 0 deg
-    // 600 rpm, 0 deg
-    // 3150 rpm, -7.1 deg
-    // Result is sum of both
+    // Firing angle delta vs speed (RPM/pu)
+    // 0 rpm, 600 rpm, 3150 rpm
+    control->machine_side_controller.get_parameters().speed_pu_alpha_delta_axis.write(
+        std::array<yeet::speed_pu_t, 3>{yeet::speed_pu_t{0.0f}, yeet::speed_pu_t{0.2f}, yeet::speed_pu_t{1.05f}});
+
+    control->machine_side_controller.get_parameters().firing_angle_delta_lookup_table.write(
+        std::array<yeet::angle_wrapped, 3>{yeet::angle_wrapped::from_degrees(0.0f),
+            yeet::angle_wrapped::from_degrees(0.0f), yeet::angle_wrapped::from_degrees(-7.1f)});
 }
 
 ARM_FUNCTION
