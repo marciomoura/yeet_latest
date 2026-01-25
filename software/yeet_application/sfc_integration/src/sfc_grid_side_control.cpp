@@ -67,7 +67,8 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Encode grid-side signals into fiber-optic protocol
     fiber_optic::grid_to_machine_message tx_msg;
     tx_msg.is_forced_commutation = (get_operating_mode().read() == sfc_operating_mode_t::forced_commutation);
-    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_filtered_pu.read();
+    // tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_filtered_pu.read();
+    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_heavy_filtered_pu.read();
     tx_msg.force_commutation_acknowledged = grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
     tx_msg.release_pulses = state_machine.get_outputs().release_pulses.read();
     // Include synchronization signals in fiber-optic protocol
