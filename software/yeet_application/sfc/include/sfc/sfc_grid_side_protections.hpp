@@ -108,6 +108,7 @@ public:
     bool get_overvoltage_alarmed() const noexcept;
     bool get_undervoltage_tripped() const noexcept;
     bool get_undervoltage_alarmed() const noexcept;
+    bool get_undervoltage_detected() const noexcept;
 
     bool get_overcurrent_warning() const noexcept;
     bool get_overvoltage_warning() const noexcept;
@@ -173,6 +174,7 @@ private:
     bool _overvoltage_alarmed{false};
     bool _undervoltage_tripped{false};
     bool _undervoltage_alarmed{false};
+    bool _undervoltage_detected{false};
 
     bool _overcurrent_warning{false};
     bool _overvoltage_warning{false};

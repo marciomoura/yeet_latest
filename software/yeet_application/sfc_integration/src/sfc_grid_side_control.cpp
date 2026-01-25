@@ -76,6 +76,7 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Include protection signals from grid-side state machine
     tx_msg.grid_release_protections = state_machine.get_outputs().release_grid_protections.read();
     tx_msg.machine_release_protections = state_machine.get_outputs().release_machine_protections.read();
+    tx_msg.freeze_integrator = grid_integrator_supervisor.get_outputs().freeze_integrator.read();
     tx_msg.communication_ok = _last_rx_decode_success;
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
@@ -228,6 +229,8 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&modulator_inputs::shutdown_request)
         .from(grid_protections.get_outputs().is_inhibited)
         .to(&modulator_inputs::protection_trip)
+        .from(grid_protections.get_outputs().undervoltage_detected)
+        .to(&modulator_inputs::undervoltage_request_extinguish_dc_current)
         .from(operation_mode_monitor.get_outputs().operating_mode)
         .to(&modulator_inputs::operating_mode)
         .from(operation_mode_monitor.get_outputs().current_is_zero)

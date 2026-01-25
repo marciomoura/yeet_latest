@@ -64,6 +64,21 @@ public:
         set_plant_topology(ConfigT::topology);
 
         system.initialize();
+
+        // Ensure the plant stays in fixed speed mode at nominal (1.0 pu) for natural commutation tests.
+        // This overrides builder defaults that set variable speed.
+        std::visit(overloaded{[&](auto* sys) {
+                                  sys->plant.get_parameters().operation_mode.write(
+                                      sfc_plant_model_datamodel::machine_operation_mode::fixed_speed);
+                              },
+                       [&](plant_current_control_with_modulators_simulation_builder* sys) {
+                           sys->plant.get_parameters().operation_mode.write(
+                               sfc_plant_model_datamodel::machine_operation_mode::fixed_speed);
+                           // Force the monitor to prevent pulse-mode transitions
+                           sys->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(true);
+                       }},
+            system_variant_t{&system});
+
         register_common_loggers();
         initialize_simulation();
     }

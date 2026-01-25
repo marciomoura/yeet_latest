@@ -23,7 +23,8 @@ namespace yeet::application::sfc::fiber_optic {
     //   Bit 3:      Grid release protections
     //   Bit 4:      Machine release protections
     //   Bits 5:     Communication OK
-    //   Bits 6-24:  Reserved for future use
+    //   Bits 6:     Freeze integrator
+    //   Bits 7-24:  Reserved for future use
     //   Bits 25-31: State machine state ID (0-127)
 
     // Encode DC link current float value (extract from typed unit)
@@ -51,6 +52,9 @@ namespace yeet::application::sfc::fiber_optic {
     }
     if (msg.communication_ok) {
         packed_flags |= (1U << grid_to_machine_message::communication_ok_bit_pos);
+    }
+    if (msg.freeze_integrator) {
+        packed_flags |= (1U << grid_to_machine_message::freeze_integrator_bit_pos);
     }
 
     // Encode state ID at the end (bits 25-31)
@@ -90,6 +94,7 @@ namespace yeet::application::sfc::fiber_optic {
     msg.machine_release_protections =
         (packed_flags & (1U << grid_to_machine_message::machine_release_protections_bit_pos)) != 0;
     msg.communication_ok = (packed_flags & (1U << grid_to_machine_message::communication_ok_bit_pos)) != 0;
+    msg.freeze_integrator = (packed_flags & (1U << grid_to_machine_message::freeze_integrator_bit_pos)) != 0;
 
     // Decode state ID from the end (bits 25-31)
     msg.state_id = static_cast<std::uint8_t>(

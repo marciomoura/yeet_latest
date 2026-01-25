@@ -79,6 +79,8 @@ public:
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip)
             .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current)
+            .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::request_force_commutation)
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::current_is_zero)
@@ -153,6 +155,7 @@ public:
     signal_output<torque_pu_t> load_torque;
     signal_output<angle_wrapped> firing_angle;
     signal_output<angle_wrapped> grid_side_firing_angle;
+    signal_output<bool> voltage_dip{false};
 
     // Field current reference for variable-speed operation (no excitation controller in this builder)
     signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
@@ -232,6 +235,8 @@ private:
         signals_connector::connect_output_to_input(
             grid_side_firing_angle, grid_side_modulator.get_inputs().firing_angle);
         signals_connector::connect_output_to_input(firing_angle, machine_side_modulator.get_inputs().firing_angle);
+        signals_connector::connect_output_to_input(
+            voltage_dip, grid_side_modulator.get_inputs().undervoltage_request_extinguish_dc_current);
 
         // ==================== Measurements → DC Link Measurements ====================
         // Use reconstructed grid phase currents (abc) from grid-side measurements as input

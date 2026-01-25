@@ -336,6 +336,8 @@ static inline void register_complete_grid_side_protections_logger(
         [&]() { return grid_protections.get_outputs().undervoltage_warning.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_warning",
         [&]() { return grid_protections.get_outputs().communication_loss_warning.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output undervoltage_detected",
+        [&]() { return grid_protections.get_outputs().undervoltage_detected.read(); }));
 }
 
 // --- Machine-side protections runner loggers ---
@@ -961,6 +963,9 @@ static inline void register_complete_grid_side_modulator_logger(
         [&]() { return grid_side_modulator.get_outputs().force_commutation_acknowledged.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output freeze_integrator",
         [&]() { return grid_side_modulator.get_outputs().freeze_integrator.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<bool>(group + "input undervoltage_request_extinguish_dc_current",
+            [&]() { return grid_side_modulator.get_inputs().undervoltage_request_extinguish_dc_current.read(); }));
 }
 
 static inline void register_minimal_machine_side_modulator_logger(

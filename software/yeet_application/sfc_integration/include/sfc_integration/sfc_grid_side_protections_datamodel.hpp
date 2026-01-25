@@ -84,6 +84,9 @@ public:
         /// Undervoltage protection alarm status (severity-dependent)
         signal_output<bool> undervoltage_alarmed;
 
+        /// Grid voltage dip detected (for end-position logic)
+        signal_output<bool> undervoltage_detected;
+
         /// Overcurrent warning status
         signal_output<bool> overcurrent_warning;
 
@@ -187,10 +190,10 @@ public:
 
         // ========== Undervoltage Protection Parameters ==========
         /// Undervoltage trip threshold [pu]
-        parameter<voltage_pu_t> undervoltage_trip_threshold{voltage_pu_t{0.70f}};
+        parameter<voltage_pu_t> undervoltage_trip_threshold{voltage_pu_t{0.9f}};
 
         /// Undervoltage warning threshold [pu]
-        parameter<voltage_pu_t> undervoltage_warning_threshold{voltage_pu_t{0.85f}};
+        parameter<voltage_pu_t> undervoltage_warning_threshold{voltage_pu_t{0.95f}};
 
         /// Undervoltage trip delay [s]
         parameter<duration_t> undervoltage_trip_delay{duration_t{ms(100.0f)}};

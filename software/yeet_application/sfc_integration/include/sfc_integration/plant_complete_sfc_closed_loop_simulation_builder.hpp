@@ -80,6 +80,11 @@ public:
 
     void initialize()
     {
+        // Configure plant for variable-speed operation and voltage control (excitation controller sets field current)
+        plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+        plant.get_parameters().voltage_control_mode.write(
+            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
+
         // Initialize in dependency order
         plant.initialize();
         grid_side_hardware_mock.initialize();
@@ -341,6 +346,9 @@ public:
     // Plant model
     sfc_plant_model_runner plant;
 
+    /// @brief Signal to manually trigger a voltage dip on the grid side
+    signal_output<bool> voltage_dip{false};
+
     /// @brief Flag to simulate fiber optic communication failure
     bool fiber_optic_failure = false;
 
@@ -420,6 +428,11 @@ private:
         signals_connector::connect_output_to_input(
             machine_side_control.get_excitation_controller().get_outputs().field_current_reference,
             plant.get_inputs().field_current_reference);
+
+        // ==================== External Disturbances → Control ====================
+        // Allow manual injection of undervoltage extinguishment request into the grid-side modulator
+        // signals_connector::connect_output_to_input(voltage_dip,
+        //     grid_side_control.get_grid_side_modulator().get_inputs().undervoltage_request_extinguish_dc_current);
 
         // // ==================== External Disturbances → Plant ====================
         // // Note: Load torque is now configured via plant.get_parameters().constant_torque parameter

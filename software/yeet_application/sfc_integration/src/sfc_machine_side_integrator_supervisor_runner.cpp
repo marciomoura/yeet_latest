@@ -43,8 +43,9 @@ void sfc_machine_side_integrator_supervisor_runner::run()
         // 1. Grid-side releases pulses = false (disabled or forced commutation)
         // 2. Torque controller is saturated (anti-windup)
         // 3. Braking requested but clamped to minimum motoring torque
-        _outputs.freeze_integrator =
-            !_inputs.grid_side_release_pulses || _inputs.torque_saturated || _inputs.is_braking_requested;
+        // 4. Grid-side specifically requested a freeze (e.g., voltage dip)
+        _outputs.freeze_integrator = !_inputs.grid_side_release_pulses || _inputs.torque_saturated ||
+                                     _inputs.is_braking_requested || _inputs.grid_freeze_integrator;
     }
 
     // One-shot preset request at handover. Controllers are responsible for their own

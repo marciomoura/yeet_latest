@@ -38,6 +38,7 @@ void sfc_grid_side_protections::reset() noexcept
     _overvoltage_alarmed = false;
     _undervoltage_tripped = false;
     _undervoltage_alarmed = false;
+    _undervoltage_detected = false;
 
     _overcurrent_warning = false;
     _overvoltage_warning = false;
@@ -138,6 +139,7 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
     _overvoltage_alarmed = overvoltage_alarm;
     _undervoltage_tripped = undervoltage_trip;
     _undervoltage_alarmed = undervoltage_alarm;
+    _undervoltage_detected = _undervoltage_protection.is_detected();
     _communication_loss_tripped = comm_loss_trip;
     _communication_loss_alarmed = comm_loss_alarm;
     _door_open_tripped = door_open_trip;
@@ -383,6 +385,8 @@ bool sfc_grid_side_protections::get_overvoltage_alarmed() const noexcept { retur
 bool sfc_grid_side_protections::get_undervoltage_tripped() const noexcept { return _undervoltage_tripped; }
 
 bool sfc_grid_side_protections::get_undervoltage_alarmed() const noexcept { return _undervoltage_alarmed; }
+
+bool sfc_grid_side_protections::get_undervoltage_detected() const noexcept { return _undervoltage_detected; }
 
 bool sfc_grid_side_protections::get_overcurrent_warning() const noexcept { return _overcurrent_warning; }
 

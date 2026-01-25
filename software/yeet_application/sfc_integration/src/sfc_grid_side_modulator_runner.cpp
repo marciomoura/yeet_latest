@@ -26,11 +26,12 @@ void sfc_grid_side_modulator_runner::run()
     const sfc_operating_mode_t operating_mode = _inputs.operating_mode.read();
     const bool shutdown_request = _inputs.shutdown_request.read();
     const bool protection_trip = _inputs.protection_trip.read();
+    const bool undervoltage_request_extinguish_dc_current = _inputs.undervoltage_request_extinguish_dc_current.read();
     const angle_t grid_reference_angle = _inputs.grid_reference_angle.read();
 
-    // OR all shutdown sources: state machine, supervisor, and protection system
-    const bool request_extinguish_current =
-        _inputs.request_extinguish_dc_current.read() || shutdown_request || protection_trip;
+    // OR all shutdown sources: state machine, supervisor, protection system, and undervoltage logic
+    const bool request_extinguish_current = _inputs.request_extinguish_dc_current.read() || shutdown_request ||
+                                            protection_trip || undervoltage_request_extinguish_dc_current;
 
     // Update the modulator logic - enable controlled by supervisor via release_pulses
     _sfc_grid_side_modulator.update(enable, operating_mode, grid_reference_angle, request_force_commutation,

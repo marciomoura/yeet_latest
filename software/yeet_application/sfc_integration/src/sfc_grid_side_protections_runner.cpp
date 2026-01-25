@@ -36,6 +36,7 @@ void sfc_grid_side_protections_runner::reset()
     _outputs.overvoltage_alarmed = _protections.get_overvoltage_alarmed();
     _outputs.undervoltage_tripped = _protections.get_undervoltage_tripped();
     _outputs.undervoltage_alarmed = _protections.get_undervoltage_alarmed();
+    _outputs.undervoltage_detected = false;
     _outputs.overcurrent_warning = _protections.get_overcurrent_warning();
     _outputs.overvoltage_warning = _protections.get_overvoltage_warning();
     _outputs.undervoltage_warning = _protections.get_undervoltage_warning();
@@ -86,6 +87,7 @@ void sfc_grid_side_protections_runner::run()
     _outputs.overvoltage_alarmed = _protections.get_overvoltage_alarmed();
     _outputs.undervoltage_tripped = _protections.get_undervoltage_tripped();
     _outputs.undervoltage_alarmed = _protections.get_undervoltage_alarmed();
+    _outputs.undervoltage_detected = _protections.get_undervoltage_detected();
     _outputs.overcurrent_warning = _protections.get_overcurrent_warning();
     _outputs.overvoltage_warning = _protections.get_overvoltage_warning();
     _outputs.undervoltage_warning = _protections.get_undervoltage_warning();

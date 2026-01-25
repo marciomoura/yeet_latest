@@ -63,11 +63,12 @@ struct grid_to_machine_message {
     bool release_pulses{false};                 /**< Thyristor pulses are enabled */
     bool grid_release_protections{false};       /**< Grid-side protection release (from state machine) */
     bool machine_release_protections{false};    /**< Machine-side protection release (via fiber optics) */
+    bool freeze_integrator{false};              /**< Unified speed controller freeze from grid-side */
     bool communication_ok{false};               /**< Grid-side communication status (receiving machine) */
     std::uint8_t state_id{0};                   /**< Current grid-side state machine state */
 
     // Bit field layout for Word 2 encoding
-    // Boolean flags occupy bits 0-5, state_id occupies bits 25-31, unused bits 6-24
+    // Boolean flags occupy bits 0-6, state_id occupies bits 25-31, unused bits 7-24
     enum bit_positions : std::uint8_t {
         is_forced_commutation_bit_pos = 0,        // Bit 0
         force_comm_ack_bit_pos = 1,               // Bit 1
@@ -75,7 +76,8 @@ struct grid_to_machine_message {
         grid_release_protections_bit_pos = 3,     // Bit 3
         machine_release_protections_bit_pos = 4,  // Bit 4
         communication_ok_bit_pos = 5,             // Bit 5
-        unused_bits_start = 6,                    // Bits 6-24 reserved
+        freeze_integrator_bit_pos = 6,            // Bit 6
+        unused_bits_start = 7,                    // Bits 7-24 reserved
         unused_bits_end = 24
     };
 

@@ -48,6 +48,9 @@ public:
         /// Fast protection trip signal (direct from protection system) [bool]
         signal_input<bool> protection_trip;
 
+        /// Request signal to extinguish current during an undervoltage event [bool]
+        signal_input<bool> undervoltage_request_extinguish_dc_current;
+
         /// Release pulses control signal from integrator supervisor [bool]
         signal_input<bool> release_pulses;
 

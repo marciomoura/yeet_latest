@@ -95,7 +95,9 @@ public:
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
             .mocked(_mock_storage_false)
-            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip);
+            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current);
 
         yeet::wire(machine_side_modulator)
             .mocked(_mock_storage_true)
@@ -200,6 +202,7 @@ public:
     signal_output<torque_pu_t> load_torque;     // Mechanical load torque
     signal_output<speed_pu_t> speed_reference;  // Speed setpoint (pu)
     signal_output<bool> enable_speed_control;   // Enable outer loop
+    signal_output<bool> voltage_dip{false};
 
     // Internal signal for torque-to-current conversion (simplified tests without torque controller)
     signal_output<current_pu_t> current_reference_from_speed_ctrl;
@@ -325,6 +328,8 @@ private:
             machine_side_modulator.get_inputs().machine_reference_angle);
 
         // ==================== Handshake ====================
+        signals_connector::connect_output_to_input(
+            voltage_dip, grid_side_modulator.get_inputs().undervoltage_request_extinguish_dc_current);
         signals_connector::connect_output_to_input(machine_side_modulator.get_outputs().request_force_commutation,
             grid_side_modulator.get_inputs().request_force_commutation);
         signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().force_commutation_acknowledged,

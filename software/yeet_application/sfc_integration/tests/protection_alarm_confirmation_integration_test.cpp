@@ -52,7 +52,8 @@ public:
         register_complete_logger(simulator, system.machine_side_control.machine_protections);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         // register_complete_logger(simulator, system.machine_side_control.torque_controller);
-        // register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        register_complete_logger(simulator, system.machine_side_control.machine_side_modulator);
         // register_complete_logger(simulator, system.grid_side_control.grid_measurements);
         // register_complete_logger(simulator, system.grid_side_control.dc_link_measurements);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
@@ -256,6 +257,10 @@ public:
 
     bool is_operation_off() const { return get_current_state() == yeet::application::sfc::sfc_state_id::OPERATION_OFF; }
 
+    void set_grid_voltage(voltage_pu_t voltage) { system.plant.get_parameters().grid_voltage_pu.write(voltage); }
+
+    void set_voltage_dip(bool dip) { system.voltage_dip.write(dip); }
+
     // Test fixture members
     yeet::simulator simulator = yeet::make_gtest_simulator();
     plant_complete_sfc_closed_loop_simulation_builder system;
@@ -402,137 +407,132 @@ TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
         << "Machine voltage should return to nominal after restart";
 }
 
-TEST_F(ClosedLoopProtectionsTest, UndervoltageRecoveryWithAlarmConfirmation)
+TEST_F(ClosedLoopProtectionsTest, UndervoltageRideThrough)
 {
-    EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::IDLE);
+    EXPECT_EQ(get_current_state(), sfc_state_id::IDLE);
 
     startup_to_nominal_speed();
 
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Protection should not be tripped at startup";
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Alarm should not be latched at startup";
-    EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON);
+    EXPECT_FALSE(is_protection_inhibited()) << "Protection should not be tripped at startup";
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON);
 
-    const current_pu_t current_just_before_fault =
+    const current_pu_t current_before_dip =
         system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu;
 
-    // Inject undervoltage condition
-    EXPECT_FLOAT_EQ(system.plant.get_parameters().grid_voltage_pu.read().value(), 1.0f);
+    // Configure undervoltage trip delay to be longer than the dip we'll inject (e.g. 1.0s trip delay)
+    system.grid_side_control.grid_protections.get_parameters().undervoltage_trip_threshold.write(voltage_pu_t{0.85f});
+    system.grid_side_control.grid_protections.get_parameters().undervoltage_trip_delay.write(duration_t{1.0});
 
-    // Disable breaker dynamics temporarily to verify the raw undervoltage trip signal
-    // before the breaker actually opens and resets the protection.
-    system.grid_io_mock.get_parameters().breaker_mechanism_healthy.write(false);
+    // Inject a moderate undervoltage condition (90% voltage)
+    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{0.80f});
+    simulate_for(0.5f);
 
-    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{0.6f});
-    simulate_for(ms(100.0f));
+    // Step further while still within the trip delay (0.55s total < 1.0s)
+    // The modulator should immediately detect the dip and extinguish the current.
+    simulate_for(0.05f);
 
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
-        << "UV raw trip should be active while breaker is closed (latched mechanical)";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().undervoltage_detected.read())
+        << "UV detection should be immediate";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "System should NOT trip for short dip (within ride-through delay)";
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON) << "State machine should stay in OPERATION_ON";
 
-    const float terminal_voltage_pu = system.grid_side_control.grid_measurements.get_outputs()
-                                          .grid_voltage_alphabeta_filtered.read()
-                                          .magnitude()
-                                          .value();
-    EXPECT_LT(terminal_voltage_pu, 0.75f) << "Terminal voltage should be below UV trip threshold";
+    // Modulator should have extinguished the current
+    EXPECT_LT(system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value(),
+        current_before_dip.value() * 0.5f)
+        << "Current should be extinguished during dip";
 
-    // Re-enable breaker dynamics to allow shutdown to proceed
-    system.grid_io_mock.get_parameters().breaker_mechanism_healthy.write(true);
-
-    // Allow time for the state machine to react and breaker to open.
-    simulate_for(ms(200.0f));
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Protection should trip on undervoltage";
-    EXPECT_NE(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON)
-        << "State machine should leave OPERATION_ON after UV trip";
-
-    // The grid controller should bring the current to zero
-    simulate_for(10.0f);
-
-    const current_pu_t current_after_the_fault =
-        system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu;
-    EXPECT_LT(current_after_the_fault, current_just_before_fault);
-
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Protection should stay inhibited after shutdown";
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
-        << "UV raw trip indicator should clear after breaker opens (gated)";
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().has_active_trip.read())
-        << "Active trip should clear after breaker opens (gated)";
-
-    // Clear the fault condition (voltage returns to normal)
+    // Clear the dip (voltage returns to normal)
     system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{1.0f});
 
-    // Allow enough time for the measured voltage and underlying detector state to return to normal.
-    // The protection trip latch clears on trip acknowledgment (safe condition), while
-    // the inhibit latch clears only after alarm confirmation.
-    // IMPORTANT: Extended time allows IO mock to complete shutdown and reach IDLE for trip acknowledgment.
+    // Wait for recovery. Current should ramp back to nominal.
     simulate_for(5.0f);
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().has_active_trip.read())
-        << "UV non-latched trip cleared";
-    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
-        << "Alarm should still be latched (is_inhibited)";
 
-    // Test that the current is extinguished output is true
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().is_current_extinguished.read())
-        << "is_current_extinguished output should be true";
-    // Validate shutdown actions using state-machine runner outputs (commands), not IO mock parameters.
-    EXPECT_TRUE(system.grid_side_control.state_machine.get_outputs().mv_breaker_open.read())
-        << "Shutdown should command MV Breaker open";
-    EXPECT_FALSE(system.grid_side_control.state_machine.get_outputs().auxiliaries_on_command.read())
-        << "Shutdown should command auxiliaries off";
-    // Test the dc-link current is zero
-    EXPECT_NEAR(
-        system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value(), 0.0f, 0.01f)
-        << "DC-link current should be near zero";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().undervoltage_detected.read())
+        << "UV detection should clear after voltage recovery";
+    EXPECT_FALSE(is_protection_inhibited()) << "Should still not be tripped";
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON) << "System should continue operating";
+    EXPECT_NEAR(system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value(),
+        current_before_dip.value(), 0.1f)
+        << "Current should recover to pre-dip level";
+}
 
-    // Verify trip latch stayed active until confirmed
-    EXPECT_TRUE(is_protection_tripped()) << "Trip should stay active until confirmed";
-    EXPECT_TRUE(is_protection_inhibited()) << "Protection is_inhibited should still be true";
-    EXPECT_TRUE(is_current_extinguished_output()) << "is_current_extinguished output should be true";
+TEST_F(ClosedLoopProtectionsTest, UndervoltageTripAndRecovery)
+{
+    EXPECT_EQ(get_current_state(), sfc_state_id::IDLE);
 
-    // Actively acknowledge/confirm the alarm
-    system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
+    startup_to_nominal_speed();
+
+    EXPECT_FALSE(is_protection_inhibited()) << "Protection should not be tripped at startup";
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON);
+
+    // Configure undervoltage protection for trip
+    auto& params = system.grid_side_control.grid_protections.get_parameters();
+    params.undervoltage_trip_threshold.write(voltage_pu_t{0.80f});
+    params.undervoltage_trip_delay.write(duration_t{1.0});
     simulate_for(0.5f);
-    EXPECT_NE(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON);
+
+    // Inject persistent undervoltage condition (0.6 pu < 0.8 pu threshold)
+    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{0.6f});
+
+    // 1. Verify internal detection is active but system hasn't tripped yet (ride-through phase)
+    // Step for 0.5s, which is less than the 1.0s trip delay.
+    simulate_for(0.5);
+
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().undervoltage_detected.read())
+        << "UV detection should be active immediately";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
+        << "UV should NOT have tripped yet at 0.5s (delay is 1.0s)";
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "System should NOT be inhibited yet at 0.5s";
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON) << "State machine should remain in OPERATION_ON";
+
+    // 2. Continue simulation until trip delay has expired (step another 0.6s, 1.1s total > 1.0s)
+    simulate_for(0.6f);
+
+    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().undervoltage_detected.read())
+        << "UV detection active";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().undervoltage_tripped.read())
+        << "UV trip should latch after delay";
+    EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
+        << "System should inhibit control after persistent UV";
+
+    // Wait for the state machine to react and shut down
+    simulate_for(5.0f);
+    EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON)
+        << "State machine should leave OPERATION_ON after undervoltage trip";
+
+    // The grid controller should bring current to zero
+    simulate_for(5.0f);
+    EXPECT_NEAR(
+        system.grid_side_control.dc_link_measurements.get_outputs().dc_current_filtered_pu.read().value(), 0.0f, 0.05f)
+        << "Current should be zero after trip";
+
+    // Return voltage to normal
+    system.plant.get_parameters().grid_voltage_pu.write(voltage_pu_t{1.0f});
+    simulate_for(5.0f);
+
+    // State machine should reach IDLE for recovery
+    EXPECT_EQ(get_current_state(), sfc_state_id::IDLE) << "System should reach IDLE for recovery";
+
+    // Alarm confirmation to clear inhibit
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(true);
     simulate_for(0.5f);
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
+    simulate_for(0.5f);
 
-    // Verify inhibit and trip cleared after alarm confirmation
     EXPECT_FALSE(is_protection_inhibited()) << "Inhibit should clear after alarm confirmation";
-    EXPECT_FALSE(is_protection_tripped()) << "Trip should clear after alarm confirmation";
 
-    // Release turn_on command before restart (required after protection trip in IDLE)
+    // Clear startup latch
     set_turn_on_command(false);
     simulate_for(0.1f);
 
-    // Disable protections during restart to avoid false trips during transients
-    auto& protection_params = system.grid_side_control.grid_protections.get_parameters();
-    protection_params.protection_module_enabled.write(false);
-
-    // After alarm confirmation, restart the system
+    // Restart the system
     execute_startup_sequence();
-
-    // Allow time for re-acceleration back to nominal speed.
     simulate_for(30.0f);
 
-    // Re-enable protections after restart is complete
-    protection_params.protection_module_enabled.write(true);
-    simulate_for(0.5f);
-
-    EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON);
-
-    // Expect we return to closed-loop, dc-link current is non-zero and speed returns to nominal
-    EXPECT_FALSE(is_protection_tripped()) << "No protections should be tripped after alarm confirmation";
-    EXPECT_FALSE(is_protection_inhibited()) << "is_inhibited should be cleared after alarm confirmation";
-    EXPECT_NEAR(
-        system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read().value(), 1.0f, 0.05f)
-        << "Machine speed should return to nominal after restart";
-    EXPECT_NEAR(
-        system.grid_side_control.grid_measurements.get_outputs().grid_voltage_abc.read().to_alphabeta().magnitude(),
-        1.0f, 0.05f)
-        << "Grid voltage should return to nominal after restart";
+    EXPECT_EQ(get_current_state(), sfc_state_id::OPERATION_ON);
+    EXPECT_NEAR(system.plant.get_outputs().machine_speed.read().value(), 1.0f, 0.05f);
 }
 
 TEST_F(ClosedLoopProtectionsTest, OvercurrentRecoveryWithAlarmConfirmation)

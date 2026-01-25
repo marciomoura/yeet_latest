@@ -89,7 +89,9 @@ public:
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
             .mocked(_mock_storage_false)
-            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip);
+            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current);
 
         yeet::wire(machine_side_modulator)
             .mocked(_mock_storage_true)
@@ -108,6 +110,11 @@ public:
     }
     void initialize()
     {
+        // Configure plant for variable-speed operation and voltage control (excitation controller sets field current)
+        plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+        plant.get_parameters().voltage_control_mode.write(
+            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
+
         // Initialize components in dependency order
         plant.initialize();
         grid_measurements.initialize();
@@ -185,15 +192,13 @@ public:
     // External control signals
     signal_output<speed_pu_t> speed_reference;
     signal_output<bool> enable_speed_control;
+    signal_output<bool> voltage_dip{false};
     signal_output<current_pu_t> external_current_reference_pu;
 
     // State/trip context for torque controller (no full state machine in this builder)
     signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
         yeet::application::sfc::sfc_state_id::OPERATION_ON};
     signal_output<bool> machine_protection_tripped{false};
-
-    // Field current reference for variable-speed operation (no excitation controller in this builder)
-    signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()
@@ -321,6 +326,8 @@ private:
             machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
 
         // Forced commutation handshake
+        signals_connector::connect_output_to_input(
+            voltage_dip, grid_side_modulator.get_inputs().undervoltage_request_extinguish_dc_current);
         signals_connector::connect_output_to_input(machine_side_modulator.get_outputs().request_force_commutation,
             grid_side_modulator.get_inputs().request_force_commutation);
         signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().force_commutation_acknowledged,

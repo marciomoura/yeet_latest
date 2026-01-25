@@ -241,6 +241,7 @@ public:
             yeet::application::sfc::sfc_state_id::IDLE};        ///< Grid-side state ID
         external_signal<bool> grid_release_protections{false};  ///< Grid protection release (from grid state machine)
         external_signal<bool> machine_release_protections{false};  ///< Machine protection release (via fiber optics)
+        external_signal<bool> freeze_integrator{false};            ///< Speed controller freeze from grid-side
         external_signal<bool> communication_ok{false};  ///< Grid-side communication status (receiving machine)
     };
 
