@@ -46,7 +46,8 @@ public:
 
         // Register loggers for debugging
         // register_minimal_logger(simulator, system.plant);
-        // register_complete_logger(simulator, system.machine_side_control.speed_controller);
+        register_complete_logger(simulator, system.grid_side_control.current_controller);
+        register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         // register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
