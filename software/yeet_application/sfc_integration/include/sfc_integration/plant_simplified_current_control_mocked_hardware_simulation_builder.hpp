@@ -40,20 +40,20 @@ public:
     void mock_inputs()
     {
         yeet::wire(current_controller)
-            .mocked(_mock_storage_false)
+            .mocked(current_controller_mock.freeze_integrator)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(_mock_storage_false)
+            .mocked(current_controller_mock.preset_request)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
         yeet::wire(grid_side_modulator)
-            .mocked(_mock_storage_true)
+            .mocked(modulator_mock.release_pulses)
             .to(&sfc_grid_side_modulator_datamodel::inputs::release_pulses)
-            .mocked(_mock_operating_mode_natural)
+            .mocked(modulator_mock.operating_mode)
             .to(&sfc_grid_side_modulator_datamodel::inputs::operating_mode)
+            .mocked(modulator_mock.current_is_zero)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::current_is_zero)
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::request_extinguish_dc_current)
-            .mocked(_mock_storage_false)
-            .to(&sfc_grid_side_modulator_datamodel::inputs::current_is_zero)
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
             .mocked(_mock_storage_false)
@@ -62,9 +62,9 @@ public:
             .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current);
 
         yeet::wire(machine_side_modulator)
-            .mocked(_mock_storage_true)
+            .mocked(modulator_mock.release_pulses)
             .to(&sfc_machine_side_modulator_datamodel::inputs::release_pulses)
-            .mocked(_mock_operating_mode_natural)
+            .mocked(modulator_mock.operating_mode)
             .to(&sfc_machine_side_modulator_datamodel::inputs::operating_mode)
             .mocked(_mock_reference_frame_estimated)
             .to(&sfc_machine_side_modulator_datamodel::inputs::reference_frame_source)
@@ -143,6 +143,20 @@ public:
 
     // Field current reference for variable-speed operation (no excitation controller in this builder)
     signal_output<current_pu_t> field_current_reference_pu{current_pu_t{0.8f}};
+
+    struct current_controller_mock_t {
+        bool freeze_integrator{true};
+        bool preset_request{false};
+    };
+
+    struct modulator_mock_t {
+        bool release_pulses{false};
+        sfc_operating_mode_t operating_mode{sfc_operating_mode_t::natural_commutation};
+        bool current_is_zero{false};
+    };
+
+    current_controller_mock_t current_controller_mock;
+    modulator_mock_t modulator_mock;
 
 private:
     static std::shared_ptr<sfc::sfc_per_unit_system> create_per_unit_system()

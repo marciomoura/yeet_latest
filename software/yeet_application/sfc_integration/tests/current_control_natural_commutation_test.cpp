@@ -116,6 +116,10 @@ public:
         // Disable pulses (explicit per type)
         // For rectifier topology, machine-side pulses are not needed
         std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
+                                  sys->current_controller_mock.freeze_integrator = true;
+                                  sys->current_controller_mock.preset_request = false;
+                                  sys->modulator_mock.release_pulses = false;
+
                                   sys->grid_side_modulator.get_parameters().enable.write(false);
                                   if constexpr (!ConfigT::is_rectifier_topology) {
                                       sys->machine_side_modulator.get_parameters().enable.write(false);
@@ -132,18 +136,30 @@ public:
                            }
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = true;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = false;
+
                            sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(false);
                            }
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = true;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = false;
+
                            sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(false);
                            }
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = true;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = false;
+
                            sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(false);
@@ -156,6 +172,10 @@ public:
         // Enable pulses (explicit per type)
         // For rectifier topology, only grid-side pulses are enabled
         std::visit(overloaded{[&](plant_simplified_current_control_mocked_hardware_simulation_builder* sys) {
+                                  sys->current_controller_mock.freeze_integrator = false;
+                                  sys->current_controller_mock.preset_request = false;
+                                  sys->modulator_mock.release_pulses = true;
+
                                   sys->grid_side_modulator.get_parameters().enable.write(true);
                                   if constexpr (!ConfigT::is_rectifier_topology) {
                                       sys->machine_side_modulator.get_parameters().enable.write(true);
@@ -171,18 +191,30 @@ public:
                            }
                        },
                        [&](plant_sensorless_current_control_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = false;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = true;
+
                            sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(true);
                            }
                        },
                        [&](plant_sensorless_current_control_mocked_hardware_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = false;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = true;
+
                            sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(true);
                            }
                        },
                        [&](plant_current_control_with_modulators_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = false;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = true;
+
                            sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(true);
