@@ -105,11 +105,6 @@ public:
 
     void initialize()
     {
-        // Configure plant for variable-speed operation and voltage control
-        plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
-        plant.get_parameters().voltage_control_mode.write(
-            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
-
         // Initialize components in dependency order
         plant.initialize();
         grid_measurements.initialize();

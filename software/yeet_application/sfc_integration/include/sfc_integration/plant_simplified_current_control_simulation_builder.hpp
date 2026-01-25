@@ -54,14 +54,14 @@ public:
     {
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
-            .mocked(_mock_storage_false)
+            .mocked(current_controller_mock.freeze_integrator)
             .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(_mock_storage_false)
+            .mocked(current_controller_mock.preset_request)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
 
         // Mock pulse release signals for both modulators
         yeet::wire(grid_side_modulator)
-            .mocked(_mock_storage_true)
+            .mocked(modulator_mock.release_pulses)
             .to(&sfc_grid_side_modulator_datamodel::inputs::release_pulses)
             .mocked(_mock_operating_mode_natural)
             .to(&sfc_grid_side_modulator_datamodel::inputs::operating_mode)
@@ -77,7 +77,7 @@ public:
             .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current);
 
         yeet::wire(machine_side_modulator)
-            .mocked(_mock_storage_true)
+            .mocked(modulator_mock.release_pulses)
             .to(&sfc_machine_side_modulator_datamodel::inputs::release_pulses)
             .mocked(_mock_operating_mode_natural)
             .to(&sfc_machine_side_modulator_datamodel::inputs::operating_mode)
@@ -89,11 +89,6 @@ public:
 
     void initialize()
     {
-        // Configure plant for variable-speed operation and voltage control
-        plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
-        plant.get_parameters().voltage_control_mode.write(
-            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
-
         // Initialize components in dependency order
         plant.initialize();
         grid_measurements.initialize();
@@ -283,6 +278,19 @@ private:
             machine_measurements.get_outputs().machine_voltage_magnitude_filtered,
             current_controller.get_inputs().machine_voltage_magnitude);
     }
+
+public:
+    struct current_controller_mock_t {
+        bool freeze_integrator{true};
+        bool preset_request{false};
+    };
+
+    struct modulator_mock_t {
+        bool release_pulses{false};
+    };
+
+    current_controller_mock_t current_controller_mock;
+    modulator_mock_t modulator_mock;
 
 private:
     bool _mock_storage_true{true};

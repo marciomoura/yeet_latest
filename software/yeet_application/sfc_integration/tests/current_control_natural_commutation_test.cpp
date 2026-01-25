@@ -65,20 +65,6 @@ public:
 
         system.initialize();
 
-        // Ensure the plant stays in fixed speed mode at nominal (1.0 pu) for natural commutation tests.
-        // This overrides builder defaults that set variable speed.
-        std::visit(overloaded{[&](auto* sys) {
-                                  sys->plant.get_parameters().operation_mode.write(
-                                      sfc_plant_model_datamodel::machine_operation_mode::fixed_speed);
-                              },
-                       [&](plant_current_control_with_modulators_simulation_builder* sys) {
-                           sys->plant.get_parameters().operation_mode.write(
-                               sfc_plant_model_datamodel::machine_operation_mode::fixed_speed);
-                           // Force the monitor to prevent pulse-mode transitions
-                           sys->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(true);
-                       }},
-            system_variant_t{&system});
-
         register_common_loggers();
         initialize_simulation();
     }
@@ -136,6 +122,10 @@ public:
                                   }
                               },
                        [&](plant_simplified_current_control_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = true;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = false;
+
                            sys->grid_side_modulator.get_parameters().enable.write(false);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(false);
@@ -172,6 +162,9 @@ public:
                                   }
                               },
                        [&](plant_simplified_current_control_simulation_builder* sys) {
+                           sys->current_controller_mock.freeze_integrator = false;
+                           sys->current_controller_mock.preset_request = false;
+                           sys->modulator_mock.release_pulses = true;
                            sys->grid_side_modulator.get_parameters().enable.write(true);
                            if constexpr (!ConfigT::is_rectifier_topology) {
                                sys->machine_side_modulator.get_parameters().enable.write(true);
