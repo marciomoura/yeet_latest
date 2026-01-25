@@ -40,6 +40,10 @@ public:
         auto gas_turbine_config = test::create_gas_turbine_config();
         test::configure_variable_speed_plant(system.plant, gas_turbine_config);
 
+        // Ensure excitation is available and status is initialized
+        system.machine_io_mock.get_parameters().override_excitation_status.write(true);
+        system.machine_io_mock.get_parameters().override_excitation_status_value.write(true);
+
         // Configure protection parameters for fast response in test
         configure_protection_thresholds();
 

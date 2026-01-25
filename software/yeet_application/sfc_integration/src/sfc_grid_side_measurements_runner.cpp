@@ -44,8 +44,7 @@ void sfc_grid_side_measurements_ideal_runner::run()
             ? _voltage_compensator.update(masked_voltage_abc, _inputs.grid_frequency)
             : masked_voltage_abc;
 
-    abc<current_pu_t> const measurement_current =
-        _measurements.get_current_pu().rotate(_parameters.current_measurement_rotation.read());
+    abc<current_pu_t> const measurement_current = _measurements.get_current_pu();
 
     _measurement_filters.update(processed_voltage_abc, measurement_current);
 
@@ -65,7 +64,7 @@ void sfc_grid_side_measurements_ideal_runner::run()
             ? line_voltage<voltage_t>(_voltage_compensator.update(
                   _measurements.get_voltage_line().to_phase_balanced(), _inputs.grid_frequency))
             : _measurements.get_voltage_line();
-    _outputs.grid_current = _measurements.get_current().rotate(_parameters.current_measurement_rotation.read());
+    _outputs.grid_current = _measurements.get_current();
 }
 
 void sfc_grid_side_measurements_ideal_runner::stop() {}
@@ -106,7 +105,6 @@ void sfc_grid_side_measurements_ideal_runner::set_parameter_callback()
     _parameters.enable_voltage_compensation.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.enable_commutation_masking.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.voltage_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
-    _parameters.current_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
 }
 
 void sfc_grid_side_measurements_ideal_runner::set_hardware_filter_parameters()
@@ -171,8 +169,7 @@ void sfc_grid_side_measurements_runner::run()
             ? _voltage_compensator.update(masked_voltage_abc, _inputs.grid_frequency)
             : masked_voltage_abc;
 
-    abc<current_pu_t> const measurement_current =
-        _measurements.get_current_pu().rotate(_parameters.current_measurement_rotation.read());
+    abc<current_pu_t> const measurement_current = _measurements.get_current_pu();
 
     _measurement_filters.update(processed_voltage_abc, measurement_current);
 
@@ -192,7 +189,7 @@ void sfc_grid_side_measurements_runner::run()
             ? line_voltage<voltage_t>(_voltage_compensator.update(
                   _measurements.get_voltage_line().to_phase_balanced(), _inputs.grid_frequency))
             : _measurements.get_voltage_line();
-    _outputs.grid_current = _measurements.get_current().rotate(_parameters.current_measurement_rotation.read());
+    _outputs.grid_current = _measurements.get_current();
 
     // Populate intermediate measurement signals for debugging
     _outputs.voltage_ab_card = _measurements.get_voltage_ab_card();
@@ -266,7 +263,6 @@ void sfc_grid_side_measurements_runner::set_parameter_callback()
     _parameters.enable_voltage_compensation.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.enable_commutation_masking.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.voltage_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
-    _parameters.current_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
 }
 
 void sfc_grid_side_measurements_runner::set_measurement_conversion_parameters()

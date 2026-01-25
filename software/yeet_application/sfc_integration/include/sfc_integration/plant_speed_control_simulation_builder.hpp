@@ -58,8 +58,6 @@ public:
         // Mock control signals for standalone testing
         yeet::wire(current_controller)
             .mocked(_mock_storage_false)
-            .to(&sfc_current_controller_datamodel::inputs::freeze_integrator)
-            .mocked(_mock_storage_false)
             .to(&sfc_current_controller_datamodel::inputs::preset_request);
         yeet::wire(speed_controller)
             .mocked(_mock_storage_false)
@@ -89,9 +87,7 @@ public:
             .mocked(_mock_storage_false)
             .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
             .mocked(_mock_storage_false)
-            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip)
-            .mocked(_mock_storage_false)
-            .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current);
+            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip);
 
         yeet::wire(machine_side_modulator)
             .mocked(_mock_storage_true)
@@ -111,9 +107,9 @@ public:
     void initialize()
     {
         // Configure plant for variable-speed operation and voltage control (excitation controller sets field current)
-        plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
-        plant.get_parameters().voltage_control_mode.write(
-            sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
+        // plant.get_parameters().operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
+        // plant.get_parameters().voltage_control_mode.write(
+        //     sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
 
         // Initialize components in dependency order
         plant.initialize();

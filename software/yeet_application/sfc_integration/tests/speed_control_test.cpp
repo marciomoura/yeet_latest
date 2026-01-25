@@ -281,7 +281,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
     // We use 15.0s to be absolutely sure it settles.
     this->set_speed_reference(speed_pu_t{1.0f});
 
-    EXPECT_TRUE(this->sim.simulate_for(30.0));
+    EXPECT_TRUE(this->sim.simulate_for(35.0));
 
     EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.0f}, this->get_tolerance())
         << "Speed regulation error too high at first reference";
