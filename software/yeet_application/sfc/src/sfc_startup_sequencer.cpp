@@ -93,6 +93,8 @@ void sfc_startup_sequencer::update(bool is_field_established,
     speed_pu_t speed_reference,
     frequency_t base_frequency)
 {
+    _current_state_machine_state = current_state_id;
+
     // Handle automatic start/stop coordination with state machine
     if (_flying_restart_config.auto_start_stop_enabled) {
         update_state_machine_coordination(measured_speed, current_state_id, speed_reference);
@@ -164,6 +166,7 @@ void sfc_startup_sequencer::reset()
     // Reset to IDLE state
     _current_state = startup_sequencer_state_t::IDLE;
     _previous_state = startup_sequencer_state_t::IDLE;
+    _current_state_machine_state = sfc_state_id::IDLE;
     _previous_state_machine_state = sfc_state_id::IDLE;
     _shutdown_speed_override_active = false;
     _start_requested = false;
@@ -485,6 +488,12 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
             _outputs.controller_commands.release_speed_controller = true;  // Enable speed controller
             _outputs.controller_commands.release_torque_controller = true;
             break;
+    }
+
+    const bool is_excitation_allowed = (_current_state_machine_state == sfc_state_id::OPERATION_ON);
+
+    if (!is_excitation_allowed) {
+        _outputs.controller_commands.release_excitation = false;
     }
 }
 

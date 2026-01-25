@@ -332,6 +332,7 @@ private:
     // State
     startup_sequencer_state_t _current_state{startup_sequencer_state_t::IDLE};
     startup_sequencer_state_t _previous_state{startup_sequencer_state_t::IDLE};
+    sfc_state_id _current_state_machine_state{sfc_state_id::IDLE};
     sfc_state_id _previous_state_machine_state{sfc_state_id::IDLE};
     bool _shutdown_speed_override_active{false};
     bool _start_requested{false};
