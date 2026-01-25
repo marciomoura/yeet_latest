@@ -123,7 +123,7 @@ public:
         parameter<angle_wrapped> voltage_measurement_rotation{angle_wrapped{0.0f}};
 
         /// Rotation angle for current measurements [deg]
-        parameter<angle_wrapped> current_measurement_rotation{angle_wrapped{30.0f}};
+        parameter<angle_wrapped> current_measurement_rotation{angle_wrapped{0.0f}};
 
         parameter<voltage_pu_t> commutation_start_threshold{voltage_pu_t{0.1f}};
         parameter<voltage_pu_t> commutation_end_threshold{voltage_pu_t{0.02f}};
