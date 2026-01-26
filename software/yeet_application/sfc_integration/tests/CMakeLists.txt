@@ -15,6 +15,7 @@ target_sources(
             # Complete closed loop tests
             closed_loop_startup_sequencer_test.cpp
             closed_loop_speed_control_test.cpp
+            soft_starter_test.cpp
             closed_loop_shutdown_test.cpp
             closed_loop_restart_test.cpp
             closed_loop_rectifier_test.cpp

@@ -210,6 +210,8 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->startup_sequencer.get_parameters().virtual_torque_damping_ti.write(yeet::duration_t{0.5f});
     control->startup_sequencer.get_parameters().virtual_torque_damping_activation_speed.write(yeet::speed_pu_t{0.005f});
 
+    control->machine_side_observer.get_parameters().nominal_frequency.write(yeet::frequency_t{10.0f});
+
     // Configuration of the stator-voltage control
     // control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu
     control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(

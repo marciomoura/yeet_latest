@@ -116,7 +116,7 @@ public:
         parameter<duration_t> breakaway_boost_duration = duration_t{1.0};
 
         /// Minimum motoring torque for natural commutation [pu]
-        parameter<torque_pu_t> minimum_motoring_torque = torque_pu_t{0.02};
+        parameter<torque_pu_t> minimum_motoring_torque = torque_pu_t{0.0};
 
         /// Enable minimum motoring torque clamp
         parameter<bool> enable_minimum_motoring_torque = true;

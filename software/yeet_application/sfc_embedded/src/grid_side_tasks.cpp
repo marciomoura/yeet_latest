@@ -206,15 +206,15 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
 
     // Force natural commutation
     control->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(false);
-    control->operation_mode_monitor.get_parameters().force_to_forced_commutation.write(true);
-    // control->current_controller.get_parameters().current_reference_magnitude_limit.write(yeet::current_pu_t{0.1f});
-    // control->current_controller.get_parameters().override_current_reference.write(true);
-    // control->current_controller.get_parameters().override_current_reference_value.write(yeet::current_pu_t{0.1f});
+    control->operation_mode_monitor.get_parameters().force_to_forced_commutation.write(false);
+    control->operation_mode_monitor.get_parameters().mode_handover_speed_pu.write(yeet::speed_pu_t{0.5f});
+    control->operation_mode_monitor.get_parameters().mode_hysteresis_factor.write(yeet::speed_pu_t{0.1f});
 
     // Initialize grid-side control subsystem
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
     // Digital inputs are already default-initialized to safe values (false) by the datamodel
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
+    control->current_controller.get_parameters().max_firing_angle.write(yeet::angle_wrapped::from_degrees(135.0f));
 
     // ==================== PER-UNIT SYSTEM CONFIGURATION ====================
     control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{866.0f});
