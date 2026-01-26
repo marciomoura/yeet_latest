@@ -7,7 +7,7 @@
 #include "sfc/sfc_trip_source.hpp"
 #include "sfc/sfc_undervoltage_protection.hpp"
 #include "yeet_control/edge_detector.hpp"
-#include "yeet_control/off_delay.hpp"
+#include "yeet_control/on_off_delay.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -143,7 +143,9 @@ private:
 
     sfc_protections_trip_handshake _trip_handshake;
     yeet::control::edge_detector _is_confirm_trip_rising_edge_detector;
-    yeet::control::off_delay _emergency_off_reset_timer;
+
+    bool _emergency_off_edge_detected{false};
+    yeet::control::on_off_delay _emergency_on_off_reset_timer;
 
     bool _external_fault_active{false};
     bool _emergency_off_active{false};

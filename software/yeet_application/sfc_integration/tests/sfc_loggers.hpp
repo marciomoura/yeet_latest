@@ -312,6 +312,8 @@ static inline void register_complete_grid_side_protections_logger(
         [&]() { return grid_protections.get_outputs().undervoltage_tripped.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_tripped",
         [&]() { return grid_protections.get_outputs().communication_loss_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output emergency_off_reset",
+        [&]() { return grid_protections.get_outputs().emergency_off_reset.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output door_open_tripped", [&]() { return grid_protections.get_outputs().door_open_tripped.read(); }));
 

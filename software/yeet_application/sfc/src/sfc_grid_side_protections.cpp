@@ -8,8 +8,9 @@ sfc_grid_side_protections::sfc_grid_side_protections(duration_t sampling_time) n
       _undervoltage_protection(sampling_time),
       _communication_watchdog(sampling_time),
       _is_confirm_trip_rising_edge_detector(),
-      _emergency_off_reset_timer(1.0, (double)sampling_time.value())
+      _emergency_on_off_reset_timer((double)sampling_time.value())
 {
+    _emergency_on_off_reset_timer.configure(1.0f, 1.0f);
 }
 
 void sfc_grid_side_protections::reset() noexcept
@@ -21,7 +22,9 @@ void sfc_grid_side_protections::reset() noexcept
 
     _trip_handshake.reset();
     _is_confirm_trip_rising_edge_detector.reset();
-    _emergency_off_reset_timer.reset();
+
+    _emergency_off_edge_detected = {};
+    _emergency_on_off_reset_timer.reset();
 
     _external_fault_active = false;
     _emergency_off_active = false;
@@ -205,8 +208,17 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
     _is_confirm_trip_rising_edge_detector.update(confirm_trips);
     const bool reset_trigger = _is_confirm_trip_rising_edge_detector.is_rising_edge();
 
-    _emergency_off_reset_timer.update(reset_trigger);
-    _emergency_off_reset = _emergency_off_reset_timer.get_output();
+    if (reset_trigger && !_emergency_off_edge_detected) {
+        _emergency_off_edge_detected = true;
+    }
+
+    _emergency_on_off_reset_timer.update(_emergency_off_edge_detected);
+    // Now it needs to go to false
+    if (_emergency_on_off_reset_timer.get_output()) {
+        _emergency_off_edge_detected = false;
+    }
+
+    _emergency_off_reset = _emergency_on_off_reset_timer.get_output();
 }
 
 void sfc_grid_side_protections::check_and_reset_handshake_if_no_trips() noexcept
@@ -365,7 +377,7 @@ void sfc_grid_side_protections::configure_comm_reset_duration(duration_t reset) 
 void sfc_grid_side_protections::configure_emergency_off_reset_duration(duration_t duration) noexcept
 {
     _emergency_off_reset_duration = duration;
-    _emergency_off_reset_timer.configure((real_t)duration.value());
+    _emergency_on_off_reset_timer.configure(1.0f, (real_t)duration.value());
 }
 
 bool sfc_grid_side_protections::get_has_active_trip() const noexcept { return _has_active_trip; }

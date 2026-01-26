@@ -168,8 +168,8 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->initialize();
 
     // Bypass all IOs (for testing)
-    // control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
-    // control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
+    control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
+    control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
     // control->external_ios.get_parameters().di_mv_breaker_is_closed_override.write(true);
     // control->external_ios.get_parameters().di_mv_breaker_is_closed_override_value.write(true);
     // control->external_ios.get_parameters().di_external_fault_override.write(true);
@@ -305,7 +305,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_protections.get_parameters().communication_loss_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->grid_protections.get_parameters().door_open_severity.write(
-        yeet::application::sfc::integration::protection_severity::alarm_only);
+        yeet::application::sfc::integration::protection_severity::trip);
     control->grid_protections.get_parameters().external_fault_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
     control->grid_protections.get_parameters().emergency_off_severity.write(

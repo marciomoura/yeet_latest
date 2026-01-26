@@ -26,7 +26,6 @@ public:
     {
         // Configure sampler sampling rate
         simulator.configure_sampler_sampling_rate(ms(5.0f));
-
         // Register all applications
         system.register_applications(simulator);
 
@@ -58,18 +57,18 @@ public:
         system.grid_side_control.operation_mode_monitor.get_parameters().force_to_natural_commutation.write(false);
         system.grid_side_control.operation_mode_monitor.get_parameters().force_to_forced_commutation.write(false);
         system.grid_side_control.operation_mode_monitor.get_parameters().mode_handover_speed_pu.write(
-            yeet::speed_pu_t{0.5f});
+            yeet::speed_pu_t{0.4f});
         system.grid_side_control.operation_mode_monitor.get_parameters().mode_hysteresis_factor.write(
             yeet::speed_pu_t{0.1f});
 
         // ==================== STARTUP SEQUENCER CONFIGURATION ====================
         auto& seq = system.machine_side_control.startup_sequencer.get_parameters();
-        seq.virtual_frequency_duration.write(duration_t{4.0f * 6.0f});
+        seq.virtual_frequency_duration.write(duration_t{6.0f});
         seq.virtual_frequency_initial.write(frequency_pu_t{0.0f});
-        seq.virtual_frequency_final.write(frequency_pu_t{0.4f});
-        seq.virtual_torque_duration.write(duration_t{0.5f});
-        seq.virtual_torque_initial.write(torque_pu_t{0.0f});
-        seq.virtual_torque_final.write(torque_pu_t{0.3f});
+        seq.virtual_frequency_final.write(frequency_pu_t{0.1f});
+        seq.virtual_torque_duration.write(duration_t{1.0f});
+        seq.virtual_torque_initial.write(torque_pu_t{0.4f});
+        seq.virtual_torque_final.write(torque_pu_t{0.4f});
         seq.speed_reference.write(speed_pu_t{1.0f});
         seq.speed_reference_rate_limit_enabled.write(true);
         seq.speed_reference_rate_limit_seconds_per_pu.write(60.0f);
@@ -77,25 +76,20 @@ public:
         seq.virtual_torque_damping_kp.write(2.0f);
         seq.virtual_torque_damping_ti.write(duration_t{0.5f});
 
-        // ==================== EXCITATION CONFIGURATION ====================
-        auto& ex = system.machine_side_control.excitation_controller.get_parameters();
-        ex.forced_field_current_pu.write(current_pu_t{0.3f});
-        ex.prefluxing_duration.write(duration_t{1.0f});
-        ex.release_voltage_threshold_pu.write(voltage_pu_t{0.4f});
-        ex.release_speed_threshold_pu.write(speed_pu_t{0.4f});
-
         // ==================== PLANT CONFIGURATION ====================
         // Model a 50 MW machine. Since we operate at 10Hz base and 2MW SFC base:
         // H_base = H_nom * (S_nom/S_base) * (f_base/f_nom)^2 = 5 * 25 * 0.04 = 5.0 seconds.
         auto& plant = system.plant.get_parameters();
-        plant.motor_inertia_constant.write(inertia_constant_t{5.0f});
-        plant.motor_quadratic_load_coefficient.write(0.15f);  // Typical gas turbine drag
-        plant.constant_torque.write(torque_pu_t{0.0f});
+        plant.topology.write(sfc_plant_model_datamodel::topology_type::internal);
+        system.plant.get_plant_model().configure_electrical_parameters(
+            sfc_plant_configuration::get_50mw_machine_electrical_parameters());
+        plant.motor_inertia_constant.write(inertia_constant_t{2.0f});
+        plant.motor_quadratic_load_coefficient.write(0.1f);  // Typical gas turbine drag
+        // plant.motor_linear_load_coefficient.write(torque_pu_t{0.01f});
+        // plant.motor_damping_factor.write(damping_coefficient_pu_t{0.1f});
+        // plant.constant_torque.write(torque_pu_t{0.0f});
         plant.operation_mode.write(sfc_plant_model_datamodel::machine_operation_mode::variable_speed);
         plant.voltage_control_mode.write(sfc_plant_model_datamodel::machine_voltage_control_mode::variable_speed);
-        plant.topology.write(sfc_plant_model_datamodel::topology_type::internal);
-
-        ///////
 
         // Configuration of the stator-voltage control
         // system.machine_side_control.excitation_controller.get_parameters().voltage_reference_speed_axis_pu
@@ -111,13 +105,21 @@ public:
             });
         system.machine_side_control.excitation_controller.get_parameters().voltage_reference_pu.write(
             std::array<yeet::voltage_pu_t, 7>{
-                yeet::voltage_pu_t{0.0f},               // 0.0 pu
-                yeet::voltage_pu_t{470.0f / 1880.0f},   // 0.25 pu
-                yeet::voltage_pu_t{940.0f / 1880.0f},   // 0.5 pu
-                yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
-                yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
-                yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
-                yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
+                yeet::voltage_pu_t{0.2f},   // 0.0 pu
+                yeet::voltage_pu_t{0.2f},   // 0.25 pu
+                yeet::voltage_pu_t{0.15f},  // 0.4 pu
+                yeet::voltage_pu_t{0.25f},  // 0.5 pu
+                yeet::voltage_pu_t{1.0f},   // 1.0 pu
+                yeet::voltage_pu_t{1.0f},   // 1.0 pu
+                yeet::voltage_pu_t{1.0f},   // 1.0 pu
+                // yeet::voltage_pu_t{0.0f},               // 0.0 pu
+                // yeet::voltage_pu_t{470.0f / 1880.0f},   // 0.25 pu
+                // yeet::voltage_pu_t{500.0f / 1880.0f},   // 0.4 pu
+                // yeet::voltage_pu_t{940.0f / 1880.0f},   // 0.5 pu
+                // yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
+                // yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
+                // // yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
+                // yeet::voltage_pu_t{1880.0f / 1880.0f},  // 1.0 pu
             });
 
         // Forced Mode Configuration (Low-Speed / Low-Voltage startup region)
@@ -127,13 +129,20 @@ public:
 
         // 1. Definition of the forced field current value (e.g., 40%)
         system.machine_side_control.excitation_controller.get_parameters().forced_field_current_pu.write(
-            yeet::current_pu_t{0.4f});
-
-        // 2. Release to automatic control at 20% voltage OR 20% speed
+            yeet::current_pu_t{0.25f});
+        // system.machine_side_control.excitation_controller.get_parameters()..write(
+        //     yeet::current_pu_t{0.0f});
         system.machine_side_control.excitation_controller.get_parameters().release_voltage_threshold_pu.write(
-            yeet::voltage_pu_t{0.2f});
+            yeet::voltage_pu_t{0.2});
         system.machine_side_control.excitation_controller.get_parameters().release_speed_threshold_pu.write(
-            yeet::speed_pu_t{0.2f});
+            yeet::speed_pu_t{0.2});
+
+        // ==================== EXCITATION CONFIGURATION ====================
+        // auto& ex = system.machine_side_control.excitation_controller.get_parameters();
+        // ex.forced_field_current_pu.write(current_pu_t{0.3f});
+        // ex.prefluxing_duration.write(duration_t{1.0f});
+        // ex.release_voltage_threshold_pu.write(voltage_pu_t{0.4f});
+        // ex.release_speed_threshold_pu.write(speed_pu_t{0.4f});
 
         // 3. Time required for field establishment (Pre-fluxing)
         system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration.write(
@@ -201,7 +210,7 @@ TEST_F(SoftStarterTest, StartupToNominalSpeed)
     // Start the SFC sequence
     execute_startup();
 
-    system.plant.get_parameters().constant_torque.write(torque_pu_t{0.1f});
+    system.plant.get_parameters().constant_torque.write(torque_pu_t{0.05f});
 
     // The sequence is:
     // 1. Pre-fluxing: 1.5s

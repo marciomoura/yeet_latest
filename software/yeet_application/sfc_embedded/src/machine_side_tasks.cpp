@@ -29,7 +29,7 @@ constexpr int DI_EXCITATION_STATUS_INDEX = 33 + 1 - 1;
 constexpr io_polarity_t DI_EXCITATION_STATUS_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 constexpr int DI_EXTERNAL_FAULT_INDEX = 33 + 2 - 1;
-constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_LOW;
 
 constexpr int DI_START_COMMAND_INDEX = 33 + 4 - 1;
 constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
@@ -181,6 +181,8 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_protections.get_parameters().communication_loss_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().loss_of_excitation_severity.write(
+        yeet::application::sfc::integration::protection_severity::alarm_only);
+    control->machine_protections.get_parameters().external_fault_severity.write(
         yeet::application::sfc::integration::protection_severity::alarm_only);
     // Overvoltage
     control->machine_protections.get_parameters().machine_overvoltage_severity.write(
@@ -344,7 +346,7 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     const auto& io_params = control->external_ios.get_parameters();
     if (inputs != nullptr && inputs->digital_inputs.valid) {
         // Read digital inputs from hardware
-        const bool excitation_status = read_di(inputs, io_params.di_excitation_status_index.read());
+        const bool excitation_status = true;  // read_di(inputs, io_params.di_excitation_status_index.read());
         const bool external_fault = read_di(inputs, io_params.di_external_fault_index.read());
         const bool start_command = read_di(inputs, io_params.di_start_command_index.read());
 

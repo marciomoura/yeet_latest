@@ -46,6 +46,7 @@ public:
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
         register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        register_complete_logger(simulator, system.grid_side_control.grid_protections);
     }
 
     void initialize()
@@ -409,11 +410,19 @@ TEST_F(ClosedLoopShutdownTest, EmergencyOffShutdownTest)
 
     // User confirmation to clear inhibit
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
-    simulator.simulate_for(0.1);
+    simulator.simulate_for(2.0f);
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(true);
-    simulator.simulate_for(0.1);
+    simulator.simulate_for(5.0f);
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
-    simulator.simulate_for(0.1);
+    simulator.simulate_for(2.0f);
+
+    // User confirmation to clear inhibit
+    system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
+    simulator.simulate_for(2.0f);
+    system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(true);
+    simulator.simulate_for(5.0f);
+    system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
+    simulator.simulate_for(2.0f);
 
     // Verify inhibit is cleared
     is_inhibited = system.grid_side_control.grid_protections.get_outputs().is_inhibited.read();
