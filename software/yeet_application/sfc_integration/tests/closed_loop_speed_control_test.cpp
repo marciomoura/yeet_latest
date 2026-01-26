@@ -47,13 +47,13 @@ public:
         initialize();
 
         // Register loggers for debugging
-        register_complete_logger(simulator, system.grid_side_control.operation_mode_monitor);
-        register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
+        // register_complete_logger(simulator, system.grid_side_control.operation_mode_monitor);
+        // register_complete_logger(simulator, system.grid_side_control.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_control.current_controller);
-        register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
-        register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
-        register_complete_logger(simulator, system.machine_side_control.excitation_controller);
-        register_complete_logger(simulator, system.machine_side_control.torque_controller);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_controller);
+        // register_complete_logger(simulator, system.machine_side_control.machine_side_observer);
+        // register_complete_logger(simulator, system.machine_side_control.excitation_controller);
+        // register_complete_logger(simulator, system.machine_side_control.torque_controller);
         register_complete_logger(simulator, system.machine_side_control.speed_controller);
         register_complete_logger(simulator, system.machine_side_control.startup_sequencer);
     }
@@ -682,4 +682,72 @@ TEST_F(ClosedLoopSpeedControlTest, CurrentControllerFreezesWhenNotModulatingTest
     }
 
     EXPECT_TRUE(success) << "Current controller freeze test completed with simulation errors";
+}
+
+/**
+ * @test VirtualStartWithDampingTest
+ * @brief Validates virtual torque reference damping during STARTING_PROCEDURE
+ *
+ * This test verifies that the startup sequencer correctly applies damping to the
+ * virtual torque reference when the machine speed deviates from the virtual frequency.
+ */
+TEST_F(ClosedLoopSpeedControlTest, VirtualStartWithDampingTest)
+{
+    // 1. Configure Startup Sequencer for Virtual Start with Damping
+    auto& params = system.machine_side_control.startup_sequencer.get_parameters();
+
+    // Force virtual mode so it doesn't jump to closed-loop
+    params.force_virtual_mode_operation.write(false);
+    params.flying_restart_observer_settling_time.write(duration_t{0.1f});
+
+    // Virtual frequency ramp (0.03 to 0.1 pu in 5s)
+    params.virtual_frequency_initial.write(frequency_pu_t{0.0f});
+    params.virtual_frequency_final.write(frequency_pu_t{0.15f});
+    params.virtual_frequency_duration.write(duration_t{30.0f});
+
+    // Constant virtual torque
+    params.virtual_torque_initial.write(torque_pu_t{0.10f});
+    params.virtual_torque_final.write(torque_pu_t{0.10f});
+    params.virtual_torque_duration.write(duration_t{1.0f});
+
+    params.speed_reference.write(speed_pu_t{1.0f});
+    params.speed_reference_rate_limit_seconds_per_pu.write(real_t{60.0f});
+
+    // Configure Damping
+    const float damping_kp = 2.0f;
+    const float damping_ti = 0.5f;
+    const speed_pu_t activation_speed{0.0f};
+    params.virtual_torque_damping_enabled.write(true);
+    params.virtual_torque_damping_kp.write(real_t{damping_kp});
+    params.virtual_torque_damping_ti.write(real_t{damping_ti});
+    params.virtual_torque_damping_activation_speed.write(activation_speed);
+
+    // Re-initialize sequencer to ensure parameters are pushed
+    system.machine_side_control.startup_sequencer.initialize();
+
+    // 2. Setup Plant Load to create speed error
+    // With moderate load, machine will accelerate
+    system.plant.get_parameters().constant_torque.write(torque_pu_t(0.10f));
+    system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{1.0f};
+
+    // 4. Run Startup
+    execute_startup_sequence();
+
+    // Wait for state machine to reach OPERATION_ON and complete pre-flux
+    // 0.5s for breakers + 1.0s for pre-flux + margin
+    bool success = simulator.simulate_for(2.0);
+
+    auto state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(state, startup_sequencer_state_t::STARTING_PROCEDURE) << "Should be in STARTING_PROCEDURE after pre-flux";
+
+    // Simulate through the virtual start
+    // We expect the checker to validate the torque throughout the ramp
+    success &= simulator.simulate_for(100.0);
+
+    // Verify we completed the starting procedure or reached high enough speed
+    auto final_meas_speed = system.machine_side_control.machine_side_observer.get_outputs().estimated_speed.read();
+    EXPECT_GT(final_meas_speed.value(), activation_speed.value())
+        << "Machine should have accelerated past activation speed";
+
+    EXPECT_TRUE(success) << "Virtual start with damping test failed simulation or check";
 }

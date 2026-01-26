@@ -102,6 +102,10 @@ void sfc_startup_sequencer_runner::set_parameters()
     torque_cfg.initial = _parameters.virtual_torque_initial.read();
     torque_cfg.final = _parameters.virtual_torque_final.read();
     torque_cfg.duration = _parameters.virtual_torque_duration.read();
+    torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+    torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+    torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+    torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
     _sequencer.configure_virtual_torque(torque_cfg);
 
     // Configure speed reference rate limit
@@ -157,6 +161,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         torque_cfg.initial = _parameters.virtual_torque_initial.read();
         torque_cfg.final = _parameters.virtual_torque_final.read();
         torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
         _sequencer.configure_virtual_torque(torque_cfg);
     });
     _parameters.virtual_torque_final.register_callback([&]() {
@@ -164,6 +172,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         torque_cfg.initial = _parameters.virtual_torque_initial.read();
         torque_cfg.final = _parameters.virtual_torque_final.read();
         torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
         _sequencer.configure_virtual_torque(torque_cfg);
     });
     _parameters.virtual_torque_duration.register_callback([&]() {
@@ -171,6 +183,54 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         torque_cfg.initial = _parameters.virtual_torque_initial.read();
         torque_cfg.final = _parameters.virtual_torque_final.read();
         torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_enabled.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_kp.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_ti.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_activation_speed.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
         _sequencer.configure_virtual_torque(torque_cfg);
     });
 

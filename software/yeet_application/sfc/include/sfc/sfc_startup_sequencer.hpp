@@ -6,6 +6,7 @@
 #include "yeet_control/elapsed_timer.hpp"
 #include "yeet_control/integrator.hpp"
 #include "yeet_control/linear_ramp.hpp"
+#include "yeet_control/pi_controller.hpp"
 #include "yeet_control/rate_of_change_limiter.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
@@ -52,6 +53,12 @@ struct virtual_torque_config {
     torque_pu_t initial{0.3};  ///< Initial virtual torque reference [pu]
     torque_pu_t final{0.3};    ///< Final virtual torque reference [pu]
     duration_t duration{0.0};  ///< Duration of torque ramp [s], 0 = immediate to final value
+
+    // Damping configuration
+    bool damping_enabled{false};                ///< Enable damping based on observer speed feedback
+    real_t damping_kp{0.0};                     ///< Proportional gain for damping (pu_torque / pu_speed_error)
+    real_t damping_ti{0.0};                     ///< Integral time constant for damping [s] (0 = P-only)
+    speed_pu_t damping_activation_speed{0.05};  ///< Speed threshold above which damping is active [pu]
 };
 
 /**
@@ -316,6 +323,7 @@ private:
     // Control components
     linear_ramp<frequency_pu_t> _virtual_frequency_ramp;
     linear_ramp<torque_pu_t> _virtual_torque_ramp;
+    control::pi_controller<real_t> _damping_controller;
     control::elapsed_timer _state_elapsed_timer;
     control::integrator<angle_wrapped> _virtual_angle_integrator;
     control::rate_of_change_limiter _speed_reference_limiter;
@@ -357,7 +365,7 @@ private:
         speed_pu_t external_speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
     void update_flux_buildup(
         bool is_field_established, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
-    void update_starting_procedure(frequency_t base_frequency);
+    void update_starting_procedure(frequency_t base_frequency, speed_pu_t measured_speed);
     void update_closed_loop_operation(speed_pu_t speed_reference);
 
     // Automatic start/stop coordination

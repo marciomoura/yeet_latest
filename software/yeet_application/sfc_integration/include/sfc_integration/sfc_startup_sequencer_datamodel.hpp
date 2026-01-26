@@ -124,6 +124,18 @@ public:
         /// Virtual torque ramp duration [s], 0 = immediate jump to final
         parameter<duration_t> virtual_torque_duration = duration_t{0.0};
 
+        /// Enable damping based on observer speed feedback during virtual mode
+        parameter<bool> virtual_torque_damping_enabled = false;
+
+        /// Proportional gain for virtual torque damping (pu_torque / pu_speed_error)
+        parameter<real_t> virtual_torque_damping_kp = real_t{0.0};
+
+        /// Integral time constant for virtual torque damping [s]
+        parameter<real_t> virtual_torque_damping_ti = real_t{0.0};
+
+        /// Speed threshold above which damping is active [pu]
+        parameter<speed_pu_t> virtual_torque_damping_activation_speed = speed_pu_t{0.05};
+
         /// Skip flux build-up phase (useful for tests without excitation)
         parameter<bool> skip_flux_buildup = false;
 
@@ -193,6 +205,14 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->virtual_torque_final));
         handler.register_parameter(component_name, "virtual_torque_duration",
             yeet::utils::make_units_accessor(_model_parameters->virtual_torque_duration));
+        handler.register_parameter(component_name, "virtual_torque_damping_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->virtual_torque_damping_enabled));
+        handler.register_parameter(component_name, "virtual_torque_damping_kp",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_damping_kp));
+        handler.register_parameter(component_name, "virtual_torque_damping_ti",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_damping_ti));
+        handler.register_parameter(component_name, "virtual_torque_damping_activation_speed",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_damping_activation_speed));
         handler.register_parameter(component_name, "field_established_override",
             yeet::utils::make_bool_accessor(_model_parameters->field_established_override));
         handler.register_parameter(component_name, "field_established_override_value",

@@ -11,6 +11,7 @@ sfc_startup_sequencer::sfc_startup_sequencer(duration_t sampling_time)
     : _sampling_time(sampling_time),
       _virtual_frequency_ramp(sampling_time),
       _virtual_torque_ramp(sampling_time),
+      _damping_controller(sampling_time.value()),
       _state_elapsed_timer(sampling_time),
       _virtual_angle_integrator(sampling_time),
       _speed_reference_limiter(sampling_time.value()),
@@ -37,6 +38,20 @@ void sfc_startup_sequencer::configure_virtual_torque(const virtual_torque_config
     linear_ramp<torque_pu_t>::config ramp_cfg{
         .initial = config.initial, .final = config.final, .duration = config.duration};
     _virtual_torque_ramp.configure(ramp_cfg);
+
+    // Configure damping PI controller
+    if (config.damping_ti > 0.0f) {
+        _damping_controller.configure_with_ti(config.damping_kp, config.damping_ti);
+        _damping_controller.enable_integrator(true);
+    }
+    else {
+        _damping_controller.configure(config.damping_kp, 0.0f);
+        _damping_controller.enable_integrator(false);
+    }
+
+    // Typical limits for damping correction to prevent excessive torque requests
+    _damping_controller.set_output_limits(-0.6f, 0.6f);
+    _damping_controller.enable_output_limits(true);
 }
 
 void sfc_startup_sequencer::configure_speed_reference_rate_limit(const speed_reference_rate_limit_config& config)
@@ -121,7 +136,7 @@ void sfc_startup_sequencer::update(bool is_field_established,
             break;
 
         case startup_sequencer_state_t::STARTING_PROCEDURE:
-            update_starting_procedure(base_frequency);
+            update_starting_procedure(base_frequency, measured_speed);
             break;
 
         case startup_sequencer_state_t::CLOSED_LOOP_OPERATION:
@@ -183,6 +198,7 @@ void sfc_startup_sequencer::reset()
     _virtual_rotor_angle = angle_wrapped{0.0};
     _virtual_torque = torque_pu_t{0.0};
     _virtual_angle_integrator.reset();
+    _damping_controller.reset();
 
     // Reset outputs
     update_outputs_for_current_state();
@@ -353,10 +369,29 @@ void sfc_startup_sequencer::update_flux_buildup(
     transition_to_starting_procedure();
 }
 
-void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency)
+void sfc_startup_sequencer::update_starting_procedure(frequency_t base_frequency, speed_pu_t measured_speed)
 {
     const bool freq_ramp_finished = update_virtual_reference_frame(base_frequency);
     (void)update_virtual_torque_reference();
+
+    // Implement optional damping if the actual speed is above the reliability threshold
+    if (_virtual_torque_config.damping_enabled &&
+        std::abs(measured_speed.value()) >= _virtual_torque_config.damping_activation_speed.value()) {
+        // Calculate speed error: Virtual Reference (frequency_pu) - Actual Speed (measured_speed)
+        // Since frequency_pu directly maps to synchronous speed_pu
+        const real_t speed_error_pu = _virtual_frequency.value() - measured_speed.value();
+
+        // Calculate damping torque (PI control)
+        // If speed is too high (measured > virtual), speed_error is negative, reducing virtual torque.
+        const real_t damping_torque_pu = _damping_controller.update(speed_error_pu);
+
+        // Apply correction to the virtual torque reference
+        _virtual_torque = torque_pu_t{_virtual_torque.value() + damping_torque_pu};
+    }
+    else {
+        // Reset damping integrator when inactive to ensure bumpless startup
+        _damping_controller.reset();
+    }
 
     // Keep speed reference tracking virtual frequency during starting procedure
     // Since both are in per-unit, freq_pu directly maps to speed_pu

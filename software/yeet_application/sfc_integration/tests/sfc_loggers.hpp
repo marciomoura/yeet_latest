@@ -769,6 +769,8 @@ static inline void register_minimal_startup_sequencer_logger(
     // Speed control outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
         group + "output speed_reference", [&]() { return startup_sequencer.get_outputs().speed_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
+        group + "input measured_speed", [&]() { return startup_sequencer.get_inputs().measured_speed.read(); }));
 
     // Status outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_startup_complete",

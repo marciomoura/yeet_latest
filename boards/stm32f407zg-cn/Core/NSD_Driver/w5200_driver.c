@@ -1638,7 +1638,7 @@ static uint16_t W5200_GetSocketRxBase(uint8_t socket_num)
  * @brief Wait for W5200 command to complete
  * @note The command register (Sn_CR) is cleared to 0x00 by W5200 when command completes
  */
-static bool W5200_WaitCommandComplete(w5200_instance_t* w5200, uint8_t socket_num, uint32_t timeout_cycles)
+inline bool W5200_WaitCommandComplete(w5200_instance_t* w5200, uint8_t socket_num, uint32_t timeout_cycles)
 {
     while (timeout_cycles-- > 0) {
         uint8_t cmd_reg = W5200_ReadByte(w5200, W5200_Sn_CR(socket_num));
