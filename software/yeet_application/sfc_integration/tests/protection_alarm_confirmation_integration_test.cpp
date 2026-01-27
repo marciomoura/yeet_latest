@@ -29,7 +29,7 @@ public:
     void SetUp() override
     {
         // Configure sampler for detailed data capture
-        simulator.configure_sampler_sampling_rate(ms(10.0f));
+        simulator.configure_sampler_sampling_rate(us(1000.0f));
 
         // Register all applications
         system.register_applications(simulator);

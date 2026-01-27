@@ -72,6 +72,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'request force commutation', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
                 {'name': 'release pulses (out)', 'index': GridSignalIndex.MODULATOR_RELEASE_PULSES_OUTPUT, 'type': 'bool', 'format': 'bool'},
                 {'name': 'force comm. ack', 'index': GridSignalIndex.FORCE_COMMUTATION_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'current is zero', 'index': GridSignalIndex.MODE_MONITOR_CURRENT_IS_ZERO, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'pulse_generator': {

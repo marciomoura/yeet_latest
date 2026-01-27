@@ -155,7 +155,7 @@ public:
      * @brief Gets the filtered, monotonic rotor position used for pulsing.
      * @return The monotonic rotor position in radians.
      */
-    angle_t get_monotonic_rotor_position() const noexcept;
+    // angle_t get_monotonic_rotor_position() const noexcept;
 
     /**
      * @brief Gets the current virtual reference angle.

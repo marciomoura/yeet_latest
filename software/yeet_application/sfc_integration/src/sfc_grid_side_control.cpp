@@ -181,14 +181,14 @@ void sfc_grid_side_control::connect_internal_signals()
     wire(operation_mode_monitor)
         .from(grid_integrator_supervisor.get_outputs().release_pulses)
         .to(&mode_monitor_inputs::enable)
-        .from(dc_link_measurements.get_outputs().dc_current_filtered_pu)
+        .from(dc_link_measurements.get_outputs().dc_current_pu)
         .to(&mode_monitor_inputs::dc_link_current)
         .from(external_ios.get_fiber_optics_inputs_from_machine().measured_speed)
         .to(&mode_monitor_inputs::measured_speed);
 
     // ==================== Grid Protections Inputs ====================
     wire(grid_protections)
-        .from(dc_link_measurements.get_outputs().dc_current_filtered_pu)
+        .from(dc_link_measurements.get_outputs().dc_current_pu)
         .to(&protections_inputs::dc_link_current_pu)
         .from(grid_side_observer.get_outputs().estimated_voltage_magnitude)
         .to(&protections_inputs::grid_voltage_magnitude_pu)

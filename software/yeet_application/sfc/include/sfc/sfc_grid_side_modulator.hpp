@@ -190,7 +190,7 @@ public:
      * @brief Gets the monotonic reference angle.
      * @return angle_t
      */
-    angle_t get_monotonic_reference_angle() const noexcept;
+    // angle_t get_monotonic_reference_angle() const noexcept;
 
     /**
      * @brief Checks if virtual reference mode is active.

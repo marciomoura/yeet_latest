@@ -35,14 +35,14 @@ constexpr int DI_START_COMMAND_INDEX = 33 + 4 - 1;
 constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 // Digital Outputs
-constexpr int DO_EXCITATION_ON_COMMAND_INDEX = 33 + 1 - 1;
+constexpr int DO_EXCITATION_ON_COMMAND_INDEX = 33 - 1;
 constexpr io_polarity_t DO_EXCITATION_ON_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_EXCITATION_OFF_COMMAND_INDEX = 33 + 2 - 1;
+constexpr int DO_EXCITATION_OFF_COMMAND_INDEX = 33 + 1 - 1;
 constexpr io_polarity_t DO_EXCITATION_OFF_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 // Analog Outputs
-constexpr int AO_EXCITATION_CURRENT_REFERENCE_INDEX = 0;
+constexpr int AO_EXCITATION_CURRENT_REFERENCE_INDEX = 1;
 }  // namespace
 
 // Ensure functions are compiled with Thumb interworking
@@ -143,6 +143,10 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
 
+    // phase
+    // control->machine_side_modulator.get_parameters().reference_type.write(
+    // yeet::control::six_pulse_generator::reference_type::phase);
+
     // ==================== IO CONFIGURATION ====================
     auto& io_params = control->external_ios.get_parameters();
 
@@ -167,6 +171,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     // Analog Output Scaling
     io_params.ao_excitation_current_reference_gain.write(5.0f);
     io_params.ao_excitation_current_reference_offset.write(0.0f);
+    io_params.ao_excitation_current_reference_index.write(AO_EXCITATION_CURRENT_REFERENCE_INDEX);
 
     // Configure protections to be enabled by default for embedded target
     control->machine_protections.get_parameters().protection_module_enabled.write(true);
@@ -207,7 +212,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->startup_sequencer.get_parameters().speed_reference.write(yeet::speed_pu_t{1.0f});
     control->startup_sequencer.get_parameters().speed_reference_rate_limit_enabled.write(true);
     control->startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu.write(yeet::real_t{60.0f});
-    control->startup_sequencer.get_parameters().virtual_torque_damping_enabled.write(true);
+    control->startup_sequencer.get_parameters().virtual_torque_damping_enabled.write(false);
     control->startup_sequencer.get_parameters().virtual_torque_damping_kp.write(yeet::real_t{2.0f});
     control->startup_sequencer.get_parameters().virtual_torque_damping_ti.write(yeet::duration_t{0.5f});
     control->startup_sequencer.get_parameters().virtual_torque_damping_activation_speed.write(yeet::speed_pu_t{0.005f});
@@ -312,6 +317,11 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
         control->external_ios.get_excitation_current_reference().value(),
         io_params.ao_excitation_current_reference_gain.read(), io_params.ao_excitation_current_reference_offset.read());
 
+    // write_ao(outputs, 0, 0.33f, 5.0f, 0.0f);
+    // write_ao(outputs, 1, 0.66f, 5.0f, 0.0f);
+    // write_ao(outputs, 2, 1.0f, 5.0f, 0.0f);
+    // write_ao(outputs, 3, -0.33f, 5.0f, 0.0f);
+
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:
@@ -398,9 +408,9 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     write_do(
         outputs, io_params.do_excitation_off_command_index.read(), control->external_ios.get_excitation_off_command());
 
-    // Excitation current reference output (analog output)
-    write_ao(outputs, AO_EXCITATION_CURRENT_REFERENCE_INDEX,
-        control->external_ios.get_excitation_current_reference().value(), 10.0f, 0.0f);
+    // // Excitation current reference output (analog output)
+    // write_ao(outputs, AO_EXCITATION_CURRENT_REFERENCE_INDEX,
+    //     control->external_ios.get_excitation_current_reference().value(), 10.0f, 0.0f);
 }
 
 ARM_FUNCTION

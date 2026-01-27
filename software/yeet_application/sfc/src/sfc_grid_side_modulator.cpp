@@ -23,14 +23,14 @@ void sfc_grid_side_modulator::update(bool enable,
     bool request_extinguish_current) noexcept
 {
     // 0. Monotonicity Guard: prevent "backward" jumps from the PLL/Grid reference
-    _reference_angle_filter.update(reference_angle);
-    angle_wrapped monotonic_reference_angle = _reference_angle_filter.get_output();
+    // _reference_angle_filter.update(reference_angle);
+    angle_wrapped monotonic_reference_angle = reference_angle;  //_reference_angle_filter.get_output();
 
     // PRIORITY 1: Handle extinguish current request (highest priority - shutdown/trip)
     if (request_extinguish_current) {
         _current_state = grid_side_modulator_state_t::extinguishing_current;
         _current_firing_angle_rad = _force_commutation_angle_rad;  // Apply inverting angle
-        _force_commutation_acknowledged = false;
+        _force_commutation_acknowledged = is_current_zero;
         _main_pi_reset_requested = true;  // Assert PI reset during extinguish
         _release_pulses = true;           // Keep pulses active for controlled shutdown
 
@@ -106,7 +106,7 @@ sfc_grid_side_modulator::compute_forced_commutation_state_update(
                 state_update.new_state = grid_side_modulator_state_t::forced_commutation;
                 state_update.new_firing_angle = _force_commutation_angle_rad;
                 // Acknowledge immediately if DC link current is already zero
-                state_update.new_force_commutation_acknowledged = false;
+                state_update.new_force_commutation_acknowledged = is_current_zero;
                 state_update.new_main_pi_reset_requested = true;
             }
             else {
@@ -248,10 +248,10 @@ angle_t sfc_grid_side_modulator::get_virtual_reference_angle() const noexcept
     return _pulse_generator.get_virtual_reference_angle();
 }
 
-angle_t sfc_grid_side_modulator::get_monotonic_reference_angle() const noexcept
-{
-    return _reference_angle_filter.get_output();
-}
+// angle_t sfc_grid_side_modulator::get_monotonic_reference_angle() const noexcept
+// {
+//     return _reference_angle_filter.get_output();
+// }
 
 bool sfc_grid_side_modulator::is_virtual_reference_active() const noexcept
 {

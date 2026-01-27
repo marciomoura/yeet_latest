@@ -28,8 +28,8 @@ void sfc_machine_side_modulator::update(bool enable,
     angle_wrapped firing_angle_rad) noexcept
 {
     // 0. Monotonicity Guard: prevent "backward" observer jumps from affecting pulses
-    _rotor_position_filter.update(rotor_position_rad);
-    angle_wrapped monotonic_rotor_position = _rotor_position_filter.get_output();
+    // _rotor_position_filter.update(rotor_position_rad);
+    angle_wrapped monotonic_rotor_position = rotor_position_rad;  //_rotor_position_filter.get_output();
 
     // 1. Logic for firing angle and state handling
     if (!enable) {
@@ -154,10 +154,10 @@ int sfc_machine_side_modulator::get_current_rotor_sector() const noexcept
     return static_cast<int>(_pulse_generator.get_current_sector()) - 1;
 }
 
-angle_t sfc_machine_side_modulator::get_monotonic_rotor_position() const noexcept
-{
-    return _rotor_position_filter.get_output();
-}
+// angle_t sfc_machine_side_modulator::get_monotonic_rotor_position() const noexcept
+// {
+//     return _rotor_position_filter.get_output();
+// }
 
 angle_t sfc_machine_side_modulator::get_virtual_reference_angle() const noexcept
 {

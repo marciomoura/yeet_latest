@@ -170,6 +170,9 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // Bypass all IOs (for testing)
     control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
     control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override_value.write(false);
+
     // control->external_ios.get_parameters().di_mv_breaker_is_closed_override.write(true);
     // control->external_ios.get_parameters().di_mv_breaker_is_closed_override_value.write(true);
     // control->external_ios.get_parameters().di_external_fault_override.write(true);
@@ -189,8 +192,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // control->state_machine.get_parameters().mv_breaker_is_closed_override.write(true);
     // control->state_machine.get_parameters().mv_breaker_is_closed_override_value.write(true);
     // control->external_ios.get_parameters().di_emergency_off_override.write(true);
-    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
-    // control->external_ios.get_parameters().di_emergency_off_override_value.write(false);
     // control->external_ios.get_parameters().di_fans_are_running_override.write(true);
     // control->external_ios.get_parameters().di_fans_are_running_override_value.write(true);
     // control->state_machine.get_parameters().is_current_extinguished_override.write(true);
@@ -206,7 +207,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
 
     // Force natural commutation
     control->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(false);
-    control->operation_mode_monitor.get_parameters().force_to_forced_commutation.write(false);
+    control->operation_mode_monitor.get_parameters().force_to_forced_commutation.write(true);
     control->operation_mode_monitor.get_parameters().mode_handover_speed_pu.write(yeet::speed_pu_t{0.5f});
     control->operation_mode_monitor.get_parameters().mode_hysteresis_factor.write(yeet::speed_pu_t{0.1f});
 
@@ -374,15 +375,23 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
 
     // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
     // Map control system signals to DAC outputs for monitoring and testing
+    auto line_v = yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read());
+
     write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
-    write_ao(outputs, 1,
-        yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read()).ab().value(),
-        5.0f, 0.0f);
-    write_ao(outputs, 2,
-        yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc.read()).ab().value(),
-        5.0f, 0.0f);
-    write_ao(outputs, 3,
-        control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu().value(), 5.0f, 0.0f);
+    write_ao(outputs, 1, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
+    // write_ao(outputs, 1, line_v.ab().value(), 3.0f, 0.0f);
+    write_ao(outputs, 2, line_v.bc().value(), 4.0f, 0.0f);
+    write_ao(outputs, 3, line_v.ca().value(), 5.0f, 0.0f);
+    // write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
+    // write_ao(outputs, 1,
+    //     yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read()).ab().value(),
+    //     5.0f, 0.0f);
+    // write_ao(outputs, 2,
+    //     yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc.read()).ab().value(),
+    //     5.0f, 0.0f);
+    // write_ao(outputs, 3,
+    //     control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu().value(), 5.0f,
+    //     0.0f);
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.

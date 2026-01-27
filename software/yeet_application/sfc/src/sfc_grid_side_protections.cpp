@@ -98,15 +98,21 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
         return;
     }
 
+    // The reset pulse is triggered when the confirm_trips signal goes true (trip cleared and confirmed).
+    _is_confirm_trip_rising_edge_detector.update(confirm_trips);
+    const bool reset_trigger = _is_confirm_trip_rising_edge_detector.is_rising_edge();
+
     // Reset protections that are ready to be reset (condition cleared + no latched trip)
-    if (_overcurrent_protection.can_reset()) {
-        _overcurrent_protection.reset();
-    }
-    if (_overvoltage_protection.can_reset()) {
-        _overvoltage_protection.reset();
-    }
-    if (_undervoltage_protection.can_reset()) {
-        _undervoltage_protection.reset();
+    if (reset_trigger) {
+        if (_overcurrent_protection.can_reset()) {
+            _overcurrent_protection.reset();
+        }
+        if (_overvoltage_protection.can_reset()) {
+            _overvoltage_protection.reset();
+        }
+        if (_undervoltage_protection.can_reset()) {
+            _undervoltage_protection.reset();
+        }
     }
 
     const bool overcurrent_trip_raw = _overcurrent_protection.is_tripped();
@@ -142,7 +148,7 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
     _overvoltage_alarmed = overvoltage_alarm;
     _undervoltage_tripped = undervoltage_trip;
     _undervoltage_alarmed = undervoltage_alarm;
-    _undervoltage_detected = _undervoltage_protection.is_detected();
+    _undervoltage_detected = _undervoltage_is_trip && _undervoltage_protection.is_detected();
     _communication_loss_tripped = comm_loss_trip;
     _communication_loss_alarmed = comm_loss_alarm;
     _door_open_tripped = door_open_trip;
@@ -203,10 +209,6 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
     _has_active_alarm = any_alarm_active;
 
     _is_inhibited = _trip_handshake.get_is_inhibited();
-
-    // The reset pulse is triggered when the confirm_trips signal goes true (trip cleared and confirmed).
-    _is_confirm_trip_rising_edge_detector.update(confirm_trips);
-    const bool reset_trigger = _is_confirm_trip_rising_edge_detector.is_rising_edge();
 
     if (reset_trigger && !_emergency_off_edge_detected) {
         _emergency_off_edge_detected = true;
