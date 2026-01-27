@@ -93,6 +93,11 @@ public:
         machine_io_mock.initialize();
         grid_side_control.initialize();
         machine_side_control.initialize();
+
+        // By default, mock fans as running to satisfy state machine readiness checks
+        // throughout startup sequence simulations.
+        grid_io_mock.get_parameters().override_fans_are_running.write(true);
+        grid_io_mock.get_parameters().override_fans_are_running_value.write(true);
     }
 
     void register_applications(yeet::simulator& simulation)

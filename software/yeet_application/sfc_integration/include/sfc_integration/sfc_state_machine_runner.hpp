@@ -28,7 +28,8 @@ public:
                       return _inputs.emergency_off.read() || _inputs.external_fault.read() ||
                              _inputs.machine_side_protection_tripped.read();
                   }),
-              sfc::sfc_state_event("auxiliaries_are_on", [this]() { return _outputs.auxiliaries_are_on.read(); }),
+              sfc::sfc_state_event("auxiliaries_are_on",
+                  [this]() { return _outputs.auxiliaries_are_on.read() && _outputs.fans_are_running.read(); }),
               sfc::sfc_state_event("mcb_is_closed", [this]() { return _outputs.mv_breaker_is_closed.read(); }),
               sfc::sfc_state_event(
                   "is_current_extinguished", [this]() { return _outputs.is_current_extinguished.read(); }),

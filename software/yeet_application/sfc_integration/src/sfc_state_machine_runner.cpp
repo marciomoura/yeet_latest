@@ -24,7 +24,11 @@ void sfc_state_machine_runner::run()
     // These are read by the state machine event lambdas during update()
     _outputs.auxiliaries_are_on = _parameters.auxiliaries_are_on_override.read()
                                       ? _parameters.auxiliaries_are_on_override_value.read()
-                                      : _inputs.auxiliaries_are_on.read();  // || fans_are_running
+                                      : _inputs.auxiliaries_are_on.read();
+
+    _outputs.fans_are_running = _parameters.fans_are_running_override.read()
+                                    ? _parameters.fans_are_running_override_value.read()
+                                    : _inputs.fans_are_running.read();
 
     _outputs.mv_breaker_is_closed = _parameters.mv_breaker_is_closed_override.read()
                                         ? _parameters.mv_breaker_is_closed_override_value.read()
