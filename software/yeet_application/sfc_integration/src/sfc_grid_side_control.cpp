@@ -188,7 +188,7 @@ void sfc_grid_side_control::connect_internal_signals()
 
     // ==================== Grid Protections Inputs ====================
     wire(grid_protections)
-        .from(dc_link_measurements.get_outputs().dc_current_pu)
+        .from(dc_link_measurements.get_outputs().dc_current_filtered_pu)
         .to(&protections_inputs::dc_link_current_pu)
         .from(grid_side_observer.get_outputs().estimated_voltage_magnitude)
         .to(&protections_inputs::grid_voltage_magnitude_pu)
