@@ -108,6 +108,10 @@ public:
         /// Time required to establish the magnetic field before releasing excitation
         parameter<duration_t> prefluxing_duration = duration_t{2.0};
 
+        /// Force release excitation command (for commissioning/testing)
+        /// When true, the excitation controller is enabled regardless of external release command
+        parameter<bool> force_release_excitation = false;
+
         /// Enable override for field current reference output
         /// When true, field_current_reference_override_value is used instead of controller output
         parameter<bool> field_current_reference_override = false;
@@ -177,6 +181,8 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->field_current_reference_override));
         handler.register_parameter(component_name, "field_current_reference_override_value",
             yeet::utils::make_units_accessor(_model_parameters->field_current_reference_override_value));
+        handler.register_parameter(component_name, "force_release_excitation",
+            yeet::utils::make_bool_accessor(_model_parameters->force_release_excitation));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -9,6 +9,7 @@
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/adc_value.hpp"
+#include "yeet_control/boolean_debouncer.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 
@@ -614,6 +615,16 @@ private:
     fiber_optics_outputs_to_machine_t _fiber_optics_outputs_to_machine;
     fiber_optics_inputs_from_machine_t _fiber_optics_inputs_from_machine;
     digital_outputs_t _digital_outputs;
+
+    yeet::control::boolean_debouncer _di_auxiliaries_are_on_debouncer;
+    yeet::control::boolean_debouncer _di_mv_breaker_is_closed_debouncer;
+    yeet::control::boolean_debouncer _di_start_command_debouncer;
+    yeet::control::boolean_debouncer _di_stop_command_debouncer;
+    yeet::control::boolean_debouncer _di_mv_breaker_is_tripping_debouncer;
+    yeet::control::boolean_debouncer _di_emergency_off_debouncer;
+    yeet::control::boolean_debouncer _di_door_is_open_debouncer;
+    yeet::control::boolean_debouncer _di_external_fault_debouncer;
+    yeet::control::boolean_debouncer _di_fans_are_running_debouncer;
 };
 
 }  // namespace yeet::application::sfc::integration

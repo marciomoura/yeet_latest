@@ -12,6 +12,7 @@ target_sources(
     PRIVATE adc_value_test.cpp
             adc_mock_test.cpp
             angle_test.cpp
+            boolean_debouncer_test.cpp
             derivative_test.cpp
             dual_sogi_srf_pll_test.cpp
             edge_detector_test.cpp

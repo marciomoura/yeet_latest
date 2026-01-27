@@ -5,7 +5,41 @@
 
 namespace yeet::application::sfc::integration {
 
-sfc_grid_side_external_ios_datamodel::sfc_grid_side_external_ios_datamodel() { register_callbacks(); }
+sfc_grid_side_external_ios_datamodel::sfc_grid_side_external_ios_datamodel()
+{
+    register_callbacks();
+
+    // Configure debouncers with default 10ms delay and 1ms sampling time
+    const real_t sampling_time = 0.001f;
+    const real_t debounce_time = 0.010f;
+
+    _di_auxiliaries_are_on_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_auxiliaries_are_on_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_mv_breaker_is_closed_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_mv_breaker_is_closed_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_start_command_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_start_command_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_stop_command_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_stop_command_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_mv_breaker_is_tripping_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_mv_breaker_is_tripping_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_emergency_off_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_emergency_off_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_door_is_open_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_door_is_open_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_external_fault_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_external_fault_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_fans_are_running_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_fans_are_running_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+}
 
 void sfc_grid_side_external_ios_datamodel::set_analog_inputs(yeet::control::adc_counts v_ab_counts,
     yeet::control::adc_counts v_bc_counts,
@@ -74,47 +108,61 @@ void sfc_grid_side_external_ios_datamodel::apply_digital_input_overrides(bool au
         return (polarity == io_polarity_t::ACTIVE_LOW) ? !signal : signal;
     };
 
-    // Apply override or pass-through for each signal individually, with polarity inversion
-    bool aux_on = apply_polarity(auxiliaries_are_on, _parameters.di_auxiliaries_are_on_polarity.read());
+    // Apply override or pass-through for each signal individually, with polarity inversion and debouncing
+    bool aux_on_raw = apply_polarity(auxiliaries_are_on, _parameters.di_auxiliaries_are_on_polarity.read());
+    _di_auxiliaries_are_on_debouncer.update(aux_on_raw);
     _digital_inputs.auxiliaries_are_on.write(_parameters.di_auxiliaries_are_on_override.read()
                                                  ? _parameters.di_auxiliaries_are_on_override_value.read()
-                                                 : aux_on);
+                                                 : _di_auxiliaries_are_on_debouncer.get_output());
 
-    bool breaker_closed = apply_polarity(mv_breaker_is_closed, _parameters.di_mv_breaker_is_closed_polarity.read());
+    bool breaker_closed_raw = apply_polarity(mv_breaker_is_closed, _parameters.di_mv_breaker_is_closed_polarity.read());
+    _di_mv_breaker_is_closed_debouncer.update(breaker_closed_raw);
     _digital_inputs.mv_breaker_is_closed.write(_parameters.di_mv_breaker_is_closed_override.read()
                                                    ? _parameters.di_mv_breaker_is_closed_override_value.read()
-                                                   : breaker_closed);
+                                                   : _di_mv_breaker_is_closed_debouncer.get_output());
 
-    bool start_cmd = apply_polarity(start_command, _parameters.di_start_command_polarity.read());
-    _digital_inputs.start_command.write(
-        _parameters.di_start_command_override.read() ? _parameters.di_start_command_override_value.read() : start_cmd);
+    bool start_cmd_raw = apply_polarity(start_command, _parameters.di_start_command_polarity.read());
+    _di_start_command_debouncer.update(start_cmd_raw);
+    _digital_inputs.start_command.write(_parameters.di_start_command_override.read()
+                                            ? _parameters.di_start_command_override_value.read()
+                                            : _di_start_command_debouncer.get_output());
 
-    bool stop_cmd = apply_polarity(stop_command, _parameters.di_stop_command_polarity.read());
-    _digital_inputs.stop_command.write(
-        _parameters.di_stop_command_override.read() ? _parameters.di_stop_command_override_value.read() : stop_cmd);
+    bool stop_cmd_raw = apply_polarity(stop_command, _parameters.di_stop_command_polarity.read());
+    _di_stop_command_debouncer.update(stop_cmd_raw);
+    _digital_inputs.stop_command.write(_parameters.di_stop_command_override.read()
+                                           ? _parameters.di_stop_command_override_value.read()
+                                           : _di_stop_command_debouncer.get_output());
 
-    bool breaker_trip = apply_polarity(mv_breaker_is_tripping, _parameters.di_mv_breaker_is_tripping_polarity.read());
+    bool breaker_trip_raw =
+        apply_polarity(mv_breaker_is_tripping, _parameters.di_mv_breaker_is_tripping_polarity.read());
+    _di_mv_breaker_is_tripping_debouncer.update(breaker_trip_raw);
     _digital_inputs.mv_breaker_is_tripping.write(_parameters.di_mv_breaker_is_tripping_override.read()
                                                      ? _parameters.di_mv_breaker_is_tripping_override_value.read()
-                                                     : breaker_trip);
+                                                     : _di_mv_breaker_is_tripping_debouncer.get_output());
 
-    bool emerg_off = apply_polarity(emergency_off, _parameters.di_emergency_off_polarity.read());
-    _digital_inputs.emergency_off.write(
-        _parameters.di_emergency_off_override.read() ? _parameters.di_emergency_off_override_value.read() : emerg_off);
+    bool emerg_off_raw = apply_polarity(emergency_off, _parameters.di_emergency_off_polarity.read());
+    _di_emergency_off_debouncer.update(emerg_off_raw);
+    _digital_inputs.emergency_off.write(_parameters.di_emergency_off_override.read()
+                                            ? _parameters.di_emergency_off_override_value.read()
+                                            : _di_emergency_off_debouncer.get_output());
 
-    bool door_open = apply_polarity(door_is_open, _parameters.di_door_is_open_polarity.read());
-    _digital_inputs.door_is_open.write(
-        _parameters.di_door_is_open_override.read() ? _parameters.di_door_is_open_override_value.read() : door_open);
+    bool door_open_raw = apply_polarity(door_is_open, _parameters.di_door_is_open_polarity.read());
+    _di_door_is_open_debouncer.update(door_open_raw);
+    _digital_inputs.door_is_open.write(_parameters.di_door_is_open_override.read()
+                                           ? _parameters.di_door_is_open_override_value.read()
+                                           : _di_door_is_open_debouncer.get_output());
 
-    bool ext_fault = apply_polarity(external_fault, _parameters.di_external_fault_polarity.read());
+    bool ext_fault_raw = apply_polarity(external_fault, _parameters.di_external_fault_polarity.read());
+    _di_external_fault_debouncer.update(ext_fault_raw);
     _digital_inputs.external_fault.write(_parameters.di_external_fault_override.read()
                                              ? _parameters.di_external_fault_override_value.read()
-                                             : ext_fault);
+                                             : _di_external_fault_debouncer.get_output());
 
-    bool fans_running = apply_polarity(fans_are_running, _parameters.di_fans_are_running_polarity.read());
+    bool fans_running_raw = apply_polarity(fans_are_running, _parameters.di_fans_are_running_polarity.read());
+    _di_fans_are_running_debouncer.update(fans_running_raw);
     _digital_inputs.fans_are_running.write(_parameters.di_fans_are_running_override.read()
                                                ? _parameters.di_fans_are_running_override_value.read()
-                                               : fans_running);
+                                               : _di_fans_are_running_debouncer.get_output());
 }
 
 void sfc_grid_side_external_ios_datamodel::register_callbacks()

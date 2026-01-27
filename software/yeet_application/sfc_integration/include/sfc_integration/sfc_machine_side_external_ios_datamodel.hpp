@@ -41,6 +41,7 @@
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/adc_value.hpp"
+#include "yeet_control/boolean_debouncer.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -556,6 +557,10 @@ private:
     excitation_outputs_t _excitation_outputs;
     excitation_inputs_t _excitation_inputs;
     thyristor_control_output_t _thyristor_output;
+
+    yeet::control::boolean_debouncer _di_excitation_status_debouncer;
+    yeet::control::boolean_debouncer _di_external_fault_debouncer;
+    yeet::control::boolean_debouncer _di_start_command_debouncer;
 };
 
 }  // namespace yeet::application::sfc::integration
