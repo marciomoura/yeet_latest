@@ -150,6 +150,16 @@ public:
     [[nodiscard]] bool is_tripped() const noexcept { return _is_tripped; }
 
     /**
+     * @brief Gets the active trip status (non-latched).
+     *
+     * Returns true if the fault condition is currently present and the trip delay has elapsed.
+     * This status clears automatically when the fault condition is removed.
+     *
+     * @return True if trip condition is currently active
+     */
+    [[nodiscard]] bool is_active() const noexcept { return _trip_timer.get_output(); }
+
+    /**
      * @brief Gets the non-latched warning status.
      *
      * @return True if measured value currently exceeds warning threshold

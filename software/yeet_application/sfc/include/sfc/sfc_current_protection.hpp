@@ -91,6 +91,13 @@ public:
     [[nodiscard]] bool is_tripped() const noexcept;
 
     /**
+     * @brief Gets the active trip status (non-latched).
+     *
+     * @return True if fault condition is currently active and delay elapsed
+     */
+    [[nodiscard]] bool is_active() const noexcept;
+
+    /**
      * @brief Gets the non-latched warning status.
      *
      * @return True if current currently exceeds warning threshold

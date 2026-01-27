@@ -91,6 +91,8 @@ void sfc_undervoltage_protection::reset()
 
 bool sfc_undervoltage_protection::is_tripped() const noexcept { return _is_tripped; }
 
+bool sfc_undervoltage_protection::is_active() const noexcept { return _trip_timer.get_output(); }
+
 bool sfc_undervoltage_protection::is_detected() const noexcept { return _recovery_timer.get_output(); }
 
 bool sfc_undervoltage_protection::is_warning() const noexcept { return _warning_timer.get_output(); }

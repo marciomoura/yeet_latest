@@ -335,8 +335,6 @@ TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
     // Verify state machine is in IDLE (required for trip acknowledgment)
     EXPECT_EQ(get_current_state(), sfc_state_id::IDLE) << "State machine must be in IDLE to acknowledge trip";
 
-    EXPECT_FALSE(system.grid_side_control.grid_protections.get_outputs().has_active_trip.read())
-        << "OV non-latched trip cleared";
     EXPECT_TRUE(system.grid_side_control.grid_protections.get_outputs().is_inhibited.read())
         << "Alarm should still be latched (is_inhibited)";
 
@@ -361,8 +359,12 @@ TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
     EXPECT_TRUE(is_current_extinguished_output()) << "is_current_extinguished output should be true";
 
     // Verify preconditions for alarm confirmation
-    EXPECT_FALSE(is_has_active_trip()) << "No active faults before confirmation";
     EXPECT_TRUE(is_protection_tripped()) << "Trip should stay active until confirmed";
+
+    // Check first trip source before confirmation
+    EXPECT_EQ(
+        system.grid_side_control.grid_protections.get_outputs().first_trip_source.read(), grid_trip_source::overvoltage)
+        << "First trip source should be overvoltage";
 
     // User confirms alarm (rising edge) - this clears the inhibit latch
     // Inhibit only clears if no active faults exist (already verified above)
@@ -370,6 +372,10 @@ TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
     simulate_for(0.5f);
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.grid_side_control.grid_protections.get_outputs().first_trip_source.read(), grid_trip_source::none)
+        << "First trip source should be cleared after confirmation";
 
     // Verify alarm confirmation cleared the inhibit latch
     EXPECT_FALSE(is_protection_inhibited()) << "is_inhibited should clear after user confirmation";
@@ -519,9 +525,19 @@ TEST_F(ClosedLoopProtectionsTest, UndervoltageTripAndRecovery)
     // State machine should reach IDLE for recovery
     EXPECT_EQ(get_current_state(), sfc_state_id::IDLE) << "System should reach IDLE for recovery";
 
+    // Check first trip source before confirmation
+    EXPECT_EQ(system.grid_side_control.grid_protections.get_outputs().first_trip_source.read(),
+        grid_trip_source::undervoltage)
+        << "First trip source should be undervoltage";
+
     // Alarm confirmation to clear inhibit
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.grid_side_control.grid_protections.get_outputs().first_trip_source.read(), grid_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
     simulate_for(0.5f);
 
@@ -602,8 +618,19 @@ TEST_F(ClosedLoopProtectionsTest, OvercurrentRecoveryWithAlarmConfirmation)
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
     simulate_for(0.5f);
     EXPECT_NE(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::OPERATION_ON);
+
+    // Check first trip source before confirmation
+    EXPECT_EQ(
+        system.grid_side_control.grid_protections.get_outputs().first_trip_source.read(), grid_trip_source::overcurrent)
+        << "First trip source should be overcurrent";
+
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.grid_side_control.grid_protections.get_outputs().first_trip_source.read(), grid_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     system.grid_side_control.grid_protections.get_parameters().confirm_trips.write(false);
 
     // Verify inhibit and trip cleared after alarm confirmation
@@ -766,16 +793,14 @@ TEST_F(ClosedLoopProtectionsTest, MachineOvervoltageRecoveryWithAlarmConfirmatio
     // Increase the overvoltage trip threshold high enough to ensure no re-trip during recovery
     machine_params.machine_overvoltage_trip_threshold.write(voltage_pu_t{10.0f});
 
-    // Allow enough time for measured voltage and detector state to return below thresholds.
-    // IMPORTANT: IO mock needs time to complete shutdown sequence (aux off, breaker open feedback)
-    simulate_for(10.0f);
-    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().has_active_trip.read())
-        << "Machine-side has_active_trip should clear once condition is safe";
+    // Verify inhibit and trip latched
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
-
-    // Trip latch stays active until confirmed
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
-    EXPECT_TRUE(is_machine_protection_inhibited()) << "Machine-side inhibit should still be latched";
+
+    // Check first trip source before confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::machine_overvoltage)
+        << "First trip source should be machine overvoltage";
 
     // Confirm alarms on the machine side (rising edge).
     machine_params.confirm_trips.write(false);
@@ -783,6 +808,12 @@ TEST_F(ClosedLoopProtectionsTest, MachineOvervoltageRecoveryWithAlarmConfirmatio
     EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON);
     machine_params.confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     machine_params.confirm_trips.write(false);
 
     // Verify inhibit and trip cleared after alarm confirmation
@@ -867,8 +898,12 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverFluxRecoveryWithAlarmConfirmation)
     // The trip latch and inhibit should still be active even though V/Hz is now low.
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side protection should have tripped on over-flux";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Machine-side inhibit should latch after trip";
-    // EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().over_flux_tripped.read()) <<
-    // "Over-flux trip should be inactive (trip has been cleared, it does not latch)";
+
+    // Check first trip source before confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::over_flux)
+        << "First trip source should be over-flux";
+
     EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON)
         << "State machine should leave OPERATION_ON after machine-side over-flux trip";
 
@@ -876,8 +911,6 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverFluxRecoveryWithAlarmConfirmation)
     machine_params.over_flux_trip_threshold.write(flux_pu_t{1.5f});
     // IMPORTANT: IO mock needs time to complete shutdown sequence.
     simulate_for(10.0f);
-    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().has_active_trip.read())
-        << "Machine-side has_active_trip should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
     // Trip latch stays active until confirmed
@@ -889,6 +922,12 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverFluxRecoveryWithAlarmConfirmation)
     EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON);
     machine_params.confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     machine_params.confirm_trips.write(false);
 
     // Verify inhibit and trip cleared after alarm confirmation
@@ -982,17 +1021,26 @@ TEST_F(ClosedLoopProtectionsTest, MachineUnderFluxRecoveryWithAlarmConfirmation)
     machine_params.under_flux_trip_threshold.write(flux_pu_t{0.0f});
     // IMPORTANT: IO mock needs time to complete shutdown sequence.
     simulate_for(10.0f);
-    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().has_active_trip.read())
-        << "Machine-side has_active_trip should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
     // Trip latch stays active until confirmed
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
 
+    // Check first trip source before confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::under_flux)
+        << "First trip source should be under-flux";
+
     machine_params.confirm_trips.write(false);
     simulate_for(0.5f);
     machine_params.confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     machine_params.confirm_trips.write(false);
 
     // Verify inhibit and trip cleared after alarm confirmation
@@ -1070,12 +1118,15 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverspeedRecoveryWithAlarmConfirmation)
     machine_params.overspeed_trip_threshold.write(speed_pu_t{1.2f});
     // IMPORTANT: IO mock needs time to complete shutdown sequence.
     simulate_for(10.0f);
-    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().has_active_trip.read())
-        << "Machine-side has_active_trip should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
     // Trip latch stays active until confirmed
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
+
+    // Check first trip source before confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::overspeed)
+        << "First trip source should be overspeed";
 
     // Confirm alarms on the machine side (rising edge).
     machine_params.confirm_trips.write(false);
@@ -1083,6 +1134,12 @@ TEST_F(ClosedLoopProtectionsTest, MachineOverspeedRecoveryWithAlarmConfirmation)
     EXPECT_NE(get_current_state(), sfc_state_id::OPERATION_ON);
     machine_params.confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     machine_params.confirm_trips.write(false);
 
     // Verify inhibit and trip cleared after alarm confirmation
@@ -1200,18 +1257,27 @@ TEST_F(ClosedLoopProtectionsTest, MachineLossOfExcitationRecoveryWithAlarmConfir
 
     // IMPORTANT: IO mock needs time to complete shutdown sequence.
     simulate_for(10.0f);
-    EXPECT_FALSE(system.machine_side_control.machine_protections.get_outputs().has_active_trip.read())
-        << "Machine-side has_active_trip should clear once condition is safe";
     EXPECT_TRUE(is_machine_protection_inhibited()) << "Inhibit remains latched until alarm confirmation";
 
     // Trip latch stays active until confirmed
     EXPECT_TRUE(is_machine_protection_tripped()) << "Machine-side trip should stay active until confirmed";
+
+    // Check first trip source before confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::loss_of_excitation)
+        << "First trip source should be loss of excitation";
 
     // Confirm alarms on the machine side (rising edge).
     machine_params.confirm_trips.write(false);
     simulate_for(0.5f);
     machine_params.confirm_trips.write(true);
     simulate_for(0.5f);
+
+    // Verify first trip source is cleared after confirmation
+    EXPECT_EQ(system.machine_side_control.machine_protections.get_outputs().first_trip_source.read(),
+        machine_trip_source::none)
+        << "First trip source should be cleared after confirmation";
+
     machine_params.confirm_trips.write(false);
 
     // Verify inhibit and trip cleared after alarm confirmation

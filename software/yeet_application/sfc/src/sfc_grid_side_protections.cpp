@@ -11,6 +11,15 @@ sfc_grid_side_protections::sfc_grid_side_protections(duration_t sampling_time) n
       _emergency_on_off_reset_timer((double)sampling_time.value())
 {
     _emergency_on_off_reset_timer.configure(1.0f, 1.0f);
+
+    // Initialize protections with safe thresholds to prevent spurious trips
+    // before the application parameters are loaded.
+    _overcurrent_protection.configure_trip_threshold(current_pu_t{10.0f});
+    _overvoltage_protection.configure_trip_threshold(voltage_pu_t{10.0f});
+    _undervoltage_protection.configure_trip_threshold(voltage_pu_t{0.0f});
+    _overcurrent_protection.configure_trip_delay(duration_t{0.0});
+    _overvoltage_protection.configure_trip_delay(duration_t{0.0});
+    _undervoltage_protection.configure_trip_delay(duration_t{0.0});
 }
 
 void sfc_grid_side_protections::reset() noexcept
@@ -113,34 +122,37 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
         if (_undervoltage_protection.can_reset()) {
             _undervoltage_protection.reset();
         }
+
+        // Clear the recorded first trip source on user confirmation
+        _first_trip_source = grid_trip_source::none;
     }
 
-    const bool overcurrent_trip_raw = _overcurrent_protection.is_tripped();
-    const bool overvoltage_trip_raw = _overvoltage_protection.is_tripped();
-    const bool undervoltage_trip_raw = _undervoltage_protection.is_tripped();
-    const bool comm_loss_trip_raw = _communication_watchdog.is_tripped();
-    const bool door_open_raw = door_is_open;
-    const bool external_fault_raw = _external_fault_active;
-    const bool emergency_off_raw = _emergency_off_active;
-    const bool machine_protection_raw = _machine_protection_tripped_active;
+    const bool overcurrent_active = _overcurrent_is_trip && _overcurrent_protection.is_active();
+    const bool overvoltage_active = _overvoltage_is_trip && _overvoltage_protection.is_active();
+    const bool undervoltage_active = _undervoltage_is_trip && _undervoltage_protection.is_active();
+    const bool comm_loss_active = _comm_loss_is_trip && _communication_watchdog.is_active();
+    const bool door_open_active = _door_open_is_trip && door_is_open;
+    const bool external_fault_active = _external_fault_is_trip && _external_fault_active;
+    const bool emergency_off_active = _emergency_off_is_trip && _emergency_off_active;
+    const bool machine_protection_active = _machine_protection_is_trip && _machine_protection_tripped_active;
 
-    const bool overcurrent_trip = _overcurrent_is_trip && overcurrent_trip_raw;
-    const bool overvoltage_trip = _overvoltage_is_trip && overvoltage_trip_raw;
-    const bool undervoltage_trip = _undervoltage_is_trip && undervoltage_trip_raw;
-    const bool comm_loss_trip = _comm_loss_is_trip && comm_loss_trip_raw;
-    const bool door_open_trip = _door_open_is_trip && door_open_raw;
-    const bool external_fault_trip = _external_fault_is_trip && external_fault_raw;
-    const bool emergency_off_trip = _emergency_off_is_trip && emergency_off_raw;
-    const bool machine_protection_trip = _machine_protection_is_trip && machine_protection_raw;
+    const bool overcurrent_trip = _overcurrent_is_trip && _overcurrent_protection.is_tripped();
+    const bool overvoltage_trip = _overvoltage_is_trip && _overvoltage_protection.is_tripped();
+    const bool undervoltage_trip = _undervoltage_is_trip && _undervoltage_protection.is_tripped();
+    const bool comm_loss_trip = _comm_loss_is_trip && _communication_watchdog.is_tripped();
+    const bool door_open_trip = _door_open_is_trip && door_is_open;
+    const bool external_fault_trip = _external_fault_is_trip && _external_fault_active;
+    const bool emergency_off_trip = _emergency_off_is_trip && _emergency_off_active;
+    const bool machine_protection_trip = _machine_protection_is_trip && _machine_protection_tripped_active;
 
-    const bool overcurrent_alarm = (!_overcurrent_is_trip) && overcurrent_trip_raw;
-    const bool overvoltage_alarm = (!_overvoltage_is_trip) && overvoltage_trip_raw;
-    const bool undervoltage_alarm = (!_undervoltage_is_trip) && undervoltage_trip_raw;
-    const bool comm_loss_alarm = (!_comm_loss_is_trip) && comm_loss_trip_raw;
-    const bool door_open_alarm = (!_door_open_is_trip) && door_open_raw;
-    const bool external_fault_alarm = (!_external_fault_is_trip) && external_fault_raw;
-    const bool emergency_off_alarm = (!_emergency_off_is_trip) && emergency_off_raw;
-    const bool machine_protection_alarm = (!_machine_protection_is_trip) && machine_protection_raw;
+    const bool overcurrent_alarm = (!_overcurrent_is_trip) && _overcurrent_protection.is_active();
+    const bool overvoltage_alarm = (!_overvoltage_is_trip) && _overvoltage_protection.is_active();
+    const bool undervoltage_alarm = (!_undervoltage_is_trip) && _undervoltage_protection.is_active();
+    const bool comm_loss_alarm = (!_comm_loss_is_trip) && _communication_watchdog.is_active();
+    const bool door_open_alarm = (!_door_open_is_trip) && door_is_open;
+    const bool external_fault_alarm = (!_external_fault_is_trip) && _external_fault_active;
+    const bool emergency_off_alarm = (!_emergency_off_is_trip) && _emergency_off_active;
+    const bool machine_protection_alarm = (!_machine_protection_is_trip) && _machine_protection_tripped_active;
 
     _overcurrent_tripped = overcurrent_trip;
     _overcurrent_alarmed = overcurrent_alarm;
@@ -164,6 +176,10 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
     _overvoltage_warning = _overvoltage_protection.is_warning();
     _undervoltage_warning = _undervoltage_protection.is_warning();
     _communication_loss_warning = _communication_watchdog.is_warning();
+
+    const bool any_protection_active = overcurrent_active || overvoltage_active || undervoltage_active ||
+                                       comm_loss_active || door_open_active || external_fault_active ||
+                                       emergency_off_active || machine_protection_active;
 
     const bool any_protection_tripped = overcurrent_trip || overvoltage_trip || undervoltage_trip || comm_loss_trip ||
                                         door_open_trip || external_fault_trip || emergency_off_trip ||
@@ -201,11 +217,11 @@ void sfc_grid_side_protections::resolve_protections(bool door_is_open, bool modu
                                   door_open_alarm || external_fault_alarm || emergency_off_alarm ||
                                   machine_protection_alarm;
 
-    // Update the handshake with current trip state
-    _trip_handshake.update(any_protection_tripped, confirm_trips);
+    // Update the handshake with active fault state (reflects real-time presence of fault)
+    _trip_handshake.update(any_protection_active, confirm_trips);
 
     // has_active_trip reflects real-time state (clears automatically when fault clears)
-    _has_active_trip = any_protection_tripped;
+    _has_active_trip = any_protection_active;
     _has_active_alarm = any_alarm_active;
 
     _is_inhibited = _trip_handshake.get_is_inhibited();

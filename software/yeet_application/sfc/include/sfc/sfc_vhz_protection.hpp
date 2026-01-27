@@ -142,13 +142,17 @@ public:
      * @return True if over-flux protection has tripped and remains latched
      */
     [[nodiscard]] bool is_over_flux_tripped() const noexcept;
+    [[nodiscard]] bool is_under_flux_tripped() const noexcept;
 
     /**
-     * @brief Gets the under-flux trip status.
-     *
-     * @return True if under-flux protection has tripped and remains latched
+     * @brief Gets the active over-flux status (non-latched).
      */
-    [[nodiscard]] bool is_under_flux_tripped() const noexcept;
+    [[nodiscard]] bool is_over_flux_active() const noexcept;
+
+    /**
+     * @brief Gets the active under-flux status (non-latched).
+     */
+    [[nodiscard]] bool is_under_flux_active() const noexcept;
 
     /**
      * @brief Gets combined trip status (either over-flux or under-flux).

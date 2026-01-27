@@ -101,6 +101,13 @@ public:
     [[nodiscard]] bool is_tripped() const noexcept;
 
     /**
+     * @brief Gets the active trip status (non-latched).
+     *
+     * @return True if fault condition is currently active and delay elapsed
+     */
+    [[nodiscard]] bool is_active() const noexcept;
+
+    /**
      * @brief Gets the "dip detected" status (for end-position logic).
      *
      * This is non-latched but includes the recovery delay.

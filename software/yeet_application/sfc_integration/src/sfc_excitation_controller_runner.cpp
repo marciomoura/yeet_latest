@@ -21,9 +21,6 @@ void sfc_excitation_controller_runner::run()
     // Update the excitation controller with enable command from startup sequencer (or force parameter)
     const bool enable_excitation_command =
         _inputs.release_excitation.read() || _parameters.force_release_excitation.read();
-
-    // Update the excitation controller with enable command from startup sequencer
-    const bool enable_excitation_command = _inputs.release_excitation.read();
     const auto machine_speed_pu = _inputs.machine_rotor_speed_pu.read();
     const auto machine_voltage_magnitude_pu = _inputs.machine_voltage_magnitude_pu.read();
     _sfc_excitation_controller.update(machine_speed_pu, machine_voltage_magnitude_pu, enable_excitation_command);

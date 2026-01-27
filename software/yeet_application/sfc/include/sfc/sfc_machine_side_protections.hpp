@@ -158,6 +158,7 @@ private:
         _loss_of_excitation_protection;
 
     sfc_protections_trip_handshake _trip_handshake;
+    yeet::control::edge_detector _is_confirm_trip_rising_edge_detector;
 
     bool _external_fault_active{false};
     yeet::control::on_delay _external_fault_delay;

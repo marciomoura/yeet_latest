@@ -206,6 +206,13 @@ public:
     [[nodiscard]] bool is_tripped() const noexcept;
 
     /**
+     * @brief Check if communication timeout is currently active (non-latched)
+     *
+     * In the watchdog, this is equivalent to is_tripped() as it clears automatically.
+     */
+    [[nodiscard]] bool is_active() const noexcept { return is_tripped(); }
+
+    /**
      * @brief Check if communication is in warning state
      *
      * Warning state is defined as: invalid counter > (timeout_threshold / 2)

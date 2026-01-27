@@ -110,31 +110,31 @@ public:
         parameter<frequency_pu_t> virtual_frequency_initial = frequency_pu_t{0.0};
 
         /// Final virtual frequency [pu]
-        parameter<frequency_pu_t> virtual_frequency_final = frequency_pu_t{0.2};
+        parameter<frequency_pu_t> virtual_frequency_final = frequency_pu_t{0.1};
 
         /// Virtual frequency ramp duration [s], 0 = skip virtual phase
-        parameter<duration_t> virtual_frequency_duration = duration_t{10.0};
+        parameter<duration_t> virtual_frequency_duration = duration_t{4.0};
 
         /// Initial virtual torque reference [pu]
-        parameter<torque_pu_t> virtual_torque_initial = torque_pu_t{0.3};
+        parameter<torque_pu_t> virtual_torque_initial = torque_pu_t{0.0};
 
         /// Final virtual torque reference [pu]
         parameter<torque_pu_t> virtual_torque_final = torque_pu_t{0.3};
 
         /// Virtual torque ramp duration [s], 0 = immediate jump to final
-        parameter<duration_t> virtual_torque_duration = duration_t{0.0};
+        parameter<duration_t> virtual_torque_duration = duration_t{1.0};
 
         /// Enable damping based on observer speed feedback during virtual mode
         parameter<bool> virtual_torque_damping_enabled = false;
 
         /// Proportional gain for virtual torque damping (pu_torque / pu_speed_error)
-        parameter<real_t> virtual_torque_damping_kp = real_t{0.0};
+        parameter<real_t> virtual_torque_damping_kp = real_t{1.0};
 
         /// Integral time constant for virtual torque damping [s]
-        parameter<real_t> virtual_torque_damping_ti = real_t{0.0};
+        parameter<real_t> virtual_torque_damping_ti = real_t{0.5};
 
         /// Speed threshold above which damping is active [pu]
-        parameter<speed_pu_t> virtual_torque_damping_activation_speed = speed_pu_t{0.05};
+        parameter<speed_pu_t> virtual_torque_damping_activation_speed = speed_pu_t{0.01};
 
         /// Skip flux build-up phase (useful for tests without excitation)
         parameter<bool> skip_flux_buildup = false;
@@ -146,7 +146,7 @@ public:
         parameter<bool> field_established_override_value = false;
 
         /// External speed reference command [pu]
-        parameter<speed_pu_t> speed_reference = speed_pu_t{0.0};
+        parameter<speed_pu_t> speed_reference = speed_pu_t{1.0};
 
         /// Speed reference rate limit in seconds per per-unit speed change
         /// (e.g., 10.0 means 10 seconds to ramp from 0 to 1.0 pu = 0.1 pu/s)

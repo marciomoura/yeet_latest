@@ -189,76 +189,82 @@ void sfc_machine_side_protections_runner::set_parameter_callback()
 {
     // Register callbacks for V/Hz protection parameters
     _parameters.over_flux_trip_threshold.register_callback(
-        [&]() { _protections.configure_over_flux_trip_threshold(_parameters.over_flux_trip_threshold); });
+        [&]() { _protections.configure_over_flux_trip_threshold(_parameters.over_flux_trip_threshold.read()); });
     _parameters.over_flux_warning_threshold.register_callback(
-        [&]() { _protections.configure_over_flux_warning_threshold(_parameters.over_flux_warning_threshold); });
+        [&]() { _protections.configure_over_flux_warning_threshold(_parameters.over_flux_warning_threshold.read()); });
     _parameters.over_flux_trip_delay.register_callback(
-        [&]() { _protections.configure_over_flux_trip_delay(_parameters.over_flux_trip_delay); });
+        [&]() { _protections.configure_over_flux_trip_delay(_parameters.over_flux_trip_delay.read()); });
     _parameters.over_flux_warning_delay.register_callback(
-        [&]() { _protections.configure_over_flux_warning_delay(_parameters.over_flux_warning_delay); });
+        [&]() { _protections.configure_over_flux_warning_delay(_parameters.over_flux_warning_delay.read()); });
     _parameters.under_flux_trip_threshold.register_callback(
-        [&]() { _protections.configure_under_flux_trip_threshold(_parameters.under_flux_trip_threshold); });
-    _parameters.under_flux_warning_threshold.register_callback(
-        [&]() { _protections.configure_under_flux_warning_threshold(_parameters.under_flux_warning_threshold); });
+        [&]() { _protections.configure_under_flux_trip_threshold(_parameters.under_flux_trip_threshold.read()); });
+    _parameters.under_flux_warning_threshold.register_callback([&]() {
+        _protections.configure_under_flux_warning_threshold(_parameters.under_flux_warning_threshold.read());
+    });
     _parameters.under_flux_trip_delay.register_callback(
-        [&]() { _protections.configure_under_flux_trip_delay(_parameters.under_flux_trip_delay); });
+        [&]() { _protections.configure_under_flux_trip_delay(_parameters.under_flux_trip_delay.read()); });
     _parameters.under_flux_warning_delay.register_callback(
-        [&]() { _protections.configure_under_flux_warning_delay(_parameters.under_flux_warning_delay); });
+        [&]() { _protections.configure_under_flux_warning_delay(_parameters.under_flux_warning_delay.read()); });
 
     // Register callbacks for stall protection parameters
     _parameters.stall_current_threshold.register_callback(
-        [&]() { _protections.configure_stall_current_threshold(_parameters.stall_current_threshold); });
+        [&]() { _protections.configure_stall_current_threshold(_parameters.stall_current_threshold.read()); });
     _parameters.stall_speed_threshold.register_callback(
-        [&]() { _protections.configure_stall_speed_threshold(_parameters.stall_speed_threshold); });
+        [&]() { _protections.configure_stall_speed_threshold(_parameters.stall_speed_threshold.read()); });
     _parameters.stall_trip_delay.register_callback(
-        [&]() { _protections.configure_stall_trip_delay(_parameters.stall_trip_delay); });
+        [&]() { _protections.configure_stall_trip_delay(_parameters.stall_trip_delay.read()); });
     _parameters.stall_warning_delay.register_callback(
-        [&]() { _protections.configure_stall_warning_delay(_parameters.stall_warning_delay); });
+        [&]() { _protections.configure_stall_warning_delay(_parameters.stall_warning_delay.read()); });
 
     // Register callbacks for communication watchdog parameters
     _parameters.comm_timeout.register_callback(
-        [&]() { _protections.configure_comm_timeout_duration(_parameters.comm_timeout); });
+        [&]() { _protections.configure_comm_timeout_duration(_parameters.comm_timeout.read()); });
     _parameters.comm_reset.register_callback(
-        [&]() { _protections.configure_comm_reset_duration(_parameters.comm_reset); });
+        [&]() { _protections.configure_comm_reset_duration(_parameters.comm_reset.read()); });
 
     // Register callbacks for overspeed and machine-side overvoltage parameters
     _parameters.overspeed_trip_threshold.register_callback(
-        [&]() { _protections.configure_overspeed_trip_threshold(_parameters.overspeed_trip_threshold); });
+        [&]() { _protections.configure_overspeed_trip_threshold(_parameters.overspeed_trip_threshold.read()); });
     _parameters.overspeed_warning_threshold.register_callback(
-        [&]() { _protections.configure_overspeed_warning_threshold(_parameters.overspeed_warning_threshold); });
+        [&]() { _protections.configure_overspeed_warning_threshold(_parameters.overspeed_warning_threshold.read()); });
     _parameters.overspeed_trip_delay.register_callback(
-        [&]() { _protections.configure_overspeed_trip_delay(_parameters.overspeed_trip_delay); });
+        [&]() { _protections.configure_overspeed_trip_delay(_parameters.overspeed_trip_delay.read()); });
     _parameters.overspeed_warning_delay.register_callback(
-        [&]() { _protections.configure_overspeed_warning_delay(_parameters.overspeed_warning_delay); });
+        [&]() { _protections.configure_overspeed_warning_delay(_parameters.overspeed_warning_delay.read()); });
 
     _parameters.machine_overvoltage_trip_threshold.register_callback([&]() {
-        _protections.configure_machine_overvoltage_trip_threshold(_parameters.machine_overvoltage_trip_threshold);
+        _protections.configure_machine_overvoltage_trip_threshold(
+            _parameters.machine_overvoltage_trip_threshold.read());
     });
     _parameters.machine_overvoltage_warning_threshold.register_callback([&]() {
-        _protections.configure_machine_overvoltage_warning_threshold(_parameters.machine_overvoltage_warning_threshold);
+        _protections.configure_machine_overvoltage_warning_threshold(
+            _parameters.machine_overvoltage_warning_threshold.read());
     });
-    _parameters.machine_overvoltage_trip_delay.register_callback(
-        [&]() { _protections.configure_machine_overvoltage_trip_delay(_parameters.machine_overvoltage_trip_delay); });
+    _parameters.machine_overvoltage_trip_delay.register_callback([&]() {
+        _protections.configure_machine_overvoltage_trip_delay(_parameters.machine_overvoltage_trip_delay.read());
+    });
     _parameters.machine_overvoltage_warning_delay.register_callback([&]() {
-        _protections.configure_machine_overvoltage_warning_delay(_parameters.machine_overvoltage_warning_delay);
+        _protections.configure_machine_overvoltage_warning_delay(_parameters.machine_overvoltage_warning_delay.read());
     });
 
     // Register callbacks for loss of excitation parameters
     _parameters.loss_of_excitation_trip_threshold.register_callback([&]() {
-        _protections.configure_loss_of_excitation_trip_threshold(_parameters.loss_of_excitation_trip_threshold);
+        _protections.configure_loss_of_excitation_trip_threshold(_parameters.loss_of_excitation_trip_threshold.read());
     });
     _parameters.loss_of_excitation_warning_threshold.register_callback([&]() {
-        _protections.configure_loss_of_excitation_warning_threshold(_parameters.loss_of_excitation_warning_threshold);
+        _protections.configure_loss_of_excitation_warning_threshold(
+            _parameters.loss_of_excitation_warning_threshold.read());
     });
-    _parameters.loss_of_excitation_trip_delay.register_callback(
-        [&]() { _protections.configure_loss_of_excitation_trip_delay(_parameters.loss_of_excitation_trip_delay); });
+    _parameters.loss_of_excitation_trip_delay.register_callback([&]() {
+        _protections.configure_loss_of_excitation_trip_delay(_parameters.loss_of_excitation_trip_delay.read());
+    });
     _parameters.loss_of_excitation_warning_delay.register_callback([&]() {
-        _protections.configure_loss_of_excitation_warning_delay(_parameters.loss_of_excitation_warning_delay);
+        _protections.configure_loss_of_excitation_warning_delay(_parameters.loss_of_excitation_warning_delay.read());
     });
 
     // Register callbacks for external fault parameters
     _parameters.external_fault_trip_delay.register_callback(
-        [&]() { _protections.configure_external_fault_trip_delay(_parameters.external_fault_trip_delay); });
+        [&]() { _protections.configure_external_fault_trip_delay(_parameters.external_fault_trip_delay.read()); });
 
     // Register callbacks for severity parameters
     _parameters.over_flux_severity.register_callback([&]() {

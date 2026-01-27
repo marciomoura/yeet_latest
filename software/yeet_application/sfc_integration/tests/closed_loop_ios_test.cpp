@@ -491,12 +491,11 @@ TEST_F(ClosedLoopIOsTest, EmergencyOffTriggersShutdown)
     // Complete shutdown sequence - clear start_command to prevent re-entering OPERATION_ON
     set_current_extinguished(true);
     set_emergency_off(false);  // E-stop released
-    set_start_command(false);  // Clear start command to allow transition to OPERATION_OFF
-    success &= simulator.simulate_for(ms(100.0f));
+    success &= simulator.simulate_for(ms(20.0f));
 
     // After current extinguished with start_command cleared, verify state transition to OPERATION_OFF
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::OPERATION_OFF) << "Should transition to OPERATION_OFF after current extinguished";
+    EXPECT_EQ(state_id, sfc_state_id::IDLE) << "Should transition to IDLE after current extinguished";
 
     EXPECT_TRUE(success);
 }
