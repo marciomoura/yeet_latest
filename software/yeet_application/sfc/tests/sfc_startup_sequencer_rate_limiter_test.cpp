@@ -30,7 +30,7 @@ protected:
             .speed_threshold = speed_pu_t{0.05},
             .voltage_threshold = voltage_pu_t{0.1},
             .observer_settling_time = duration_t{0.0},  // Zero settling time
-            .auto_start_stop_enabled = false            // Disable auto-start
+            .flying_restart_enabled = false             // Disable auto-start
         };
         sequencer->configure_flying_restart(flying_cfg);
     }

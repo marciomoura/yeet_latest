@@ -137,6 +137,220 @@ TEST_F(ClosedLoopStartupSequencerTest, PulseMode)
 }
 
 /**
+ * @test ForcedVirtualAndSkipFluxIntegrationTest
+ * @brief Validates that sequencer releases pulses immediately when skip_flux and force_virtual are active
+ *
+ * This test verifies the fix for the bug where machine-side pulses were blocked
+ * when skipping the flux buildup phase while in forced virtual reference mode.
+ */
+TEST_F(ClosedLoopStartupSequencerTest, ForcedVirtualAndSkipFluxIntegrationTest)
+{
+    // 1. Configure Startup Sequencer for Forced Virtual Mode + Skip Flux
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.2};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.2};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{0.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().force_virtual_mode_operation = true;
+    system.machine_side_control.startup_sequencer.get_parameters().skip_flux_buildup = true;
+
+    // 2. Execute Startup Sequence
+    // IDLE -> AUXILIARIES_ON -> BREAKERS_ON -> OPERATION_ON
+    execute_startup_sequence();
+
+    // 3. Simulate for a short duration to allow timers to progress
+    // (Excitation preflux is skipped, but observer settling still happens in IDLE)
+    // By default observer_settling_time is 2.0s in flying_restart_config
+    simulator.simulate_for(2.5);
+
+    // 4. Verify System State
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    auto sequencer_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+
+    EXPECT_EQ(state_machine_state, sfc_state_id::OPERATION_ON);
+    EXPECT_EQ(sequencer_state, startup_sequencer_state_t::STARTING_PROCEDURE);
+
+    // 5. Evaluate Pulse Release
+    // Grid pulses (from state machine / modulator)
+    bool grid_pulses_released = system.grid_side_control.state_machine.get_outputs().release_pulses.read();
+    EXPECT_TRUE(grid_pulses_released) << "Grid pulses must be released in OPERATION_ON";
+
+    // Machine pulses (from sequencer output to modulator)
+    bool machine_pulses_released =
+        system.machine_side_control.startup_sequencer.get_outputs().release_machine_side_pulses.read();
+    EXPECT_TRUE(machine_pulses_released) << "Machine pulses must be released in STARTING_PROCEDURE";
+
+    // Verify excitation is suppressed when skip_flux_buildup is active
+    bool excitation_released = system.machine_side_control.startup_sequencer.get_outputs().release_excitation.read();
+    EXPECT_FALSE(excitation_released) << "Excitation must be suppressed when skip_flux_buildup is true";
+
+    // 6. Evaluate Virtual Angle Integration
+    auto angle_start = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+    simulator.simulate_for(0.1);  // Integrate for 100ms
+    auto angle_end = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+
+    EXPECT_NE(angle_start.get_radians(), angle_end.get_radians())
+        << "Virtual angle should be integrating in STARTING_PROCEDURE";
+
+    // Check for "forward" integration (at 0.05 pu = 2.5Hz, angle should increase ~1.57 rad in 100ms)
+    // 0.05 pu * 50Hz = 2.5Hz. 2.5Hz * 0.1s = 0.25 cycles = pi/2 rad.
+    float angle_diff = angle_end.get_radians() - angle_start.get_radians();
+    if (angle_diff < 0) angle_diff += 2.0f * 3.14159f;  // Handle wrap-around
+    EXPECT_NEAR(angle_diff, 1.57f, 0.1f);
+
+    // 7. Evaluate Virtual Torque Reference
+    auto torque_ref = system.machine_side_control.torque_controller.get_outputs().torque_reference.read();
+    EXPECT_NEAR(torque_ref.value(), 0.2f, 0.01f) << "Torque reference should match virtual initial value";
+
+    simulator.simulate_for(2.0);
+}
+
+/**
+ * @test ForcedCommutationVirtualModeTest
+ * @brief Validates operation in forced-commutation while in forced virtual flux mode at low frequency
+ *
+ * This test verifies that the system can operate steadily in forced-commutation mode
+ * (handshake-based pulses) when commanded by the operation_mode_monitor, while
+ * simultaneously using a virtual reference frame at a very low frequency (0.1 Hz).
+ */
+TEST_F(ClosedLoopStartupSequencerTest, ForcedCommutationVirtualModeTest)
+{
+    // 1. Configure Startup Sequencer for Low Frequency Forced Virtual Mode + Skip Flux
+    // 0.1 Hz = 0.002 pu (at 50 Hz base)
+    const frequency_pu_t low_freq{0.002f};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = low_freq;
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = low_freq;
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_initial = torque_pu_t{0.15};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_final = torque_pu_t{0.15};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{0.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().force_virtual_mode_operation = true;
+    system.machine_side_control.startup_sequencer.get_parameters().skip_flux_buildup = true;
+
+    // 2. Configure Operation Mode Monitor to FORCE Forced Commutation
+    system.grid_side_control.get_operation_mode_monitor().get_parameters().force_to_forced_commutation.write(true);
+
+    // 3. Execute Startup Sequence
+    execute_startup_sequence();
+
+    // 4. Wait for observer settling and transition to STARTING_PROCEDURE
+    simulator.simulate_for(2.5);
+
+    // 5. Verify Operating Modes
+    auto op_mode = system.grid_side_control.get_operation_mode_monitor().get_outputs().operating_mode.read();
+    EXPECT_EQ(op_mode, sfc_operating_mode_t::forced_commutation);
+
+    auto sequencer_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+    EXPECT_EQ(sequencer_state, startup_sequencer_state_t::STARTING_PROCEDURE);
+
+    // 6. Verify Pulse Generation
+    // In forced commutation, pulses are released but gated by a handshake.
+    // We expect the system to be "modulating" even at 0.1 Hz.
+    bool machine_pulses_released =
+        system.machine_side_control.startup_sequencer.get_outputs().release_machine_side_pulses.read();
+    EXPECT_TRUE(machine_pulses_released);
+
+    // Check that we are indeed integrating the angle at 0.1 Hz
+    auto angle_start = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+    simulator.simulate_for(1.0);  // 1 second = 0.1 cycles = 36 degrees = 0.628 rad
+    auto angle_end = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+
+    float angle_diff = angle_end.get_radians() - angle_start.get_radians();
+    if (angle_diff < 0) angle_diff += 2.0f * 3.14159f;
+    EXPECT_NEAR(angle_diff, 0.628f, 0.05f) << "Angle should integrate at 0.1 Hz (0.628 rad/s)";
+
+    // 7. Verify Torque and Current Reference
+    auto torque_ref = system.machine_side_control.torque_controller.get_outputs().torque_reference.read();
+    EXPECT_NEAR(torque_ref.value(), 0.15f, 0.01f);
+
+    // 8. Verify Forced Commutation Handshake Activity
+    // Since we are running at 0.1 Hz, thyristor firings will be relatively infrequent
+    // (6 pulses per cycle = 0.6 pulses per second).
+    // Let's simulate for 10 seconds to ensure we see multiple commutations.
+    bool saw_force_comm_request = false;
+    bool saw_any_fired = false;
+    int firing_count = 0;
+
+    for (int i = 0; i < 500000; ++i) {
+        simulator.run_single_tick();
+        auto outputs = system.machine_side_control.machine_side_modulator.get_outputs();
+
+        if (outputs.any_thyristor_fired.read()) {
+            saw_any_fired = true;
+            firing_count++;
+        }
+
+        if (outputs.request_force_commutation.read()) {
+            saw_force_comm_request = true;
+            // Don't break immediately, let's see how many we get
+        }
+    }
+
+    EXPECT_TRUE(saw_any_fired) << "Modulator never detected a thyristor firing event! Angle end: "
+                               << angle_end.get_degrees() << " deg. Angle diff in test check: " << angle_diff;
+    EXPECT_TRUE(saw_force_comm_request)
+        << "Should have seen at least one forced commutation request in 10s at 0.1 Hz. Firing count: " << firing_count;
+
+    auto angle_final = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+    // EXPECT_NEAR(angle_final.get_radians(), 6.28, 0.1) << "Angle should have completed one cycle in 10s at 0.1 Hz";
+}
+
+/**
+ * @test AutoStartDisabledForcedVirtualTest
+ * @brief Verifies that the sequencer starts automatically regardless of flying_restart_enabled
+ *
+ * This test verifies that even with force_virtual_mode_operation and skip_flux_buildup set to true,
+ * and flying_restart_enabled is false, the sequencer starts automatically when coordination is detected.
+ */
+TEST_F(ClosedLoopStartupSequencerTest, AutoStartDisabledForcedVirtualTest)
+{
+    // 1. Configure Startup Sequencer for Forced Virtual Mode + Skip Flux + flying_restart_enabled DISABLED
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+
+    system.machine_side_control.startup_sequencer.get_parameters().force_virtual_mode_operation = true;
+    system.machine_side_control.startup_sequencer.get_parameters().skip_flux_buildup = true;
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_enabled = false;
+
+    // 2. Execute Startup Sequence (brings grid side to OPERATION_ON)
+    execute_startup_sequence();
+
+    // 3. Simulate for a duration that would normally allow startup to begin
+    // (Wait for observer settling time)
+    simulator.simulate_for(3.0);
+
+    // 4. Verify System State
+    auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+    auto sequencer_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+
+    EXPECT_EQ(state_machine_state, sfc_state_id::OPERATION_ON);
+    EXPECT_EQ(sequencer_state, startup_sequencer_state_t::STARTING_PROCEDURE)
+        << "Sequencer should now automatically start even if flying_restart_enabled is false";
+
+    // 5. Verify Pulses ARE released
+    bool machine_pulses_released =
+        system.machine_side_control.startup_sequencer.get_outputs().release_machine_side_pulses.read();
+    EXPECT_TRUE(machine_pulses_released) << "Machine pulses must be released in STARTING_PROCEDURE";
+
+    // 6. Verify Excitation is NOT released (since flux buildup is skipped)
+    bool excitation_released = system.machine_side_control.startup_sequencer.get_outputs().release_excitation.read();
+    EXPECT_FALSE(excitation_released) << "Excitation release should be suppressed when skip_flux_buildup is true";
+
+    // 7. Verify Angle IS integrating
+    auto angle_start = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+    simulator.simulate_for(1.0);
+    auto angle_end = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+
+    EXPECT_NE(angle_start.get_radians(), angle_end.get_radians()) << "Virtual angle should now integrate";
+}
+
+/**
  * @test StartupSequencerIntegrationTest
  * @brief Validates startup sequencer coordinated startup to 1.0 pu speed
  *
@@ -443,8 +657,8 @@ TEST_F(ClosedLoopStartupSequencerTest, AutoStartOnOperationOnTest)
         real_t{8.0f};
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_enabled = true;
 
-    // Enable auto-start/stop coordination
-    system.machine_side_control.startup_sequencer.get_parameters().auto_start_stop_enabled = true;
+    // Enable coordination and flying restart
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_enabled = true;
 
     // Set desired speed reference early
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.2});
@@ -544,8 +758,8 @@ TEST_F(ClosedLoopStartupSequencerTest, FlyingRestartSkipsVirtualStartupTest)
     system.machine_side_control.startup_sequencer.get_parameters().flying_restart_speed_threshold = speed_pu_t{0.15};
     system.machine_side_control.startup_sequencer.get_parameters().flying_restart_voltage_threshold = voltage_pu_t{0.1};
 
-    // Enable auto-start/stop coordination
-    system.machine_side_control.startup_sequencer.get_parameters().auto_start_stop_enabled = true;
+    // Enable coordination and flying restart
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_enabled = true;
 
     bool success = true;
 
@@ -662,4 +876,71 @@ TEST_F(ClosedLoopStartupSequencerTest, FlyingRestartSkipsVirtualStartupTest)
     EXPECT_GT(final_speed.value(), 0.5f) << "Machine should continue operating after flying restart";
 
     EXPECT_TRUE(success) << "Flying restart integration test completed";
+}
+
+/**
+ * @test MultiStartStopVirtualFrameTest
+ * @brief Verifies that the starting procedure can be triggered multiple times in virtual frame mode
+ *
+ * This test verifies that the sequencer, coordinated by the state machine, can correctly
+ * transition from IDLE to STARTING_PROCEDURE and back 3 times in forced virtual mode.
+ */
+TEST_F(ClosedLoopStartupSequencerTest, MultiStartStopVirtualFrameTest)
+{
+    // 1. Configure for Forced Virtual Mode + Skip Flux
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_initial = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_final = frequency_pu_t{0.05};
+    system.machine_side_control.startup_sequencer.get_parameters().virtual_frequency_duration = duration_t{10.0};
+    system.machine_side_control.startup_sequencer.get_parameters().force_virtual_mode_operation = true;
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_enabled = false;
+    system.machine_side_control.startup_sequencer.get_parameters().skip_flux_buildup = true;
+
+    // 2. Energize system once (IDLE -> AUXILIARIES_ON -> BREAKERS_ON)
+    set_turn_on_command(true);
+    simulate_for(0.5);  // Allow IO mock transitions
+
+    // 3. Perform 3 Start-Stop cycles
+    for (int cycle = 1; cycle <= 3; ++cycle) {
+        // --- START ---
+        set_start_command(true);
+        simulate_for(3.0);  // Wait for observer settling and transitions
+
+        auto state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+        auto sequencer_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+
+        EXPECT_EQ(state_machine_state, sfc_state_id::OPERATION_ON) << "Cycle " << cycle << " Start failed";
+        EXPECT_EQ(sequencer_state, startup_sequencer_state_t::STARTING_PROCEDURE)
+            << "Cycle " << cycle << ": Sequencer should enter STARTING_PROCEDURE";
+
+        bool pulses_released =
+            system.machine_side_control.startup_sequencer.get_outputs().release_machine_side_pulses.read();
+        EXPECT_TRUE(pulses_released) << "Cycle " << cycle << ": Pulses should be released";
+
+        auto angle_start = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+        simulate_for(0.5);
+        auto angle_end = system.machine_side_control.startup_sequencer.get_outputs().virtual_rotor_angle.read();
+        EXPECT_NE(angle_start.get_radians(), angle_end.get_radians())
+            << "Cycle " << cycle << ": Virtual angle should integrate";
+
+        // --- STOP ---
+        set_start_command(false);
+        set_stop_command(true);
+        simulate_for(0.5);
+
+        // Grid-side control logic requires current to be extinguished to finish stop sequence
+        set_current_extinguished(true);
+        simulate_for(1.0);
+
+        state_machine_state = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
+        sequencer_state = system.machine_side_control.startup_sequencer.get_outputs().current_state.read();
+
+        EXPECT_EQ(state_machine_state, sfc_state_id::OPERATION_OFF) << "Cycle " << cycle << " Stop failed";
+        EXPECT_EQ(sequencer_state, startup_sequencer_state_t::IDLE)
+            << "Cycle " << cycle << " Sequencer should return to IDLE";
+
+        // Reset for next cycle
+        set_stop_command(false);
+        set_current_extinguished(false);
+        simulate_for(0.5);
+    }
 }

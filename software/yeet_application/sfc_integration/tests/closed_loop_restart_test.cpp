@@ -228,6 +228,9 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartCapabilityTest)
 
     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{0.5f};
 
+    // flying restart enabled
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_enabled = true;
+
     // Target speed for operation
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.6});
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu =
@@ -303,6 +306,9 @@ TEST_F(ClosedLoopRestartTest, FlyingRestartWithAutoStartTest)
     system.machine_side_control.startup_sequencer.get_parameters().virtual_torque_duration = duration_t{0.5};
 
     system.machine_side_control.excitation_controller.get_parameters().prefluxing_duration = duration_t{0.5f};
+
+    // flying restart enabled
+    system.machine_side_control.startup_sequencer.get_parameters().flying_restart_enabled = true;
 
     // Target speed for operation
     system.machine_side_control.startup_sequencer.get_parameters().speed_reference.write(speed_pu_t{0.5});

@@ -82,9 +82,9 @@ void sfc_startup_sequencer::configure_skip_flux_buildup(bool skip_flux_buildup)
 
 bool sfc_startup_sequencer::start_sequence()
 {
-    // If not in IDLE, reset to IDLE first to ensure a clean start
+    // If not in IDLE, start cannot be initiated
     if (_current_state != startup_sequencer_state_t::IDLE) {
-        transition_to_idle();
+        return false;
     }
 
     // Mark start as requested and begin observer settling
@@ -110,10 +110,8 @@ void sfc_startup_sequencer::update(bool is_field_established,
 {
     _current_state_machine_state = current_state_id;
 
-    // Handle automatic start/stop coordination with state machine
-    if (_flying_restart_config.auto_start_stop_enabled) {
-        update_state_machine_coordination(measured_speed, current_state_id, speed_reference);
-    }
+    // Handle automatic start/stop coordination with state machine (always enabled)
+    update_state_machine_coordination(measured_speed, current_state_id, speed_reference);
 
     // Apply shutdown speed override if active
     // This forces speed reference to zero during SHUTDOWN_REQUESTED and OPERATION_OFF states
@@ -247,7 +245,7 @@ void sfc_startup_sequencer::transition_to_starting_procedure()
     _current_state = startup_sequencer_state_t::STARTING_PROCEDURE;
 
     // Check if we should skip the virtual flux phase
-    if (_virtual_frequency_config.duration <= duration_t{0.0}) {
+    if (_virtual_frequency_config.duration <= duration_t{0.0} && !_force_virtual_mode_operation) {
         // Skip directly to closed-loop
         transition_to_closed_loop_operation(speed_pu_t{_virtual_frequency.value()});
         return;
@@ -358,9 +356,9 @@ void sfc_startup_sequencer::update_flux_buildup(
     // Field is established. If machine is already generating sufficient voltage,
     // treat this as a flying start and jump directly to closed-loop with the
     // speed reference initialized to the current measured speed.
-    // However, if virtual mode is forced, proceed with normal startup.
+    // However, if virtual mode is forced or flying start is disabled, proceed with normal startup.
     const bool voltage_detected = measured_voltage_magnitude >= _flying_restart_config.voltage_threshold;
-    if (voltage_detected && !_force_virtual_mode_operation) {
+    if (_flying_restart_config.flying_restart_enabled && voltage_detected && !_force_virtual_mode_operation) {
         transition_to_closed_loop_operation(measured_speed);
         return;
     }
@@ -537,8 +535,12 @@ void sfc_startup_sequencer::update_outputs_for_current_state()
 void sfc_startup_sequencer::update_state_machine_coordination(
     speed_pu_t measured_speed, sfc_state_id current_state_id, speed_pu_t speed_reference)
 {
-    // Detect transition TO OPERATION_ON -> start sequence
-    if (transitioned_to(sfc_state_id::OPERATION_ON, current_state_id)) {
+    // Detect transition TO OPERATION_ON or handle missing start if already in OPERATION_ON
+    const bool should_start = transitioned_to(sfc_state_id::OPERATION_ON, current_state_id) ||
+                              (current_state_id == sfc_state_id::OPERATION_ON &&
+                                  _current_state == startup_sequencer_state_t::IDLE && !_start_requested);
+
+    if (should_start) {
         // Simply start the sequence - flying restart detection happens in update_idle()
         // after observer settling period
         start_sequence();

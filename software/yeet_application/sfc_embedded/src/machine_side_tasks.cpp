@@ -191,7 +191,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_protections.get_parameters().machine_overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.2f});
 
     // Disable flying start
-    control->startup_sequencer.get_parameters().auto_start_stop_enabled.write(false);
+    control->startup_sequencer.get_parameters().flying_restart_enabled.write(false);
     control->startup_sequencer.get_parameters().flying_restart_speed_threshold.write(yeet::speed_pu_t{1.0f});
     control->startup_sequencer.get_parameters().flying_restart_voltage_threshold.write(yeet::voltage_pu_t{1.0f});
     //

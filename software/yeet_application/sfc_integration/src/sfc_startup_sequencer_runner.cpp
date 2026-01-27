@@ -119,7 +119,7 @@ void sfc_startup_sequencer_runner::set_parameters()
     flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
     flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
     flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-    flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+    flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
     _sequencer.configure_flying_restart(flying_restart_cfg);
 
     // Configure force virtual mode operation
@@ -254,7 +254,7 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
     _parameters.flying_restart_voltage_threshold.register_callback([&]() {
@@ -262,7 +262,7 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
     _parameters.flying_restart_observer_settling_time.register_callback([&]() {
@@ -270,15 +270,15 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
-    _parameters.auto_start_stop_enabled.register_callback([&]() {
+    _parameters.flying_restart_enabled.register_callback([&]() {
         sfc::flying_restart_config flying_restart_cfg;
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
 

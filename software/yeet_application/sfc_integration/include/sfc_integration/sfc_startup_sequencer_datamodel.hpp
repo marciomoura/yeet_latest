@@ -166,8 +166,8 @@ public:
         /// Observer settling time before flying restart decision [s]
         parameter<duration_t> flying_restart_observer_settling_time = duration_t{2.0};
 
-        /// Enable automatic start/stop based on state machine state
-        parameter<bool> auto_start_stop_enabled = true;
+        /// Enable flying restart detection
+        parameter<bool> flying_restart_enabled = false;
 
         /// Force virtual reference mode operation (for commissioning with short-circuited machine side)
         /// When enabled, the sequencer always uses VIRTUAL reference frame regardless of state.
@@ -229,8 +229,8 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_voltage_threshold));
         handler.register_parameter(component_name, "flying_restart_observer_settling_time",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_observer_settling_time));
-        handler.register_parameter(component_name, "auto_start_stop_enabled",
-            yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
+        handler.register_parameter(component_name, "flying_restart_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->flying_restart_enabled));
         handler.register_parameter(component_name, "force_virtual_mode_operation",
             yeet::utils::make_bool_accessor(_model_parameters->force_virtual_mode_operation));
         handler.register_parameter(

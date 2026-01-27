@@ -76,7 +76,7 @@ struct flying_restart_config {
     speed_pu_t speed_threshold{0.05};        ///< Minimum speed for flying restart [pu] (5% rated)
     voltage_pu_t voltage_threshold{0.1};     ///< Voltage threshold for detection [pu] (10% rated)
     duration_t observer_settling_time{2.0};  ///< Observer settling duration [s]
-    bool auto_start_stop_enabled{true};      ///< Enable automatic start/stop based on state machine
+    bool flying_restart_enabled{true};       ///< Enable flying restart detection
 };
 
 /**
