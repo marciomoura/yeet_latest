@@ -113,7 +113,7 @@ public:
         parameter<frequency_pu_t> virtual_frequency_final = frequency_pu_t{0.1};
 
         /// Virtual frequency ramp duration [s], 0 = skip virtual phase
-        parameter<duration_t> virtual_frequency_duration = duration_t{4.0};
+        parameter<duration_t> virtual_frequency_duration = duration_t{2.0};
 
         /// Initial virtual torque reference [pu]
         parameter<torque_pu_t> virtual_torque_initial = torque_pu_t{0.0};
@@ -122,7 +122,7 @@ public:
         parameter<torque_pu_t> virtual_torque_final = torque_pu_t{0.3};
 
         /// Virtual torque ramp duration [s], 0 = immediate jump to final
-        parameter<duration_t> virtual_torque_duration = duration_t{1.0};
+        parameter<duration_t> virtual_torque_duration = duration_t{0.5};
 
         /// Enable damping based on observer speed feedback during virtual mode
         parameter<bool> virtual_torque_damping_enabled = false;
@@ -150,7 +150,7 @@ public:
 
         /// Speed reference rate limit in seconds per per-unit speed change
         /// (e.g., 10.0 means 10 seconds to ramp from 0 to 1.0 pu = 0.1 pu/s)
-        parameter<real_t> speed_reference_rate_limit_seconds_per_pu = real_t{10.0};
+        parameter<real_t> speed_reference_rate_limit_seconds_per_pu = real_t{20.0};
 
         /// Enable/disable speed reference rate limiting
         parameter<bool> speed_reference_rate_limit_enabled = true;

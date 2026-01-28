@@ -272,6 +272,10 @@ public:
 
 TEST_F(ClosedLoopProtectionsTest, OvervoltageRecoveryWithAlarmConfirmation)
 {
+    // Configure overcurrent to be "out of the way"
+    system.grid_side_control.grid_protections.get_parameters().overcurrent_severity.write(
+        protection_severity::alarm_only);
+
     EXPECT_EQ(system.grid_side_control.state_machine.get_outputs().current_state_id.read(), sfc_state_id::IDLE);
 
     startup_to_nominal_speed();
