@@ -89,6 +89,7 @@ void sfc_machine_side_modulator_runner::set_parameter_callback()
     _parameters.virtual_reference_frequency.register_callback([&]() { set_parameters(); });
     _parameters.enable_virtual_reference.register_callback([&]() { set_parameters(); });
     _parameters.enable_individual_pulse_override.register_callback([&]() { set_parameters(); });
+    _parameters.enable.register_callback([&]() { _sfc_machine_side_modulator.reset(); });
     _parameters.override_p1.register_callback([&]() { set_parameters(); });
     _parameters.override_p2.register_callback([&]() { set_parameters(); });
     _parameters.override_p3.register_callback([&]() { set_parameters(); });

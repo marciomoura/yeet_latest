@@ -138,7 +138,7 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     control->machine_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->machine_measurements.get_parameters().enable_commutation_masking.write(true);
     control->machine_measurements.get_parameters().voltage_measurement_rotation.write(
-        yeet::angle_wrapped{0.0f});  // 30.0f
+        yeet::angle_wrapped::from_degrees(-30.0f));  // 30.0f
 
     control->machine_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
@@ -221,25 +221,25 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
 
     // Configuration of the stator-voltage control
     // control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu
-    control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(
-        std::array<yeet::speed_pu_t, 7>{
-            yeet::speed_pu_t{0.0f / 3000.0f},
-            yeet::speed_pu_t{150.0f / 3000.0f},
-            yeet::speed_pu_t{300.0f / 3000.0f},
-            yeet::speed_pu_t{600.0f / 3000.0f},
-            yeet::speed_pu_t{3150.0f / 3000.0f},
-            yeet::speed_pu_t{3150.0f / 3000.0f},
-            yeet::speed_pu_t{3150.0f / 3000.0f},
-        });
-    control->excitation_controller.get_parameters().voltage_reference_pu.write(std::array<yeet::voltage_pu_t, 7>{
-        yeet::voltage_pu_t{0.0f},
-        yeet::voltage_pu_t{470.0f / 1880.0f},
-        yeet::voltage_pu_t{940.0f / 1880.0f},
-        yeet::voltage_pu_t{1880.0f / 1880.0f},
-        yeet::voltage_pu_t{1880.0f / 1880.0f},
-        yeet::voltage_pu_t{1880.0f / 1880.0f},
-        yeet::voltage_pu_t{1880.0f / 1880.0f},
-    });
+    // control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(
+    //     std::array<yeet::speed_pu_t, 7>{
+    //         // yeet::speed_pu_t{0.0f / 3000.0f},
+    //         // yeet::speed_pu_t{150.0f / 3000.0f},
+    //         // yeet::speed_pu_t{300.0f / 3000.0f},
+    //         // yeet::speed_pu_t{600.0f / 3000.0f},
+    //         // yeet::speed_pu_t{3150.0f / 3000.0f},
+    //         // yeet::speed_pu_t{3150.0f / 3000.0f},
+    //         // yeet::speed_pu_t{3150.0f / 3000.0f},
+    //     });
+    // control->excitation_controller.get_parameters().voltage_reference_pu.write(std::array<yeet::voltage_pu_t, 7>{
+    //     yeet::voltage_pu_t{0.0f},
+    //     yeet::voltage_pu_t{470.0f / 1880.0f},
+    //     yeet::voltage_pu_t{940.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    // });
 
     // Forced Mode Configuration (Low-Speed / Low-Voltage startup region)
     // -----------------------------------------------------------------
@@ -312,6 +312,10 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     outputs->status.alarm = control->machine_protections.get_outputs().has_active_alarm;
 
     // ==================== ANALOG OUTPUTS (DAC) → EXCITATION COMMANDS ====================
+    write_ao(outputs, 0, control->machine_measurements.get_outputs().machine_voltage_line.read().ab(), 2.0f, 0.0f);
+    write_ao(outputs, 2, control->machine_measurements.get_outputs().machine_voltage_line.read().ab(), 2.0f, 0.0f);
+    write_ao(outputs, 3, control->machine_measurements.get_outputs().machine_voltage_line.read().ab(), 2.0f, 0.0f);
+
     const auto& io_params = control->external_ios.get_parameters();
     write_ao(outputs, io_params.ao_excitation_current_reference_index.read(),
         control->external_ios.get_excitation_current_reference().value(),

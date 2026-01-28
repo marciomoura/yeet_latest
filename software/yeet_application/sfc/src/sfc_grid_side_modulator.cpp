@@ -166,7 +166,7 @@ void sfc_grid_side_modulator::reset()
     _current_firing_angle_rad = get_safe_default_angle();
     _force_commutation_acknowledged = false;
     _main_pi_reset_requested = false;
-    _release_pulses = true;
+    _release_pulses = false;
     _any_thyristor_fired = false;
     _reference_angle_filter.reset();
 
@@ -233,7 +233,7 @@ void sfc_grid_side_modulator::acknowledge_main_pi_reset() { _main_pi_reset_reque
 angle_t sfc_grid_side_modulator::get_safe_default_angle() const noexcept
 {
     // Return 0° (natural commutation point) as the safe default
-    return angle_t(0.0f);
+    return angle_t(162.5f);
 }
 
 bool sfc_grid_side_modulator::get_pulse_release() const noexcept { return _release_pulses; }

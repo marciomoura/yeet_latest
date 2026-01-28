@@ -94,6 +94,11 @@ void sfc_grid_side_modulator_runner::set_parameter_callback()
     _parameters.commutation_timeout.register_callback([&]() { set_parameters(); });
     _parameters.virtual_reference_frequency.register_callback([&]() { set_parameters(); });
     _parameters.enable_virtual_reference.register_callback([&]() { set_parameters(); });
+    _parameters.enable.register_callback([&]() {
+        if (!_parameters.enable) {
+            _sfc_grid_side_modulator.reset();
+        }
+    });
     _parameters.enable_individual_pulse_override.register_callback([&]() { set_parameters(); });
     _parameters.override_p1.register_callback([&]() { set_parameters(); });
     _parameters.override_p2.register_callback([&]() { set_parameters(); });

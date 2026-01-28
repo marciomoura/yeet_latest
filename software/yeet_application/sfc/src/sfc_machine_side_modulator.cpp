@@ -93,7 +93,7 @@ void sfc_machine_side_modulator::reset()
 
     // Reset forced commutation handshake state
     _commutation_state = machine_side_commutation_state_t::running;
-    _release_pulses = true;
+    _release_pulses = false;
     _request_force_commutation = false;
     _any_thyristor_fired = false;
 
@@ -178,7 +178,7 @@ angle_t sfc_machine_side_modulator::get_safe_default_angle() const noexcept
 {
     // Return a safe default firing angle when system is disabled
     // Zero degrees is typically safe as it corresponds to natural commutation point
-    return angle_t(0.0);
+    return angle_t(30.0);
 }
 
 }  // namespace yeet::application::sfc

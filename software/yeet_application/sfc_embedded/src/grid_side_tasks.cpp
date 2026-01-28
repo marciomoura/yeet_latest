@@ -215,7 +215,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
     // Digital inputs are already default-initialized to safe values (false) by the datamodel
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
-    control->current_controller.get_parameters().max_firing_angle.write(yeet::angle_wrapped::from_degrees(135.0f));
+    control->current_controller.get_parameters().max_firing_angle.write(yeet::angle_wrapped::from_degrees(162.5f));
 
     // ==================== PER-UNIT SYSTEM CONFIGURATION ====================
     control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{866.0f});
@@ -237,7 +237,8 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_measurements.get_parameters().voltage_compensation_num_filters.write(2);
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->grid_measurements.get_parameters().enable_commutation_masking.write(true);
-    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{0.0f});  // 30.0f
+    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(
+        yeet::angle_wrapped::from_degrees(-30.0f));  // 30.0f
 
     // Configuration of the CT
     // Adaptation of the adc full-scale, ct ratio and transducer gain

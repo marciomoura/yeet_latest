@@ -43,8 +43,8 @@ public:
     /// Linear V/Hz ramp: V = 0.2 + 0.8*speed (0.2 pu at standstill, 1.0 pu at rated, continues to 1.1 pu)
     /// Above rated speed, voltage continues to scale proportionally to maintain constant flux
     static constexpr std::array<voltage_pu_t, NUM_VOLTAGE_REFERENCE_POINTS> kDefaultVoltageReferencePu = {
-        voltage_pu_t{0.2}, voltage_pu_t{0.36}, voltage_pu_t{0.52}, voltage_pu_t{0.68}, voltage_pu_t{0.84},
-        voltage_pu_t{1.0}, voltage_pu_t{1.08}};
+        voltage_pu_t{0.0}, voltage_pu_t{0.2}, voltage_pu_t{0.4}, voltage_pu_t{0.6}, voltage_pu_t{0.8},
+        voltage_pu_t{1.0}, voltage_pu_t{1.0}};
 
     /**
      * @brief Constructs the excitation controller.

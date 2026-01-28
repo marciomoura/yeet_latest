@@ -30,6 +30,8 @@ void sfc_operation_mode_monitor_runner::run()
     // Update the detectors with the latest inputs
     _mode_detector.update(enable, _inputs.measured_speed.read());
 
+    // current_pu_t current_pu = max(_inputs.dc_link_current.read() - current_pu_t{0.05}, current_pu_t{0.0});
+
     _discontinuous_conduction_detector.update(_inputs.dc_link_current.read());
 
     // Write the results to the output signals

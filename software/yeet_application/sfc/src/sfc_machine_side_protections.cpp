@@ -9,8 +9,7 @@ sfc_machine_side_protections::sfc_machine_side_protections(duration_t sampling_t
       _overspeed_protection(sampling_time),
       _machine_overvoltage_protection(sampling_time),
       _loss_of_excitation_protection(sampling_time),
-      _external_fault_delay(0.0, sampling_time.value()),
-      _is_confirm_trip_rising_edge_detector()
+      _external_fault_delay(0.0, sampling_time.value())
 {
     // Configure threshold-based protections with safe defaults.
     // Without configuration, threshold_protection defaults to zero thresholds which
