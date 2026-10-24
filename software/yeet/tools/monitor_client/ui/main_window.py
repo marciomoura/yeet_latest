@@ -296,7 +296,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
-        self.window_size_spinbox.setRange(10, 50000)
+        self.window_size_spinbox.setRange(10, 500000)
         self.window_size_spinbox.setSingleStep(100)
         self.window_size_spinbox.setValue(window_size)
         self.window_size_spinbox.setToolTip("Number of samples to display on X-axis")

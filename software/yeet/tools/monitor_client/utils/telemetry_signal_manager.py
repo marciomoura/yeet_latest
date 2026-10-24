@@ -172,7 +172,7 @@ class SignalManager:
     Thread-safe for concurrent access from network and UI threads.
     """
     
-    def __init__(self, buffer_size: int = 50000):
+    def __init__(self, buffer_size: int = 500000):
         """Initialize signal manager.
         
         Args:

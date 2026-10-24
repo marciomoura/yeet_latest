@@ -95,7 +95,7 @@ class OscilloscopeWidget(QtWidgets.QWidget):
         main_layout.addLayout(self.view_button_layout)
         
         self.plots_container = pg.GraphicsLayoutWidget()
-        self.plots_container.setBackground('#1e1e1e')
+        self.plots_container.setBackground("#ffffff")
         main_layout.addWidget(self.plots_container)
         
         self.setLayout(main_layout)
@@ -169,8 +169,8 @@ class OscilloscopeWidget(QtWidgets.QWidget):
         
         # Style the legend
         if legend is not None:
-            legend.setBrush(pg.mkBrush(50, 50, 50, 240))  # Dark background with high opacity
-            legend.setPen(pg.mkPen(color=(220, 220, 220), width=2))  # Bright border
+            legend.setBrush(pg.mkBrush(220, 220, 220, 240))  # Light grey background with high opacity
+            legend.setPen(pg.mkPen(color=(50, 50, 50), width=2))  # Dark border
         
         # Store references
         self.plot_groups[group_name][plot_name] = plot
@@ -426,7 +426,7 @@ class OscilloscopeWidget(QtWidgets.QWidget):
             except Exception as e:
                 logger.warning(f"Layout clearing failed: {e}")
             
-            self.plots_container.setBackground('#1e1e1e')
+            self.plots_container.setBackground("#ffffff")
             
             # Recreate plots in new layout
             if self.layout_mode == "1xN":
