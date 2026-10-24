@@ -28,7 +28,8 @@ def _get_section_order() -> List[str]:
         'modulator',
         'measurements',
         'controller',
-        'pulse_generator'
+        'pulse_generator',
+        'hardware_debugging'
     ]
 
 
@@ -47,9 +48,13 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'dc link current (pu)', 'index': GridSignalIndex.DC_LINK_CURRENT, 'type': 'float', 'format': '.4f'},
                 {'name': 'voltage magnitude est.', 'index': GridSignalIndex.ESTIMATED_VOLTAGE_MAGNITUDE, 'type': 'float', 'format': '.4f'},
                 {'name': 'frequency est.', 'index': GridSignalIndex.ESTIMATED_FREQUENCY_PU, 'type': 'float', 'format': '.4f'},
-                {'name': 'reference angle (pu)', 'index': GridSignalIndex.ESTIMATED_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'}
+                {'name': 'reference angle (pu)', 'index': GridSignalIndex.ESTIMATED_REFERENCE_ANGLE, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage ab counts peak', 'index': GridSignalIndex.VOLTAGE_AB_COUNTS_PEAK, 'type': 'float', 'format': '.4f'},
+                {'name': 'voltage bc counts peak', 'index': GridSignalIndex.VOLTAGE_BC_COUNTS_PEAK, 'type': 'float', 'format': '.4f'},
+                {'name': 'current a counts peak', 'index': GridSignalIndex.CURRENT_A_COUNTS_PEAK, 'type': 'float', 'format': '.4f'},
+                {'name': 'current c counts peak', 'index': GridSignalIndex.CURRENT_C_COUNTS_PEAK, 'type': 'float', 'format': '.4f'}
             ]
-        },
+        },        
         'controller': {
             'title': 'Current Controller',
             'fields': [
@@ -67,6 +72,7 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
                 {'name': 'request force commutation', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION, 'type': 'bool', 'format': 'bool'},
                 {'name': 'release pulses (out)', 'index': GridSignalIndex.MODULATOR_RELEASE_PULSES_OUTPUT, 'type': 'bool', 'format': 'bool'},
                 {'name': 'force comm. ack', 'index': GridSignalIndex.FORCE_COMMUTATION_ACKNOWLEDGED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'current is zero', 'index': GridSignalIndex.MODE_MONITOR_CURRENT_IS_ZERO, 'type': 'bool', 'format': 'bool'},
             ]
         },
         'pulse_generator': {
@@ -102,6 +108,8 @@ def get_grid_side_telemetry() -> Dict[str, Dict[str, Any]]:
             'fields': [
                 {'name': 'is tripped', 'index': GridSignalIndex.PROTECTION_IS_TRIPPED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'is inhibited', 'index': GridSignalIndex.PROTECTION_IS_INHIBITED, 'type': 'bool', 'format': 'bool'},
+                {'name': 'trip source', 'index': GridSignalIndex.FIRST_TRIP_SOURCE, 'type': 'enum', 'format': 'enum',
+                 'enum_map': {0: 'NONE', 1: 'OVERCURRENT', 2: 'OVERVOLTAGE', 3: 'UNDERVOLTAGE', 4: 'COMMUNICATION_LOSS', 5: 'DOOR_OPEN', 6: 'EXTERNAL_FAULT', 7: 'EMERGENCY_OFF', 8: 'MACHINE_PROTECTION_FEEDBACK'}},
                 {'name': 'has active alarm', 'index': GridSignalIndex.PROTECTION_ANY_ALARM_ACTIVE_UNPACKED, 'type': 'bool', 'format': 'bool'},
                 {'name': 'overcurrent', 'index': GridSignalIndex.PROTECTION_OVERCURRENT_STATUS, 'type': 'enum', 'format': 'enum',
                  'enum_map': {0: 'TRIP OFF', 1: 'TRIP ON', 2: 'ALARM OFF', 3: 'ALARM ON'}},

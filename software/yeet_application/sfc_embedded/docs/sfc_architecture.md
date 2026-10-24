@@ -117,8 +117,8 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
   - Synchronization status
 
 #### 2.2.5 Grid-Side Modulator (`sfc_grid_side_modulator_runner`)
-- **Purpose:** Generate thyristor firing angles to achieve desired voltage
-- **Type:** Phase-controlled rectifier/inverter modulation
+- **Purpose:** Generate thyristor firing angles and PWM pulses to achieve desired voltage
+- **Type:** Phase-controlled rectifier/inverter modulation with integrated pulse generator
 - **Operating Modes:**
   - `RECTIFIER_MODE` - Power flow from grid to machine
   - `INVERTER_MODE` - Power flow from machine to grid
@@ -131,12 +131,9 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 - **Outputs:**
   - `firing_angles` - 6 thyristor firing angles
   - `force_commutation_acknowledged` - Acknowledgment to machine-side
+  - `gate_pulses` - 6 digital pulse signals for gate drivers
 
-#### 2.2.6 Grid-Side Pulse Generator (`sfc_grid_side_pulse_generator_runner`)
-- **Purpose:** Convert firing angles to hardware PWM signals
-- **Output:** 6 digital pulse signals for gate drivers
-
-#### 2.2.7 DC Link Measurements (`sfc_dc_link_measurements_runner`)
+#### 2.2.6 DC Link Measurements (`sfc_dc_link_measurements_runner`)
 - **Purpose:** Measure and filter DC link current
 - **Sensor:** DC link current transducer (Hall effect or shunt)
 - **Processing:** Filtering, scaling, per-unit conversion
@@ -154,7 +151,7 @@ The **grid-side controller** is the **master** in the system hierarchy. It is re
 | Signal                      | Source       | Type                          | Description                     |
 | --------------------------- | ------------ | ----------------------------- | ------------------------------- |
 | `auxiliaries_are_on`        | Supervisory  | `bool`                        | Auxiliary systems ready         |
-| `mcb_is_closed`           | Supervisory  | `bool`                        | Main breakers closed            |
+| `mcb_is_closed`             | Supervisory  | `bool`                        | Main breakers closed            |
 | `start_command`             | Supervisory  | `bool`                        | Command to start system         |
 | `stop_command`              | Supervisory  | `bool`                        | Command to stop system          |
 | `shutdown_request`          | Supervisory  | `bool`                        | Emergency shutdown              |
@@ -242,8 +239,8 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
   - Estimated rotor position
 
 #### 3.2.5 Machine-Side Modulator (`sfc_machine_side_modulator_runner`)
-- **Purpose:** Generate thyristor firing angles for machine-side bridge
-- **Type:** Phase-controlled inverter/rectifier modulation
+- **Purpose:** Generate thyristor firing angles and PWM pulses for machine-side bridge
+- **Type:** Phase-controlled inverter/rectifier modulation with integrated pulse generator
 - **Inputs:**
   - `voltage_reference` - From machine controller
   - `machine_angle` - From observer
@@ -254,10 +251,7 @@ The **machine-side controller** is the **slave** in the system hierarchy. It is 
   - `firing_angles` - 6 thyristor firing angles
   - `request_force_commutation` - Request to grid-side
   - `modulator_freeze_integrator` - Anti-windup signal
-
-#### 3.2.6 Machine-Side Pulse Generator (`sfc_machine_side_pulse_generator_runner`)
-- **Purpose:** Convert firing angles to hardware PWM signals
-- **Output:** 6 digital pulse signals for gate drivers
+  - `gate_pulses` - 6 digital pulse signals for gate drivers
 
 ### 3.3 Machine-Side Input Signals
 

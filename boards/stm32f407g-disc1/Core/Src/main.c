@@ -75,6 +75,9 @@ volatile uint32_t g_adc_callback_count = 0;
 volatile uint32_t g_tim4_callback_count = 0;
 volatile uint32_t g_tim5_callback_count = 0;
 volatile uint32_t g_adc_error_count = 0;
+
+// Application initialization status
+static bool application_ok = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,6 +128,7 @@ int main(void)
 
     /* USER CODE BEGIN Init */
     yeet_embedded_init();
+    application_ok = true;
     /* USER CODE END Init */
 
     /* Configure the system clock */
@@ -756,6 +760,11 @@ inline void apply_gate_pulses_fast(bool p1, bool p2, bool p3, bool p4, bool p5, 
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
+    // Skip if application not ready
+    if (!application_ok) {
+        return;
+    }
+
     // Increment diagnostic counter
     g_adc_callback_count++;
 
@@ -802,6 +811,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
+    // Skip if application not ready
+    if (!application_ok) {
+        return;
+    }
+
     if (htim->Instance == TIM4) {
         // Increment diagnostic counter
         g_tim4_callback_count++;

@@ -32,6 +32,9 @@ public:
         /// Pulse release command from grid-side (via fiber optics)
         signal_input<bool> grid_side_release_pulses;
 
+        /// Freeze command from grid-side (via fiber optics)
+        signal_input<bool> grid_freeze_integrator;
+
         /// Enable command for speed controller (from startup sequencer)
         /// Used to generate a one-shot preset_request on virtual estimated handover.
         signal_input<bool> release_speed_controller;

@@ -16,25 +16,22 @@ namespace yeet::application::sfc::fiber_optic {
 [[nodiscard]] std::uint8_t encode_grid_to_machine(const grid_to_machine_message& msg, std::uint32_t* payload) noexcept
 {
     // Word 0: DC link current measurement [pu] (IEEE 754 float bits)
-    // Word 1: Grid voltage magnitude [pu] (IEEE 754 float bits)
-    // Word 2: Packed control flags and state
+    // Word 1: Packed control flags and state
     //   Bit 0:      Is forced commutation mode
     //   Bit 1:      Force commutation acknowledged
     //   Bit 2:      Release pulses
     //   Bit 3:      Grid release protections
     //   Bit 4:      Machine release protections
-    //   Bits 5-24:  Reserved for future use
+    //   Bits 5:     Communication OK
+    //   Bits 6:     Freeze integrator
+    //   Bits 7-24:  Reserved for future use
     //   Bits 25-31: State machine state ID (0-127)
 
     // Encode DC link current float value (extract from typed unit)
     const float current_value = msg.dc_link_current.value();
     std::memcpy(&payload[0], &current_value, sizeof(float));
 
-    // Encode grid voltage magnitude float value (extract from typed unit)
-    const float voltage_value = msg.grid_voltage_magnitude.value();
-    std::memcpy(&payload[1], &voltage_value, sizeof(float));
-
-    // Pack control flags into word 2
+    // Pack control flags into word 1
     std::uint32_t packed_flags = 0;
 
     // Encode boolean flags at the beginning (bits 0-5)
@@ -56,13 +53,16 @@ namespace yeet::application::sfc::fiber_optic {
     if (msg.communication_ok) {
         packed_flags |= (1U << grid_to_machine_message::communication_ok_bit_pos);
     }
+    if (msg.freeze_integrator) {
+        packed_flags |= (1U << grid_to_machine_message::freeze_integrator_bit_pos);
+    }
 
     // Encode state ID at the end (bits 25-31)
     packed_flags |= (static_cast<std::uint32_t>(msg.state_id) & grid_to_machine_message::state_id_mask)
                     << grid_to_machine_message::state_id_shift;
 
     // Write packed word to payload
-    payload[2] = packed_flags;
+    payload[1] = packed_flags;
 
     return grid_to_machine_payload_length;
 }
@@ -82,13 +82,8 @@ namespace yeet::application::sfc::fiber_optic {
     std::memcpy(&current_value, &payload[0], sizeof(float));
     msg.dc_link_current = yeet::current_pu_t{current_value};
 
-    // Decode grid voltage magnitude float value and construct typed unit
-    float voltage_value;
-    std::memcpy(&voltage_value, &payload[1], sizeof(float));
-    msg.grid_voltage_magnitude = yeet::voltage_pu_t{voltage_value};
-
-    // Extract packed word 2
-    const std::uint32_t packed_flags = payload[2];
+    // Extract packed word 1
+    const std::uint32_t packed_flags = payload[1];
 
     // Decode boolean flags from the beginning (bits 0-5)
     msg.is_forced_commutation = (packed_flags & (1U << grid_to_machine_message::is_forced_commutation_bit_pos)) != 0;
@@ -99,6 +94,7 @@ namespace yeet::application::sfc::fiber_optic {
     msg.machine_release_protections =
         (packed_flags & (1U << grid_to_machine_message::machine_release_protections_bit_pos)) != 0;
     msg.communication_ok = (packed_flags & (1U << grid_to_machine_message::communication_ok_bit_pos)) != 0;
+    msg.freeze_integrator = (packed_flags & (1U << grid_to_machine_message::freeze_integrator_bit_pos)) != 0;
 
     // Decode state ID from the end (bits 25-31)
     msg.state_id = static_cast<std::uint8_t>(

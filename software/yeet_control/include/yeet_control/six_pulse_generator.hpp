@@ -134,9 +134,8 @@ public:
      * @param reference_angle The reference angle of the AC system.
      * @param firing_angle The desired firing angle (alpha).
      * @param enable Gating enable signal. If false, all pulses are off.
-     * @return The generated pulses for the six thyristors.
      */
-    pulses update(angle_t reference_angle, angle_t firing_angle, bool enable);
+    void update(angle_t reference_angle, angle_t firing_angle, bool enable);
 
     /**
      * @brief Updates the pulse generator using internal virtual reference angle.
@@ -149,9 +148,8 @@ public:
      *
      * @param firing_angle The desired firing angle (alpha).
      * @param enable Gating enable signal. If false, all pulses are off.
-     * @return The generated pulses for the six thyristors.
      */
-    pulses update(angle_t firing_angle, bool enable);
+    void update(angle_t firing_angle, bool enable);
 
     /**
      * @brief Configures the virtual reference generator parameters.
@@ -174,6 +172,13 @@ public:
      * @param enable True to enable virtual reference mode, false to disable.
      */
     void enable_virtual_reference(bool enable);
+
+    /**
+     * @brief Resets the pulse generator state.
+     *
+     * Resets internal pulsers, sectors, and virtual reference angle.
+     */
+    void reset();
 
     /**
      * @brief Resets the virtual reference angle to zero.
@@ -209,11 +214,18 @@ public:
     void enable_pulse_mask(bool enable);
 
     /**
+     * @brief Sets the reference type for the pulse generator.
+     *
+     * @param ref_type The new reference type (line or phase).
+     */
+    void configure_reference_type(reference_type ref_type);
+
+    /**
      * @brief Sets the pulse width for all six pulse generators.
      *
      * @param pulse_width The new pulse width.
      */
-    void set_pulse_width(angle_t pulse_width);
+    void configure_pulse_width(angle_t pulse_width);
 
     /**
      * @brief Gets the current pulse width.
@@ -237,7 +249,18 @@ public:
      *
      * @return The current sector.
      */
-    pulse_sector_t get_sector() const noexcept;
+    pulse_sector_t get_current_sector() const noexcept;
+
+    /**
+     * @brief Returns true if any thyristor has started firing in the current cycle.
+     *
+     * This flag detects the rising edge of any thyristor gating signal. It is
+     * useful for coordinating grid-side converter pulses with machine-side
+     * switching events.
+     *
+     * @return true if a new thyristor firing has been detected.
+     */
+    bool get_any_thyristor_fired() const noexcept;
 
     /**
      * @brief Returns true for one cycle if the operational sector has changed.
@@ -287,9 +310,9 @@ public:
 
 private:
     // Core pulse generation
-    pulses generate_pulses(angle_t reference_angle, angle_t firing_angle, bool enable);
     void update_sector(angle_t reference_angle);
     void update_virtual_reference();
+    void generate_pulses(angle_t reference_angle, angle_t firing_angle, bool enable);
 
     // The type of reference angle provided to the update method.
     reference_type _ref_type;
@@ -298,11 +321,13 @@ private:
     std::array<pulse_generator, 6> _pulse_generators;
 
     pulses _pulses;
+    pulses _previous_pulses;
     pulse_sector_t _current_sector{pulse_sector_t::none};
     bool _sector_has_changed{false};
+    bool _any_thyristor_fired{false};
 
     // Virtual reference generator state
-    angle_t _virtual_reference_angle{0.0};
+    angle_wrapped _virtual_reference_angle{0.0};
     frequency_t _virtual_reference_frequency{50.0};
     duration_t _virtual_reference_sampling_time{us(100.0)};
     bool _virtual_reference_enabled{false};

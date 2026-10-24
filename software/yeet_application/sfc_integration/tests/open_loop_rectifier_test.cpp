@@ -38,7 +38,7 @@ public:
 
         // ==================== Logger Registration ====================
         register_complete_logger(simulator, system.plant);
-        register_minimal_logger(simulator, system.grid_side_pulse_generator);
+        register_minimal_logger(simulator, system.grid_side_modulator);
         register_complete_logger(simulator, system.grid_side_hardware_mock);
         register_minimal_logger(simulator, system.grid_side_measurements);
         register_complete_logger(simulator, system.dc_link_measurements);
@@ -169,7 +169,9 @@ TEST_F(SfcOpenLoopRectifier, GridSideMaskingAndCompensationSequence)
 
     // Configure hardware filter and compensation to 110 Hz
     system.grid_side_hardware_mock.get_parameters().voltage_adc_cutoff_freq.write(frequency_t{110.0});
-    system.grid_side_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(frequency_t{110.0});
+    system.grid_side_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
+        frequency_t{110.0});
+    system.grid_side_measurements.get_parameters().voltage_compensation_num_filters.write(1);
 
     // Stage 1: Masking enabled, Compensation disabled
     system.grid_side_measurements.get_parameters().enable_commutation_masking.write(true);
@@ -206,8 +208,9 @@ TEST_F(SfcOpenLoopRectifier, MachineSideMaskingAndCompensationSequence)
 
     // Configure hardware filter and compensation to 110 Hz
     system.machine_side_hardware_mock.get_parameters().voltage_adc_cutoff_freq.write(frequency_t{110.0});
-    system.machine_side_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
+    system.machine_side_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
         frequency_t{110.0});
+    system.machine_side_measurements.get_parameters().voltage_compensation_num_filters.write(1);
 
     // Stage 1: Masking enabled, Compensation disabled
     system.machine_side_measurements.get_parameters().enable_commutation_masking.write(true);

@@ -6,6 +6,7 @@
 #include "yeet_control/elapsed_timer.hpp"
 #include "yeet_control/integrator.hpp"
 #include "yeet_control/linear_ramp.hpp"
+#include "yeet_control/pi_controller.hpp"
 #include "yeet_control/rate_of_change_limiter.hpp"
 #include "yeet_control/types.hpp"
 #include "yeet_control/units.hpp"
@@ -52,6 +53,12 @@ struct virtual_torque_config {
     torque_pu_t initial{0.3};  ///< Initial virtual torque reference [pu]
     torque_pu_t final{0.3};    ///< Final virtual torque reference [pu]
     duration_t duration{0.0};  ///< Duration of torque ramp [s], 0 = immediate to final value
+
+    // Damping configuration
+    bool damping_enabled{false};                ///< Enable damping based on observer speed feedback
+    real_t damping_kp{0.0};                     ///< Proportional gain for damping (pu_torque / pu_speed_error)
+    real_t damping_ti{0.0};                     ///< Integral time constant for damping [s] (0 = P-only)
+    speed_pu_t damping_activation_speed{0.05};  ///< Speed threshold above which damping is active [pu]
 };
 
 /**
@@ -69,7 +76,7 @@ struct flying_restart_config {
     speed_pu_t speed_threshold{0.05};        ///< Minimum speed for flying restart [pu] (5% rated)
     voltage_pu_t voltage_threshold{0.1};     ///< Voltage threshold for detection [pu] (10% rated)
     duration_t observer_settling_time{2.0};  ///< Observer settling duration [s]
-    bool auto_start_stop_enabled{true};      ///< Enable automatic start/stop based on state machine
+    bool flying_restart_enabled{true};       ///< Enable flying restart detection
 };
 
 /**
@@ -201,6 +208,17 @@ public:
     void configure_force_virtual_mode(bool force_virtual);
 
     /**
+     * @brief Configures whether to skip the flux build-up phase (for testing)
+     *
+     * When enabled, the sequencer will transition directly from IDLE (after settling)
+     * to STARTING_PROCEDURE without waiting for the field established signal.
+     * This is useful for tests without an actual excitation system.
+     *
+     * @param skip_flux_buildup If true, skip the flux buildup phase
+     */
+    void configure_skip_flux_buildup(bool skip_flux_buildup);
+
+    /**
      * @brief Starts the startup sequence
      *
      * Called when the main state machine enters OPERATION_ON or by manual command.
@@ -305,6 +323,7 @@ private:
     // Control components
     linear_ramp<frequency_pu_t> _virtual_frequency_ramp;
     linear_ramp<torque_pu_t> _virtual_torque_ramp;
+    control::pi_controller<real_t> _damping_controller;
     control::elapsed_timer _state_elapsed_timer;
     control::integrator<angle_wrapped> _virtual_angle_integrator;
     control::rate_of_change_limiter _speed_reference_limiter;
@@ -316,10 +335,12 @@ private:
     speed_reference_rate_limit_config _speed_reference_rate_limit_config;
     flying_restart_config _flying_restart_config;
     bool _force_virtual_mode_operation{false};
+    bool _skip_flux_buildup{false};
 
     // State
     startup_sequencer_state_t _current_state{startup_sequencer_state_t::IDLE};
     startup_sequencer_state_t _previous_state{startup_sequencer_state_t::IDLE};
+    sfc_state_id _current_state_machine_state{sfc_state_id::IDLE};
     sfc_state_id _previous_state_machine_state{sfc_state_id::IDLE};
     bool _shutdown_speed_override_active{false};
     bool _start_requested{false};
@@ -344,7 +365,7 @@ private:
         speed_pu_t external_speed_reference, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
     void update_flux_buildup(
         bool is_field_established, speed_pu_t measured_speed, voltage_pu_t measured_voltage_magnitude);
-    void update_starting_procedure(frequency_t base_frequency);
+    void update_starting_procedure(frequency_t base_frequency, speed_pu_t measured_speed);
     void update_closed_loop_operation(speed_pu_t speed_reference);
 
     // Automatic start/stop coordination

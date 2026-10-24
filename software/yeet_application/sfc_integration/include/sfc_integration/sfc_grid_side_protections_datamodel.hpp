@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc_integration/protection_severity.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/parameter_handler.hpp"
@@ -44,6 +45,9 @@ public:
 
         /// Machine-side protection tripped (received via fiber optics) [bool]
         signal_input<bool> machine_protection_tripped;
+
+        /// MV breaker is closed feedback [bool]
+        signal_input<bool> mv_breaker_is_closed;
     };
 
     /**
@@ -58,6 +62,9 @@ public:
 
         /// Protection system inhibited (trip occurred, awaiting confirmation)
         signal_output<bool> is_inhibited;
+
+        /// Latch of the first trip source encountered
+        signal_output<grid_trip_source> first_trip_source;
 
         /// Overcurrent protection trip status
         signal_output<bool> overcurrent_tripped;
@@ -76,6 +83,9 @@ public:
 
         /// Undervoltage protection alarm status (severity-dependent)
         signal_output<bool> undervoltage_alarmed;
+
+        /// Grid voltage dip detected (for end-position logic)
+        signal_output<bool> undervoltage_detected;
 
         /// Overcurrent warning status
         signal_output<bool> overcurrent_warning;
@@ -118,6 +128,9 @@ public:
 
         /// Machine protection alarm status (severity-dependent)
         signal_output<bool> machine_protection_alarmed;
+
+        /// Emergency off reset pulse (1s pulse after trip confirmation)
+        signal_output<bool> emergency_off_reset;
     };
 
     /**
@@ -177,10 +190,10 @@ public:
 
         // ========== Undervoltage Protection Parameters ==========
         /// Undervoltage trip threshold [pu]
-        parameter<voltage_pu_t> undervoltage_trip_threshold{voltage_pu_t{0.70f}};
+        parameter<voltage_pu_t> undervoltage_trip_threshold{voltage_pu_t{0.9f}};
 
         /// Undervoltage warning threshold [pu]
-        parameter<voltage_pu_t> undervoltage_warning_threshold{voltage_pu_t{0.85f}};
+        parameter<voltage_pu_t> undervoltage_warning_threshold{voltage_pu_t{0.95f}};
 
         /// Undervoltage trip delay [s]
         parameter<duration_t> undervoltage_trip_delay{duration_t{ms(100.0f)}};
@@ -196,6 +209,9 @@ public:
         /// Communication reset threshold [s]
         /// Default: 5ms
         parameter<duration_t> comm_reset{duration_t{ms(5.0f)}};
+
+        /// Pulse duration for emergency-off reset circuit [s]
+        parameter<duration_t> emergency_off_reset_duration{duration_t{1.0}};
 
         // ========== Protection Module Control ==========
         /// Master enable/disable for entire protection module
@@ -279,6 +295,8 @@ public:
             component_name, "comm_timeout", yeet::utils::make_units_accessor(_model_parameters->comm_timeout));
         handler.register_parameter(
             component_name, "comm_reset", yeet::utils::make_units_accessor(_model_parameters->comm_reset));
+        handler.register_parameter(component_name, "emergency_off_reset_duration",
+            yeet::utils::make_units_accessor(_model_parameters->emergency_off_reset_duration));
 
         // Protection module control
         handler.register_parameter(component_name, "protection_module_enabled",

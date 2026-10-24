@@ -107,7 +107,7 @@ def get_grid_side_plots() -> Dict[str, Dict[str, Any]]:
                 'y_label': 'Requests / State',
                 'signals': [
                     {'name': 'request force commutation', 'color': 'c', 'index': GridSignalIndex.MODULATOR_REQUEST_FORCE_COMMUTATION},
-                    {'name': 'request extinguish dc', 'color': 'm', 'index': GridSignalIndex.MODULATOR_REQUEST_EXTINGUISH_DC},
+                    {'name': 'forced commutation acknowledged', 'color': 'm', 'index': GridSignalIndex.FORCE_COMMUTATION_ACKNOWLEDGED},
                     # NOTE: 'force commutation ack' is now packed in BOOL_PACK_1 (bit 1) - not directly plottable
                 ]
             }

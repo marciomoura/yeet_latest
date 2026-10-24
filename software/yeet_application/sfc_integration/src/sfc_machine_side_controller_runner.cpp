@@ -18,7 +18,7 @@ void sfc_machine_side_controller_runner::initialize()
     _firing_angle_filter.configure(_firing_angle_filter.calculate_cutoff_frequency(ms(10.0)));
 
     _lookup_table.reset();
-    _outputs.firing_angle = _lookup_table.get_firing_angle_rad();
+    _outputs.firing_angle = _lookup_table.get_firing_angle();
 }
 
 void sfc_machine_side_controller_runner::run()
@@ -27,8 +27,8 @@ void sfc_machine_side_controller_runner::run()
         _outputs.firing_angle = _parameters.forced_firing_angle.read();
     }
     else {
-        _lookup_table.update(_inputs.dc_link_current.read());
-        _outputs.firing_angle = _lookup_table.get_firing_angle_rad();
+        _lookup_table.update(_inputs.dc_link_current.read(), _inputs.machine_speed.read());
+        _outputs.firing_angle = _lookup_table.get_firing_angle();
     }
 }
 
@@ -43,12 +43,17 @@ void sfc_machine_side_controller_runner::set_parameter_callback()
 {
     _parameters.dc_current_pu_lookup_table.register_callback([&]() { recalculate_lookup_table(); });
     _parameters.firing_angle_lookup_table.register_callback([&]() { recalculate_lookup_table(); });
+    _parameters.speed_pu_alpha_delta_axis.register_callback([&]() { recalculate_lookup_table(); });
+    _parameters.firing_angle_delta_lookup_table.register_callback([&]() { recalculate_lookup_table(); });
 }
 
 void sfc_machine_side_controller_runner::recalculate_lookup_table()
 {
     _lookup_table.configure_table(
         _parameters.dc_current_pu_lookup_table.read(), _parameters.firing_angle_lookup_table.read());
+
+    _lookup_table.configure_speed_delta_table(
+        _parameters.speed_pu_alpha_delta_axis.read(), _parameters.firing_angle_delta_lookup_table.read());
 }
 
 }  // namespace yeet::application::sfc::integration

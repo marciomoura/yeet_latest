@@ -28,8 +28,13 @@ void sfc_current_controller_runner::run()
     const voltage_pu_t reflected_machine_voltage_magnitude =
         _per_unit_system->reflect_machine_to_grid_voltage_pu(_inputs.machine_voltage_magnitude.read());
 
-    const current_pu_t dc_link_current_reference_pu =
-        _inputs.current_reference.read() + _parameters.current_reference_rectifier_operation.read();
+    current_pu_t dc_link_current_reference_pu;
+    if (_parameters.override_current_reference.read()) {
+        dc_link_current_reference_pu = _parameters.override_current_reference_value.read();
+    }
+    else {
+        dc_link_current_reference_pu = _inputs.current_reference.read();
+    }
 
     _sfc_current_controller.update(dc_link_current_reference_pu, _inputs.current_measured.read(),
         _inputs.grid_voltage_magnitude.read(), reflected_machine_voltage_magnitude);
@@ -37,7 +42,7 @@ void sfc_current_controller_runner::run()
     _outputs.firing_angle.write(
         angle_wrapped::from_radians(_sfc_current_controller.get_firing_angle_reference_radians()));
 
-    _outputs.current_error.write(_inputs.current_reference.read() - _inputs.current_measured.read());
+    _outputs.current_error.write(dc_link_current_reference_pu - _inputs.current_measured.read());
     _outputs.is_saturated.write(_sfc_current_controller.is_saturated());
     _outputs.pi_output.write(_sfc_current_controller.get_pi_output());
     _outputs.is_reference_current_limited.write(_sfc_current_controller.is_reference_current_limited());
@@ -101,6 +106,8 @@ void sfc_current_controller_runner::set_parameter_callback()
     _parameters.pi_output_max.register_callback([&]() {
         _sfc_current_controller.configure_pi_output_limits(_parameters.pi_output_min, _parameters.pi_output_max);
     });
+    _parameters.enable_feedforward.register_callback(
+        [&]() { _sfc_current_controller.enable_feedforward(_parameters.enable_feedforward.read()); });
 }
 
 }  // namespace yeet::application::sfc::integration

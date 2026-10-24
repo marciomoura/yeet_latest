@@ -12,7 +12,6 @@ void sfc_grid_side_control::initialize()
     current_controller.initialize();
     grid_side_observer.initialize();
     grid_side_modulator.initialize();
-    grid_side_pulse_generator.initialize();
     grid_measurements.initialize();
     dc_link_measurements.initialize();
     grid_protections.initialize();
@@ -36,7 +35,6 @@ void sfc_grid_side_control::register_datamodel(yeet::telemetry::parameter_handle
     current_controller.register_datamodel(handler);
     grid_side_observer.register_datamodel(handler);
     grid_side_modulator.register_datamodel(handler);
-    grid_side_pulse_generator.register_datamodel(handler);
     grid_measurements.register_datamodel(handler);
     dc_link_measurements.register_datamodel(handler);
     state_machine.register_datamodel(handler);
@@ -62,7 +60,6 @@ void sfc_grid_side_control::update_200us()
     grid_protections.run();
     grid_side_observer.run();
     grid_side_modulator.run();
-    grid_side_pulse_generator.run();
 }
 
 std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
@@ -70,8 +67,8 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Encode grid-side signals into fiber-optic protocol
     fiber_optic::grid_to_machine_message tx_msg;
     tx_msg.is_forced_commutation = (get_operating_mode().read() == sfc_operating_mode_t::forced_commutation);
-    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_filtered_pu.read();
-    tx_msg.grid_voltage_magnitude = grid_side_observer.get_outputs().estimated_voltage_magnitude.read();
+    // tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_filtered_pu.read();
+    tx_msg.dc_link_current = dc_link_measurements.get_outputs().dc_current_heavy_filtered_pu.read();
     tx_msg.force_commutation_acknowledged = grid_side_modulator.get_outputs().force_commutation_acknowledged.read();
     tx_msg.release_pulses = state_machine.get_outputs().release_pulses.read();
     // Include synchronization signals in fiber-optic protocol
@@ -79,6 +76,7 @@ std::uint8_t sfc_grid_side_control::encode_fiber_optic_tx_to_machine()
     // Include protection signals from grid-side state machine
     tx_msg.grid_release_protections = state_machine.get_outputs().release_grid_protections.read();
     tx_msg.machine_release_protections = state_machine.get_outputs().release_machine_protections.read();
+    tx_msg.freeze_integrator = grid_integrator_supervisor.get_outputs().freeze_integrator.read();
     tx_msg.communication_ok = _last_rx_decode_success;
 
     _fiber_optic_tx_length = fiber_optic::encode_grid_to_machine(tx_msg, _fiber_optic_tx_payload.data());
@@ -114,12 +112,13 @@ void sfc_grid_side_control::connect_internal_signals()
     using current_ctrl_inputs = sfc_current_controller_datamodel::inputs;
     using observer_inputs = sfc_grid_side_observer_datamodel::inputs;
     using modulator_inputs = sfc_grid_side_modulator_datamodel::inputs;
-    using pulse_gen_inputs = sfc_grid_side_pulse_generator_datamodel::inputs;
 
     // ==================== State Machine Inputs ====================
     wire(state_machine)
         .from(external_ios.get_digital_inputs().auxiliaries_are_on)
         .to(&state_machine_inputs::auxiliaries_are_on)
+        .from(external_ios.get_digital_inputs().fans_are_running)
+        .to(&state_machine_inputs::fans_are_running)
         .from(external_ios.get_digital_inputs().mv_breaker_is_closed)
         .to(&state_machine_inputs::mv_breaker_is_closed)
         .from(external_ios.get_digital_inputs().start_command)
@@ -166,7 +165,7 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&measurements_inputs::i_a_counts)
         .from(external_ios.get_analog_inputs().i_c_counts)
         .to(&measurements_inputs::i_c_counts)
-        .from(grid_side_pulse_generator.get_outputs().firing_pulses)
+        .from(grid_side_modulator.get_outputs().firing_pulses)
         .to(&measurements_inputs::grid_pulses)
         .from(grid_side_observer.get_outputs().estimated_reference_angle)
         .to(&measurements_inputs::grid_angle)
@@ -200,7 +199,9 @@ void sfc_grid_side_control::connect_internal_signals()
         .from(external_ios.get_digital_inputs().external_fault)
         .to(&protections_inputs::external_fault)
         .from(external_ios.get_digital_inputs().emergency_off)
-        .to(&protections_inputs::emergency_off);
+        .to(&protections_inputs::emergency_off)
+        .from(external_ios.get_digital_inputs().mv_breaker_is_closed)
+        .to(&protections_inputs::mv_breaker_is_closed);
 
     // ==================== Current Controller Inputs ====================
     wire(current_controller)
@@ -208,9 +209,9 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&current_ctrl_inputs::freeze_integrator)
         .from(grid_integrator_supervisor.get_outputs().preset_controller)
         .to(&current_ctrl_inputs::preset_request)
-        .from(dc_link_measurements.get_outputs().dc_current_pu)
+        .from(dc_link_measurements.get_outputs().dc_current_filtered_pu)
         .to(&current_ctrl_inputs::current_measured)
-        .from(grid_side_observer.get_outputs().estimated_voltage_magnitude)
+        .from(grid_measurements.get_outputs().grid_voltage_magnitude_filtered)
         .to(&current_ctrl_inputs::grid_voltage_magnitude)
         .from(external_ios.get_fiber_optics_inputs_from_machine().current_reference)
         .to(&current_ctrl_inputs::current_reference)
@@ -230,25 +231,20 @@ void sfc_grid_side_control::connect_internal_signals()
         .to(&modulator_inputs::shutdown_request)
         .from(grid_protections.get_outputs().is_inhibited)
         .to(&modulator_inputs::protection_trip)
+        .from(grid_protections.get_outputs().undervoltage_detected)
+        .to(&modulator_inputs::undervoltage_request_extinguish_dc_current)
         .from(operation_mode_monitor.get_outputs().operating_mode)
         .to(&modulator_inputs::operating_mode)
         .from(operation_mode_monitor.get_outputs().current_is_zero)
         .to(&modulator_inputs::current_is_zero)
         .from(current_controller.get_outputs().firing_angle)
         .to(&modulator_inputs::firing_angle)
+        .from(grid_side_observer.get_outputs().estimated_reference_angle)
+        .to(&modulator_inputs::grid_reference_angle)
         .from(external_ios.get_fiber_optics_inputs_from_machine().request_force_commutation)
         .to(&modulator_inputs::request_force_commutation)
         .from(grid_integrator_supervisor.get_outputs().release_pulses)
         .to(&modulator_inputs::release_pulses);
-
-    // ==================== Grid Side Pulse Generator Inputs ====================
-    wire(grid_side_pulse_generator)
-        .from(grid_integrator_supervisor.get_outputs().release_pulses)
-        .to(&pulse_gen_inputs::release_pulses)
-        .from(grid_side_observer.get_outputs().estimated_reference_angle)
-        .to(&pulse_gen_inputs::reference_angle)
-        .from(grid_side_modulator.get_outputs().firing_angle)
-        .to(&pulse_gen_inputs::firing_angle);
 
     // ==================== Main Circuit Breaker Outputs ====================
     signals_connector::connect_output_to_input(
@@ -279,6 +275,10 @@ void sfc_grid_side_control::connect_internal_signals()
         grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_2);
     signals_connector::connect_output_to_input(
         grid_protections.get_outputs().is_inhibited, external_ios.get_digital_outputs().software_trip_3);
+
+    // ==================== Emergency Off Reset Output ====================
+    signals_connector::connect_output_to_input(
+        grid_protections.get_outputs().emergency_off_reset, external_ios.get_digital_outputs().emergency_off_reset);
 }
 
 }  // namespace yeet::application::sfc::integration

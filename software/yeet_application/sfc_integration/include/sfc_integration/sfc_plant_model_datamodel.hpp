@@ -117,6 +117,9 @@ public:
         /// Defines the voltage control mode for machine-side excitation
         parameter<machine_voltage_control_mode> voltage_control_mode = machine_voltage_control_mode::fixed_voltage;
 
+        /// Defines a fixed machine voltage when in fixed voltage control mode [pu]
+        parameter<voltage_pu_t> fixed_machine_voltage = voltage_pu_t{0.0f};
+
         /// Motor inertia constant (H).
         /// Default: 2.5 s
         parameter<inertia_constant_t> motor_inertia_constant = inertia_constant_t(2.5);
@@ -181,6 +184,8 @@ public:
             component_name, "initial_speed", yeet::utils::make_units_accessor(_model_parameters->initial_speed));
         handler.register_parameter(component_name, "voltage_control_mode",
             yeet::utils::make_enum_accessor(_model_parameters->voltage_control_mode));
+        handler.register_parameter(component_name, "fixed_machine_voltage",
+            yeet::utils::make_units_accessor(_model_parameters->fixed_machine_voltage));
         handler.register_parameter(
             component_name, "operation_mode", yeet::utils::make_enum_accessor(_model_parameters->operation_mode));
         handler.register_parameter(component_name, "motor_inertia_constant",

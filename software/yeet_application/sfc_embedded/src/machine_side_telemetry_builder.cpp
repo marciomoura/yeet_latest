@@ -38,7 +38,7 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     const auto& speed_controller = _control.get_speed_controller();
     const auto& excitation_controller = _control.get_excitation_controller();
     const auto& startup_sequencer = _control.get_startup_sequencer();
-    const auto& pulse_generator = _control.get_machine_side_pulse_generator();
+    const auto& pulse_generator = _control.get_machine_side_modulator();
 
     // === Machine Measurements Group (0-6) ===
     // Voltage measurements
@@ -188,12 +188,27 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
             protections.get_outputs().stall_warning.read(),
             protections.get_outputs().communication_loss_tripped.read()});
 
-    packet.add_bool_pack(52, {// Bit 0: Protection (last 1)
-                                 protections.get_outputs().communication_loss_warning.read(),
-                                 // Bits 1-4: Fiber optic RX
-                                 (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation),
-                                 fiber_rx.force_commutation_acknowledged.read(), fiber_rx.release_pulses.read(),
-                                 fiber_rx.grid_release_protections.read()});
+    packet.add_bool_pack(52,
+        {// Bit 0: Protection (last 1)
+            protections.get_outputs().communication_loss_warning.read(),
+            // Bits 1-4: Fiber optic RX
+            (fiber_rx.operating_mode.read() == sfc_operating_mode_t::forced_commutation),
+            fiber_rx.force_commutation_acknowledged.read(), fiber_rx.release_pulses.read(),
+            fiber_rx.grid_release_protections.read(),
+            // Bits 5-14: Remaining Protections
+            protections.get_outputs().overspeed_tripped.read(), protections.get_outputs().overspeed_alarmed.read(),
+            protections.get_outputs().machine_overvoltage_tripped.read(),
+            protections.get_outputs().machine_overvoltage_alarmed.read(),
+            protections.get_outputs().loss_of_excitation_tripped.read(),
+            protections.get_outputs().loss_of_excitation_alarmed.read(),
+            protections.get_outputs().external_fault_tripped.read(),
+            protections.get_outputs().external_fault_alarmed.read(),
+            // Bit 14: Reserved/Machine Overvoltage Warning
+            protections.get_outputs().machine_overvoltage_warning.read(),
+            // Bits 15-18: Missing alarm bits
+            protections.get_outputs().over_flux_alarmed.read(), protections.get_outputs().under_flux_alarmed.read(),
+            protections.get_outputs().stall_alarmed.read(),
+            protections.get_outputs().communication_loss_alarmed.read()});
 
     // === Line Voltages (Unmasked) Group (53-55) ===
     const auto& machine_voltage_line = measurements.get_outputs().machine_voltage_line.read();
@@ -238,6 +253,14 @@ yeet::telemetry::telemetry_packet machine_side_telemetry_builder::build_packet(s
     packet.add_signal(69, static_cast<float>(fiber_rx.release_pulses.read()));
     packet.add_signal(70, static_cast<float>(fiber_rx.grid_release_protections.read()));
     packet.add_signal(71, static_cast<float>(fiber_rx.communication_ok.read()));
+
+    // === Intermediate Hardware Scale Signals (72-73) ===
+    packet.add_signal(72, static_cast<float>(measurements.get_outputs().v_ab_counts_peak.read()));
+    packet.add_signal(73, static_cast<float>(measurements.get_outputs().v_bc_counts_peak.read()));
+
+    // === First Trip Source (74) ===
+    packet.add_signal(
+        74, static_cast<float>(static_cast<uint32_t>(protections.get_outputs().first_trip_source.read())));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::machine_side_telemetry, timestamp_ms, _sequence_number++);

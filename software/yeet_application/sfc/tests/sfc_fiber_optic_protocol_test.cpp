@@ -41,7 +41,7 @@ TEST_F(GridToMachineProtocolTest, EncodeReturnsCorrectPayloadLength)
     grid_to_machine_message msg{};
     std::uint8_t length = encode_grid_to_machine(msg, payload.data());
     EXPECT_EQ(length, grid_to_machine_payload_length);
-    EXPECT_EQ(length, 3);
+    EXPECT_EQ(length, 2);
 }
 
 TEST_F(GridToMachineProtocolTest, DecodeRejectsInsufficientPayloadLength)
@@ -239,7 +239,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageAllFieldsSet)
     grid_to_machine_message original{};
     original.is_forced_commutation = true;
     original.dc_link_current = yeet::current_pu_t{0.85f};
-    original.grid_voltage_magnitude = yeet::voltage_pu_t{0.95f};
     original.force_commutation_acknowledged = true;
     original.release_pulses = false;
     original.state_id = 15;
@@ -250,7 +249,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageAllFieldsSet)
     ASSERT_TRUE(decoded.has_value());
     EXPECT_TRUE(decoded->is_forced_commutation);
     EXPECT_FLOAT_EQ(decoded->dc_link_current.value(), 0.85f);
-    EXPECT_FLOAT_EQ(decoded->grid_voltage_magnitude.value(), 0.95f);
     EXPECT_TRUE(decoded->force_commutation_acknowledged);
     EXPECT_FALSE(decoded->release_pulses);
     EXPECT_EQ(decoded->state_id, 15);
@@ -261,7 +259,6 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageMixedFields)
     grid_to_machine_message original{};
     original.is_forced_commutation = false;
     original.dc_link_current = yeet::current_pu_t{-0.25f};
-    original.grid_voltage_magnitude = yeet::voltage_pu_t{1.05f};
     original.force_commutation_acknowledged = false;
     original.release_pulses = true;
     original.state_id = 100;
@@ -272,10 +269,39 @@ TEST_F(GridToMachineProtocolTest, RoundTripCompleteMessageMixedFields)
     ASSERT_TRUE(decoded.has_value());
     EXPECT_FALSE(decoded->is_forced_commutation);
     EXPECT_FLOAT_EQ(decoded->dc_link_current.value(), -0.25f);
-    EXPECT_FLOAT_EQ(decoded->grid_voltage_magnitude.value(), 1.05f);
     EXPECT_FALSE(decoded->force_commutation_acknowledged);
     EXPECT_TRUE(decoded->release_pulses);
     EXPECT_EQ(decoded->state_id, 100);
+}
+
+TEST_F(GridToMachineProtocolTest, RoundTripCommunicationOK)
+{
+    grid_to_machine_message original{};
+    original.communication_ok = true;
+
+    [[maybe_unused]] auto length = encode_grid_to_machine(original, payload.data());
+    auto decoded = decode_grid_to_machine(payload.data(), grid_to_machine_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->communication_ok);
+    // Verify other flags remain false
+    EXPECT_FALSE(decoded->grid_release_protections);
+    EXPECT_FALSE(decoded->machine_release_protections);
+}
+
+TEST_F(GridToMachineProtocolTest, RoundTripReleaseProtections)
+{
+    grid_to_machine_message original{};
+    original.grid_release_protections = true;
+    original.machine_release_protections = true;
+
+    [[maybe_unused]] auto length = encode_grid_to_machine(original, payload.data());
+    auto decoded = decode_grid_to_machine(payload.data(), grid_to_machine_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->grid_release_protections);
+    EXPECT_TRUE(decoded->machine_release_protections);
+    EXPECT_FALSE(decoded->communication_ok);
 }
 
 /* ============================================================================
@@ -513,6 +539,56 @@ TEST_F(MachineToGridProtocolTest, RoundTripCompleteMessageMixedFields)
     EXPECT_FALSE(decoded->force_commutation_request);
 
     EXPECT_FALSE(decoded->machine_protection_tripped);
+}
+
+TEST_F(MachineToGridProtocolTest, RoundTripCommunicationOK)
+{
+    machine_to_grid_message original{};
+    original.communication_ok = true;
+
+    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
+    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->communication_ok);
+    EXPECT_FALSE(decoded->protection_inhibit);
+}
+
+TEST_F(MachineToGridProtocolTest, RoundTripProtectionInhibit)
+{
+    machine_to_grid_message original{};
+    original.protection_inhibit = true;
+
+    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
+    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_TRUE(decoded->protection_inhibit);
+    EXPECT_FALSE(decoded->communication_ok);
+}
+
+TEST_F(MachineToGridProtocolTest, RoundTripAllFlagsAndFloats)
+{
+    machine_to_grid_message original{};
+    original.measured_speed = yeet::speed_pu_t{0.123f};
+    original.dc_link_current_reference = yeet::current_pu_t{0.456f};
+    original.machine_voltage_magnitude = yeet::voltage_pu_t{0.789f};
+    original.force_commutation_request = true;
+    original.machine_protection_tripped = true;
+    original.protection_inhibit = true;
+    original.communication_ok = true;
+
+    [[maybe_unused]] auto length = encode_machine_to_grid(original, payload.data());
+    auto decoded = decode_machine_to_grid(payload.data(), machine_to_grid_payload_length);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_FLOAT_EQ(decoded->measured_speed.value(), 0.123f);
+    EXPECT_FLOAT_EQ(decoded->dc_link_current_reference.value(), 0.456f);
+    EXPECT_FLOAT_EQ(decoded->machine_voltage_magnitude.value(), 0.789f);
+    EXPECT_TRUE(decoded->force_commutation_request);
+    EXPECT_TRUE(decoded->machine_protection_tripped);
+    EXPECT_TRUE(decoded->protection_inhibit);
+    EXPECT_TRUE(decoded->communication_ok);
 }
 
 /* ============================================================================

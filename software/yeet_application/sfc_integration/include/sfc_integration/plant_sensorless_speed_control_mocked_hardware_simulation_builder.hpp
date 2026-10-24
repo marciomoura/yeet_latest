@@ -9,13 +9,13 @@
 #include "sfc_integration/sfc_excitation_controller_runner.hpp"
 #include "sfc_integration/sfc_grid_side_hardware_mock_runner.hpp"
 #include "sfc_integration/sfc_grid_side_measurements_runner.hpp"
+#include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_hardware_mock_runner.hpp"
 #include "sfc_integration/sfc_machine_side_measurements_runner.hpp"
+#include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_speed_controller_runner.hpp"
 #include "yeet/model_registry.hpp"
@@ -29,7 +29,8 @@ namespace yeet::application::sfc::integration {
 // =====================================================================================
 //  Sensorless Speed Controller Mocked-Hardware Simulation Builder
 //  Plant Ã¢â€ â€™ Hardware Mocks (CT/PT + transducers + ADC counts) Ã¢â€ â€™ Measurement Runners Ã¢â€ â€™
-//  Observers Ã¢â€ â€™ Speed Controller (outer) Ã¢â€ â€™ Current Controller (inner) Ã¢â€ â€™ Pulse Generators Ã¢â€ â€™ Plant
+//  Observers Ã¢â€ â€™ Speed Controller (outer) Ã¢â€ â€™ Current Controller (inner) Ã¢â€ â€™ Pulse Generators Ã¢â€ â€™
+//  Plant
 // =====================================================================================
 class plant_sensorless_speed_control_mocked_hardware_simulation_builder {
 public:
@@ -82,12 +83,31 @@ public:
             .to(&sfc_machine_side_observer_datamodel::inputs::preset_frequency);
 
         // Always release pulses for open-loop firing generation
-        yeet::wire(grid_side_pulse_generator)
+        yeet::wire(grid_side_modulator)
             .mocked(_mock_storage_true)
-            .to(&sfc_grid_side_pulse_generator_datamodel::inputs::release_pulses);
-        yeet::wire(machine_side_pulse_generator)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::release_pulses)
+            .mocked(_mock_operating_mode_natural)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::operating_mode)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::request_extinguish_dc_current)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::current_is_zero)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::shutdown_request)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::protection_trip)
+            .mocked(_mock_storage_false)
+            .to(&sfc_grid_side_modulator_datamodel::inputs::undervoltage_request_extinguish_dc_current);
+
+        yeet::wire(machine_side_modulator)
             .mocked(_mock_storage_true)
-            .to(&sfc_machine_side_pulse_generator_datamodel::inputs::release_pulses);
+            .to(&sfc_machine_side_modulator_datamodel::inputs::release_pulses)
+            .mocked(_mock_operating_mode_natural)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::operating_mode)
+            .mocked(_mock_reference_frame_estimated)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::reference_frame_source)
+            .mocked(_mock_rotor_angle)
+            .to(&sfc_machine_side_modulator_datamodel::inputs::virtual_rotor_angle);
 
         // Excitation command (no startup_sequencer in this builder)
         yeet::wire(excitation_controller)
@@ -113,8 +133,8 @@ public:
         speed_controller.initialize();
         current_controller.initialize();
         machine_side_controller.initialize();
-        grid_side_pulse_generator.initialize();
-        machine_side_pulse_generator.initialize();
+        grid_side_modulator.initialize();
+        machine_side_modulator.initialize();
     }
 
     void register_applications(yeet::simulator& simulator)
@@ -139,8 +159,8 @@ public:
 
         simulator.register_runner(current_controller);
         simulator.register_runner(machine_side_controller);
-        simulator.register_runner(grid_side_pulse_generator);
-        simulator.register_runner(machine_side_pulse_generator);
+        simulator.register_runner(grid_side_modulator);
+        simulator.register_runner(machine_side_modulator);
     }
 
     void register_datamodel(yeet::telemetry::parameter_handler& handler)
@@ -157,31 +177,32 @@ public:
         speed_controller.register_datamodel(handler);
         current_controller.register_datamodel(handler);
         machine_side_controller.register_datamodel(handler);
-        grid_side_pulse_generator.register_datamodel(handler);
-        machine_side_pulse_generator.register_datamodel(handler);
+        grid_side_modulator.register_datamodel(handler);
+        machine_side_modulator.register_datamodel(handler);
     }
 
     // Public accessible members (tests can wire / sample signals)
     std::shared_ptr<sfc::sfc_per_unit_system> _per_unit_system;
-    sfc_excitation_controller_runner excitation_controller;                // Field current control
-    sfc_speed_controller_runner speed_controller;                          // Outer loop
-    sfc_current_controller_runner current_controller;                      // Inner loop (dc-link current)
-    sfc_machine_side_controller_runner machine_side_controller;            // Machine-side lookup (firing angle)
-    sfc_grid_side_observer_runner grid_side_observer;                      // Grid-side observer
-    sfc_machine_side_observer_runner machine_side_observer;                // Machine-side observer
-    sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;        // Grid firing pulses
-    sfc_machine_side_pulse_generator_runner machine_side_pulse_generator;  // Machine firing pulses
-    sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;            // PT/CT + transducers + ADC (grid)
-    sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;      // PT + transducers + ADC (machine)
-    sfc_grid_side_measurements_runner grid_measurements;                   // Reconstruction & filtering (grid)
-    sfc_machine_side_measurements_runner machine_measurements;             // Reconstruction & filtering (machine)
-    sfc_dc_link_measurements_runner dc_link_measurements;                  // DC link current reconstruction
-    sfc_plant_model_runner plant;                                          // Core plant model
+    sfc_excitation_controller_runner excitation_controller;            // Field current control
+    sfc_speed_controller_runner speed_controller;                      // Outer loop
+    sfc_current_controller_runner current_controller;                  // Inner loop (dc-link current)
+    sfc_machine_side_controller_runner machine_side_controller;        // Machine-side lookup (firing angle)
+    sfc_grid_side_observer_runner grid_side_observer;                  // Grid-side observer
+    sfc_machine_side_observer_runner machine_side_observer;            // Machine-side observer
+    sfc_grid_side_modulator_runner grid_side_modulator;                // Grid firing pulses
+    sfc_machine_side_modulator_runner machine_side_modulator;          // Machine firing pulses
+    sfc_grid_side_hardware_mock_runner grid_side_hardware_mock;        // PT/CT + transducers + ADC (grid)
+    sfc_machine_side_hardware_mock_runner machine_side_hardware_mock;  // PT + transducers + ADC (machine)
+    sfc_grid_side_measurements_runner grid_measurements;               // Reconstruction & filtering (grid)
+    sfc_machine_side_measurements_runner machine_measurements;         // Reconstruction & filtering (machine)
+    sfc_dc_link_measurements_runner dc_link_measurements;              // DC link current reconstruction
+    sfc_plant_model_runner plant;                                      // Core plant model
 
     // External command / disturbance signals
     signal_output<torque_pu_t> load_torque;     // Mechanical load torque
     signal_output<speed_pu_t> speed_reference;  // Speed setpoint (pu)
     signal_output<bool> enable_speed_control;   // Enable outer loop
+    signal_output<bool> voltage_dip{false};
 
     // Internal signal for torque-to-current conversion (simplified tests without torque controller)
     signal_output<current_pu_t> current_reference_from_speed_ctrl;
@@ -235,9 +256,9 @@ private:
 
         // ==================== Pulses / Sync into Measurement Runners ====================
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, grid_measurements.get_inputs().grid_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, machine_measurements.get_inputs().machine_pulses);
         signals_connector::connect_output_to_input(
             plant.get_outputs().grid_voltage_source_angle, grid_measurements.get_inputs().grid_angle);
         signals_connector::connect_output_to_input(
@@ -294,24 +315,36 @@ private:
         signals_connector::connect_output_to_input(
             machine_side_observer.get_outputs().estimated_speed, machine_side_controller.get_inputs().machine_speed);
 
-        // ==================== Controller Outputs -> Pulse Generators ====================
+        // ==================== Controller Outputs -> Modulators ====================
         signals_connector::connect_output_to_input(
-            current_controller.get_outputs().firing_angle, grid_side_pulse_generator.get_inputs().firing_angle);
+            current_controller.get_outputs().firing_angle, grid_side_modulator.get_inputs().firing_angle);
         signals_connector::connect_output_to_input(
-            machine_side_controller.get_outputs().firing_angle, machine_side_pulse_generator.get_inputs().firing_angle);
+            machine_side_controller.get_outputs().firing_angle, machine_side_modulator.get_inputs().firing_angle);
 
-        // ==================== Observer Position -> Pulse Generators (sensorless sync) ====================
+        // ==================== Observer Position -> Modulators (sensorless sync) ====================
         signals_connector::connect_output_to_input(grid_side_observer.get_outputs().estimated_reference_angle,
-            grid_side_pulse_generator.get_inputs().reference_angle);
+            grid_side_modulator.get_inputs().grid_reference_angle);
         signals_connector::connect_output_to_input(machine_side_observer.get_outputs().estimated_reference_angle,
-            machine_side_pulse_generator.get_inputs().reference_angle);
+            machine_side_modulator.get_inputs().machine_reference_angle);
 
-        // ==================== Pulse Generators -> Plant & Load Torque ====================
+        // ==================== Handshake ====================
+        signals_connector::connect_output_to_input(
+            voltage_dip, grid_side_modulator.get_inputs().undervoltage_request_extinguish_dc_current);
+        signals_connector::connect_output_to_input(machine_side_modulator.get_outputs().request_force_commutation,
+            grid_side_modulator.get_inputs().request_force_commutation);
+        signals_connector::connect_output_to_input(grid_side_modulator.get_outputs().force_commutation_acknowledged,
+            machine_side_modulator.get_inputs().force_commutation_acknowledged);
+
+        // ==================== Plant -> Modulator (current zero detection) ====================
+        //        signals_connector::connect_output_to_input(
+        //          plant.get_outputs()., grid_side_modulator.get_inputs().current_is_zero);
+
+        // ==================== Modulators -> Plant & Load Torque ====================
 
         signals_connector::connect_output_to_input(
-            grid_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
+            grid_side_modulator.get_outputs().firing_pulses, plant.get_inputs().grid_firing_pulses);
         signals_connector::connect_output_to_input(
-            machine_side_pulse_generator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
+            machine_side_modulator.get_outputs().firing_pulses, plant.get_inputs().machine_firing_pulses);
 
         // Field current reference for variable-speed voltage control from excitation controller
         signals_connector::connect_output_to_input(
@@ -324,11 +357,18 @@ private:
         // ==================== Current Controller Saturation -> Speed Controller (anti-windup) ====================
         signals_connector::connect_output_to_input(
             current_controller.get_outputs().is_saturated, speed_controller.get_inputs().is_saturated);
+
+        // ==================== Modulator -> Current Controller (Freeze PI) ====================
+        signals_connector::connect_output_to_input(
+            grid_side_modulator.get_outputs().freeze_integrator, current_controller.get_inputs().freeze_integrator);
     }
 
 private:
     bool _mock_storage_true{true};
     bool _mock_storage_false{false};
+    angle_wrapped _mock_rotor_angle{0.0};
+    sfc_operating_mode_t _mock_operating_mode_natural{sfc_operating_mode_t::natural_commutation};
+    reference_frame_source_t _mock_reference_frame_estimated{reference_frame_source_t::ESTIMATED};
     angle_wrapped _mock_storage_angle_zero{0.0};
     frequency_pu_t _mock_storage_freq_zero{0.0};
     torque_pu_t _mock_storage_torque_zero{0.0};

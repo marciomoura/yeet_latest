@@ -3,7 +3,9 @@
 #include "sfc/sfc_communication_watchdog.hpp"
 #include "sfc/sfc_protections_trip_handshake.hpp"
 #include "sfc/sfc_stall_protection.hpp"
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc/sfc_vhz_protection.hpp"
+#include "yeet_control/on_delay.hpp"
 #include "yeet_control/threshold_protection.hpp"
 #include "yeet_control/units.hpp"
 
@@ -84,20 +86,31 @@ public:
 
     // Overspeed protection
     void configure_overspeed_trip_threshold(speed_pu_t threshold) noexcept;
+    void configure_overspeed_warning_threshold(speed_pu_t threshold) noexcept;
     void configure_overspeed_trip_delay(duration_t delay) noexcept;
+    void configure_overspeed_warning_delay(duration_t delay) noexcept;
 
     // Machine overvoltage protection
     void configure_machine_overvoltage_trip_threshold(voltage_pu_t threshold) noexcept;
+    void configure_machine_overvoltage_warning_threshold(voltage_pu_t threshold) noexcept;
     void configure_machine_overvoltage_trip_delay(duration_t delay) noexcept;
+    void configure_machine_overvoltage_warning_delay(duration_t delay) noexcept;
 
     // Loss of excitation protection
+    void configure_loss_of_excitation_trip_threshold(real_t threshold) noexcept;
+    void configure_loss_of_excitation_warning_threshold(real_t threshold) noexcept;
     void configure_loss_of_excitation_trip_delay(duration_t delay) noexcept;
+    void configure_loss_of_excitation_warning_delay(duration_t delay) noexcept;
+
+    // External fault protection
+    void configure_external_fault_trip_delay(duration_t delay) noexcept;
 
     // -------------------- Outputs --------------------
 
     bool get_has_active_trip() const noexcept;
     bool get_has_active_alarm() const noexcept;
     bool get_is_inhibited() const noexcept;
+    machine_trip_source get_first_trip_source() const noexcept { return _first_trip_source; }
 
     bool get_over_flux_tripped() const noexcept;
     bool get_over_flux_alarmed() const noexcept;
@@ -109,21 +122,21 @@ public:
 
     bool get_overspeed_tripped() const noexcept;
     bool get_overspeed_alarmed() const noexcept;
+    bool get_overspeed_warning() const noexcept;
 
     bool get_machine_overvoltage_tripped() const noexcept;
     bool get_machine_overvoltage_alarmed() const noexcept;
+    bool get_machine_overvoltage_warning() const noexcept;
 
     bool get_communication_loss_tripped() const noexcept;
     bool get_communication_loss_alarmed() const noexcept;
 
     bool get_loss_of_excitation_tripped() const noexcept;
     bool get_loss_of_excitation_alarmed() const noexcept;
+    bool get_loss_of_excitation_warning() const noexcept;
 
     bool get_external_fault_tripped() const noexcept;
     bool get_external_fault_alarmed() const noexcept;
-
-    bool get_emergency_off_tripped() const noexcept;
-    bool get_emergency_off_alarmed() const noexcept;
 
     bool get_over_flux_warning() const noexcept;
     bool get_under_flux_warning() const noexcept;
@@ -145,8 +158,10 @@ private:
         _loss_of_excitation_protection;
 
     sfc_protections_trip_handshake _trip_handshake;
+    yeet::control::edge_detector _is_confirm_trip_rising_edge_detector;
 
     bool _external_fault_active{false};
+    yeet::control::on_delay _external_fault_delay;
 
     // Severity routing configuration
     bool _over_flux_is_trip{true};
@@ -168,6 +183,7 @@ private:
     bool _has_active_trip{false};
     bool _has_active_alarm{false};
     bool _is_inhibited{false};
+    machine_trip_source _first_trip_source{machine_trip_source::none};
 
     bool _over_flux_tripped{false};
     bool _over_flux_alarmed{false};
@@ -195,7 +211,10 @@ private:
     bool _over_flux_warning{false};
     bool _under_flux_warning{false};
     bool _stall_warning{false};
+    bool _overspeed_warning{false};
+    bool _machine_overvoltage_warning{false};
     bool _communication_loss_warning{false};
+    bool _loss_of_excitation_warning{false};
 
     // Helper method to check and reset handshake when severity changes
     void check_and_reset_handshake_if_no_trips() noexcept;

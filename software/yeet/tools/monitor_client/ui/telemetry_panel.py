@@ -42,7 +42,7 @@ class TelemetryPanel(QtWidgets.QWidget):
     can define custom layouts via add_section().
     """
     
-    def __init__(self, parent=None, max_width: int = 400):
+    def __init__(self, parent=None, max_width: int = 500):
         """Initialize telemetry panel.
         
         Args:
@@ -74,12 +74,12 @@ class TelemetryPanel(QtWidgets.QWidget):
         # Main scrollable area
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        # scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         
         # Content widget
         self.content_widget = QtWidgets.QWidget()
         self.content_layout = QtWidgets.QVBoxLayout(self.content_widget)
-        self.content_layout.setSpacing(10)
+        self.content_layout.setSpacing(5)
         self.content_layout.setContentsMargins(5, 5, 5, 5)
         
         scroll.setWidget(self.content_widget)

@@ -133,6 +133,7 @@ void sfc_plant_model_runner::set_parameter_callback()
     _parameters.grid_frequency_pu.register_callback([&]() { set_grid_operating_point(); });
     _parameters.grid_voltage_pu.register_callback([&]() { set_grid_operating_point(); });
     _parameters.topology.register_callback([&]() { handle_topology_change(); });
+    _parameters.fixed_machine_voltage.register_callback([&]() { handle_topology_change(); });
 }
 
 void sfc_plant_model_runner::handle_topology_change()
@@ -159,6 +160,10 @@ void sfc_plant_model_runner::handle_topology_change()
     _plant->set_voltage_control_mode(current_voltage_mode);
     _plant->set_initial_mechanical_speed_pu(current_speed);
     _plant->set_field_current_reference_pu(current_field_current);
+
+    if (_parameters.voltage_control_mode.read() == datamodel::machine_voltage_control_mode::fixed_voltage) {
+        _plant->set_machine_voltage_pu(_parameters.fixed_machine_voltage.read());
+    }
 
     set_parameters();
 }

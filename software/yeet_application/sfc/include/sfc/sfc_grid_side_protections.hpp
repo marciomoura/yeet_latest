@@ -4,7 +4,10 @@
 #include "sfc/sfc_current_protection.hpp"
 #include "sfc/sfc_overvoltage_protection.hpp"
 #include "sfc/sfc_protections_trip_handshake.hpp"
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc/sfc_undervoltage_protection.hpp"
+#include "yeet_control/edge_detector.hpp"
+#include "yeet_control/on_off_delay.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc {
@@ -34,7 +37,9 @@ public:
 
     void update_overvoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept;
 
-    void update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu) noexcept;
+    void update_undervoltage_protection(voltage_pu_t grid_voltage_magnitude_pu, bool enabled = true) noexcept;
+
+    grid_trip_source get_first_trip_source() const noexcept { return _first_trip_source; }
 
     void update_communication_watchdog(bool communication_valid) noexcept;
 
@@ -88,6 +93,9 @@ public:
     void configure_comm_timeout_duration(duration_t timeout) noexcept;
     void configure_comm_reset_duration(duration_t reset) noexcept;
 
+    // Emergency off reset pulse
+    void configure_emergency_off_reset_duration(duration_t duration) noexcept;
+
     // -------------------- Outputs --------------------
 
     bool get_has_active_trip() const noexcept;
@@ -100,6 +108,7 @@ public:
     bool get_overvoltage_alarmed() const noexcept;
     bool get_undervoltage_tripped() const noexcept;
     bool get_undervoltage_alarmed() const noexcept;
+    bool get_undervoltage_detected() const noexcept;
 
     bool get_overcurrent_warning() const noexcept;
     bool get_overvoltage_warning() const noexcept;
@@ -120,6 +129,8 @@ public:
     bool get_emergency_off_alarmed() const noexcept;
     bool get_emergency_off_warning() const noexcept;
 
+    bool get_emergency_off_reset() const noexcept;
+
     bool get_machine_protection_tripped() const noexcept;
     bool get_machine_protection_alarmed() const noexcept;
 
@@ -131,10 +142,15 @@ private:
     sfc_communication_watchdog _communication_watchdog;
 
     sfc_protections_trip_handshake _trip_handshake;
+    yeet::control::edge_detector _is_confirm_trip_rising_edge_detector;
+
+    bool _emergency_off_edge_detected{false};
+    yeet::control::on_off_delay _emergency_on_off_reset_timer;
 
     bool _external_fault_active{false};
     bool _emergency_off_active{false};
     bool _machine_protection_tripped_active{false};
+    bool _emergency_off_reset{false};
 
     // Severity routing configuration
     bool _overcurrent_is_trip{true};
@@ -146,10 +162,13 @@ private:
     bool _emergency_off_is_trip{true};
     bool _machine_protection_is_trip{true};
 
+    duration_t _emergency_off_reset_duration{1.0};
+
     // Outputs (latched/derived)
     bool _has_active_trip{false};
     bool _has_active_alarm{false};
     bool _is_inhibited{false};
+    grid_trip_source _first_trip_source{grid_trip_source::none};
 
     bool _overcurrent_tripped{false};
     bool _overcurrent_alarmed{false};
@@ -157,6 +176,7 @@ private:
     bool _overvoltage_alarmed{false};
     bool _undervoltage_tripped{false};
     bool _undervoltage_alarmed{false};
+    bool _undervoltage_detected{false};
 
     bool _overcurrent_warning{false};
     bool _overvoltage_warning{false};

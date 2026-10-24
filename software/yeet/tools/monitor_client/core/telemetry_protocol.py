@@ -62,6 +62,7 @@ from ..config.grid_side_telemetry_protocol import (
     PulseGeneratorData,
     GridProtectionsData,
     FiberOpticRxFromMachineData,
+    GridHardwareDebugData,
 )
 from ..config.machine_side_telemetry_protocol import (
     MachineSignalIndex,
@@ -203,15 +204,18 @@ class GridSideTelemetryPacket:
         return bools
     
     def _get_bool_pack_2(self) -> list[bool]:
-        """Unpack boolean pack #2 (index 43, bits 0-6).
+        """Unpack boolean pack #2 (index 43, bits 0-19).
         
-        Returns 8 booleans in order:
+        Returns 20 booleans in order:
         - Bits 0-3: Protections part 2 (overvoltage_warning, undervoltage_warning, comm_loss_tripped, comm_loss_warning)
         - Bits 4-6: Fiber optic RX (request_force_comm, machine_protection_tripped, protection_inhibit)
+        - Bits 7-10: Extra trips (door_open, external_fault, emergency_off, machine_side)
+        - Bits 11-18: Alarms (overcurrent, overvoltage, undervoltage, comm_loss, door_open, external_fault, emergency_off, machine_side)
+        - Bit 19: Emergency Off reset pulse
         """
         raw = self.get_raw_signal(GridSignalIndex.BOOL_PACK_2, 0)
         logger.debug(f"_get_bool_pack_2: raw_signal[43] = 0x{raw:08X} ({raw})")
-        bools = unpack_bools(raw, 8)
+        bools = unpack_bools(raw, 20)
         logger.debug(f"_get_bool_pack_2: unpacked {len(bools)} bools: {bools}")
         return bools
     
@@ -323,6 +327,7 @@ class GridSideTelemetryPacket:
             is_tripped=bools1[24],  # Bit 24
             is_inhibited=bools1[25],  # Bit 25
             any_fault_active=bools1[26],  # Bit 26
+            first_trip_source=int(self.get_signal(GridSignalIndex.FIRST_TRIP_SOURCE)),
             overcurrent_tripped=bools1[27],  # Bit 27
             overvoltage_tripped=bools1[28],  # Bit 28
             undervoltage_tripped=bools1[29],  # Bit 29
@@ -331,6 +336,11 @@ class GridSideTelemetryPacket:
             undervoltage_warning=bools2[1],  # Pack 2, Bit 1
             communication_loss_tripped=bools2[2],  # Pack 2, Bit 2
             communication_loss_warning=bools2[3],  # Pack 2, Bit 3
+            door_open_tripped=bools2[7],     # Pack 2, Bit 7
+            external_fault_tripped=bools2[8], # Pack 2, Bit 8
+            emergency_off_tripped=bools2[9],  # Pack 2, Bit 9
+            machine_side_protection_tripped=bools2[10], # Pack 2, Bit 10
+            emergency_off_reset=bools2[19]    # Pack 2, Bit 19
         )
     
     @property
@@ -344,6 +354,16 @@ class GridSideTelemetryPacket:
             force_commutation_request=bools2[4],  # Pack 2, Bit 4
             machine_protection_tripped=bools2[5],  # Pack 2, Bit 5
             protection_inhibit=bools2[6],  # Pack 2, Bit 6
+        )
+
+    @property
+    def hardware_debug(self) -> GridHardwareDebugData:
+        """Extract hardware debug signals from signal array."""
+        return GridHardwareDebugData(
+            voltage_ab_counts_peak=self.get_signal(GridSignalIndex.VOLTAGE_AB_COUNTS_PEAK),
+            voltage_bc_counts_peak=self.get_signal(GridSignalIndex.VOLTAGE_BC_COUNTS_PEAK),
+            current_a_counts_peak=self.get_signal(GridSignalIndex.CURRENT_A_COUNTS_PEAK),
+            current_c_counts_peak=self.get_signal(GridSignalIndex.CURRENT_C_COUNTS_PEAK),
         )
 
 
@@ -410,14 +430,16 @@ class MachineSideTelemetryPacket:
         return unpack_bools(raw, 32)
     
     def _get_bool_pack_2(self) -> list[bool]:
-        """Unpack boolean pack #2 (index 52, bits 0-4).
+        """Unpack boolean pack #2 (index 52, bits 0-18).
         
-        Returns 5 booleans in order:
+        Returns 19 booleans in order:
         - Bit 0: Protection part 2 (comm_loss_w)
         - Bits 1-4: Fiber optic RX (is_forced_comm, force_comm_ack, release_pulses, grid_rel_prot)
+        - Bits 5-14: Protections part 3 (overspeed_t, overspeed_a, overvoltage_t, overvoltage_a, loe_t, loe_a, ext_fault_t, ext_fault_a, machine_ov_w, spare)
+        - Bits 15-18: Alarms (over_flux_a, under_flux_a, stall_a, comm_loss_a)
         """
         raw = self.get_raw_signal(MachineSignalIndex.BOOL_PACK_2, 0)
-        return unpack_bools(raw, 5)
+        return unpack_bools(raw, 19)
 
     @property
     def measurements(self) -> MachineMeasurements:
@@ -432,6 +454,8 @@ class MachineSideTelemetryPacket:
             estimated_frequency_pu=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_PU),
             estimated_reference_angle_pu=self.get_signal(MachineSignalIndex.ESTIMATED_REFERENCE_ANGLE),
             estimated_frequency_hz=self.get_signal(MachineSignalIndex.ESTIMATED_FREQUENCY_HZ),
+            v_ab_counts_peak=self.get_signal(MachineSignalIndex.MACHINE_V_AB_COUNTS_PEAK),
+            v_bc_counts_peak=self.get_signal(MachineSignalIndex.MACHINE_V_BC_COUNTS_PEAK),
         )
     
     @property
@@ -550,6 +574,7 @@ class MachineSideTelemetryPacket:
             is_tripped=bools1[22],
             is_inhibited=bools1[23],
             any_fault_active=bools1[24],
+            first_trip_source=int(self.get_signal(MachineSignalIndex.FIRST_TRIP_SOURCE)),
             over_flux_tripped=bools1[25],
             under_flux_tripped=bools1[26],
             stall_tripped=bools1[27],
@@ -558,6 +583,16 @@ class MachineSideTelemetryPacket:
             stall_warning=bools1[30],
             communication_loss_tripped=bools1[31],
             communication_loss_warning=bools2[0],
+            overspeed_tripped=bools2[5],
+            overspeed_alarmed=bools2[6],
+            machine_overvoltage_tripped=bools2[7],
+            machine_overvoltage_alarmed=bools2[8],
+            loss_of_excitation_tripped=bools2[9],
+            loss_of_excitation_alarmed=bools2[10],
+            external_fault_tripped=bools2[11],
+            external_fault_alarmed=bools2[12],
+            emergency_off_tripped=bools2[13],
+            emergency_off_alarmed=bools2[14],
         )
 
     @property

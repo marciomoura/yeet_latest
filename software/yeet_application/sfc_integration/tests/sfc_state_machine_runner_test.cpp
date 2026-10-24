@@ -14,6 +14,7 @@ protected:
         // Connect storage to signals (required by raw pointer API)
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         yeet::utils::mock_signal_input::connect(inputs.auxiliaries_are_on, _storage_auxiliaries_are_on);
+        yeet::utils::mock_signal_input::connect(inputs.fans_are_running, _storage_fans_are_running);
         yeet::utils::mock_signal_input::connect(inputs.mv_breaker_is_closed, _storage_mv_breaker_is_closed);
         yeet::utils::mock_signal_input::connect(inputs.start_command, _storage_start_command);
         yeet::utils::mock_signal_input::connect(inputs.stop_command, _storage_stop_command);
@@ -50,6 +51,7 @@ protected:
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         yeet::utils::mock_signal_input::write(inputs.auxiliaries_are_on, false);
+        yeet::utils::mock_signal_input::write(inputs.fans_are_running, false);
         yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_closed, false);
         yeet::utils::mock_signal_input::write(inputs.start_command, false);
         yeet::utils::mock_signal_input::write(inputs.stop_command, false);
@@ -73,6 +75,7 @@ protected:
 
         // Override is now disabled by default, but we can explicitly set it to be safe
         parameters.auxiliaries_are_on_override.write(false);
+        parameters.fans_are_running_override.write(false);
         parameters.mv_breaker_is_closed_override.write(false);
         parameters.is_current_extinguished_override.write(false);
 
@@ -122,6 +125,12 @@ protected:
     {
         auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
         yeet::utils::mock_signal_input::write(inputs.auxiliaries_are_on, value);
+    }
+
+    void set_fans_running(bool value)
+    {
+        auto& inputs = _runner->get_signal_flow_datamodel().get_inputs();
+        yeet::utils::mock_signal_input::write(inputs.fans_are_running, value);
     }
 
     void set_breakers_on(bool value)
@@ -176,6 +185,7 @@ protected:
 
     // Storage for mocked signals (required by raw pointer API)
     bool _storage_auxiliaries_are_on{false};
+    bool _storage_fans_are_running{false};
     bool _storage_mv_breaker_is_closed{false};
     bool _storage_start_command{false};
     bool _storage_stop_command{false};
@@ -226,14 +236,41 @@ TEST_F(SfcStateMachineRunnerTest, IdleToAuxiliariesOn)
     run_cycle();
     verify_state(sfc::sfc_state_id::IDLE, false);
 
-    // Issue turn_on command first
+    // Issue turn_on command
     set_turn_on_command(true);
     run_cycle();
-    // State machine auto-advances to AUXILIARIES_ON when both turn_on and auxiliaries feedback are true
     verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
 
     // Verify transition occurred
     verify_transition_occurred();
+}
+
+// Ensure auxiliaries_are_on event in runner requires BOTH auxiliaries_are_on AND fans_are_running
+TEST_F(SfcStateMachineRunnerTest, AuxOnRequiresFans)
+{
+    set_turn_on_command(true);
+    run_cycle();
+    verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
+
+    // Case 1: Auxiliaries ON, but Fans OFF -> Stay in AUXILIARIES_ON
+    set_auxiliaries_on(true);
+    set_fans_running(true);
+    set_fans_running(false);
+    run_cycle();
+    verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
+
+    // Case 2: Fans ON, but Auxiliaries OFF -> Stay in AUXILIARIES_ON
+    set_auxiliaries_on(false);
+    set_fans_running(true);
+    run_cycle();
+    verify_state(sfc::sfc_state_id::AUXILIARIES_ON, false);
+
+    // Case 3: BOTH ON -> Transition to BREAKERS_OFF
+    set_auxiliaries_on(true);
+    set_fans_running(true);
+    set_fans_running(true);
+    run_cycle();
+    verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
 }
 
 // Test AUXILIARIES_ON -> BREAKERS_OFF -> BREAKERS_ON transition sequence
@@ -246,6 +283,7 @@ TEST_F(SfcStateMachineRunnerTest, AuxiliariesOnToBreakersOn)
 
     // Simulate feedback: auxiliaries are now on
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();
     verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
     verify_transition_occurred();
@@ -265,6 +303,7 @@ TEST_F(SfcStateMachineRunnerTest, BreakersOnToOperationOff)
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // AUXILIARIES_ON -> BREAKERS_OFF
 
     set_breakers_on(true);
@@ -286,6 +325,7 @@ TEST_F(SfcStateMachineRunnerTest, OperationOffToOperationOn)
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // AUXILIARIES_ON -> BREAKERS_OFF
 
     set_breakers_on(true);
@@ -312,6 +352,7 @@ TEST_F(SfcStateMachineRunnerTest, OperationOnToShutdownRequested)
     set_turn_on_command(true);
     run_cycle();
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_breakers_on(true);
@@ -337,6 +378,7 @@ TEST_F(SfcStateMachineRunnerTest, ShutdownRequestedToOperationOff)
     set_turn_on_command(true);
     run_cycle();
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_breakers_on(true);
@@ -376,6 +418,7 @@ TEST_F(SfcStateMachineRunnerTest, CompleteStartupSequence)
 
     // 2. Simulate feedback: auxiliaries are now on
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();
     verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
     verify_transition_occurred();
@@ -410,6 +453,7 @@ TEST_F(SfcStateMachineRunnerTest, CompleteShutdownSequence)
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // AUXILIARIES_ON -> BREAKERS_OFF
 
     set_breakers_on(true);
@@ -463,6 +507,7 @@ TEST_F(SfcStateMachineRunnerTest, RunnerStopResetsStateMachine)
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // AUXILIARIES_ON -> BREAKERS_OFF
 
     set_breakers_on(true);
@@ -529,6 +574,7 @@ TEST_F(SfcStateMachineRunnerTest, StatePersistence)
 
     // Simulate feedback: auxiliaries are now on
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();
     verify_state(sfc::sfc_state_id::BREAKERS_OFF, false);
     verify_transition_occurred();
@@ -551,6 +597,7 @@ TEST_F(SfcStateMachineRunnerTest, EmergencyShutdownRequest)
     set_turn_on_command(true);
     run_cycle();
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_breakers_on(true);
@@ -587,6 +634,7 @@ TEST_F(SfcStateMachineRunnerTest, ExtinguishRequestFalseInOperationOn)
     set_turn_on_command(true);
     run_cycle();
     set_auxiliaries_on(true);
+    set_fans_running(true);
     run_cycle();  // IDLE -> AUXILIARIES_ON
 
     set_breakers_on(true);

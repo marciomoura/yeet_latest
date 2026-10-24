@@ -78,6 +78,7 @@ class GridSignalIndex(IntEnum):
     
     # === Grouped Boolean Packs (42-43) ===
     # Word 1 (42): Modulator(3) + CurrentCtrl(2) + StateMachine(6) + ModeMonitor(3) + PulseGen(4) + FiringPulses(6) + Protections(7) = 31 bits
+    # Word 2 (43): Protections(4) + FiberOptic(3) + ... + ResetPulse(1) = 20 bits
     # Word 2 (43): Protections(4) + FiberOptic(3) = 7 bits
     BOOL_PACK_1 = 42
     BOOL_PACK_2 = 43
@@ -136,51 +137,73 @@ class GridSignalIndex(IntEnum):
     FIBER_RX_PROTECTION_INHIBIT_BOOL = 81
     FIBER_RX_COMMUNICATION_OK = 82
 
-    # === Virtual Boolean Indices (83+) ===
-    # These indices point to the expanded signals array after _expand_signals_with_bools()
-    # Regular signals end at index 82, so bools1[0] starts at index 83
-    # 
-    # Unpacked from BOOL_PACK_1 (42) - bits 0-31 appended at indices 83-114
-    MODULATOR_RELEASE_PULSES_OUTPUT = 83      # bools1[0]
-    FORCE_COMMUTATION_ACKNOWLEDGED = 84       # bools1[1]
-    MODULATOR_FREEZE_INTEGRATOR = 85          # bools1[2]
-    CURRENT_CONTROLLER_IS_ACTIVE = 86         # bools1[3]
-    CURRENT_CONTROLLER_IS_SATURATED = 87      # bools1[4]
-    STATE_MACHINE_RELEASE_PULSES = 88         # bools1[5]
-    STATE_MACHINE_AUXILIARIES_ON = 89         # bools1[6]
-    STATE_MACHINE_BREAKER_CLOSED = 90         # bools1[7]
-    STATE_MACHINE_START_CMD = 91              # bools1[8]
-    STATE_MACHINE_STOP_CMD = 92               # bools1[9]
-    STATE_MACHINE_CURRENT_EXTINGUISHED = 93   # bools1[10]
-    MODE_MONITOR_HAS_MODE_CHANGED = 94        # bools1[11]
-    MODE_MONITOR_CURRENT_IS_ZERO = 95         # bools1[12]
-    MODE_MONITOR_IS_DISCONTINUOUS_MODE = 96   # bools1[13]
-    PULSE_GENERATOR_RELEASE_PULSES = 97       # bools1[14]
-    PULSE_GENERATOR_RELEASE_PULSES_INPUT = 98 # bools1[15]
-    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 99   # bools1[16]
-    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 100 # bools1[17]
-    PULSE_P1 = 101                            # bools1[18]
-    PULSE_P2 = 102                            # bools1[19]
-    PULSE_P3 = 103                            # bools1[20]
-    PULSE_P4 = 104                            # bools1[21]
-    PULSE_P5 = 105                            # bools1[22]
-    PULSE_P6 = 106                            # bools1[23]
-    PROTECTION_IS_TRIPPED = 107               # bools1[24]
-    PROTECTION_IS_INHIBITED = 108             # bools1[25]
-    PROTECTION_ANY_ALARM_ACTIVE_UNPACKED = 109  # bools1[26] - has_active_alarm from bool pack
-    PROTECTION_OVERCURRENT_TRIPPED = 110      # bools1[27]
-    PROTECTION_OVERVOLTAGE_TRIPPED = 111      # bools1[28]
-    PROTECTION_UNDERVOLTAGE_TRIPPED = 112     # bools1[29]
-    PROTECTION_OVERCURRENT_WARNING = 113      # bools1[30]
+    # === Intermediate Hardware Scale Signals (83-86) ===
+    VOLTAGE_AB_COUNTS_PEAK = 83
+    VOLTAGE_BC_COUNTS_PEAK = 84
+    CURRENT_A_COUNTS_PEAK = 85
+    CURRENT_C_COUNTS_PEAK = 86
+    
+    # === First Trip Source (87) ===
+    FIRST_TRIP_SOURCE = 87
 
-    # Unpacked from BOOL_PACK_2 (43) - bits 0-7 appended at indices 115-122
-    PROTECTION_OVERVOLTAGE_WARNING = 115      # bools2[0]
-    PROTECTION_UNDERVOLTAGE_WARNING = 116     # bools2[1]
-    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 117 # bools2[2]
-    PROTECTION_COMMUNICATION_LOSS_WARNING = 118 # bools2[3]
-    FIBER_RX_REQUEST_FORCE_COMMUTATION = 119  # bools2[4]
-    FIBER_RX_MACHINE_PROTECTION_TRIPPED = 120 # bools2[5]
-    FIBER_RX_PROTECTION_INHIBIT = 121         # bools2[6]
+    # === Virtual Boolean Indices (88+) ===
+    # These indices point to the expanded signals array after _expand_signals_with_bools()
+    # Regular signals end at index 87, so bools1[0] starts at index 88
+    # 
+    # Unpacked from BOOL_PACK_1 (42) - bits 0-31 appended at indices 88-119
+    MODULATOR_RELEASE_PULSES_OUTPUT = 88      # bools1[0]
+    FORCE_COMMUTATION_ACKNOWLEDGED = 89       # bools1[1]
+    MODULATOR_FREEZE_INTEGRATOR = 90          # bools1[2]
+    CURRENT_CONTROLLER_IS_ACTIVE = 91         # bools1[3]
+    CURRENT_CONTROLLER_IS_SATURATED = 92      # bools1[4]
+    STATE_MACHINE_RELEASE_PULSES = 93         # bools1[5]
+    STATE_MACHINE_AUXILIARIES_ON = 94         # bools1[6]
+    STATE_MACHINE_BREAKER_CLOSED = 95         # bools1[7]
+    STATE_MACHINE_START_CMD = 96              # bools1[8]
+    STATE_MACHINE_STOP_CMD = 97               # bools1[9]
+    STATE_MACHINE_CURRENT_EXTINGUISHED = 98   # bools1[10]
+    MODE_MONITOR_HAS_MODE_CHANGED = 99        # bools1[11]
+    MODE_MONITOR_CURRENT_IS_ZERO = 100         # bools1[12]
+    MODE_MONITOR_IS_DISCONTINUOUS_MODE = 101   # bools1[13]
+    PULSE_GENERATOR_RELEASE_PULSES = 102       # bools1[14]
+    PULSE_GENERATOR_RELEASE_PULSES_INPUT = 103 # bools1[15]
+    PULSE_GENERATOR_VIRTUAL_REFERENCE_ACTIVE = 104   # bools1[16]
+    PULSE_GENERATOR_INDIVIDUAL_OVERRIDE_ACTIVE = 105 # bools1[17]
+    PULSE_P1 = 106                            # bools1[18]
+    PULSE_P2 = 107                            # bools1[19]
+    PULSE_P3 = 108                            # bools1[20]
+    PULSE_P4 = 109                            # bools1[21]
+    PULSE_P5 = 110                            # bools1[22]
+    PULSE_P6 = 111                            # bools1[23]
+    PROTECTION_IS_TRIPPED = 112               # bools1[24]
+    PROTECTION_IS_INHIBITED = 113             # bools1[25]
+    PROTECTION_ANY_ALARM_ACTIVE_UNPACKED = 114  # bools1[26]
+    PROTECTION_OVERCURRENT_TRIPPED = 115      # bools1[27]
+    PROTECTION_OVERVOLTAGE_TRIPPED = 116      # bools1[28]
+    PROTECTION_UNDERVOLTAGE_TRIPPED = 117     # bools1[29]
+    PROTECTION_OVERCURRENT_WARNING = 118      # bools1[30]
+
+    # Unpacked from BOOL_PACK_2 (43) - bits 0-19 appended at indices 120-139
+    PROTECTION_OVERVOLTAGE_WARNING = 120      # bools2[0]
+    PROTECTION_UNDERVOLTAGE_WARNING = 121     # bools2[1]
+    PROTECTION_COMMUNICATION_LOSS_TRIPPED = 122 # bools2[2]
+    PROTECTION_COMMUNICATION_LOSS_WARNING = 123 # bools2[3]
+    FIBER_RX_REQUEST_FORCE_COMMUTATION = 124  # bools2[4]
+    FIBER_RX_MACHINE_PROTECTION_TRIPPED = 125 # bools2[5]
+    FIBER_RX_PROTECTION_INHIBIT = 126         # bools2[6]
+    PROTECTION_DOOR_OPEN_TRIPPED = 127        # bools2[7]
+    PROTECTION_EXTERNAL_FAULT_TRIPPED = 128   # bools2[8]
+    PROTECTION_EMERGENCY_OFF_TRIPPED = 129    # bools2[9]
+    PROTECTION_MACHINE_SIDE_TRIPPED = 130     # bools2[10]
+    PROTECTION_OVERCURRENT_ALARMED = 131      # bools2[11]
+    PROTECTION_OVERVOLTAGE_ALARMED = 132      # bools2[12]
+    PROTECTION_UNDERVOLTAGE_ALARMED = 133     # bools2[13]
+    PROTECTION_COMM_LOSS_ALARMED = 134        # bools2[14]
+    PROTECTION_DOOR_OPEN_ALARMED = 135        # bools2[15]
+    PROTECTION_EXTERNAL_FAULT_ALARMED = 136   # bools2[16]
+    PROTECTION_EMERGENCY_OFF_ALARMED = 137    # bools2[17]
+    PROTECTION_MACHINE_SIDE_ALARMED = 138     # bools2[18]
+    PROTECTION_EMERGENCY_OFF_RESET_PULSE = 139 # bools2[19]
 
 
 @dataclass
@@ -284,6 +307,7 @@ class GridProtectionsData:
     is_tripped: bool = False
     is_inhibited: bool = False
     any_fault_active: bool = False
+    first_trip_source: int = 0
     overcurrent_tripped: bool = False
     overvoltage_tripped: bool = False
     undervoltage_tripped: bool = False
@@ -292,6 +316,11 @@ class GridProtectionsData:
     undervoltage_warning: bool = False
     communication_loss_tripped: bool = False
     communication_loss_warning: bool = False
+    door_open_tripped: bool = False
+    external_fault_tripped: bool = False
+    emergency_off_tripped: bool = False
+    machine_side_protection_tripped: bool = False
+    emergency_off_reset: bool = False
 
 
 @dataclass
@@ -303,3 +332,12 @@ class FiberOpticRxFromMachineData:
     force_commutation_request: bool = False
     machine_protection_tripped: bool = False
     protection_inhibit: bool = False
+
+
+@dataclass
+class GridHardwareDebugData:
+    """Hardware scale signals for commissioning (83-86)."""
+    voltage_ab_counts_peak: float = 0.0
+    voltage_bc_counts_peak: float = 0.0
+    current_a_counts_peak: float = 0.0
+    current_c_counts_peak: float = 0.0

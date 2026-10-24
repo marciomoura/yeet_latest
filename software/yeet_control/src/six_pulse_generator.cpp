@@ -14,18 +14,18 @@ six_pulse_generator::six_pulse_generator(reference_type ref_type, angle_t pulse_
     }
 }
 
-six_pulse_generator::pulses six_pulse_generator::update(angle_t reference_angle, angle_t firing_angle, bool enable)
+void six_pulse_generator::update(angle_t reference_angle, angle_t firing_angle, bool enable)
 {
     update_sector(reference_angle);
-    return generate_pulses(reference_angle, firing_angle, enable);
+    generate_pulses(reference_angle, firing_angle, enable);
 }
 
-six_pulse_generator::pulses six_pulse_generator::update(angle_t firing_angle, bool enable)
+void six_pulse_generator::update(angle_t firing_angle, bool enable)
 {
     if (!_virtual_reference_enabled) {
-        // Return all-off pulses if virtual reference is not enabled
+        // Clear pulses if virtual reference is not enabled
         _pulses = pulses{};
-        return _pulses;
+        return;
     }
 
     // Update the virtual reference angle
@@ -33,13 +33,13 @@ six_pulse_generator::pulses six_pulse_generator::update(angle_t firing_angle, bo
 
     // Use the internal virtual reference angle
     update_sector(_virtual_reference_angle);
-    return generate_pulses(_virtual_reference_angle, firing_angle, enable);
+    generate_pulses(_virtual_reference_angle, firing_angle, enable);
 }
 
-six_pulse_generator::pulses six_pulse_generator::generate_pulses(
-    angle_t reference_angle, angle_t firing_angle, bool enable)
+void six_pulse_generator::generate_pulses(angle_t reference_angle, angle_t firing_angle, bool enable)
 {
-    angle_t final_firing_angle = firing_angle;
+    angle_wrapped final_firing_angle = firing_angle;
+    angle_wrapped ref_angle = reference_angle;
 
     // If the reference angle is from a phase voltage, a 30-degree phase shift
     // is required to align the firing angle with the line-to-line commutation point.
@@ -48,25 +48,43 @@ six_pulse_generator::pulses six_pulse_generator::generate_pulses(
         final_firing_angle += phase_reference_offset;
     }
 
-    // Update each pulse generator and collect the results
-    _pulses.p1 = _pulse_generators[0].update(reference_angle, final_firing_angle, enable);
-    _pulses.p2 = _pulse_generators[1].update(reference_angle, final_firing_angle, enable);
-    _pulses.p3 = _pulse_generators[2].update(reference_angle, final_firing_angle, enable);
-    _pulses.p4 = _pulse_generators[3].update(reference_angle, final_firing_angle, enable);
-    _pulses.p5 = _pulse_generators[4].update(reference_angle, final_firing_angle, enable);
-    _pulses.p6 = _pulse_generators[5].update(reference_angle, final_firing_angle, enable);
+    // Calculate ideal pulses (independent of master enable and pulse masking)
+    // for internal tracking and rising edge detection.
+    pulses ideal_pulses;
+    ideal_pulses.p1 = _pulse_generators[0].update(ref_angle, final_firing_angle, true);
+    ideal_pulses.p2 = _pulse_generators[1].update(ref_angle, final_firing_angle, true);
+    ideal_pulses.p3 = _pulse_generators[2].update(ref_angle, final_firing_angle, true);
+    ideal_pulses.p4 = _pulse_generators[3].update(ref_angle, final_firing_angle, true);
+    ideal_pulses.p5 = _pulse_generators[4].update(ref_angle, final_firing_angle, true);
+    ideal_pulses.p6 = _pulse_generators[5].update(ref_angle, final_firing_angle, true);
 
-    // Apply pulse mask if enabled
-    if (_pulse_mask_enabled) {
-        _pulses.p1 = _pulses.p1 && _pulse_mask.p1;
-        _pulses.p2 = _pulses.p2 && _pulse_mask.p2;
-        _pulses.p3 = _pulses.p3 && _pulse_mask.p3;
-        _pulses.p4 = _pulses.p4 && _pulse_mask.p4;
-        _pulses.p5 = _pulses.p5 && _pulse_mask.p5;
-        _pulses.p6 = _pulses.p6 && _pulse_mask.p6;
+    // Detect if any new thyristor is being fired (rising edge detection)
+    // based on the ideal pulse sequence.
+    _any_thyristor_fired = (ideal_pulses.p1 && !_previous_pulses.p1) || (ideal_pulses.p2 && !_previous_pulses.p2) ||
+                           (ideal_pulses.p3 && !_previous_pulses.p3) || (ideal_pulses.p4 && !_previous_pulses.p4) ||
+                           (ideal_pulses.p5 && !_previous_pulses.p5) || (ideal_pulses.p6 && !_previous_pulses.p6);
+
+    // Store ideal pulses for the next cycle
+    _previous_pulses = ideal_pulses;
+
+    // Calculate actual output pulses based on master enable and pulse mask
+    if (enable) {
+        _pulses = ideal_pulses;
+
+        // Apply pulse mask if enabled
+        if (_pulse_mask_enabled) {
+            _pulses.p1 = _pulses.p1 && _pulse_mask.p1;
+            _pulses.p2 = _pulses.p2 && _pulse_mask.p2;
+            _pulses.p3 = _pulses.p3 && _pulse_mask.p3;
+            _pulses.p4 = _pulses.p4 && _pulse_mask.p4;
+            _pulses.p5 = _pulses.p5 && _pulse_mask.p5;
+            _pulses.p6 = _pulses.p6 && _pulse_mask.p6;
+        }
     }
-
-    return _pulses;
+    else {
+        // Output zero if disabled
+        _pulses = pulses{};
+    }
 }
 
 void six_pulse_generator::update_sector(angle_t reference_angle)
@@ -98,6 +116,8 @@ void six_pulse_generator::configure_virtual_reference(frequency_t frequency, dur
 
 void six_pulse_generator::enable_virtual_reference(bool enable) { _virtual_reference_enabled = enable; }
 
+void six_pulse_generator::configure_reference_type(reference_type ref_type) { _ref_type = ref_type; }
+
 void six_pulse_generator::reset_virtual_reference() { _virtual_reference_angle = angle_t{0.0}; }
 
 void six_pulse_generator::reset_virtual_reference(angle_t initial_angle) { _virtual_reference_angle = initial_angle; }
@@ -106,7 +126,17 @@ void six_pulse_generator::configure_pulse_mask(const pulse_mask& mask) { _pulse_
 
 void six_pulse_generator::enable_pulse_mask(bool enable) { _pulse_mask_enabled = enable; }
 
-void six_pulse_generator::set_pulse_width(angle_t pulse_width)
+void six_pulse_generator::reset()
+{
+    _pulses = pulses{};
+    _previous_pulses = pulses{};
+    _current_sector = pulse_sector_t::none;
+    _sector_has_changed = false;
+    _any_thyristor_fired = false;
+    reset_virtual_reference();
+}
+
+void six_pulse_generator::configure_pulse_width(angle_t pulse_width)
 {
     // Update pulse width for all six generators
     for (auto& generator : _pulse_generators) {
@@ -122,9 +152,11 @@ six_pulse_generator::angle_t six_pulse_generator::get_pulse_width() const
 
 six_pulse_generator::pulses six_pulse_generator::get_pulses() const { return _pulses; }
 
-six_pulse_generator::pulse_sector_t six_pulse_generator::get_sector() const noexcept { return _current_sector; }
+six_pulse_generator::pulse_sector_t six_pulse_generator::get_current_sector() const noexcept { return _current_sector; }
 
 bool six_pulse_generator::get_sector_changed() const noexcept { return _sector_has_changed; }
+
+bool six_pulse_generator::get_any_thyristor_fired() const noexcept { return _any_thyristor_fired; }
 
 six_pulse_generator::angle_t six_pulse_generator::get_virtual_reference_angle() const noexcept
 {

@@ -226,6 +226,8 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverFluxTri
     run_cycle();
     EXPECT_TRUE(has_active_trip()) << "Protection should trip on over-flux";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch when protection trips";
+    EXPECT_EQ(
+        _runner->get_signal_flow_datamodel().get_outputs().first_trip_source.read(), machine_trip_source::over_flux);
 
     // Clear fault condition
     clear_fault_conditions();
@@ -254,6 +256,7 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnStallTrip)
     run_cycle();
     EXPECT_TRUE(has_active_trip()) << "Protection should trip on stall";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
+    EXPECT_EQ(_runner->get_signal_flow_datamodel().get_outputs().first_trip_source.read(), machine_trip_source::stall);
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
     EXPECT_TRUE(outputs.stall_tripped.read()) << "Stall protection should be tripped";
@@ -284,6 +287,8 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnOverspeedTr
     run_cycle();
     EXPECT_TRUE(has_active_trip()) << "Protection should trip on overspeed";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
+    EXPECT_EQ(
+        _runner->get_signal_flow_datamodel().get_outputs().first_trip_source.read(), machine_trip_source::overspeed);
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
     EXPECT_TRUE(outputs.overspeed_tripped.read()) << "Overspeed protection should be tripped";
@@ -314,6 +319,8 @@ TEST_F(SfcMachineSideProtectionsAlarmConfirmationTest, AlarmLatchesOnMachineOver
     run_cycle();
     EXPECT_TRUE(has_active_trip()) << "Protection should trip on machine-side overvoltage";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch";
+    EXPECT_EQ(_runner->get_signal_flow_datamodel().get_outputs().first_trip_source.read(),
+        machine_trip_source::machine_overvoltage);
 
     const auto& outputs = _runner->get_signal_flow_datamodel().get_outputs();
     EXPECT_TRUE(outputs.machine_overvoltage_tripped.read()) << "Machine-side overvoltage should be tripped";

@@ -40,6 +40,8 @@ void sfc_overvoltage_protection::reset() { _protection.reset(); }
 
 bool sfc_overvoltage_protection::is_tripped() const noexcept { return _protection.is_tripped(); }
 
+bool sfc_overvoltage_protection::is_active() const noexcept { return _protection.is_active(); }
+
 bool sfc_overvoltage_protection::is_warning() const noexcept { return _protection.is_warning(); }
 
 bool sfc_overvoltage_protection::can_reset() const noexcept { return _protection.can_reset(); }

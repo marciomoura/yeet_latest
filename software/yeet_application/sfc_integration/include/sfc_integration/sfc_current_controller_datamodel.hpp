@@ -89,7 +89,7 @@ public:
         parameter<angle_wrapped> min_firing_angle = angle_wrapped(0.0);
 
         /// Maximum firing angle limit [rad]
-        parameter<angle_wrapped> max_firing_angle = angle_wrapped::from_degrees(90.0);
+        parameter<angle_wrapped> max_firing_angle = angle_wrapped::from_degrees(120.0);
 
         /// Current reference magnitude limit [pu]
         parameter<current_pu_t> current_reference_magnitude_limit = current_pu_t(2.0);
@@ -100,8 +100,14 @@ public:
         /// Maximum PI controller output limit [pu voltage]
         parameter<real_t> pi_output_max = real_t(1.0);
 
-        /// Current reference for rectifier operation [pu]
-        parameter<current_pu_t> current_reference_rectifier_operation = current_pu_t(0.0);
+        /// Disable machine feed-forward compensation [bool]
+        parameter<bool> enable_feedforward{true};
+
+        /// Enable current reference override (force current reference to parameter) [bool]
+        parameter<bool> override_current_reference{false};
+
+        /// Forced DC link current reference when override is enabled [pu]
+        parameter<current_pu_t> override_current_reference_value{current_pu_t(0.0)};
     };
 
 private:
@@ -123,18 +129,22 @@ public:
         static constexpr std::string_view component_name = "current_controller";
         handler.register_parameter(component_name, "kp", yeet::utils::make_units_accessor(_model_parameters->kp));
         handler.register_parameter(component_name, "ti", yeet::utils::make_units_accessor(_model_parameters->ti));
-        handler.register_parameter(
-            component_name, "min_firing_angle", yeet::utils::make_units_accessor(_model_parameters->min_firing_angle));
-        handler.register_parameter(
-            component_name, "max_firing_angle", yeet::utils::make_units_accessor(_model_parameters->max_firing_angle));
+        handler.register_parameter(component_name, "min_firing_angle",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->min_firing_angle));
+        handler.register_parameter(component_name, "max_firing_angle",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->max_firing_angle));
         handler.register_parameter(component_name, "current_reference_magnitude_limit",
             yeet::utils::make_units_accessor(_model_parameters->current_reference_magnitude_limit));
         handler.register_parameter(
             component_name, "pi_output_min", yeet::utils::make_units_accessor(_model_parameters->pi_output_min));
         handler.register_parameter(
             component_name, "pi_output_max", yeet::utils::make_units_accessor(_model_parameters->pi_output_max));
-        handler.register_parameter(component_name, "current_reference_rectifier_operation",
-            yeet::utils::make_units_accessor(_model_parameters->current_reference_rectifier_operation));
+        handler.register_parameter(component_name, "override_current_reference",
+            yeet::utils::make_bool_accessor(_model_parameters->override_current_reference));
+        handler.register_parameter(component_name, "override_current_reference_value",
+            yeet::utils::make_units_accessor(_model_parameters->override_current_reference_value));
+        handler.register_parameter(component_name, "enable_feedforward",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_feedforward));
     }
 
     inputs* get_inputs() { return _model_inputs; }

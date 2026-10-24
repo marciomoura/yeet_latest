@@ -29,6 +29,7 @@ void sfc_grid_side_measurements_ideal_runner::run()
 
     _commutation_monitor.update(measurement_voltage, _inputs.grid_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
+    _outputs.is_masking = _commutation_mask.is_masking();
     _outputs.commutation_notch_duration_last = _commutation_monitor.get_notch_duration_last();
     _outputs.commutation_notch_duration_filtered = _commutation_monitor.get_notch_duration_filtered();
 
@@ -43,15 +44,17 @@ void sfc_grid_side_measurements_ideal_runner::run()
             ? _voltage_compensator.update(masked_voltage_abc, _inputs.grid_frequency)
             : masked_voltage_abc;
 
-    _measurement_filters.update(processed_voltage_abc, _measurements.get_current_pu());
+    abc<current_pu_t> const measurement_current = _measurements.get_current_pu();
+
+    _measurement_filters.update(processed_voltage_abc, measurement_current);
 
     _outputs.grid_frequency = to_pu(_inputs.grid_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
     _outputs.grid_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_abc = processed_voltage_abc;
-    _outputs.grid_voltage_abc_unmasked = measurement_voltage;
+    _outputs.grid_voltage_abc_raw = measurement_voltage;
     _outputs.grid_voltage_abc_filtered = _measurement_filters.get_filtered_voltages_pu();
-    _outputs.grid_current_abc = _measurements.get_current_pu();
+    _outputs.grid_current_abc = measurement_current;
     _outputs.grid_voltage_magnitude = processed_voltage_abc.to_alphabeta().magnitude();
     _outputs.grid_voltage_magnitude_filtered = _measurement_filters.get_filtered_voltage_magnitude_pu();
 
@@ -94,7 +97,11 @@ void sfc_grid_side_measurements_ideal_runner::set_parameter_callback()
         _commutation_monitor.configure_notch_duration_filter_time_constant(
             _parameters.commutation_notch_duration_filter_time_constant.read());
     });
-    _parameters.voltage_hardware_filter_cutoff_frequency.register_callback([&]() { set_hardware_filter_parameters(); });
+    _parameters.voltage_compensation_lpf_cutoff_frequency_1.register_callback(
+        [&]() { set_hardware_filter_parameters(); });
+    _parameters.voltage_compensation_lpf_cutoff_frequency_2.register_callback(
+        [&]() { set_hardware_filter_parameters(); });
+    _parameters.voltage_compensation_num_filters.register_callback([&]() { set_hardware_filter_parameters(); });
     _parameters.enable_voltage_compensation.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.enable_commutation_masking.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.voltage_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
@@ -102,9 +109,9 @@ void sfc_grid_side_measurements_ideal_runner::set_parameter_callback()
 
 void sfc_grid_side_measurements_ideal_runner::set_hardware_filter_parameters()
 {
-    // Use 1.2 * base frequency as max for LUT calculation
-    const frequency_t max_f = frequency_t{_per_unit_system->get_grid_bases().base_frequency.value() * 1.2f};
-    _voltage_compensator.configure_as_first_order_lpf(_parameters.voltage_hardware_filter_cutoff_frequency, max_f);
+    _voltage_compensator.configure(_parameters.voltage_compensation_lpf_cutoff_frequency_1.read(),
+        _parameters.voltage_compensation_lpf_cutoff_frequency_2.read(),
+        _parameters.voltage_compensation_num_filters.read());
 }
 
 // --------------- ADC-based runner (new) ------------------
@@ -135,6 +142,10 @@ void sfc_grid_side_measurements_runner::run()
     _measurements.update(_per_unit_system->get_grid_bases(), _inputs.v_ab_counts, _inputs.v_bc_counts,
         _inputs.i_a_counts, _inputs.i_c_counts);
 
+    if (_parameters.clear_adc_peak_values) {
+        _measurements.clear_peaks();
+    }
+
     abc<voltage_pu_t> const measurement_voltage =
         _measurements.get_voltage_pu().rotate(_parameters.voltage_measurement_rotation.read());
 
@@ -143,6 +154,7 @@ void sfc_grid_side_measurements_runner::run()
     // measurement filtering stage via masking. We proceed with commutation logic using recovered per-unit voltages.
     _commutation_monitor.update(measurement_voltage, _inputs.grid_pulses);
     _outputs.is_commuting = _commutation_monitor.is_commuting();
+    _outputs.is_masking = _commutation_mask.is_masking();
     _outputs.commutation_notch_duration_last = _commutation_monitor.get_notch_duration_last();
     _outputs.commutation_notch_duration_filtered = _commutation_monitor.get_notch_duration_filtered();
 
@@ -157,15 +169,17 @@ void sfc_grid_side_measurements_runner::run()
             ? _voltage_compensator.update(masked_voltage_abc, _inputs.grid_frequency)
             : masked_voltage_abc;
 
-    _measurement_filters.update(processed_voltage_abc, _measurements.get_current_pu());
+    abc<current_pu_t> const measurement_current = _measurements.get_current_pu();
+
+    _measurement_filters.update(processed_voltage_abc, measurement_current);
 
     _outputs.grid_frequency = to_pu(_inputs.grid_frequency.read(), _per_unit_system->get_grid_bases().base_frequency);
     _outputs.grid_voltage_alphabeta = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_alphabeta_filtered = _measurement_filters.get_filtered_voltage_alphabeta_pu();
     _outputs.grid_voltage_abc = processed_voltage_abc;
-    _outputs.grid_voltage_abc_unmasked = measurement_voltage;
+    _outputs.grid_voltage_abc_raw = measurement_voltage;
     _outputs.grid_voltage_abc_filtered = _measurement_filters.get_filtered_voltages_pu();
-    _outputs.grid_current_abc = _measurements.get_current_pu();
+    _outputs.grid_current_abc = measurement_current;
     _outputs.grid_voltage_magnitude = processed_voltage_abc.to_alphabeta().magnitude();
     _outputs.grid_voltage_magnitude_filtered = _measurement_filters.get_filtered_voltage_magnitude_pu();
 
@@ -176,6 +190,18 @@ void sfc_grid_side_measurements_runner::run()
                   _measurements.get_voltage_line().to_phase_balanced(), _inputs.grid_frequency))
             : _measurements.get_voltage_line();
     _outputs.grid_current = _measurements.get_current();
+
+    // Populate intermediate measurement signals for debugging
+    _outputs.voltage_ab_card = _measurements.get_voltage_ab_card();
+    _outputs.current_a_card_voltage = _measurements.get_current_a_card_voltage();
+    _outputs.voltage_ab_secondary = _measurements.get_voltage_ab_secondary();
+    _outputs.current_a_secondary = _measurements.get_current_a_secondary();
+
+    // Populate peak ADC counts
+    _outputs.v_ab_counts_peak = static_cast<real_t>(_measurements.get_v_ab_counts_peak());
+    _outputs.v_bc_counts_peak = static_cast<real_t>(_measurements.get_v_bc_counts_peak());
+    _outputs.i_a_counts_peak = static_cast<real_t>(_measurements.get_i_a_counts_peak());
+    _outputs.i_c_counts_peak = static_cast<real_t>(_measurements.get_i_c_counts_peak());
 }
 
 void sfc_grid_side_measurements_runner::stop() {}
@@ -199,6 +225,12 @@ void sfc_grid_side_measurements_runner::set_commutation_parameters()
 
 void sfc_grid_side_measurements_runner::set_parameter_callback()
 {
+    _parameters.clear_adc_peak_values.register_callback([&]() {
+        if (_parameters.clear_adc_peak_values) {
+            _measurements.clear_peaks();
+        }
+    });
+
     _parameters.voltage_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
     _parameters.current_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
     _parameters.voltage_magnitude_lpf_cutoff_frequency.register_callback([&]() { set_filter_parameters(); });
@@ -223,7 +255,11 @@ void sfc_grid_side_measurements_runner::set_parameter_callback()
         [&]() { _measurements.configure_voltage_transducer_gain(_parameters.voltage_transducer_gain.read()); });
     _parameters.current_transducer_gain.register_callback(
         [&]() { _measurements.configure_current_transducer_gain(_parameters.current_transducer_gain.read()); });
-    _parameters.voltage_hardware_filter_cutoff_frequency.register_callback([&]() { set_hardware_filter_parameters(); });
+    _parameters.voltage_compensation_lpf_cutoff_frequency_1.register_callback(
+        [&]() { set_hardware_filter_parameters(); });
+    _parameters.voltage_compensation_lpf_cutoff_frequency_2.register_callback(
+        [&]() { set_hardware_filter_parameters(); });
+    _parameters.voltage_compensation_num_filters.register_callback([&]() { set_hardware_filter_parameters(); });
     _parameters.enable_voltage_compensation.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.enable_commutation_masking.register_callback([&]() { /* Nothing needed, read in run() */ });
     _parameters.voltage_measurement_rotation.register_callback([&]() { /* Nothing needed, read in run() */ });
@@ -239,9 +275,9 @@ void sfc_grid_side_measurements_runner::set_measurement_conversion_parameters()
 
 void sfc_grid_side_measurements_runner::set_hardware_filter_parameters()
 {
-    // Use 1.2 * base frequency as max for LUT calculation
-    const frequency_t max_f = frequency_t{_per_unit_system->get_grid_bases().base_frequency.value() * 1.2f};
-    _voltage_compensator.configure_as_first_order_lpf(_parameters.voltage_hardware_filter_cutoff_frequency, max_f);
+    _voltage_compensator.configure(_parameters.voltage_compensation_lpf_cutoff_frequency_1.read(),
+        _parameters.voltage_compensation_lpf_cutoff_frequency_2.read(),
+        _parameters.voltage_compensation_num_filters.read());
 }
 
 }  // namespace yeet::application::sfc::integration

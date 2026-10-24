@@ -116,6 +116,44 @@ TEST_F(SfcMachineSideModulatorTest, DisabledSystemOutputsSafeDefaults)
     EXPECT_EQ(modulator->get_commutation_state(), machine_side_commutation_state_t::running);
 }
 
+// TEST_F(SfcMachineSideModulatorTest, MonotonicityRatchetAndReset)
+// {
+//     // Ensure we are in a known state
+//     modulator->reset();
+
+//     // 1. Move to 30 degrees (Sector 0)
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(30.0),
+//     test_lut_angle); EXPECT_EQ(modulator->get_current_rotor_sector(), 0);
+
+//     // 2. Observer jitters backward to 25 degrees
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(25.0),
+//     test_lut_angle);
+//     // Should stay at 30 degrees due to ratchet.
+//     EXPECT_NEAR(modulator->get_monotonic_rotor_position().value(), deg_to_rad_helper(30.0).value(), 1e-4);
+
+//     // 3. Observer jitters near a boundary (59 -> 61 -> 59)
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(61.0),
+//     test_lut_angle); EXPECT_EQ(modulator->get_current_rotor_sector(), 1);  // Jumped to Sector 1
+
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(59.0),
+//     test_lut_angle); EXPECT_EQ(modulator->get_current_rotor_sector(), 1);  // Should stay in Sector 1 (Ratchet!)
+
+//     // 4. Large backward jump (default unstick threshold is 60 deg)
+//     // Jumping from 61 to -10 deg (350.0) -> dist is ~71 deg > 60
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(350.0),
+//     test_lut_angle); EXPECT_EQ(modulator->get_current_rotor_sector(), 5);  // Should have followed backward jump
+
+//     // 5. Reset should clear the ratchet baseline
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(30.0),
+//     test_lut_angle); EXPECT_EQ(modulator->get_current_rotor_sector(), 0);
+
+//     modulator->reset();
+//     // After reset, the first update establishes a new baseline (smaller than 30)
+//     modulator->update(true, sfc_operating_mode_t::natural_commutation, false, deg_to_rad_helper(10.0),
+//     test_lut_angle); EXPECT_NEAR(modulator->get_monotonic_rotor_position().value(), deg_to_rad_helper(10.0).value(),
+//     1e-4);
+// }
+
 TEST_F(SfcMachineSideModulatorTest, DisableSystemDuringCommutationClears)
 {
     // Start commutation sequence

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/sfc_trip_source.hpp"
 #include "sfc_integration/protection_severity.hpp"
 #include "yeet/parameter.hpp"
 #include "yeet/parameter_handler.hpp"
@@ -71,6 +72,9 @@ public:
         /// Protection system inhibited (trip occurred, awaiting confirmation)
         signal_output<bool> is_inhibited;
 
+        /// Latch of the first trip source encountered
+        signal_output<machine_trip_source> first_trip_source;
+
         /// V/Hz over-flux protection trip status
         signal_output<bool> over_flux_tripped;
 
@@ -104,11 +108,17 @@ public:
         /// Overspeed protection alarm status (severity-dependent)
         signal_output<bool> overspeed_alarmed;
 
+        /// Overspeed protection warning status
+        signal_output<bool> overspeed_warning;
+
         /// Machine-side overvoltage protection trip status
         signal_output<bool> machine_overvoltage_tripped;
 
         /// Machine-side overvoltage protection alarm status (severity-dependent)
         signal_output<bool> machine_overvoltage_alarmed;
+
+        /// Machine-side overvoltage protection warning status
+        signal_output<bool> machine_overvoltage_warning;
 
         /// Communication loss protection trip status
         signal_output<bool> communication_loss_tripped;
@@ -125,14 +135,14 @@ public:
         /// Loss of excitation protection alarm status (severity-dependent)
         signal_output<bool> loss_of_excitation_alarmed;
 
+        /// Loss of excitation protection warning status
+        signal_output<bool> loss_of_excitation_warning;
+
         /// External fault protection trip status
         signal_output<bool> external_fault_tripped;
 
         /// External fault protection alarm status (severity-dependent)
         signal_output<bool> external_fault_alarmed;
-
-        /// External fault protection warning status
-        signal_output<bool> external_fault_warning;
     };
 
     /**
@@ -206,15 +216,27 @@ public:
         /// Overspeed trip threshold [pu]
         parameter<speed_pu_t> overspeed_trip_threshold{speed_pu_t{1.10f}};
 
+        /// Overspeed warning threshold [pu]
+        parameter<speed_pu_t> overspeed_warning_threshold{speed_pu_t{1.05f}};
+
         /// Overspeed trip delay [s]
         parameter<duration_t> overspeed_trip_delay{duration_t{0.05}};
+
+        /// Overspeed warning delay [s]
+        parameter<duration_t> overspeed_warning_delay{duration_t{0.1}};
 
         // ========== Machine-Side Overvoltage Protection Parameters ==========
         /// Machine-side overvoltage trip threshold [pu]
         parameter<voltage_pu_t> machine_overvoltage_trip_threshold{voltage_pu_t{1.10f}};
 
+        /// Machine-side overvoltage warning threshold [pu]
+        parameter<voltage_pu_t> machine_overvoltage_warning_threshold{voltage_pu_t{1.05f}};
+
         /// Machine-side overvoltage trip delay [s]
         parameter<duration_t> machine_overvoltage_trip_delay{duration_t{0.05}};
+
+        /// Machine-side overvoltage warning delay [s]
+        parameter<duration_t> machine_overvoltage_warning_delay{duration_t{0.1}};
 
         // ========== Communication Watchdog Parameters ==========
         /// Communication timeout threshold [s]
@@ -226,9 +248,22 @@ public:
         parameter<duration_t> comm_reset{duration_t{0.005}};
 
         // ========== Loss of Excitation Protection Parameters ==========
+        /// Loss of excitation trip threshold [real_t]
+        parameter<real_t> loss_of_excitation_trip_threshold{real_t{0.5f}};
+
+        /// Loss of excitation warning threshold [real_t]
+        parameter<real_t> loss_of_excitation_warning_threshold{real_t{0.6f}};
+
         /// Loss of excitation trip delay [s]
         /// Default: 50ms (fast detection for critical fault)
         parameter<duration_t> loss_of_excitation_trip_delay{duration_t{0.05}};
+
+        /// Loss of excitation warning delay [s]
+        parameter<duration_t> loss_of_excitation_warning_delay{duration_t{0.2}};
+
+        // ========== External Fault Parameters ==========
+        /// External fault trip delay [s]
+        parameter<duration_t> external_fault_trip_delay{duration_t{0.0}};
 
         // ========== Protection Module Control ==========
         /// Master enable/disable for entire protection module
@@ -274,6 +309,8 @@ public:
             yeet::utils::make_enum_accessor(_model_parameters->communication_loss_severity));
         handler.register_parameter(component_name, "loss_of_excitation_severity",
             yeet::utils::make_enum_accessor(_model_parameters->loss_of_excitation_severity));
+        handler.register_parameter(component_name, "external_fault_severity",
+            yeet::utils::make_enum_accessor(_model_parameters->external_fault_severity));
 
         // V/Hz protection parameters
         handler.register_parameter(component_name, "over_flux_trip_threshold",
@@ -306,14 +343,22 @@ public:
         // Overspeed protection parameters
         handler.register_parameter(component_name, "overspeed_trip_threshold",
             yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_threshold));
+        handler.register_parameter(component_name, "overspeed_warning_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->overspeed_warning_threshold));
         handler.register_parameter(component_name, "overspeed_trip_delay",
             yeet::utils::make_units_accessor(_model_parameters->overspeed_trip_delay));
+        handler.register_parameter(component_name, "overspeed_warning_delay",
+            yeet::utils::make_units_accessor(_model_parameters->overspeed_warning_delay));
 
         // Machine-side overvoltage protection parameters
         handler.register_parameter(component_name, "machine_overvoltage_trip_threshold",
             yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_trip_threshold));
+        handler.register_parameter(component_name, "machine_overvoltage_warning_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_warning_threshold));
         handler.register_parameter(component_name, "machine_overvoltage_trip_delay",
             yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_trip_delay));
+        handler.register_parameter(component_name, "machine_overvoltage_warning_delay",
+            yeet::utils::make_units_accessor(_model_parameters->machine_overvoltage_warning_delay));
 
         // Communication watchdog parameters
         handler.register_parameter(
@@ -322,8 +367,18 @@ public:
             component_name, "comm_reset", yeet::utils::make_units_accessor(_model_parameters->comm_reset));
 
         // Loss of excitation protection parameters
+        handler.register_parameter(component_name, "loss_of_excitation_trip_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->loss_of_excitation_trip_threshold));
+        handler.register_parameter(component_name, "loss_of_excitation_warning_threshold",
+            yeet::utils::make_units_accessor(_model_parameters->loss_of_excitation_warning_threshold));
         handler.register_parameter(component_name, "loss_of_excitation_trip_delay",
             yeet::utils::make_units_accessor(_model_parameters->loss_of_excitation_trip_delay));
+        handler.register_parameter(component_name, "loss_of_excitation_warning_delay",
+            yeet::utils::make_units_accessor(_model_parameters->loss_of_excitation_warning_delay));
+
+        // External fault protection parameters
+        handler.register_parameter(component_name, "external_fault_trip_delay",
+            yeet::utils::make_units_accessor(_model_parameters->external_fault_trip_delay));
 
         // Protection module control
         handler.register_parameter(component_name, "protection_module_enabled",

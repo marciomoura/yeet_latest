@@ -13,7 +13,6 @@
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_grid_side_protections_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_machine_io_mock_runner.hpp"
 #include "sfc_integration/sfc_machine_side_controller_runner.hpp"
 #include "sfc_integration/sfc_machine_side_hardware_mock_runner.hpp"
@@ -22,7 +21,6 @@
 #include "sfc_integration/sfc_machine_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_machine_side_observer_runner.hpp"
 #include "sfc_integration/sfc_machine_side_protections_runner.hpp"
-#include "sfc_integration/sfc_machine_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_plant_model_runner.hpp"
 #include "sfc_integration/sfc_soft_starter_speed_generator_runner.hpp"
@@ -314,6 +312,8 @@ static inline void register_complete_grid_side_protections_logger(
         [&]() { return grid_protections.get_outputs().undervoltage_tripped.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_tripped",
         [&]() { return grid_protections.get_outputs().communication_loss_tripped.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output emergency_off_reset",
+        [&]() { return grid_protections.get_outputs().emergency_off_reset.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output door_open_tripped", [&]() { return grid_protections.get_outputs().door_open_tripped.read(); }));
 
@@ -338,6 +338,8 @@ static inline void register_complete_grid_side_protections_logger(
         [&]() { return grid_protections.get_outputs().undervoltage_warning.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output communication_loss_warning",
         [&]() { return grid_protections.get_outputs().communication_loss_warning.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output undervoltage_detected",
+        [&]() { return grid_protections.get_outputs().undervoltage_detected.read(); }));
 }
 
 // --- Machine-side protections runner loggers ---
@@ -441,6 +443,8 @@ static inline void register_minimal_grid_side_measurements_logger(
         [&]() { return grid_side_measurements.get_outputs().grid_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return grid_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return grid_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 static inline void register_complete_grid_side_measurements_logger(
@@ -460,8 +464,8 @@ static inline void register_complete_grid_side_measurements_logger(
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_alphabeta_filtered.read(); }));
     // raw grid_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_unmasked",
-            [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_unmasked.read(); }));
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_raw",
+            [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_raw.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_filtered.read(); }));
@@ -487,6 +491,8 @@ static inline void register_minimal_grid_side_measurements_logger(
         [&]() { return grid_side_measurements.get_outputs().grid_voltage_magnitude.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return grid_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return grid_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 static inline void register_complete_grid_side_measurements_logger(
@@ -506,8 +512,8 @@ static inline void register_complete_grid_side_measurements_logger(
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_alphabeta_filtered.read(); }));
     // raw grid_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_unmasked",
-            [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_unmasked.read(); }));
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_raw",
+            [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_raw.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output grid_voltage_abc_filtered",
             [&]() { return grid_side_measurements.get_outputs().grid_voltage_abc_filtered.read(); }));
@@ -549,8 +555,8 @@ static inline void register_complete_machine_side_measurements_logger(
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_alphabeta_filtered.read(); }));
     // raw machine_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_unmasked",
-            [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_unmasked.read(); }));
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_raw",
+            [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_raw.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_filtered.read(); }));
@@ -560,6 +566,8 @@ static inline void register_complete_machine_side_measurements_logger(
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_magnitude_filtered.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return machine_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return machine_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 // --- ADC-based machine side measurements runner loggers ---
@@ -592,8 +600,8 @@ static inline void register_complete_machine_side_measurements_logger(
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_alphabeta_filtered.read(); }));
     // raw machine_voltage_abc already in minimal logger
     simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_unmasked",
-            [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_unmasked.read(); }));
+        yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_raw",
+            [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_raw.read(); }));
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<abc<voltage_pu_t>>(group + "output machine_voltage_abc_filtered",
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_abc_filtered.read(); }));
@@ -602,6 +610,8 @@ static inline void register_complete_machine_side_measurements_logger(
             [&]() { return machine_side_measurements.get_outputs().machine_voltage_magnitude_filtered.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output is_commuting", [&]() { return machine_side_measurements.get_outputs().is_commuting.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
+        group + "output is_masking", [&]() { return machine_side_measurements.get_outputs().is_masking.read(); }));
 }
 
 static inline void register_minimal_grid_side_observer_logger(
@@ -761,6 +771,8 @@ static inline void register_minimal_startup_sequencer_logger(
     // Speed control outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
         group + "output speed_reference", [&]() { return startup_sequencer.get_outputs().speed_reference.read(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<speed_pu_t>(
+        group + "input measured_speed", [&]() { return startup_sequencer.get_inputs().measured_speed.read(); }));
 
     // Status outputs
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output is_startup_complete",
@@ -939,6 +951,9 @@ static inline void register_minimal_grid_side_modulator_logger(
         [&]() { return grid_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(
         group + "output release_pulses", [&]() { return grid_side_modulator.get_outputs().release_pulses.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
+            [&]() { return grid_side_modulator.get_outputs().firing_pulses.read().to_array(); }));
 }
 
 static inline void register_complete_grid_side_modulator_logger(
@@ -952,6 +967,9 @@ static inline void register_complete_grid_side_modulator_logger(
         [&]() { return grid_side_modulator.get_outputs().force_commutation_acknowledged.read(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output freeze_integrator",
         [&]() { return grid_side_modulator.get_outputs().freeze_integrator.read(); }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_sampler<bool>(group + "input undervoltage_request_extinguish_dc_current",
+            [&]() { return grid_side_modulator.get_inputs().undervoltage_request_extinguish_dc_current.read(); }));
 }
 
 static inline void register_minimal_machine_side_modulator_logger(
@@ -960,9 +978,16 @@ static inline void register_minimal_machine_side_modulator_logger(
     const std::string group{"machine_side_modulator:"};
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output firing_angle",
         [&]() { return machine_side_modulator.get_outputs().firing_angle.read().get_pu(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output selected_firing_angle_reference",
+        [&]() { return machine_side_modulator.get_outputs().selected_firing_angle_reference.read().get_pu(); }));
     simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output current_rotor_sector", [&]() {
         return static_cast<real_t>(machine_side_modulator.get_outputs().current_rotor_sector.read()) / 6.0f;
     }));
+    simulator.register_sampler_entry(
+        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
+            [&]() { return machine_side_modulator.get_outputs().firing_pulses.read().to_array(); }));
+    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output any_thyristor_fired",
+        [&]() { return machine_side_modulator.get_outputs().any_thyristor_fired.read(); }));
 }
 
 static inline void register_complete_machine_side_modulator_logger(
@@ -1006,60 +1031,6 @@ static inline void register_complete_machine_side_observer_logger(
     simulator.register_sampler_entry(
         yeet::make_lambda_array_sampler<alphabeta<voltage_pu_t>>(group + "output estimated_voltage_alphabeta_filtered",
             [&]() { return machine_side_observer.get_outputs().estimated_voltage_alphabeta_filtered.read(); }));
-}
-
-static inline void register_minimal_grid_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& grid_side_pulse_generator)
-{
-    const std::string group{"grid_side_pulse_generator:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input reference_angle",
-        [&]() { return grid_side_pulse_generator.get_inputs().reference_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input firing_angle",
-        [&]() { return grid_side_pulse_generator.get_inputs().firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_pulses",
-        [&]() { return grid_side_pulse_generator.get_inputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
-            [&]() { return grid_side_pulse_generator.get_outputs().firing_pulses.read().to_array(); }));
-}
-
-static inline void register_complete_grid_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& grid_side_pulse_generator)
-{
-    const std::string group{"grid_side_pulse_generator:"};
-
-    register_minimal_grid_side_pulse_generator_logger(simulator, grid_side_pulse_generator);
-
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output actual_firing_angle",
-        [&]() { return grid_side_pulse_generator.get_outputs().actual_firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "output release_pulses",
-        [&]() { return grid_side_pulse_generator.get_outputs().release_pulses.read(); }));
-}
-
-static inline void register_minimal_machine_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& machine_side_pulse_generator)
-{
-    const std::string group{"machine_side_pulse_generator:"};
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input reference_angle",
-        [&]() { return machine_side_pulse_generator.get_inputs().reference_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "input firing_angle",
-        [&]() { return machine_side_pulse_generator.get_inputs().firing_angle.read().get_pu(); }));
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<bool>(group + "input release_pulses",
-        [&]() { return machine_side_pulse_generator.get_inputs().release_pulses.read(); }));
-    simulator.register_sampler_entry(
-        yeet::make_lambda_array_sampler<std::array<bool, 6>>(group + "output firing_pulses",
-            [&]() { return machine_side_pulse_generator.get_outputs().firing_pulses.read().to_array(); }));
-}
-
-static inline void register_complete_machine_side_pulse_generator_logger(
-    yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& machine_side_pulse_generator)
-{
-    const std::string group{"machine_side_pulse_generator:"};
-
-    register_minimal_machine_side_pulse_generator_logger(simulator, machine_side_pulse_generator);
-
-    simulator.register_sampler_entry(yeet::make_lambda_sampler<real_t>(group + "output actual_firing_angle",
-        [&]() { return machine_side_pulse_generator.get_outputs().actual_firing_angle.read().get_pu(); }));
 }
 
 static inline void register_minimal_plant_model_logger(yeet::simulator& simulator, sfc_plant_model_runner& plant_model)
@@ -1475,26 +1446,6 @@ static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machi
 static inline void register_complete_logger(yeet::simulator& simulator, sfc_machine_io_mock_runner& runner)
 {
     register_complete_machine_io_mock_logger(simulator, runner);
-}
-
-static inline void register_minimal_logger(yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& runner)
-{
-    register_minimal_grid_side_pulse_generator_logger(simulator, runner);
-}
-
-static inline void register_complete_logger(yeet::simulator& simulator, sfc_grid_side_pulse_generator_runner& runner)
-{
-    register_complete_grid_side_pulse_generator_logger(simulator, runner);
-}
-
-static inline void register_minimal_logger(yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& runner)
-{
-    register_minimal_machine_side_pulse_generator_logger(simulator, runner);
-}
-
-static inline void register_complete_logger(yeet::simulator& simulator, sfc_machine_side_pulse_generator_runner& runner)
-{
-    register_complete_machine_side_pulse_generator_logger(simulator, runner);
 }
 
 static inline void register_minimal_logger(yeet::simulator& simulator, sfc_plant_model_runner& runner)

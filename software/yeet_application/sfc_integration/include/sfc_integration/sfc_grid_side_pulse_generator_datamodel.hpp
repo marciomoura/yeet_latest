@@ -8,7 +8,7 @@
 #include "yeet_control/six_pulse_generator.hpp"
 
 /**
- * @file sfc_grid_side_pulse_generator_datamodel.hpp
+ * @file sfc_grid_side_modulator_datamodel.hpp
  * @brief Datamodel specification for SFC Grid-Side Pulse Generator component
  *
  * The pulse generator creates the six firing pulses for the grid-side thyristor
@@ -18,7 +18,7 @@
 
 namespace yeet::application::sfc::integration {
 
-class sfc_grid_side_pulse_generator_datamodel {
+class sfc_grid_side_modulator_datamodel {
 public:
     /**
      * @brief Input signals for the grid-side pulse generator
@@ -55,6 +55,9 @@ public:
 
         /// Individual pulse override mode active indicator [bool]
         signal_output<bool> individual_override_active;
+
+        /// New thyristor firing detected [bool]
+        signal_output<bool> any_thyristor_fired;
     };
 
     /**
@@ -65,7 +68,7 @@ public:
         parameter<bool> enable{true};
 
         /// Pulse width for each firing pulse [rad]
-        parameter<angle_wrapped> pulse_width = angle_wrapped::from_degrees(30.0f);
+        parameter<angle_wrapped> pulse_width = angle_wrapped::from_degrees(120.0f);
 
         /// Reference voltage type (line or phase)
         parameter<control::six_pulse_generator::reference_type> reference_type =
@@ -95,7 +98,7 @@ private:
     parameters* _model_parameters;
 
 public:
-    sfc_grid_side_pulse_generator_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
+    sfc_grid_side_modulator_datamodel(inputs* model_inputs, outputs* model_outputs, parameters* model_parameters)
         : _model_inputs(model_inputs), _model_outputs(model_outputs), _model_parameters(model_parameters)
     {
         assert(_model_inputs != nullptr);

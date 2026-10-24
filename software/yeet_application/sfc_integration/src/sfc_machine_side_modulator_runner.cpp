@@ -39,9 +39,15 @@ void sfc_machine_side_modulator_runner::run()
 
     // Write outputs to the datamodel
     _outputs.firing_angle = _sfc_machine_side_modulator.get_firing_angle_rad();
+    _outputs.selected_firing_angle_reference = angle_wrapped(selected_rotor_angle);
     _outputs.release_pulses = _sfc_machine_side_modulator.get_release_pulses();
     _outputs.request_force_commutation = _sfc_machine_side_modulator.get_request_force_commutation();
     _outputs.commutation_state = _sfc_machine_side_modulator.get_commutation_state();
+    _outputs.firing_pulses = _sfc_machine_side_modulator.get_firing_pulses();
+    _outputs.any_thyristor_fired = _sfc_machine_side_modulator.get_any_thyristor_fired();
+    _outputs.virtual_reference_angle = _sfc_machine_side_modulator.get_virtual_reference_angle();
+    _outputs.virtual_reference_active = _sfc_machine_side_modulator.is_virtual_reference_active();
+    _outputs.individual_override_active = _sfc_machine_side_modulator.is_individual_pulse_override_active();
 
     // Get current rotor sector from modulator (0-5), convert to 1-6 for diagnostics
     const int sector_0_indexed = _sfc_machine_side_modulator.get_current_rotor_sector();
@@ -52,15 +58,44 @@ void sfc_machine_side_modulator_runner::stop() { _sfc_machine_side_modulator.res
 
 void sfc_machine_side_modulator_runner::set_parameters()
 {
-    // Note: forced_commutation_firing_angle parameter exists in datamodel
-    // but is not yet configurable in the core sfc_machine_side_modulator component.
-    // It is currently hardcoded to 180° in the core implementation.
-    // Future enhancement: Add configure method to the core component.
+    // Configure pulse generator basics
+    _sfc_machine_side_modulator.configure_pulse_width(_parameters.pulse_width.read());
+    _sfc_machine_side_modulator.configure_reference_type(_parameters.reference_type.read());
+
+    // Configure forced commutation angle
+    _sfc_machine_side_modulator.configure_forced_commutation_firing_angle(
+        _parameters.forced_commutation_firing_angle.read());
+
+    // Configure virtual reference
+    _sfc_machine_side_modulator.configure_virtual_reference(_parameters.virtual_reference_frequency.read());
+
+    // Configure pulse mask if override is enabled
+    if (_parameters.enable_individual_pulse_override.read()) {
+        _sfc_machine_side_modulator.configure_pulse_mask(_parameters.override_p1.read(), _parameters.override_p2.read(),
+            _parameters.override_p3.read(), _parameters.override_p4.read(), _parameters.override_p5.read(),
+            _parameters.override_p6.read());
+    }
+    else {
+        // Default to all enabled
+        _sfc_machine_side_modulator.configure_pulse_mask(true, true, true, true, true, true);
+    }
 }
 
 void sfc_machine_side_modulator_runner::set_parameter_callback()
 {
+    _parameters.pulse_width.register_callback([&]() { set_parameters(); });
+    _parameters.reference_type.register_callback([&]() { set_parameters(); });
     _parameters.forced_commutation_firing_angle.register_callback([&]() { set_parameters(); });
+    _parameters.virtual_reference_frequency.register_callback([&]() { set_parameters(); });
+    _parameters.enable_virtual_reference.register_callback([&]() { set_parameters(); });
+    _parameters.enable_individual_pulse_override.register_callback([&]() { set_parameters(); });
+    _parameters.enable.register_callback([&]() { _sfc_machine_side_modulator.reset(); });
+    _parameters.override_p1.register_callback([&]() { set_parameters(); });
+    _parameters.override_p2.register_callback([&]() { set_parameters(); });
+    _parameters.override_p3.register_callback([&]() { set_parameters(); });
+    _parameters.override_p4.register_callback([&]() { set_parameters(); });
+    _parameters.override_p5.register_callback([&]() { set_parameters(); });
+    _parameters.override_p6.register_callback([&]() { set_parameters(); });
 }
 
 }  // namespace yeet::application::sfc::integration

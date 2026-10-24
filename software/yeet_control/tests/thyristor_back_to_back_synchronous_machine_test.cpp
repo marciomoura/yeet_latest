@@ -146,8 +146,11 @@ protected:
         angle_wrapped machine_voltage_angle = back_emf_ab.phase();
         const angle_wrapped machine_reference_angle = machine_voltage_angle + angle_wrapped::from_degrees(180.0);
 
-        _rectifier_pulses = _rectifier_pulse_gen.update(grid_angle, _rectifier_angle, true);
-        _inverter_pulses = _inverter_pulse_gen.update(machine_reference_angle, _inverter_angle, true);
+        _rectifier_pulse_gen.update(grid_angle, _rectifier_angle, true);
+        _rectifier_pulses = _rectifier_pulse_gen.get_pulses();
+
+        _inverter_pulse_gen.update(machine_reference_angle, _inverter_angle, true);
+        _inverter_pulses = _inverter_pulse_gen.get_pulses();
 
         const auto rect_array = _rectifier_pulses.to_array();
         const auto inv_array = _inverter_pulses.to_array();

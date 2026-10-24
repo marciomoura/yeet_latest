@@ -172,7 +172,7 @@ class SignalManager:
     Thread-safe for concurrent access from network and UI threads.
     """
     
-    def __init__(self, buffer_size: int = 50000):
+    def __init__(self, buffer_size: int = 500000):
         """Initialize signal manager.
         
         Args:
@@ -299,6 +299,14 @@ class SignalManager:
         fiber_rx.add_signal(SignalHistory('machine_protection_tripped', '', 'Machine Tripped', self.buffer_size))
         fiber_rx.add_signal(SignalHistory('protection_inhibit', '', 'Protection Inhibit', self.buffer_size))
         self.groups['fiber_rx'] = fiber_rx
+
+        # Hardware debugging group
+        hardware_debugging = SignalGroup('hardware_debugging', 'Hardware Debugging')
+        hardware_debugging.add_signal(SignalHistory('v_ab_counts_peak', 'counts', 'Vab Peak Counts', self.buffer_size))
+        hardware_debugging.add_signal(SignalHistory('v_bc_counts_peak', 'counts', 'Vbc Peak Counts', self.buffer_size))
+        hardware_debugging.add_signal(SignalHistory('i_a_counts_peak', 'counts', 'Ia Peak Counts', self.buffer_size))
+        hardware_debugging.add_signal(SignalHistory('i_c_counts_peak', 'counts', 'Ic Peak Counts', self.buffer_size))
+        self.groups['hardware_debugging'] = hardware_debugging
     
     def _initialize_machine_side_signal_groups(self) -> None:
         """Initialize all machine-side signal groups with their signals.
@@ -517,6 +525,13 @@ class SignalManager:
         self._append_signal('fiber_rx', 'shutdown_request', float(frx.shutdown_request), timestamp_ms, sequence)
         self._append_signal('fiber_rx', 'machine_protection_tripped', float(frx.machine_protection_tripped), timestamp_ms, sequence)
         self._append_signal('fiber_rx', 'protection_inhibit', float(frx.protection_inhibit), timestamp_ms, sequence)
+
+        # Update hardware debugging
+        hw = packet.hardware_debug
+        self._append_signal('hardware_debugging', 'v_ab_counts_peak', hw.voltage_ab_counts_peak, timestamp_ms, sequence)
+        self._append_signal('hardware_debugging', 'v_bc_counts_peak', hw.voltage_bc_counts_peak, timestamp_ms, sequence)
+        self._append_signal('hardware_debugging', 'i_a_counts_peak', hw.current_a_counts_peak, timestamp_ms, sequence)
+        self._append_signal('hardware_debugging', 'i_c_counts_peak', hw.current_c_counts_peak, timestamp_ms, sequence)
     
     def _update_from_machine_packet(self, packet: MachineSideTelemetryPacket) -> None:
         """Update signal histories from machine-side telemetry packet.

@@ -75,6 +75,11 @@ public:
         set_emergency_off(false);
         set_door_is_open(false);
 
+        // Reset all grid IO mock overrides
+        system.grid_io_mock.get_parameters().override_auxiliaries_are_on.write(false);
+        system.grid_io_mock.get_parameters().override_fans_are_running.write(false);
+        system.grid_io_mock.get_parameters().override_mv_breaker_is_closed.write(false);
+
         system.initialize();
     }
 
@@ -100,6 +105,12 @@ public:
         system.grid_io_mock.get_parameters().override_auxiliaries_are_on_value.write(on);
     }
 
+    void set_fans_running(bool on)
+    {
+        system.grid_io_mock.get_parameters().override_fans_are_running.write(true);
+        system.grid_io_mock.get_parameters().override_fans_are_running_value.write(on);
+    }
+
     void set_breakers_on(bool on)
     {
         system.grid_io_mock.get_parameters().override_mv_breaker_is_closed.write(true);
@@ -108,8 +119,9 @@ public:
 
     void set_current_extinguished(bool extinguished)
     {
-        yeet::utils::mock_signal_input::write(
-            system.grid_side_control.state_machine.get_inputs().is_current_extinguished, extinguished);
+        system.grid_side_control.state_machine.get_parameters().is_current_extinguished_override.write(true);
+        system.grid_side_control.state_machine.get_parameters().is_current_extinguished_override_value.write(
+            extinguished);
     }
 
     void set_breaker_is_tripping(bool tripping)
@@ -128,6 +140,7 @@ public:
     {
         set_turn_on_command(true);  // Required to leave IDLE
         set_auxiliaries_on(true);   // Override aux status to accelerate through AUXILIARIES_ON
+        set_fans_running(true);     // Required for auxiliaries_are_on
     }
 
     // Helper to quickly bring system to BREAKERS_ON state using overrides
@@ -198,6 +211,7 @@ TEST_F(ClosedLoopIOsTest, MCBCloseCommandInBreakersOffState)
     // Note: We use step-by-step control here to test BREAKERS_OFF specifically
     set_turn_on_command(true);  // Required to leave IDLE
     set_auxiliaries_on(true);   // Override aux status to reach BREAKERS_OFF
+    set_fans_running(true);     // Required for auxiliaries_are_on
     // Note: Do NOT set breakers_on override - we want to stay in BREAKERS_OFF
     success &= simulator.simulate_for(ms(50.0f));
 
@@ -477,12 +491,11 @@ TEST_F(ClosedLoopIOsTest, EmergencyOffTriggersShutdown)
     // Complete shutdown sequence - clear start_command to prevent re-entering OPERATION_ON
     set_current_extinguished(true);
     set_emergency_off(false);  // E-stop released
-    set_start_command(false);  // Clear start command to allow transition to OPERATION_OFF
-    success &= simulator.simulate_for(ms(100.0f));
+    success &= simulator.simulate_for(ms(20.0f));
 
     // After current extinguished with start_command cleared, verify state transition to OPERATION_OFF
     state_id = system.grid_side_control.state_machine.get_outputs().current_state_id.read();
-    EXPECT_EQ(state_id, sfc_state_id::OPERATION_OFF) << "Should transition to OPERATION_OFF after current extinguished";
+    EXPECT_EQ(state_id, sfc_state_id::IDLE) << "Should transition to IDLE after current extinguished";
 
     EXPECT_TRUE(success);
 }
@@ -526,6 +539,7 @@ TEST_F(ClosedLoopIOsTest, EmergencyOffInhibitsStartup)
     // any_fault_active check may prevent further progress or force shutdown.
     set_turn_on_command(true);  // Required to leave IDLE
     set_auxiliaries_on(true);
+    set_fans_running(true);
     success &= simulator.simulate_for(ms(50.0f));
 
     // With emergency_off active, system may leave IDLE but should not progress to full operation
@@ -616,8 +630,8 @@ TEST_F(ClosedLoopIOsTest, ExcitationCurrentReferenceFromExcitationController)
 {
     configure_quick_startup();
 
-    // Set a specific field current setpoint
-    system.machine_side_control.excitation_controller.get_parameters().field_current_setpoint = current_pu_t{0.8};
+    // Set a specific forced field current
+    system.machine_side_control.excitation_controller.get_parameters().forced_field_current_pu = current_pu_t{0.8};
 
     bool success = true;
 
@@ -766,6 +780,7 @@ TEST_F(ClosedLoopIOsTest, CompleteIOSequenceStartupToShutdown)
     // ==================== Phase 2: Startup ====================
     set_turn_on_command(true);  // Required to leave IDLE
     set_auxiliaries_on(true);
+    set_fans_running(true);
     success &= simulator.simulate_for(ms(50.0f));
 
     // Verify state transition to BREAKERS_OFF

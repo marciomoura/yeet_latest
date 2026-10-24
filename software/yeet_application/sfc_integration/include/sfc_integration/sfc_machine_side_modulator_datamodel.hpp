@@ -11,6 +11,7 @@
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
 #include "yeet_control/constants.hpp"
+#include "yeet_control/six_pulse_generator.hpp"
 
 /**
  * @file sfc_machine_side_modulator_datamodel.hpp
@@ -61,6 +62,9 @@ public:
         /// Firing angle output to pulse generator [rad]
         signal_output<angle_wrapped> firing_angle;
 
+        /// Selected firing angle reference source [rad]
+        signal_output<angle_wrapped> selected_firing_angle_reference;
+
         /// Request signal to grid-side modulator for forced commutation [bool]
         signal_output<bool> request_force_commutation;
 
@@ -69,14 +73,56 @@ public:
 
         /// Current rotor sector (1-6) for diagnostics
         signal_output<std::uint8_t> current_rotor_sector;
+
+        /// Firing pulses for the thyristors
+        signal_output<sfc_thyristor_pulses_t> firing_pulses;
+
+        /// Indicates if any thyristor has been fired this cycle
+        signal_output<bool> any_thyristor_fired;
+
+        /// Internally integrated virtual reference angle [rad]
+        signal_output<angle_wrapped> virtual_reference_angle;
+
+        /// Indicates if virtual reference mode is active [bool]
+        signal_output<bool> virtual_reference_active;
+
+        /// Indicates if individual pulse override is active [bool]
+        signal_output<bool> individual_override_active;
     };
 
     /**
      * @brief Configuration parameters for the machine-side modulator
      */
     struct parameters {
+        /// Master enable override [bool]
+        parameter<bool> enable{true};
+
+        /// Pulse width for each firing pulse [rad]
+        parameter<angle_wrapped> pulse_width = angle_wrapped::from_degrees(120.0f);
+
+        /// Reference voltage type (line or phase)
+        parameter<control::six_pulse_generator::reference_type> reference_type =
+            control::six_pulse_generator::reference_type::phase;
+
         /// Firing angle for pulse mode operation [rad]
         parameter<angle_wrapped> forced_commutation_firing_angle = angle_wrapped(pi);
+
+        /// Frequency for virtual reference generation [Hz]
+        parameter<frequency_t> virtual_reference_frequency = frequency_t(0.0);
+
+        /// Enable flag for virtual reference mode
+        parameter<bool> enable_virtual_reference = false;
+
+        /// Enabled flag for individual pulse override
+        parameter<bool> enable_individual_pulse_override = false;
+
+        /// Override signals for individual pulses
+        parameter<bool> override_p1 = true;
+        parameter<bool> override_p2 = true;
+        parameter<bool> override_p3 = true;
+        parameter<bool> override_p4 = true;
+        parameter<bool> override_p5 = true;
+        parameter<bool> override_p6 = true;
     };
 
 private:
@@ -95,9 +141,35 @@ public:
 
     void register_data_model(yeet::telemetry::parameter_handler& handler)
     {
-        static constexpr std::string_view component_name = "modulator";
+        static constexpr std::string_view component_name = "machine_side_modulator";
+
+        // Parameters
+        handler.register_parameter(
+            component_name, "enable", yeet::utils::make_bool_accessor(_model_parameters->enable));
+        handler.register_parameter(component_name, "pulse_width",
+            yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->pulse_width));
+        handler.register_parameter(
+            component_name, "reference_type", yeet::utils::make_enum_accessor(_model_parameters->reference_type));
         handler.register_parameter(component_name, "forced_commutation_firing_angle",
             yeet::utils::make_degrees_angle_wrapped_accessor(_model_parameters->forced_commutation_firing_angle));
+        handler.register_parameter(component_name, "virtual_reference_frequency",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_reference_frequency));
+        handler.register_parameter(component_name, "enable_virtual_reference",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_virtual_reference));
+        handler.register_parameter(component_name, "enable_individual_pulse_override",
+            yeet::utils::make_bool_accessor(_model_parameters->enable_individual_pulse_override));
+        handler.register_parameter(
+            component_name, "override_p1", yeet::utils::make_bool_accessor(_model_parameters->override_p1));
+        handler.register_parameter(
+            component_name, "override_p2", yeet::utils::make_bool_accessor(_model_parameters->override_p2));
+        handler.register_parameter(
+            component_name, "override_p3", yeet::utils::make_bool_accessor(_model_parameters->override_p3));
+        handler.register_parameter(
+            component_name, "override_p4", yeet::utils::make_bool_accessor(_model_parameters->override_p4));
+        handler.register_parameter(
+            component_name, "override_p5", yeet::utils::make_bool_accessor(_model_parameters->override_p5));
+        handler.register_parameter(
+            component_name, "override_p6", yeet::utils::make_bool_accessor(_model_parameters->override_p6));
     }
 
     inputs* get_inputs() { return _model_inputs; }

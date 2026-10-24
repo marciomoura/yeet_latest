@@ -52,7 +52,8 @@ public:
             angle_wrapped reference_angle = _waveform_generator.get_fundamental_signal_angle().a();
 
             // Generate gate pulses with current firing angle
-            auto gen_pulses = _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            auto gen_pulses = _six_pulse_gen.get_pulses();
             _pulses.t1 = gen_pulses.p1;
             _pulses.t2 = gen_pulses.p2;
             _pulses.t3 = gen_pulses.p3;
@@ -70,7 +71,7 @@ public:
 
             // Store current reference angle and sector
             _current_reference_angle = reference_angle;
-            _current_sector = _six_pulse_gen.get_sector();
+            _current_sector = _six_pulse_gen.get_current_sector();
 
             // Accumulate voltage for averaging
             _v_dc_sum += _v_dc_output.value();

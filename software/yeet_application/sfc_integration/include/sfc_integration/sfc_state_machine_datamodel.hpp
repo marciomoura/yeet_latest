@@ -23,6 +23,9 @@ public:
         /// Auxiliaries power systems operational [bool]
         signal_input<bool> auxiliaries_are_on;
 
+        /// Cooling fans are running feedback [bool]
+        signal_input<bool> fans_are_running;
+
         /// Medium voltage breaker closed and energized [bool]
         signal_input<bool> mv_breaker_is_closed;
 
@@ -88,6 +91,9 @@ public:
         /// Auxiliaries power systems operational [bool]
         signal_output<bool> auxiliaries_are_on;
 
+        /// Cooling fans are running feedback [bool]
+        signal_output<bool> fans_are_running;
+
         /// Medium voltage breaker closed and energized [bool]
         signal_output<bool> mv_breaker_is_closed;
 
@@ -134,6 +140,11 @@ public:
         /// Override value for auxiliaries_are_on (when override enabled)
         parameter<bool> auxiliaries_are_on_override_value{false};
 
+        /// Enable override for fans_are_running input
+        parameter<bool> fans_are_running_override{false};
+        /// Override value for fans_are_running (when override enabled)
+        parameter<bool> fans_are_running_override_value{false};
+
         /// Enable override for mv_breaker_is_closed input
         parameter<bool> mv_breaker_is_closed_override{false};
         /// Override value for mv_breaker_is_closed (when override enabled)
@@ -167,6 +178,11 @@ public:
             yeet::utils::make_bool_accessor(_model_parameters->auxiliaries_are_on_override));
         handler.register_parameter(component_name, "auxiliaries_are_on_override_value",
             yeet::utils::make_bool_accessor(_model_parameters->auxiliaries_are_on_override_value));
+
+        handler.register_parameter(component_name, "fans_are_running_override",
+            yeet::utils::make_bool_accessor(_model_parameters->fans_are_running_override));
+        handler.register_parameter(component_name, "fans_are_running_override_value",
+            yeet::utils::make_bool_accessor(_model_parameters->fans_are_running_override_value));
 
         handler.register_parameter(component_name, "mv_breaker_is_closed_override",
             yeet::utils::make_bool_accessor(_model_parameters->mv_breaker_is_closed_override));

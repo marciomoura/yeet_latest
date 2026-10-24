@@ -296,7 +296,7 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         
         telem_layout.addWidget(QtWidgets.QLabel("  |  Window Size:"))
         self.window_size_spinbox = QtWidgets.QSpinBox()
-        self.window_size_spinbox.setRange(10, 50000)
+        self.window_size_spinbox.setRange(10, 500000)
         self.window_size_spinbox.setSingleStep(100)
         self.window_size_spinbox.setValue(window_size)
         self.window_size_spinbox.setToolTip("Number of samples to display on X-axis")
@@ -374,15 +374,15 @@ class TelemetryMonitorWindow(QtWidgets.QMainWindow):
         self.network_client.telemetry_packet_received.connect(self._on_packet)
         self.network_client.parameter_response_received.connect(self._on_parameter_response)
         
-        # Plot update timer (100ms)
+        # Plot update timer (0ms - as fast as possible)
         self.plot_timer = QtCore.QTimer(self)
         self.plot_timer.timeout.connect(self._update_plot)
-        self.plot_timer.start(100)
+        self.plot_timer.start(0)
         
         # Dashboard update timer (200ms - slower to reduce overhead)
         self.dashboard_timer = QtCore.QTimer(self)
         self.dashboard_timer.timeout.connect(self._update_dashboard)
-        self.dashboard_timer.start(200)
+        self.dashboard_timer.start(500)
     
     def eventFilter(self, obj, event):
         """Handle keyboard events for parameter search."""

@@ -79,6 +79,12 @@ void sfc_grid_side_measurements::update(sfc_per_unit_system::grid_side_bases con
     _i_a_counts = current_a_counts;
     _i_c_counts = current_c_counts;
 
+    // Update peak detectors (magnitude)
+    _v_ab_counts_peak = std::max(_v_ab_counts_peak, std::abs(_v_ab_counts.value));
+    _v_bc_counts_peak = std::max(_v_bc_counts_peak, std::abs(_v_bc_counts.value));
+    _i_a_counts_peak = std::max(_i_a_counts_peak, std::abs(_i_a_counts.value));
+    _i_c_counts_peak = std::max(_i_c_counts_peak, std::abs(_i_c_counts.value));
+
     // --- Voltage Measurement Processing ---
     // Step 1: ADC counts -> card input volts
     const voltage_t voltage_ab_card{_voltage_converter.to_real(_v_ab_counts)};
@@ -122,10 +128,19 @@ void sfc_grid_side_measurements::reset()
     _v_bc_counts = {};
     _i_a_counts = {};
     _i_c_counts = {};
+    clear_peaks();
     _voltage_pu = abc<voltage_pu_t>{};
     _current_pu = abc<current_pu_t>{};
     _voltage_line = line_voltage<voltage_t>{};
     _current = abc<current_t>{};
+}
+
+void sfc_grid_side_measurements::clear_peaks() noexcept
+{
+    _v_ab_counts_peak = 0;
+    _v_bc_counts_peak = 0;
+    _i_a_counts_peak = 0;
+    _i_c_counts_peak = 0;
 }
 
 }  // namespace yeet::application::sfc

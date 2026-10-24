@@ -52,7 +52,8 @@ public:
 
             // Generate gate pulses
             // Note: For inverter operation, firing angle is typically > 90 degrees (e.g., 150)
-            auto gen_pulses = _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            _six_pulse_gen.update(reference_angle, _current_firing_angle, true);
+            auto gen_pulses = _six_pulse_gen.get_pulses();
             _pulses.t1 = gen_pulses.p1;
             _pulses.t2 = gen_pulses.p2;
             _pulses.t3 = gen_pulses.p3;

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "sfc_integration/sfc_io_types.hpp"
 // Common I/O helper functions for embedded tasks
 // Used by both grid_side_tasks.cpp and machine_side_tasks.cpp
 
@@ -22,6 +23,24 @@ inline bool read_di(const task_inputs_t* inputs, int idx) noexcept
         return false;
     }
     return inputs->digital_inputs.signals[idx];
+}
+
+inline bool read_di(
+    const task_inputs_t* inputs, int idx, yeet::application::sfc::integration::io_polarity_t polarity) noexcept
+{
+    if (inputs == nullptr || !inputs->digital_inputs.valid) {
+        return false;
+    }
+    if (!is_valid_di_index(idx)) {
+        return false;
+    }
+
+    if (polarity == yeet::application::sfc::integration::io_polarity_t::ACTIVE_LOW) {
+        return !inputs->digital_inputs.signals[idx];
+    }
+    else {
+        return inputs->digital_inputs.signals[idx];
+    }
 }
 
 inline void write_do(task_outputs_t* outputs, int idx, bool value) noexcept

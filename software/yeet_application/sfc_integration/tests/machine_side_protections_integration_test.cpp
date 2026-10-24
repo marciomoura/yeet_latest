@@ -45,6 +45,8 @@ protected:
         yeet::utils::mock_signal_input::connect(
             state_machine.get_inputs().auxiliaries_are_on, _storage_sm_auxiliaries_are_on);
         yeet::utils::mock_signal_input::connect(
+            state_machine.get_inputs().fans_are_running, _storage_sm_fans_are_running);
+        yeet::utils::mock_signal_input::connect(
             state_machine.get_inputs().mv_breaker_is_closed, _storage_sm_mv_breaker_is_closed);
         yeet::utils::mock_signal_input::connect(state_machine.get_inputs().start_command, _storage_sm_start_command);
         yeet::utils::mock_signal_input::connect(state_machine.get_inputs().stop_command, _storage_sm_stop_command);
@@ -89,6 +91,7 @@ protected:
 
         // Fixed state-machine inputs for all tests (no other trips/inhibits requested).
         yeet::utils::mock_signal_input::write(state_machine.get_inputs().auxiliaries_are_on, true);
+        yeet::utils::mock_signal_input::write(state_machine.get_inputs().fans_are_running, true);
         yeet::utils::mock_signal_input::write(state_machine.get_inputs().mv_breaker_is_closed, true);
         yeet::utils::mock_signal_input::write(state_machine.get_inputs().start_command, false);
         yeet::utils::mock_signal_input::write(state_machine.get_inputs().stop_command, false);
@@ -227,6 +230,7 @@ protected:
 
     // Storage for state machine mocked signals
     bool _storage_sm_auxiliaries_are_on{true};
+    bool _storage_sm_fans_are_running{true};
     bool _storage_sm_mv_breaker_is_closed{true};
     bool _storage_sm_start_command{false};
     bool _storage_sm_stop_command{false};

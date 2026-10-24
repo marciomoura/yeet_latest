@@ -126,8 +126,9 @@ TEST_F(SfcOvervoltageProtectionTest, RideThroughBriefVoltageSwellNoTrip)
 
 TEST_F(SfcUndervoltageProtectionTest, DefaultThresholdsAreConfigured)
 {
-    EXPECT_FLOAT_EQ(protection.get_trip_threshold().value(), 0.70f);     // 70%
-    EXPECT_FLOAT_EQ(protection.get_warning_threshold().value(), 0.85f);  // 85%
+    EXPECT_FLOAT_EQ(protection.get_detection_threshold().value(), 0.85f);  // 85%
+    EXPECT_FLOAT_EQ(protection.get_recovery_threshold().value(), 0.90f);   // 90%
+    EXPECT_FLOAT_EQ(protection.get_warning_threshold().value(), 0.92f);    // 92%
 }
 
 TEST_F(SfcUndervoltageProtectionTest, InitialStateNotTripped)
@@ -148,32 +149,32 @@ TEST_F(SfcUndervoltageProtectionTest, NominalVoltageNoActivation)
     EXPECT_TRUE(protection.can_reset());
 }
 
-TEST_F(SfcUndervoltageProtectionTest, WarningActivatesBelow85Percent)
+TEST_F(SfcUndervoltageProtectionTest, WarningActivatesBelow92Percent)
 {
-    // Apply 80% voltage (below 85% warning, above 70% trip)
+    // Apply 90% voltage (below 92% warning, above 85% detection)
     for (int i = 0; i < 50; ++i) {
-        protection.update(voltage_pu_t{0.80});
+        protection.update(voltage_pu_t{0.90});
         EXPECT_FALSE(protection.is_warning()) << "Warning should not activate before 100ms delay";
     }
 
     for (int i = 0; i < 60; ++i) {
-        protection.update(voltage_pu_t{0.80});
+        protection.update(voltage_pu_t{0.90});
     }
 
     EXPECT_TRUE(protection.is_warning());
     EXPECT_FALSE(protection.is_tripped());
 }
 
-TEST_F(SfcUndervoltageProtectionTest, TripActivatesBelow70Percent)
+TEST_F(SfcUndervoltageProtectionTest, TripActivatesBelow85Percent)
 {
-    // Apply 65% voltage (below 70% trip)
+    // Apply 80% voltage (below 85% detection/trip)
     for (int i = 0; i < 250; ++i) {
-        protection.update(voltage_pu_t{0.65});
+        protection.update(voltage_pu_t{0.80});
         EXPECT_FALSE(protection.is_tripped()) << "Trip should not activate before 500ms delay";
     }
 
     for (int i = 0; i < 300; ++i) {
-        protection.update(voltage_pu_t{0.65});
+        protection.update(voltage_pu_t{0.80});
     }
 
     EXPECT_TRUE(protection.is_tripped());
@@ -211,12 +212,12 @@ TEST_F(SfcUndervoltageProtectionTest, CannotResetWhileFaultActive)
 TEST_F(SfcUndervoltageProtectionTest, ResetClearsLatchAfterFaultCleared)
 {
     for (int i = 0; i < 550; ++i) {
-        protection.update(voltage_pu_t{0.65});
+        protection.update(voltage_pu_t{0.80});
     }
     ASSERT_TRUE(protection.is_tripped());
 
-    // Voltage recovers above reset threshold (0.70 * 1.05 = 0.735 pu)
-    protection.update(voltage_pu_t{0.80});
+    // Voltage recovers above recovery threshold (0.90 pu)
+    protection.update(voltage_pu_t{0.95});
     EXPECT_TRUE(protection.can_reset());
 
     protection.reset();
@@ -225,23 +226,23 @@ TEST_F(SfcUndervoltageProtectionTest, ResetClearsLatchAfterFaultCleared)
 
 TEST_F(SfcUndervoltageProtectionTest, HysteresisPreventsChattering)
 {
-    // Trip threshold = 0.70 pu
-    // Reset threshold = 0.70 * 1.05 = 0.735 pu (above trip for undervoltage)
+    // Detection threshold = 0.85 pu
+    // Recovery threshold = 0.90 pu
 
     for (int i = 0; i < 550; ++i) {
-        protection.update(voltage_pu_t{0.65});
+        protection.update(voltage_pu_t{0.80});
     }
     ASSERT_TRUE(protection.is_tripped());
 
-    // Increase to 0.72 (above trip threshold but below reset threshold)
-    protection.update(voltage_pu_t{0.72});
-    EXPECT_FALSE(protection.can_reset()) << "Should not allow reset in hysteresis band";
+    // Increase to 0.87 (above detection but below recovery)
+    protection.update(voltage_pu_t{0.87});
+    EXPECT_FALSE(protection.can_reset()) << "Should not allow reset below recovery threshold";
 
     protection.reset();
     EXPECT_TRUE(protection.is_tripped());
 
-    // Increase above reset threshold
-    protection.update(voltage_pu_t{0.75});
+    // Increase above recovery threshold
+    protection.update(voltage_pu_t{0.92});
     EXPECT_TRUE(protection.can_reset());
 
     protection.reset();
@@ -256,7 +257,7 @@ TEST_F(SfcUndervoltageProtectionTest, RideThroughBriefVoltageSagNoTrip)
     }
 
     for (int i = 0; i < 400; ++i) {
-        protection.update(voltage_pu_t{0.65});
+        protection.update(voltage_pu_t{0.80});
     }
 
     EXPECT_FALSE(protection.is_tripped()) << "Should ride through brief 400ms sag";
@@ -278,13 +279,13 @@ TEST_F(SfcUndervoltageProtectionTest, CustomThresholdsCanBeConfigured)
     EXPECT_FLOAT_EQ(custom_protection.get_trip_threshold().value(), 0.5f);
     EXPECT_FLOAT_EQ(custom_protection.get_warning_threshold().value(), 0.75f);
 
-    // Should not trip at 60%
+    // Should not trip at 0.60
     for (int i = 0; i < 300; ++i) {
         custom_protection.update(voltage_pu_t{0.6});
     }
     EXPECT_FALSE(custom_protection.is_tripped());
 
-    // Should trip at 40% after 200ms
+    // Should trip at 0.40 after 200ms
     for (int i = 0; i < 210; ++i) {
         custom_protection.update(voltage_pu_t{0.4});
     }
@@ -293,9 +294,9 @@ TEST_F(SfcUndervoltageProtectionTest, CustomThresholdsCanBeConfigured)
 
 TEST_F(SfcUndervoltageProtectionTest, WarningClearsImmediatelyWhenAboveThreshold)
 {
-    // Activate warning
+    // Activate warning (below 0.92)
     for (int i = 0; i < 120; ++i) {
-        protection.update(voltage_pu_t{0.80});
+        protection.update(voltage_pu_t{0.90});
     }
     ASSERT_TRUE(protection.is_warning());
 
@@ -304,4 +305,30 @@ TEST_F(SfcUndervoltageProtectionTest, WarningClearsImmediatelyWhenAboveThreshold
 
     EXPECT_FALSE(protection.is_warning());
     EXPECT_FALSE(protection.is_tripped());
+}
+
+TEST_F(SfcUndervoltageProtectionTest, DipDetectionIncludesRecoveryHysteresis)
+{
+    // Start healthy
+    protection.update(voltage_pu_t{1.0});
+    ASSERT_FALSE(protection.is_detected());
+
+    // Drop below detection threshold (0.85 default in hpp, but constructor used 0.70 via legacy)
+    // Actually, I changed the defaults in hpp to 0.85/0.90
+    protection.update(voltage_pu_t{0.80});
+    EXPECT_TRUE(protection.is_detected()) << "Should detect dip immediately";
+
+    // Rise above detection but below recovery (0.90 default)
+    protection.update(voltage_pu_t{0.87});
+    EXPECT_TRUE(protection.is_detected()) << "Should stay detected in hysteresis band";
+
+    // Rise above recovery threshold
+    protection.update(voltage_pu_t{0.95});
+    EXPECT_TRUE(protection.is_detected()) << "Should stay detected during recovery delay";
+
+    // Wait for recovery delay (100ms default)
+    for (int i = 0; i < 110; ++i) {
+        protection.update(voltage_pu_t{0.95});
+    }
+    EXPECT_FALSE(protection.is_detected()) << "Should clear after recovery delay";
 }

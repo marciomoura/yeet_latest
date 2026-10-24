@@ -23,9 +23,11 @@ target_sources(
            include/yeet_control/lookup_table_1d.hpp
            include/yeet_control/lookup_table_2d.hpp
            include/yeet_control/mechanical_load.hpp
+           include/yeet_control/monotonic_angle_filter.hpp
            include/yeet_control/off_delay.hpp
            include/yeet_control/on_delay.hpp
            include/yeet_control/on_off_delay.hpp
+           include/yeet_control/boolean_debouncer.hpp
            include/yeet_control/per_unit.hpp
            include/yeet_control/pi_controller.hpp
            include/yeet_control/precomputed_divisor.hpp
@@ -62,10 +64,12 @@ target_sources(
             src/field_current_regulator.cpp
             src/hardware_filter_compensator.cpp
             src/mechanical_load.cpp
+            src/monotonic_angle_filter.cpp
             src/interval_timer.cpp
             src/off_delay.cpp
             src/on_delay.cpp
             src/on_off_delay.cpp
+            src/boolean_debouncer.cpp
             src/pi_controller.cpp
             src/pulse_generator.cpp
             src/rate_of_change_limiter.cpp

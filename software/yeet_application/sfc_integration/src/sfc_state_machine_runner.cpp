@@ -26,6 +26,10 @@ void sfc_state_machine_runner::run()
                                       ? _parameters.auxiliaries_are_on_override_value.read()
                                       : _inputs.auxiliaries_are_on.read();
 
+    _outputs.fans_are_running = _parameters.fans_are_running_override.read()
+                                    ? _parameters.fans_are_running_override_value.read()
+                                    : _inputs.fans_are_running.read();
+
     _outputs.mv_breaker_is_closed = _parameters.mv_breaker_is_closed_override.read()
                                         ? _parameters.mv_breaker_is_closed_override_value.read()
                                         : _inputs.mv_breaker_is_closed.read();

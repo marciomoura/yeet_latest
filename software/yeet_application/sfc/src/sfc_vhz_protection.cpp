@@ -83,6 +83,10 @@ bool sfc_vhz_protection::is_over_flux_tripped() const noexcept { return _over_fl
 
 bool sfc_vhz_protection::is_under_flux_tripped() const noexcept { return _under_flux_protection.is_tripped(); }
 
+bool sfc_vhz_protection::is_over_flux_active() const noexcept { return _over_flux_protection.is_active(); }
+
+bool sfc_vhz_protection::is_under_flux_active() const noexcept { return _under_flux_protection.is_active(); }
+
 bool sfc_vhz_protection::is_any_tripped() const noexcept { return is_over_flux_tripped() || is_under_flux_tripped(); }
 
 bool sfc_vhz_protection::is_over_flux_warning() const noexcept { return _over_flux_protection.is_warning(); }

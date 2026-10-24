@@ -6,7 +6,23 @@
 
 namespace yeet::application::sfc::integration {
 
-sfc_machine_side_external_ios_datamodel::sfc_machine_side_external_ios_datamodel() { register_callbacks(); }
+sfc_machine_side_external_ios_datamodel::sfc_machine_side_external_ios_datamodel()
+{
+    register_callbacks();
+
+    // Configure debouncers with default 20ms delay and 1ms sampling time
+    const real_t sampling_time = 0.001f;
+    const real_t debounce_time = 0.020f;
+
+    _di_excitation_status_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_excitation_status_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_external_fault_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_external_fault_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+
+    _di_start_command_debouncer.configure_sampling_time(duration_t{sampling_time});
+    _di_start_command_debouncer.configure_delay(duration_t{debounce_time}, duration_t{debounce_time});
+}
 
 void sfc_machine_side_external_ios_datamodel::register_callbacks()
 {
@@ -81,19 +97,24 @@ void sfc_machine_side_external_ios_datamodel::set_digital_inputs(
     const bool external_fault_inverted = apply_polarity(external_fault, _parameters.di_external_fault_polarity.read());
     const bool start_command_inverted = apply_polarity(start_command, _parameters.di_start_command_polarity.read());
 
+    // Update debouncers
+    _di_excitation_status_debouncer.update(excitation_status_inverted);
+    _di_external_fault_debouncer.update(external_fault_inverted);
+    _di_start_command_debouncer.update(start_command_inverted);
+
     // Write to digital input signals (overrides will take precedence if enabled)
     if (!_parameters.di_excitation_status_override.read()) {
-        _digital_inputs.excitation_status.write(excitation_status_inverted);
+        _digital_inputs.excitation_status.write(_di_excitation_status_debouncer.get_output());
     }
 
     // External fault can be overridden for testing
     if (!_parameters.di_external_fault_override.read()) {
-        _digital_inputs.external_fault.write(external_fault_inverted);
+        _digital_inputs.external_fault.write(_di_external_fault_debouncer.get_output());
     }
 
     // Start command can be overridden for testing
     if (!_parameters.di_start_command_override.read()) {
-        _digital_inputs.start_command.write(start_command_inverted);
+        _digital_inputs.start_command.write(_di_start_command_debouncer.get_output());
     }
 }
 
@@ -109,7 +130,6 @@ void sfc_machine_side_external_ios_datamodel::set_fiber_optics_rx(const fiber_op
     _fiber_optics_inputs_from_grid.force_commutation_acknowledged.write(msg.force_commutation_acknowledged);
     _fiber_optics_inputs_from_grid.release_pulses.write(msg.release_pulses);
     _fiber_optics_inputs_from_grid.dc_link_current.write(msg.dc_link_current);
-    _fiber_optics_inputs_from_grid.grid_voltage_magnitude.write(msg.grid_voltage_magnitude);
     _fiber_optics_inputs_from_grid.grid_release_protections.write(msg.grid_release_protections);
     _fiber_optics_inputs_from_grid.machine_release_protections.write(msg.machine_release_protections);
     _fiber_optics_inputs_from_grid.communication_ok.write(msg.communication_ok);
@@ -124,6 +144,7 @@ fiber_optic::machine_to_grid_message sfc_machine_side_external_ios_datamodel::ge
     msg.force_commutation_request = _fiber_optics_outputs_to_grid.force_commutation_request.read();
     msg.machine_protection_tripped = _fiber_optics_outputs_to_grid.machine_protection_tripped.read();
     msg.protection_inhibit = _fiber_optics_outputs_to_grid.protection_inhibit.read();
+    msg.communication_ok = _fiber_optics_outputs_to_grid.communication_ok.read();
     return msg;
 }
 

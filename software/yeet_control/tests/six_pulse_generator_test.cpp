@@ -12,7 +12,8 @@ using namespace yeet::control;
 TEST(SixPulseGeneratorTest, PulsesAreOffWhenDisabled)
 {
     six_pulse_generator gen(six_pulse_generator::reference_type::line);
-    auto pulses = gen.update(angle_wrapped(0.0), angle_wrapped(0.0), false);
+    gen.update(angle_wrapped(0.0), angle_wrapped(0.0), false);
+    auto pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1 || pulses.p2 || pulses.p3 || pulses.p4 || pulses.p5 || pulses.p6);
 }
 
@@ -24,29 +25,35 @@ TEST(SixPulseGeneratorTest, BasicFiringSequenceLineReference)
     const angle_wrapped zero_alpha(0.0);
 
     // Test firing of pulse 1 at its natural angle (0 deg)
-    auto p1 = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    auto p1 = gen.get_pulses();
     EXPECT_TRUE(p1.p1);
     EXPECT_FALSE(p1.p2);
 
     // Test firing of pulse 2 at its natural angle (60 deg)
-    auto p2 = gen.update(angle_wrapped(deg_to_rad(60.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(60.0)), zero_alpha, true);
+    auto p2 = gen.get_pulses();
     EXPECT_FALSE(p2.p1);
     EXPECT_TRUE(p2.p2);
 
     // Test firing of pulse 3 at its natural angle (120 deg)
-    auto p3 = gen.update(angle_wrapped(deg_to_rad(120.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(120.0)), zero_alpha, true);
+    auto p3 = gen.get_pulses();
     EXPECT_TRUE(p3.p3);
 
     // Test firing of pulse 4 at its natural angle (180 deg)
-    auto p4 = gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
+    auto p4 = gen.get_pulses();
     EXPECT_TRUE(p4.p4);
 
     // Test firing of pulse 5 at its natural angle (240 deg)
-    auto p5 = gen.update(angle_wrapped(deg_to_rad(240.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(240.0)), zero_alpha, true);
+    auto p5 = gen.get_pulses();
     EXPECT_TRUE(p5.p5);
 
     // Test firing of pulse 6 at its natural angle (300 deg)
-    auto p6 = gen.update(angle_wrapped(deg_to_rad(300.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(300.0)), zero_alpha, true);
+    auto p6 = gen.get_pulses();
     EXPECT_TRUE(p6.p6);
 }
 
@@ -59,11 +66,13 @@ TEST(SixPulseGeneratorTest, BasicFiringSequencePhaseReference)
 
     // For phase reference, natural commutation is at +30 degrees from the reference angle.
     // So, to fire at 0 degrees (line), the phase reference must be at 30 degrees from the phase reference
-    auto p1 = gen.update(angle_wrapped(deg_to_rad(30.0 + 0.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(30.0 + 0.0)), zero_alpha, true);
+    auto p1 = gen.get_pulses();
     EXPECT_TRUE(p1.p1);
 
     // To fire at 60 degrees (line), phase ref must be at 30 degrees.
-    auto p2 = gen.update(angle_wrapped(deg_to_rad(30.0 + 65.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(30.0 + 65.0)), zero_alpha, true);
+    auto p2 = gen.get_pulses();
     EXPECT_TRUE(p2.p2);
 }
 
@@ -76,63 +85,77 @@ TEST(SixPulseGeneratorTest, FiringAngleDelayP1)
 
     // Reference = 0°, pulse width = 10°, firing angle = 0°. Range is: [0°, 10°).
     angle_wrapped firing_angle(deg_to_rad(0.0));
-    auto pulses = gen.update(angle_wrapped(deg_to_rad(0.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), firing_angle, true);
+    auto pulses = gen.get_pulses();
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 0°, pulse width = 10°, firing angle = 0°. Range is: [0°, 10°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(5.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(5.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 10°, pulse width = 10°, firing angle = 0°. Range is: [0°, 10°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(10.001)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(10.001)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Reference = 10.01°, pulse width = 10°, firing angle = 0°. Range is: [0°, 10°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(10.01)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(10.01)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Reference = 20°, pulse width = 10°, firing angle = 0°. Range is: [0°, 10°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(20.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(20.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Now firing angle is 30°.
     firing_angle = angle_wrapped(deg_to_rad(30.0));
     // Reference = 0°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(0.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Reference = 30°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(30.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(30.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 35°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(35.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(35.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 40°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(40.1)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(40.1)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Reference = 50°, pulse width = 10°, firing angle = 30°. Range is: [30°, 40°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(50.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(50.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Now firing angle is 60°.
     firing_angle = angle_wrapped(deg_to_rad(60.0));
     // Reference = 0°, pulse width = 10°, firing angle = 60°. Range is: [60°, 70°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(0.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 
     // Reference = 60°, pulse width = 10°, firing angle = 60°. Range is: [60°, 70°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(60.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(60.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 65°, pulse width = 10°, firing angle = 60°. Range is: [60°, 70°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(65.0)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(65.0)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_TRUE(pulses.p1);
 
     // Reference = 70°, pulse width = 10°, firing angle = 60°. Range is: [60°, 70°).
-    pulses = gen.update(angle_wrapped(deg_to_rad(70.1)), firing_angle, true);
+    gen.update(angle_wrapped(deg_to_rad(70.1)), firing_angle, true);
+    pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1);
 }
 
@@ -145,15 +168,18 @@ TEST(SixPulseGeneratorTest, PulseWidth)
 
     // Pulse 1 firing window is [0°, 10°).
     // It should be ON at the very start of the window.
-    auto p1_on_start = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    auto p1_on_start = gen.get_pulses();
     EXPECT_TRUE(p1_on_start.p1);
 
     // It should still be ON just before the end of the window.
-    auto p1_on_end = gen.update(angle_wrapped(deg_to_rad(9.9)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(9.9)), zero_alpha, true);
+    auto p1_on_end = gen.get_pulses();
     EXPECT_TRUE(p1_on_end.p1);
 
     // It should be OFF exactly at the end of the window (range is exclusive of the end).
-    auto p1_off_end = gen.update(angle_wrapped(deg_to_rad(10.001)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(10.001)), zero_alpha, true);
+    auto p1_off_end = gen.get_pulses();
     EXPECT_FALSE(p1_off_end.p1);
 }
 
@@ -172,27 +198,33 @@ TEST(SixPulseGeneratorTest, AngleWrapping)
     const angle_wrapped alpha58(deg_to_rad(58.0));
 
     // Test point just outside the start of the window (should be OFF)
-    auto p_before = gen.update(angle_wrapped(deg_to_rad(357.9)), alpha58, true);
+    gen.update(angle_wrapped(deg_to_rad(357.9)), alpha58, true);
+    auto p_before = gen.get_pulses();
     EXPECT_FALSE(p_before.p6);
 
     // Test point just inside the start of the window (should be ON)
-    auto p_start = gen.update(angle_wrapped(deg_to_rad(358.1)), alpha58, true);
+    gen.update(angle_wrapped(deg_to_rad(358.1)), alpha58, true);
+    auto p_start = gen.get_pulses();
     EXPECT_TRUE(p_start.p6);
 
     // Test point in the middle of the first part of the window (should be ON)
-    auto p_mid1 = gen.update(angle_wrapped(deg_to_rad(359.0)), alpha58, true);
+    gen.update(angle_wrapped(deg_to_rad(359.0)), alpha58, true);
+    auto p_mid1 = gen.get_pulses();
     EXPECT_TRUE(p_mid1.p6);
 
     // Test point in the middle of the wrapped part of the window (should be ON)
-    auto p_mid2 = gen.update(angle_wrapped(deg_to_rad(1.0)), alpha58, true);
+    gen.update(angle_wrapped(deg_to_rad(1.0)), alpha58, true);
+    auto p_mid2 = gen.get_pulses();
     EXPECT_TRUE(p_mid2.p6);
 
     // Test point just before the end of the window (should be ON)
-    auto p_end = gen.update(angle_wrapped(deg_to_rad(2.9)), alpha58, true);
+    gen.update(angle_wrapped(deg_to_rad(2.9)), alpha58, true);
+    auto p_end = gen.get_pulses();
     EXPECT_TRUE(p_end.p6);
 
     // Test point exactly at the end of the window (should be OFF)
-    auto p_after = gen.update(angle_wrapped(deg_to_rad(3.0001)), alpha58, true);
+    gen.update(angle_wrapped(deg_to_rad(3.0001)), alpha58, true);
+    auto p_after = gen.get_pulses();
     EXPECT_FALSE(p_after.p6);
 }
 
@@ -204,33 +236,33 @@ TEST(SixPulseGeneratorTest, SectorIdentification)
 
     // Sector 1: [0, 60)
     gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_1);
     gen.update(angle_wrapped(deg_to_rad(59.999)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_1);
 
     // Sector 2: [60, 120)
     gen.update(angle_wrapped(deg_to_rad(60.1)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_2);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_2);
     gen.update(angle_wrapped(deg_to_rad(119.999)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_2);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_2);
 
     // Sector 3: [120, 180)
     gen.update(angle_wrapped(deg_to_rad(120.01)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_3);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_3);
 
     // Sector 4: [180, 240)
     gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_4);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_4);
 
     // Sector 5: [240, 300)
     gen.update(angle_wrapped(deg_to_rad(240.1)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_5);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_5);
 
     // Sector 6: [300, 360)
     gen.update(angle_wrapped(deg_to_rad(300.1)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_6);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_6);
     gen.update(angle_wrapped(deg_to_rad(359.999)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_6);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_6);
 }
 
 // Test that the sector changed flag behaves correctly.
@@ -241,36 +273,36 @@ TEST(SixPulseGeneratorTest, SectorChangeDetection)
 
     // First update: sector changes from initial 'none' to 1. Flag should be true.
     gen.update(angle_wrapped(deg_to_rad(10.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_1);
     EXPECT_TRUE(gen.get_sector_changed());
 
     // Second update: still in sector 1. Flag should be false.
     gen.update(angle_wrapped(deg_to_rad(20.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_1);
     EXPECT_FALSE(gen.get_sector_changed());
 
     // Third update: move to sector 2. Flag should be true.
     gen.update(angle_wrapped(deg_to_rad(70.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_2);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_2);
     EXPECT_TRUE(gen.get_sector_changed());
 
     // Fourth update: still in sector 2. Flag should be false.
     gen.update(angle_wrapped(deg_to_rad(80.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_2);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_2);
     EXPECT_FALSE(gen.get_sector_changed());
 
     // Test wrap-around from sector 6 to sector 1
     gen.update(angle_wrapped(deg_to_rad(350.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_6);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_6);
     EXPECT_TRUE(gen.get_sector_changed());
 
     gen.update(angle_wrapped(deg_to_rad(5.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_1);
     EXPECT_TRUE(gen.get_sector_changed());
 
     // Final check: stay in sector 1. Flag should be false again.
     gen.update(angle_wrapped(deg_to_rad(6.0)), zero_alpha, true);
-    EXPECT_EQ(gen.get_sector(), six_pulse_generator::pulse_sector_t::sector_1);
+    EXPECT_EQ(gen.get_current_sector(), six_pulse_generator::pulse_sector_t::sector_1);
     EXPECT_FALSE(gen.get_sector_changed());
 }
 
@@ -293,7 +325,8 @@ TEST(SixPulseGeneratorTest, VirtualReferenceReturnsOffWhenDisabled)
     const angle_wrapped firing_angle(deg_to_rad(30.0));
 
     // Virtual reference not enabled - should return all off
-    auto pulses = gen.update(firing_angle, true);
+    gen.update(firing_angle, true);
+    auto pulses = gen.get_pulses();
     EXPECT_FALSE(pulses.p1 || pulses.p2 || pulses.p3 || pulses.p4 || pulses.p5 || pulses.p6);
 }
 
@@ -386,7 +419,8 @@ TEST(SixPulseGeneratorTest, VirtualReferencePulseGeneration)
     bool found_p4 = false, found_p5 = false, found_p6 = false;
 
     for (int i = 0; i < 200; ++i) {
-        auto pulses = gen.update(zero_alpha, true);
+        gen.update(zero_alpha, true);
+        auto pulses = gen.get_pulses();
         if (pulses.p1) found_p1 = true;
         if (pulses.p2) found_p2 = true;
         if (pulses.p3) found_p3 = true;
@@ -486,27 +520,33 @@ TEST(SixPulseGeneratorTest, PulseMaskBlocksPulses)
     gen.enable_pulse_mask(true);
 
     // Test at angle where P1 would fire (0°)
-    auto p1 = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    auto p1 = gen.get_pulses();
     EXPECT_TRUE(p1.p1);  // P1 is allowed by mask
 
     // Test at angle where P2 would fire (60°)
-    auto p2 = gen.update(angle_wrapped(deg_to_rad(60.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(60.0)), zero_alpha, true);
+    auto p2 = gen.get_pulses();
     EXPECT_FALSE(p2.p2);  // P2 is blocked by mask
 
     // Test at angle where P3 would fire (120°)
-    auto p3 = gen.update(angle_wrapped(deg_to_rad(120.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(120.0)), zero_alpha, true);
+    auto p3 = gen.get_pulses();
     EXPECT_TRUE(p3.p3);  // P3 is allowed by mask
 
     // Test at angle where P4 would fire (180°)
-    auto p4 = gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(180.0)), zero_alpha, true);
+    auto p4 = gen.get_pulses();
     EXPECT_FALSE(p4.p4);  // P4 is blocked by mask
 
     // Test at angle where P5 would fire (240°)
-    auto p5 = gen.update(angle_wrapped(deg_to_rad(240.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(240.0)), zero_alpha, true);
+    auto p5 = gen.get_pulses();
     EXPECT_TRUE(p5.p5);  // P5 is allowed by mask
 
     // Test at angle where P6 would fire (300°)
-    auto p6 = gen.update(angle_wrapped(deg_to_rad(300.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(300.0)), zero_alpha, true);
+    auto p6 = gen.get_pulses();
     EXPECT_FALSE(p6.p6);  // P6 is blocked by mask
 }
 
@@ -521,14 +561,16 @@ TEST(SixPulseGeneratorTest, PulseMaskDisablingRestoresPulses)
     gen.enable_pulse_mask(true);
 
     // P1 should be blocked
-    auto blocked = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    auto blocked = gen.get_pulses();
     EXPECT_FALSE(blocked.p1);
 
     // Disable masking
     gen.enable_pulse_mask(false);
 
     // P1 should now fire
-    auto unblocked = gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    gen.update(angle_wrapped(deg_to_rad(0.0)), zero_alpha, true);
+    auto unblocked = gen.get_pulses();
     EXPECT_TRUE(unblocked.p1);
 }
 
@@ -552,7 +594,8 @@ TEST(SixPulseGeneratorTest, VirtualReferenceWithPulseMask)
     bool found_p4 = false, found_p5 = false, found_p6 = false;
 
     for (int i = 0; i < 200; ++i) {
-        auto pulses = gen.update(angle_wrapped(0.0), true);
+        gen.update(angle_wrapped(0.0), true);
+        auto pulses = gen.get_pulses();
         if (pulses.p1) found_p1 = true;
         if (pulses.p2) found_p2 = true;
         if (pulses.p3) found_p3 = true;
@@ -568,4 +611,102 @@ TEST(SixPulseGeneratorTest, VirtualReferenceWithPulseMask)
     EXPECT_TRUE(found_p4);
     EXPECT_FALSE(found_p5);
     EXPECT_FALSE(found_p6);
+}
+
+// Test that the 'any thyristor fired' flag correctly detects rising edges of any pulse.
+TEST(SixPulseGeneratorTest, AnyThyristorFiredDetection)
+{
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle_wrapped::from_degrees(10.0));
+    const angle_wrapped zero_alpha(0.0);
+
+    // Initial state: no pulses
+    EXPECT_FALSE(gen.get_any_thyristor_fired());
+
+    // Update 1: Move to 0°, P1 should start firing
+    gen.update(angle_wrapped::from_degrees(0.0), zero_alpha, true);
+    EXPECT_TRUE(gen.get_pulses().p1);
+    EXPECT_TRUE(gen.get_any_thyristor_fired());
+
+    // Update 2: Still at 0°, P1 is already firing (no rising edge)
+    gen.update(angle_wrapped::from_degrees(0.0), zero_alpha, true);
+    EXPECT_TRUE(gen.get_pulses().p1);
+    EXPECT_FALSE(gen.get_any_thyristor_fired());
+
+    // Update 3: Move to 60°, P2 should start firing
+    gen.update(angle_wrapped::from_degrees(60.0), zero_alpha, true);
+    EXPECT_TRUE(gen.get_pulses().p2);
+    EXPECT_TRUE(gen.get_any_thyristor_fired());
+}
+
+// Exhaustive sweep to verify firing detection for all thyristors
+TEST(SixPulseGeneratorTest, DetectAnyThyristorFiredExhaustiveSweep)
+{
+    // 1. Initialize a six_pulse_generator with a 120-degree pulse width.
+    six_pulse_generator gen(six_pulse_generator::reference_type::line, angle_wrapped(deg_to_rad(120.0)));
+    const angle_wrapped alpha(0.0);
+
+    struct FiredInfo {
+        int id;
+        double angle;
+    };
+    std::vector<FiredInfo> fired_events;
+    std::array<bool, 6> detected = {false, false, false, false, false, false};
+
+    // Initialize state by calling update with an angle just before 0
+    gen.update(angle_wrapped(deg_to_rad(-1.0)), alpha, true);
+    six_pulse_generator::pulses previous_pulses = gen.get_pulses();
+
+    // 2. Sweep the reference angle from 0 to 360 degrees in small steps (1 degree).
+    // Use < 360 to avoid double-counting the 0/360 wrap-around point for a single cycle.
+    for (double deg = 0.0; deg < 360.0; deg += 1.0) {
+        gen.update(angle_wrapped(deg_to_rad(deg)), alpha, true);
+        auto current_pulses = gen.get_pulses();
+
+        if (gen.get_any_thyristor_fired()) {
+            if (current_pulses.p1 && !previous_pulses.p1) {
+                detected[0] = true;
+                fired_events.push_back({1, deg});
+            }
+            if (current_pulses.p2 && !previous_pulses.p2) {
+                detected[1] = true;
+                fired_events.push_back({2, deg});
+            }
+            if (current_pulses.p3 && !previous_pulses.p3) {
+                detected[2] = true;
+                fired_events.push_back({3, deg});
+            }
+            if (current_pulses.p4 && !previous_pulses.p4) {
+                detected[3] = true;
+                fired_events.push_back({4, deg});
+            }
+            if (current_pulses.p5 && !previous_pulses.p5) {
+                detected[4] = true;
+                fired_events.push_back({5, deg});
+            }
+            if (current_pulses.p6 && !previous_pulses.p6) {
+                detected[5] = true;
+                fired_events.push_back({6, deg});
+            }
+        }
+        previous_pulses = current_pulses;
+    }
+
+    // 5. Provide a report
+    std::cout << "Thyristor Firing Detection Report:" << std::endl;
+    for (int i = 0; i < 6; ++i) {
+        std::cout << "P" << (i + 1) << ": " << (detected[i] ? "DETECTED" : "MISSING") << std::endl;
+    }
+
+    std::cout << "Fired Events Sequence:" << std::endl;
+    for (const auto& event : fired_events) {
+        std::cout << "  At " << event.angle << " deg: P" << event.id << " fired" << std::endl;
+    }
+
+    // 3. Verify that get_any_thyristor_fired() becomes true exactly 6 times during the full cycle.
+    EXPECT_EQ(fired_events.size(), 6);
+
+    // 4. Verify that each time it becomes true, it corresponds to the expected firing offset.
+    for (int i = 0; i < 6; ++i) {
+        EXPECT_TRUE(detected[i]) << "Thyristor P" << (i + 1) << " was NOT detected!";
+    }
 }

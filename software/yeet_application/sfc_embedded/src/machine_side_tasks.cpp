@@ -13,6 +13,7 @@
 #include "yeet/network_telemetry_manager.hpp"
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
+#include "yeet_control/angle_wrapped.hpp"
 
 using namespace yeet::embedded::io;
 
@@ -24,27 +25,24 @@ namespace {
 using yeet::application::sfc::integration::io_polarity_t;
 
 // Digital Inputs
-constexpr int DI_EXCITATION_STATUS_INDEX = 0;
+constexpr int DI_EXCITATION_STATUS_INDEX = 33 + 1 - 1;
 constexpr io_polarity_t DI_EXCITATION_STATUS_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_EXTERNAL_FAULT_INDEX = 1;
-constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_EXTERNAL_FAULT_INDEX = 33 + 2 - 1;
+constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_LOW;
 
-constexpr int DI_EMERGENCY_OFF_INDEX = 2;
-constexpr io_polarity_t DI_EMERGENCY_OFF_POLARITY = io_polarity_t::ACTIVE_HIGH;
-
-constexpr int DI_START_COMMAND_INDEX = 3;
+constexpr int DI_START_COMMAND_INDEX = 33 + 4 - 1;
 constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 // Digital Outputs
-constexpr int DO_EXCITATION_ON_COMMAND_INDEX = 0;
+constexpr int DO_EXCITATION_ON_COMMAND_INDEX = 33 - 1;
 constexpr io_polarity_t DO_EXCITATION_ON_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_EXCITATION_OFF_COMMAND_INDEX = 1;
+constexpr int DO_EXCITATION_OFF_COMMAND_INDEX = 33 + 1 - 1;
 constexpr io_polarity_t DO_EXCITATION_OFF_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
 // Analog Outputs
-constexpr int AO_EXCITATION_CURRENT_REFERENCE_INDEX = 0;
+constexpr int AO_EXCITATION_CURRENT_REFERENCE_INDEX = 1;
 }  // namespace
 
 // Ensure functions are compiled with Thumb interworking
@@ -112,23 +110,42 @@ machine_side_network_infrastructure::machine_side_network_infrastructure(
 ARM_FUNCTION
 void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side_control* control)
 {
-    // ==================== INITIALIZE DIGITAL INPUTS ====================
+    // Set all callbacks before modifying default parameters.
+    // Callbacks are registered during network handler initialization.
+    control->initialize();
 
-    // #if defined(YEET_EMBEDDED_MACHINE_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
-    //  Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware
-    //  staging)
+    // ==================== PER-UNIT SYSTEM CONFIGURATION ====================
+    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{866.0f});
+    control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
+    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
+    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{10.0f});
+    control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
+    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2e6});  // 2 MW
+    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1880.0f});
+
+    // Configure the PT
+    // The ASI interface converts 2500 V LL to 100 V secondary voltage
     control->machine_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
-    control->machine_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{30.0f});
-    control->machine_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
-        yeet::frequency_t{106.3f});
+    control->machine_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
+    // The ASI interface defines the loop-gain of 1.0/25.0
+    control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
+    // Configuration of the voltage PT and hardware filter compensation
+    control->machine_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
+        yeet::frequency_t{796.0f});
+    control->machine_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_2.write(
+        yeet::frequency_t{159.0f});
+    control->machine_measurements.get_parameters().voltage_compensation_num_filters.write(2);
     control->machine_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->machine_measurements.get_parameters().enable_commutation_masking.write(true);
-    control->machine_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{3.7f / 100.0f});
+    control->machine_measurements.get_parameters().voltage_measurement_rotation.write(
+        yeet::angle_wrapped::from_degrees(-30.0f));  // 30.0f
 
-    control->machine_side_pulse_generator.get_parameters().reference_type.write(
+    control->machine_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
-    control->machine_side_pulse_generator.get_parameters().pulse_width.write(
-        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
+
+    // phase
+    // control->machine_side_modulator.get_parameters().reference_type.write(
+    // yeet::control::six_pulse_generator::reference_type::phase);
 
     // ==================== IO CONFIGURATION ====================
     auto& io_params = control->external_ios.get_parameters();
@@ -151,29 +168,119 @@ void machine_embedded_init(yeet::application::sfc::integration::sfc_machine_side
     io_params.do_excitation_on_command_polarity.write(DO_EXCITATION_ON_COMMAND_POLARITY);
     io_params.do_excitation_off_command_polarity.write(DO_EXCITATION_OFF_COMMAND_POLARITY);
 
-    // Analog Output Indices
+    // Analog Output Scaling
+    io_params.ao_excitation_current_reference_gain.write(5.0f);
+    io_params.ao_excitation_current_reference_offset.write(0.0f);
     io_params.ao_excitation_current_reference_index.write(AO_EXCITATION_CURRENT_REFERENCE_INDEX);
 
     // Configure protections to be enabled by default for embedded target
     control->machine_protections.get_parameters().protection_module_enabled.write(true);
     control->machine_protections.get_parameters().over_flux_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
+        yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().under_flux_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
+        yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().stall_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
+        yeet::application::sfc::integration::protection_severity::alarm_only);
     control->machine_protections.get_parameters().overspeed_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
+        yeet::application::sfc::integration::protection_severity::alarm_only);
+    control->machine_protections.get_parameters().communication_loss_severity.write(
+        yeet::application::sfc::integration::protection_severity::alarm_only);
+    control->machine_protections.get_parameters().loss_of_excitation_severity.write(
+        yeet::application::sfc::integration::protection_severity::alarm_only);
+    control->machine_protections.get_parameters().external_fault_severity.write(
+        yeet::application::sfc::integration::protection_severity::alarm_only);
+    // Overvoltage
     control->machine_protections.get_parameters().machine_overvoltage_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
-    control->machine_protections.get_parameters().communication_loss_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
-    control->machine_protections.get_parameters().loss_of_excitation_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
-    // #endif
+    control->machine_protections.get_parameters().machine_overvoltage_trip_delay.write(yeet::duration_t{0.1f});
+    control->machine_protections.get_parameters().machine_overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.2f});
 
-    // Initialize machine-side control subsystem
-    control->initialize();
+    // Disable flying start
+    control->startup_sequencer.get_parameters().flying_restart_enabled.write(false);
+    control->startup_sequencer.get_parameters().flying_restart_speed_threshold.write(yeet::speed_pu_t{1.0f});
+    control->startup_sequencer.get_parameters().flying_restart_voltage_threshold.write(yeet::voltage_pu_t{1.0f});
+    //
+    control->startup_sequencer.get_parameters().skip_flux_buildup.write(false);
+    control->startup_sequencer.get_parameters().force_virtual_mode_operation.write(false);
+    // 60 seconds the "startup" to 1 per-unit of speed (10Hz)
+    control->startup_sequencer.get_parameters().virtual_frequency_duration.write(yeet::duration_t{6.0f});
+    control->startup_sequencer.get_parameters().virtual_frequency_initial.write(yeet::frequency_pu_t{0.0f});
+    control->startup_sequencer.get_parameters().virtual_frequency_final.write(yeet::frequency_pu_t{0.1f});
+    control->startup_sequencer.get_parameters().virtual_torque_duration.write(yeet::duration_t{1.0f});
+    control->startup_sequencer.get_parameters().virtual_torque_initial.write(yeet::torque_pu_t{0.0f});  // 10% torque
+    control->startup_sequencer.get_parameters().virtual_torque_final.write(yeet::torque_pu_t{0.2f});    // 10% torque
+    control->startup_sequencer.get_parameters().speed_reference.write(yeet::speed_pu_t{1.0f});
+    control->startup_sequencer.get_parameters().speed_reference_rate_limit_enabled.write(true);
+    control->startup_sequencer.get_parameters().speed_reference_rate_limit_seconds_per_pu.write(yeet::real_t{60.0f});
+    control->startup_sequencer.get_parameters().virtual_torque_damping_enabled.write(false);
+    control->startup_sequencer.get_parameters().virtual_torque_damping_kp.write(yeet::real_t{2.0f});
+    control->startup_sequencer.get_parameters().virtual_torque_damping_ti.write(yeet::duration_t{0.5f});
+    control->startup_sequencer.get_parameters().virtual_torque_damping_activation_speed.write(yeet::speed_pu_t{0.005f});
+
+    control->machine_side_observer.get_parameters().nominal_frequency.write(yeet::frequency_t{10.0f});
+
+    // Configuration of the stator-voltage control
+    // control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu
+    // control->excitation_controller.get_parameters().voltage_reference_speed_axis_pu.write(
+    //     std::array<yeet::speed_pu_t, 7>{
+    //         // yeet::speed_pu_t{0.0f / 3000.0f},
+    //         // yeet::speed_pu_t{150.0f / 3000.0f},
+    //         // yeet::speed_pu_t{300.0f / 3000.0f},
+    //         // yeet::speed_pu_t{600.0f / 3000.0f},
+    //         // yeet::speed_pu_t{3150.0f / 3000.0f},
+    //         // yeet::speed_pu_t{3150.0f / 3000.0f},
+    //         // yeet::speed_pu_t{3150.0f / 3000.0f},
+    //     });
+    // control->excitation_controller.get_parameters().voltage_reference_pu.write(std::array<yeet::voltage_pu_t, 7>{
+    //     yeet::voltage_pu_t{0.0f},
+    //     yeet::voltage_pu_t{470.0f / 1880.0f},
+    //     yeet::voltage_pu_t{940.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    //     yeet::voltage_pu_t{1880.0f / 1880.0f},
+    // });
+
+    // Forced Mode Configuration (Low-Speed / Low-Voltage startup region)
+    // -----------------------------------------------------------------
+    // We use a constant forced field current until enough voltage or speed is built up.
+    // Transition points (Release thresholds) are set here.
+
+    // 1. Definition of the forced field current value (e.g., 40%)
+    control->excitation_controller.get_parameters().forced_field_current_pu.write(yeet::current_pu_t{0.4f});
+
+    // 2. Release to automatic control at 20% voltage OR 20% speed
+    control->excitation_controller.get_parameters().release_voltage_threshold_pu.write(yeet::voltage_pu_t{0.2f});
+    control->excitation_controller.get_parameters().release_speed_threshold_pu.write(yeet::speed_pu_t{0.2f});
+
+    // 3. Time required for field establishment (Pre-fluxing)
+    control->excitation_controller.get_parameters().prefluxing_duration.write(yeet::duration_t{1.5f});
+
+    // Configuration of the machine-side lookup-table for the machine-firing
+    auto dc_link_base = control->pu_system_datamodel.get_parameters().dc_link_current_base.read();
+
+    control->machine_side_controller.get_parameters().dc_current_pu_lookup_table.write(
+        std::array<yeet::current_pu_t, 6>{yeet::current_pu_t{0.0 / dc_link_base},  //
+            yeet::current_pu_t{500.0f / dc_link_base},                             //
+            yeet::current_pu_t{866.0f / dc_link_base},                             //
+            yeet::current_pu_t{2625.0f / dc_link_base},                            //
+            yeet::current_pu_t{3000.0f / dc_link_base},                            //
+            yeet::current_pu_t{3000.0f / dc_link_base}});
+
+    control->machine_side_controller.get_parameters().firing_angle_lookup_table.write(
+        std::array<yeet::angle_wrapped, 6>{yeet::angle_wrapped::from_degrees(158.0f),
+            yeet::angle_wrapped::from_degrees(158.0f), yeet::angle_wrapped::from_degrees(153.5f),
+            yeet::angle_wrapped::from_degrees(132.1), yeet::angle_wrapped::from_degrees(125.0f),
+            yeet::angle_wrapped::from_degrees(125.0f)});
+
+    // Firing angle delta vs speed (RPM/pu)
+    // 0 rpm, 600 rpm, 3150 rpm
+    control->machine_side_controller.get_parameters().speed_pu_alpha_delta_axis.write(
+        std::array<yeet::speed_pu_t, 3>{yeet::speed_pu_t{0.0f}, yeet::speed_pu_t{0.2f}, yeet::speed_pu_t{1.05f}});
+
+    control->machine_side_controller.get_parameters().firing_angle_delta_lookup_table.write(
+        std::array<yeet::angle_wrapped, 3>{yeet::angle_wrapped::from_degrees(0.0f),
+            yeet::angle_wrapped::from_degrees(0.0f), yeet::angle_wrapped::from_degrees(-7.1f)});
 }
 
 ARM_FUNCTION
@@ -188,16 +295,12 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     // Priority: Highest (measurements, observer, modulator, pulse generator)
 
     // ==================== ANALOG INPUTS → MEASUREMENTS ====================
-    // Map hardware ADC channels to machine-side measurements via I/O interface
-    // Based on sfc_io_definitions.md:
-    //   AI1 (X1-1): Machine voltage Vab
-    //   AI2 (X1-2): Machine voltage Vbc
-
-    // Write ADC values directly to I/O interface analog inputs
-    if (inputs != nullptr && inputs->analog_inputs.valid) {
-        control->external_ios.set_analog_inputs(
-            yeet::control::adc_counts{static_cast<std::int32_t>(inputs->analog_inputs.channels[1])},
-            yeet::control::adc_counts{static_cast<std::int32_t>(inputs->analog_inputs.channels[2])});
+    if (inputs->analog_inputs.valid) {
+        int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
+                          static_cast<int32_t>(inputs->analog_inputs.channels[2]);
+        int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
+                          static_cast<int32_t>(inputs->analog_inputs.channels[3]);
+        control->external_ios.set_analog_inputs(yeet::control::adc_counts{diff_ab}, yeet::control::adc_counts{diff_bc});
     }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
@@ -209,12 +312,20 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     outputs->status.alarm = control->machine_protections.get_outputs().has_active_alarm;
 
     // ==================== ANALOG OUTPUTS (DAC) → EXCITATION COMMANDS ====================
+    write_ao(outputs, 0, control->machine_measurements.get_outputs().machine_voltage_line.read().ab(), 2.0f, 0.0f);
+    write_ao(outputs, 2, control->machine_measurements.get_outputs().machine_voltage_line.read().ab(), 2.0f, 0.0f);
+    write_ao(outputs, 3, control->machine_measurements.get_outputs().machine_voltage_line.read().ab(), 2.0f, 0.0f);
 
     const auto& io_params = control->external_ios.get_parameters();
-    const float excitation_current_reference =
-        static_cast<float>(control->external_ios.get_excitation_current_reference());
-    write_ao(outputs, io_params.ao_excitation_current_reference_index.read(), excitation_current_reference,
+    write_ao(outputs, io_params.ao_excitation_current_reference_index.read(),
+        control->external_ios.get_excitation_current_reference().value(),
         io_params.ao_excitation_current_reference_gain.read(), io_params.ao_excitation_current_reference_offset.read());
+
+    // write_ao(outputs, 0, 0.33f, 5.0f, 0.0f);
+    // write_ao(outputs, 1, 0.66f, 5.0f, 0.0f);
+    // write_ao(outputs, 2, 1.0f, 5.0f, 0.0f);
+    // write_ao(outputs, 3, -0.33f, 5.0f, 0.0f);
+
     // ==================== THYRISTOR PULSES → PWM OUTPUTS ====================
     // Extract firing pulses from grid-side I/O interface and map to hardware PWM channels
     // Based on sfc_io_definitions.md PWM mapping:
@@ -225,12 +336,12 @@ void machine_task_200us(yeet::application::sfc::integration::sfc_machine_side_co
     //   PWM5 (PB0) → c_plus  (Phase C positive arm, T5)
     //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
     const auto& firing_pulses = control->get_firing_pulses().read();
-    outputs->thyristor_pulses.a_plus = firing_pulses.p1;
-    outputs->thyristor_pulses.c_minus = firing_pulses.p2;
-    outputs->thyristor_pulses.b_plus = firing_pulses.p3;
-    outputs->thyristor_pulses.a_minus = firing_pulses.p4;
-    outputs->thyristor_pulses.c_plus = firing_pulses.p5;
-    outputs->thyristor_pulses.b_minus = firing_pulses.p6;
+    outputs->thyristor_pulses.p1 = firing_pulses.p1;
+    outputs->thyristor_pulses.p2 = firing_pulses.p2;
+    outputs->thyristor_pulses.p3 = firing_pulses.p3;
+    outputs->thyristor_pulses.p4 = firing_pulses.p4;
+    outputs->thyristor_pulses.p5 = firing_pulses.p5;
+    outputs->thyristor_pulses.p6 = firing_pulses.p6;
 }
 
 ARM_FUNCTION
@@ -249,7 +360,7 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     const auto& io_params = control->external_ios.get_parameters();
     if (inputs != nullptr && inputs->digital_inputs.valid) {
         // Read digital inputs from hardware
-        const bool excitation_status = read_di(inputs, io_params.di_excitation_status_index.read());
+        const bool excitation_status = true;  // read_di(inputs, io_params.di_excitation_status_index.read());
         const bool external_fault = read_di(inputs, io_params.di_external_fault_index.read());
         const bool start_command = read_di(inputs, io_params.di_start_command_index.read());
 
@@ -263,7 +374,7 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     // Process fiber-optic RX data from grid-side controller
     // Fiber-optic link provides cross-coupled signals between grid and machine sides
     bool communication_valid = false;
-    if (inputs != nullptr && inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
+    if (inputs->fiber_optic_rx.data_ready && inputs->fiber_optic_rx.link_ok) {
         // Use control class method to decode all signals (ensures consistency with host simulator)
         // This updates external_ios with: mode, state_id, force_commutation_acknowledged, current_is_zero,
         // is_saturated, pulse_releases, dc_link_current, preset_request
@@ -301,13 +412,9 @@ void machine_task_1000us(yeet::application::sfc::integration::sfc_machine_side_c
     write_do(
         outputs, io_params.do_excitation_off_command_index.read(), control->external_ios.get_excitation_off_command());
 
-    // Excitation current reference output (analog output - would typically use analog_outputs)
-    // For now, we'll map it to a digital output as a placeholder
-    // In real hardware, this would go to a DAC or PWM output
-    // TODO: Add analog output support and map excitation_current_reference to AO1
-
-    // Machine-side control status outputs
-    // DO3-DO16: Reserved for future expansion (speed controller status, fault conditions, etc.)
+    // // Excitation current reference output (analog output)
+    // write_ao(outputs, AO_EXCITATION_CURRENT_REFERENCE_INDEX,
+    //     control->external_ios.get_excitation_current_reference().value(), 10.0f, 0.0f);
 }
 
 ARM_FUNCTION

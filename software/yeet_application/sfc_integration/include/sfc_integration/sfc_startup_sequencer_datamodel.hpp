@@ -110,19 +110,34 @@ public:
         parameter<frequency_pu_t> virtual_frequency_initial = frequency_pu_t{0.0};
 
         /// Final virtual frequency [pu]
-        parameter<frequency_pu_t> virtual_frequency_final = frequency_pu_t{0.2};
+        parameter<frequency_pu_t> virtual_frequency_final = frequency_pu_t{0.1};
 
         /// Virtual frequency ramp duration [s], 0 = skip virtual phase
-        parameter<duration_t> virtual_frequency_duration = duration_t{10.0};
+        parameter<duration_t> virtual_frequency_duration = duration_t{2.0};
 
         /// Initial virtual torque reference [pu]
-        parameter<torque_pu_t> virtual_torque_initial = torque_pu_t{0.3};
+        parameter<torque_pu_t> virtual_torque_initial = torque_pu_t{0.0};
 
         /// Final virtual torque reference [pu]
         parameter<torque_pu_t> virtual_torque_final = torque_pu_t{0.3};
 
         /// Virtual torque ramp duration [s], 0 = immediate jump to final
-        parameter<duration_t> virtual_torque_duration = duration_t{0.0};
+        parameter<duration_t> virtual_torque_duration = duration_t{0.5};
+
+        /// Enable damping based on observer speed feedback during virtual mode
+        parameter<bool> virtual_torque_damping_enabled = false;
+
+        /// Proportional gain for virtual torque damping (pu_torque / pu_speed_error)
+        parameter<real_t> virtual_torque_damping_kp = real_t{1.0};
+
+        /// Integral time constant for virtual torque damping [s]
+        parameter<real_t> virtual_torque_damping_ti = real_t{0.5};
+
+        /// Speed threshold above which damping is active [pu]
+        parameter<speed_pu_t> virtual_torque_damping_activation_speed = speed_pu_t{0.01};
+
+        /// Skip flux build-up phase (useful for tests without excitation)
+        parameter<bool> skip_flux_buildup = false;
 
         /// Enable override for field established flag testing
         parameter<bool> field_established_override = false;
@@ -131,11 +146,11 @@ public:
         parameter<bool> field_established_override_value = false;
 
         /// External speed reference command [pu]
-        parameter<speed_pu_t> speed_reference = speed_pu_t{0.0};
+        parameter<speed_pu_t> speed_reference = speed_pu_t{1.0};
 
         /// Speed reference rate limit in seconds per per-unit speed change
         /// (e.g., 10.0 means 10 seconds to ramp from 0 to 1.0 pu = 0.1 pu/s)
-        parameter<real_t> speed_reference_rate_limit_seconds_per_pu = real_t{10.0};
+        parameter<real_t> speed_reference_rate_limit_seconds_per_pu = real_t{20.0};
 
         /// Enable/disable speed reference rate limiting
         parameter<bool> speed_reference_rate_limit_enabled = true;
@@ -151,8 +166,8 @@ public:
         /// Observer settling time before flying restart decision [s]
         parameter<duration_t> flying_restart_observer_settling_time = duration_t{2.0};
 
-        /// Enable automatic start/stop based on state machine state
-        parameter<bool> auto_start_stop_enabled = true;
+        /// Enable flying restart detection
+        parameter<bool> flying_restart_enabled = false;
 
         /// Force virtual reference mode operation (for commissioning with short-circuited machine side)
         /// When enabled, the sequencer always uses VIRTUAL reference frame regardless of state.
@@ -190,6 +205,14 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->virtual_torque_final));
         handler.register_parameter(component_name, "virtual_torque_duration",
             yeet::utils::make_units_accessor(_model_parameters->virtual_torque_duration));
+        handler.register_parameter(component_name, "virtual_torque_damping_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->virtual_torque_damping_enabled));
+        handler.register_parameter(component_name, "virtual_torque_damping_kp",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_damping_kp));
+        handler.register_parameter(component_name, "virtual_torque_damping_ti",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_damping_ti));
+        handler.register_parameter(component_name, "virtual_torque_damping_activation_speed",
+            yeet::utils::make_units_accessor(_model_parameters->virtual_torque_damping_activation_speed));
         handler.register_parameter(component_name, "field_established_override",
             yeet::utils::make_bool_accessor(_model_parameters->field_established_override));
         handler.register_parameter(component_name, "field_established_override_value",
@@ -206,10 +229,12 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_voltage_threshold));
         handler.register_parameter(component_name, "flying_restart_observer_settling_time",
             yeet::utils::make_units_accessor(_model_parameters->flying_restart_observer_settling_time));
-        handler.register_parameter(component_name, "auto_start_stop_enabled",
-            yeet::utils::make_bool_accessor(_model_parameters->auto_start_stop_enabled));
+        handler.register_parameter(component_name, "flying_restart_enabled",
+            yeet::utils::make_bool_accessor(_model_parameters->flying_restart_enabled));
         handler.register_parameter(component_name, "force_virtual_mode_operation",
             yeet::utils::make_bool_accessor(_model_parameters->force_virtual_mode_operation));
+        handler.register_parameter(
+            component_name, "skip_flux_buildup", yeet::utils::make_bool_accessor(_model_parameters->skip_flux_buildup));
     }
 
     inputs* get_inputs() { return _model_inputs; }

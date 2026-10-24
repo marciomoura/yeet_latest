@@ -119,6 +119,13 @@ public:
     [[nodiscard]] bool is_tripped() const noexcept;
 
     /**
+     * @brief Gets the active stall status (non-latched).
+     *
+     * @return True if stall condition is currently active and delay elapsed
+     */
+    [[nodiscard]] bool is_active() const noexcept;
+
+    /**
      * @brief Gets the non-latched stall warning status.
      *
      * Warning uses the same thresholds as trip but with shorter delay.

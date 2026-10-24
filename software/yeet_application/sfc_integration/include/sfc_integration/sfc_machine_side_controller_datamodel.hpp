@@ -6,6 +6,7 @@
 #include "yeet/signal.hpp"
 #include "yeet/utils/parameter_accessors.hpp"
 #include "yeet_control/angle_wrapped.hpp"
+#include "yeet_control/constants.hpp"
 #include "yeet_control/units.hpp"
 
 namespace yeet::application::sfc::integration {
@@ -36,12 +37,20 @@ public:
      */
     struct parameters {
         static constexpr std::size_t NUM_POINTS = sfc_machine_side_firing_angle_lookup_table::NUM_POINTS;
+        static constexpr std::size_t SPEED_DELTA_NUM_POINTS =
+            sfc_machine_side_firing_angle_lookup_table::SPEED_DELTA_NUM_POINTS;
 
         parameter<std::array<current_pu_t, NUM_POINTS>> dc_current_pu_lookup_table =
             sfc_machine_side_firing_angle_lookup_table::kDefaultDcCurrentAxisPu;
 
-        parameter<std::array<real_t, NUM_POINTS>> firing_angle_lookup_table =
-            sfc_machine_side_firing_angle_lookup_table::kDefaultFiringAngleDeg;
+        parameter<std::array<angle_wrapped, NUM_POINTS>> firing_angle_lookup_table =
+            sfc_machine_side_firing_angle_lookup_table::kDefaultFiringAngle;
+
+        parameter<std::array<speed_pu_t, SPEED_DELTA_NUM_POINTS>> speed_pu_alpha_delta_axis =
+            sfc_machine_side_firing_angle_lookup_table::kDefaultSpeedAxisPu;
+
+        parameter<std::array<angle_wrapped, SPEED_DELTA_NUM_POINTS>> firing_angle_delta_lookup_table =
+            sfc_machine_side_firing_angle_lookup_table::kDefaultSpeedDelta;
 
         /// Enable forcing the machine firing angle to a specific value
         parameter<bool> force_firing_angle = false;
@@ -77,16 +86,14 @@ public:
                 yeet::utils::make_array_element_accessor(_model_parameters->dc_current_pu_lookup_table, i));
         }
 
-        // Register firing angle lookup table entries individually (real_t doesn't have .value() method)
+        // Register main firing angle table (mapped to degrees)
         static constexpr std::string_view firing_angle_names[] = {"firing_angle_lookup_table_deg[0]",
             "firing_angle_lookup_table_deg[1]", "firing_angle_lookup_table_deg[2]", "firing_angle_lookup_table_deg[3]",
             "firing_angle_lookup_table_deg[4]", "firing_angle_lookup_table_deg[5]"};
 
-        // real_t is a float type, so we can use direct casting
         for (std::size_t i = 0; i < parameters::NUM_POINTS; ++i) {
-            // Create static context storage for each index
             static struct context_storage_t {
-                parameter<std::array<real_t, parameters::NUM_POINTS>>* param;
+                parameter<std::array<angle_wrapped, parameters::NUM_POINTS>>* param;
                 std::size_t index;
             } contexts[parameters::NUM_POINTS];
 
@@ -96,15 +103,47 @@ public:
                 low_level_access(
                     +[](void* ctx) -> float {
                         auto* c = static_cast<context_storage_t*>(ctx);
-                        return static_cast<float>(c->param->read()[c->index]);
+                        return static_cast<float>(rad_to_deg(static_cast<angle_t>(c->param->read()[c->index])));
                     },
                     +[](void* ctx, float value) {
                         auto* c = static_cast<context_storage_t*>(ctx);
                         auto table = c->param->read();
-                        table[c->index] = real_t(value);
+                        table[c->index] = angle_wrapped::from_degrees(value);
                         c->param->write(table);
                     },
                     &contexts[i]));
+        }
+
+        // Register speed axis and delta table
+        static constexpr std::string_view speed_axis_names[] = {
+            "speed_pu_alpha_delta_axis[0]", "speed_pu_alpha_delta_axis[1]", "speed_pu_alpha_delta_axis[2]"};
+        static constexpr std::string_view delta_firing_angle_names[] = {"firing_angle_delta_lookup_table_deg[0]",
+            "firing_angle_delta_lookup_table_deg[1]", "firing_angle_delta_lookup_table_deg[2]"};
+
+        for (std::size_t i = 0; i < parameters::SPEED_DELTA_NUM_POINTS; ++i) {
+            handler.register_parameter(component_name, speed_axis_names[i],
+                yeet::utils::make_array_element_accessor(_model_parameters->speed_pu_alpha_delta_axis, i));
+
+            static struct delta_context_storage_t {
+                parameter<std::array<angle_wrapped, parameters::SPEED_DELTA_NUM_POINTS>>* param;
+                std::size_t index;
+            } delta_contexts[parameters::SPEED_DELTA_NUM_POINTS];
+
+            delta_contexts[i] = {&_model_parameters->firing_angle_delta_lookup_table, i};
+
+            handler.register_parameter(component_name, delta_firing_angle_names[i],
+                low_level_access(
+                    +[](void* ctx) -> float {
+                        auto* c = static_cast<delta_context_storage_t*>(ctx);
+                        return static_cast<float>(rad_to_deg(static_cast<angle_t>(c->param->read()[c->index])));
+                    },
+                    +[](void* ctx, float value) {
+                        auto* c = static_cast<delta_context_storage_t*>(ctx);
+                        auto table = c->param->read();
+                        table[c->index] = angle_wrapped::from_degrees(value);
+                        c->param->write(table);
+                    },
+                    &delta_contexts[i]));
         }
 
         handler.register_parameter(component_name, "force_firing_angle",

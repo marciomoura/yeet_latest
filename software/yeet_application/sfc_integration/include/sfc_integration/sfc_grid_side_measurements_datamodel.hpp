@@ -51,7 +51,7 @@ public:
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;
 
         /// Measured grid voltage in abc coordinates (unmasked).
-        signal_output<abc<voltage_pu_t>> grid_voltage_abc_unmasked;
+        signal_output<abc<voltage_pu_t>> grid_voltage_abc_raw;
 
         /// Measured grid voltage in abc coordinates (filtered).
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_filtered;
@@ -68,6 +68,9 @@ public:
         /// Commutation status signal.
         signal_output<bool> is_commuting;
 
+        /// Commutation masking activity indicator
+        signal_output<bool> is_masking;
+
         /// Last measured commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_last;
 
@@ -79,6 +82,18 @@ public:
 
         /// Phase currents [A]
         signal_output<abc<current_t>> grid_current;
+
+        /// Grid voltage AB at ADC card input [V]
+        signal_output<voltage_t> voltage_ab_card;
+
+        /// Grid current A at ADC card input [V]
+        signal_output<voltage_t> current_a_card_voltage;
+
+        /// Grid voltage AB at PT secondary [V]
+        signal_output<voltage_t> voltage_ab_secondary;
+
+        /// Grid current A at CT secondary [A]
+        signal_output<current_t> current_a_secondary;
     };
 
     /**
@@ -90,7 +105,13 @@ public:
         parameter<frequency_t> voltage_magnitude_lpf_cutoff_frequency{frequency_t{10.0}};
 
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
-        parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_1{frequency_t{0.0}};
+
+        /// Cutoff frequency of the second hardware low-pass filter stage [Hz]
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_2{frequency_t{0.0}};
+
+        /// Number of series-connected hardware low-pass filters to compensate
+        parameter<int> voltage_compensation_num_filters{0};
 
         /// Enable phase-shift compensation for the hardware filter
         parameter<bool> enable_voltage_compensation{false};
@@ -143,8 +164,12 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
-        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
-            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_1",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_1));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_2",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_2));
+        handler.register_parameter(component_name, "voltage_compensation_num_filters",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_num_filters));
         handler.register_parameter(component_name, "enable_voltage_compensation",
             yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
         handler.register_parameter(component_name, "enable_commutation_masking",
@@ -225,7 +250,7 @@ public:
         signal_output<abc<voltage_pu_t>> grid_voltage_abc;
 
         /// Grid voltage in abc coordinates, unmasked [pu]
-        signal_output<abc<voltage_pu_t>> grid_voltage_abc_unmasked;
+        signal_output<abc<voltage_pu_t>> grid_voltage_abc_raw;
 
         /// Grid voltage in abc coordinates, filtered [pu]
         signal_output<abc<voltage_pu_t>> grid_voltage_abc_filtered;
@@ -242,6 +267,9 @@ public:
         /// Commutation activity indicator
         signal_output<bool> is_commuting;
 
+        /// Commutation masking activity indicator
+        signal_output<bool> is_masking;
+
         /// Last measured commutation notch duration [s]
         signal_output<duration_t> commutation_notch_duration_last;
 
@@ -253,6 +281,30 @@ public:
 
         /// Phase currents [A]
         signal_output<abc<current_t>> grid_current;
+
+        /// Grid voltage AB at ADC card input [V]
+        signal_output<voltage_t> voltage_ab_card;
+
+        /// Grid current A at ADC card input [V]
+        signal_output<voltage_t> current_a_card_voltage;
+
+        /// Grid voltage AB at PT secondary [V]
+        signal_output<voltage_t> voltage_ab_secondary;
+
+        /// Grid current A at CT secondary [A]
+        signal_output<current_t> current_a_secondary;
+
+        /// Peak ADC counts for Vab chan [counts]
+        signal_output<real_t> v_ab_counts_peak;
+
+        /// Peak ADC counts for Vbc chan [counts]
+        signal_output<real_t> v_bc_counts_peak;
+
+        /// Peak ADC counts for Ia chan [counts]
+        signal_output<real_t> i_a_counts_peak;
+
+        /// Peak ADC counts for Ic chan [counts]
+        signal_output<real_t> i_c_counts_peak;
     };
 
     /**
@@ -299,7 +351,13 @@ public:
         parameter<real_t> pt_ratio{real_t{1.0}};
 
         /// Cutoff frequency of the hardware low-pass filter for voltage measurements [Hz]
-        parameter<frequency_t> voltage_hardware_filter_cutoff_frequency{frequency_t{0.0}};
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_1{frequency_t{0.0}};
+
+        /// Cutoff frequency of the second hardware low-pass filter stage [Hz]
+        parameter<frequency_t> voltage_compensation_lpf_cutoff_frequency_2{frequency_t{0.0}};
+
+        /// Number of series-connected hardware low-pass filters to compensate
+        parameter<int> voltage_compensation_num_filters{1};
 
         /// Enable phase-shift compensation for the hardware filter
         parameter<bool> enable_voltage_compensation{false};
@@ -307,11 +365,13 @@ public:
         /// Enable commutation notch masking
         parameter<bool> enable_commutation_masking{true};
 
-        /// Rotation angle for voltage measurements [deg]
+        /// Rotation angle for voltage measurements
         parameter<angle_wrapped> voltage_measurement_rotation{angle_wrapped{0.0f}};
 
         /// Current transformer ratio [Primary/Secondary]
         parameter<real_t> ct_ratio{real_t{1.0}};
+
+        parameter<bool> clear_adc_peak_values{false};
     };
 
 private:
@@ -338,8 +398,12 @@ public:
             yeet::utils::make_units_accessor(_model_parameters->current_lpf_cutoff_frequency));
         handler.register_parameter(component_name, "voltage_magnitude_lpf_cutoff_frequency",
             yeet::utils::make_units_accessor(_model_parameters->voltage_magnitude_lpf_cutoff_frequency));
-        handler.register_parameter(component_name, "voltage_hardware_filter_cutoff_frequency",
-            yeet::utils::make_units_accessor(_model_parameters->voltage_hardware_filter_cutoff_frequency));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_1",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_1));
+        handler.register_parameter(component_name, "voltage_compensation_lpf_cutoff_frequency_2",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_lpf_cutoff_frequency_2));
+        handler.register_parameter(component_name, "voltage_compensation_num_filters",
+            yeet::utils::make_units_accessor(_model_parameters->voltage_compensation_num_filters));
         handler.register_parameter(component_name, "enable_voltage_compensation",
             yeet::utils::make_bool_accessor(_model_parameters->enable_voltage_compensation));
         handler.register_parameter(component_name, "enable_commutation_masking",
@@ -372,6 +436,8 @@ public:
             component_name, "pt_ratio", yeet::utils::make_units_accessor(_model_parameters->pt_ratio));
         handler.register_parameter(
             component_name, "ct_ratio", yeet::utils::make_units_accessor(_model_parameters->ct_ratio));
+        handler.register_parameter(component_name, "clear_adc_peak_values",
+            yeet::utils::make_bool_accessor(_model_parameters->clear_adc_peak_values));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -25,6 +25,11 @@ void sfc_mode_detector::configure_force_natural_commutation(bool force_natural_c
     _force_natural_commutation = force_natural_commutation;
 }
 
+void sfc_mode_detector::configure_force_forced_commutation(bool force_forced_commutation)
+{
+    _force_forced_commutation = force_forced_commutation;
+}
+
 void sfc_mode_detector::update(bool enable, speed_pu_t measured_speed) noexcept
 {
     _previous_mode = _current_mode;
@@ -36,9 +41,11 @@ void sfc_mode_detector::update(bool enable, speed_pu_t measured_speed) noexcept
         _speed_limiter.update(measured_speed.value());
     }
 
-    // It is forced natural commutation mode, override speed-based detection
-    if (_force_natural_commutation) {
-        // When forced natural commutation is enabled, always operate in natural commutation mode
+    // Forced mode overrides have highest priority
+    if (_force_forced_commutation) {
+        _current_mode = sfc_operating_mode_t::forced_commutation;
+    }
+    else if (_force_natural_commutation) {
         _current_mode = sfc_operating_mode_t::natural_commutation;
     }
     else if (enable) {
@@ -60,6 +67,8 @@ void sfc_mode_detector::reset()
 {
     _current_mode = sfc_operating_mode_t::forced_commutation;
     _previous_mode = sfc_operating_mode_t::forced_commutation;
+    _force_natural_commutation = false;
+    _force_forced_commutation = false;
     _speed_limiter.reset();
     update_limiter_thresholds();
 }

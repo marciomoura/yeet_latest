@@ -42,6 +42,7 @@ protected:
         yeet::utils::mock_signal_input::connect(inputs.door_is_open, _storage_door_is_open);
         yeet::utils::mock_signal_input::connect(inputs.external_fault, _storage_external_fault);
         yeet::utils::mock_signal_input::connect(inputs.emergency_off, _storage_emergency_off);
+        yeet::utils::mock_signal_input::connect(inputs.mv_breaker_is_closed, _storage_mv_breaker_is_closed);
 
         // Set safe initial inputs
         reset_inputs();
@@ -66,6 +67,9 @@ protected:
         // External fault and emergency off inactive by default
         yeet::utils::mock_signal_input::write(inputs.external_fault, false);
         yeet::utils::mock_signal_input::write(inputs.emergency_off, false);
+
+        // Breaker closed by default for protection tests
+        yeet::utils::mock_signal_input::write(inputs.mv_breaker_is_closed, true);
     }
     void trigger_overcurrent()
     {
@@ -124,6 +128,7 @@ protected:
     bool _storage_door_is_open{false};
     bool _storage_external_fault{false};
     bool _storage_emergency_off{false};
+    bool _storage_mv_breaker_is_closed{true};
 };
 
 /**
@@ -147,6 +152,8 @@ TEST_F(SfcGridSideProtectionsAlarmConfirmationTest, AlarmLatchesOnTrip)
     run_cycle();
     EXPECT_TRUE(has_active_trip()) << "Protection should trip on overcurrent";
     EXPECT_TRUE(is_inhibited()) << "Alarm should latch when protection trips";
+    EXPECT_EQ(
+        _runner->get_signal_flow_datamodel().get_outputs().first_trip_source.read(), grid_trip_source::overcurrent);
 
     // Clear fault condition
     clear_fault_conditions();

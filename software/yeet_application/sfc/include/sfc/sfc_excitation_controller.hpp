@@ -43,8 +43,8 @@ public:
     /// Linear V/Hz ramp: V = 0.2 + 0.8*speed (0.2 pu at standstill, 1.0 pu at rated, continues to 1.1 pu)
     /// Above rated speed, voltage continues to scale proportionally to maintain constant flux
     static constexpr std::array<voltage_pu_t, NUM_VOLTAGE_REFERENCE_POINTS> kDefaultVoltageReferencePu = {
-        voltage_pu_t{0.2}, voltage_pu_t{0.36}, voltage_pu_t{0.52}, voltage_pu_t{0.68}, voltage_pu_t{0.84},
-        voltage_pu_t{1.0}, voltage_pu_t{1.08}};
+        voltage_pu_t{0.0}, voltage_pu_t{0.2}, voltage_pu_t{0.4}, voltage_pu_t{0.6}, voltage_pu_t{0.8},
+        voltage_pu_t{1.0}, voltage_pu_t{1.0}};
 
     /**
      * @brief Constructs the excitation controller.
@@ -53,34 +53,36 @@ public:
     explicit sfc_excitation_controller(duration_t sampling_time);
 
     /**
-     * @brief Configures the constant field current setpoint.
+     * @brief Configures the field current reference used in forced mode.
      *
-     * This is the constant field current reference maintained throughout operation.
+     * This value is applied when the machine is in the low-speed/low-voltage region
+     * and the PI voltage controller is not yet released.
      *
-     * @param field_current_setpoint Constant field current reference [pu].
+     * @param forced_field_current_pu Forced field current reference [pu].
      */
-    void configure_field_current_setpoint(current_pu_t field_current_setpoint);
+    void configure_forced_field_current(current_pu_t forced_field_current_pu);
 
     /**
-     * @brief Configures the low-voltage-region field current setpoint.
+     * @brief Configures the voltage threshold for releasing to automatic control.
      *
-     * This value is used when the measured machine voltage magnitude is below the configured
-     * voltage threshold *and* the configured field_current_setpoint is not set (<= 0).
+     * When measured machine voltage magnitude exceeds this threshold OR the speed
+     * exceeds the speed threshold, the controller switches from forced current
+     * to closed-loop voltage regulation.
      *
-     * @param field_current_setpoint Low-voltage-region field current reference [pu].
+     * @param threshold_pu Release voltage threshold [pu].
      */
-    void configure_low_voltage_field_current_setpoint(current_pu_t field_current_setpoint);
+    void configure_release_voltage_threshold(voltage_pu_t threshold_pu);
 
     /**
-     * @brief Configures the voltage threshold for switching from forced current to voltage control.
+     * @brief Configures the speed threshold for releasing to automatic control.
      *
-     * When measured machine voltage magnitude is below this threshold, the controller outputs a forced
-     * field current reference (no PI action). Above it, a speed-indexed voltage reference is used and
-     * a PI controller generates the field current reference.
+     * When machine speed exceeds this threshold OR the voltage exceeds the
+     * voltage threshold, the controller switches from forced current
+     * to closed-loop voltage regulation.
      *
-     * @param voltage_threshold_pu Voltage threshold [pu].
+     * @param threshold_pu Release speed threshold [pu].
      */
-    void configure_voltage_threshold(voltage_pu_t voltage_threshold_pu);
+    void configure_release_speed_threshold(speed_pu_t threshold_pu);
 
     /**
      * @brief Configures the voltage reference lookup table (speed -> voltage reference).
@@ -270,12 +272,10 @@ private:
     control::pi_controller<real_t> _voltage_pi_controller;
 
     // Configuration parameters
-    current_pu_t _field_current_setpoint{0.8};              // Startup / commissioned forced current reference
-    current_pu_t _low_voltage_field_current_setpoint{0.8};  // Fallback forced current reference
-    voltage_pu_t _voltage_threshold_pu{0.4};                // Threshold for entering voltage PI control
-    duration_t _flux_buildup_duration{2.0};                 // Time for flux to build up
-    // duration_t _field_established_timeout{5.0};
-    // speed_pu_t _constant_flux_speed_threshold{0.2};  // Speed below which field current is constant
+    current_pu_t _forced_field_current_pu{0.8};       // Forced current reference before release
+    voltage_pu_t _release_voltage_threshold_pu{0.2};  // Voltage threshold for releasing PI control
+    speed_pu_t _release_speed_threshold_pu{0.2};      // Speed threshold for releasing PI control
+    duration_t _flux_buildup_duration{2.0};           // Time for flux to build up
 
     // Internal state flags
     bool _is_running{false};

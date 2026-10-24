@@ -13,6 +13,47 @@
  * @brief Common plant model configuration functions for SFC integration tests
  */
 
+namespace yeet::application::sfc::integration {
+
+/**
+ * @brief Factory for common plant model configurations used in integration tests
+ */
+struct sfc_plant_configuration {
+    /**
+     * @brief Returns electrical parameters for a 50 MW, 10.5 kV (LL RMS) machine
+     *
+     * This represents the physical machine parameters.
+     */
+    static sfc_plant_model_electrical_parameters get_50mw_machine_electrical_parameters()
+    {
+        sfc_plant_model_electrical_parameters params{};
+        params.grid_frequency = frequency_t{50.0f};
+        params.machine_frequency = frequency_t{50.0f};
+        params.grid_voltage_rms = voltage_t{2090.0f};      // System grid nominal
+        params.machine_voltage_rms = voltage_t{10500.0f};  // 10.5 kV alternator
+        params.grid_firing_angle_deg = angle_t{15.0f};
+        params.machine_firing_angle_deg = angle_t{15.0f};
+
+        // Realistic impedances for a 50 MW turbine generator
+        // S_nom = 50 MVA, V_nom = 10.5 kV => Z_base = 2.205 Ohm
+        // X_d'' approx 0.20 pu, R_s approx 0.01 pu
+        params.machine_side_resistance = resistance_t{0.022f};
+        params.machine_side_inductance = inductance_t{0.0014f};
+
+        // Standard grid side values for the 2MW SFC connection
+        params.grid_side_resistance = resistance_t{0.01f};
+        params.grid_side_inductance = inductance_t{0.001f};
+
+        params.base_dc_link_current = current_t{866.0f};
+        params.machine_rated_power_va = power_t{50e6};
+        params.machine_num_poles = 2;
+
+        return params;
+    }
+};
+
+}  // namespace yeet::application::sfc::integration
+
 namespace yeet::application::sfc::integration::test {
 
 /**

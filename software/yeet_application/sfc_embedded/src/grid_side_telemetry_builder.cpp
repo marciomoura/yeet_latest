@@ -37,7 +37,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     const auto& current_controller = _control.get_current_controller();
     const auto& mode_monitor = _control.get_operation_mode_monitor();
     const auto& state_machine = _control.get_state_machine();
-    const auto& pulse_generator = _control.get_grid_side_pulse_generator();
+    const auto& pulse_generator = _control.get_grid_side_modulator();
 
     // === Grid Measurements Group (0-8) ===
     // ABC frame measurements
@@ -83,7 +83,7 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(29, static_cast<float>(state_machine.get_outputs().preset_request.read()));
 
     // === Pulse Generator Group (30-31) ===
-    packet.add_signal(30, static_cast<float>(pulse_generator.get_outputs().actual_firing_angle.read().get_pu()));
+    packet.add_signal(30, static_cast<float>(pulse_generator.get_outputs().firing_angle.read().get_pu()));
     packet.add_signal(31, static_cast<float>(pulse_generator.get_outputs().virtual_reference_angle.read().get_pu()));
 
     // === Grid-Side Protections Severity/Status Group (32-36) ===
@@ -156,7 +156,20 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
             protections.get_outputs().communication_loss_warning.read(),
             // Bits 4-6: Fiber optic RX
             fiber_rx.request_force_commutation.read(), fiber_rx.machine_protection_tripped.read(),
-            fiber_rx.protection_inhibit.read()});
+            fiber_rx.protection_inhibit.read(),
+            // Bits 7-10: More trip bits
+            protections.get_outputs().door_open_tripped.read(), protections.get_outputs().external_fault_tripped.read(),
+            protections.get_outputs().emergency_off_tripped.read(),
+            protections.get_outputs().machine_protection_tripped.read(),
+            // Bits 11-18: Alarm bits
+            protections.get_outputs().overcurrent_alarmed.read(), protections.get_outputs().overvoltage_alarmed.read(),
+            protections.get_outputs().undervoltage_alarmed.read(),
+            protections.get_outputs().communication_loss_alarmed.read(),
+            protections.get_outputs().door_open_alarmed.read(), protections.get_outputs().external_fault_alarmed.read(),
+            protections.get_outputs().emergency_off_alarmed.read(),
+            protections.get_outputs().machine_protection_alarmed.read(),
+            // Bit 19: Reset pulse
+            protections.get_outputs().emergency_off_reset.read()});
 
     // === Line Voltages (Unmasked) Group (44-46) ===
     const auto& grid_voltage_line = grid_meas.get_outputs().grid_voltage_line.read();
@@ -224,6 +237,17 @@ yeet::telemetry::telemetry_packet grid_side_telemetry_builder::build_packet(std:
     packet.add_signal(80, static_cast<float>(fiber_rx.machine_protection_tripped.read()));
     packet.add_signal(81, static_cast<float>(fiber_rx.protection_inhibit.read()));
     packet.add_signal(82, static_cast<float>(fiber_rx.communication_ok.read()));
+
+    // === Intermediate Hardware Scale Signals (83-86) ===
+    const auto& grid_outputs = grid_meas.get_outputs();
+    packet.add_signal(83, static_cast<float>(grid_outputs.v_ab_counts_peak.read()));
+    packet.add_signal(84, static_cast<float>(grid_outputs.v_bc_counts_peak.read()));
+    packet.add_signal(85, static_cast<float>(grid_outputs.i_a_counts_peak.read()));
+    packet.add_signal(86, static_cast<float>(grid_outputs.i_c_counts_peak.read()));
+
+    // === First Trip Source (87) ===
+    packet.add_signal(
+        87, static_cast<float>(static_cast<uint32_t>(protections.get_outputs().first_trip_source.read())));
 
     // Finalize packet with timestamp and sequence number
     packet.finalize(yeet::telemetry::packet_type::grid_side_telemetry, timestamp_ms, _sequence_number++);

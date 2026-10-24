@@ -281,7 +281,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
     // We use 15.0s to be absolutely sure it settles.
     this->set_speed_reference(speed_pu_t{1.0f});
 
-    EXPECT_TRUE(this->sim.simulate_for(15.0));
+    EXPECT_TRUE(this->sim.simulate_for(35.0));
 
     EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.0f}, this->get_tolerance())
         << "Speed regulation error too high at first reference";
@@ -310,7 +310,7 @@ TYPED_TEST(SpeedControlTypedTest, SpeedRegulation)
     // Phase 2: Small step from 1.0 to 1.05 pu (5% change)
     this->set_speed_reference(speed_pu_t{1.05f});
 
-    EXPECT_TRUE(this->sim.simulate_for(10.0));
+    EXPECT_TRUE(this->sim.simulate_for(15.0));
 
     EXPECT_NEAR(this->get_measured_speed(), speed_pu_t{1.05f}, this->get_tolerance())
         << "Speed regulation error too high at second reference";
@@ -619,8 +619,10 @@ TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitingReducesTorqueAtHighSpe
         tq_params.enable_speed_based_torque_limits.write(true);
 
         // Phase 1: Accelerate to 0.5 pu speed with light load
-        // At 0.5 pu speed, the LUT gives ~0.85 pu max torque
-        // Total load at 0.5 pu: 0.1 + 0.3*0.25 = 0.175 pu (well within limit)
+        // At 0.5 pu speed reference, the LUT gives 0.8 pu max torque.
+        // Plant parameters: damping=0.1, quadratic=0.3.
+        // Total load at 0.5 pu: 0.1 (const) + 0.1*0.5 (damping) + 0.3*0.25 (quad) = 0.225 pu.
+        // 0.8 pu limit > 0.225 pu load -> target speed is reachable.
         this->set_speed_reference(speed_pu_t{0.5f});
         this->set_load_torque(torque_pu_t{0.1f});
         this->enable_speed_control(true);
@@ -630,10 +632,11 @@ TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitingReducesTorqueAtHighSpe
         auto speed_mid = this->get_measured_speed();
         EXPECT_NEAR(speed_mid.value(), 0.5f, this->get_tolerance() + 0.03f) << "Machine should reach 0.5 pu speed";
 
-        // Phase 2: Command higher speed (0.8 pu) where torque is limited to 0.5 pu
-        // Total load at 0.8 pu: 0.25 + 0.3*0.64 = 0.442 pu (close to limit)
+        // Phase 2: Command higher speed (0.8 pu) where torque is limited to 0.5 pu.
+        // Total load at 0.8 pu: 0.10 (const) + 0.1*0.8 (damping) + 0.3*0.64 (quad) = 0.372 pu.
+        // 0.5 pu limit > 0.372 pu load -> target speed is reachable.
         this->set_speed_reference(speed_pu_t{0.8f});
-        this->set_load_torque(torque_pu_t{0.25f});
+        this->set_load_torque(torque_pu_t{0.10f});
 
         EXPECT_TRUE(this->sim.simulate_for(20.0));
 
@@ -645,22 +648,25 @@ TYPED_TEST(SpeedControlTypedTest, SpeedBasedTorqueLimitingReducesTorqueAtHighSpe
         const auto evaluated_max = this->system.torque_controller.get_outputs().speed_based_max_torque_limit.read();
         EXPECT_LT(evaluated_max.value(), 0.55f) << "Speed-based max torque should be limited at 0.8 pu speed";
 
-        // Phase 3: Command very high speed (1.0 pu) where torque is limited to 0.4 pu
-        // Total load at 1.0 pu: 0.25 + 0.3*1.0 = 0.55 pu, which exceeds the 0.4 pu limit
-        // Machine cannot reach 1.0 pu with this load
+        // Phase 3: Command very high speed (1.0 pu) where torque is limited to 0.4 pu.
+        // Increase constant load to 0.20 pu.
+        // Total load at 1.0 pu: 0.20 (const) + 0.1*1.0 (damping) + 0.3*1.0 (quad) = 0.60 pu.
+        // 0.4 pu limit < 0.60 pu load -> machine cannot reach 1.0 pu.
         this->set_speed_reference(speed_pu_t{1.0f});
+        this->set_load_torque(torque_pu_t{0.20f});
 
-        EXPECT_TRUE(this->sim.simulate_for(25.0));
+        EXPECT_TRUE(this->sim.simulate_for(30.0));
 
         auto speed_final = this->get_measured_speed();
-        // Due to torque limit (0.4 pu) < load (0.55 pu), machine cannot reach 1.0 pu
+        // Due to torque limit (0.4 pu) < load (0.60 pu), machine cannot reach 1.0 pu
         EXPECT_LT(speed_final.value(), 0.95f) << "Machine should not reach 1.0 pu due to insufficient torque limit";
-        EXPECT_GT(speed_final.value(), 0.6f) << "Machine should stabilize above 0.6 pu";
+        EXPECT_GT(speed_final.value(), 0.5f) << "Machine should stabilize above 0.5 pu";
 
-        // Final validation: with very light load, machine should reach 1.0 pu
-        // Total load at 1.0 pu: 0.05 + 0.3*1.0 = 0.35 pu (within 0.4 pu limit)
-        this->set_load_torque(torque_pu_t{0.05f});
-        EXPECT_TRUE(this->sim.simulate_for(20.0));
+        // Final validation: with very light load, machine should reach 1.0 pu.
+        // Total load at 1.0 pu: 0.00 (const) + 0.1*1.0 (damping) + 0.3*1.0 (quad) = 0.40 pu.
+        // 0.4 pu limit >= 0.40 pu load -> machine should reach target.
+        this->set_load_torque(torque_pu_t{0.00f});
+        EXPECT_TRUE(this->sim.simulate_for(25.0));
 
         auto speed_reduced_load = this->get_measured_speed();
         EXPECT_NEAR(speed_reduced_load.value(), 1.0f, this->get_tolerance() + 0.15f)

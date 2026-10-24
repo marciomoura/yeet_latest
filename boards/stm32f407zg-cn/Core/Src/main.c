@@ -1,4 +1,4 @@
-#include "adc.h"                    // AD7606 ADC driver
+#include "ADC.h"                    // AD7606 ADC driver
 #include "dac.h"                    // AD5724 DAC driver
 #include "driver_init.h"            // Driver initialization functions
 #include "fiber_optic.h"            // Fiber-optic communication driver
@@ -66,6 +66,7 @@ typedef struct {
     bool dac_ok;          ///< AD5724 DAC initialized
     bool fiber_optic_ok;  ///< Fiber-optic communication initialized
     bool network_ok;      ///< W5200 network initialized
+    bool application_ok;  ///< Application layer initialized
 } system_status_t;
 
 /**
@@ -115,10 +116,10 @@ fiber_proto_instance_t fiber_proto_instance = {0};
  * @brief Fiber-optic communication payload buffers
  * These buffers store the latest TX/RX payload data for integration with control logic
  */
-static float fiber_tx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< TX payload (from control logic)
-static float fiber_rx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< RX payload (to control logic)
-static uint8_t fiber_rx_length = 0;                                  ///< Number of floats received
-static bool fiber_rx_data_ready = false;                             ///< New data available flag
+static uint32_t fiber_tx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< TX payload (from control logic)
+static uint32_t fiber_rx_payload[FIBER_PROTO_MAX_PAYLOAD_WORDS] = {0};  ///< RX payload (to control logic)
+static uint8_t fiber_rx_length = 0;                                     ///< Number of words received
+static bool fiber_rx_data_ready = false;                                ///< New data available flag
 
 /**
  * @brief W5200 Ethernet controller instances
@@ -126,14 +127,14 @@ static bool fiber_rx_data_ready = false;                             ///< New da
  * Network Configuration (based on DIP switch node ID):
  *
  * SPI2 Network:
- *   - IP Address: 192.168.2.(100 + uchNodeNum)
+ *   - IP Address: 192.168.2.(100 + dip_switch_channel_number)
  *   - Gateway:    192.168.2.1
  *   - Subnet:     255.255.255.0
  *   - Port:       7000 (TCP Server)
  *   - DMA:        8KB TX/RX buffers (enabled)
  *
  * SPI3 Network:
- *   - IP Address: 192.168.10.(31 + uchNodeNum)
+ *   - IP Address: 192.168.10.(31 + dip_switch_channel_number)
  *   - Gateway:    192.168.10.1
  *   - Subnet:     255.255.255.0
  *   - Port:       7000 (TCP Server)
@@ -207,12 +208,19 @@ static inline void Clear_Network_IO(network_inputs_t* inputs, network_outputs_t*
 
 /**
  * @brief Shared real-time task I/O structures
- * Single instance passed to all tasks (200us, 1ms, 10ms)
- * Application layer manages state - board support layer only populates inputs
- * and reads outputs without clearing/overriding between tasks
+ * Single instances for each task frequency to prevent preemption clobbering.
+ * - 200us (Fast): Highest priority, owns ADC and Gate Pulses.
+ * - 1ms   (Med):  Medium priority, owns Fiber-Optic and Analog Outputs.
+ * - 10ms  (Slow): Lowest priority, owns Digital I/O and State Machine.
  */
-static task_inputs_t task_inputs = {0};
-static task_outputs_t task_outputs = {0};
+static task_inputs_t inputs_200us = {0};
+static task_outputs_t outputs_200us = {0};
+
+static task_inputs_t inputs_1ms = {0};
+static task_outputs_t outputs_1ms = {0};
+
+static task_inputs_t inputs_10ms = {0};
+static task_outputs_t outputs_10ms = {0};
 
 /* Task Implementations ----------------------------------------------------- */
 
@@ -285,15 +293,15 @@ static uint8_t Read_DIP_Switch(void)
  */
 void task_200us(void)
 {
-    // Only execute ADC operations if ADC initialized successfully
+    // Only execute ADC operations if ADC and application both initialized successfully
     if (!system_status.adc_ok) {
-        return;  // Skip task if ADC not available
+        return;  // Skip task if hardware or application not ready
     }
 
     static bool first_run = true;
 
     // Pipeline operation: Read previous conversion, then start next
-    if (first_run) {
+    if (first_run || !system_status.application_ok) {
         first_run = false;  // Skip read on first run (no prior conversion)
         // Start conversion for next cycle (takes ~5µs)
         AD7606_StartConversion(&ad7606_instance);
@@ -301,40 +309,44 @@ void task_200us(void)
     }
 
     // Read the conversion that was started in the previous cycle
-    AD7606_Read(&ad7606_instance, &adc_reading);
+    inputs_200us.analog_inputs.valid = AD7606_Read(&ad7606_instance, &adc_reading);
 
     // ===== Populate Generic Task Inputs =====
     // Map AD7606 ADC channels to generic analog inputs
-    for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
-        task_inputs.analog_inputs.channels[i] = adc_reading.raw[i];
-    }
-    task_inputs.analog_inputs.valid = true;
-
-    // Digital inputs (not available in 200us task - too fast for FSMC)
-    task_inputs.digital_inputs.valid = false;
-
-    // Fiber-optic data (updated in 1ms task, not read here)
-    task_inputs.fiber_optic_rx.data_ready = false;
-    task_inputs.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
-
-    // ===== Call Application Layer Control Task =====
-    yeet_task_200us(&task_inputs, &task_outputs);
-
-    // ===== Apply Task Outputs to Hardware =====
-    // Apply thyristor gate pulses
-    set_thyristor_pulses(task_outputs.thyristor_pulses.a_plus, task_outputs.thyristor_pulses.c_minus,
-        task_outputs.thyristor_pulses.b_plus, task_outputs.thyristor_pulses.a_minus,
-        task_outputs.thyristor_pulses.c_plus, task_outputs.thyristor_pulses.b_minus);
-
-    // ===== DAC Output (moved to 200us task for atomic operation with ADC) =====
-    if (system_status.dac_ok && task_outputs.analog_outputs.valid) {
-        // Extract DAC values from control outputs and apply to hardware
-        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
-            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, task_outputs.analog_outputs.channels[ch]);
+    if (inputs_200us.analog_inputs.valid) {
+        for (int i = 0; i < TASK_IO_NUM_ANALOG_INPUTS; i++) {
+            inputs_200us.analog_inputs.channels[i] = adc_reading.raw[i];
         }
     }
 
-    // Digital outputs not updated here (too fast for FSMC)
+    // AD7606_StartConversion(&ad7606_instance);
+
+    // Digital inputs (not available in 200us task - too fast for FSMC)
+    inputs_200us.digital_inputs.valid = false;
+
+    // Fiber-optic data (updated in 1ms task, not read here)
+    inputs_200us.fiber_optic_rx.data_ready = false;
+    inputs_200us.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+
+    // ===== Call Application Layer Control Task =====
+    yeet_task_200us(&inputs_200us, &outputs_200us);
+
+    // ===== Apply Task Outputs to Hardware =====
+    // Apply thyristor gate pulses
+    set_thyristor_pulses(outputs_200us.thyristor_pulses.p1,  //
+        outputs_200us.thyristor_pulses.p2,                   //
+        outputs_200us.thyristor_pulses.p3,                   //
+        outputs_200us.thyristor_pulses.p4,                   //
+        outputs_200us.thyristor_pulses.p5,                   //
+        outputs_200us.thyristor_pulses.p6);
+
+    // ===== DAC Output (moved to 200us task for atomic operation with ADC) =====
+    if (system_status.dac_ok && outputs_200us.analog_outputs.valid) {
+        // Extract DAC values from control outputs and apply to hardware
+        for (int ch = 0; ch < AD5724_NUM_CHANNELS; ch++) {
+            AD5724_SetVoltage(&ad5724_instance, (ad5724_channel_t)ch, outputs_200us.analog_outputs.channels[ch]);
+        }
+    }
 
     // Start conversion for next cycle (takes ~5µs)
     AD7606_StartConversion(&ad7606_instance);
@@ -349,17 +361,17 @@ void task_200us(void)
 /**
  * @brief  Get TX payload pointer for control logic to populate
  * @note   Call this before task_1ms to prepare outgoing data
- * @retval Pointer to TX payload buffer (FIBER_PROTO_MAX_PAYLOAD_WORDS floats)
+ * @retval Pointer to TX payload buffer (FIBER_PROTO_MAX_PAYLOAD_WORDS words)
  */
-float* FiberComm_GetTxPayloadBuffer(void) { return fiber_tx_payload; }
+uint32_t* FiberComm_GetTxPayloadBuffer(void) { return fiber_tx_payload; }
 
 /**
  * @brief  Get RX payload data received from remote board
- * @param  payload_out: Buffer to copy received data (min FIBER_PROTO_MAX_PAYLOAD_WORDS floats)
- * @param  length_out: Pointer to store number of floats received
+ * @param  payload_out: Buffer to copy received data (min FIBER_PROTO_MAX_PAYLOAD_WORDS words)
+ * @param  length_out: Pointer to store number of words received
  * @retval true if new data available, false if no new data since last call
  */
-bool FiberComm_GetRxPayload(float* payload_out, uint8_t* length_out)
+bool FiberComm_GetRxPayload(uint32_t* payload_out, uint8_t* length_out)
 {
     if (!fiber_rx_data_ready) {
         return false;
@@ -397,10 +409,18 @@ bool FiberComm_GetRxPayload(float* payload_out, uint8_t* length_out)
  */
 void task_1ms(void)
 {
+    // Skip task if application not initialized
+    if (!system_status.application_ok) {
+        return;
+    }
+
     // ===== Populate Generic Task Inputs =====
 
     // Analog inputs (from ADC, but typically not used in 1ms task)
-    task_inputs.analog_inputs.valid = false;  // ADC is read in 200us task
+    inputs_1ms.analog_inputs.valid = false;  // ADC is read in 200us task
+
+    // Fiber-optic data: Initialize to 'no new data' for this cycle
+    inputs_1ms.fiber_optic_rx.data_ready = false;
 
     // ===== Fiber-Optic RX: Receive data FIRST (before control algorithm) =====
     if (system_status.fiber_optic_ok && fiber_proto_instance.initialized) {
@@ -426,18 +446,20 @@ void task_1ms(void)
             FiberProto_ReceivePacket(&fiber_proto_instance, &rx_command, rx_payload_words, &rx_length);
 
         if (rx_status == FIBER_PROTO_OK) {
-            // Valid frame received - parse payload into fiber_rx_payload[]
-            FiberProto_ParseFloats(rx_payload_words, rx_length, fiber_rx_payload, rx_length);
+            // Valid frame received - copy payload into fiber_rx_payload[]
+            for (int i = 0; i < rx_length; i++) {
+                fiber_rx_payload[i] = rx_payload_words[i];
+            }
             fiber_rx_length = rx_length;
             fiber_rx_data_ready = true;
 
             // Populate generic task inputs with fiber-optic RX data
             for (int i = 0; i < rx_length && i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
-                task_inputs.fiber_optic_rx.payload[i] = fiber_rx_payload[i];
+                inputs_1ms.fiber_optic_rx.payload[i] = rx_payload_words[i];
             }
-            task_inputs.fiber_optic_rx.payload_length = rx_length;
-            task_inputs.fiber_optic_rx.data_ready = true;
-            task_inputs.fiber_optic_rx.link_ok = true;
+            inputs_1ms.fiber_optic_rx.payload_length = rx_length;
+            inputs_1ms.fiber_optic_rx.data_ready = true;
+            inputs_1ms.fiber_optic_rx.link_ok = true;
 
             // TODO: Process command word if needed
             // uint8_t rx_trip_status = CMD_GET_TRIP_STATUS(rx_command);
@@ -467,8 +489,8 @@ void task_1ms(void)
             // Error (not timeout) - reset stability tracking
             fiber_status.communication_stable = false;
             first_valid_rx_time_ms = 0;
-            task_inputs.fiber_optic_rx.data_ready = false;
-            task_inputs.fiber_optic_rx.link_ok = false;
+            inputs_1ms.fiber_optic_rx.data_ready = false;
+            inputs_1ms.fiber_optic_rx.link_ok = false;
         }
 
         // ===== Timeout Detection (10ms) =====
@@ -481,14 +503,14 @@ void task_1ms(void)
             // Reset stability tracking
             fiber_status.communication_stable = false;
             first_valid_rx_time_ms = 0;
-            task_inputs.fiber_optic_rx.data_ready = false;
-            task_inputs.fiber_optic_rx.link_ok = false;
+            inputs_1ms.fiber_optic_rx.data_ready = false;
+            inputs_1ms.fiber_optic_rx.link_ok = false;
         }
     }
     else {
         // Fiber-optic not available
-        task_inputs.fiber_optic_rx.data_ready = false;
-        task_inputs.fiber_optic_rx.link_ok = false;
+        inputs_1ms.fiber_optic_rx.data_ready = false;
+        inputs_1ms.fiber_optic_rx.link_ok = false;
     }
 
     // ===== Digital I/O Input: Read hardware inputs (fuses, breakers, commands) =====
@@ -501,17 +523,17 @@ void task_1ms(void)
         // NOTE: Only DI1-DI32 are physically connected on this board
         //       DI33-DI48 have pull-ups in hardware and will read as '1' when unconnected
         for (int i = 0; i < TASK_IO_NUM_DIGITAL_INPUTS; i++) {
-            task_inputs.digital_inputs.signals[i] = FSMC_GPIO_GetDebouncedInput(&fsmc_gpio_instance, i + 1);
+            inputs_1ms.digital_inputs.signals[i] = FSMC_GPIO_GetDebouncedInput(&fsmc_gpio_instance, i + 1);
         }
 
-        task_inputs.digital_inputs.valid = true;
+        inputs_1ms.digital_inputs.valid = true;
     }
     else {
-        task_inputs.digital_inputs.valid = false;
+        inputs_1ms.digital_inputs.valid = false;
     }
 
     // ===== Call Application Layer Control Task =====
-    yeet_task_1000us(&task_inputs, &task_outputs);
+    yeet_task_1000us(&inputs_1ms, &outputs_1ms);
 
     // ===== Apply Task Outputs to Hardware =====
 
@@ -520,7 +542,7 @@ void task_1ms(void)
         // Map generic digital outputs (from application) to hardware outputs (DO1-DO17)
         // Application layer defines semantic meaning of each output
         for (int i = 0; i < TASK_IO_NUM_DIGITAL_OUTPUTS; i++) {
-            FSMC_GPIO_SetOutput(&fsmc_gpio_instance, i + 1, task_outputs.digital_outputs.signals[i]);
+            FSMC_GPIO_SetOutput(&fsmc_gpio_instance, i + 1, outputs_1ms.digital_outputs.signals[i]);
         }
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
@@ -543,13 +565,13 @@ void task_1ms(void)
 
         // Copy TX payload from application outputs
         for (int i = 0; i < TASK_IO_FIBER_MAX_PAYLOAD; i++) {
-            fiber_tx_payload[i] = task_outputs.fiber_optic_tx.payload[i];
+            fiber_tx_payload[i] = outputs_1ms.fiber_optic_tx.payload[i];
         }
 
         // Transmit frame (~347µs @ 691,200 baud for 24-byte frame)
-        FiberProto_SendFloats(&fiber_proto_instance, tx_command, fiber_tx_payload,
-            task_outputs.fiber_optic_tx.payload_length > 0 ? task_outputs.fiber_optic_tx.payload_length
-                                                           : FIBER_PROTO_MAX_PAYLOAD_WORDS);
+        FiberProto_SendPacket(&fiber_proto_instance, tx_command, fiber_tx_payload,
+            outputs_1ms.fiber_optic_tx.payload_length > 0 ? outputs_1ms.fiber_optic_tx.payload_length
+                                                          : FIBER_PROTO_MAX_PAYLOAD_WORDS);
     }
 }
 
@@ -576,14 +598,14 @@ static void Update_System_LEDs()
     bool fiber_optic_fault = fiber_status.communication_timeout || !fiber_status.communication_stable;
 
     // Combined fault condition: hardware failures OR fiber optic communication issues OR application trip
-    bool fault_condition = hardware_fault || fiber_optic_fault || task_outputs.status.trip;
+    bool fault_condition = hardware_fault || fiber_optic_fault || outputs_200us.status.trip;
 
     // Apply the calculated fault condition to the FAULT LED
     FSMC_GPIO_SetLED_Fault(&fsmc_gpio_instance, fault_condition ? 1 : 0);
 
     // ALARM LED - indicates warning conditions (can be controlled by application)
     // Combined conditions: fiber optic communication issues OR application alarm
-    bool alarm_condition = fiber_optic_fault || task_outputs.status.alarm;
+    bool alarm_condition = fiber_optic_fault || outputs_200us.status.alarm;
     FSMC_GPIO_SetLED_Alarm(&fsmc_gpio_instance, alarm_condition ? 1 : 0);
 
     // Write LED states to hardware
@@ -598,15 +620,21 @@ static void Update_System_LEDs()
  */
 void task_10ms(void)
 {
+    // Skip task if application not initialized
+    if (!system_status.application_ok) {
+        Update_System_LEDs();  // Still update LEDs to show initialization status
+        return;
+    }
+
     // ===== Populate Generic Task Inputs =====
     // Analog and digital inputs not typically read at this slow rate
-    task_inputs.analog_inputs.valid = false;
-    task_inputs.digital_inputs.valid = false;
-    task_inputs.fiber_optic_rx.data_ready = false;
-    task_inputs.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
+    inputs_10ms.analog_inputs.valid = false;
+    inputs_10ms.digital_inputs.valid = false;
+    inputs_10ms.fiber_optic_rx.data_ready = false;
+    inputs_10ms.fiber_optic_rx.link_ok = system_status.fiber_optic_ok;
 
     // ===== Call Application Layer Task =====
-    yeet_task_10000us(&task_inputs, &task_outputs);
+    yeet_task_10000us(&inputs_10ms, &outputs_10ms);
 
     // ===== Apply Task Outputs (if any) =====
     // Typically 10ms task doesn't update outputs, but structure allows it
@@ -624,29 +652,48 @@ static bool TCP_Server_SPI2_Init(void)
 {
     uint8_t node_id = dip_switch_channel_number;
 
+    // Settle system before SPI init
+
     // Initialize W5200 hardware driver with 8KB DMA
     if (!W5200_Init(&w5200_spi2, SPI2, spi2_tx_buffer, spi2_rx_buffer, W5200_DMA_SIZE_8K)) {
-        return false;  // SPI2 init failed
+        // return false;  // SPI2 init failed
     }
+
+    // Give the chip time to stabilize after hardware reset and common config
+    delay_ms(100);  // 100ms
 
     // Configure network: 192.168.2.(100 + node_id), port 7000
     if (!NetCfg_ConfigureSPI2(&w5200_spi2, node_id)) {
-        return false;
+        // return false;
+    }
+
+    delay_ms(100);  // 100ms
+
+    // Verify IP address was actually written to registers
+    uint8_t ip_check[4];
+    W5200_Read(&w5200_spi2, W5200_SIPR0, ip_check, 4);
+    if (ip_check[0] == 0 && ip_check[3] == 0) {
+        // return false;  // IP address not set or read failed
     }
 
     // Configure socket 0 as TCP server on port 7000
     if (!NetCfg_ConfigureTCPServer(&w5200_spi2, 0, 7000)) {
-        return false;
+        // return false;
     }
+
+    // Settle time for socket memory allocation/mapping
+    delay_ms(100);  // 100ms
 
     // Open socket
     if (!W5200_SocketOpen(&w5200_spi2, 0)) {
-        return false;
+        // return false;
     }
+
+    delay_ms(100);  // 10ms
 
     // Start listening
     if (!W5200_SocketListen(&w5200_spi2, 0)) {
-        return false;
+        // return false;
     }
 
     return true;
@@ -660,16 +707,31 @@ static bool TCP_Server_SPI2_Init(void)
  */
 static bool TCP_Server_SPI3_Init(void)
 {
-    uint8_t node_id = uchNodeNum;
+    uint8_t node_id = dip_switch_channel_number;
+
+    // Settle system before SPI init
+    delay_ms(100);  // 100ms
 
     // Initialize W5200 hardware driver with 8KB DMA
     if (!W5200_Init(&w5200_spi3, SPI3, spi3_tx_buffer, spi3_rx_buffer, W5200_DMA_SIZE_8K)) {
         return false;  // SPI3 init failed
     }
 
+    // Give the chip time to stabilize after hardware reset and common config
+    delay_ms(100);  // 100ms
+
     // Configure network: 192.168.10.(31 + node_id), port 7000
     if (!NetCfg_ConfigureSPI3(&w5200_spi3, node_id)) {
         return false;
+    }
+
+    delay_ms(100);  // 100ms
+
+    // Verify IP address was actually written to registers
+    uint8_t ip_check_spi3[4];
+    W5200_Read(&w5200_spi3, W5200_SIPR0, ip_check_spi3, 4);
+    if (ip_check_spi3[0] == 0 && ip_check_spi3[3] == 0) {
+        return false;  // IP address not set or read failed
     }
 
     // Configure socket 0 as TCP server on port 7000
@@ -677,10 +739,15 @@ static bool TCP_Server_SPI3_Init(void)
         return false;
     }
 
+    // Settle time for socket memory allocation/mapping
+    delay_ms(100);  // 100ms
+
     // Open socket
     if (!W5200_SocketOpen(&w5200_spi3, 0)) {
         return false;
     }
+
+    delay_ms(10);  // 10ms
 
     // Start listening
     if (!W5200_SocketListen(&w5200_spi3, 0)) {
@@ -944,6 +1011,7 @@ int main(void)
 
     // 6. Initialize external DAC (AD5724 4-channel via SPI1)
     if (AD5724_Init(&ad5724_instance)) {
+        AD5724_SetRangeAll(&ad5724_instance, AD5724_RANGE_N10_10V);
         system_status.dac_ok = true;
     }
     else {
@@ -966,12 +1034,9 @@ int main(void)
         FiberProto_Init(&fiber_proto_instance, &fiber_optic_instance, FIBER_CH1);
     }
 
-    // 9. Network initialization (W5200 on SPI2 and SPI3)
-    //     IP addresses configured based on DIP switch node ID
-    system_status.network_ok = TCP_Server_Init();
-
     // 10. Initialize application layer (yeet control algorithms)
     yeet_embedded_init();
+    system_status.application_ok = true;
 
     /* ========================================================================
      * ERROR HANDLING - Set fault outputs if critical subsystems failed
@@ -990,6 +1055,10 @@ int main(void)
         FSMC_GPIO_WriteOutputs(&fsmc_gpio_instance);
     }
 
+    // 9. Network initialization (W5200 on SPI2 and SPI3)
+    //     IP addresses configured based on DIP switch node ID
+    system_status.network_ok = TCP_Server_Init();
+
     while (1) {
 // ===== DMA State Update (Required for DMA transfers) =====
 // Poll DMA completion and handle timeouts
@@ -1006,9 +1075,7 @@ int main(void)
         // Handles TCP server operations only if network initialized successfully
         // Note: yeet_network() is now called directly inside TCP_Server_SPI2_Task()
         //       when data is received, so it's not called here separately
-        if (system_status.network_ok) {
-            TCP_Server_Task();
-        }
+        TCP_Server_Task();
     }
     /* USER CODE END 3 */
 }

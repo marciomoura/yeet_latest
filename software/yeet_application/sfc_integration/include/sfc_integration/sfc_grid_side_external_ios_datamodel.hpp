@@ -9,6 +9,7 @@
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
 #include "yeet_control/adc_value.hpp"
+#include "yeet_control/boolean_debouncer.hpp"
 #include "yeet_control/six_pulse_generator.hpp"
 #include "yeet_control/units.hpp"
 
@@ -104,6 +105,64 @@ public:
         /// Override value for fans_are_running (when override enabled)
         yeet::parameter<bool> di_fans_are_running_override_value{false};
 
+        // ==================== Digital Output Overrides ====================
+        // When override is true, the override_value is used instead of control logic
+
+        /// Enable override for mv_breaker_close output
+        yeet::parameter<bool> do_mv_breaker_close_override{false};
+        /// Override value for mv_breaker_close (when override enabled)
+        yeet::parameter<bool> do_mv_breaker_close_override_value{false};
+
+        /// Enable override for mv_breaker_open output
+        yeet::parameter<bool> do_mv_breaker_open_override{false};
+        /// Override value for mv_breaker_open (when override enabled)
+        yeet::parameter<bool> do_mv_breaker_open_override_value{false};
+
+        /// Enable override for auxiliaries_on_command output
+        yeet::parameter<bool> do_auxiliaries_on_command_override{false};
+        /// Override value for auxiliaries_on_command (when override enabled)
+        yeet::parameter<bool> do_auxiliaries_on_command_override_value{false};
+
+        /// Enable override for on_command_acu_fan_1 output
+        yeet::parameter<bool> do_on_command_acu_fan_1_override{false};
+        /// Override value for on_command_acu_fan_1 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_1_override_value{false};
+
+        /// Enable override for on_command_acu_fan_2 output
+        yeet::parameter<bool> do_on_command_acu_fan_2_override{false};
+        /// Override value for on_command_acu_fan_2 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_2_override_value{false};
+
+        /// Enable override for on_command_acu_fan_3 output
+        yeet::parameter<bool> do_on_command_acu_fan_3_override{false};
+        /// Override value for on_command_acu_fan_3 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_3_override_value{false};
+
+        /// Enable override for on_command_acu_fan_4 output
+        yeet::parameter<bool> do_on_command_acu_fan_4_override{false};
+        /// Override value for on_command_acu_fan_4 (when override enabled)
+        yeet::parameter<bool> do_on_command_acu_fan_4_override_value{false};
+
+        /// Enable override for software_trip_1 output
+        yeet::parameter<bool> do_software_trip_1_override{false};
+        /// Override value for software_trip_1 (when override enabled)
+        yeet::parameter<bool> do_software_trip_1_override_value{false};
+
+        /// Enable override for software_trip_2 output
+        yeet::parameter<bool> do_software_trip_2_override{false};
+        /// Override value for software_trip_2 (when override enabled)
+        yeet::parameter<bool> do_software_trip_2_override_value{false};
+
+        /// Enable override for software_trip_3 output
+        yeet::parameter<bool> do_software_trip_3_override{false};
+        /// Override value for software_trip_3 (when override enabled)
+        yeet::parameter<bool> do_software_trip_3_override_value{false};
+
+        /// Enable override for emergency_off_reset output
+        yeet::parameter<bool> do_emergency_off_reset_override{false};
+        /// Override value for emergency_off_reset (when override enabled)
+        yeet::parameter<bool> do_emergency_off_reset_override_value{false};
+
         // ==================== IO Index Mapping (IO Channel Selection) ====================
         // Select which physical IO channel (0..N-1) maps to each logical signal.
         // Naming convention: di_{name}_index, do_{name}_index, ao_{name}_index.
@@ -121,6 +180,7 @@ public:
         // Digital output indices
         yeet::parameter<int> do_mv_breaker_close_index{0};
         yeet::parameter<int> do_mv_breaker_open_index{1};
+        yeet::parameter<int> do_auxiliaries_on_command_index{15};  // Default to some unused index
         yeet::parameter<int> do_on_command_acu_fan_1_index{2};
         yeet::parameter<int> do_on_command_acu_fan_2_index{3};
         yeet::parameter<int> do_on_command_acu_fan_3_index{4};
@@ -128,6 +188,7 @@ public:
         yeet::parameter<int> do_software_trip_1_index{6};
         yeet::parameter<int> do_software_trip_2_index{7};
         yeet::parameter<int> do_software_trip_3_index{8};
+        yeet::parameter<int> do_emergency_off_reset_index{9};
 
         // ==================== IO Polarity Configuration ====================
         // Configure signal polarity (active high or active low)
@@ -142,6 +203,7 @@ public:
         yeet::parameter<io_polarity_t> di_fans_are_running_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_mv_breaker_close_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_mv_breaker_open_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_auxiliaries_on_command_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_on_command_acu_fan_1_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_on_command_acu_fan_2_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_on_command_acu_fan_3_polarity{io_polarity_t::ACTIVE_HIGH};
@@ -149,6 +211,7 @@ public:
         yeet::parameter<io_polarity_t> do_software_trip_1_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_software_trip_2_polarity{io_polarity_t::ACTIVE_HIGH};
         yeet::parameter<io_polarity_t> do_software_trip_3_polarity{io_polarity_t::ACTIVE_HIGH};
+        yeet::parameter<io_polarity_t> do_emergency_off_reset_polarity{io_polarity_t::ACTIVE_HIGH};
     };
 
     // ==================== DIGITAL INPUTS (Supervisory Commands) ====================
@@ -229,9 +292,12 @@ public:
         signal_output<bool> is_saturated{false};                         ///< Current controller at output limits
         signal_output<bool> pulse_releases{false};                       ///< Pulses enabled/system running
         signal_output<current_pu_t> dc_link_current{current_pu_t{0.0}};  ///< DC link current [pu] (grid-measured)
-        signal_output<bool> freeze_integrator{false};                    ///< Speed controller integrator freeze
-        signal_output<bool> is_requesting_main_pi_reset{false};          ///< Main PI reset request from modulator
-        signal_output<bool> communication_ok{false};  ///< Grid-side communication status (receiving machine)
+        signal_output<voltage_pu_t> grid_voltage_magnitude{voltage_pu_t{0.0}};  ///< Grid voltage magnitude [pu]
+        signal_output<bool> freeze_integrator{false};                           ///< Speed controller integrator freeze
+        signal_output<bool> is_requesting_main_pi_reset{false};  ///< Main PI reset request from modulator
+        signal_output<bool> grid_release_protections{false};     ///< Release grid protections (from FSM)
+        signal_output<bool> machine_release_protections{false};  ///< Release machine protections (via fiber)
+        signal_output<bool> communication_ok{false};             ///< Grid-side communication status (receiving machine)
         signal_output<yeet::application::sfc::sfc_state_id> current_state_id{
             yeet::application::sfc::sfc_state_id::IDLE};  ///< Grid-side state machine state ID
     };
@@ -286,6 +352,7 @@ public:
         signal_input<bool> software_trip_1;         ///< Software trip signal 1 (common trip)
         signal_input<bool> software_trip_2;         ///< Software trip signal 2 (trip/emergency stop)
         signal_input<bool> software_trip_3;         ///< Software trip signal 3 (software trip)
+        signal_input<bool> emergency_off_reset;     ///< Pulse to reset external emergency off circuit
     };
 
     // ==================== PUBLIC INTERFACE ====================
@@ -500,6 +567,14 @@ public:
     bool get_software_trip_3() const;
 
     /**
+     * @brief Get emergency off reset pulse signal
+     * This method applies polarity inversion based on do_emergency_off_reset_polarity
+     *
+     * @return true if pulse is active (with polarity applied)
+     */
+    bool get_emergency_off_reset() const;
+
+    /**
      * @brief Register datamodel with model registry for network/telemetry access
      *
      * Called during application initialization to make datamodel parameters available
@@ -540,6 +615,16 @@ private:
     fiber_optics_outputs_to_machine_t _fiber_optics_outputs_to_machine;
     fiber_optics_inputs_from_machine_t _fiber_optics_inputs_from_machine;
     digital_outputs_t _digital_outputs;
+
+    yeet::control::boolean_debouncer _di_auxiliaries_are_on_debouncer;
+    yeet::control::boolean_debouncer _di_mv_breaker_is_closed_debouncer;
+    yeet::control::boolean_debouncer _di_start_command_debouncer;
+    yeet::control::boolean_debouncer _di_stop_command_debouncer;
+    yeet::control::boolean_debouncer _di_mv_breaker_is_tripping_debouncer;
+    yeet::control::boolean_debouncer _di_emergency_off_debouncer;
+    yeet::control::boolean_debouncer _di_door_is_open_debouncer;
+    yeet::control::boolean_debouncer _di_external_fault_debouncer;
+    yeet::control::boolean_debouncer _di_fans_are_running_debouncer;
 };
 
 }  // namespace yeet::application::sfc::integration

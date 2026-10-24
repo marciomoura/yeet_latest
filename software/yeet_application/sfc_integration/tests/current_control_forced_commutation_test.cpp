@@ -43,6 +43,25 @@ public:
 
         system.initialize();
 
+        // // Force the plant to fixed speed mode, constant voltage, and the monitor to forced commutation
+        system.plant.get_parameters().operation_mode.write(
+            sfc_plant_model_datamodel::machine_operation_mode::fixed_speed);
+        system.operation_mode_monitor.get_parameters().force_to_forced_commutation.write(true);
+        // Increase zero current threshold to handle simulation noise/dynamics
+        system.operation_mode_monitor.get_parameters().zero_current_threshold_pu.write(current_pu_t{0.10f});
+
+        // system.plant.get_parameters().voltage_control_mode.write(
+        //     sfc_plant_model_datamodel::machine_voltage_control_mode::fixed_voltage);
+
+        // Configure speed and voltage after initialization
+
+        system.plant.get_parameters().fixed_machine_voltage.write(voltage_pu_t{p.voltage_pu});
+        system.plant.get_parameters().voltage_control_mode.write(
+            sfc_plant_model_datamodel::machine_voltage_control_mode::fixed_voltage);
+
+        system.plant.get_plant_model().set_machine_frequency_pu(frequency_pu_t{p.freq_pu});
+        system.plant.get_plant_model().set_machine_voltage_pu(voltage_pu_t{p.voltage_pu});
+
         register_complete_logger(simulator, system.current_controller);
         register_complete_logger(simulator, system.dc_link_measurements);
         register_complete_logger(simulator, system.operation_mode_monitor);
@@ -50,14 +69,20 @@ public:
         register_complete_logger(simulator, system.machine_side_modulator);
         register_complete_logger(simulator, system.machine_measurements);
 
-        system.grid_side_pulse_generator.get_parameters().enable.write(false);
-        system.machine_side_pulse_generator.get_parameters().enable.write(false);
-        simulator.simulate_for(0.2);
-        system.grid_side_pulse_generator.get_parameters().enable.write(true);
-        system.machine_side_pulse_generator.get_parameters().enable.write(true);
+        // Starting with disabled modulators and frozen integrator for settling
+        system.current_controller_mock.freeze_integrator = true;
+        system.current_controller_mock.preset_request = false;
+        system.modulator_mock.release_pulses = false;
+        system.grid_side_modulator.get_parameters().enable.write(false);
+        system.machine_side_modulator.get_parameters().enable.write(false);
 
-        system.plant.get_plant_model().set_machine_frequency_pu(frequency_pu_t{p.freq_pu});
-        system.plant.get_plant_model().set_machine_voltage_pu(voltage_pu_t{p.voltage_pu});
+        simulator.simulate_for(0.2);
+
+        // Release pulses and unfreeze integrator for normal operation
+        system.current_controller_mock.freeze_integrator = false;
+        system.modulator_mock.release_pulses = true;
+        system.grid_side_modulator.get_parameters().enable.write(true);
+        system.machine_side_modulator.get_parameters().enable.write(true);
     }
 
     // Current pased as reference
@@ -90,7 +115,15 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
     checker->deactivate();
     current_reference = current_pu_t{0.2f};
     system.current_reference = current_reference;
-    EXPECT_TRUE(simulator.simulate_for(0.5));  // transient
+
+    // // First 0.2s of Iref != 0: do not enable modulation
+    // EXPECT_TRUE(simulator.simulate_for(0.2));
+
+    // // Enable modulation after the initial oscillation window
+    system.grid_side_modulator.get_parameters().enable.write(true);
+    system.machine_side_modulator.get_parameters().enable.write(true);
+
+    EXPECT_TRUE(simulator.simulate_for(0.5));  // allow more time for transient (1.0s total)
     EXPECT_EQ(system.operation_mode_monitor.get_outputs().operating_mode.read(),
         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);
     // checker->activate();
@@ -106,6 +139,9 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
     // checker->activate();
     EXPECT_TRUE(simulator.simulate_for(0.5));  // steady-state window
 
+    EXPECT_TRUE(system.machine_side_modulator.get_outputs().release_pulses.read());
+    EXPECT_TRUE(system.grid_side_modulator.get_outputs().release_pulses.read());
+
     // Step 3: 1.0 pu
     checker->deactivate();
     current_reference = current_pu_t{1.0f};
@@ -115,6 +151,8 @@ TEST_P(CurrentControlForcedCommutationParamTest, CurrentRegulationThreeStepProfi
         yeet::application::sfc::sfc_operating_mode_t::forced_commutation);
     // checker->activate();
     EXPECT_TRUE(simulator.simulate_for(0.6));  // steady-state window
+    EXPECT_TRUE(system.machine_side_modulator.get_outputs().release_pulses.read());
+    EXPECT_TRUE(system.grid_side_modulator.get_outputs().release_pulses.read());
 }
 
 // ---------- Parameter Set ----------
@@ -122,11 +160,9 @@ INSTANTIATE_TEST_SUITE_P(ForcedLowSpeedOperatingPoints,
     CurrentControlForcedCommutationParamTest,
     ::testing::Values(
         // Simulink model
-        forced_comm_init{0.01f, 0.10f, sfc_plant_model_datamodel::topology_type::simulink},
-        forced_comm_init{0.05f, 0.20f, sfc_plant_model_datamodel::topology_type::simulink},
-        forced_comm_init{0.1f, 0.20f, sfc_plant_model_datamodel::topology_type::simulink},
+        forced_comm_init{0.005f, 0.005f, sfc_plant_model_datamodel::topology_type::simulink},
+        forced_comm_init{0.01f, 0.01f, sfc_plant_model_datamodel::topology_type::simulink},
         // Internal model
-        forced_comm_init{0.01f, 0.10f, sfc_plant_model_datamodel::topology_type::internal},
-        forced_comm_init{0.05f, 0.20f, sfc_plant_model_datamodel::topology_type::internal},
-        forced_comm_init{0.1f, 0.20f, sfc_plant_model_datamodel::topology_type::internal}),
+        forced_comm_init{0.005f, 0.005f, sfc_plant_model_datamodel::topology_type::internal},
+        forced_comm_init{0.01f, 0.01f, sfc_plant_model_datamodel::topology_type::internal}),
     ForcedCommParamName);

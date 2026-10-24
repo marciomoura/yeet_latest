@@ -14,6 +14,7 @@
 #include "yeet/network_telemetry_manager.hpp"
 #include "yeet/parameter_handler.hpp"
 #include "yeet/signal.hpp"
+#include "yeet_control/reference_frame.hpp"
 
 using namespace yeet::embedded::io;
 
@@ -34,60 +35,74 @@ namespace {
 using yeet::application::sfc::integration::io_polarity_t;
 
 // Digital Inputs
-constexpr int DI_AUXILIARIES_ARE_ON_INDEX = 0;
-constexpr io_polarity_t DI_AUXILIARIES_ARE_ON_POLARITY = io_polarity_t::ACTIVE_HIGH;
+// This is only connected to the reactor
+constexpr int DI_AUXILIARIES_ARE_ON_INDEX = 14 - 1;  // Device A11 - its lv supervision
+constexpr io_polarity_t DI_AUXILIARIES_ARE_ON_POLARITY = io_polarity_t::ACTIVE_LOW;
 
-constexpr int DI_MV_BREAKER_IS_CLOSED_INDEX = 1;
+constexpr int DI_MV_BREAKER_IS_CLOSED_INDEX = 16 + 5 - 1;  // Device A12
 constexpr io_polarity_t DI_MV_BREAKER_IS_CLOSED_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_START_COMMAND_INDEX = 2;
+constexpr int DI_START_COMMAND_INDEX = 1 - 1;  // Device A11
 constexpr io_polarity_t DI_START_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_STOP_COMMAND_INDEX = 3;
+constexpr int DI_STOP_COMMAND_INDEX = 2 - 1;  // Device A11
 constexpr io_polarity_t DI_STOP_COMMAND_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_MV_BREAKER_IS_TRIPPING_INDEX = 6;
+constexpr int DI_MV_BREAKER_IS_TRIPPING_INDEX = 16 + 7 - 1;  // Device A12
 constexpr io_polarity_t DI_MV_BREAKER_IS_TRIPPING_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DI_EMERGENCY_OFF_INDEX = 7;
-constexpr io_polarity_t DI_EMERGENCY_OFF_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_EMERGENCY_OFF_INDEX = 16 + 13 - 1;  // Device A12
+constexpr io_polarity_t DI_EMERGENCY_OFF_POLARITY = io_polarity_t::ACTIVE_LOW;
 
-constexpr int DI_DOOR_IS_OPEN_INDEX = 8;
-constexpr io_polarity_t DI_DOOR_IS_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_DOOR_IS_OPEN_INDEX = 13 - 1;                                   // Device A11
+constexpr io_polarity_t DI_DOOR_IS_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;  // to be checked
 
-constexpr int DI_EXTERNAL_FAULT_INDEX = 9;
-constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DI_EXTERNAL_FAULT_INDEX = 16 + 15 - 1;                              // Device A12
+constexpr io_polarity_t DI_EXTERNAL_FAULT_POLARITY = io_polarity_t::ACTIVE_HIGH;  // to be checked
 
-constexpr int DI_FANS_ARE_RUNNING_INDEX = 10;
-constexpr io_polarity_t DI_FANS_ARE_RUNNING_POLARITY = io_polarity_t::ACTIVE_HIGH;
+// To be tested...
+constexpr int DI_FANS_ARE_RUNNING_INDEX = 16 + 16 - 1;  // Device A12
+constexpr io_polarity_t DI_FANS_ARE_RUNNING_POLARITY = io_polarity_t::ACTIVE_LOW;
 
 // Digital Outputs
-constexpr int DO_MV_BREAKER_CLOSE_INDEX = 0;
-constexpr io_polarity_t DO_MV_BREAKER_CLOSE_POLARITY = io_polarity_t::ACTIVE_HIGH;
-
-constexpr int DO_MV_BREAKER_OPEN_INDEX = 1;
-constexpr io_polarity_t DO_MV_BREAKER_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
-
-constexpr int DO_ON_COMMAND_ACU_FAN_1_INDEX = 2;
+constexpr int DO_ON_COMMAND_ACU_FAN_1_INDEX = 32 + 1 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_ON_COMMAND_ACU_FAN_2_INDEX = 3;
+constexpr int DO_ON_COMMAND_ACU_FAN_2_INDEX = 32 + 2 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_ON_COMMAND_ACU_FAN_3_INDEX = 4;
+constexpr int DO_ON_COMMAND_ACU_FAN_3_INDEX = 32 + 3 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_ON_COMMAND_ACU_FAN_4_INDEX = 5;
+constexpr int DO_ON_COMMAND_ACU_FAN_4_INDEX = 32 + 4 - 1;
 constexpr io_polarity_t DO_ON_COMMAND_ACU_FAN_4_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_SOFTWARE_TRIP_1_INDEX = 6;
-constexpr io_polarity_t DO_SOFTWARE_TRIP_1_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DO_MV_BREAKER_CLOSE_INDEX = 32 + 5 - 1;
+constexpr io_polarity_t DO_MV_BREAKER_CLOSE_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_SOFTWARE_TRIP_2_INDEX = 7;
-constexpr io_polarity_t DO_SOFTWARE_TRIP_2_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DO_MV_BREAKER_OPEN_INDEX = 32 + 6 - 1;
+constexpr io_polarity_t DO_MV_BREAKER_OPEN_POLARITY = io_polarity_t::ACTIVE_HIGH;
 
-constexpr int DO_SOFTWARE_TRIP_3_INDEX = 8;
-constexpr io_polarity_t DO_SOFTWARE_TRIP_3_POLARITY = io_polarity_t::ACTIVE_HIGH;
+constexpr int DO_SOFTWARE_TRIP_1_INDEX = 10 - 1;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_1_POLARITY = io_polarity_t::ACTIVE_LOW;
+
+constexpr int DO_SOFTWARE_TRIP_2_INDEX = 11 - 1;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_2_POLARITY = io_polarity_t::ACTIVE_LOW;
+
+constexpr int DO_SOFTWARE_TRIP_3_INDEX = 15 - 1;
+constexpr io_polarity_t DO_SOFTWARE_TRIP_3_POLARITY = io_polarity_t::ACTIVE_LOW;
+
+constexpr int DO_EMERGENCY_OFF_RESET_INDEX = 16 - 1;
+constexpr io_polarity_t DO_EMERGENCY_OFF_RESET_POLARITY = io_polarity_t::ACTIVE_HIGH;
+
+// DO32 - EMERGENCY OFF RESET is missing
+
+// 33 DO1	ON CMD ACU REACT FAN
+// 34 DO2	ON CMD ACU CONV1 FAN
+// 35 DO3	ON CMD ACU CONV2 FAN
+// 36 DO4	ON CMD ACU CTR FAN
+// 37 DO5	ICB CLOSE CMD/ICB Control
+
 }  // namespace
 
 extern "C" {
@@ -144,31 +159,95 @@ grid_side_network_infrastructure::grid_side_network_infrastructure(
 {
     control.register_datamodel(parameter_handler);
 }
+
 ARM_FUNCTION
 void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_control* control)
 {
+    // Set all callbacks before modifying default parameters.
+    // Callbacks are registered during network handler initialization.
+    control->initialize();
+
+    // Bypass all IOs (for testing)
+    control->external_ios.get_parameters().di_auxiliaries_are_on_override.write(true);
+    control->external_ios.get_parameters().di_auxiliaries_are_on_override_value.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override_value.write(false);
+
+    // control->external_ios.get_parameters().di_mv_breaker_is_closed_override.write(true);
+    // control->external_ios.get_parameters().di_mv_breaker_is_closed_override_value.write(true);
+    // control->external_ios.get_parameters().di_external_fault_override.write(true);
+    // control->external_ios.get_parameters().di_external_fault_override_value.write(false);
+    // control->external_ios.get_parameters().di_door_is_open_override.write(true);
+    // control->external_ios.get_parameters().di_door_is_open_override_value.write(false);
+
+    // control->external_ios.get_parameters().di_start_command_override.write(true);
+    // control->external_ios.get_parameters().di_start_command_override_value.write(false);  // Start command not active
+    // control->external_ios.get_parameters().di_stop_command_override.write(true);
+    // control->external_ios.get_parameters().di_stop_command_override_value.write(false);  // Stop command not active
+    // control->external_ios.get_parameters().di_mv_breaker_is_tripping_override.write(true);
+    // control->external_ios.get_parameters().di_mv_breaker_is_tripping_override_value.write(false);
+
+    // control->state_machine.get_parameters().auxiliaries_are_on_override.write(true);
+    // control->state_machine.get_parameters().auxiliaries_are_on_override_value.write(true);
+    // control->state_machine.get_parameters().mv_breaker_is_closed_override.write(true);
+    // control->state_machine.get_parameters().mv_breaker_is_closed_override_value.write(true);
+    // control->external_ios.get_parameters().di_emergency_off_override.write(true);
+    // control->external_ios.get_parameters().di_fans_are_running_override.write(true);
+    // control->external_ios.get_parameters().di_fans_are_running_override_value.write(true);
+    // control->state_machine.get_parameters().is_current_extinguished_override.write(true);
+    // control->state_machine.get_parameters().is_current_extinguished_override_value.write(true);
+
+    //
+    //
+    control->state_machine.get_parameters().turn_on_command.write(false);
+    control->state_machine.get_parameters().start_command.write(false);
+    control->state_machine.get_parameters().stop_command.write(false);
+
+    using yeet::application::sfc::integration::protection_severity;
+
+    // Force natural commutation
+    control->operation_mode_monitor.get_parameters().force_to_natural_commutation.write(false);
+    control->operation_mode_monitor.get_parameters().force_to_forced_commutation.write(true);
+    control->operation_mode_monitor.get_parameters().mode_handover_speed_pu.write(yeet::speed_pu_t{0.5f});
+    control->operation_mode_monitor.get_parameters().mode_hysteresis_factor.write(yeet::speed_pu_t{0.1f});
+
     // Initialize grid-side control subsystem
     // This will also connect internal signals (observer → measurements for angle/frequency/pulses)
     // Digital inputs are already default-initialized to safe values (false) by the datamodel
     control->grid_side_observer.get_parameters().initial_frequency.write(yeet::frequency_pu_t{0.0f});
-    control->initialize();
+    control->current_controller.get_parameters().max_firing_angle.write(yeet::angle_wrapped::from_degrees(162.5f));
 
-    // #if defined(YEET_EMBEDDED_GRID_SIDE) && !defined(YEET_BUILD_DUAL_CONTROLLER)
-    // Parametrize the software with hardware-specific gains (commented out - should be done via plant_hardware staging)
+    // ==================== PER-UNIT SYSTEM CONFIGURATION ====================
+    control->pu_system_datamodel.get_parameters().dc_link_current_base.write(yeet::current_t{866.0f});
+    control->pu_system_datamodel.get_parameters().grid_frequency_base.write(yeet::frequency_t{50.0f});
+    control->pu_system_datamodel.get_parameters().grid_voltage_base_rms.write(yeet::voltage_t{2090.0f});
+    control->pu_system_datamodel.get_parameters().machine_frequency_base.write(yeet::frequency_t{10.0f});
+    control->pu_system_datamodel.get_parameters().machine_num_poles.write(int{2});
+    control->pu_system_datamodel.get_parameters().machine_power_base.write(yeet::power_t{2e6});  // 2 MW
+    control->pu_system_datamodel.get_parameters().machine_voltage_base_rms.write(yeet::voltage_t{1880.0f});
+
+    // The ASI interface converts 2500 V LL to 100 V secondary voltage
     control->grid_measurements.get_parameters().pt_ratio.write(yeet::real_t{25.0f});
-    control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1.0f});
-    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(yeet::angle_wrapped{30.0f});
-    control->grid_measurements.get_parameters().voltage_hardware_filter_cutoff_frequency.write(
-        yeet::frequency_t{106.3f});
+    control->grid_measurements.get_parameters().voltage_adc_full_scale.write(yeet::real_t{10.0f});
+    control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{0.040047f});
+    control->grid_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_1.write(
+        yeet::frequency_t{796.0f});
+    control->grid_measurements.get_parameters().voltage_compensation_lpf_cutoff_frequency_2.write(
+        yeet::frequency_t{159.0f});
+    control->grid_measurements.get_parameters().voltage_compensation_num_filters.write(2);
     control->grid_measurements.get_parameters().enable_voltage_compensation.write(false);
     control->grid_measurements.get_parameters().enable_commutation_masking.write(true);
-    control->grid_measurements.get_parameters().voltage_transducer_gain.write(yeet::real_t{3.7f / 100.0f});
-    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{1.0f / 120.0f});
+    control->grid_measurements.get_parameters().voltage_measurement_rotation.write(
+        yeet::angle_wrapped::from_degrees(-30.0f));  // 30.0f
 
-    control->grid_side_pulse_generator.get_parameters().reference_type.write(
+    // Configuration of the CT
+    // Adaptation of the adc full-scale, ct ratio and transducer gain
+    control->grid_measurements.get_parameters().current_adc_full_scale.write(yeet::real_t{10.0f});
+    control->grid_measurements.get_parameters().ct_ratio.write(yeet::real_t{1000.0f});
+    control->grid_measurements.get_parameters().current_transducer_gain.write(yeet::real_t{2.538252f});  // 1 A -> 4 V
+
+    control->grid_side_modulator.get_parameters().reference_type.write(
         yeet::control::six_pulse_generator::reference_type::line);
-    control->grid_side_pulse_generator.get_parameters().pulse_width.write(
-        yeet::angle_wrapped::from_radians(yeet::angle_t{yeet::pi / 3.0f}));
 
     // ==================== IO CONFIGURATION ====================
     auto& io_params = control->get_external_ios().get_parameters();
@@ -183,8 +262,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_door_is_open_index.write(DI_DOOR_IS_OPEN_INDEX);
     io_params.di_external_fault_index.write(DI_EXTERNAL_FAULT_INDEX);
     io_params.di_fans_are_running_index.write(DI_FANS_ARE_RUNNING_INDEX);
-
-    // Digital Input Polarity
+    // Digital Input PolarityC
     io_params.di_auxiliaries_are_on_polarity.write(DI_AUXILIARIES_ARE_ON_POLARITY);
     io_params.di_mv_breaker_is_closed_polarity.write(DI_MV_BREAKER_IS_CLOSED_POLARITY);
     io_params.di_start_command_polarity.write(DI_START_COMMAND_POLARITY);
@@ -194,7 +272,6 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.di_door_is_open_polarity.write(DI_DOOR_IS_OPEN_POLARITY);
     io_params.di_external_fault_polarity.write(DI_EXTERNAL_FAULT_POLARITY);
     io_params.di_fans_are_running_polarity.write(DI_FANS_ARE_RUNNING_POLARITY);
-
     // Digital Output Indices
     io_params.do_mv_breaker_close_index.write(DO_MV_BREAKER_CLOSE_INDEX);
     io_params.do_mv_breaker_open_index.write(DO_MV_BREAKER_OPEN_INDEX);
@@ -205,6 +282,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.do_software_trip_1_index.write(DO_SOFTWARE_TRIP_1_INDEX);
     io_params.do_software_trip_2_index.write(DO_SOFTWARE_TRIP_2_INDEX);
     io_params.do_software_trip_3_index.write(DO_SOFTWARE_TRIP_3_INDEX);
+    io_params.do_emergency_off_reset_index.write(DO_EMERGENCY_OFF_RESET_INDEX);
 
     // Digital Output Polarity
     io_params.do_mv_breaker_close_polarity.write(DO_MV_BREAKER_CLOSE_POLARITY);
@@ -216,6 +294,7 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     io_params.do_software_trip_1_polarity.write(DO_SOFTWARE_TRIP_1_POLARITY);
     io_params.do_software_trip_2_polarity.write(DO_SOFTWARE_TRIP_2_POLARITY);
     io_params.do_software_trip_3_polarity.write(DO_SOFTWARE_TRIP_3_POLARITY);
+    io_params.do_emergency_off_reset_polarity.write(DO_EMERGENCY_OFF_RESET_POLARITY);
 
     // Configure protections to be enabled by default for embedded target
     control->grid_protections.get_parameters().protection_module_enabled.write(true);
@@ -226,10 +305,31 @@ void grid_embedded_init(yeet::application::sfc::integration::sfc_grid_side_contr
     control->grid_protections.get_parameters().undervoltage_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
     control->grid_protections.get_parameters().communication_loss_severity.write(
-        yeet::application::sfc::integration::protection_severity::trip);
+        yeet::application::sfc::integration::protection_severity::alarm_only);
     control->grid_protections.get_parameters().door_open_severity.write(
         yeet::application::sfc::integration::protection_severity::trip);
-    // #endif
+    control->grid_protections.get_parameters().external_fault_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().emergency_off_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+    control->grid_protections.get_parameters().machine_protection_severity.write(
+        yeet::application::sfc::integration::protection_severity::trip);
+
+    control->grid_protections.get_parameters().overcurrent_trip_threshold.write(yeet::current_pu_t{1.54f});
+    control->grid_protections.get_parameters().overcurrent_trip_delay.write(yeet::duration_t{yeet::ms(10.0f)});
+    control->grid_protections.get_parameters().overcurrent_warning_threshold.write(yeet::current_pu_t{1.0f});
+    control->grid_protections.get_parameters().overcurrent_warning_delay.write(yeet::duration_t{1.0f});
+
+    control->grid_protections.get_parameters().overvoltage_trip_threshold.write(yeet::voltage_pu_t{1.2f});
+    control->grid_protections.get_parameters().overvoltage_warning_threshold.write(yeet::voltage_pu_t{1.10f});
+    control->grid_protections.get_parameters().overvoltage_trip_delay.write(yeet::duration_t{0.1f});
+    control->grid_protections.get_parameters().overvoltage_warning_delay.write(yeet::duration_t{0.05f});
+
+    // Undervoltage 0.9 pu (do the alarm and then trip after some time, pulse blocking)
+    control->grid_protections.get_parameters().undervoltage_trip_threshold.write(yeet::voltage_pu_t{0.9f});
+    control->grid_protections.get_parameters().undervoltage_trip_delay.write(yeet::duration_t{0.25f});
+    control->grid_protections.get_parameters().undervoltage_warning_threshold.write(yeet::voltage_pu_t{0.950f});
+    control->grid_protections.get_parameters().undervoltage_warning_delay.write(yeet::duration_t{0.5f});
 }
 
 ARM_FUNCTION
@@ -250,16 +350,21 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   AI2 (X1-2): Grid voltage Vbc
     //   AI5 (X1-5): Grid current Ia (1A → 5V or 5A → 5V, ±7.5A range)
     //   AI7 (X1-7): Grid current Ic
-
-    // Write ADC values directly to external_ios interface analog inputs
-    control->get_external_ios().get_analog_inputs().v_ab_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[1])});
-    control->get_external_ios().get_analog_inputs().v_bc_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[2])});
-    control->get_external_ios().get_analog_inputs().i_a_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
-    control->get_external_ios().get_analog_inputs().i_c_counts.write(
-        yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
+    if (inputs->analog_inputs.valid) {
+        // Write ADC values directly to external_ios interface analog inputs
+        // Perform subtraction in 32-bit to prevent intermediate overflow, then shift to fit 16-bit
+        int32_t diff_ab = static_cast<int32_t>(inputs->analog_inputs.channels[1]) -
+                          static_cast<int32_t>(inputs->analog_inputs.channels[2]);
+        control->get_external_ios().get_analog_inputs().v_ab_counts.write(
+            yeet::control::adc_counts{diff_ab});  // Lose 1 bit of resolution, but safe from overflow
+        int32_t diff_bc = static_cast<int32_t>(inputs->analog_inputs.channels[2]) -
+                          static_cast<int32_t>(inputs->analog_inputs.channels[3]);
+        control->get_external_ios().get_analog_inputs().v_bc_counts.write(yeet::control::adc_counts{diff_bc});
+        control->get_external_ios().get_analog_inputs().i_a_counts.write(
+            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[5])});
+        control->get_external_ios().get_analog_inputs().i_c_counts.write(
+            yeet::control::adc_counts{static_cast<int16_t>(inputs->analog_inputs.channels[7])});
+    }
 
     // Execute the 5 kHz control update (measurements → observers → modulators → pulse generator)
     control->update_200us();
@@ -271,12 +376,23 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
 
     // ==================== ANALOG OUTPUTS (DAC) → MONITORING/TESTING ====================
     // Map control system signals to DAC outputs for monitoring and testing
-    // The AD5724 provides 4 analog output channels (±5V or ±10V range)
-    // Example DAC output mappings (customize based on your application):
-    // Channel A: Test signal 1
-    // Channel B: Test signal 2
-    // Channel C: Test signal 3
-    // Channel D: Test signal 4
+    auto line_v = yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read());
+
+    write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
+    write_ao(outputs, 1, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
+    // write_ao(outputs, 1, line_v.ab().value(), 3.0f, 0.0f);
+    write_ao(outputs, 2, line_v.bc().value(), 4.0f, 0.0f);
+    write_ao(outputs, 3, line_v.ca().value(), 5.0f, 0.0f);
+    // write_ao(outputs, 0, control->get_dc_link_measurements().get_outputs().dc_current_pu.read().value(), 5.0f, 0.0f);
+    // write_ao(outputs, 1,
+    //     yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc_raw.read()).ab().value(),
+    //     5.0f, 0.0f);
+    // write_ao(outputs, 2,
+    //     yeet::to_line_voltage(control->get_grid_measurements().get_outputs().grid_voltage_abc.read()).ab().value(),
+    //     5.0f, 0.0f);
+    // write_ao(outputs, 3,
+    //     control->get_grid_side_observer().get_outputs().estimated_reference_angle.read().get_pu().value(), 5.0f,
+    //     0.0f);
 
     // Baseline constant output test: drive all four channels to +1.0 V (±5 V range)
     // Purpose: Hardware validation with scope / DMM after restoring legacy driver.
@@ -291,12 +407,12 @@ void grid_task_200us(yeet::application::sfc::integration::sfc_grid_side_control*
     //   PWM6 (PB1) → b_minus (Phase B negative arm, T2)
     const auto& firing_pulses = control->get_firing_pulses().read();
 
-    outputs->thyristor_pulses.a_plus = firing_pulses.p1;
-    outputs->thyristor_pulses.b_minus = firing_pulses.p6;
-    outputs->thyristor_pulses.b_plus = firing_pulses.p3;
-    outputs->thyristor_pulses.a_minus = firing_pulses.p4;
-    outputs->thyristor_pulses.c_plus = firing_pulses.p5;
-    outputs->thyristor_pulses.c_minus = firing_pulses.p2;
+    outputs->thyristor_pulses.p1 = firing_pulses.p1;
+    outputs->thyristor_pulses.p2 = firing_pulses.p2;
+    outputs->thyristor_pulses.p3 = firing_pulses.p3;
+    outputs->thyristor_pulses.p4 = firing_pulses.p4;
+    outputs->thyristor_pulses.p5 = firing_pulses.p5;
+    outputs->thyristor_pulses.p6 = firing_pulses.p6;
 }
 
 ARM_FUNCTION
@@ -383,6 +499,9 @@ void grid_task_1000us(yeet::application::sfc::integration::sfc_grid_side_control
     write_do(outputs, io_params.do_software_trip_1_index.read(), control->external_ios.get_software_trip_1());
     write_do(outputs, io_params.do_software_trip_2_index.read(), control->external_ios.get_software_trip_2());
     write_do(outputs, io_params.do_software_trip_3_index.read(), control->external_ios.get_software_trip_3());
+
+    // Emergency off reset pulse
+    write_do(outputs, io_params.do_emergency_off_reset_index.read(), control->external_ios.get_emergency_off_reset());
 }
 
 ARM_FUNCTION

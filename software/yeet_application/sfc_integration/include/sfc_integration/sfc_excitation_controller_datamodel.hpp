@@ -68,15 +68,21 @@ public:
     struct parameters {
         static constexpr std::size_t NUM_POINTS = sfc::sfc_excitation_controller::NUM_VOLTAGE_REFERENCE_POINTS;
 
-        /// Constant field current setpoint [pu]
-        parameter<current_pu_t> field_current_setpoint = current_pu_t{1.0};
+        // --- Low-Voltage / Forced Mode Operation ---
 
-        /// Low-voltage fallback field current setpoint [pu]
-        /// Used when field_current_setpoint is not set (<= 0) and Vmeas < voltage_threshold_pu.
-        parameter<current_pu_t> low_voltage_field_current_setpoint_pu = current_pu_t{0.8};
+        /// Forced field current reference used before release [pu]
+        /// This constant value is maintained while speed and voltage are below release thresholds.
+        parameter<current_pu_t> forced_field_current_pu = current_pu_t{0.8};
 
-        /// Voltage threshold [pu] below which forced field current is used (no PI action)
-        parameter<voltage_pu_t> voltage_threshold_pu = voltage_pu_t{0.2};
+        /// Voltage threshold for releasing to automatic control [pu]
+        /// When Vmeas exceeds this value, the PI voltage controller takes over.
+        parameter<voltage_pu_t> release_voltage_threshold_pu = voltage_pu_t{0.2};
+
+        /// Speed threshold for releasing to automatic control [pu]
+        /// When speed exceeds this value, the PI voltage controller takes over.
+        parameter<speed_pu_t> release_speed_threshold_pu = speed_pu_t{0.2};
+
+        // --- Automatic Voltage Control (PI) ---
 
         /// Speed axis for voltage reference lookup table [pu]
         parameter<std::array<speed_pu_t, NUM_POINTS>> voltage_reference_speed_axis_pu =
@@ -98,13 +104,13 @@ public:
         parameter<current_pu_t> voltage_pi_output_min_pu = current_pu_t{0.0};
         parameter<current_pu_t> voltage_pi_output_max_pu = current_pu_t{1.2};
 
-        /// Speed threshold for constant flux region [pu]
-        /// Below this speed, field current remains constant regardless of speed
-        parameter<speed_pu_t> constant_flux_speed_threshold = speed_pu_t{1.0};
-
         /// Pre-fluxing duration [s]
         /// Time required to establish the magnetic field before releasing excitation
         parameter<duration_t> prefluxing_duration = duration_t{2.0};
+
+        /// Force release excitation command (for commissioning/testing)
+        /// When true, the excitation controller is enabled regardless of external release command
+        parameter<bool> force_release_excitation = false;
 
         /// Enable override for field current reference output
         /// When true, field_current_reference_override_value is used instead of controller output
@@ -133,12 +139,12 @@ public:
     {
         static constexpr std::string_view component_name = "excitation_controller";
 
-        handler.register_parameter(component_name, "field_current_setpoint",
-            yeet::utils::make_units_accessor(_model_parameters->field_current_setpoint));
-        handler.register_parameter(component_name, "low_voltage_field_current_setpoint_pu",
-            yeet::utils::make_units_accessor(_model_parameters->low_voltage_field_current_setpoint_pu));
-        handler.register_parameter(component_name, "voltage_threshold_pu",
-            yeet::utils::make_units_accessor(_model_parameters->voltage_threshold_pu));
+        handler.register_parameter(component_name, "forced_field_current_pu",
+            yeet::utils::make_units_accessor(_model_parameters->forced_field_current_pu));
+        handler.register_parameter(component_name, "release_voltage_threshold_pu",
+            yeet::utils::make_units_accessor(_model_parameters->release_voltage_threshold_pu));
+        handler.register_parameter(component_name, "release_speed_threshold_pu",
+            yeet::utils::make_units_accessor(_model_parameters->release_speed_threshold_pu));
 
         // Register voltage reference lookup table entries individually
         static constexpr std::string_view speed_axis_names[] = {"voltage_reference_speed_axis_pu[0]",
@@ -169,14 +175,14 @@ public:
         handler.register_parameter(component_name, "pi_output_max_pu",
             yeet::utils::make_units_accessor(_model_parameters->voltage_pi_output_max_pu));
 
-        handler.register_parameter(component_name, "constant_flux_speed_threshold",
-            yeet::utils::make_units_accessor(_model_parameters->constant_flux_speed_threshold));
         handler.register_parameter(component_name, "prefluxing_duration",
             yeet::utils::make_units_accessor(_model_parameters->prefluxing_duration));
         handler.register_parameter(component_name, "field_current_reference_override",
             yeet::utils::make_bool_accessor(_model_parameters->field_current_reference_override));
         handler.register_parameter(component_name, "field_current_reference_override_value",
             yeet::utils::make_units_accessor(_model_parameters->field_current_reference_override_value));
+        handler.register_parameter(component_name, "force_release_excitation",
+            yeet::utils::make_bool_accessor(_model_parameters->force_release_excitation));
     }
 
     inputs* get_inputs() { return _model_inputs; }

@@ -11,7 +11,6 @@
 #include "sfc_integration/sfc_grid_side_modulator_runner.hpp"
 #include "sfc_integration/sfc_grid_side_observer_runner.hpp"
 #include "sfc_integration/sfc_grid_side_protections_runner.hpp"
-#include "sfc_integration/sfc_grid_side_pulse_generator_runner.hpp"
 #include "sfc_integration/sfc_operation_mode_monitor_runner.hpp"
 #include "sfc_integration/sfc_per_unit_system_datamodel.hpp"
 #include "sfc_integration/sfc_state_machine_runner.hpp"
@@ -48,7 +47,6 @@ public:
           current_controller(per_unit_system),
           grid_side_observer(),
           grid_side_modulator(),
-          grid_side_pulse_generator(),
           grid_measurements(per_unit_system),
           dc_link_measurements(per_unit_system),
           operation_mode_monitor(),
@@ -181,12 +179,6 @@ public:
     sfc_grid_side_modulator_runner& get_grid_side_modulator() { return grid_side_modulator; }
     const sfc_grid_side_modulator_runner& get_grid_side_modulator() const { return grid_side_modulator; }
 
-    sfc_grid_side_pulse_generator_runner& get_grid_side_pulse_generator() { return grid_side_pulse_generator; }
-    const sfc_grid_side_pulse_generator_runner& get_grid_side_pulse_generator() const
-    {
-        return grid_side_pulse_generator;
-    }
-
     sfc_grid_side_measurements_runner& get_grid_measurements() { return grid_measurements; }
     const sfc_grid_side_measurements_runner& get_grid_measurements() const { return grid_measurements; }
 
@@ -225,12 +217,12 @@ public:
      */
     signal_output<control::six_pulse_generator::pulses>& get_firing_pulses()
     {
-        return grid_side_pulse_generator.get_outputs().firing_pulses;
+        return grid_side_modulator.get_outputs().firing_pulses;
     }
 
     const signal_output<control::six_pulse_generator::pulses>& get_firing_pulses() const
     {
-        return const_cast<sfc_grid_side_pulse_generator_runner&>(grid_side_pulse_generator).get_outputs().firing_pulses;
+        return const_cast<sfc_grid_side_modulator_runner&>(grid_side_modulator).get_outputs().firing_pulses;
     }
 
     /**
@@ -292,7 +284,6 @@ public:
     sfc_current_controller_runner current_controller;
     sfc_grid_side_observer_runner grid_side_observer;
     sfc_grid_side_modulator_runner grid_side_modulator;
-    sfc_grid_side_pulse_generator_runner grid_side_pulse_generator;
     sfc_grid_side_measurements_runner grid_measurements;
     sfc_dc_link_measurements_runner dc_link_measurements;
     sfc_operation_mode_monitor_runner operation_mode_monitor;

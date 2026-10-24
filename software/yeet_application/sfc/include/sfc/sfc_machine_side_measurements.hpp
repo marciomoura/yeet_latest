@@ -97,6 +97,15 @@ public:
 
     const line_voltage<voltage_t>& get_voltage_line() const { return _voltage_line; }
 
+    /**
+     * @brief Resets only the peak count detectors.
+     */
+    void clear_peaks() noexcept;
+
+    // Peak counts detection results
+    int32_t get_v_ab_counts_peak() const noexcept { return _v_ab_counts_peak; }
+    int32_t get_v_bc_counts_peak() const noexcept { return _v_bc_counts_peak; }
+
     // Individual raw measurements after ADC conversion
     real_t get_raw_v_ab() const { return _voltage_converter.to_real(_v_ab_counts); }
     real_t get_raw_v_bc() const { return _voltage_converter.to_real(_v_bc_counts); }
@@ -110,6 +119,10 @@ private:
     // ADC values for voltage measurement channels
     yeet::control::adc_counts _v_ab_counts{};
     yeet::control::adc_counts _v_bc_counts{};
+
+    // Peak counts detection
+    int32_t _v_ab_counts_peak{0};
+    int32_t _v_bc_counts_peak{0};
 
     yeet::control::adc_converter _voltage_converter{};
 

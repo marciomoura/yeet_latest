@@ -12,6 +12,7 @@ target_sources(
     PRIVATE adc_value_test.cpp
             adc_mock_test.cpp
             angle_test.cpp
+            boolean_debouncer_test.cpp
             derivative_test.cpp
             dual_sogi_srf_pll_test.cpp
             edge_detector_test.cpp
@@ -28,6 +29,7 @@ target_sources(
             lookup_table_1d_test.cpp
             lookup_table_2d_test.cpp
             mechanical_load_test.cpp
+            monotonic_angle_filter_test.cpp
             off_delay_test.cpp
             on_delay_test.cpp
             on_off_delay_test.cpp

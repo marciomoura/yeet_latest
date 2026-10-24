@@ -27,23 +27,22 @@ sfc_excitation_controller::sfc_excitation_controller(duration_t sampling_time)
     _voltage_pi_controller.enable_integrator_clamping(false);
 }
 
-void sfc_excitation_controller::configure_field_current_setpoint(current_pu_t field_current_setpoint)
+void sfc_excitation_controller::configure_forced_field_current(current_pu_t forced_field_current_pu)
 {
-    assert(field_current_setpoint.value() >= 0.0 && "Field current setpoint must be non-negative.");
-
-    _field_current_setpoint = field_current_setpoint;
+    assert(forced_field_current_pu.value() >= 0.0 && "Forced field current must be non-negative.");
+    _forced_field_current_pu = forced_field_current_pu;
 }
 
-void sfc_excitation_controller::configure_low_voltage_field_current_setpoint(current_pu_t field_current_setpoint)
+void sfc_excitation_controller::configure_release_voltage_threshold(voltage_pu_t threshold_pu)
 {
-    assert(field_current_setpoint.value() >= 0.0 && "Low-voltage field current setpoint must be non-negative.");
-    _low_voltage_field_current_setpoint = field_current_setpoint;
+    assert(threshold_pu.value() >= 0.0 && "Voltage threshold must be non-negative.");
+    _release_voltage_threshold_pu = threshold_pu;
 }
 
-void sfc_excitation_controller::configure_voltage_threshold(voltage_pu_t voltage_threshold_pu)
+void sfc_excitation_controller::configure_release_speed_threshold(speed_pu_t threshold_pu)
 {
-    assert(voltage_threshold_pu.value() >= 0.0 && "Voltage threshold must be non-negative.");
-    _voltage_threshold_pu = voltage_threshold_pu;
+    assert(threshold_pu.value() >= 0.0 && "Speed threshold must be non-negative.");
+    _release_speed_threshold_pu = threshold_pu;
 }
 
 void sfc_excitation_controller::configure_voltage_reference_lookup_table(
@@ -107,8 +106,8 @@ bool sfc_excitation_controller::start_excitation()
     _is_field_established = false;
     _enable_excitation = true;
 
-    // Set field current reference to configured constant value
-    _field_current_reference_pu = _field_current_setpoint;
+    // Set field current reference to forced initial value
+    _field_current_reference_pu = _forced_field_current_pu;
     _last_forced_field_current_reference_pu = _field_current_reference_pu;
     _is_voltage_pi_active = false;
 
@@ -162,36 +161,30 @@ void sfc_excitation_controller::update(
         }
     }
 
-    // Select forced (low-voltage) current reference:
-    // - If field_current_setpoint is configured (>0), keep it.
-    // - Otherwise fall back to low_voltage_field_current_setpoint.
-    const current_pu_t forced_field_current_reference =
-        (_field_current_setpoint.value() > 0.0) ? _field_current_setpoint : _low_voltage_field_current_setpoint;
-
-    const bool is_low_voltage_region = machine_voltage_magnitude_pu.value() < _voltage_threshold_pu.value();
+    // Determine if the controller should be in forced mode or released to PI voltage control.
+    // Transition happens if voltage OR speed exceeds their respective thresholds.
+    const bool should_be_released = (machine_voltage_magnitude_pu.value() >= _release_voltage_threshold_pu.value()) ||
+                                    (machine_speed_pu.value() >= _release_speed_threshold_pu.value());
 
     // Compute voltage reference and error for observability
-    if (is_low_voltage_region) {
+    if (!should_be_released) {
         _machine_voltage_reference_pu = voltage_pu_t{0.0};
         _machine_voltage_error_pu = voltage_pu_t{0.0};
-    }
-    else {
-        const voltage_pu_t reference_voltage =
-            voltage_pu_t{_voltage_reference_lookup_table.get_value(machine_speed_pu.value())};
-        _machine_voltage_reference_pu = reference_voltage;
-        _machine_voltage_error_pu = reference_voltage - machine_voltage_magnitude_pu;
-    }
 
-    if (is_low_voltage_region) {
         // Forced current region: pass-through forced current setpoint.
         _enable_excitation = true;
-        _field_current_reference_pu = forced_field_current_reference;
-        _last_forced_field_current_reference_pu = forced_field_current_reference;
+        _field_current_reference_pu = _forced_field_current_pu;
+        _last_forced_field_current_reference_pu = _forced_field_current_pu;
         _is_voltage_pi_active = false;
         return;
     }
 
     // Voltage regulation region: PI on voltage error -> field current reference.
+    const voltage_pu_t reference_voltage =
+        voltage_pu_t{_voltage_reference_lookup_table.get_value(machine_speed_pu.value())};
+    _machine_voltage_reference_pu = reference_voltage;
+    _machine_voltage_error_pu = reference_voltage - machine_voltage_magnitude_pu;
+
     const real_t voltage_error = _machine_voltage_error_pu.value();
 
     if (!_is_voltage_pi_active) {

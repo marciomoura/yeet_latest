@@ -48,22 +48,17 @@ void Thyristor_DO_Init(void);
  * making the code more readable and maintainable. Uses direct GPIO
  * register access for maximum speed.
  *
- * @param thyristor_a_plus  Phase A positive arm firing pulse (PC6)
- * @param thyristor_c_minus Phase C negative arm firing pulse (PB1)
- * @param thyristor_b_plus  Phase B positive arm firing pulse (PC7)
- * @param thyristor_a_minus Phase A negative arm firing pulse (PC9)
- * @param thyristor_c_plus  Phase C positive arm firing pulse (PC8)
- * @param thyristor_b_minus Phase B negative arm firing pulse (PB0)
+ * @param p1 Phase A positive arm firing pulse (PC6)
+ * @param p2 Phase C negative arm firing pulse (PB1)
+ * @param p3 Phase B positive arm firing pulse (PC7)
+ * @param p4 Phase A negative arm firing pulse (PC9)
+ * @param p5 Phase C positive arm firing pulse (PC8)
+ * @param p6 Phase B negative arm firing pulse (PB0)
  *
  * @note This function is optimized for real-time control (200µs interrupt)
  * @note Pin mapping follows the hardware schematic
  */
-void set_thyristor_pulses(bool thyristor_a_plus,
-    bool thyristor_c_minus,
-    bool thyristor_b_plus,
-    bool thyristor_a_minus,
-    bool thyristor_c_plus,
-    bool thyristor_b_minus);
+void set_thyristor_pulses(bool p1, bool p2, bool p3, bool p4, bool p5, bool p6);
 
 /**
  * @brief Set all thyristor pulses to OFF (safe state)

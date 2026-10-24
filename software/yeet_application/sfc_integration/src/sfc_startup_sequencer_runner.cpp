@@ -102,6 +102,10 @@ void sfc_startup_sequencer_runner::set_parameters()
     torque_cfg.initial = _parameters.virtual_torque_initial.read();
     torque_cfg.final = _parameters.virtual_torque_final.read();
     torque_cfg.duration = _parameters.virtual_torque_duration.read();
+    torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+    torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+    torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+    torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
     _sequencer.configure_virtual_torque(torque_cfg);
 
     // Configure speed reference rate limit
@@ -115,11 +119,14 @@ void sfc_startup_sequencer_runner::set_parameters()
     flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
     flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
     flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-    flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+    flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
     _sequencer.configure_flying_restart(flying_restart_cfg);
 
     // Configure force virtual mode operation
     _sequencer.configure_force_virtual_mode(_parameters.force_virtual_mode_operation.read());
+
+    // Configure skip flux buildup phase
+    _sequencer.configure_skip_flux_buildup(_parameters.skip_flux_buildup.read());
 }
 
 void sfc_startup_sequencer_runner::set_parameter_callback()
@@ -154,6 +161,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         torque_cfg.initial = _parameters.virtual_torque_initial.read();
         torque_cfg.final = _parameters.virtual_torque_final.read();
         torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
         _sequencer.configure_virtual_torque(torque_cfg);
     });
     _parameters.virtual_torque_final.register_callback([&]() {
@@ -161,6 +172,10 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         torque_cfg.initial = _parameters.virtual_torque_initial.read();
         torque_cfg.final = _parameters.virtual_torque_final.read();
         torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
         _sequencer.configure_virtual_torque(torque_cfg);
     });
     _parameters.virtual_torque_duration.register_callback([&]() {
@@ -168,6 +183,54 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         torque_cfg.initial = _parameters.virtual_torque_initial.read();
         torque_cfg.final = _parameters.virtual_torque_final.read();
         torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_enabled.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_kp.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_ti.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
+        _sequencer.configure_virtual_torque(torque_cfg);
+    });
+    _parameters.virtual_torque_damping_activation_speed.register_callback([&]() {
+        sfc::virtual_torque_config torque_cfg;
+        torque_cfg.initial = _parameters.virtual_torque_initial.read();
+        torque_cfg.final = _parameters.virtual_torque_final.read();
+        torque_cfg.duration = _parameters.virtual_torque_duration.read();
+        torque_cfg.damping_enabled = _parameters.virtual_torque_damping_enabled.read();
+        torque_cfg.damping_kp = _parameters.virtual_torque_damping_kp.read();
+        torque_cfg.damping_ti = _parameters.virtual_torque_damping_ti.read();
+        torque_cfg.damping_activation_speed = _parameters.virtual_torque_damping_activation_speed.read();
         _sequencer.configure_virtual_torque(torque_cfg);
     });
 
@@ -191,7 +254,7 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
     _parameters.flying_restart_voltage_threshold.register_callback([&]() {
@@ -199,7 +262,7 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
     _parameters.flying_restart_observer_settling_time.register_callback([&]() {
@@ -207,21 +270,25 @@ void sfc_startup_sequencer_runner::set_parameter_callback()
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
-    _parameters.auto_start_stop_enabled.register_callback([&]() {
+    _parameters.flying_restart_enabled.register_callback([&]() {
         sfc::flying_restart_config flying_restart_cfg;
         flying_restart_cfg.speed_threshold = _parameters.flying_restart_speed_threshold.read();
         flying_restart_cfg.voltage_threshold = _parameters.flying_restart_voltage_threshold.read();
         flying_restart_cfg.observer_settling_time = _parameters.flying_restart_observer_settling_time.read();
-        flying_restart_cfg.auto_start_stop_enabled = _parameters.auto_start_stop_enabled.read();
+        flying_restart_cfg.flying_restart_enabled = _parameters.flying_restart_enabled.read();
         _sequencer.configure_flying_restart(flying_restart_cfg);
     });
 
     // Register callback for force virtual mode operation
     _parameters.force_virtual_mode_operation.register_callback(
         [&]() { _sequencer.configure_force_virtual_mode(_parameters.force_virtual_mode_operation.read()); });
+
+    // Register callback for skip flux buildup phase
+    _parameters.skip_flux_buildup.register_callback(
+        [&]() { _sequencer.configure_skip_flux_buildup(_parameters.skip_flux_buildup.read()); });
 }
 
 void sfc_startup_sequencer_runner::clamp_speed_reference_to_virtual_frequency_final()
